@@ -4,8 +4,7 @@ import { projectDb, DbProject } from './project_database';
 // Helper function to handle errors consistently
 function handleError(context: string, error: unknown): void {
   const errorMessage = error instanceof Error ? error.message : String(error);
-  // In production, this could integrate with a logging service
-  // Error is handled and propagated through try-catch blocks
+  console.error(`[ProjectServiceDb] ${context}: ${errorMessage}`);
 }
 
 // Map legacy 'other' type to 'generic'

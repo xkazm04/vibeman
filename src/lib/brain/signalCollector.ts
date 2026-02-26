@@ -3,7 +3,7 @@
  * Central service for capturing and storing behavioral signals
  */
 
-import { behavioralSignalDb, contextDb } from '@/app/db';
+import { behavioralSignalDb, contextDb, predictiveIntentDb } from '@/app/db';
 import type {
   BehavioralSignalType,
   GitActivitySignalData,
@@ -28,6 +28,8 @@ function generateSignalId(): string {
  */
 const recentSignalHashes = new Map<string, number>();
 const DEDUP_WINDOW_MS = 60_000; // 60 seconds
+const DEDUP_SOFT_CAP = 500;     // trigger time-based cleanup
+const DEDUP_HARD_CAP = 1000;    // force eviction of oldest entries
 
 function createSignalHash(projectId: string, signalType: string, data: string): string {
   // Simple hash: first 100 chars of data + type + project
@@ -46,16 +48,64 @@ function isDuplicate(projectId: string, signalType: string, data: string): boole
 
   recentSignalHashes.set(hash, now);
 
-  // Cleanup old entries periodically (every 100 entries)
-  if (recentSignalHashes.size > 500) {
+  // Cleanup old entries when past soft cap
+  if (recentSignalHashes.size > DEDUP_SOFT_CAP) {
     for (const [key, time] of recentSignalHashes.entries()) {
       if (now - time > DEDUP_WINDOW_MS) {
         recentSignalHashes.delete(key);
       }
     }
+
+    // Hard cap: if still too large, evict oldest entries
+    if (recentSignalHashes.size > DEDUP_HARD_CAP) {
+      const entries = Array.from(recentSignalHashes.entries()).sort((a, b) => a[1] - b[1]);
+      const toRemove = entries.length - DEDUP_SOFT_CAP;
+      for (let i = 0; i < toRemove; i++) {
+        recentSignalHashes.delete(entries[i][0]);
+      }
+    }
   }
 
   return false;
+}
+
+/**
+ * Last-seen context per project for transition tracking.
+ * Tracks { contextId, contextName, timestamp } so we can detect context switches.
+ */
+const lastContextPerProject = new Map<string, { contextId: string; contextName: string; timestamp: number }>();
+const TRANSITION_MAX_GAP_MS = 3600000; // 1 hour max gap
+
+function recordContextTransition(
+  projectId: string,
+  toContextId: string,
+  toContextName: string,
+  signalType: string
+): void {
+  const now = Date.now();
+  const prev = lastContextPerProject.get(projectId);
+
+  // Update the last context
+  lastContextPerProject.set(projectId, { contextId: toContextId, contextName: toContextName, timestamp: now });
+
+  // If there's a previous context and it's different, record a transition
+  if (prev && prev.contextId !== toContextId && (now - prev.timestamp) < TRANSITION_MAX_GAP_MS) {
+    try {
+      predictiveIntentDb.createTransition({
+        id: `tr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        project_id: projectId,
+        from_context_id: prev.contextId,
+        from_context_name: prev.contextName,
+        to_context_id: toContextId,
+        to_context_name: toContextName,
+        transition_time_ms: now - prev.timestamp,
+        signal_type: signalType,
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      // Best-effort transition recording
+    }
+  }
 }
 
 /**
@@ -155,6 +205,11 @@ export const signalCollector = {
         weight: calculateContextWeight(data),
         timestamp: new Date().toISOString(),
       });
+
+      // Track context transition for predictive intent engine
+      if (data.contextId && data.contextName) {
+        recordContextTransition(projectId, data.contextId, data.contextName, 'context_focus');
+      }
     } catch (error) {
       console.error('[SignalCollector] Failed to record context focus:', error);
     }
@@ -198,6 +253,7 @@ export const signalCollector = {
       accepted: boolean;
       contextId: string | null;
       contextName: string | null;
+      rejectionReason?: string | null;
     }
   ): void => {
     try {

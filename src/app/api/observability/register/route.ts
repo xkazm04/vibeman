@@ -68,8 +68,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Apply sampling
-    if (config.sample_rate < 1.0 && Math.random() > config.sample_rate) {
+    // Apply sampling — default to 1.0 (track everything) if sample_rate is invalid
+    const sampleRate = typeof config.sample_rate === 'number' && Number.isFinite(config.sample_rate)
+      ? Math.max(0, Math.min(1, config.sample_rate))
+      : 1.0;
+    if (sampleRate < 1.0 && Math.random() > sampleRate) {
       return NextResponse.json({
         success: true,
         stored: false,

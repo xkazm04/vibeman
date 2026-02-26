@@ -556,34 +556,31 @@ export const monitorDb = {
   // Delete patterns containing a specific call_id
   deletePatternsForCall: (callId: string): number => {
     const db = getMonitorDatabase();
-    // Find patterns that contain this call_id in their example_call_ids JSON array
-    const patterns = db.prepare('SELECT * FROM patterns').all() as DbPattern[];
+    // Use SQL LIKE to filter only patterns containing this callId, avoiding full-table scan
+    const patterns = db.prepare(
+      'SELECT * FROM patterns WHERE example_call_ids LIKE ?'
+    ).all(`%${callId}%`) as DbPattern[];
     let deletedCount = 0;
-    
+
     for (const pattern of patterns) {
-      if (pattern.example_call_ids) {
-        try {
-          const callIds = JSON.parse(pattern.example_call_ids) as string[];
-          if (callIds.includes(callId)) {
-            // Remove this call_id from the array
-            const updatedCallIds = callIds.filter(id => id !== callId);
-            
-            if (updatedCallIds.length === 0) {
-              // Delete pattern if no call examples remain
-              db.prepare('DELETE FROM patterns WHERE pattern_id = ?').run(pattern.pattern_id);
-              deletedCount++;
-            } else {
-              // Update pattern with remaining call_ids
-              db.prepare('UPDATE patterns SET example_call_ids = ?, updated_at = datetime("now") WHERE pattern_id = ?')
-                .run(JSON.stringify(updatedCallIds), pattern.pattern_id);
-            }
-          }
-        } catch (error) {
-          logError(`Error processing pattern ${pattern.pattern_id}`, error);
+      try {
+        const callIds = JSON.parse(pattern.example_call_ids!) as string[];
+        if (!callIds.includes(callId)) continue; // LIKE matched a substring, not exact ID
+
+        const updatedCallIds = callIds.filter(id => id !== callId);
+
+        if (updatedCallIds.length === 0) {
+          db.prepare('DELETE FROM patterns WHERE pattern_id = ?').run(pattern.pattern_id);
+          deletedCount++;
+        } else {
+          db.prepare('UPDATE patterns SET example_call_ids = ?, updated_at = datetime("now") WHERE pattern_id = ?')
+            .run(JSON.stringify(updatedCallIds), pattern.pattern_id);
         }
+      } catch (error) {
+        logError(`Error processing pattern ${pattern.pattern_id}`, error);
       }
     }
-    
+
     return deletedCount;
   },
 

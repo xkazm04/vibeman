@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Layers, Map } from 'lucide-react';
 import { Caveat } from 'next/font/google';
+import { useShallow } from 'zustand/react/shallow';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
@@ -11,7 +12,7 @@ import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useGlobalIdeaStats } from '@/hooks/useGlobalIdeaStats';
 import { useProjectUpdatesStore } from '@/stores/projectUpdatesStore';
 import { useWorkspaceFilteredProjects } from '@/hooks/useWorkspaceFilteredProjects';
-import { useThemeStore } from '@/stores/themeStore';
+import { useThemeStore, THEME_CONFIGS } from '@/stores/themeStore';
 
 const caveat = Caveat({
   weight: ['400', '500', '600', '700'],
@@ -19,16 +20,44 @@ const caveat = Caveat({
   display: 'swap',
 });
 
-export default function ShortcutsBar() {
-  const { toggleControlPanel, isControlPanelOpen, isBlueprintOpen } = useOnboardingStore();
-  const { workspaces, activeWorkspaceId, setActiveWorkspace, syncWithServer: syncWorkspaces } = useWorkspaceStore();
-  const { syncWithServer } = useServerProjectStore();
-  const { selectedProjectId, setSelectedProjectId, setActiveProject } = useClientProjectStore();
+export default memo(function ShortcutsBar() {
+  // Onboarding: data via useShallow, action via individual selector
+  const { isControlPanelOpen, isBlueprintOpen } = useOnboardingStore(useShallow(s => ({
+    isControlPanelOpen: s.isControlPanelOpen,
+    isBlueprintOpen: s.isBlueprintOpen,
+  })));
+  const toggleControlPanel = useOnboardingStore(s => s.toggleControlPanel);
+
+  // Workspace: data via useShallow, actions via individual selectors
+  const { workspaces, activeWorkspaceId } = useWorkspaceStore(useShallow(s => ({
+    workspaces: s.workspaces,
+    activeWorkspaceId: s.activeWorkspaceId,
+  })));
+  const setActiveWorkspace = useWorkspaceStore(s => s.setActiveWorkspace);
+  const syncWorkspaces = useWorkspaceStore(s => s.syncWithServer);
+
+  // Server project: action only
+  const syncWithServer = useServerProjectStore(s => s.syncWithServer);
+
+  // Client project: data + actions individually
+  const selectedProjectId = useClientProjectStore(s => s.selectedProjectId);
+  const setSelectedProjectId = useClientProjectStore(s => s.setSelectedProjectId);
+  const setActiveProject = useClientProjectStore(s => s.setActiveProject);
+
+  // Idea stats (custom hook - already isolated)
   const { stats, loading: statsLoading } = useGlobalIdeaStats();
-  const { updateCount, lastUpdate } = useProjectUpdatesStore();
+
+  // Project updates: data via useShallow
+  const { updateCount, lastUpdate } = useProjectUpdatesStore(useShallow(s => ({
+    updateCount: s.updateCount,
+    lastUpdate: s.lastUpdate,
+  })));
+
   const filteredProjects = useWorkspaceFilteredProjects();
-  const { getThemeColors } = useThemeStore();
-  const colors = getThemeColors();
+
+  // Theme: select primitive, derive colors via useMemo
+  const theme = useThemeStore(s => s.theme);
+  const colors = useMemo(() => THEME_CONFIGS[theme].colors, [theme]);
 
   const [workspaceDrawerOpen, setWorkspaceDrawerOpen] = useState(false);
 
@@ -202,4 +231,4 @@ export default function ShortcutsBar() {
       </div>
     </div>
   );
-}
+});

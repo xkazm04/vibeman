@@ -39,7 +39,7 @@ export const PerformanceScanButton: React.FC<PerformanceScanButtonProps> = ({
     <motion.button
       onClick={handleClick}
       disabled={scanning}
-      className="relative flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-200 disabled:cursor-not-allowed"
+      className="relative flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
       style={{
         backgroundColor: scanning ? `${color}30` : `${color}15`,
         borderColor: `${color}40`,

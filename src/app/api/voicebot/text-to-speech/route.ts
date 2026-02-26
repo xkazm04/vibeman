@@ -17,6 +17,9 @@ function getTTSCacheKey(text: string): string {
   return createHash('sha256').update(text).digest('hex');
 }
 
+/** In-flight promise deduplication to coalesce concurrent requests for the same text */
+const inflightTTS = new Map<string, Promise<SynthesizeSpeechResult>>();
+
 function cleanTTSCache(): void {
   if (ttsCache.size <= TTS_CACHE_MAX_ENTRIES) return;
   const now = Date.now();
@@ -41,6 +44,7 @@ export interface SynthesizeSpeechResult {
 /**
  * Core TTS synthesis logic. Reusable by both the route handler and test-session endpoint.
  * Returns the audio bytes, cache status, and time taken.
+ * Deduplicates concurrent requests for the same text into a single API call.
  */
 export async function synthesizeSpeech(text: string): Promise<SynthesizeSpeechResult> {
   if (!ELEVENLABS_API_KEY) {
@@ -48,14 +52,35 @@ export async function synthesizeSpeech(text: string): Promise<SynthesizeSpeechRe
   }
 
   const start = Date.now();
+  const cacheKey = getTTSCacheKey(text);
 
   // Check TTS cache
-  const cacheKey = getTTSCacheKey(text);
   const cached = ttsCache.get(cacheKey);
   if (cached && Date.now() < cached.expiry) {
     return { audio: cached.audio, cached: true, durationMs: Date.now() - start };
   }
 
+  // Coalesce concurrent requests for the same text
+  const inflight = inflightTTS.get(cacheKey);
+  if (inflight) {
+    return inflight;
+  }
+
+  const promise = synthesizeSpeechInternal(text, cacheKey, start);
+  inflightTTS.set(cacheKey, promise);
+
+  try {
+    return await promise;
+  } finally {
+    inflightTTS.delete(cacheKey);
+  }
+}
+
+async function synthesizeSpeechInternal(
+  text: string,
+  cacheKey: string,
+  start: number
+): Promise<SynthesizeSpeechResult> {
   // Split long text into sentence chunks for better TTS quality
   const chunks = text.length > 500 ? splitIntoSentences(text) : [text];
   const audioBuffers: ArrayBuffer[] = [];
@@ -68,7 +93,7 @@ export async function synthesizeSpeech(text: string): Promise<SynthesizeSpeechRe
       headers: {
         'Accept': 'audio/mpeg',
         'Content-Type': 'application/json',
-        'xi-api-key': ELEVENLABS_API_KEY,
+        'xi-api-key': ELEVENLABS_API_KEY!,
       },
       body: JSON.stringify({
         text: chunk.trim(),

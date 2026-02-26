@@ -328,6 +328,28 @@ export const contextGroupRelationshipQueries = {
 
 // Context Queries
 export const contextQueries = {
+  // Get a single context by ID (O(1) primary key lookup)
+  getContextById: async (contextId: string): Promise<Context | null> => {
+    return handleAsyncOperation(
+      async () => {
+        const dbContext = contextDb.getContextById(contextId);
+        return dbContext ? dbContextToContext(dbContext) : null;
+      },
+      'Failed to fetch context by ID'
+    );
+  },
+
+  // Get a single context by name and project ID (case-insensitive)
+  getContextByName: async (name: string, projectId: string): Promise<Context | null> => {
+    return handleAsyncOperation(
+      async () => {
+        const dbContext = contextDb.getContextByName(name, projectId);
+        return dbContext ? dbContextToContext(dbContext) : null;
+      },
+      'Failed to fetch context by name'
+    );
+  },
+
   // Get all contexts for a project
   getContextsByProject: async (projectId: string): Promise<Context[]> => {
     return handleAsyncOperation(
@@ -460,19 +482,12 @@ export const contextQueries = {
     }
   },
 
-  // Batch move contexts to new groups
+  // Batch move contexts to new groups (2 queries instead of 2N)
   batchMoveContexts: async (moves: Array<{ contextId: string; newGroupId: string | null }>): Promise<Context[]> => {
     return handleAsyncOperation(
       async () => {
-        const results: Context[] = [];
-        for (const move of moves) {
-          const updateData = { group_id: move.newGroupId };
-          const dbContext = contextDb.updateContext(move.contextId, updateData);
-          if (dbContext) {
-            results.push(dbContextToContext(dbContext));
-          }
-        }
-        return results;
+        const dbContexts = contextDb.batchMoveContexts(moves);
+        return dbContexts.map(dbContextToContext);
       },
       'Failed to batch move contexts'
     );

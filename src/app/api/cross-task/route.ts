@@ -61,19 +61,38 @@ export async function POST(request: Request) {
       // Get contexts for this project
       const contexts = contextDb.getContextsByProject(project.id);
 
+      const validCategories = new Set(['ui', 'lib', 'api', 'data']);
+
       const contextData: CrossTaskContextData = {
         projectId: project.id,
         projectName: project.name,
         projectPath: project.path,
-        contexts: contexts.map((ctx) => ({
-          id: ctx.id,
-          name: ctx.name,
-          businessFeature: ctx.business_feature || null,
-          category: ctx.category as 'ui' | 'lib' | 'api' | 'data' | null,
-          apiRoutes: ctx.api_routes ? JSON.parse(ctx.api_routes) : null,
-          filePaths: ctx.file_paths ? JSON.parse(ctx.file_paths) : [],
-          contextFilePath: ctx.context_file_path || null,
-        })),
+        contexts: contexts.map((ctx) => {
+          let apiRoutes: string[] | null = null;
+          let filePaths: string[] = [];
+
+          try {
+            apiRoutes = ctx.api_routes ? JSON.parse(ctx.api_routes) : null;
+          } catch {
+            // Corrupt JSON in api_routes column - fall back to null
+          }
+
+          try {
+            filePaths = ctx.file_paths ? JSON.parse(ctx.file_paths) : [];
+          } catch {
+            // Corrupt JSON in file_paths column - fall back to empty array
+          }
+
+          return {
+            id: ctx.id,
+            name: ctx.name,
+            businessFeature: ctx.business_feature || null,
+            category: (ctx.category && validCategories.has(ctx.category) ? ctx.category : null) as 'ui' | 'lib' | 'api' | 'data' | null,
+            apiRoutes,
+            filePaths,
+            contextFilePath: ctx.context_file_path || null,
+          };
+        }),
       };
 
       projectContexts.push(contextData);

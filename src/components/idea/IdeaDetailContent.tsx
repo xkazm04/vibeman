@@ -5,6 +5,7 @@ import { AIErrorDisplay } from '@/components/ui';
 import IdeaDetailMeta from './IdeaDetailMeta';
 import IdeaDetailDescription from './IdeaDetailDescription';
 import IdeaDetailFeedback from './IdeaDetailFeedback';
+import IdeaDependencySection from './IdeaDependencySection';
 
 interface RequirementError {
   message: string;
@@ -102,6 +103,9 @@ export default function IdeaDetailContent({
 
       {/* Reasoning */}
       {idea.reasoning && <ReasoningSection reasoning={idea.reasoning} />}
+
+      {/* Related Ideas / Dependencies */}
+      <IdeaDependencySection ideaId={idea.id} />
 
       {/* User Feedback Section */}
       <IdeaDetailFeedback

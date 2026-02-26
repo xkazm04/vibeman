@@ -12,6 +12,7 @@ import {
   emitTaskSessionLimit,
 } from '@/lib/brain/taskNotificationEmitter';
 import { signalCollector } from '@/lib/brain/signalCollector';
+import { invalidateContextCache } from '@/app/api/brain/context/route';
 import { onTaskCompleted } from '@/lib/collective-memory/taskCompletionHook';
 import { emitTaskChange } from './taskChangeEmitter';
 
@@ -175,11 +176,20 @@ class ClaudeExecutionQueue {
   }
 
   /**
-   * Get tasks for a specific project
+   * Get tasks for a specific project by path
    */
   getProjectTasks(projectPath: string): ExecutionTask[] {
     return Array.from(this.tasks.values()).filter(
       (task) => task.projectPath === projectPath
+    );
+  }
+
+  /**
+   * Get tasks for a specific project by ID
+   */
+  getTasksByProjectId(projectId: string): ExecutionTask[] {
+    return Array.from(this.tasks.values()).filter(
+      (task) => task.projectId === projectId
     );
   }
 
@@ -238,6 +248,8 @@ class ClaudeExecutionQueue {
           success: true,
           executionTimeMs: duration || 0,
         });
+        // Invalidate Brain context cache so dashboard reflects new signal
+        invalidateContextCache(task.projectId);
       } catch {
         // Signal recording must never break the main flow
       }
@@ -319,6 +331,8 @@ class ClaudeExecutionQueue {
           executionTimeMs: duration || 0,
           error,
         });
+        // Invalidate Brain context cache so dashboard reflects new signal
+        invalidateContextCache(task.projectId);
       } catch {
         // Signal recording must never break the main flow
       }

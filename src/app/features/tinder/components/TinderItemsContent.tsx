@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Sparkles, Trash2, RefreshCw } from 'lucide-react';
+import { Loader2, Sparkles, Trash2, RefreshCw, Link2, AlertTriangle, Zap } from 'lucide-react';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
 import { GradientButton } from '@/components/ui';
@@ -24,8 +24,9 @@ import {
 } from '../lib/tinderTypes';
 import { flushTinderItems } from '../lib/tinderItemsApi';
 import { Context } from '@/lib/queries/contextQueries';
-import { getContextNameFromMap } from '@/app/features/Ideas/lib/contextLoader';
+import { buildContextLookup, getContextNameFromLookup } from '@/app/features/Ideas/lib/contextLoader';
 import type { IdeaVariant } from '../lib/variantApi';
+import type { PrerequisiteNotification } from '../lib/tinderTypes';
 
 // Tinder keyboard hints
 const TINDER_KEYBOARD_HINTS = [
@@ -110,6 +111,9 @@ interface TinderItemsContentProps {
   onAcceptPairVariant?: (pairId: string, variant: 'A' | 'B') => Promise<void>;
   onRejectPair?: (pairId: string) => Promise<void>;
   onDeletePair?: (pairId: string) => Promise<void>;
+  // Dependency awareness
+  prerequisiteNotification?: PrerequisiteNotification | null;
+  onDismissPrerequisiteNotification?: () => void;
 }
 
 export default function TinderItemsContent({
@@ -131,6 +135,8 @@ export default function TinderItemsContent({
   onAcceptPairVariant,
   onRejectPair,
   onDeletePair,
+  prerequisiteNotification,
+  onDismissPrerequisiteNotification,
 }: TinderItemsContentProps) {
   const { getProject, projects } = useProjectConfigStore();
   const { selectedProjectId } = useUnifiedProjectStore();
@@ -139,6 +145,7 @@ export default function TinderItemsContent({
   const [flushSuccess, setFlushSuccess] = React.useState(false);
   const [showVariants, setShowVariants] = React.useState(false);
   const [showRejectionPicker, setShowRejectionPicker] = React.useState(false);
+  const contextLookup = React.useMemo(() => buildContextLookup(contextsMap), [contextsMap]);
 
   // Reset variant view and rejection picker when current item changes
   React.useEffect(() => {
@@ -355,6 +362,53 @@ export default function TinderItemsContent({
         )}
       </div>
 
+      {/* Prerequisite/Unlock Notification Banner */}
+      <AnimatePresence>
+        {prerequisiteNotification && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, y: -10, height: 0 }}
+            className="mb-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                <Link2 className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-amber-300 mb-1.5">
+                    Dependencies for &quot;{prerequisiteNotification.acceptedTitle}&quot;
+                  </p>
+                  {prerequisiteNotification.prerequisites.length > 0 && (
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <AlertTriangle className="w-3 h-3 text-orange-400 flex-shrink-0" />
+                      <span className="text-xs text-gray-400">
+                        {prerequisiteNotification.prerequisites.length} prerequisite{prerequisiteNotification.prerequisites.length > 1 ? 's' : ''} pending:{' '}
+                        {prerequisiteNotification.prerequisites.map(p => p.title).join(', ')}
+                      </span>
+                    </div>
+                  )}
+                  {prerequisiteNotification.unlocks.length > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <Zap className="w-3 h-3 text-green-400 flex-shrink-0" />
+                      <span className="text-xs text-gray-400">
+                        Unlocks {prerequisiteNotification.unlocks.length} idea{prerequisiteNotification.unlocks.length > 1 ? 's' : ''}:{' '}
+                        {prerequisiteNotification.unlocks.map(u => u.title).join(', ')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={onDismissPrerequisiteNotification}
+                className="text-amber-500/60 hover:text-amber-400 transition-colors flex-shrink-0"
+              >
+                <span className="text-xs">Dismiss</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Card Stack or Variant Carousel */}
       <AnimatePresence mode="wait">
         {showVariants && currentItem && isIdeaItem(currentItem) ? (
@@ -402,7 +456,7 @@ export default function TinderItemsContent({
 
                   if (isIdeaItem(item)) {
                     const contextName = item.data.context_id
-                      ? getContextNameFromMap(item.data.context_id, contextsMap)
+                      ? getContextNameFromLookup(item.data.context_id, contextLookup)
                       : 'General';
                     const goalTitle = item.data.goal_id ? goalTitlesMap[item.data.goal_id] : undefined;
 

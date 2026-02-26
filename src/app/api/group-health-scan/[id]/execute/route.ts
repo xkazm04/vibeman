@@ -14,6 +14,7 @@ import { buildPerformanceScanPrompt } from '@/app/features/Context/sub_ContextGr
 import { buildProductionScanPrompt } from '@/app/features/Context/sub_ContextGroups/lib/productionScanPrompt';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
+import { aiOrchestrator } from '@/lib/ai/aiOrchestrator';
 
 type ScanType = 'refactor' | 'beautify' | 'performance' | 'production';
 
@@ -90,6 +91,13 @@ async function handlePost(
       );
     }
 
+    // Build enriched context graph for architectural awareness
+    const contextGroupInfo = aiOrchestrator.buildScanContext(
+      scan.project_id,
+      scan.group_id,
+      filePaths
+    );
+
     // Build the scan prompt based on scan type
     const promptOptions = {
       groupName: group.name,
@@ -98,6 +106,7 @@ async function handlePost(
       projectPath,
       filePaths,
       autoFix: true,
+      contextGroupInfo,
     };
 
     let prompt: string;

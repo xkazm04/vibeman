@@ -36,11 +36,29 @@ export const contextRepository = {
   },
 
   /**
-   * Get a single context by ID
+   * Get a single context by ID (with group info)
    */
   getContextById: (contextId: string): DbContext | null => {
     const db = getDatabase();
-    return selectOne<DbContext>(db, 'SELECT * FROM contexts WHERE id = ?', contextId);
+    return selectOne<DbContext>(db, `
+      SELECT c.*, cg.name as group_name, cg.color as group_color
+      FROM contexts c
+      LEFT JOIN context_groups cg ON c.group_id = cg.id
+      WHERE c.id = ?
+    `, contextId);
+  },
+
+  /**
+   * Find a context by name and project ID (case-insensitive)
+   */
+  getContextByName: (name: string, projectId: string): DbContext | null => {
+    const db = getDatabase();
+    return selectOne<DbContext>(db, `
+      SELECT c.*, cg.name as group_name, cg.color as group_color
+      FROM contexts c
+      LEFT JOIN context_groups cg ON c.group_id = cg.id
+      WHERE c.project_id = ? AND LOWER(c.name) = LOWER(?)
+    `, projectId, name);
   },
 
   /**
@@ -320,6 +338,44 @@ export const contextRepository = {
     const stmt = db.prepare('DELETE FROM contexts WHERE project_id = ?');
     const result = stmt.run(projectId);
     return result.changes;
+  },
+
+  /**
+   * Batch move contexts to new groups in 2 queries (1 UPDATE + 1 SELECT)
+   * instead of 2N queries (N UPDATEs + N SELECTs)
+   */
+  batchMoveContexts: (moves: Array<{ contextId: string; newGroupId: string | null }>): DbContext[] => {
+    if (moves.length === 0) return [];
+
+    const db = getDatabase();
+    const now = new Date().toISOString();
+    const ids = moves.map(m => m.contextId);
+
+    // Build CASE/WHEN for group_id assignments
+    const caseParts: string[] = [];
+    const caseValues: (string | null)[] = [];
+    for (const move of moves) {
+      caseParts.push('WHEN id = ? THEN ?');
+      caseValues.push(move.contextId, move.newGroupId);
+    }
+
+    const placeholders = ids.map(() => '?').join(', ');
+
+    // Single UPDATE with CASE/WHEN
+    db.prepare(`
+      UPDATE contexts
+      SET group_id = CASE ${caseParts.join(' ')} END,
+          updated_at = ?
+      WHERE id IN (${placeholders})
+    `).run(...caseValues, now, ...ids);
+
+    // Single SELECT to fetch all updated rows
+    return db.prepare(`
+      SELECT c.*, cg.name as group_name, cg.color as group_color
+      FROM contexts c
+      LEFT JOIN context_groups cg ON c.group_id = cg.id
+      WHERE c.id IN (${placeholders})
+    `).all(...ids) as DbContext[];
   },
 
   /**

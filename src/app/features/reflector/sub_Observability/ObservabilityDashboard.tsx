@@ -103,8 +103,62 @@ export default function ObservabilityDashboard() {
   }, [projectId, days]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    let cancelled = false;
+
+    const load = async () => {
+      if (!projectId) {
+        setState(s => ({ ...s, loading: false, error: 'No project selected' }));
+        return;
+      }
+
+      setState(s => ({ ...s, loading: true, error: null }));
+
+      try {
+        const registration = await checkProjectRegistration(projectId);
+
+        if (cancelled) return;
+
+        if (!registration.hasData) {
+          setState(s => ({
+            ...s,
+            loading: false,
+            hasData: false,
+            registered: registration.registered,
+            enabled: registration.enabled,
+            config: registration.config,
+          }));
+          return;
+        }
+
+        const statsResponse = await fetchObservabilityStats(projectId, days);
+
+        if (cancelled) return;
+
+        setState({
+          loading: false,
+          error: null,
+          hasData: statsResponse.hasData,
+          registered: registration.registered,
+          enabled: registration.enabled,
+          stats: statsResponse.stats,
+          topEndpoints: statsResponse.topEndpoints || [],
+          highErrorEndpoints: statsResponse.highErrorEndpoints || [],
+          config: registration.config,
+        });
+      } catch (error) {
+        if (!cancelled) {
+          setState(s => ({
+            ...s,
+            loading: false,
+            error: error instanceof Error ? error.message : 'Failed to load data',
+          }));
+        }
+      }
+    };
+
+    load();
+    return () => { cancelled = true; };
+  }, [projectId, days]);
 
   const handleToggleEnabled = async () => {
     if (!projectId || !state.config) return;

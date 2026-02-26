@@ -5,8 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { getActiveRemoteConfig } from '@/lib/remote/config.server';
+import { getRemoteSupabase } from '@/lib/remote/supabaseClient';
 
 // Mesh command types (different from Butler command types)
 type MeshCommandType =
@@ -37,9 +36,8 @@ interface MeshCommandRequest {
  */
 export async function GET(request: NextRequest) {
   try {
-    const config = getActiveRemoteConfig();
-
-    if (!config) {
+    const supabase = getRemoteSupabase();
+    if (!supabase) {
       return NextResponse.json(
         { success: false, error: 'Remote not configured' },
         { status: 400 }
@@ -51,13 +49,6 @@ export async function GET(request: NextRequest) {
     const targetDeviceId = searchParams.get('target_device_id');
     const status = searchParams.get('status');
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 100);
-
-    const supabase = createClient(config.url, config.serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
 
     // If command_id is specified, fetch that specific command
     if (commandId) {
@@ -125,15 +116,6 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const config = getActiveRemoteConfig();
-
-    if (!config) {
-      return NextResponse.json(
-        { success: false, error: 'Remote not configured' },
-        { status: 400 }
-      );
-    }
-
     const body = (await request.json()) as MeshCommandRequest;
 
     // Validate required fields
@@ -168,12 +150,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient(config.url, config.serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
+    const supabase = getRemoteSupabase();
+    if (!supabase) {
+      return NextResponse.json(
+        { success: false, error: 'Remote not configured' },
+        { status: 400 }
+      );
+    }
 
     // Insert command with target_device_id
     const { data: command, error: insertError } = await supabase

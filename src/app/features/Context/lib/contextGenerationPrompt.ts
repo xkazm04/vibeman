@@ -6,7 +6,7 @@
  * Supports both single-codebase and multi-codebase projects.
  */
 
-import { readFileSync } from 'fs';
+import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { detectSubProjects, type ProjectStructure, type SubProject } from './detectSubProjects';
 
@@ -20,10 +20,10 @@ export interface ContextGenerationPromptParams {
 /**
  * Load the context map generator skill markdown
  */
-function loadSkillPrompt(): string {
+async function loadSkillPrompt(): Promise<string> {
   try {
     const skillPath = join(process.cwd(), 'src/lib/blueprint/prompts/templates/context-map-generator.md');
-    return readFileSync(skillPath, 'utf-8');
+    return await readFile(skillPath, 'utf-8');
   } catch (error) {
     console.error('[ContextGeneration] Failed to load skill prompt:', error);
     // Return a minimal fallback prompt
@@ -102,13 +102,14 @@ ${subProjectDescriptions}
 /**
  * Build the full context generation prompt
  */
-export function buildContextGenerationPrompt(params: ContextGenerationPromptParams): string {
+export async function buildContextGenerationPrompt(params: ContextGenerationPromptParams): Promise<string> {
   const { projectId, projectName, projectPath, projectType } = params;
 
-  const skillPrompt = loadSkillPrompt();
+  const [skillPrompt, projectStructure] = await Promise.all([
+    loadSkillPrompt(),
+    detectSubProjects(projectPath),
+  ]);
 
-  // Detect multi-codebase project structure
-  const projectStructure = detectSubProjects(projectPath);
   const multiCodebaseSection = buildMultiCodebaseSection(projectStructure);
   const structureLabel = projectStructure.isMultiCodebase
     ? `Multi-codebase (${projectStructure.subProjects.length} sub-projects)`

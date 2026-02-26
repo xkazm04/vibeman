@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { FeaturedHero } from './components/FeaturedHero';
 import { CategoryTabs } from './components/CategoryTabs';
 import { ComponentTable } from './components/ComponentTable';
@@ -70,31 +70,6 @@ export default function HallOfFameLayout() {
   return (
     <div className="min-h-full bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950">
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-10"
-        >
-          <div className="flex items-center gap-4 mb-3">
-            <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500/20 via-yellow-500/10 to-orange-500/20 border border-amber-500/30 shadow-lg shadow-amber-500/10">
-              <Trophy className="w-7 h-7 text-amber-400" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent">
-                Hall of Fame
-              </h1>
-              <p className="text-gray-400 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-400" />
-                <span>Showcase of best component concepts</span>
-                <span className="px-2 py-0.5 text-xs bg-gray-800/60 text-gray-500 rounded-full ml-2">
-                  {totalCount} components
-                </span>
-              </p>
-            </div>
-          </div>
-        </motion.div>
-
         {/* Featured Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

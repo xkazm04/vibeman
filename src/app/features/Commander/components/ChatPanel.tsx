@@ -106,7 +106,7 @@ export default function ChatPanel() {
                 {last.quickOptions.map((opt: QuickOption, i: number) => (
                   <button
                     key={i}
-                    onClick={() => sendMessage(opt.message)}
+                    onClick={() => sendMessage(opt.message).catch(() => {})}
                     className="px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-medium hover:bg-cyan-500/20 transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 outline-none"
                   >
                     {opt.label}

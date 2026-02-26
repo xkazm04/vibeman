@@ -138,7 +138,7 @@ export function generateGlassGradient(baseColor: string, accentColor?: string): 
   const accent = accentColor ? hexToRgb(accentColor) : rgb;
 
   const result = {
-    background: `linear-gradient(135deg, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.08) 0%, rgba(${accent.r}, ${accent.g}, ${accent.b}, 0.04) 50%, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.02) 100%)`,
+    background: `linear-gradient(135deg, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.03) 0%, transparent 40%, rgba(${accent.r}, ${accent.g}, ${accent.b}, 0.02) 100%)`,
     borderColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.2)`,
     shadowColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.15)`,
     glowColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`,

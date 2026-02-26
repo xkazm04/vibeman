@@ -44,6 +44,11 @@ import { migrate114QuestionTree } from './114_question_tree';
 import { migrate115DirectionEffortImpact } from './115_direction_effort_impact';
 import { migrate116AnnetteRapport } from './116_annette_rapport';
 import { migrate117AutonomousAgent } from './117_autonomous_agent';
+import { migrate118IdeasCategoryCompositeIndex } from './118_ideas_category_composite_index';
+import { migrate119PredictiveIntent } from './119_predictive_intent';
+import { migrate120SchemaIntelligence } from './120_schema_intelligence';
+import { migrate121ScanProfiles } from './121_scan_profiles';
+import { migrate122IdeaDependencies } from './122_idea_dependencies';
 
 /**
  * Migration logger utility
@@ -51,22 +56,16 @@ import { migrate117AutonomousAgent } from './117_autonomous_agent';
  */
 const migrationLogger: MigrationLogger = {
   info: (message: string) => {
-    // In production, this could write to a file or logging service
     if (process.env.NODE_ENV !== 'test') {
-      // Silent in test environment to avoid noise
-      // In production, consider using a proper logging library
+      console.log(`[migration] ${message}`);
     }
   },
   error: (message: string, error?: unknown) => {
-    // In production, this should be logged to error tracking
-    if (process.env.NODE_ENV !== 'test') {
-      // Silent in test environment
-      // In production, consider using a proper logging library
-    }
+    console.error(`[migration] ${message}`, error instanceof Error ? error.message : error ?? '');
   },
   success: (message: string) => {
     if (process.env.NODE_ENV !== 'test') {
-      // Silent in test environment
+      console.log(`[migration] ${message}`);
     }
   }
 };
@@ -338,6 +337,21 @@ export function runMigrations() {
 
     // Migration 117: Autonomous Agent Mode - goal-driven execution
     migrate117AutonomousAgent(db as any, migrationLogger);
+
+    // Migration 118: Composite index for ideas category GROUP BY queries
+    migrate118IdeasCategoryCompositeIndex(db as any, migrationLogger);
+
+    // Migration 119: Predictive Intent Engine - context transition Markov chain
+    migrate119PredictiveIntent(db as any, migrationLogger);
+
+    // Migration 120: Schema Intelligence - self-optimizing database
+    migrate120SchemaIntelligence(db as any, migrationLogger);
+
+    // Migration 121: Scan Profiles
+    migrate121ScanProfiles(db as any, migrationLogger);
+
+    // Migration 122: Idea Dependencies
+    migrate122IdeaDependencies(db as any, migrationLogger);
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {

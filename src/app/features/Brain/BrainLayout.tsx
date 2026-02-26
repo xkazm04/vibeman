@@ -7,7 +7,7 @@
 
 import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Brain, Activity, AlertCircle, Layers, Clock, Sparkles, AlertTriangle, TrendingDown, TrendingUp, X } from 'lucide-react';
+import { Brain, Activity, AlertCircle, Layers, Clock, Sparkles, AlertTriangle, TrendingDown, TrendingUp, X, Castle } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useBrainStore } from '@/stores/brainStore';
 import BehavioralFocusPanel from './components/BehavioralFocusPanel';
@@ -17,18 +17,21 @@ import ReflectionHistoryPanel from './components/ReflectionHistoryPanel';
 import BrainEffectivenessWidget from './components/BrainEffectivenessWidget';
 import InsightsPanel from './components/InsightsPanel';
 import ActivityHeatmap from './components/ActivityHeatmap';
+import NextUpCard from './components/NextUpCard';
 import type { SignalAnomaly, AnomalySeverity } from '@/lib/brain/anomalyDetector';
 
 const EventCanvasD3 = lazy(() => import('./sub_MemoryCanvas/EventCanvasD3'));
 const EventCanvasTimeline = lazy(() => import('./sub_Timeline/EventCanvasTimeline'));
+const MemoryPalace = lazy(() => import('./sub_MemoryPalace/MemoryPalace'));
 
-type BrainTab = 'dashboard' | 'reflection' | 'canvas' | 'timeline';
+type BrainTab = 'dashboard' | 'reflection' | 'canvas' | 'timeline' | 'palace';
 
 const tabs: Array<{ id: BrainTab; label: string; icon: React.ComponentType<{ className?: string }>; description: string }> = [
   { id: 'dashboard', label: 'Dashboard', icon: Activity, description: 'Overview & Insights' },
   { id: 'reflection', label: 'Reflection', icon: Sparkles, description: 'Agent & History' },
   { id: 'canvas', label: 'Memory Canvas', icon: Layers, description: 'Grouped Clusters' },
   { id: 'timeline', label: 'Timeline', icon: Clock, description: 'Lane View' },
+  { id: 'palace', label: 'Palace', icon: Castle, description: 'Spatial-Temporal' },
 ];
 
 export default function BrainLayout() {
@@ -201,6 +204,18 @@ export default function BrainLayout() {
               <ActivityHeatmap scope={scope} />
             </motion.div>
 
+            {/* Next Up: Predictive Intent Suggestions */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.18 }}
+            >
+              <NextUpCard
+                projectId={isGlobalMode ? null : activeProject?.id ?? null}
+                scope={scope}
+              />
+            </motion.div>
+
             {/* Second Row: Effectiveness + Focus */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <motion.div
@@ -267,8 +282,8 @@ export default function BrainLayout() {
         </div>
       )}
 
-      {/* Canvas & Timeline Tabs */}
-      {(activeTab === 'canvas' || activeTab === 'timeline') && (
+      {/* Canvas, Timeline & Palace Tabs */}
+      {(activeTab === 'canvas' || activeTab === 'timeline' || activeTab === 'palace') && (
         <div className="flex-1 relative overflow-hidden" style={{ background: '#0f0f11' }}>
           <Suspense
             fallback={
@@ -282,6 +297,7 @@ export default function BrainLayout() {
           >
             {activeTab === 'canvas' && <EventCanvasD3 />}
             {activeTab === 'timeline' && <EventCanvasTimeline />}
+            {activeTab === 'palace' && <MemoryPalace />}
           </Suspense>
         </div>
       )}

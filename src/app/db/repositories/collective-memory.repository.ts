@@ -25,7 +25,14 @@ export const collectiveMemoryRepository = {
     const now = getCurrentTimestamp();
     const id = input.id || generateId('cmem');
 
-    const stmt = db.prepare(`
+    const sessionId = input.session_id || null;
+    const taskId = input.task_id || null;
+    const codePattern = input.code_pattern || null;
+    const contextIds = JSON.stringify(input.context_ids || []);
+    const filePatterns = JSON.stringify(input.file_patterns || []);
+    const tags = JSON.stringify(input.tags || []);
+
+    db.prepare(`
       INSERT INTO collective_memory_entries (
         id, project_id, session_id, task_id, memory_type, title, description,
         code_pattern, context_ids, file_patterns,
@@ -33,29 +40,32 @@ export const collectiveMemoryRepository = {
         created_at, updated_at
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.5, 0, 0, ?, ?)
-    `);
-
-    stmt.run(
-      id,
-      input.project_id,
-      input.session_id || null,
-      input.task_id || null,
-      input.memory_type,
-      input.title,
-      input.description,
-      input.code_pattern || null,
-      JSON.stringify(input.context_ids || []),
-      JSON.stringify(input.file_patterns || []),
-      JSON.stringify(input.tags || []),
-      now,
-      now
+    `).run(
+      id, input.project_id, sessionId, taskId,
+      input.memory_type, input.title, input.description,
+      codePattern, contextIds, filePatterns, tags,
+      now, now
     );
 
-    return selectOne<DbCollectiveMemoryEntry>(
-      db,
-      'SELECT * FROM collective_memory_entries WHERE id = ?',
-      id
-    )!;
+    return {
+      id,
+      project_id: input.project_id,
+      session_id: sessionId,
+      task_id: taskId,
+      memory_type: input.memory_type,
+      title: input.title,
+      description: input.description,
+      code_pattern: codePattern,
+      context_ids: contextIds,
+      file_patterns: filePatterns,
+      tags,
+      effectiveness_score: 0.5,
+      success_count: 0,
+      failure_count: 0,
+      last_applied_at: null,
+      created_at: now,
+      updated_at: now,
+    };
   },
 
   /**
@@ -295,28 +305,29 @@ export const collectiveMemoryRepository = {
     const now = getCurrentTimestamp();
     const id = input.id || generateId('capp');
 
-    const stmt = db.prepare(`
+    const sessionId = input.session_id || null;
+    const taskId = input.task_id || null;
+    const requirementName = input.requirement_name || null;
+
+    db.prepare(`
       INSERT INTO collective_memory_applications (
         id, memory_id, project_id, session_id, task_id, requirement_name, applied_at, outcome
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
-    `);
+    `).run(id, input.memory_id, input.project_id, sessionId, taskId, requirementName, now);
 
-    stmt.run(
+    return {
       id,
-      input.memory_id,
-      input.project_id,
-      input.session_id || null,
-      input.task_id || null,
-      input.requirement_name || null,
-      now
-    );
-
-    return selectOne<DbCollectiveMemoryApplication>(
-      db,
-      'SELECT * FROM collective_memory_applications WHERE id = ?',
-      id
-    )!;
+      memory_id: input.memory_id,
+      project_id: input.project_id,
+      session_id: sessionId,
+      task_id: taskId,
+      requirement_name: requirementName,
+      applied_at: now,
+      outcome: 'pending',
+      outcome_details: null,
+      resolved_at: null,
+    };
   },
 
   /**

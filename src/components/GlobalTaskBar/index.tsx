@@ -39,48 +39,41 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
   // Time threshold for showing toasts (5 minutes)
   const TOAST_TIME_THRESHOLD = 5 * 60 * 1000; // 5 minutes in milliseconds
 
-  // Get task lists
-  const runningTasks = useMemo(() =>
-    Object.values(tasks).filter((t): t is TaskState =>
-      Boolean(t && t.id && (isTaskRunning(t.status) || isTaskQueued(t.status)))
-    ),
-    [tasks]
-  );
-
-  const completedTasks = useMemo(() =>
-    Object.values(tasks).filter((t): t is TaskState =>
-      Boolean(t && t.id && isTaskCompleted(t.status))
-    ),
-    [tasks]
-  );
-
-  const failedTasks = useMemo(() =>
-    Object.values(tasks).filter((t): t is TaskState =>
-      Boolean(t && t.id && isTaskFailed(t.status))
-    ),
-    [tasks]
-  );
-
-  // Filter recently completed/failed tasks (within last 5 minutes)
-  const recentlyCompletedTasks = useMemo(() => {
+  // Single-pass task categorization — replaces 5 separate filter passes
+  const { runningTasks, completedTasks, failedTasks, recentlyCompletedTasks, recentlyFailedTasks } = useMemo(() => {
     const now = Date.now();
-    return completedTasks.filter(task => {
-      if (isTaskCompleted(task.status)) {
-        return (now - task.status.completedAt) < TOAST_TIME_THRESHOLD;
-      }
-      return false;
-    });
-  }, [completedTasks, TOAST_TIME_THRESHOLD]);
+    const running: TaskState[] = [];
+    const completed: TaskState[] = [];
+    const failed: TaskState[] = [];
+    const recentCompleted: TaskState[] = [];
+    const recentFailed: TaskState[] = [];
 
-  const recentlyFailedTasks = useMemo(() => {
-    const now = Date.now();
-    return failedTasks.filter(task => {
-      if (isTaskFailed(task.status)) {
-        return (now - task.status.completedAt) < TOAST_TIME_THRESHOLD;
+    for (const t of Object.values(tasks)) {
+      if (!t || !t.id) continue;
+
+      if (isTaskRunning(t.status) || isTaskQueued(t.status)) {
+        running.push(t);
+      } else if (isTaskCompleted(t.status)) {
+        completed.push(t);
+        if ((now - t.status.completedAt) < TOAST_TIME_THRESHOLD) {
+          recentCompleted.push(t);
+        }
+      } else if (isTaskFailed(t.status)) {
+        failed.push(t);
+        if ((now - t.status.completedAt) < TOAST_TIME_THRESHOLD) {
+          recentFailed.push(t);
+        }
       }
-      return false;
-    });
-  }, [failedTasks, TOAST_TIME_THRESHOLD]);
+    }
+
+    return {
+      runningTasks: running,
+      completedTasks: completed,
+      failedTasks: failed,
+      recentlyCompletedTasks: recentCompleted,
+      recentlyFailedTasks: recentFailed,
+    };
+  }, [tasks, TOAST_TIME_THRESHOLD]);
 
   const hasRunningTasks = runningTasks.length > 0;
   const hasCompletedTasks = completedTasks.length > 0;

@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Trash2, Edit2, Zap, Play } from 'lucide-react';
+import { Trash2, Edit2, Zap, Play, Link2 } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import ContextMenu from '@/components/ContextMenu';
 import { getCategoryConfig, EffortIcon, ImpactIcon, effortScale, impactScale } from '../lib/ideaConfig';
@@ -14,9 +14,10 @@ interface BufferItemProps {
   onDelete: (ideaId: string) => void;
   onConvert?: (ideaId: string) => void;
   onQueueForExecution?: (ideaId: string) => void;
+  dependencyCount?: number;
 }
 
-const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete, onConvert, onQueueForExecution }: BufferItemProps) {
+const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete, onConvert, onQueueForExecution, dependencyCount }: BufferItemProps) {
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
 
@@ -108,6 +109,14 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete, onC
           {effortCfg && (
             <div className="flex items-center gap-0.5" title={`Effort: ${effortCfg.label}`}>
               <EffortIcon className={`w-3 h-3 ${effortCfg.color}`} />
+            </div>
+          )}
+
+          {/* Dependency Chain Badge */}
+          {(dependencyCount ?? 0) > 0 && (
+            <div className="flex items-center gap-0.5" title={`${dependencyCount} linked ideas`}>
+              <Link2 className="w-3 h-3 text-cyan-400" />
+              <span className="text-[10px] text-cyan-400 font-medium">{dependencyCount}</span>
             </div>
           )}
         </div>

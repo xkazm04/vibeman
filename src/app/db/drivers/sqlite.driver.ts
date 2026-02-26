@@ -100,7 +100,13 @@ export class SqliteDriver implements DbDriver {
       // Enable WAL mode for better concurrent access
       if (this.config.walMode !== false) {
         db.pragma('journal_mode = WAL');
+        db.pragma('journal_size_limit = 67108864');
       }
+
+      // Performance pragmas
+      db.pragma('cache_size = -64000');
+      db.pragma('busy_timeout = 5000');
+      db.pragma('synchronous = NORMAL');
 
       this.connection = new SqliteConnection(db);
     }

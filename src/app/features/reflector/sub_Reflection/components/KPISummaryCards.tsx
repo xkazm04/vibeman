@@ -166,9 +166,9 @@ function AnimatedKPICardWrapper({ kpi, index, config, reducedMotion, onClick }: 
 
     const prevValue = prevValueRef.current;
 
-    if (prevValue > 0) {
+    if (prevValue > 0 && Number.isFinite(currentNumeric)) {
       const percentChange = ((currentNumeric - prevValue) / prevValue) * 100;
-      if (percentChange > 10 || crossedThreshold(prevValue, currentNumeric, config.confettiThreshold)) {
+      if (Number.isFinite(percentChange) && (percentChange > 10 || crossedThreshold(prevValue, currentNumeric, config.confettiThreshold))) {
         setShowGlow(true);
         setTimeout(() => setShowGlow(false), 600);
       }
@@ -235,10 +235,11 @@ export default function KPISummaryCards({
   const calculateAverageImpact = useCallback((): number => {
     if (stats.scanTypes.length === 0) return 0;
     const totalImpact = stats.scanTypes.reduce(
-      (sum, scan) => sum + scan.acceptanceRatio,
+      (sum, scan) => sum + (scan.acceptanceRatio || 0),
       0
     );
-    return Math.round(totalImpact / stats.scanTypes.length);
+    const result = Math.round(totalImpact / stats.scanTypes.length);
+    return Number.isFinite(result) ? result : 0;
   }, [stats.scanTypes]);
 
   const kpiCards: KPICardData[] = useMemo(

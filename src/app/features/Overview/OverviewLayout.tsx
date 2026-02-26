@@ -7,8 +7,9 @@ import ArchitectureBottomBar from './sub_WorkspaceArchitecture/components/Archit
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 
-// Lazy load the Matrix architecture view
+// Lazy load views
 const MatrixDiagramCanvas = lazy(() => import('./sub_WorkspaceArchitecture/views/MatrixDiagramCanvas'));
+const ArchitecturePlayground = lazy(() => import('./sub_WorkspaceArchitecture/views/ArchitecturePlayground'));
 
 // Loading fallback
 function LoadingFallback() {
@@ -83,17 +84,27 @@ export default function OverviewLayout() {
       {/* Main Content */}
       <div className="flex-1 overflow-hidden relative z-10" style={{ minHeight: 0 }}>
         <div className="absolute inset-0">
-          {view === 'architecture' ? (
+          {view === 'architecture' && (
             <Suspense fallback={<LoadingFallback />}>
               <MatrixDiagramCanvas
                 workspaceId={activeWorkspaceId}
                 onProjectSelect={handleProjectSelect}
               />
             </Suspense>
-          ) : (
+          )}
+          {view === 'observatory' && (
             <div className="w-full h-full overflow-auto">
               <ObservatoryDashboard />
             </div>
+          )}
+          {view === 'playground' && (
+            <Suspense fallback={<LoadingFallback />}>
+              <ArchitecturePlayground
+                workspaceId={activeWorkspaceId}
+                projects={workspaceProjects}
+                onClose={() => setView('architecture')}
+              />
+            </Suspense>
           )}
         </div>
       </div>

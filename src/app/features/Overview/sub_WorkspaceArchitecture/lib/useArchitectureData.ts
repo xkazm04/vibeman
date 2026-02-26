@@ -3,7 +3,7 @@
  * Replaces mock data in MatrixDiagramCanvas
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import type { Project } from '@/types';
@@ -127,34 +127,44 @@ export function useArchitectureData(workspaceId: string | null): UseArchitecture
     return allProjects.filter(p => projectIds.includes(p.id));
   })();
 
-  // Transform projects to WorkspaceProjectNode format
-  const projectNodes: WorkspaceProjectNode[] = workspaceProjects.map(project => {
-    const tier = getProjectTier(project);
-    const frameworkCategory = getFrameworkCategory(project);
-    const gitInfo = branchInfo.get(project.id);
+  // Pre-build connectionCount map in O(m) instead of O(n*m)
+  const connectionCountMap = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of relationships) {
+      counts.set(r.sourceProjectId, (counts.get(r.sourceProjectId) || 0) + 1);
+      counts.set(r.targetProjectId, (counts.get(r.targetProjectId) || 0) + 1);
+    }
+    return counts;
+  }, [relationships]);
 
-    return {
-      id: project.id,
-      name: project.name,
-      path: project.path,
-      tier,
-      framework: project.type,
-      frameworkCategory,
-      description: project.description,
-      branch: gitInfo?.branch || undefined,
-      branchDirty: gitInfo?.dirty || false,
-      x: 0,
-      y: 0,
-      width: 160,
-      height: 60,
-      contextGroupCount: 0,
-      contextCount: 0,
-      connectionCount: relationships.filter(
-        r => r.sourceProjectId === project.id || r.targetProjectId === project.id
-      ).length,
-      color: getTierColor(tier),
-    };
-  });
+  // Transform projects to WorkspaceProjectNode format (memoized to stabilize downstream Graph/Matrix)
+  const projectNodes: WorkspaceProjectNode[] = useMemo(() =>
+    workspaceProjects.map(project => {
+      const tier = getProjectTier(project);
+      const frameworkCategory = getFrameworkCategory(project);
+      const gitInfo = branchInfo.get(project.id);
+
+      return {
+        id: project.id,
+        name: project.name,
+        path: project.path,
+        tier,
+        framework: project.type,
+        frameworkCategory,
+        description: project.description,
+        branch: gitInfo?.branch || undefined,
+        branchDirty: gitInfo?.dirty || false,
+        x: 0,
+        y: 0,
+        width: 160,
+        height: 60,
+        contextGroupCount: 0,
+        contextCount: 0,
+        connectionCount: connectionCountMap.get(project.id) || 0,
+        color: getTierColor(tier),
+      };
+    }),
+  [workspaceProjects, connectionCountMap, branchInfo]);
 
   // Fetch relationships from API
   const fetchRelationships = useCallback(async () => {
@@ -188,13 +198,13 @@ export function useArchitectureData(workspaceId: string | null): UseArchitecture
     }
   }, [workspaceId]);
 
-  // Fetch analysis status
-  const fetchAnalysisStatus = useCallback(async () => {
+  // Fetch analysis status (returns isRunning so callers can act on it without a second fetch)
+  const fetchAnalysisStatus = useCallback(async (): Promise<boolean> => {
     try {
       const wsParam = workspaceId === 'default' ? '' : (workspaceId || '');
       const response = await fetch(`/api/architecture/analyze?workspaceId=${wsParam}`);
 
-      if (!response.ok) return;
+      if (!response.ok) return false;
 
       const data = await response.json();
       setAnalysisStatus({
@@ -202,8 +212,10 @@ export function useArchitectureData(workspaceId: string | null): UseArchitecture
         latestAnalysis: data.latest || null,
         history: data.history || [],
       });
+      return data.isRunning || false;
     } catch (err) {
       console.error('Error fetching analysis status:', err);
+      return false;
     }
   }, [workspaceId]);
 
@@ -355,15 +367,10 @@ export function useArchitectureData(workspaceId: string | null): UseArchitecture
       if (isPolling) return;
       isPolling = true;
       try {
-        await fetchAnalysisStatus();
+        const stillRunning = await fetchAnalysisStatus();
         // If no longer analyzing, refresh relationships too
-        const wsParam = workspaceId === 'default' ? '' : (workspaceId || '');
-        const response = await fetch(`/api/architecture/analyze?workspaceId=${wsParam}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (!data.isRunning) {
-            await fetchRelationships();
-          }
+        if (!stillRunning) {
+          await fetchRelationships();
         }
       } finally {
         isPolling = false;

@@ -30,6 +30,8 @@ interface BufferColumnProps {
   projectName: string;
   /** Category color name from ideaConfig (e.g. 'blue', 'pink') */
   accentColor?: string;
+  /** Map of ideaId → dependency count for chain icon display */
+  dependencyCounts?: Record<string, number>;
   onIdeaClick: (idea: DbIdea) => void;
   onIdeaDelete: (ideaId: string) => void;
   onContextDelete?: (contextId: string) => void;
@@ -42,6 +44,7 @@ const BufferColumn = React.memo(function BufferColumn({
   contextId,
   ideas,
   accentColor,
+  dependencyCounts,
   onIdeaClick,
   onIdeaDelete,
   onContextDelete,
@@ -203,6 +206,7 @@ const BufferColumn = React.memo(function BufferColumn({
               onDelete={onIdeaDelete}
               onConvert={onIdeaConvert}
               onQueueForExecution={onIdeaQueueForExecution}
+              dependencyCount={dependencyCounts?.[idea.id]}
             />
           ))
         )}

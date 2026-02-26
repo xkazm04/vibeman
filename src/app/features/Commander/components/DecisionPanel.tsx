@@ -5,14 +5,22 @@
 
 'use client';
 
+import { useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { CheckCircle2 } from 'lucide-react';
 import { useAnnetteStore } from '@/stores/annetteStore';
 import DecisionCard from './DecisionCard';
 
 export default function DecisionPanel() {
-  const getActiveNotifications = useAnnetteStore((s) => s.getActiveNotifications);
-  const activeNotifications = getActiveNotifications();
+  const notifications = useAnnetteStore((s) => s.notifications);
+  const snoozedIds = useAnnetteStore((s) => s.snoozedIds);
+  const snoozeExpiry = useAnnetteStore((s) => s.snoozeExpiry);
+
+  const activeNotifications = useMemo(() => {
+    const now = Date.now();
+    const activeSnoozed = snoozedIds.filter(id => (snoozeExpiry[id] || 0) > now);
+    return notifications.filter(n => !activeSnoozed.includes(n.id));
+  }, [notifications, snoozedIds, snoozeExpiry]);
 
   return (
     <div className="flex flex-col h-full border-l border-slate-800/50">

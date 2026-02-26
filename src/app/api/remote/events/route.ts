@@ -4,15 +4,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { getActiveRemoteConfig } from '@/lib/remote/config.server';
+import { getRemoteSupabase } from '@/lib/remote/supabaseClient';
 import type { RemoteEventType, EventsQueryParams } from '@/lib/remote/types';
 
 export async function GET(request: NextRequest) {
   try {
-    const config = getActiveRemoteConfig();
-
-    if (!config) {
+    const supabase = getRemoteSupabase();
+    if (!supabase) {
       return NextResponse.json(
         { success: false, error: 'Remote not configured' },
         { status: 400 }
@@ -34,13 +32,6 @@ export async function GET(request: NextRequest) {
     if (params.limit! > 1000) {
       params.limit = 1000;
     }
-
-    const supabase = createClient(config.url, config.serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
 
     // Build query
     let query = supabase

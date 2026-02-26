@@ -6,9 +6,7 @@
 import React from 'react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { singleFeatureContextsScanPrompt } from './prompts/singleFeatureContextsScanPrompt';
-import { useTaskRunnerStore } from '@/app/features/TaskRunner/store/taskRunnerStore';
 import type { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
-import { isBatchRunning } from '@/app/features/TaskRunner/lib/types';
 import { toast } from 'sonner';
 import path from 'path';
 import fs from 'fs/promises';
@@ -212,16 +210,7 @@ async function executeFeatureScan(
   batchId: BatchId
 ): Promise<void> {
   try {
-    const taskRunnerStore = useTaskRunnerStore.getState();
     const taskIds: string[] = [];
-
-    // Ensure batch exists
-    let batch = taskRunnerStore.batches[batchId];
-    if (!batch) {
-      taskRunnerStore.createBatch(batchId, 'Feature Context Scans', []);
-      // Re-fetch batch after creation
-      batch = useTaskRunnerStore.getState().batches[batchId];
-    }
 
     // Create requirement for each feature
     for (const featureName of featureFolders) {
@@ -235,27 +224,14 @@ async function executeFeatureScan(
           projectType
         );
 
-        // Build task ID
         const taskId = `${projectId}:${requirementName}`;
         taskIds.push(taskId);
-
-        // Add task to batch
-        taskRunnerStore.addTaskToBatch(batchId, taskId);
-        console.log(`[Feature Scan] Added task for ${featureName} to ${batchId}:`, taskId);
+        console.log(`[Feature Scan] Created task for ${featureName}:`, taskId);
       } catch (error) {
         console.error(`[Feature Scan] Failed to create requirement for ${featureName}:`, error);
-        // Continue with other features
       }
     }
 
-    // Re-fetch current batch state before starting
-    batch = useTaskRunnerStore.getState().batches[batchId];
-    if (batch && !isBatchRunning(batch.status) && taskIds.length > 0) {
-      taskRunnerStore.startBatch(batchId);
-      console.log('[Feature Scan] Started batch:', batchId);
-    }
-
-    // Create event
     await createFeatureScanEvent(projectId, featureCount, taskIds);
 
     console.log('[Feature Scan] All requirements created:', {
@@ -264,8 +240,7 @@ async function executeFeatureScan(
       taskIds,
     });
 
-    // Show success toast
-    toast.success(`${featureCount} feature scans queued in ${batchId}`, {
+    toast.success(`${featureCount} feature scans queued`, {
       description: `All features will be analyzed independently. Check TaskRunner for progress.`,
     });
   } catch (error) {

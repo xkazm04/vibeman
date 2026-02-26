@@ -17,6 +17,12 @@ import {
   type CleanupStats,
 } from '@/app/features/TaskRunner/lib/sessionCleanup.types';
 
+const STALE_THRESHOLDS = {
+  runningMinutes: ORPHAN_THRESHOLDS.RUNNING_NO_HEARTBEAT_MINUTES,
+  pausedHours: ORPHAN_THRESHOLDS.PAUSED_STALE_HOURS,
+  pendingHours: ORPHAN_THRESHOLDS.PENDING_STALE_HOURS,
+};
+
 /**
  * GET /api/claude-code/sessions/cleanup
  * Detect orphaned sessions
@@ -133,7 +139,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const deletedCount = sessionRepository.bulkDelete(sessionIds);
+    const deletedCount = sessionRepository.bulkDeleteStale(STALE_THRESHOLDS, sessionIds);
 
     logger.info('Sessions cleaned up', {
       requestedCount: sessionIds.length,

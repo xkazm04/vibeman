@@ -104,12 +104,13 @@ function buildCodebaseContextSection(options: BaseScanPromptOptions): string {
     return '';
   }
 
-  let section = `\n## Codebase Context (from Context Group)
+  let section = `\n## Codebase Context (Architectural Awareness)
 
-This context group contains organized code contexts. Use this information to:
-- Leverage existing patterns instead of creating new ones
-- Understand the file organization and conventions
-- Identify related code that may need consistent treatment
+This context group contains organized code contexts with rich metadata. Use this information to:
+- Leverage existing patterns, technologies, and conventions instead of creating new ones
+- Understand the file organization, database tables, and API surfaces
+- Identify related code across connected contexts that may need consistent treatment
+- Preserve architectural boundaries when making changes
 `;
 
   if (contextGroupInfo.groupDescription) {

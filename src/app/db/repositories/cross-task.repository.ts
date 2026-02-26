@@ -159,7 +159,30 @@ export const crossTaskPlanRepository = {
       now
     );
 
-    return crossTaskPlanRepository.getById(input.id)!;
+    return {
+      id: input.id,
+      workspace_id: input.workspace_id || null,
+      project_ids: JSON.stringify(input.project_ids),
+      requirement: input.requirement,
+      requirement_summary: null,
+      prompt_used: null,
+      plan_option_1: null,
+      plan_option_1_title: null,
+      plan_option_2: null,
+      plan_option_2_title: null,
+      plan_option_3: null,
+      plan_option_3_title: null,
+      current_flow_analysis: null,
+      selected_plan: null,
+      user_notes: null,
+      status: 'pending' as const,
+      execution_id: null,
+      error_message: null,
+      started_at: null,
+      completed_at: null,
+      created_at: now,
+      updated_at: now,
+    };
   },
 
   /**

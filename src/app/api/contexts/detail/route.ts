@@ -18,9 +18,9 @@ async function handleGet(request: NextRequest) {
       );
     }
 
-    // Find context by ID or name
+    // Find context by ID or name - direct DB lookup (O(1) instead of loading all contexts)
     const context = contextId
-      ? await findContextById(contextId, projectId)
+      ? await findContextById(contextId)
       : await findContextByName(name!, projectId!);
 
     if (!context) {
@@ -43,29 +43,17 @@ async function handleGet(request: NextRequest) {
 }
 
 /**
- * Find context by ID, with fallback to projectId if provided
+ * Find context by ID - direct O(1) primary key lookup
  */
-async function findContextById(contextId: string, projectId: string | null): Promise<any | null> {
-  // First try to extract projectId from contextId if it follows pattern "projectId-contextName"
-  const possibleProjectId = contextId.split('-')[0];
-  let contexts = await contextQueries.getContextsByProject(possibleProjectId || projectId || '');
-  let context = contexts.find(c => c.id === contextId);
-
-  // If not found and we have projectId, try that
-  if (!context && projectId) {
-    const projectContexts = await contextQueries.getContextsByProject(projectId);
-    context = projectContexts.find(c => c.id === contextId);
-  }
-
-  return context || null;
+async function findContextById(contextId: string): Promise<any | null> {
+  return await contextQueries.getContextById(contextId);
 }
 
 /**
- * Find context by name and projectId
+ * Find context by name and projectId - direct indexed query
  */
 async function findContextByName(name: string, projectId: string): Promise<any | null> {
-  const contexts = await contextQueries.getContextsByProject(projectId);
-  return contexts.find(c => c.name.toLowerCase() === name.toLowerCase()) || null;
+  return await contextQueries.getContextByName(name, projectId);
 }
 
 export const GET = withObservability(handleGet, '/api/contexts/detail');

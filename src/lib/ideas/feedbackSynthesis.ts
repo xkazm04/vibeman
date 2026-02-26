@@ -2,6 +2,8 @@
  * Feedback Synthesis Engine
  * Aggregates idea rejection/acceptance patterns and generates
  * lessons-learned sections for injection into scan prompts.
+ * Closes the learning loop: every swipe becomes training data,
+ * every implementation becomes calibration.
  */
 
 import { getDatabase } from '@/app/db/connection';
@@ -33,6 +35,19 @@ export interface RecentAcceptedIdea {
   impact: number | null;
 }
 
+export interface EffortCalibration {
+  /** Average predicted effort for implemented ideas */
+  avgPredictedEffort: number;
+  /** Average days from acceptance to implementation */
+  avgDaysToImplement: number;
+  /** Ideas where predicted effort was low (<=3) but took >3 days */
+  underestimated: number;
+  /** Ideas where predicted effort was high (>=7) but took <=1 day */
+  overestimated: number;
+  /** Total ideas with both effort scores and implementation timestamps */
+  sampleSize: number;
+}
+
 export interface FeedbackSynthesis {
   /** Stats per category (e.g., 'ui' ideas rejected 80% as 'too_complex') */
   categoryStats: CategoryStats[];
@@ -48,6 +63,12 @@ export interface FeedbackSynthesis {
   preferredCategories: string[];
   /** Most rejected categories */
   avoidCategories: string[];
+  /** Implementation follow-through rate (accepted → implemented) */
+  implementationRate: number;
+  /** Number of accepted ideas that were implemented */
+  implementedCount: number;
+  /** Effort scoring calibration data */
+  effortCalibration: EffortCalibration | null;
 }
 
 // ── Core Engine ──────────────────────────────────────────────────────────────
@@ -170,6 +191,23 @@ export function synthesizeFeedback(
     .sort((a, b) => a.acceptRate - b.acceptRate)
     .map(c => c.category);
 
+  // Implementation follow-through: accepted → implemented
+  const implRow = db.prepare(`
+    SELECT
+      SUM(CASE WHEN status IN ('accepted', 'implemented') THEN 1 ELSE 0 END) as totalAccepted,
+      SUM(CASE WHEN status = 'implemented' THEN 1 ELSE 0 END) as implemented
+    FROM ideas
+    WHERE project_id = ? ${contextFilter}
+  `).get(...params) as { totalAccepted: number; implemented: number };
+
+  const implementedCount = implRow.implemented || 0;
+  const implementationRate = implRow.totalAccepted > 0
+    ? Math.round((implementedCount / implRow.totalAccepted) * 100)
+    : 0;
+
+  // Effort calibration: compare predicted effort vs actual implementation time
+  const effortCalibration = calculateEffortCalibration(db, projectId, contextFilter, params);
+
   return {
     categoryStats,
     scanTypeStats,
@@ -178,6 +216,63 @@ export function synthesizeFeedback(
     totalProcessed: overallRow.total,
     preferredCategories,
     avoidCategories,
+    implementationRate,
+    implementedCount,
+    effortCalibration,
+  };
+}
+
+/**
+ * Calculate effort calibration by comparing predicted effort scores
+ * against actual time to implement.
+ */
+function calculateEffortCalibration(
+  db: ReturnType<typeof getDatabase>,
+  projectId: string,
+  contextFilter: string,
+  params: (string | undefined)[]
+): EffortCalibration | null {
+  const rows = db.prepare(`
+    SELECT effort, updated_at, implemented_at
+    FROM ideas
+    WHERE project_id = ? ${contextFilter}
+      AND status = 'implemented'
+      AND effort IS NOT NULL
+      AND implemented_at IS NOT NULL
+      AND updated_at IS NOT NULL
+  `).all(...params) as Array<{
+    effort: number;
+    updated_at: string;
+    implemented_at: string;
+  }>;
+
+  if (rows.length < 3) return null;
+
+  let totalEffort = 0;
+  let totalDays = 0;
+  let underestimated = 0;
+  let overestimated = 0;
+
+  for (const row of rows) {
+    const acceptedDate = new Date(row.updated_at);
+    const implementedDate = new Date(row.implemented_at);
+    const daysToImplement = Math.max(0, (implementedDate.getTime() - acceptedDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    totalEffort += row.effort;
+    totalDays += daysToImplement;
+
+    // Low predicted effort but took long → underestimated
+    if (row.effort <= 3 && daysToImplement > 3) underestimated++;
+    // High predicted effort but done quickly → overestimated
+    if (row.effort >= 7 && daysToImplement <= 1) overestimated++;
+  }
+
+  return {
+    avgPredictedEffort: Math.round((totalEffort / rows.length) * 10) / 10,
+    avgDaysToImplement: Math.round((totalDays / rows.length) * 10) / 10,
+    underestimated,
+    overestimated,
+    sampleSize: rows.length,
   };
 }
 
@@ -236,6 +331,29 @@ export function buildFeedbackSection(
         }
         lines.push('');
       }
+    }
+
+    // Implementation follow-through
+    if (synthesis.implementedCount > 0) {
+      lines.push(`**Implementation follow-through**: ${synthesis.implementationRate}% of accepted ideas have been implemented (${synthesis.implementedCount} total)`);
+      if (synthesis.implementationRate < 30) {
+        lines.push('  → Low implementation rate — suggest smaller, more actionable ideas that are easier to implement');
+      }
+      lines.push('');
+    }
+
+    // Effort calibration insights
+    if (synthesis.effortCalibration) {
+      const cal = synthesis.effortCalibration;
+      lines.push(`**Effort calibration** (from ${cal.sampleSize} implemented ideas):`);
+      lines.push(`- Average predicted effort: ${cal.avgPredictedEffort}/10, average implementation time: ${cal.avgDaysToImplement} days`);
+      if (cal.underestimated > 0) {
+        lines.push(`- ${cal.underestimated} ideas were underestimated (low effort score but took >3 days) — be more conservative with effort scores for complex changes`);
+      }
+      if (cal.overestimated > 0) {
+        lines.push(`- ${cal.overestimated} ideas were overestimated (high effort score but done in <=1 day) — some high-effort ideas are simpler than expected`);
+      }
+      lines.push('');
     }
 
     // Recent accepted ideas for calibration

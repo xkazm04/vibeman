@@ -351,7 +351,14 @@ export const useAnnetteStore = create<AnnetteStore>()(
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to send message';
-          set({ isLoading: false, error: errorMessage });
+          // Remove the optimistic user message so the chat doesn't show an undelivered message
+          set((state) => ({
+            messages: state.messages.filter((m) => m.id !== userMsg.id),
+            isLoading: false,
+            error: errorMessage,
+          }));
+          // Re-throw so callers (useChatInput) can restore the input
+          throw error;
         }
       },
 
@@ -493,11 +500,15 @@ export const useAnnetteStore = create<AnnetteStore>()(
         }));
 
         const { sendMessage } = get();
-        await sendMessage(notification.suggestedAction.description);
-        // Silently remove the notification (no extra "dismissed" system message)
-        set((state) => ({
-          notifications: state.notifications.filter(n => n.id !== notification.id),
-        }));
+        try {
+          await sendMessage(notification.suggestedAction.description);
+          // Silently remove the notification (no extra "dismissed" system message)
+          set((state) => ({
+            notifications: state.notifications.filter(n => n.id !== notification.id),
+          }));
+        } catch {
+          // Error already set in store by sendMessage — notification stays so user can retry
+        }
       },
 
       getActiveNotifications: () => {
@@ -535,8 +546,12 @@ export const useAnnetteStore = create<AnnetteStore>()(
           branches: [branch, ...state.branches].slice(0, 10), // Keep last 10 branches
         }));
 
-        // Re-send with edited text
-        await send(newText);
+        // Re-send with edited text (error already handled by sendMessage store logic)
+        try {
+          await send(newText);
+        } catch {
+          // Error already set in store by sendMessage — branch is saved so user can restore
+        }
       },
 
       // ─── Branch Management ───
@@ -548,26 +563,29 @@ export const useAnnetteStore = create<AnnetteStore>()(
         const branch = branches.find(b => b.id === branchId);
         if (!branch) return;
 
-        // Save current messages as a new branch before restoring
+        // Clamp editedAtIndex to current messages length to avoid stale index corruption
         const { messages } = get();
-        if (messages.length > branch.editedAtIndex) {
+        const safeIndex = Math.min(branch.editedAtIndex, messages.length);
+
+        // Save current messages as a new branch before restoring
+        if (messages.length > safeIndex) {
           const currentBranch: ConversationBranch = {
             id: `branch-${Date.now()}`,
-            editedAtIndex: branch.editedAtIndex,
-            originalText: messages[branch.editedAtIndex]?.content || '',
-            messages: messages.slice(branch.editedAtIndex),
+            editedAtIndex: safeIndex,
+            originalText: messages[safeIndex]?.content || '',
+            messages: messages.slice(safeIndex),
             timestamp: new Date().toISOString(),
           };
 
           set((state) => ({
-            messages: [...messages.slice(0, branch.editedAtIndex), ...branch.messages],
+            messages: [...messages.slice(0, safeIndex), ...branch.messages],
             branches: [currentBranch, ...state.branches.filter(b => b.id !== branchId)].slice(0, 10),
             previewBranchId: null,
           }));
         } else {
-          // Just restore the branch
+          // No current messages to save as branch — just restore
           set((state) => ({
-            messages: [...messages.slice(0, branch.editedAtIndex), ...branch.messages],
+            messages: [...messages.slice(0, safeIndex), ...branch.messages],
             branches: state.branches.filter(b => b.id !== branchId),
             previewBranchId: null,
           }));

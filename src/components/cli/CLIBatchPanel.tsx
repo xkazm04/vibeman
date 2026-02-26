@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Terminal } from 'lucide-react';
 import { CLISession } from './CLISession';
 import type { CLIBatchPanelProps } from './types';
@@ -9,6 +9,7 @@ import {
   useCLISessionStore,
   abortSessionExecution,
   performTaskCleanup,
+  cleanupAllCLISessions,
   type CLISessionId,
 } from './store';
 import { useCLIRecovery } from './store/useCLIRecovery';
@@ -58,6 +59,11 @@ export function CLIBatchPanel({
   const setCurrentExecution = useCLISessionStore((state) => state.setCurrentExecution);
   const setGitEnabled = useCLISessionStore((state) => state.setGitEnabled);
   const setGitConfig = useCLISessionStore((state) => state.setGitConfig);
+
+  // Clean up SSE connections and polling on unmount to prevent connection leaks
+  useEffect(() => {
+    return () => cleanupAllCLISessions();
+  }, []);
 
   // TaskRunner store for syncing task status to TaskColumn
   const updateTaskRunnerStatus = useTaskRunnerStore((state) => state.updateTaskStatus);

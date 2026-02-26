@@ -14,6 +14,7 @@ import { NextRequest } from 'next/server';
 import { checkForNotifications } from '@/lib/annette/notificationEngine';
 
 const POLL_INTERVAL_MS = 15_000; // Check every 15 seconds
+const MAX_STREAM_TTL_MS = 60 * 60 * 1000; // 1 hour max lifetime
 
 export async function GET(request: NextRequest) {
   const projectId = request.nextUrl.searchParams.get('projectId');
@@ -26,13 +27,42 @@ export async function GET(request: NextRequest) {
 
   const stream = new ReadableStream({
     start(controller) {
+      const startedAt = Date.now();
+      let closed = false;
+
+      const cleanup = () => {
+        if (closed) return;
+        closed = true;
+        clearInterval(interval);
+        try { controller.close(); } catch { /* already closed */ }
+      };
+
+      /** Safe enqueue — returns false if the stream is dead */
+      const safeEnqueue = (chunk: Uint8Array): boolean => {
+        if (closed) return false;
+        try {
+          controller.enqueue(chunk);
+          return true;
+        } catch {
+          cleanup();
+          return false;
+        }
+      };
+
       // Send initial connection event
-      controller.enqueue(
+      safeEnqueue(
         encoder.encode(`event: connected\ndata: ${JSON.stringify({ projectId, timestamp: new Date().toISOString() })}\n\n`)
       );
 
       // Poll for notifications
       const interval = setInterval(() => {
+        // Self-clear if TTL exceeded
+        if (Date.now() - startedAt > MAX_STREAM_TTL_MS) {
+          safeEnqueue(encoder.encode(`event: expired\ndata: ${JSON.stringify({ reason: 'TTL exceeded' })}\n\n`));
+          cleanup();
+          return;
+        }
+
         try {
           const notifications = checkForNotifications(projectId);
 
@@ -42,27 +72,22 @@ export async function GET(request: NextRequest) {
             const eventName = notification.type === 'task_execution'
               ? 'task_notification'
               : 'notification';
-            controller.enqueue(
-              encoder.encode(`event: ${eventName}\ndata: ${data}\n\n`)
-            );
+            if (!safeEnqueue(encoder.encode(`event: ${eventName}\ndata: ${data}\n\n`))) return;
           }
 
           // Send heartbeat to keep connection alive
-          controller.enqueue(
+          safeEnqueue(
             encoder.encode(`event: heartbeat\ndata: ${JSON.stringify({ ts: Date.now() })}\n\n`)
           );
-        } catch (error) {
-          // Don't crash the stream on errors
-          controller.enqueue(
-            encoder.encode(`event: error\ndata: ${JSON.stringify({ error: 'Check failed' })}\n\n`)
-          );
+        } catch {
+          // Enqueue failure in error handler means stream is dead
+          if (!safeEnqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ error: 'Check failed' })}\n\n`))) return;
         }
       }, POLL_INTERVAL_MS);
 
       // Cleanup on disconnect
       request.signal.addEventListener('abort', () => {
-        clearInterval(interval);
-        controller.close();
+        cleanup();
       });
     },
   });

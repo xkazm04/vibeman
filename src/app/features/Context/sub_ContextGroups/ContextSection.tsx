@@ -99,31 +99,25 @@ const ContextSection = React.memo(({
       }}
       transition={{ duration: 0.3 }}
     >
-      {/* Dynamic Glass Gradient Effect */}
+      {/* Dynamic Glass Gradient Effect - subtle, focused on borders */}
       <motion.div
         className="absolute inset-0 pointer-events-none transition-all duration-500"
         style={{
-          background: glassStyle?.background || 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 50%, rgba(255,255,255,0.02) 100%)',
+          background: glassStyle?.background || 'linear-gradient(135deg, rgba(255,255,255,0.02) 0%, transparent 50%, rgba(255,255,255,0.01) 100%)',
         }}
         animate={{
-          opacity: isHovered ? 1.2 : 1,
+          opacity: isHovered ? 0.8 : 0.6,
         }}
         transition={{ duration: 0.3 }}
       />
 
-      {/* Glass Reflection Effect */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent pointer-events-none" />
-
-      {/* Animated Border Glow with Gradient */}
+      {/* Border Glow Effect - focused around edges */}
       <motion.div
-        className="absolute inset-0 rounded-2xl opacity-0 pointer-events-none"
+        className="absolute inset-0 rounded-2xl pointer-events-none"
         style={{
-          boxShadow: `inset 0 0 20px ${glassStyle?.shadowColor || group?.color + '20'}`,
-          background: group?.accentColor
-            ? `linear-gradient(135deg, ${group.color}10 0%, ${group.accentColor}05 100%)`
-            : undefined,
+          boxShadow: `inset 0 0 15px ${glassStyle?.shadowColor || group?.color + '15'}, 0 0 8px ${glassStyle?.shadowColor || group?.color + '08'}`,
         }}
-        animate={{ opacity: isHovered || isTargeted ? 1 : 0 }}
+        animate={{ opacity: isHovered || isTargeted ? 1 : 0.3 }}
         transition={{ duration: 0.3 }}
       />
 

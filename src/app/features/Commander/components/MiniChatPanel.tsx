@@ -15,7 +15,7 @@ function QuickOptionsBar({ options }: { options: QuickOption[] }) {
   const sendMessage = useAnnetteStore((s) => s.sendMessage);
 
   const handleClick = useCallback((opt: QuickOption) => {
-    sendMessage(opt.message);
+    sendMessage(opt.message).catch(() => {});
   }, [sendMessage]);
 
   return (

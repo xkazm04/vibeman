@@ -69,6 +69,7 @@ export interface DiagramProjection {
 export interface GraphStats {
   nodeCount: number;
   edgeCount: number;
+  droppedEdgeCount: number;
   integrationTypes: IntegrationType[];
   tierDistribution: Map<ProjectTier, number>;
 }
@@ -97,6 +98,7 @@ export class Graph {
   private readonly _resolvedEdges: GraphEdge[];
   private readonly _outgoingEdges: Map<string, GraphEdge[]>;
   private readonly _incomingEdges: Map<string, GraphEdge[]>;
+  private readonly _droppedEdgeCount: number;
 
   constructor(nodes: WorkspaceProjectNode[], edges: CrossProjectRelationship[]) {
     this._nodes = [...nodes];
@@ -115,6 +117,7 @@ export class Graph {
     }
 
     // Resolve edges and build adjacency lists
+    let dropped = 0;
     for (const edge of edges) {
       const sourceNode = this._nodeMap.get(edge.sourceProjectId);
       const targetNode = this._nodeMap.get(edge.targetProjectId);
@@ -128,8 +131,17 @@ export class Graph {
         this._resolvedEdges.push(resolvedEdge);
         this._outgoingEdges.get(sourceNode.id)?.push(resolvedEdge);
         this._incomingEdges.get(targetNode.id)?.push(resolvedEdge);
+      } else {
+        dropped++;
+        const missing = !sourceNode && !targetNode
+          ? `source "${edge.sourceProjectId}" and target "${edge.targetProjectId}"`
+          : !sourceNode
+            ? `source "${edge.sourceProjectId}"`
+            : `target "${edge.targetProjectId}"`;
+        console.warn(`[Graph] Dropped edge: ${missing} not found in node set`);
       }
     }
+    this._droppedEdgeCount = dropped;
   }
 
   // === Accessors ===
@@ -148,6 +160,10 @@ export class Graph {
 
   get edgeCount(): number {
     return this._edges.length;
+  }
+
+  get droppedEdgeCount(): number {
+    return this._droppedEdgeCount;
   }
 
   getNode(id: string): WorkspaceProjectNode | undefined {
@@ -230,6 +246,7 @@ export class Graph {
     return {
       nodeCount: this._nodes.length,
       edgeCount: this._edges.length,
+      droppedEdgeCount: this._droppedEdgeCount,
       integrationTypes: this.getIntegrationTypes(),
       tierDistribution,
     };
@@ -302,29 +319,23 @@ export class Graph {
   }
 
   /**
-   * Build adjacency matrix representation
+   * Build adjacency matrix representation (lazy — only creates entries for cells with edges)
    */
   private buildAdjacencyMatrix(
     sortedNodes: WorkspaceProjectNode[]
   ): Map<string, CrossProjectRelationship[]> {
     const matrix = new Map<string, CrossProjectRelationship[]>();
+    const nodeIds = new Set(sortedNodes.map(n => n.id));
 
-    // Initialize empty cells
-    for (const source of sortedNodes) {
-      for (const target of sortedNodes) {
-        if (source.id !== target.id) {
-          matrix.set(`${source.id}-${target.id}`, []);
-        }
-      }
-    }
-
-    // Fill in connections
     for (const edge of this._edges) {
+      if (!nodeIds.has(edge.sourceProjectId) || !nodeIds.has(edge.targetProjectId)) continue;
       const key = `${edge.sourceProjectId}-${edge.targetProjectId}`;
-      const list = matrix.get(key);
-      if (list) {
-        list.push(edge);
+      let list = matrix.get(key);
+      if (!list) {
+        list = [];
+        matrix.set(key, list);
       }
+      list.push(edge);
     }
 
     return matrix;

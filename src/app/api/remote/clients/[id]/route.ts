@@ -6,8 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { getActiveRemoteConfig } from '@/lib/remote/config.server';
+import { getRemoteSupabase } from '@/lib/remote/supabaseClient';
 import type { ClientPermission } from '@/lib/remote/types';
 
 interface RouteParams {
@@ -20,21 +19,13 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const config = getActiveRemoteConfig();
-
-    if (!config) {
+    const supabase = getRemoteSupabase();
+    if (!supabase) {
       return NextResponse.json(
         { success: false, error: 'Remote not configured' },
         { status: 400 }
       );
     }
-
-    const supabase = createClient(config.url, config.serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
 
     const { data: client, error } = await supabase
       .from('vibeman_clients')
@@ -77,9 +68,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const config = getActiveRemoteConfig();
-
-    if (!config) {
+    const supabase = getRemoteSupabase();
+    if (!supabase) {
       return NextResponse.json(
         { success: false, error: 'Remote not configured' },
         { status: 400 }
@@ -103,13 +93,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         }
       }
     }
-
-    const supabase = createClient(config.url, config.serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
 
     // Build update object
     const update: Record<string, unknown> = {
@@ -163,21 +146,13 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const config = getActiveRemoteConfig();
-
-    if (!config) {
+    const supabase = getRemoteSupabase();
+    if (!supabase) {
       return NextResponse.json(
         { success: false, error: 'Remote not configured' },
         { status: 400 }
       );
     }
-
-    const supabase = createClient(config.url, config.serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
 
     const { error } = await supabase
       .from('vibeman_clients')

@@ -41,10 +41,10 @@ interface TaskMonitorProps {
 /**
  * Fetches all tasks from the execution queue
  */
-async function fetchAllTasks(projectPath?: string): Promise<ExecutionTask[]> {
+async function fetchAllTasks(projectId?: string): Promise<ExecutionTask[]> {
   try {
-    const url = projectPath
-      ? `/api/claude-code/tasks?projectPath=${encodeURIComponent(projectPath)}`
+    const url = projectId
+      ? `/api/claude-code/tasks?projectId=${encodeURIComponent(projectId)}`
       : '/api/claude-code/tasks';
 
     const response = await fetch(url, {
@@ -236,14 +236,14 @@ export const TaskMonitor = memo(function TaskMonitor({
     isRefreshingRef.current = true;
     setIsRefreshing(true);
     try {
-      const fetchedTasks = await fetchAllTasks();
+      const fetchedTasks = await fetchAllTasks(projectId);
       setTasks(fetchedTasks);
       setLastRefresh(new Date());
     } finally {
       setIsRefreshing(false);
       isRefreshingRef.current = false;
     }
-  }, []);
+  }, [projectId]);
 
   // Auto-refresh effect
   useEffect(() => {

@@ -17,6 +17,7 @@ import { ContextMapEntry } from '../../context-map/route';
 import { getBrainContext, formatBrainForDirections, getObservabilityContext, formatObservabilityForBrain } from '@/lib/brain/brainContext';
 import { getBehavioralContext, formatBehavioralForPrompt } from '@/lib/brain/behavioralContext';
 import { withObservability } from '@/lib/observability/middleware';
+import { aiOrchestrator } from '@/lib/ai/aiOrchestrator';
 import { contextDb, contextGroupDb } from '@/app/db';
 import type { DbContext, DbContextGroup } from '@/app/db';
 
@@ -653,8 +654,11 @@ async function handlePost(request: NextRequest) {
       });
     }
 
-    // Combine brain, observability, and behavioral context
-    const combinedContext = brainContext + obsSection + behavioralSection;
+    // Load architectural context graph (full project awareness)
+    const architectureSection = aiOrchestrator.getProjectArchitectureSection(projectId);
+
+    // Combine brain, observability, behavioral, and architectural context
+    const combinedContext = brainContext + obsSection + behavioralSection + architectureSection;
 
     // Build requirement content - use brainstorm builder for holistic mode
     const requirementContent = brainstormAll

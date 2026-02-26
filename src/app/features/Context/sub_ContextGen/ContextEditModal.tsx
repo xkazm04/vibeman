@@ -22,7 +22,9 @@ export default function ContextEditModal({
   onSave,
   onCancel,
 }: ContextEditModalProps) {
-  const { addContext, updateContext, loading } = useContextStore();
+  const loading = useContextStore(s => s.loading);
+  const addContext = useContextStore(s => s.addContext);
+  const updateContext = useContextStore(s => s.updateContext);
   const {
     activeProject,
     fileStructure,

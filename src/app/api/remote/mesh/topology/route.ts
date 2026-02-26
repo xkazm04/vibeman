@@ -4,8 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { getActiveRemoteConfig } from '@/lib/remote/config.server';
+import { getRemoteSupabase } from '@/lib/remote/supabaseClient';
 import {
   buildTopologyFromDevices,
   suggestImprovements,
@@ -25,15 +24,6 @@ interface TopologyResponse {
  */
 export async function GET(request: NextRequest): Promise<NextResponse<TopologyResponse>> {
   try {
-    const config = getActiveRemoteConfig();
-
-    if (!config) {
-      return NextResponse.json(
-        { success: false, error: 'Remote not configured' },
-        { status: 400 }
-      );
-    }
-
     const { searchParams } = new URL(request.url);
     const localDeviceId = searchParams.get('local_device_id');
     const includeImprovements = searchParams.get('include_improvements') === 'true';
@@ -45,12 +35,13 @@ export async function GET(request: NextRequest): Promise<NextResponse<TopologyRe
       );
     }
 
-    const supabase = createClient(config.url, config.serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
+    const supabase = getRemoteSupabase();
+    if (!supabase) {
+      return NextResponse.json(
+        { success: false, error: 'Remote not configured' },
+        { status: 400 }
+      );
+    }
 
     // Fetch all devices
     const { data: devices, error: devicesError } = await supabase
@@ -151,15 +142,6 @@ export async function GET(request: NextRequest): Promise<NextResponse<TopologyRe
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const config = getActiveRemoteConfig();
-
-    if (!config) {
-      return NextResponse.json(
-        { success: false, error: 'Remote not configured' },
-        { status: 400 }
-      );
-    }
-
     const body = await request.json();
     const { source_device_id, target_device_id, latency_ms } = body;
 
@@ -170,12 +152,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const supabase = createClient(config.url, config.serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
+    const supabase = getRemoteSupabase();
+    if (!supabase) {
+      return NextResponse.json(
+        { success: false, error: 'Remote not configured' },
+        { status: 400 }
+      );
+    }
 
     // Record ping result as a completed command
     const { error: insertError } = await supabase

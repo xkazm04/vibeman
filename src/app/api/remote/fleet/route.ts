@@ -4,8 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { getActiveRemoteConfig } from '@/lib/remote/config.server';
+import { getRemoteSupabase } from '@/lib/remote/supabaseClient';
 import type { RemoteDevice } from '@/lib/remote/deviceTypes';
 import {
   calculateHealthScore,
@@ -40,9 +39,8 @@ interface FleetResponse {
  */
 export async function GET(request: NextRequest): Promise<NextResponse<FleetResponse>> {
   try {
-    const config = getActiveRemoteConfig();
-
-    if (!config) {
+    const supabase = getRemoteSupabase();
+    if (!supabase) {
       return NextResponse.json(
         { success: false, error: 'Remote not configured' },
         { status: 400 }
@@ -53,13 +51,6 @@ export async function GET(request: NextRequest): Promise<NextResponse<FleetRespo
     const localDeviceId = searchParams.get('local_device_id');
     const includeHistory = searchParams.get('include_history') === 'true';
     const historyLimit = parseInt(searchParams.get('history_limit') || '20', 10);
-
-    const supabase = createClient(config.url, config.serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
 
     // Fetch all devices
     const { data: devices, error: devicesError } = await supabase
@@ -252,15 +243,6 @@ export async function GET(request: NextRequest): Promise<NextResponse<FleetRespo
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const config = getActiveRemoteConfig();
-
-    if (!config) {
-      return NextResponse.json(
-        { success: false, error: 'Remote not configured' },
-        { status: 400 }
-      );
-    }
-
     const body = await request.json();
     const { action, device_ids, command_type, payload, source_device_id, source_device_name } = body;
 
@@ -271,12 +253,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const supabase = createClient(config.url, config.serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
+    const supabase = getRemoteSupabase();
+    if (!supabase) {
+      return NextResponse.json(
+        { success: false, error: 'Remote not configured' },
+        { status: 400 }
+      );
+    }
 
     switch (action) {
       case 'batch_command': {

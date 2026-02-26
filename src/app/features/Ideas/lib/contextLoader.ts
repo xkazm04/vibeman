@@ -66,3 +66,29 @@ export function getContextNameFromMap(
   }
   return contextId.substring(0, 8);
 }
+
+/**
+ * Build a flat contextId → contextName lookup map from a project-keyed contexts map.
+ * Use with useMemo to avoid O(P*C) scans per card render.
+ */
+export function buildContextLookup(
+  contextsMap: Record<string, Context[]>
+): Map<string, string> {
+  const lookup = new Map<string, string>();
+  for (const contexts of Object.values(contextsMap)) {
+    for (const ctx of contexts) {
+      lookup.set(ctx.id, ctx.name);
+    }
+  }
+  return lookup;
+}
+
+/**
+ * Get context name from a pre-built lookup map. O(1) per call.
+ */
+export function getContextNameFromLookup(
+  contextId: string,
+  lookup: Map<string, string>
+): string {
+  return lookup.get(contextId) ?? contextId.substring(0, 8);
+}

@@ -187,16 +187,18 @@ export default function CapabilityCatalog({
   const handleInvoke = useCallback((tool: ToolCapability) => {
     if (isLoading) return;
     onClose();
-    sendMessage(tool.triggerPrompt);
+    sendMessage(tool.triggerPrompt).catch(() => {});
   }, [isLoading, onClose, sendMessage]);
 
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
   // Sync initialCategory when it changes while open
-  if (initialCategory && initialCategory !== activeCategory && isOpen) {
-    setActiveCategory(initialCategory);
-  }
+  useEffect(() => {
+    if (initialCategory && isOpen) {
+      setActiveCategory(initialCategory);
+    }
+  }, [initialCategory, isOpen]);
 
   // Focus trap: capture previous focus, trap Tab, restore on close
   useEffect(() => {

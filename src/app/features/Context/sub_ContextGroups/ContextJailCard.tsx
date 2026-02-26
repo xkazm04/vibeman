@@ -61,7 +61,11 @@ const ContextJailCardWrapper = React.memo<ContextJailCardWrapperProps>(({
   const pendingDragTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { toggleTooltip } = useTooltipStore();
-  const { removeContext, selectedContextIds, toggleContextSelection, setSelectedContext } = useContextStore();
+  // Atomic selectors: actions are stable refs, isSelected scoped to this card
+  const removeContext = useContextStore(s => s.removeContext);
+  const toggleContextSelection = useContextStore(s => s.toggleContextSelection);
+  const setSelectedContext = useContextStore(s => s.setSelectedContext);
+  const isSelectedForBacklog = useContextStore(s => s.selectedContextIds.has(context.id));
   const { clearSelection } = useStore();
   const { showFullScreenModal } = useGlobalModal();
 
@@ -294,15 +298,15 @@ const ContextJailCardWrapper = React.memo<ContextJailCardWrapperProps>(({
     { id: 'select', label: 'Select', icon: MousePointer, iconColor: 'text-blue-400', action: handleSelect },
     {
       id: 'toggle-queue',
-      label: selectedContextIds.has(context.id) ? 'Remove from Queue' : 'Add to Queue',
-      icon: selectedContextIds.has(context.id) ? CheckSquare : Square,
+      label: isSelectedForBacklog ? 'Remove from Queue' : 'Add to Queue',
+      icon: isSelectedForBacklog ? CheckSquare : Square,
       iconColor: 'text-green-400',
       action: handleToggleForBacklog,
     },
     { id: 'context-matrix', label: 'Context Matrix', icon: FileText, iconColor: 'text-blue-400', action: handleContextFile },
     { id: 'modify', label: 'Modify Node', icon: Edit, iconColor: 'text-yellow-400', action: handleEdit },
     { id: 'delete', label: 'Delete Context', icon: Trash2, isDanger: true, action: handleDelete },
-  ], [handleOpenFiles, handleCopy, handleSelect, handleToggleForBacklog, handleContextFile, handleEdit, handleDelete, selectedContextIds, context.id]);
+  ], [handleOpenFiles, handleCopy, handleSelect, handleToggleForBacklog, handleContextFile, handleEdit, handleDelete, isSelectedForBacklog]);
 
   // Show ghost placeholder when dragging - using hook's ghostStyle
   if (isDragging) {

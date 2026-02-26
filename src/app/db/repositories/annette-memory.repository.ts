@@ -55,7 +55,24 @@ export const annetteMemoryRepository = {
       now
     );
 
-    return this.getById(id)!;
+    return {
+      id,
+      project_id: input.projectId,
+      session_id: input.sessionId || null,
+      memory_type: input.memoryType,
+      content: input.content,
+      summary: input.summary || null,
+      embedding: input.embedding ? JSON.stringify(input.embedding) : null,
+      importance_score: input.importanceScore ?? 0.5,
+      decay_factor: 1.0,
+      access_count: 0,
+      last_accessed_at: null,
+      consolidated_into: null,
+      source_message_ids: input.sourceMessageIds ? JSON.stringify(input.sourceMessageIds) : null,
+      metadata: input.metadata ? JSON.stringify(input.metadata) : null,
+      created_at: now,
+      updated_at: now,
+    };
   },
 
   getById(id: string): DbAnnetteMemory | null {
@@ -158,9 +175,11 @@ export const annetteMemoryRepository = {
       WHERE id = ?
     `);
 
-    for (const id of memoryIds) {
-      stmt.run(resultMemoryId, id);
-    }
+    db.transaction(() => {
+      for (const id of memoryIds) {
+        stmt.run(resultMemoryId, id);
+      }
+    });
   },
 
   getStaleMemories(projectId: string, maxDecayFactor = 0.1, limit = 100): DbAnnetteMemory[] {
@@ -226,7 +245,16 @@ export const annetteKnowledgeNodeRepository = {
         now,
         existing.id
       );
-      return this.getById(existing.id)!;
+      return {
+        ...existing,
+        description: input.description || existing.description,
+        properties: input.properties ? JSON.stringify(input.properties) : existing.properties,
+        embedding: input.embedding ? JSON.stringify(input.embedding) : existing.embedding,
+        mention_count: existing.mention_count + 1,
+        importance_score: Math.min(existing.importance_score + 0.1, 2.0),
+        last_mentioned_at: now,
+        updated_at: now,
+      };
     }
 
     const id = uuidv4();
@@ -249,7 +277,20 @@ export const annetteKnowledgeNodeRepository = {
       now
     );
 
-    return this.getById(id)!;
+    return {
+      id,
+      project_id: input.projectId,
+      node_type: input.nodeType,
+      name: input.name,
+      description: input.description || null,
+      properties: input.properties ? JSON.stringify(input.properties) : null,
+      embedding: input.embedding ? JSON.stringify(input.embedding) : null,
+      mention_count: 1,
+      importance_score: 0.5,
+      last_mentioned_at: now,
+      created_at: now,
+      updated_at: now,
+    };
   },
 
   getById(id: string): DbAnnetteKnowledgeNode | null {
@@ -357,7 +398,13 @@ export const annetteKnowledgeEdgeRepository = {
         now,
         existing.id
       );
-      return this.getById(existing.id)!;
+      return {
+        ...existing,
+        weight: input.weight ?? existing.weight,
+        properties: input.properties ? JSON.stringify(input.properties) : existing.properties,
+        evidence_count: existing.evidence_count + 1,
+        last_observed_at: now,
+      };
     }
 
     const id = uuidv4();
@@ -379,7 +426,18 @@ export const annetteKnowledgeEdgeRepository = {
       now
     );
 
-    return this.getById(id)!;
+    return {
+      id,
+      project_id: input.projectId,
+      source_node_id: input.sourceNodeId,
+      target_node_id: input.targetNodeId,
+      relationship_type: input.relationshipType,
+      weight: input.weight ?? 1.0,
+      properties: input.properties ? JSON.stringify(input.properties) : null,
+      evidence_count: 1,
+      last_observed_at: now,
+      created_at: now,
+    };
   },
 
   getById(id: string): DbAnnetteKnowledgeEdge | null {
@@ -481,7 +539,16 @@ export const annetteMemoryConsolidationRepository = {
       now
     );
 
-    return this.getById(id)!;
+    return {
+      id,
+      project_id: input.projectId,
+      source_memory_ids: JSON.stringify(input.sourceMemoryIds),
+      result_memory_id: input.resultMemoryId,
+      consolidation_type: input.consolidationType,
+      tokens_before: input.tokensBefore ?? null,
+      tokens_after: input.tokensAfter ?? null,
+      created_at: now,
+    };
   },
 
   getById(id: string): DbAnnetteMemoryConsolidation | null {

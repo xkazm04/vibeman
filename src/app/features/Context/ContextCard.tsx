@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { X, FolderOpen, Copy, MousePointer, FileText, Edit, Trash2, CheckSquare, Square } from 'lucide-react';
 import { Context, ContextGroup, useContextStore } from '../../../stores/contextStore';
@@ -23,48 +23,51 @@ interface ContextCardProps {
 
 }
 
-export default function ContextCard({ context, groupColor, availableGroups, selectedFilePaths }: ContextCardProps) {
-  const { removeContext, selectedContextIds, toggleContextSelection, setSelectedContext } = useContextStore();
+const ContextCard = React.memo(function ContextCard({ context, groupColor, availableGroups, selectedFilePaths }: ContextCardProps) {
+  // Atomic selectors: actions are stable refs, isSelected is scoped to this card's ID
+  const removeContext = useContextStore(s => s.removeContext);
+  const toggleContextSelection = useContextStore(s => s.toggleContextSelection);
+  const setSelectedContext = useContextStore(s => s.setSelectedContext);
+  const isSelectedForBacklog = useContextStore(s => s.selectedContextIds.has(context.id));
   const { toggleTooltip } = useTooltipStore();
   const { clearSelection } = useStore();
   const { showFullScreenModal } = useGlobalModal();
   const { theme } = useThemeStore();
   const focusRingClasses = getFocusRingStyles(theme);
-  const isSelectedForBacklog = selectedContextIds.has(context.id);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
   const [showFileEditor, setShowFileEditor] = useState(false);
   const [showContextFileModal, setShowContextFileModal] = useState(false);
 
-  const handleDragStart = (e: React.DragEvent) => {
+  const handleDragStart = useCallback((e: React.DragEvent) => {
     e.dataTransfer.setData('text/plain', context.id);
     e.dataTransfer.effectAllowed = 'move';
-  };
+  }, [context.id]);
 
-  const handleRemove = async (e: React.MouseEvent) => {
+  const handleRemove = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       await removeContext(context.id);
     } catch (error) {
       // Failed to remove context
     }
-  };
+  }, [context.id, removeContext]);
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     toggleTooltip(context, groupColor || '#8B5CF6');
-  };
+  }, [context, groupColor, toggleTooltip]);
 
-  const handleMouseEnter = () => {
+  const handleMouseEnter = useCallback(() => {
     setIsHovered(true);
-  };
+  }, []);
 
-  const handleMouseLeave = () => {
+  const handleMouseLeave = useCallback(() => {
     setIsHovered(false);
-  };
+  }, []);
 
-  const handleContextMenu = (e: React.MouseEvent) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -92,29 +95,29 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
 
     setContextMenuPosition({ x, y });
     setShowContextMenu(true);
-  };
+  }, []);
 
-  const handleCloseContextMenu = () => {
+  const handleCloseContextMenu = useCallback(() => {
     setShowContextMenu(false);
-  };
+  }, []);
 
-  const handleSelect = () => {
+  const handleSelect = useCallback(() => {
     clearSelection();
     setSelectedContext(context.id);
     setShowContextMenu(false);
-  };
+  }, [clearSelection, setSelectedContext, context.id]);
 
-  const handleToggleForBacklog = () => {
+  const handleToggleForBacklog = useCallback(() => {
     toggleContextSelection(context.id);
     setShowContextMenu(false);
-  };
+  }, [toggleContextSelection, context.id]);
 
-  const handleCopy = () => {
+  const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(JSON.stringify(context, null, 2));
     setShowContextMenu(false);
-  };
+  }, [context]);
 
-  const handleEdit = () => {
+  const handleEdit = useCallback(() => {
     showFullScreenModal(
       `Edit Context: ${context.name}`,
       <ContextEditModal
@@ -133,40 +136,40 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
       }
     );
     setShowContextMenu(false);
-  };
+  }, [showFullScreenModal, context, availableGroups]);
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     try {
       await removeContext(context.id);
     } catch (error) {
       // Failed to delete context
     }
     setShowContextMenu(false);
-  };
+  }, [removeContext, context.id]);
 
-  const handleOpenFiles = () => {
+  const handleOpenFiles = useCallback(() => {
     setShowFileEditor(true);
     setShowContextMenu(false);
-  };
+  }, []);
 
-  const handleContextFile = () => {
+  const handleContextFile = useCallback(() => {
     setShowContextFileModal(true);
     setShowContextMenu(false);
-  };
+  }, []);
 
-  const handleFileEditorClose = () => {
+  const handleFileEditorClose = useCallback(() => {
     setShowFileEditor(false);
-  };
+  }, []);
 
-  const handleContextFileModalClose = () => {
+  const handleContextFileModalClose = useCallback(() => {
     setShowContextFileModal(false);
-  };
+  }, []);
 
-  const handleFileSave = async (filePath: string, content: string) => {
+  const handleFileSave = useCallback(async (filePath: string, content: string) => {
     await saveFileContent(filePath, content);
-  };
+  }, []);
 
-  const contextMenuItems: ContextMenuItem[] = [
+  const contextMenuItems: ContextMenuItem[] = useMemo(() => [
     {
       id: 'open-files',
       label: 'Open Neural Files',
@@ -187,8 +190,8 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
     },
     {
       id: 'toggle-queue',
-      label: selectedContextIds.has(context.id) ? 'Remove from Queue' : 'Add to Queue',
-      icon: selectedContextIds.has(context.id) ? CheckSquare : Square,
+      label: isSelectedForBacklog ? 'Remove from Queue' : 'Add to Queue',
+      icon: isSelectedForBacklog ? CheckSquare : Square,
       action: handleToggleForBacklog,
     },
     {
@@ -210,7 +213,7 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
       action: handleDelete,
       isDanger: true,
     },
-  ];
+  ], [handleOpenFiles, handleCopy, handleSelect, isSelectedForBacklog, handleToggleForBacklog, handleContextFile, handleEdit, handleDelete]);
 
   return (
     <>
@@ -322,4 +325,6 @@ export default function ContextCard({ context, groupColor, availableGroups, sele
       />
     </>
   );
-}
+});
+
+export default ContextCard;

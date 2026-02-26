@@ -211,16 +211,77 @@ export default function ReflectionDashboard() {
 
   // Fetch stats when filters change
   useEffect(() => {
-    loadStats();
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        if (filters.comparisonMode && filters.period1 && filters.period2) {
+          const compData = await fetchComparisonStats(
+            filters.projectId,
+            filters.contextId,
+            filters.period1,
+            filters.period2
+          );
+          if (!cancelled) {
+            setComparisonStats(compData);
+            setStats(null);
+          }
+        } else {
+          const data = await fetchReflectionStats(
+            filters.projectId,
+            filters.contextId,
+            filters.dateRange,
+            { timeWindow: filters.timeWindow, suggestionType: filters.suggestionType }
+          );
+          if (!cancelled) {
+            setStats(data);
+            setComparisonStats(null);
+          }
+        }
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load statistics');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
+    return () => { cancelled = true; };
   }, [filters]);
 
   // Fetch contexts when project filter changes
   useEffect(() => {
-    if (filters.projectId) {
-      loadContexts(filters.projectId);
-    } else {
+    if (!filters.projectId) {
       setContexts([]);
+      return;
     }
+
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const response = await fetch(`/api/contexts?projectId=${filters.projectId}`);
+        if (!response.ok) throw new Error('Failed to fetch contexts');
+
+        const data = await response.json();
+        if (!cancelled && data.success && data.data.contexts) {
+          const mappedContexts = data.data.contexts.map((ctx: { id: string; name: string; project_id: string }) => ({
+            id: ctx.id,
+            name: ctx.name,
+            project_id: ctx.project_id,
+          }));
+          setContexts(mappedContexts);
+        }
+      } catch {
+        if (!cancelled) setContexts([]);
+      }
+    };
+
+    load();
+    return () => { cancelled = true; };
   }, [filters.projectId]);
 
   const loadStats = async () => {
@@ -255,26 +316,6 @@ export default function ReflectionDashboard() {
     }
   };
 
-  const loadContexts = async (projectId: string) => {
-    try {
-      const response = await fetch(`/api/contexts?projectId=${projectId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch contexts');
-      }
-
-      const data = await response.json();
-      if (data.success && data.data.contexts) {
-        const mappedContexts = data.data.contexts.map((ctx: { id: string; name: string; project_id: string }) => ({
-          id: ctx.id,
-          name: ctx.name,
-          project_id: ctx.project_id
-        }));
-        setContexts(mappedContexts);
-      }
-    } catch (err) {
-      setContexts([]);
-    }
-  };
 
   if (loading) {
     return (

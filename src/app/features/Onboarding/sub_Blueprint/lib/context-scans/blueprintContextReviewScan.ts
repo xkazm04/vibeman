@@ -8,9 +8,7 @@ import React from 'react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useBlueprintStore } from '../../store/blueprintStore';
 import { contextReviewPrompt } from './prompts/contextReview';
-import { useTaskRunnerStore } from '@/app/features/TaskRunner/store/taskRunnerStore';
 import type { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
-import { isBatchRunning } from '@/app/features/TaskRunner/lib/types';
 import { toast } from 'sonner';
 import FeatureScanBatchSelector from '../../components/FeatureScanBatchSelector';
 import {
@@ -194,30 +192,8 @@ async function executeContextReview(
 
     console.log('[Context Review] Requirement created:', { requirementName, requirementPath });
 
-    // Add to TaskRunner for background execution
-    const taskRunnerStore = useTaskRunnerStore.getState();
-
-    // Build task ID using shared utility
     const taskId = buildTaskId(projectId, requirementName);
-
-    // Ensure batch exists
-    let batch = taskRunnerStore.batches[batchId];
-    if (!batch) {
-      taskRunnerStore.createBatch(batchId, 'Context Reviews', []);
-      // Re-fetch batch after creation
-      batch = useTaskRunnerStore.getState().batches[batchId];
-    }
-
-    // Add task to batch
-    taskRunnerStore.addTaskToBatch(batchId, taskId);
-    console.log(`[Context Review] Added task to ${batchId}:`, taskId);
-
-    // Re-fetch current batch state before starting
-    batch = useTaskRunnerStore.getState().batches[batchId];
-    if (batch && !isBatchRunning(batch.status)) {
-      taskRunnerStore.startBatch(batchId);
-      console.log('[Context Review] Started batch:', batchId);
-    }
+    console.log(`[Context Review] Created task:`, taskId);
 
     // Create event for task queued
     await createContextReviewEvent(projectId, contextName, taskId);

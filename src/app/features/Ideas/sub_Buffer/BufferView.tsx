@@ -16,7 +16,6 @@ import {
   useDeleteContextIdeas,
   useInvalidateIdeas,
 } from '@/lib/queries/ideaQueries';
-import { useTaskRunnerStore } from '@/app/features/TaskRunner/store/taskRunnerStore';
 import EmptyStateIllustration from '@/components/ui/EmptyStateIllustration';
 import IdeasLoadingState from '@/app/features/Ideas/components/IdeasLoadingState';
 import { getCategoryConfig } from '@/app/features/Ideas/lib/ideaConfig';
@@ -51,7 +50,6 @@ export default function BufferView({
 }: BufferViewProps) {
   const router = useRouter();
   const { getProject } = useProjectConfigStore();
-  const { reserveBatchSlot, releaseBatchReservation, createSessionBatch } = useTaskRunnerStore();
 
   const [errorBanner, setErrorBanner] = React.useState<string | null>(null);
 
@@ -72,6 +70,9 @@ export default function BufferView({
   const deleteContextIdeasMutation = useDeleteContextIdeas();
   const invalidateIdeas = useInvalidateIdeas();
 
+  // Dependency counts for chain icon display
+  const [dependencyCounts, setDependencyCounts] = React.useState<Record<string, number>>({});
+
   // Filter ideas by project if needed
   const filteredIdeas = React.useMemo(() => {
     if (filterProject === 'all') {
@@ -79,6 +80,20 @@ export default function BufferView({
     }
     return ideas.filter((idea) => idea.project_id === filterProject);
   }, [ideas, filterProject]);
+
+  // Load dependency counts for visible ideas
+  React.useEffect(() => {
+    if (filteredIdeas.length === 0) return;
+    const ids = filteredIdeas.map(i => i.id);
+    fetch(`/api/ideas/dependencies?ideaIds=${ids.join(',')}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.counts) {
+          setDependencyCounts(data.counts);
+        }
+      })
+      .catch(() => {});
+  }, [filteredIdeas]);
 
   // Group and sort ideas using the staging buffer abstraction
   const sortedGroupedIdeas = React.useMemo(() => {
@@ -180,7 +195,6 @@ export default function BufferView({
 
   const handleIdeaQueueForExecution = React.useCallback(
     async (ideaId: string) => {
-      // Find the idea to get its project_id
       const idea = ideas.find((i) => i.id === ideaId);
       if (!idea) {
         console.error('Idea not found:', ideaId);
@@ -193,16 +207,7 @@ export default function BufferView({
         return;
       }
 
-      // Atomically reserve a batch slot BEFORE any async operations
-      // This prevents race conditions from double-clicks or concurrent requests
-      const reservedBatchId = reserveBatchSlot();
-      if (!reservedBatchId) {
-        showError('All batch slots are full. Please clear a batch in Task Runner first.');
-        return;
-      }
-
       try {
-        // Step 1: Accept the idea (creates requirement file)
         const response = await fetch('/api/ideas/tinder/accept', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -217,31 +222,9 @@ export default function BufferView({
           throw new Error(errorData.error || 'Failed to convert idea');
         }
 
-        const data = await response.json();
-        const requirementName = data.requirementName;
-
-        // Step 2: Create a batch in TaskRunner with this requirement
-        // This also clears the reservation atomically
-        const taskId = `${idea.project_id}:${requirementName}`;
-        const batchName = idea.title.substring(0, 30);
-
-        createSessionBatch(
-          reservedBatchId,
-          idea.project_id,
-          project.path,
-          batchName,
-          taskId,
-          requirementName
-        );
-
-        // Refresh the ideas list to show updated status
         invalidateIdeas();
-
-        // Step 3: Navigate to TaskRunner (home page)
         router.push('/');
       } catch (error) {
-        // Release the reservation if the async operation failed
-        releaseBatchReservation(reservedBatchId);
         console.error('Failed to queue idea for execution:', error);
         showError(
           error instanceof Error
@@ -250,7 +233,7 @@ export default function BufferView({
         );
       }
     },
-    [ideas, getProject, reserveBatchSlot, releaseBatchReservation, createSessionBatch, invalidateIdeas, router]
+    [ideas, getProject, invalidateIdeas, router, showError]
   );
 
   if (isLoading) {
@@ -338,6 +321,7 @@ export default function BufferView({
                   projectName={getProjectName(projectId)}
                   ideas={contextIdeas}
                   accentColor={getDominantCategoryColor(contextIdeas)}
+                  dependencyCounts={dependencyCounts}
                   onIdeaClick={onIdeaClick}
                   onIdeaDelete={handleIdeaDelete}
                   onContextDelete={handleContextDelete}

@@ -17,12 +17,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const { projectId } = body;
 
-    // Get all orphaned sessions
-    const orphaned = sessionRepository.getAllOrphaned({
+    const staleThresholds = {
       runningMinutes: ORPHAN_THRESHOLDS.RUNNING_NO_HEARTBEAT_MINUTES,
       pausedHours: ORPHAN_THRESHOLDS.PAUSED_STALE_HOURS,
       pendingHours: ORPHAN_THRESHOLDS.PENDING_STALE_HOURS,
-    });
+    };
+
+    // Get all orphaned sessions (for logging and optional project filtering)
+    const orphaned = sessionRepository.getAllOrphaned(staleThresholds);
 
     // Collect all orphaned session IDs
     let allOrphanIds = [
@@ -41,7 +43,8 @@ export async function POST(request: NextRequest) {
       allOrphanIds = allOrphanIds.filter((id) => projectSessions.has(id));
     }
 
-    const deletedCount = sessionRepository.bulkDelete(allOrphanIds);
+    // Atomically delete only sessions still stale at delete time
+    const deletedCount = sessionRepository.bulkDeleteStale(staleThresholds, allOrphanIds);
 
     logger.info('All orphaned sessions cleaned up', {
       totalOrphans: allOrphanIds.length,

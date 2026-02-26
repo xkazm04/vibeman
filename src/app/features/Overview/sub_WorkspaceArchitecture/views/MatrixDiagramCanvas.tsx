@@ -6,6 +6,7 @@
  * Implements the LINKED VIEWS pattern from information visualization:
  * - Multiple views (Matrix, Diagram) of the same graph data
  * - Coordinated interaction: hover/select in one view highlights in all views
+ * - Impact Mode: blast radius analysis from any node
  * - Extensible: can add Table View, Timeline View, etc. without rewriting coordination
  *
  * Uses LinkedViewsContainer for shared selection state across child views.
@@ -13,8 +14,11 @@
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { Zap } from 'lucide-react';
 import type { IntegrationType } from '../lib/types';
 import { useMatrixCanvasData } from '../lib/useMatrixCanvasData';
+import { computeBlastRadius, type BlastRadiusResult } from '../lib/blastRadiusEngine';
+import { HighlightRule } from '../../sub_Matrix/lib/highlightAlgebra';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import {
   LinkedViewsContainer,
@@ -26,6 +30,7 @@ import MatrixState from '../../sub_Matrix/MatrixState';
 import MatrixPanel from '../../sub_Matrix/MatrixPanel';
 import MatrixDiagramView from '../../sub_Matrix/MatrixDiagramView';
 import MatrixBackground from '../../sub_Matrix/MatrixBackground';
+import BlastRadiusPanel from '../../sub_Matrix/BlastRadiusPanel';
 
 interface MatrixDiagramCanvasProps {
   workspaceId: string | null;
@@ -42,6 +47,11 @@ export default function MatrixDiagramCanvas({
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [filterTypes, setFilterTypes] = useState<Set<IntegrationType>>(new Set());
   const [showMatrix, setShowMatrix] = useState(true);
+
+  // Impact Mode state
+  const [impactMode, setImpactMode] = useState(false);
+  const [blastRadius, setBlastRadius] = useState<BlastRadiusResult | null>(null);
+  const [impactOriginName, setImpactOriginName] = useState('');
 
   // Use the focus highlight system for coordinated hover/selection
   const focus = useLocalFocusHighlight();
@@ -80,7 +90,8 @@ export default function MatrixDiagramCanvas({
 
   const {
     data, loading, error, refresh,
-    sortedNodes, matrix, filteredResolvedEdges,
+    graph,
+    sortedNodes, matrix, filteredMatrix, filteredResolvedEdges,
     nodes, tierConfigs, availableIntegrationTypes,
     matrixContentWidth, matrixContentHeight, matrixPanelWidth,
   } = useMatrixCanvasData({ workspaceId, filterTypes, showMatrix, dimensionsWidth: dimensions.width });
@@ -103,6 +114,51 @@ export default function MatrixDiagramCanvas({
       return next;
     });
   };
+
+  // Impact Mode: compute blast radius when a node is clicked
+  const handleNodeClick = useCallback(
+    (nodeId: string) => {
+      if (!impactMode) return;
+
+      // If clicking the same origin, deactivate
+      if (blastRadius?.originId === nodeId) {
+        setBlastRadius(null);
+        setImpactOriginName('');
+        return;
+      }
+
+      const result = computeBlastRadius(graph, nodeId);
+      const node = graph.getNode(nodeId);
+      setBlastRadius(result);
+      setImpactOriginName(node?.name || nodeId);
+    },
+    [impactMode, blastRadius?.originId, graph]
+  );
+
+  // Toggle impact mode
+  const handleToggleImpactMode = useCallback(() => {
+    setImpactMode((prev) => {
+      if (prev) {
+        // Turning off — clear blast radius
+        setBlastRadius(null);
+        setImpactOriginName('');
+      }
+      return !prev;
+    });
+  }, []);
+
+  // Close impact panel
+  const handleCloseImpact = useCallback(() => {
+    setBlastRadius(null);
+    setImpactOriginName('');
+    setImpactMode(false);
+  }, []);
+
+  // Compute highlight rule from blast radius
+  const blastRadiusHighlightRule = useMemo(() => {
+    if (!blastRadius) return undefined;
+    return HighlightRule.fromBlastRadius(blastRadius);
+  }, [blastRadius]);
 
   if (loading) return <MatrixState ref={containerRef} variant="loading" />;
   if (error) return <MatrixState ref={containerRef} variant="error" error={error} onRetry={refresh} />;
@@ -134,6 +190,7 @@ export default function MatrixDiagramCanvas({
             <MatrixPanel
               sortedNodes={sortedNodes}
               matrix={matrix}
+              filteredMatrix={filteredMatrix}
               availableIntegrationTypes={availableIntegrationTypes}
               filterTypes={filterTypes}
               selectedCell={selectedCell}
@@ -158,7 +215,36 @@ export default function MatrixDiagramCanvas({
           hoveredCell={hoveredCell}
           showMatrixButton={!showMatrix}
           onShowMatrix={() => setShowMatrix(true)}
+          highlightRule={blastRadiusHighlightRule}
+          impactMode={impactMode}
+          onNodeClick={handleNodeClick}
         />
+
+        {/* Impact Mode toggle button */}
+        <button
+          onClick={handleToggleImpactMode}
+          className={`absolute bottom-4 right-4 z-10 flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all duration-200 shadow-lg backdrop-blur-sm focus:outline-none focus-visible:ring-2 group ${
+            impactMode
+              ? 'bg-red-950/80 border-red-500/40 text-red-300 hover:bg-red-900/80 shadow-red-500/10 focus-visible:ring-red-400/50'
+              : 'bg-zinc-900/90 border-zinc-700/50 text-zinc-400 hover:bg-zinc-800/90 hover:text-zinc-200 hover:border-zinc-600/50 focus-visible:ring-zinc-400/50'
+          }`}
+          title={impactMode ? 'Exit Impact Mode' : 'Enter Impact Mode — click a node to see its blast radius'}
+        >
+          <Zap className={`w-4 h-4 ${impactMode ? 'text-red-400' : 'group-hover:text-amber-400'} transition-colors duration-200`} />
+          <span className="group-hover:text-white transition-colors duration-200">
+            {impactMode ? 'Impact Mode' : 'Impact'}
+          </span>
+        </button>
+
+        {/* Blast Radius Panel */}
+        {impactMode && (
+          <BlastRadiusPanel
+            result={blastRadius}
+            originName={impactOriginName}
+            onClose={handleCloseImpact}
+            onNodeClick={handleNodeClick}
+          />
+        )}
       </div>
     </LinkedViewsContainer>
   );

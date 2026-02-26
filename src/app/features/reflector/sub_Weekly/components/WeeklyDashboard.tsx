@@ -64,8 +64,24 @@ export default function WeeklyDashboard() {
   }, [filters]);
 
   useEffect(() => {
-    loadStats();
-  }, [loadStats]);
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await fetchWeeklyStats(filters);
+        if (!cancelled) setStats(data);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load weekly stats');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
+    return () => { cancelled = true; };
+  }, [filters]);
 
   const handleFilterChange = useCallback((newFilters: FilterState) => {
     setUnifiedFilters(newFilters);

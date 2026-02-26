@@ -28,6 +28,7 @@ export {
   stopSessionPolling,
   cleanupAllCLISessions,
   getSessionExecutionStatus,
+  getActiveStreamCount,
   abortSessionExecution,
   // Shared task completion utilities
   deleteRequirementFile,

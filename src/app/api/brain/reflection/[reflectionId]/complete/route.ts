@@ -8,10 +8,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { reflectionAgent } from '@/lib/brain/reflectionAgent';
 import { brainReflectionDb, brainInsightDb } from '@/app/db';
+import { getDatabase } from '@/app/db/connection';
 import { withObservability } from '@/lib/observability/middleware';
 import type { LearningInsight } from '@/app/db/models/brain.types';
 import { detectConflicts, markConflictsOnInsights } from '@/lib/brain/insightConflictDetector';
 import { autoPruneInsights } from '@/lib/brain/insightAutoPruner';
+import { predictiveIntentEngine } from '@/lib/brain/predictiveIntentEngine';
+
+/**
+ * In-memory lock to prevent concurrent completions for the same project.
+ * Prevents race conditions where two reflections read stale insight data.
+ */
+const activeCompletions = new Set<string>();
 
 /**
  * Normalize a string for comparison (lowercase, trim, strip punctuation)
@@ -160,50 +168,86 @@ async function handlePost(
       }
     }
 
-    // Deduplicate insights against previously stored ones (from new table)
-    const existingInsights = brainInsightDb.getAllInsights(reflection.project_id);
-    const dedupedInsights = deduplicateInsights(validatedInsights, existingInsights);
-
-    // Detect conflicts between new insights and existing insights
-    let conflictsDetected = 0;
-    for (const insight of dedupedInsights) {
-      const conflicts = detectConflicts(insight, existingInsights);
-      if (conflicts.length > 0) {
-        // Mark the first (highest confidence) conflict
-        const topConflict = conflicts.sort((a, b) => b.confidence - a.confidence)[0];
-        insight.conflict_with = topConflict.insight2Title;
-        insight.conflict_type = topConflict.conflictType;
-        insight.conflict_resolved = false;
-        conflictsDetected++;
-      }
-    }
-
-    // Also detect conflicts within the new insights themselves
-    conflictsDetected += markConflictsOnInsights(dedupedInsights);
-
-    // Complete the reflection (keeps JSON blob for backward compat)
-    const success = reflectionAgent.completeReflection(reflectionId, {
-      directionsAnalyzed,
-      outcomesAnalyzed,
-      signalsAnalyzed,
-      insights: dedupedInsights,
-      guideSectionsUpdated: Array.isArray(guideSectionsUpdated) ? guideSectionsUpdated : [],
-    });
-
-    if (!success) {
+    // Prevent concurrent completions for the same project
+    const projectId = reflection.project_id;
+    if (activeCompletions.has(projectId)) {
       return NextResponse.json(
-        { success: false, error: 'Failed to complete reflection' },
-        { status: 500 }
+        { success: false, error: 'Another reflection completion is already in progress for this project' },
+        { status: 409 }
       );
     }
 
-    // Insert insights into the first-class brain_insights table
-    brainInsightDb.createBatch(reflectionId, reflection.project_id, dedupedInsights);
+    activeCompletions.add(projectId);
+    let dedupedInsights: LearningInsight[] = [];
+    let conflictsDetected = 0;
+    let autoPruneResult: ReturnType<typeof autoPruneInsights> | null = null;
 
-    // Run auto-pruning: demote misleading insights and auto-resolve clear conflicts
-    const autoPruneResult = autoPruneInsights(reflection.project_id);
+    try {
+      // Wrap all read-dedup-insert-prune operations in a transaction
+      // to prevent concurrent completions from reading stale data
+      const db = getDatabase();
+      const runCompletion = db.transaction(() => {
+        // Deduplicate insights against previously stored ones (from new table)
+        const existingInsights = brainInsightDb.getAllInsights(projectId);
+        dedupedInsights = deduplicateInsights(validatedInsights, existingInsights);
 
-    // Get updated reflection (after auto-pruning may have modified insights)
+        // Detect conflicts between new insights and existing insights
+        for (const insight of dedupedInsights) {
+          const conflicts = detectConflicts(insight, existingInsights);
+          if (conflicts.length > 0) {
+            // Mark the first (highest confidence) conflict
+            const topConflict = conflicts.sort((a, b) => b.confidence - a.confidence)[0];
+            insight.conflict_with = topConflict.insight2Title;
+            insight.conflict_type = topConflict.conflictType;
+            insight.conflict_resolved = false;
+            conflictsDetected++;
+          }
+        }
+
+        // Also detect conflicts within the new insights themselves
+        conflictsDetected += markConflictsOnInsights(dedupedInsights);
+
+        // Complete the reflection (keeps JSON blob for backward compat)
+        const success = reflectionAgent.completeReflection(reflectionId, {
+          directionsAnalyzed,
+          outcomesAnalyzed,
+          signalsAnalyzed,
+          insights: dedupedInsights,
+          guideSectionsUpdated: Array.isArray(guideSectionsUpdated) ? guideSectionsUpdated : [],
+        });
+
+        if (!success) {
+          throw new Error('Failed to complete reflection');
+        }
+
+        // Insert insights into the first-class brain_insights table
+        brainInsightDb.createBatch(reflectionId, projectId, dedupedInsights);
+
+        // Run auto-pruning: demote misleading insights and auto-resolve clear conflicts
+        autoPruneResult = autoPruneInsights(projectId);
+      });
+
+      runCompletion();
+    } catch (txError) {
+      if (txError instanceof Error && txError.message === 'Failed to complete reflection') {
+        return NextResponse.json(
+          { success: false, error: 'Failed to complete reflection' },
+          { status: 500 }
+        );
+      }
+      throw txError;
+    } finally {
+      activeCompletions.delete(projectId);
+    }
+
+    // Refresh predictive intent model after reflection cycle
+    try {
+      predictiveIntentEngine.refresh(projectId);
+    } catch {
+      // Non-critical — don't block reflection completion
+    }
+
+    // Get updated reflection (after transaction completed)
     const updatedReflection = brainReflectionDb.getById(reflectionId);
 
     return NextResponse.json({
@@ -221,10 +265,10 @@ async function handlePost(
         sectionsUpdated: guideSectionsUpdated?.length || 0,
       },
       autoPrune: {
-        misleadingDemoted: autoPruneResult.misleadingDemoted,
-        conflictsAutoResolved: autoPruneResult.conflictsAutoResolved,
-        conflictsRemaining: autoPruneResult.conflictsRemaining,
-        actions: autoPruneResult.actions,
+        misleadingDemoted: autoPruneResult!.misleadingDemoted,
+        conflictsAutoResolved: autoPruneResult!.conflictsAutoResolved,
+        conflictsRemaining: autoPruneResult!.conflictsRemaining,
+        actions: autoPruneResult!.actions,
       },
     });
   } catch (error) {

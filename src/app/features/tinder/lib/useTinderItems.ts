@@ -3,7 +3,7 @@
  * Supports both local and remote modes via optional remoteDeviceId parameter
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useDeviceMeshStore } from '@/stores/deviceMeshStore';
 import { type RemoteDirection } from '@/stores/remoteWorkStore';
@@ -13,6 +13,7 @@ import {
   TinderItemStats,
   TinderCombinedStats,
   UseTinderItemsResult,
+  PrerequisiteNotification,
   initialTinderItemStats,
   isIdeaItem,
   isDirectionPairItem,
@@ -87,6 +88,8 @@ async function pollForResult(commandId: string, timeoutMs: number): Promise<any>
 interface UseTinderItemsOptions {
   selectedProjectId: string;
   remoteDeviceId?: string | null;
+  effortRange?: [number, number] | null;
+  riskRange?: [number, number] | null;
 }
 
 export function useTinderItems(
@@ -97,7 +100,7 @@ export function useTinderItems(
     ? { selectedProjectId: selectedProjectIdOrOptions, remoteDeviceId: null }
     : selectedProjectIdOrOptions;
 
-  const { selectedProjectId, remoteDeviceId } = options;
+  const { selectedProjectId, remoteDeviceId, effortRange = null, riskRange = null } = options;
   const isRemoteMode = !!remoteDeviceId;
 
   const [items, setItems] = useState<TinderItem[]>([]);
@@ -115,9 +118,16 @@ export function useTinderItems(
   const [categories, setCategories] = useState<CategoryCount[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
 
+  // Dependency awareness: prerequisite notification
+  const [prerequisiteNotification, setPrerequisiteNotification] = useState<PrerequisiteNotification | null>(null);
+
   const { getProject } = useProjectConfigStore();
   const { localDeviceId, localDeviceName } = useDeviceMeshStore();
   const pendingCommandRef = useRef<string | null>(null);
+  // Synchronous loading guard to prevent duplicate fetches on rapid swipe
+  const loadingRef = useRef(false);
+  // Track how many items the server has returned (for correct pagination offset)
+  const serverFetchedCountRef = useRef(0);
 
   // Compute combined stats
   const combinedStats: TinderCombinedStats = {
@@ -171,8 +181,26 @@ export function useTinderItems(
     }
   }, [isRemoteMode, selectedProjectId]);
 
+  // Derive filtered items for display (effort/risk filtering is client-side)
+  const filteredItems = useMemo(() => {
+    if (!effortRange && !riskRange) return items;
+    return items.filter(item => {
+      if (!isIdeaItem(item)) return true;
+      const idea = item.data;
+      if (effortRange) {
+        if (idea.effort === null || idea.effort < effortRange[0] || idea.effort > effortRange[1]) return false;
+      }
+      if (riskRange) {
+        if (idea.risk === null || idea.risk < riskRange[0] || idea.risk > riskRange[1]) return false;
+      }
+      return true;
+    });
+  }, [items, effortRange, riskRange]);
+
   // Load items - handles both local and remote modes
+  // Category filtering is server-side, effort/risk filtering is client-side
   const loadItems = useCallback(async (offset: number = 0) => {
+    loadingRef.current = true;
     setLoading(true);
 
     if (isRemoteMode && remoteDeviceId) {
@@ -206,6 +234,7 @@ export function useTinderItems(
 
         if (pendingCommandRef.current === commandId && result.directions) {
           const tinderItems = result.directions.map(remoteDirectionToTinderItem);
+          serverFetchedCountRef.current = tinderItems.length;
           setItems(tinderItems);
           setCurrentIndex(0);
           setHasMore(false);
@@ -215,26 +244,28 @@ export function useTinderItems(
       } catch (error) {
         console.error('[useTinderItems] Remote load error:', error);
       } finally {
+        loadingRef.current = false;
         setLoading(false);
       }
     } else {
-      // Local mode: fetch from local database
+      // Local mode: fetch from local database (category filter is server-side)
       try {
         const result = await fetchTinderItems(
           selectedProjectId === 'all' ? undefined : selectedProjectId,
           filterMode,
           offset,
           TINDER_CONSTANTS.BATCH_SIZE,
-          filterMode === 'ideas' ? selectedCategory : null
+          selectedCategory
         );
 
         if (offset === 0) {
+          serverFetchedCountRef.current = result.items.length;
           setItems(result.items);
           setCurrentIndex(0);
           setGoalTitlesMap(result.goalTitlesMap);
         } else {
+          serverFetchedCountRef.current += result.items.length;
           setItems(prev => [...prev, ...result.items]);
-          // Merge new goal titles into existing map
           setGoalTitlesMap(prev => ({ ...prev, ...result.goalTitlesMap }));
         }
 
@@ -244,16 +275,17 @@ export function useTinderItems(
       } catch (error) {
         console.error('Failed to load tinder items:', error);
       } finally {
+        loadingRef.current = false;
         setLoading(false);
       }
     }
   }, [isRemoteMode, remoteDeviceId, selectedProjectId, filterMode, selectedCategory, localDeviceId, localDeviceName]);
 
   const loadMoreIfNeeded = useCallback(() => {
-    if (!isRemoteMode && currentIndex >= items.length - TINDER_CONSTANTS.LOAD_MORE_THRESHOLD && hasMore && !loading) {
-      loadItems(items.length);
+    if (!isRemoteMode && currentIndex >= filteredItems.length - TINDER_CONSTANTS.LOAD_MORE_THRESHOLD && hasMore && !loadingRef.current) {
+      loadItems(serverFetchedCountRef.current);
     }
-  }, [isRemoteMode, currentIndex, items.length, hasMore, loading, loadItems]);
+  }, [isRemoteMode, currentIndex, filteredItems.length, hasMore, loadItems]);
 
   // Send remote triage command
   const sendRemoteTriageCommand = useCallback(async (
@@ -287,13 +319,13 @@ export function useTinderItems(
   }, [remoteDeviceId, localDeviceId, localDeviceName]);
 
   const handleAccept = useCallback(async () => {
-    if (processing || currentIndex >= items.length) return;
+    if (processing || currentIndex >= filteredItems.length) return;
 
-    const currentItem = items[currentIndex];
+    const currentItem = filteredItems[currentIndex];
     setProcessing(true);
 
-    // Optimistically remove the item
-    setItems(prev => prev.filter((_, index) => index !== currentIndex));
+    // Optimistically remove the item from the full items array by identity
+    setItems(prev => prev.filter(item => item !== currentItem));
 
     try {
       if (isRemoteMode) {
@@ -309,7 +341,19 @@ export function useTinderItems(
           throw new Error('Project path not found. Cannot create requirement file.');
         }
 
-        await acceptTinderItem(currentItem, selectedProject.path);
+        const result = await acceptTinderItem(currentItem, selectedProject.path);
+
+        // Surface prerequisites/unlocks if any exist
+        const pendingPrereqs = (result.prerequisites || []).filter(p => p.status === 'pending');
+        const pendingUnlocks = (result.unlocks || []).filter(u => u.status === 'pending');
+        if (pendingPrereqs.length > 0 || pendingUnlocks.length > 0) {
+          const itemTitle = isIdeaItem(currentItem) ? currentItem.data.title : 'Item';
+          setPrerequisiteNotification({
+            acceptedTitle: itemTitle,
+            prerequisites: pendingPrereqs,
+            unlocks: pendingUnlocks,
+          });
+        }
       }
 
       updateStats(currentItem, 'accepted');
@@ -317,7 +361,7 @@ export function useTinderItems(
       loadMoreIfNeeded();
     } catch (error) {
       alert('Failed to accept: ' + (error instanceof Error ? error.message : 'Unknown error'));
-      // Revert: re-insert the item at the same position
+      // Revert: re-insert the item
       setItems(prev => {
         const newItems = [...prev];
         newItems.splice(currentIndex, 0, currentItem);
@@ -326,16 +370,16 @@ export function useTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, items, isRemoteMode, getProject, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic, sendRemoteTriageCommand]);
+  }, [processing, currentIndex, filteredItems, isRemoteMode, getProject, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic, sendRemoteTriageCommand]);
 
   const handleReject = useCallback(async (rejectionReason?: string) => {
-    if (processing || currentIndex >= items.length) return;
+    if (processing || currentIndex >= filteredItems.length) return;
 
-    const currentItem = items[currentIndex];
+    const currentItem = filteredItems[currentIndex];
     setProcessing(true);
 
-    // Optimistically remove the item
-    setItems(prev => prev.filter((_, index) => index !== currentIndex));
+    // Optimistically remove the item from the full items array by identity
+    setItems(prev => prev.filter(item => item !== currentItem));
 
     try {
       if (isRemoteMode) {
@@ -354,7 +398,7 @@ export function useTinderItems(
       loadMoreIfNeeded();
     } catch (error) {
       alert('Failed to reject');
-      // Revert: re-insert the item at the same position
+      // Revert: re-insert the item
       setItems(prev => {
         const newItems = [...prev];
         newItems.splice(currentIndex, 0, currentItem);
@@ -363,17 +407,17 @@ export function useTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, items, isRemoteMode, getProject, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic, sendRemoteTriageCommand]);
+  }, [processing, currentIndex, filteredItems, isRemoteMode, getProject, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic, sendRemoteTriageCommand]);
 
   const handleDelete = useCallback(async () => {
-    if (processing || currentIndex >= items.length) return;
+    if (processing || currentIndex >= filteredItems.length) return;
 
-    const currentItem = items[currentIndex];
+    const currentItem = filteredItems[currentIndex];
     const itemType = isIdeaItem(currentItem) ? 'idea' : 'direction';
 
     if (isRemoteMode) {
       // Remote mode: delete just skips locally (no confirmation needed)
-      setItems(prev => prev.filter((_, i) => i !== currentIndex));
+      setItems(prev => prev.filter(item => item !== currentItem));
       updateStats(currentItem, 'deleted');
       updateCategoryCountOptimistic(currentItem);
       return;
@@ -385,7 +429,7 @@ export function useTinderItems(
     }
 
     setProcessing(true);
-    setItems(prev => prev.filter((_, index) => index !== currentIndex));
+    setItems(prev => prev.filter(item => item !== currentItem));
 
     try {
       await deleteTinderItem(currentItem);
@@ -402,7 +446,7 @@ export function useTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, items, isRemoteMode, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic]);
+  }, [processing, currentIndex, filteredItems, isRemoteMode, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic]);
 
   const resetStats = useCallback(() => {
     setStats(initialTinderItemStats);
@@ -419,14 +463,18 @@ export function useTinderItems(
 
   const handleSetCategory = useCallback((category: string | null) => {
     setSelectedCategory(category);
-    // Items will be reloaded automatically via useEffect
+    // Items reload via useEffect when selectedCategory changes (server-side filter)
+  }, []);
+
+  const dismissPrerequisiteNotification = useCallback(() => {
+    setPrerequisiteNotification(null);
   }, []);
 
   // Handler for accepting an idea scope variant (MVP / Standard / Ambitious)
   const handleAcceptIdeaVariant = useCallback(async (ideaId: string, variant: { title: string; description: string; effort: number; impact: number; risk: number; scope: string }) => {
-    if (processing || currentIndex >= items.length) return;
+    if (processing || currentIndex >= filteredItems.length) return;
 
-    const currentItem = items[currentIndex];
+    const currentItem = filteredItems[currentIndex];
     if (!isIdeaItem(currentItem)) return;
 
     const projectId = currentItem.data.project_id;
@@ -438,7 +486,7 @@ export function useTinderItems(
     }
 
     setProcessing(true);
-    setItems(prev => prev.filter((_, index) => index !== currentIndex));
+    setItems(prev => prev.filter(item => item !== currentItem));
 
     try {
       // 1. Update idea with variant's description and scores
@@ -471,13 +519,13 @@ export function useTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, items, getProject, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic]);
+  }, [processing, currentIndex, filteredItems, getProject, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic]);
 
   // Handler for accepting a variant from a direction pair
   const handleAcceptPairVariant = useCallback(async (pairId: string, variant: 'A' | 'B') => {
-    if (processing || currentIndex >= items.length) return;
+    if (processing || currentIndex >= filteredItems.length) return;
 
-    const currentItem = items[currentIndex];
+    const currentItem = filteredItems[currentIndex];
     if (!isDirectionPairItem(currentItem)) return;
 
     const projectId = currentItem.data.directionA.project_id;
@@ -489,7 +537,7 @@ export function useTinderItems(
     }
 
     setProcessing(true);
-    setItems(prev => prev.filter((_, index) => index !== currentIndex));
+    setItems(prev => prev.filter(item => item !== currentItem));
 
     try {
       await acceptPairVariant(pairId, variant, selectedProject.path);
@@ -513,17 +561,17 @@ export function useTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, items, getProject, loadMoreIfNeeded]);
+  }, [processing, currentIndex, filteredItems, getProject, loadMoreIfNeeded]);
 
   // Handler for rejecting both directions in a pair
   const handleRejectPair = useCallback(async (pairId: string) => {
-    if (processing || currentIndex >= items.length) return;
+    if (processing || currentIndex >= filteredItems.length) return;
 
-    const currentItem = items[currentIndex];
+    const currentItem = filteredItems[currentIndex];
     if (!isDirectionPairItem(currentItem)) return;
 
     setProcessing(true);
-    setItems(prev => prev.filter((_, index) => index !== currentIndex));
+    setItems(prev => prev.filter(item => item !== currentItem));
 
     try {
       await rejectDirectionPair(pairId);
@@ -546,13 +594,13 @@ export function useTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, items, loadMoreIfNeeded]);
+  }, [processing, currentIndex, filteredItems, loadMoreIfNeeded]);
 
   // Handler for deleting both directions in a pair
   const handleDeletePair = useCallback(async (pairId: string) => {
-    if (processing || currentIndex >= items.length) return;
+    if (processing || currentIndex >= filteredItems.length) return;
 
-    const currentItem = items[currentIndex];
+    const currentItem = filteredItems[currentIndex];
     if (!isDirectionPairItem(currentItem)) return;
 
     if (!confirm('Are you sure you want to permanently delete both direction variants?')) {
@@ -560,7 +608,7 @@ export function useTinderItems(
     }
 
     setProcessing(true);
-    setItems(prev => prev.filter((_, index) => index !== currentIndex));
+    setItems(prev => prev.filter(item => item !== currentItem));
 
     try {
       await deleteDirectionPair(pairId);
@@ -583,7 +631,7 @@ export function useTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, items, loadMoreIfNeeded]);
+  }, [processing, currentIndex, filteredItems, loadMoreIfNeeded]);
 
   // Load categories when in ideas mode
   useEffect(() => {
@@ -592,7 +640,7 @@ export function useTinderItems(
     }
   }, [filterMode, isRemoteMode, loadCategories]);
 
-  // Load items when dependencies change
+  // Load items when dependencies change (category is server-side, effort/risk is client-side)
   useEffect(() => {
     if (isRemoteMode) {
       if (remoteDeviceId) {
@@ -606,11 +654,11 @@ export function useTinderItems(
     }
   }, [isRemoteMode, remoteDeviceId, selectedProjectId, filterMode, selectedCategory]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const currentItem = items[currentIndex];
-  const remainingCount = total - currentIndex;
+  const currentItem = filteredItems[currentIndex];
+  const remainingCount = filteredItems.length - currentIndex;
 
   return {
-    items,
+    items: filteredItems,
     currentIndex,
     loading,
     processing,
@@ -640,6 +688,9 @@ export function useTinderItems(
     handleDeletePair,
     resetStats,
     loadItems: () => loadItems(0),
+    // Dependency awareness
+    prerequisiteNotification,
+    dismissPrerequisiteNotification,
   };
 }
 

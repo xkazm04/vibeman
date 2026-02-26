@@ -16,7 +16,10 @@ interface GroupManagementModalProps {
 }
 
 export default function GroupManagementModal({ isOpen, onClose, projectId, groups }: GroupManagementModalProps) {
-  const { addGroup, removeGroup, updateGroup, loading } = useContextStore();
+  const loading = useContextStore(s => s.loading);
+  const addGroup = useContextStore(s => s.addGroup);
+  const removeGroup = useContextStore(s => s.removeGroup);
+  const updateGroup = useContextStore(s => s.updateGroup);
   const [editingGroup, setEditingGroup] = useState<string | null>(null);
   const [newGroupName, setNewGroupName] = useState('');
   const [selectedColor, setSelectedColor] = useState<string>(CONTEXT_GROUP_COLORS[0]);

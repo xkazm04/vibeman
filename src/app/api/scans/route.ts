@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { scanDb, DbScan } from '@/app/db';
+import { scanDb } from '@/app/db';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/lib/logger';
 
@@ -20,34 +20,22 @@ export async function GET(request: NextRequest) {
     const offset = searchParams.get('offset');
     const scanType = searchParams.get('scanType');
 
-    let scans: DbScan[];
-
-    // Get scans based on filters
-    if (projectId) {
-      scans = scanDb.getScansByProject(projectId);
-    } else {
-      // If no projectId, we'll need to add a getAllScans method to the repository
-      // For now, throw an error
+    if (!projectId) {
       return NextResponse.json(
         { error: 'projectId is required' },
         { status: 400 }
       );
     }
 
-    // Filter by scan type if specified
-    if (scanType) {
-      scans = scans.filter(scan => scan.scan_type === scanType);
-    }
-
-    // Calculate pagination
-    const total = scans.length;
-    const parsedOffset = offset ? parseInt(offset, 10) : 0;
     const parsedLimit = limit ? parseInt(limit, 10) : undefined;
+    const parsedOffset = offset ? parseInt(offset, 10) : 0;
 
-    // Apply pagination
-    if (parsedLimit !== undefined) {
-      scans = scans.slice(parsedOffset, parsedOffset + parsedLimit);
-    }
+    // Push filtering and pagination to SQL
+    const { scans, total } = scanDb.getScansByProjectFiltered(projectId, {
+      scanType: scanType || undefined,
+      limit: parsedLimit,
+      offset: parsedOffset,
+    });
 
     return NextResponse.json({
       scans,

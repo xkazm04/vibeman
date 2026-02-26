@@ -18,6 +18,43 @@ interface SimilarityResult<T> {
   similarity: number;
 }
 
+// Module-level cache for parsed embeddings to avoid repeated JSON.parse
+// Key: row id, Value: { embedding, updatedAt }
+const embeddingCache = new Map<string, { embedding: number[]; updatedAt: string }>();
+const CACHE_HARD_CAP = 2000;
+
+function getCachedEmbedding(id: string, embeddingJson: string, updatedAt: string): number[] | null {
+  const cached = embeddingCache.get(id);
+  if (cached && cached.updatedAt === updatedAt) {
+    return cached.embedding;
+  }
+  try {
+    const parsed = JSON.parse(embeddingJson) as number[];
+    embeddingCache.set(id, { embedding: parsed, updatedAt });
+    // Evict oldest entries if cache exceeds hard cap
+    if (embeddingCache.size > CACHE_HARD_CAP) {
+      const keysToDelete = Array.from(embeddingCache.keys()).slice(0, embeddingCache.size - CACHE_HARD_CAP);
+      for (const key of keysToDelete) {
+        embeddingCache.delete(key);
+      }
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extract significant keywords from a query for SQL pre-filtering
+ */
+function extractKeywords(text: string): string[] {
+  const stopWords = new Set(['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'shall', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'as', 'into', 'about', 'like', 'through', 'after', 'over', 'between', 'out', 'against', 'during', 'without', 'before', 'under', 'around', 'among', 'and', 'but', 'or', 'nor', 'not', 'so', 'yet', 'both', 'either', 'neither', 'each', 'every', 'all', 'any', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'only', 'own', 'same', 'than', 'too', 'very', 'just', 'it', 'its', 'this', 'that', 'these', 'those', 'i', 'me', 'my', 'we', 'our', 'you', 'your', 'he', 'him', 'his', 'she', 'her', 'they', 'them', 'their', 'what', 'which', 'who', 'whom', 'how', 'when', 'where', 'why']);
+  return text.toLowerCase()
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !stopWords.has(w))
+    .slice(0, 5); // Limit to 5 most significant keywords
+}
+
 /**
  * Calculate cosine similarity between two vectors
  */
@@ -176,6 +213,7 @@ export const semanticIndexer = {
 
   /**
    * Find similar memories using semantic search
+   * Pre-filters by keyword overlap to reduce candidate set, then uses cached embeddings
    */
   async findSimilarMemories(
     projectId: string,
@@ -186,25 +224,44 @@ export const semanticIndexer = {
     const queryEmbedding = await this.generateEmbedding(query);
     const db = getConnection();
 
-    const memories = db.prepare(`
-      SELECT * FROM annette_memories
-      WHERE project_id = ? AND embedding IS NOT NULL AND consolidated_into IS NULL
-    `).all(projectId) as unknown as DbAnnetteMemory[];
+    // Pre-filter: try keyword-based narrowing first
+    const keywords = extractKeywords(query);
+    let memories: DbAnnetteMemory[];
+
+    if (keywords.length > 0) {
+      const likeClauses = keywords.map(() => 'content LIKE ?').join(' OR ');
+      const likeParams = keywords.map(k => `%${k}%`);
+      memories = db.prepare(`
+        SELECT * FROM annette_memories
+        WHERE project_id = ? AND embedding IS NOT NULL AND consolidated_into IS NULL
+          AND (${likeClauses})
+      `).all(projectId, ...likeParams) as unknown as DbAnnetteMemory[];
+
+      // If pre-filter yields too few results, fall back to full scan
+      if (memories.length < limit) {
+        memories = db.prepare(`
+          SELECT * FROM annette_memories
+          WHERE project_id = ? AND embedding IS NOT NULL AND consolidated_into IS NULL
+        `).all(projectId) as unknown as DbAnnetteMemory[];
+      }
+    } else {
+      memories = db.prepare(`
+        SELECT * FROM annette_memories
+        WHERE project_id = ? AND embedding IS NOT NULL AND consolidated_into IS NULL
+      `).all(projectId) as unknown as DbAnnetteMemory[];
+    }
 
     const results: SimilarityResult<DbAnnetteMemory>[] = [];
 
     for (const memory of memories) {
       if (!memory.embedding) continue;
 
-      try {
-        const memoryEmbedding = JSON.parse(memory.embedding);
-        const similarity = cosineSimilarity(queryEmbedding, memoryEmbedding);
+      const memoryEmbedding = getCachedEmbedding(memory.id, memory.embedding, memory.updated_at);
+      if (!memoryEmbedding) continue;
 
-        if (similarity >= minSimilarity) {
-          results.push({ item: memory, similarity });
-        }
-      } catch {
-        // Skip if embedding parse fails
+      const similarity = cosineSimilarity(queryEmbedding, memoryEmbedding);
+      if (similarity >= minSimilarity) {
+        results.push({ item: memory, similarity });
       }
     }
 
@@ -215,6 +272,7 @@ export const semanticIndexer = {
 
   /**
    * Find similar knowledge nodes using semantic search
+   * Pre-filters by keyword overlap to reduce candidate set, then uses cached embeddings
    */
   async findSimilarNodes(
     projectId: string,
@@ -225,25 +283,44 @@ export const semanticIndexer = {
     const queryEmbedding = await this.generateEmbedding(query);
     const db = getConnection();
 
-    const nodes = db.prepare(`
-      SELECT * FROM annette_knowledge_nodes
-      WHERE project_id = ? AND embedding IS NOT NULL
-    `).all(projectId) as unknown as DbAnnetteKnowledgeNode[];
+    // Pre-filter: try keyword-based narrowing first
+    const keywords = extractKeywords(query);
+    let nodes: DbAnnetteKnowledgeNode[];
+
+    if (keywords.length > 0) {
+      const likeClauses = keywords.map(() => '(name LIKE ? OR description LIKE ?)').join(' OR ');
+      const likeParams = keywords.flatMap(k => [`%${k}%`, `%${k}%`]);
+      nodes = db.prepare(`
+        SELECT * FROM annette_knowledge_nodes
+        WHERE project_id = ? AND embedding IS NOT NULL
+          AND (${likeClauses})
+      `).all(projectId, ...likeParams) as unknown as DbAnnetteKnowledgeNode[];
+
+      // If pre-filter yields too few results, fall back to full scan
+      if (nodes.length < limit) {
+        nodes = db.prepare(`
+          SELECT * FROM annette_knowledge_nodes
+          WHERE project_id = ? AND embedding IS NOT NULL
+        `).all(projectId) as unknown as DbAnnetteKnowledgeNode[];
+      }
+    } else {
+      nodes = db.prepare(`
+        SELECT * FROM annette_knowledge_nodes
+        WHERE project_id = ? AND embedding IS NOT NULL
+      `).all(projectId) as unknown as DbAnnetteKnowledgeNode[];
+    }
 
     const results: SimilarityResult<DbAnnetteKnowledgeNode>[] = [];
 
     for (const node of nodes) {
       if (!node.embedding) continue;
 
-      try {
-        const nodeEmbedding = JSON.parse(node.embedding);
-        const similarity = cosineSimilarity(queryEmbedding, nodeEmbedding);
+      const nodeEmbedding = getCachedEmbedding(node.id, node.embedding, node.updated_at);
+      if (!nodeEmbedding) continue;
 
-        if (similarity >= minSimilarity) {
-          results.push({ item: node, similarity });
-        }
-      } catch {
-        // Skip if embedding parse fails
+      const similarity = cosineSimilarity(queryEmbedding, nodeEmbedding);
+      if (similarity >= minSimilarity) {
+        results.push({ item: node, similarity });
       }
     }
 

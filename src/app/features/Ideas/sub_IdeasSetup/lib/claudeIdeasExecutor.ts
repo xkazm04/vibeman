@@ -16,6 +16,7 @@ export interface ClaudeIdeasExecutorConfig {
   scanTypes: ScanType[];
   contextIds: string[];  // Individual contexts
   groupIds: string[];    // Whole context groups
+  goalId?: string;       // Goal ID for goal-driven scans
 }
 
 export interface ClaudeIdeasExecutorResult {
@@ -117,6 +118,7 @@ export async function executeClaudeIdeasWithContexts(config: ClaudeIdeasExecutor
             scanType,
             contextId: item.type === 'context' ? item.id : undefined,
             groupId: item.type === 'group' ? item.id : undefined,
+            goalId: config.goalId,
           })
         });
 

@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { behavioralSignalDb } from '@/app/db';
+import { getDatabase } from '@/app/db/connection';
 import type { BehavioralSignalType } from '@/app/db/models/brain.types';
 import { signalCollector } from '@/lib/brain/signalCollector';
 import { withObservability } from '@/lib/observability/middleware';
@@ -221,8 +222,9 @@ async function handleDelete(request: NextRequest) {
       );
     }
 
-    // Look up project_id before deleting so we can invalidate cache
-    const projectId = searchParams.get('projectId');
+    // Look up project_id before deleting so we can always invalidate cache
+    const db = getDatabase();
+    const signal = db.prepare('SELECT project_id FROM behavioral_signals WHERE id = ?').get(id) as { project_id: string } | undefined;
 
     const deleted = behavioralSignalDb.deleteById(id);
 
@@ -233,9 +235,9 @@ async function handleDelete(request: NextRequest) {
       );
     }
 
-    // Invalidate cached behavioral context if we know the project
-    if (projectId) {
-      invalidateContextCache(projectId);
+    // Invalidate cached behavioral context using the signal's own project_id
+    if (signal?.project_id) {
+      invalidateContextCache(signal.project_id);
     }
 
     return NextResponse.json({ success: true });

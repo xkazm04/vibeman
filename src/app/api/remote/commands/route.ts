@@ -5,8 +5,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { getActiveRemoteConfig } from '@/lib/remote/config.server';
+import { getRemoteSupabase } from '@/lib/remote/supabaseClient';
 import { commandProcessor } from '@/lib/remote/commandProcessor';
 import type { RemoteCommandType, CommandStatus, SubmitCommandRequest } from '@/lib/remote/types';
 
@@ -15,9 +15,8 @@ import type { RemoteCommandType, CommandStatus, SubmitCommandRequest } from '@/l
  */
 export async function GET(request: NextRequest) {
   try {
-    const config = getActiveRemoteConfig();
-
-    if (!config) {
+    const supabase = getRemoteSupabase();
+    if (!supabase) {
       return NextResponse.json(
         { success: false, error: 'Remote not configured' },
         { status: 400 }
@@ -30,13 +29,6 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') as CommandStatus | null;
     const limit = Math.min(parseInt(searchParams.get('limit') || '100', 10), 1000);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
-
-    const supabase = createClient(config.url, config.serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
 
     // Build query
     let query = supabase
@@ -87,9 +79,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const config = getActiveRemoteConfig();
-
-    if (!config) {
+    const supabase = getRemoteSupabase();
+    if (!supabase) {
       return NextResponse.json(
         { success: false, error: 'Remote not configured' },
         { status: 400 }
@@ -133,13 +124,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    const supabase = createClient(config.url, config.serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
 
     // Validate API key
     const { data: client, error: clientError } = await supabase

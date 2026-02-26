@@ -46,6 +46,10 @@ interface UseAnnetteSessionReturn {
   recalledContext: RecalledContext | null;
   isLoading: boolean;
   error: string | null;
+  /** Non-null when session initialization failed (DB locked, corrupt, etc.) */
+  initError: string | null;
+  /** Retry session initialization after a failure */
+  retryInit: () => void;
   createSession: (title?: string) => Promise<AnnetteSession>;
   loadSession: (sessionId: string) => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
@@ -92,6 +96,7 @@ export function useAnnetteSession(options: UseAnnetteSessionOptions): UseAnnette
   const [recalledContext, setRecalledContext] = useState<RecalledContext | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [initError, setInitError] = useState<string | null>(null);
 
   const messageCountRef = useRef(0);
 
@@ -332,28 +337,36 @@ export function useAnnetteSession(options: UseAnnetteSessionOptions): UseAnnette
     }
   }, [session]);
 
+  // Shared init logic used by mount effect and retryInit
+  const initSession = useCallback(async () => {
+    setIsLoading(true);
+    setInitError(null);
+    try {
+      // Try to get existing active session
+      const activeSession = annetteDb.sessions.getActiveSession(projectId);
+      if (activeSession) {
+        await loadSession(activeSession.id);
+      } else {
+        // Create a new session
+        await createSession();
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to initialize session';
+      console.error('Error initializing session:', err);
+      setInitError(message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [projectId, loadSession, createSession]);
+
+  const retryInit = useCallback(() => {
+    initSession();
+  }, [initSession]);
+
   // Auto-load or create session on mount
   useEffect(() => {
-    const initSession = async () => {
-      setIsLoading(true);
-      try {
-        // Try to get existing active session
-        const activeSession = annetteDb.sessions.getActiveSession(projectId);
-        if (activeSession) {
-          await loadSession(activeSession.id);
-        } else {
-          // Create a new session
-          await createSession();
-        }
-      } catch (err) {
-        console.error('Error initializing session:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     initSession();
-  }, [projectId]);
+  }, [initSession]);
 
   return {
     session,
@@ -361,6 +374,8 @@ export function useAnnetteSession(options: UseAnnetteSessionOptions): UseAnnette
     recalledContext,
     isLoading,
     error,
+    initError,
+    retryInit,
     createSession,
     loadSession,
     sendMessage,

@@ -50,6 +50,67 @@ export interface ExtractedRelationship {
   weight?: number;
 }
 
+export interface ExtractionResult {
+  entities: ExtractedEntity[];
+  relationships: ExtractedRelationship[];
+  /** True if extraction failed (LLM error, parse error, etc.) vs. simply finding nothing */
+  error: boolean;
+}
+
+const VALID_NODE_TYPES = new Set<string>([
+  'entity', 'concept', 'file', 'function', 'component',
+  'api', 'decision', 'person', 'technology',
+]);
+
+/** Sanitize user text before interpolating into an LLM prompt */
+function sanitizeForPrompt(text: string): string {
+  // Truncate excessively long inputs
+  const maxLen = 10000;
+  const truncated = text.length > maxLen ? text.slice(0, maxLen) + '\n[...truncated]' : text;
+  // Wrap in delimiters so the LLM treats it as data, not instructions
+  return truncated;
+}
+
+/** Validate and filter extracted entities to match expected schema */
+function validateEntities(raw: unknown): ExtractedEntity[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((e): e is ExtractedEntity =>
+    e != null &&
+    typeof e === 'object' &&
+    typeof e.name === 'string' &&
+    e.name.length > 0 &&
+    typeof e.type === 'string' &&
+    VALID_NODE_TYPES.has(e.type)
+  ).map(e => ({
+    name: e.name,
+    type: e.type as KnowledgeNodeType,
+    description: typeof e.description === 'string' ? e.description : undefined,
+    properties: e.properties && typeof e.properties === 'object' && !Array.isArray(e.properties)
+      ? e.properties as Record<string, unknown>
+      : undefined,
+  }));
+}
+
+/** Validate and filter extracted relationships to match expected schema */
+function validateRelationships(raw: unknown): ExtractedRelationship[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((r): r is ExtractedRelationship =>
+    r != null &&
+    typeof r === 'object' &&
+    typeof r.sourceEntity === 'string' &&
+    r.sourceEntity.length > 0 &&
+    typeof r.targetEntity === 'string' &&
+    r.targetEntity.length > 0 &&
+    typeof r.relationshipType === 'string' &&
+    r.relationshipType.length > 0
+  ).map(r => ({
+    sourceEntity: r.sourceEntity,
+    targetEntity: r.targetEntity,
+    relationshipType: r.relationshipType,
+    weight: typeof r.weight === 'number' && r.weight >= 0 && r.weight <= 1 ? r.weight : undefined,
+  }));
+}
+
 function dbNodeToKnowledgeNode(db: DbAnnetteKnowledgeNode): KnowledgeNode {
   return {
     id: db.id,
@@ -246,11 +307,14 @@ export const knowledgeGraph = {
   async extractFromText(
     projectId: string,
     text: string
-  ): Promise<{ entities: ExtractedEntity[]; relationships: ExtractedRelationship[] }> {
-    const prompt = `Analyze this text and extract entities and relationships for a knowledge graph.
+  ): Promise<ExtractionResult> {
+    const sanitizedText = sanitizeForPrompt(text);
 
-Text:
-${text}
+    const prompt = `Analyze the user-provided text below (delimited by triple backticks) and extract entities and relationships for a knowledge graph.
+
+\`\`\`
+${sanitizedText}
+\`\`\`
 
 Entity types to look for:
 - entity: Named entities (projects, products, services)
@@ -294,17 +358,32 @@ Only extract meaningful entities and relationships. If none found, return empty 
       });
 
       if (!response.success || !response.response) {
-        return { entities: [], relationships: [] };
+        console.warn('[knowledgeGraph] LLM extraction returned no response');
+        return { entities: [], relationships: [], error: true };
       }
 
-      const parsed = JSON.parse(response.response);
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(response.response);
+      } catch (parseError) {
+        console.error('[knowledgeGraph] Failed to parse LLM response as JSON:', parseError, 'Raw:', response.response.slice(0, 500));
+        return { entities: [], relationships: [], error: true };
+      }
+
+      if (parsed == null || typeof parsed !== 'object') {
+        console.warn('[knowledgeGraph] LLM response parsed to non-object:', typeof parsed);
+        return { entities: [], relationships: [], error: true };
+      }
+
+      const obj = parsed as Record<string, unknown>;
       return {
-        entities: parsed.entities || [],
-        relationships: parsed.relationships || [],
+        entities: validateEntities(obj.entities),
+        relationships: validateRelationships(obj.relationships),
+        error: false,
       };
     } catch (error) {
-      console.error('Failed to extract entities:', error);
-      return { entities: [], relationships: [] };
+      console.error('[knowledgeGraph] Failed to extract entities:', error);
+      return { entities: [], relationships: [], error: true };
     }
   },
 

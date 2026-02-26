@@ -260,8 +260,8 @@ export async function fetchSqliteContexts(projectId: string): Promise<SqliteCont
     fetch(`/api/context-groups?projectId=${encodeURIComponent(projectId)}`)
   ]);
 
-  const contextsData: unknown = await contextsRes.json();
-  const groupsData: unknown = await groupsRes.json();
+  const contextsData: unknown = await safeResponseJson(contextsRes, '/api/contexts');
+  const groupsData: unknown = await safeResponseJson(groupsRes, '/api/context-groups');
 
   if (!contextsRes.ok || !groupsRes.ok) {
     const error = !contextsRes.ok ? contextsData : groupsData;

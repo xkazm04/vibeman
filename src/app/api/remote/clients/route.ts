@@ -5,8 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { getActiveRemoteConfig } from '@/lib/remote/config.server';
+import { getRemoteSupabase } from '@/lib/remote/supabaseClient';
 import type { CreateClientRequest, ClientPermission } from '@/lib/remote/types';
 import { randomBytes } from 'crypto';
 
@@ -23,21 +22,13 @@ function generateApiKey(): string {
  */
 export async function GET() {
   try {
-    const config = getActiveRemoteConfig();
-
-    if (!config) {
+    const supabase = getRemoteSupabase();
+    if (!supabase) {
       return NextResponse.json(
         { success: false, error: 'Remote not configured' },
         { status: 400 }
       );
     }
-
-    const supabase = createClient(config.url, config.serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
 
     const { data: clients, error } = await supabase
       .from('vibeman_clients')
@@ -73,15 +64,6 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
-    const config = getActiveRemoteConfig();
-
-    if (!config) {
-      return NextResponse.json(
-        { success: false, error: 'Remote not configured' },
-        { status: 400 }
-      );
-    }
-
     const body = (await request.json()) as CreateClientRequest;
 
     // Validate required fields
@@ -108,12 +90,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const supabase = createClient(config.url, config.serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
+    const supabase = getRemoteSupabase();
+    if (!supabase) {
+      return NextResponse.json(
+        { success: false, error: 'Remote not configured' },
+        { status: 400 }
+      );
+    }
 
     // Generate API key
     const apiKey = generateApiKey();

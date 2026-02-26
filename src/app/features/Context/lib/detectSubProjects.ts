@@ -5,7 +5,7 @@
  * Used by the context generation prompt builder to produce multi-codebase-aware prompts.
  */
 
-import { readdirSync, readFileSync, existsSync, type Dirent } from 'fs';
+import { readdir, readFile, access } from 'fs/promises';
 import { join } from 'path';
 
 export interface SubProject {
@@ -45,19 +45,29 @@ const PROJECT_MARKERS = [
   'mix.exs',
 ] as const;
 
+/** Check if a path exists (async) */
+async function pathExists(p: string): Promise<boolean> {
+  try {
+    await access(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Count files recursively with depth limit, excluding common non-source directories.
  */
-function countFiles(dirPath: string, maxDepth: number, currentDepth = 0): number {
+async function countFiles(dirPath: string, maxDepth: number, currentDepth = 0): Promise<number> {
   if (currentDepth >= maxDepth) return 0;
 
   let count = 0;
   try {
-    const entries = readdirSync(dirPath, { withFileTypes: true, encoding: 'utf-8' }) as Dirent<string>[];
+    const entries = await readdir(dirPath, { withFileTypes: true, encoding: 'utf-8' });
     for (const entry of entries) {
       if (entry.isDirectory()) {
         if (!SKIP_DIRS.has(entry.name) && !entry.name.startsWith('.')) {
-          count += countFiles(join(dirPath, entry.name), maxDepth, currentDepth + 1);
+          count += await countFiles(join(dirPath, entry.name), maxDepth, currentDepth + 1);
         }
       } else if (entry.isFile()) {
         count++;
@@ -72,11 +82,11 @@ function countFiles(dirPath: string, maxDepth: number, currentDepth = 0): number
 /**
  * Detect framework from package.json dependencies.
  */
-function detectFrameworkFromPackageJson(
+async function detectFrameworkFromPackageJson(
   packageJsonPath: string
-): { framework: string; techStack: string[] } {
+): Promise<{ framework: string; techStack: string[] }> {
   try {
-    const raw = readFileSync(packageJsonPath, 'utf-8');
+    const raw = await readFile(packageJsonPath, 'utf-8');
     const pkg = JSON.parse(raw);
     const allDeps = {
       ...pkg.dependencies,
@@ -145,11 +155,11 @@ function detectFrameworkFromPackageJson(
 /**
  * Detect framework from Cargo.toml.
  */
-function detectFrameworkFromCargoToml(
+async function detectFrameworkFromCargoToml(
   cargoPath: string
-): { framework: string; techStack: string[] } {
+): Promise<{ framework: string; techStack: string[] }> {
   try {
-    const raw = readFileSync(cargoPath, 'utf-8');
+    const raw = await readFile(cargoPath, 'utf-8');
     const techStack: string[] = ['Rust'];
     let framework = 'rust';
 
@@ -172,7 +182,7 @@ function detectFrameworkFromCargoToml(
 /**
  * Build a SubProject from detected markers in a directory.
  */
-function buildSubProject(dirName: string, dirPath: string): SubProject | null {
+async function buildSubProject(dirName: string, dirPath: string): Promise<SubProject | null> {
   const entryFiles: string[] = [];
   let framework = 'unknown';
   let techStack: string[] = [];
@@ -185,18 +195,18 @@ function buildSubProject(dirName: string, dirPath: string): SubProject | null {
   const pomPath = join(dirPath, 'pom.xml');
 
   // Check for sub-project package.json within nested structure (e.g., monorepo with packages/)
-  const hasPackagesDir = existsSync(join(dirPath, 'packages'));
+  const hasPackagesDir = await pathExists(join(dirPath, 'packages'));
 
-  if (existsSync(packageJsonPath)) {
+  if (await pathExists(packageJsonPath)) {
     entryFiles.push('package.json');
-    const detected = detectFrameworkFromPackageJson(packageJsonPath);
+    const detected = await detectFrameworkFromPackageJson(packageJsonPath);
     framework = detected.framework;
     techStack = detected.techStack;
   }
 
-  if (existsSync(cargoTomlPath)) {
+  if (await pathExists(cargoTomlPath)) {
     entryFiles.push('Cargo.toml');
-    const detected = detectFrameworkFromCargoToml(cargoTomlPath);
+    const detected = await detectFrameworkFromCargoToml(cargoTomlPath);
     // Rust/Tauri info takes priority if also detected
     if (framework === 'unknown' || framework === 'nodejs') {
       framework = detected.framework;
@@ -205,29 +215,29 @@ function buildSubProject(dirName: string, dirPath: string): SubProject | null {
   }
 
   // Check for src-tauri (Tauri app indicator within an npm project)
-  if (existsSync(join(dirPath, 'src-tauri'))) {
+  if (await pathExists(join(dirPath, 'src-tauri'))) {
     entryFiles.push('src-tauri/');
     if (!techStack.includes('Tauri')) techStack.push('Tauri');
     if (framework !== 'tauri') framework = 'tauri';
   }
 
-  if (existsSync(pyprojectPath)) {
+  if (await pathExists(pyprojectPath)) {
     entryFiles.push('pyproject.toml');
     if (framework === 'unknown') framework = 'python';
     techStack.push('Python');
-  } else if (existsSync(setupPyPath)) {
+  } else if (await pathExists(setupPyPath)) {
     entryFiles.push('setup.py');
     if (framework === 'unknown') framework = 'python';
     techStack.push('Python');
   }
 
-  if (existsSync(goModPath)) {
+  if (await pathExists(goModPath)) {
     entryFiles.push('go.mod');
     if (framework === 'unknown') framework = 'go';
     techStack.push('Go');
   }
 
-  if (existsSync(pomPath)) {
+  if (await pathExists(pomPath)) {
     entryFiles.push('pom.xml');
     if (framework === 'unknown') framework = 'java';
     techStack.push('Java');
@@ -240,11 +250,11 @@ function buildSubProject(dirName: string, dirPath: string): SubProject | null {
   // No markers found — not a sub-project
   if (entryFiles.length === 0) return null;
 
-  const hasOwnGit = existsSync(join(dirPath, '.git'));
-  if (existsSync(join(dirPath, 'src'))) entryFiles.push('src/');
+  const hasOwnGit = await pathExists(join(dirPath, '.git'));
+  if (await pathExists(join(dirPath, 'src'))) entryFiles.push('src/');
 
   // Estimate size
-  const fileCount = countFiles(dirPath, 4);
+  const fileCount = await countFiles(dirPath, 4);
   let estimatedSize: SubProject['estimatedSize'] = 'small';
   if (fileCount > 200) estimatedSize = 'large';
   else if (fileCount > 50) estimatedSize = 'medium';
@@ -269,14 +279,14 @@ function buildSubProject(dirName: string, dirPath: string): SubProject | null {
  * Returns `isMultiCodebase: true` when 2+ sub-projects are detected
  * and the root itself has no source code (i.e., it's a container directory).
  */
-export function detectSubProjects(projectPath: string): ProjectStructure {
-  const rootHasPackageJson = existsSync(join(projectPath, 'package.json'));
-  const rootHasSrc = existsSync(join(projectPath, 'src'));
+export async function detectSubProjects(projectPath: string): Promise<ProjectStructure> {
+  const rootHasPackageJson = await pathExists(join(projectPath, 'package.json'));
+  const rootHasSrc = await pathExists(join(projectPath, 'src'));
   const rootHasSourceCode = rootHasSrc || rootHasPackageJson;
 
-  let entries: Dirent<string>[];
+  let entries: import('fs').Dirent[];
   try {
-    entries = readdirSync(projectPath, { withFileTypes: true, encoding: 'utf-8' }) as Dirent<string>[];
+    entries = await readdir(projectPath, { withFileTypes: true });
   } catch {
     return {
       isMultiCodebase: false,
@@ -286,17 +296,17 @@ export function detectSubProjects(projectPath: string): ProjectStructure {
     };
   }
 
-  const subProjects: SubProject[] = [];
+  const subProjectPromises: Promise<SubProject | null>[] = [];
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     if (entry.name.startsWith('.') || SKIP_DIRS.has(entry.name)) continue;
 
     const dirPath = join(projectPath, entry.name);
-    const subProject = buildSubProject(entry.name, dirPath);
-    if (subProject) {
-      subProjects.push(subProject);
-    }
+    subProjectPromises.push(buildSubProject(entry.name, dirPath));
   }
+
+  const results = await Promise.all(subProjectPromises);
+  const subProjects = results.filter((sp): sp is SubProject => sp !== null);
 
   // Multi-codebase when 2+ sub-projects exist and root is just a container
   // (or even if root has source code, 2+ sub-projects with own git repos counts)

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   FileText,
   Trash2,
@@ -47,16 +47,26 @@ export default function ImplementationPlansManager({
   const [counts, setCounts] = useState<StatusCounts>({ pending: 0, running: 0, completed: 0, failed: 0 });
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Debounce search query - only update after 300ms of no typing
+  useEffect(() => {
+    debounceTimerRef.current = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(debounceTimerRef.current);
+  }, [searchQuery]);
 
   const fetchPlans = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
       if (workspaceId) params.set('workspaceId', workspaceId);
-      if (searchQuery) params.set('search', searchQuery);
+      if (debouncedSearchQuery) params.set('search', debouncedSearchQuery);
 
       const response = await fetch(`/api/cross-task?${params}`);
       const result = await response.json();
@@ -70,7 +80,7 @@ export default function ImplementationPlansManager({
     } finally {
       setLoading(false);
     }
-  }, [workspaceId, searchQuery]);
+  }, [workspaceId, debouncedSearchQuery]);
 
   useEffect(() => {
     fetchPlans();

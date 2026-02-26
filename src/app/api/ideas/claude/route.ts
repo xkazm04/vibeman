@@ -20,6 +20,7 @@ interface ClaudeIdeasRequest {
   scanType: ScanType;
   contextId?: string;
   groupId?: string;
+  goalId?: string; // Focus scan on a specific goal
 }
 
 /** Group data with all contexts and aggregated file paths */
@@ -55,8 +56,9 @@ function buildClaudeIdeaRequirement(config: {
   projectName: string;
   scanType: ScanType;
   context: DbContext | null;
+  goalId?: string;
 }): string {
-  const { projectId, projectName, scanType, context } = config;
+  const { projectId, projectName, scanType, context, goalId } = config;
   const apiUrl = getVibemanApiUrl();
 
   const scanConfig = SCAN_TYPE_CONFIGS.find(s => s.value === scanType);
@@ -76,10 +78,21 @@ function buildClaudeIdeaRequirement(config: {
     : ideaDb.getIdeasByProject(projectId);
   const existingIdeasSection = buildExistingIdeasSection(existingIdeas);
 
-  // Load open goals for goal matching
-  const allGoals = goalDb.getGoalsByProject(projectId);
-  const openGoals = allGoals.filter(goal => goal.status === 'open');
-  const goalsSection = buildGoalsSection(openGoals);
+  // Load goals for matching — if goalId is set, focus on that specific goal
+  let goalsSection: string;
+  let goalFocusDirective = '';
+  if (goalId) {
+    const targetGoal = goalDb.getGoalById(goalId);
+    const goalsForSection = targetGoal ? [targetGoal] : [];
+    goalsSection = buildGoalsSection(goalsForSection);
+    if (targetGoal) {
+      goalFocusDirective = `\n\n## GOAL FOCUS\n\n**IMPORTANT:** This scan is specifically driven by the goal: "${targetGoal.title}"\n${targetGoal.description ? `Goal description: ${targetGoal.description}\n` : ''}\nEvery idea you generate MUST directly advance this goal. Set goal_id to "${targetGoal.id}" for all ideas. Do not generate ideas unrelated to this goal.\n`;
+    }
+  } else {
+    const allGoals = goalDb.getGoalsByProject(projectId);
+    const openGoals = allGoals.filter(goal => goal.status === 'open');
+    goalsSection = buildGoalsSection(openGoals);
+  }
 
   // Build the prompt using the standard prompt builder
   const promptOptions: PromptOptions = {
@@ -93,7 +106,7 @@ function buildClaudeIdeaRequirement(config: {
   };
 
   const scanPrompt = buildPrompt(scanType, promptOptions);
-  const fullPrompt = scanPrompt + '\n\n' + goalsSection;
+  const fullPrompt = scanPrompt + '\n\n' + goalsSection + goalFocusDirective;
 
   // Build the Claude Code requirement wrapper
   return `# ${scanEmoji} Claude Code Idea Generation: ${scanLabel}
@@ -313,8 +326,9 @@ function buildClaudeIdeaRequirementForGroup(config: {
   projectName: string;
   scanType: ScanType;
   groupData: GroupData;
+  goalId?: string;
 }): string {
-  const { projectId, projectName, scanType, groupData } = config;
+  const { projectId, projectName, scanType, groupData, goalId } = config;
   const { group, contexts, allFilePaths } = groupData;
   const apiUrl = getVibemanApiUrl();
 
@@ -329,10 +343,21 @@ function buildClaudeIdeaRequirementForGroup(config: {
   const existingIdeas = contexts.flatMap(ctx => ideaDb.getIdeasByContext(ctx.id));
   const existingIdeasSection = buildExistingIdeasSection(existingIdeas);
 
-  // Load open goals for goal matching
-  const allGoals = goalDb.getGoalsByProject(projectId);
-  const openGoals = allGoals.filter(goal => goal.status === 'open');
-  const goalsSection = buildGoalsSection(openGoals);
+  // Load goals — if goalId is set, focus on that specific goal
+  let goalsSection: string;
+  let goalFocusDirective = '';
+  if (goalId) {
+    const targetGoal = goalDb.getGoalById(goalId);
+    const goalsForSection = targetGoal ? [targetGoal] : [];
+    goalsSection = buildGoalsSection(goalsForSection);
+    if (targetGoal) {
+      goalFocusDirective = `\n\n## GOAL FOCUS\n\n**IMPORTANT:** This scan is specifically driven by the goal: "${targetGoal.title}"\n${targetGoal.description ? `Goal description: ${targetGoal.description}\n` : ''}\nEvery idea you generate MUST directly advance this goal. Set goal_id to "${targetGoal.id}" for all ideas. Do not generate ideas unrelated to this goal.\n`;
+    }
+  } else {
+    const allGoals = goalDb.getGoalsByProject(projectId);
+    const openGoals = allGoals.filter(goal => goal.status === 'open');
+    goalsSection = buildGoalsSection(openGoals);
+  }
 
   // Build the prompt using the standard prompt builder
   const promptOptions: PromptOptions = {
@@ -346,7 +371,7 @@ function buildClaudeIdeaRequirementForGroup(config: {
   };
 
   const scanPrompt = buildPrompt(scanType, promptOptions);
-  const fullPrompt = scanPrompt + '\n\n' + goalsSection;
+  const fullPrompt = scanPrompt + '\n\n' + goalsSection + goalFocusDirective;
 
   return `# ${scanEmoji} Claude Code Idea Generation: ${scanLabel}
 
@@ -597,7 +622,7 @@ export async function POST(request: NextRequest) {
   try {
     const body: ClaudeIdeasRequest = await request.json();
 
-    const { projectId, projectName, projectPath, scanType, contextId, groupId } = body;
+    const { projectId, projectName, projectPath, scanType, contextId, groupId, goalId } = body;
 
     // Validate required fields
     if (!projectId || !projectName || !projectPath || !scanType) {
@@ -640,6 +665,7 @@ export async function POST(request: NextRequest) {
         projectName,
         scanType,
         groupData,
+        goalId,
       });
       requirementSuffix = `-grp-${groupId.slice(0, 8)}`;
     } else {
@@ -650,7 +676,8 @@ export async function POST(request: NextRequest) {
         projectId,
         projectName,
         scanType,
-        context
+        context,
+        goalId,
       });
       requirementSuffix = contextId ? `-${contextId.slice(0, 8)}` : '-all';
     }

@@ -4,6 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Grid3X3, X } from 'lucide-react';
 import type { WorkspaceProjectNode, CrossProjectRelationship, IntegrationType } from '../sub_WorkspaceArchitecture/lib/types';
+import type { FilteredCellData } from '../sub_WorkspaceArchitecture/lib/useMatrixCanvasData';
 import MatrixFilterChips from './MatrixFilterChips';
 import MatrixGrid from './MatrixGrid';
 import MatrixCellInfo from './MatrixCellInfo';
@@ -12,6 +13,7 @@ import { archTheme } from './lib/archTheme';
 interface MatrixPanelProps {
   sortedNodes: WorkspaceProjectNode[];
   matrix: Map<string, CrossProjectRelationship[]>;
+  filteredMatrix: Map<string, FilteredCellData>;
   availableIntegrationTypes: IntegrationType[];
   filterTypes: Set<IntegrationType>;
   selectedCell: { sourceId: string; targetId: string } | null;
@@ -28,6 +30,7 @@ interface MatrixPanelProps {
 export default function MatrixPanel({
   sortedNodes,
   matrix,
+  filteredMatrix,
   availableIntegrationTypes,
   filterTypes,
   selectedCell,
@@ -71,8 +74,7 @@ export default function MatrixPanel({
 
         <MatrixGrid
           sortedNodes={sortedNodes}
-          matrix={matrix}
-          filterTypes={filterTypes}
+          filteredMatrix={filteredMatrix}
           selectedCell={selectedCell}
           hoveredCell={hoveredCell}
           onCellHover={onCellHover}

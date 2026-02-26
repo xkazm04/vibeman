@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Send, Loader2, ChevronDown, ChevronRight, Zap, BarChart3, Cpu,
@@ -167,6 +167,21 @@ export default function VoiceLabPanel() {
   const [directionsOpen, setDirectionsOpen] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // Cleanup microphone stream on unmount to prevent resource leaks
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+      mediaRecorderRef.current = null;
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+    };
+  }, []);
 
   const stats = computeStats(exchanges);
 
@@ -276,6 +291,7 @@ export default function VoiceLabPanel() {
 
       const recorder = new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
+      streamRef.current = stream;
 
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) sessionChunks.push(e.data);
@@ -284,6 +300,7 @@ export default function VoiceLabPanel() {
       recorder.onstop = async () => {
         // Stop media tracks for this specific stream
         stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
 
         const audioBlob = new Blob(sessionChunks, { type: 'audio/webm' });
         if (audioBlob.size === 0) {

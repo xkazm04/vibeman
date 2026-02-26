@@ -77,7 +77,7 @@ async function handlePost(request: NextRequest) {
     }
 
     // Build the context generation prompt
-    const prompt = buildContextGenerationPrompt({
+    const prompt = await buildContextGenerationPrompt({
       projectId,
       projectName: project.name,
       projectPath,

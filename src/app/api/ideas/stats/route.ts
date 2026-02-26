@@ -1,82 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ideaDb } from '@/app/db';
+import { getDatabase } from '@/app/db/connection';
 import { SCAN_TYPES } from '@/app/features/Ideas/sub_IdeasSetup/lib/ScanTypeConfig';
 import { withObservability } from '@/lib/observability/middleware';
 
-interface Idea {
-  project_id: string;
-  context_id: string | null;
+interface StatusScanRow {
+  status: string;
   scan_type: string;
-  status: 'pending' | 'accepted' | 'rejected' | 'implemented';
+  count: number;
 }
 
-function filterIdeas(ideas: Idea[], projectId: string | null, contextId: string | null): Idea[] {
-  let filtered = ideas;
-
-  if (projectId) {
-    filtered = filtered.filter(idea => idea.project_id === projectId);
-  }
-
-  if (contextId) {
-    filtered = filtered.filter(idea => idea.context_id === contextId);
-  }
-
-  return filtered;
-}
-
-function calculateStatusCounts(ideas: Idea[]) {
-  return {
-    pending: ideas.filter(i => i.status === 'pending').length,
-    accepted: ideas.filter(i => i.status === 'accepted').length,
-    rejected: ideas.filter(i => i.status === 'rejected').length,
-    implemented: ideas.filter(i => i.status === 'implemented').length,
-    total: ideas.length
-  };
+interface GroupRow {
+  field_value: string;
+  count: number;
 }
 
 function calculateAcceptanceRatio(accepted: number, implemented: number, total: number): number {
   return total > 0 ? Math.round(((accepted + implemented) / total) * 100) : 0;
-}
-
-function calculateScanTypeStats(ideas: Idea[]) {
-  const scanTypes = SCAN_TYPES.map(t => t.value);
-
-  return scanTypes.map(scanType => {
-    const scanIdeas = ideas.filter(idea => idea.scan_type === scanType);
-    const counts = calculateStatusCounts(scanIdeas);
-
-    return {
-      scanType,
-      ...counts,
-      acceptanceRatio: calculateAcceptanceRatio(counts.accepted, counts.implemented, counts.total)
-    };
-  });
-}
-
-function calculateOverallStats(ideas: Idea[]) {
-  const counts = calculateStatusCounts(ideas);
-
-  return {
-    ...counts,
-    acceptanceRatio: calculateAcceptanceRatio(counts.accepted, counts.implemented, counts.total)
-  };
-}
-
-function groupByField<T extends string>(
-  ideas: Idea[],
-  fieldGetter: (idea: Idea) => T | null
-) {
-  const map = new Map<T, number>();
-
-  ideas.forEach(idea => {
-    const fieldValue = fieldGetter(idea);
-    if (fieldValue) {
-      const count = map.get(fieldValue) || 0;
-      map.set(fieldValue, count + 1);
-    }
-  });
-
-  return map;
 }
 
 /**
@@ -92,31 +31,96 @@ async function handleGet(request: NextRequest) {
     const projectId = searchParams.get('projectId');
     const contextId = searchParams.get('contextId');
 
-    const allIdeas = ideaDb.getAllIdeas();
-    const ideas = filterIdeas(allIdeas, projectId, contextId);
+    const db = getDatabase();
+    const conditions: string[] = [];
+    const params: string[] = [];
 
-    const scanTypeStats = calculateScanTypeStats(ideas);
-    const overall = calculateOverallStats(ideas);
+    if (projectId) {
+      conditions.push('project_id = ?');
+      params.push(projectId);
+    }
+    if (contextId) {
+      conditions.push('context_id = ?');
+      params.push(contextId);
+    }
 
-    const projectMap = groupByField(ideas, idea => idea.project_id);
-    const projects = Array.from(projectMap.entries()).map(([projectId, totalIdeas]) => ({
-      projectId,
-      name: projectId,
-      totalIdeas
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Single query: aggregate by status + scan_type
+    const rows = db.prepare(
+      `SELECT status, scan_type, COUNT(*) as count FROM ideas ${whereClause} GROUP BY status, scan_type`
+    ).all(...params) as StatusScanRow[];
+
+    // Build scan type stats from the aggregated rows
+    const scanTypeValues = SCAN_TYPES.map(t => t.value);
+    const scanTypeStats = scanTypeValues.map(scanType => {
+      const scanRows = rows.filter(r => r.scan_type === scanType);
+      const pending = scanRows.find(r => r.status === 'pending')?.count ?? 0;
+      const accepted = scanRows.find(r => r.status === 'accepted')?.count ?? 0;
+      const rejected = scanRows.find(r => r.status === 'rejected')?.count ?? 0;
+      const implemented = scanRows.find(r => r.status === 'implemented')?.count ?? 0;
+      const total = pending + accepted + rejected + implemented;
+
+      return {
+        scanType,
+        pending,
+        accepted,
+        rejected,
+        implemented,
+        total,
+        acceptanceRatio: calculateAcceptanceRatio(accepted, implemented, total),
+      };
+    });
+
+    // Overall stats from the same rows
+    let overallPending = 0, overallAccepted = 0, overallRejected = 0, overallImplemented = 0;
+    for (const row of rows) {
+      switch (row.status) {
+        case 'pending': overallPending += row.count; break;
+        case 'accepted': overallAccepted += row.count; break;
+        case 'rejected': overallRejected += row.count; break;
+        case 'implemented': overallImplemented += row.count; break;
+      }
+    }
+    const overallTotal = overallPending + overallAccepted + overallRejected + overallImplemented;
+
+    // Project distribution
+    const projectRows = db.prepare(
+      `SELECT project_id as field_value, COUNT(*) as count FROM ideas ${whereClause} GROUP BY project_id`
+    ).all(...params) as GroupRow[];
+
+    const projects = projectRows.map(r => ({
+      projectId: r.field_value,
+      name: r.field_value,
+      totalIdeas: r.count,
     }));
 
-    const contextMap = groupByField(ideas, idea => idea.context_id);
-    const contexts = Array.from(contextMap.entries()).map(([contextId, totalIdeas]) => ({
-      contextId,
-      name: contextId,
-      totalIdeas
+    // Context distribution
+    const contextWhere = conditions.length > 0
+      ? `WHERE ${conditions.join(' AND ')} AND context_id IS NOT NULL`
+      : 'WHERE context_id IS NOT NULL';
+    const contextRows = db.prepare(
+      `SELECT context_id as field_value, COUNT(*) as count FROM ideas ${contextWhere} GROUP BY context_id`
+    ).all(...params) as GroupRow[];
+
+    const contexts = contextRows.map(r => ({
+      contextId: r.field_value,
+      name: r.field_value,
+      totalIdeas: r.count,
     }));
 
     return NextResponse.json({
       scanTypes: scanTypeStats,
-      overall,
+      overall: {
+        pending: overallPending,
+        accepted: overallAccepted,
+        rejected: overallRejected,
+        implemented: overallImplemented,
+        total: overallTotal,
+        acceptanceRatio: calculateAcceptanceRatio(overallAccepted, overallImplemented, overallTotal),
+      },
       projects,
-      contexts
+      contexts,
     });
   } catch (error) {
     return NextResponse.json(

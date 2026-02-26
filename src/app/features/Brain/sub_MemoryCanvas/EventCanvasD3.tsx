@@ -166,7 +166,16 @@ export default function EventCanvasD3() {
       setUndoStack(prev => prev.filter(u => u.event.id !== evt.id));
     }, 5000);
     setUndoStack(prev => [...prev, { event: evt, timeout }]);
-    fetch(`/api/brain/signals?id=${evt.id}`, { method: 'DELETE' }).catch(() => {});
+    fetch(`/api/brain/signals?id=${evt.id}`, { method: 'DELETE' })
+      .then(res => {
+        if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
+      })
+      .catch(() => {
+        // Revert optimistic delete: re-add event and clear undo entry
+        clearTimeout(timeout);
+        setUndoStack(prev => prev.filter(u => u.event.id !== evt.id));
+        setEvents(prev => prev.some(e => e.id === evt.id) ? prev : [...prev, evt]);
+      });
   }, []);
 
   const handleUndo = useCallback((entry: UndoEntry) => {

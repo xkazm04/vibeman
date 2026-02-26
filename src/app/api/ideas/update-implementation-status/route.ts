@@ -8,6 +8,7 @@ import {
   createIdeasSuccessResponse,
 } from '@/app/features/Ideas/lib/ideasHandlers';
 import { signalCollector } from '@/lib/brain/signalCollector';
+import { invalidateContextCache } from '@/app/api/brain/context/route';
 
 /**
  * POST /api/ideas/update-implementation-status
@@ -59,6 +60,8 @@ export async function POST(request: NextRequest) {
         success: true,
         executionTimeMs: 0,
       });
+      // Invalidate Brain context cache so dashboard reflects new signal
+      invalidateContextCache(idea.project_id);
     } catch {
       // Signal recording must never break the main flow
     }

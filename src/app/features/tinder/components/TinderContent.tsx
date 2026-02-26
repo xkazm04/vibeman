@@ -15,7 +15,7 @@ import SwipeProgress from './SwipeProgress';
 import { KeyboardHintCompact } from '@/components/ui/KeyboardHintBar';
 import { TINDER_CONSTANTS, TINDER_ANIMATIONS } from '../lib/tinderUtils';
 import { Context } from '@/lib/queries/contextQueries';
-import { getContextNameFromMap } from '@/app/features/Ideas/lib/contextLoader';
+import { buildContextLookup, getContextNameFromLookup } from '@/app/features/Ideas/lib/contextLoader';
 import type { IdeaVariant } from '../lib/variantApi';
 
 // Tinder keyboard hints
@@ -63,6 +63,7 @@ export default function TinderContent({
   const [flushSuccess, setFlushSuccess] = React.useState(false);
   const [showFlushConfirm, setShowFlushConfirm] = React.useState(false);
   const [showVariants, setShowVariants] = React.useState(false);
+  const contextLookup = React.useMemo(() => buildContextLookup(contextsMap), [contextsMap]);
 
   // Reset variant view when idea changes
   React.useEffect(() => {
@@ -295,7 +296,7 @@ export default function TinderContent({
                 {ideas.slice(currentIndex, currentIndex + TINDER_CONSTANTS.PREVIEW_CARDS).map((idea, index) => {
                   const projectName = getProject(idea.project_id)?.name || 'Unknown Project';
                   const contextName = idea.context_id
-                    ? getContextNameFromMap(idea.context_id, contextsMap)
+                    ? getContextNameFromLookup(idea.context_id, contextLookup)
                     : 'General';
 
                   return (

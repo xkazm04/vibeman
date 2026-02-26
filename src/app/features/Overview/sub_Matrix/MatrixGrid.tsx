@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
-import type { WorkspaceProjectNode, CrossProjectRelationship, IntegrationType } from '../sub_WorkspaceArchitecture/lib/types';
+import type { WorkspaceProjectNode, IntegrationType } from '../sub_WorkspaceArchitecture/lib/types';
+import type { FilteredCellData } from '../sub_WorkspaceArchitecture/lib/useMatrixCanvasData';
 import { TIER_CONFIG } from '../sub_WorkspaceArchitecture/lib/types';
 import { MATRIX_CONSTANTS } from '../sub_WorkspaceArchitecture/lib/matrixLayoutUtils';
 import { INTEGRATION_COLORS } from './constants';
@@ -9,8 +10,7 @@ import { archTheme } from './lib/archTheme';
 
 interface MatrixGridProps {
   sortedNodes: WorkspaceProjectNode[];
-  matrix: Map<string, CrossProjectRelationship[]>;
-  filterTypes: Set<IntegrationType>;
+  filteredMatrix: Map<string, FilteredCellData>;
   selectedCell: { sourceId: string; targetId: string } | null;
   hoveredCell: { sourceId: string; targetId: string } | null;
   onCellHover: (cell: { sourceId: string; targetId: string } | null) => void;
@@ -46,8 +46,7 @@ function getVisibleRange(
 
 export default function MatrixGrid({
   sortedNodes,
-  matrix,
-  filterTypes,
+  filteredMatrix,
   selectedCell,
   hoveredCell,
   onCellHover,
@@ -187,12 +186,7 @@ export default function MatrixGrid({
                   );
                 }
 
-                const connections = matrix.get(`${source.id}-${target.id}`) || [];
-                const filtered =
-                  filterTypes.size === 0
-                    ? connections
-                    : connections.filter((c) => filterTypes.has(c.integrationType));
-                const hasConnection = filtered.length > 0;
+                const cellData = filteredMatrix.get(`${source.id}-${target.id}`);
                 const isActive =
                   (selectedCell?.sourceId === source.id && selectedCell?.targetId === target.id) ||
                   (hoveredCell?.sourceId === source.id && hoveredCell?.targetId === target.id);
@@ -209,7 +203,7 @@ export default function MatrixGrid({
                           : { sourceId: source.id, targetId: target.id }
                       )
                     }
-                    style={{ cursor: hasConnection ? 'pointer' : 'default' }}
+                    style={{ cursor: cellData ? 'pointer' : 'default' }}
                   >
                     <rect
                       x={labelOffset + globalCol * cellSize}
@@ -221,11 +215,9 @@ export default function MatrixGrid({
                       strokeWidth={isActive ? 1.5 : 0}
                       rx={3}
                     />
-                    {hasConnection && (
+                    {cellData && (
                       <>
-                        {[...new Set(filtered.map((c) => c.integrationType))]
-                          .slice(0, 3)
-                          .map((type, i) => (
+                        {cellData.types.map((type, i) => (
                             <circle
                               key={type}
                               cx={labelOffset + globalCol * cellSize + cellSize / 2 - 5 + i * 5}

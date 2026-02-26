@@ -33,6 +33,41 @@ export const scanRepository = {
   },
 
   /**
+   * Get scans for a project with optional filtering and pagination at the SQL level
+   */
+  getScansByProjectFiltered: (
+    projectId: string,
+    options?: { scanType?: string; limit?: number; offset?: number }
+  ): { scans: DbScan[]; total: number } => {
+    const db = getDatabase();
+    const conditions = ['project_id = ?'];
+    const params: (string | number)[] = [projectId];
+
+    if (options?.scanType) {
+      conditions.push('scan_type = ?');
+      params.push(options.scanType);
+    }
+
+    const whereClause = conditions.join(' AND ');
+
+    // Get total count for pagination metadata
+    const countStmt = db.prepare(`SELECT COUNT(*) as total FROM scans WHERE ${whereClause}`);
+    const { total } = countStmt.get(...params) as { total: number };
+
+    // Get paginated results
+    let query = `SELECT * FROM scans WHERE ${whereClause} ORDER BY timestamp DESC`;
+    if (options?.limit !== undefined) {
+      query += ' LIMIT ?';
+      params.push(options.limit);
+      query += ' OFFSET ?';
+      params.push(options?.offset ?? 0);
+    }
+
+    const scans = db.prepare(query).all(...params) as DbScan[];
+    return { scans, total };
+  },
+
+  /**
    * Get a single scan by ID
    */
   getScanById: (scanId: string): DbScan | null => {
@@ -72,8 +107,16 @@ export const scanRepository = {
       now
     );
 
-    const selectStmt = db.prepare('SELECT * FROM scans WHERE id = ?');
-    return selectStmt.get(scan.id) as DbScan;
+    return {
+      id: scan.id,
+      project_id: scan.project_id,
+      scan_type: scan.scan_type,
+      timestamp: now,
+      summary: scan.summary || null,
+      input_tokens: scan.input_tokens || null,
+      output_tokens: scan.output_tokens || null,
+      created_at: now,
+    };
   },
 
   /**

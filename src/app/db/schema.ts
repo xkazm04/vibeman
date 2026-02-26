@@ -331,6 +331,7 @@ export function initializeTables() {
     CREATE INDEX IF NOT EXISTS idx_ideas_context_id ON ideas(context_id);
     CREATE INDEX IF NOT EXISTS idx_ideas_status ON ideas(project_id, status);
     CREATE INDEX IF NOT EXISTS idx_ideas_category ON ideas(category);
+    CREATE INDEX IF NOT EXISTS idx_ideas_project_status_category ON ideas(project_id, status, category);
     CREATE INDEX IF NOT EXISTS idx_implementation_log_project_id ON implementation_log(project_id);
     CREATE INDEX IF NOT EXISTS idx_implementation_log_created_at ON implementation_log(project_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_tech_debt_project_id ON tech_debt(project_id);

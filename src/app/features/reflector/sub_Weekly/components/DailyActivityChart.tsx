@@ -106,7 +106,7 @@ export default function DailyActivityChart({ dailyBreakdown, onBarClick }: Daily
     total: day.total,
     accepted: day.accepted + day.implemented,
     rejected: day.rejected,
-    pending: day.total - day.accepted - day.rejected - day.implemented,
+    pending: Math.max(0, day.total - day.accepted - day.rejected - day.implemented),
     acceptanceRate: day.acceptanceRate,
   }));
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, ArrowLeft, FileText, Calendar, FolderTree, Clock, Trash2, Code, Database, Layers, Grid, Activity, Cpu } from 'lucide-react';
-import { Context, ContextGroup, useContextStore } from '../../../../stores/contextStore';
+import { Context, ContextGroup, useContextStore, useShallow } from '../../../../stores/contextStore';
 import { useGlobalModal } from '../../../../hooks/useGlobalModal';
 import { normalizePath, FilePath } from '../../../../utils/pathUtils';
 import { useFocusTrap } from '../../../../lib/accessibility';
@@ -16,7 +16,8 @@ interface GroupDetailViewProps {
 const TITLE_ID = 'group-detail-title';
 
 export default function GroupDetailView({ groupId, onClose }: GroupDetailViewProps) {
-  const { contexts, groups, removeGroup } = useContextStore();
+  const { contexts, groups } = useContextStore(useShallow(s => ({ contexts: s.contexts, groups: s.groups })));
+  const removeGroup = useContextStore(s => s.removeGroup);
   const { showConfirmModal } = useGlobalModal();
   const [selectedGroup, setSelectedGroup] = useState<ContextGroup | null>(null);
   const [groupContexts, setGroupContexts] = useState<Context[]>([]);

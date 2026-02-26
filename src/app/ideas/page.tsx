@@ -18,7 +18,8 @@ import LazyContentSection from '@/components/Navigation/LazyContentSection';
 // Handlers and utilities
 import {
   fetchContextsForProjects,
-  getContextNameFromMap
+  buildContextLookup,
+  getContextNameFromLookup,
 } from '@/app/features/Ideas/lib/contextLoader';
 
 export default function IdeasPage() {
@@ -96,10 +97,13 @@ export default function IdeasPage() {
   // Get selected project details
   const selectedProject = filterProject !== 'all' ? getProject(filterProject) : null;
 
-  // Helper function to get context name using the loaded contexts map
+  // Build flat lookup map once when contextsMap changes - O(1) per lookup
+  const contextLookup = React.useMemo(() => buildContextLookup(contextsMap), [contextsMap]);
+
+  // Helper function to get context name using the pre-built lookup
   const getContextName = React.useCallback((contextId: string) => {
-    return getContextNameFromMap(contextId, contextsMap);
-  }, [contextsMap]);
+    return getContextNameFromLookup(contextId, contextLookup);
+  }, [contextLookup]);
 
   // Memoize getProjectName callback to prevent re-creating on every render
   const getProjectNameCallback = React.useCallback((projectId: string) => {

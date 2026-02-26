@@ -3,6 +3,7 @@ import { implementationLogDb, ideaDb, contextDb } from '@/app/db';
 import { randomUUID } from 'crypto';
 import { logger } from '@/lib/logger';
 import { signalCollector } from '@/lib/brain/signalCollector';
+import { invalidateContextCache } from '@/app/api/brain/context/route';
 
 /**
  * POST - Simplified implementation log creation endpoint
@@ -80,6 +81,8 @@ export async function POST(request: NextRequest) {
         success: true,
         executionTimeMs: 0,
       });
+      // Invalidate Brain context cache so dashboard reflects new signal
+      invalidateContextCache(projectId);
     } catch {
       // Signal recording must never break the main flow
     }

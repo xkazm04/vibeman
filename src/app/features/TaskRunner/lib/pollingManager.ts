@@ -10,6 +10,7 @@
  * 2. Polling-only: Classic 10s interval polling (used as fallback).
  */
 
+import { useEffect, useRef } from 'react';
 import {
   createUnifiedPoller,
   type UnifiedPoller,
@@ -75,6 +76,18 @@ const DEFAULT_CONFIG = {
 
 /** Fallback polling interval when SSE disconnects (30s instead of 10s) */
 const SSE_FALLBACK_INTERVAL_MS = 30_000;
+
+// ============================================================================
+// Auto-cleanup: close SSE connections on page unload / navigation
+// ============================================================================
+
+if (typeof window !== 'undefined') {
+  // Close all SSE connections when the page is unloaded (browser navigation,
+  // tab close, etc.) to prevent orphaned TCP sockets.
+  window.addEventListener('beforeunload', () => {
+    cleanupAllPolling();
+  });
+}
 
 // ============================================================================
 // SSE Support
@@ -338,4 +351,72 @@ export function getActivePollingCount(): number {
 export function updatePollingAttempts(_taskId: string, _attempts: number): void {
   // Attempts are now tracked internally by the unified poller.
   // This function is kept for backwards compatibility but is a no-op.
+}
+
+/**
+ * Stop polling for multiple task IDs at once.
+ * Useful for batch cleanup when navigating away from a view.
+ */
+export function stopPollingForTasks(taskIds: string[]): number {
+  let stopped = 0;
+  for (const taskId of taskIds) {
+    if (stopPolling(taskId)) stopped++;
+  }
+  return stopped;
+}
+
+/**
+ * React hook that tracks task IDs started during a component's lifetime
+ * and automatically stops their polling on unmount.
+ *
+ * Returns a `track` function. Call it after starting polling to register
+ * the task ID for automatic cleanup. When the component unmounts, all
+ * tracked connections are closed.
+ *
+ * Usage:
+ *   const trackPolling = usePollingCleanup();
+ *   // After starting polling:
+ *   startSSEPolling(taskId, sseTaskId, callback);
+ *   trackPolling(taskId);
+ */
+export function usePollingCleanup(): (taskId: string) => void {
+  const trackedIds = useRef(new Set<string>());
+
+  useEffect(() => {
+    return () => {
+      // On unmount, stop all tracked polling connections
+      if (trackedIds.current.size > 0) {
+        const ids = Array.from(trackedIds.current);
+        const stopped = stopPollingForTasks(ids);
+        if (stopped > 0) {
+          console.log(`[PollingCleanup] Stopped ${stopped} orphaned connection(s) on unmount`);
+        }
+        trackedIds.current.clear();
+      }
+    };
+  }, []);
+
+  return useRef((taskId: string) => {
+    trackedIds.current.add(taskId);
+  }).current;
+}
+
+/**
+ * React hook that cleans up all SSE/polling connections when the component
+ * unmounts. Unlike `usePollingCleanup`, this is a fire-and-forget guard
+ * that requires no manual task tracking — it simply calls `cleanupAllPolling`
+ * on unmount.
+ *
+ * Place this in a top-level layout or page component that wraps task views
+ * to guarantee no orphaned connections survive navigation.
+ */
+export function usePollingCleanupOnUnmount(): void {
+  useEffect(() => {
+    return () => {
+      const stopped = cleanupAllPolling();
+      if (stopped > 0) {
+        console.log(`[PollingCleanup] Cleaned up ${stopped} connection(s) on unmount`);
+      }
+    };
+  }, []);
 }

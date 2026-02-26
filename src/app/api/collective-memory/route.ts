@@ -12,6 +12,9 @@ import {
   getRelevantKnowledge,
   getCollectiveStats,
 } from '@/lib/collective-memory/collectiveMemoryService';
+import type { ApplicationOutcome } from '@/app/db/models/collective-memory.types';
+
+const VALID_OUTCOMES = new Set<string>(['success', 'failure', 'partial', 'pending']);
 
 async function handleGET(request: NextRequest) {
   try {
@@ -124,7 +127,13 @@ async function handlePOST(request: NextRequest) {
         if (!applicationId || !outcome) {
           return NextResponse.json({ error: 'applicationId and outcome required' }, { status: 400 });
         }
-        collectiveMemoryDb.resolveApplication(applicationId, outcome, details);
+        if (!VALID_OUTCOMES.has(outcome)) {
+          return NextResponse.json(
+            { error: `Invalid outcome: "${outcome}". Must be one of: ${[...VALID_OUTCOMES].join(', ')}` },
+            { status: 400 }
+          );
+        }
+        collectiveMemoryDb.resolveApplication(applicationId, outcome as ApplicationOutcome, details);
         return NextResponse.json({ success: true });
       }
 

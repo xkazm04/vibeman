@@ -143,7 +143,17 @@ export const sessionRepository = {
       now
     );
 
-    return this.getById(sessionId)!;
+    return {
+      id: sessionId,
+      project_id: data.projectId,
+      name: data.name,
+      claude_session_id: null,
+      task_ids: taskIds,
+      status: 'pending' as const,
+      context_tokens: 0,
+      created_at: now,
+      updated_at: now,
+    };
   },
 
   /**
@@ -205,36 +215,43 @@ export const sessionRepository = {
   addTask(sessionId: string, taskId: string, requirementName: string): DbSessionTask | null {
     const db = getDatabase();
     const now = new Date().toISOString();
-
-    // Get current session
-    const session = this.getById(sessionId);
-    if (!session) return null;
-
-    // Get next order index
-    const countStmt = db.prepare('SELECT COUNT(*) as count FROM session_tasks WHERE session_id = ?');
-    const countResult = countStmt.get(sessionId) as { count: number };
-    const orderIndex = countResult.count;
-
-    // Create task
     const id = uuidv4();
-    const taskStmt = db.prepare(`
-      INSERT INTO session_tasks (
-        id, session_id, task_id, requirement_name, order_index, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
 
-    taskStmt.run(id, sessionId, taskId, requirementName, orderIndex, 'pending', now);
+    const run = db.transaction(() => {
+      // Get current session inside transaction to avoid TOCTOU
+      const session = this.getById(sessionId);
+      if (!session) return null;
 
-    // Update session task_ids
-    const currentTaskIds = JSON.parse(session.task_ids || '[]');
-    currentTaskIds.push(taskId);
+      // Get next order index
+      const countStmt = db.prepare('SELECT COUNT(*) as count FROM session_tasks WHERE session_id = ?');
+      const countResult = countStmt.get(sessionId) as { count: number };
+      const orderIndex = countResult.count;
 
-    const updateStmt = db.prepare(`
-      UPDATE claude_code_sessions
-      SET task_ids = ?, updated_at = ?
-      WHERE id = ?
-    `);
-    updateStmt.run(JSON.stringify(currentTaskIds), now, sessionId);
+      // Create task
+      const taskStmt = db.prepare(`
+        INSERT INTO session_tasks (
+          id, session_id, task_id, requirement_name, order_index, status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `);
+      taskStmt.run(id, sessionId, taskId, requirementName, orderIndex, 'pending', now);
+
+      // Update session task_ids — read inside transaction so concurrent calls see each other's writes
+      const freshSession = this.getById(sessionId)!;
+      const currentTaskIds = JSON.parse(freshSession.task_ids || '[]');
+      currentTaskIds.push(taskId);
+
+      const updateStmt = db.prepare(`
+        UPDATE claude_code_sessions
+        SET task_ids = ?, updated_at = ?
+        WHERE id = ?
+      `);
+      updateStmt.run(JSON.stringify(currentTaskIds), now, sessionId);
+
+      return id;
+    });
+
+    const resultId = run();
+    if (!resultId) return null;
 
     return sessionTaskRepository.getById(id);
   },
@@ -246,30 +263,34 @@ export const sessionRepository = {
     const db = getDatabase();
     const now = new Date().toISOString();
 
-    // Delete from session_tasks
-    const deleteStmt = db.prepare(`
-      DELETE FROM session_tasks
-      WHERE session_id = ? AND task_id = ?
-    `);
-    const result = deleteStmt.run(sessionId, taskId);
-
-    if (result.changes === 0) return false;
-
-    // Update session task_ids
-    const session = this.getById(sessionId);
-    if (session) {
-      const currentTaskIds = JSON.parse(session.task_ids || '[]');
-      const updatedTaskIds = currentTaskIds.filter((id: string) => id !== taskId);
-
-      const updateStmt = db.prepare(`
-        UPDATE claude_code_sessions
-        SET task_ids = ?, updated_at = ?
-        WHERE id = ?
+    const run = db.transaction(() => {
+      // Delete from session_tasks
+      const deleteStmt = db.prepare(`
+        DELETE FROM session_tasks
+        WHERE session_id = ? AND task_id = ?
       `);
-      updateStmt.run(JSON.stringify(updatedTaskIds), now, sessionId);
-    }
+      const result = deleteStmt.run(sessionId, taskId);
 
-    return true;
+      if (result.changes === 0) return false;
+
+      // Update session task_ids — read inside transaction to avoid lost-update race
+      const session = this.getById(sessionId);
+      if (session) {
+        const currentTaskIds = JSON.parse(session.task_ids || '[]');
+        const updatedTaskIds = currentTaskIds.filter((id: string) => id !== taskId);
+
+        const updateStmt = db.prepare(`
+          UPDATE claude_code_sessions
+          SET task_ids = ?, updated_at = ?
+          WHERE id = ?
+        `);
+        updateStmt.run(JSON.stringify(updatedTaskIds), now, sessionId);
+      }
+
+      return true;
+    });
+
+    return run();
   },
 
   /**
@@ -416,6 +437,45 @@ export const sessionRepository = {
     `);
 
     const result = stmt.run(...sessionIds);
+    return result.changes;
+  },
+
+  /**
+   * Atomically delete orphaned sessions, re-checking staleness at delete time.
+   * Prevents TOCTOU race where a heartbeat arrives between orphan detection and deletion.
+   */
+  bulkDeleteStale(thresholds: {
+    runningMinutes: number;
+    pausedHours: number;
+    pendingHours: number;
+  }, sessionIds?: string[]): number {
+    if (sessionIds && sessionIds.length === 0) return 0;
+
+    const db = getDatabase();
+    const runningCutoff = new Date(Date.now() - thresholds.runningMinutes * 60 * 1000).toISOString();
+    const pausedCutoff = new Date(Date.now() - thresholds.pausedHours * 60 * 60 * 1000).toISOString();
+    const pendingCutoff = new Date(Date.now() - thresholds.pendingHours * 60 * 60 * 1000).toISOString();
+
+    let idFilter = '';
+    const params: (string | number)[] = [runningCutoff, pausedCutoff, pendingCutoff];
+
+    if (sessionIds) {
+      const placeholders = sessionIds.map(() => '?').join(',');
+      idFilter = `AND id IN (${placeholders})`;
+      params.push(...sessionIds);
+    }
+
+    const stmt = db.prepare(`
+      DELETE FROM claude_code_sessions
+      WHERE (
+        (status = 'running' AND updated_at < ?)
+        OR (status = 'paused' AND updated_at < ?)
+        OR (status = 'pending' AND created_at < ?)
+      )
+      ${idFilter}
+    `);
+
+    const result = stmt.run(...params);
     return result.changes;
   },
 

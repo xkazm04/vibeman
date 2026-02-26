@@ -102,27 +102,15 @@ Respond in JSON format:
       };
     }
 
-    // Extract context signals for better targeting
-    const signals = await this.extractContextSignals(searchQuery);
+    // Run LLM extraction and semantic searches in parallel
+    const [signals, similarMemories, similarNodes] = await Promise.all([
+      this.extractContextSignals(searchQuery),
+      semanticIndexer.findSimilarMemories(projectId, searchQuery, maxMemories * 2, minRelevanceScore),
+      semanticIndexer.findSimilarNodes(projectId, searchQuery, maxNodes * 2, minRelevanceScore),
+    ]);
 
-    // Fast path: keyword-based context lookup
+    // These depend on signals from the LLM extraction
     const contextMatches = this.findContextsByKeywords(projectId, signals);
-
-    // Find similar memories semantically
-    const similarMemories = await semanticIndexer.findSimilarMemories(
-      projectId,
-      searchQuery,
-      maxMemories * 2,
-      minRelevanceScore
-    );
-
-    // Find similar knowledge nodes
-    const similarNodes = await semanticIndexer.findSimilarNodes(
-      projectId,
-      searchQuery,
-      maxNodes * 2,
-      minRelevanceScore
-    );
 
     // Also search for entities mentioned in the message
     const entityNodes: Array<{ item: DbAnnetteKnowledgeNode; similarity: number }> = [];
@@ -410,15 +398,11 @@ Respond in JSON format:
     // Extract and build knowledge graph
     const { nodes, edges } = await knowledgeGraph.buildFromText(projectId, conversationText);
 
-    // Index new memories
-    for (const memory of memories) {
-      await semanticIndexer.indexMemory(memory.id);
-    }
-
-    // Index new nodes
-    for (const node of nodes) {
-      await semanticIndexer.indexKnowledgeNode(node.id);
-    }
+    // Index new memories and nodes in parallel
+    await Promise.all([
+      ...memories.map(memory => semanticIndexer.indexMemory(memory.id)),
+      ...nodes.map(node => semanticIndexer.indexKnowledgeNode(node.id)),
+    ]);
 
     return {
       memoriesCreated: memories.length,

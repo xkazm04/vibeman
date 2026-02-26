@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Save, Plus, FolderPlus, Scan } from 'lucide-react';
 import { Caveat } from 'next/font/google';
 import { DndContext, DragOverlay, DragEndEvent } from '@dnd-kit/core';
-import { useContextStore } from '../../../stores/contextStore';
+import { useContextStore, useShallow } from '../../../stores/contextStore';
 import { useActiveProjectStore } from '../../../stores/activeProjectStore';
 import { useGlobalModal } from '../../../hooks/useGlobalModal';
 import ContextEditModal from './sub_ContextGen/ContextEditModal';
@@ -30,7 +30,18 @@ interface HorizontalContextBarProps {
 }
 
 const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalContextBarProps) => {
-  const { contexts, groups, loading, loadProjectData, queueMove, flushPendingMoves, clearPendingMoves, deleteAllContexts } = useContextStore();
+  // Atomic selectors: data slices with shallow comparison (re-render only when these specific slices change)
+  const { contexts, groups, loading } = useContextStore(useShallow(s => ({
+    contexts: s.contexts,
+    groups: s.groups,
+    loading: s.loading,
+  })));
+  // Actions: stable references, never cause re-renders
+  const loadProjectData = useContextStore(s => s.loadProjectData);
+  const queueMove = useContextStore(s => s.queueMove);
+  const flushPendingMoves = useContextStore(s => s.flushPendingMoves);
+  const clearPendingMoves = useContextStore(s => s.clearPendingMoves);
+  const deleteAllContexts = useContextStore(s => s.deleteAllContexts);
   const { activeProject } = useActiveProjectStore();
   const { showFullScreenModal } = useGlobalModal();
   const { isDetailOpen, selectedGroupId, closeGroupDetail, openGroupDetail } = useContextDetail();

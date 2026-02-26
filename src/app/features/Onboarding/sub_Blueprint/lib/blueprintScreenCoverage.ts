@@ -6,9 +6,7 @@
 import React from 'react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useBlueprintStore } from '../store/blueprintStore';
-import { useTaskRunnerStore } from '@/app/features/TaskRunner/store/taskRunnerStore';
-import { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
-import { isBatchRunning } from '@/app/features/TaskRunner/lib/types';
+import type { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
 import { toast } from 'sonner';
 import ScreenCoverageWithBatchSelection from '../components/ScreenCoverageWithBatchSelection';
 
@@ -336,21 +334,10 @@ This scan identifies contexts that don't have test scenarios and generates requi
     }
 
     try {
-      const taskRunnerStore = useTaskRunnerStore.getState();
       const taskIds: string[] = [];
 
-      // Ensure batch exists
-      let batch = taskRunnerStore.batches[batchId];
-      if (!batch) {
-        taskRunnerStore.createBatch(batchId, 'Screen Coverage', []);
-        // Re-fetch batch after creation
-        batch = useTaskRunnerStore.getState().batches[batchId];
-      }
-
-      // Filter selected contexts
       const selectedContexts = contexts.filter((ctx) => selectedContextIds.includes(ctx.id));
 
-      // Create requirement for each selected context
       for (const context of selectedContexts) {
         try {
           const { requirementName } = await createScreenCoverageRequirement(
@@ -361,27 +348,14 @@ This scan identifies contexts that don't have test scenarios and generates requi
             result.data!.projectPort
           );
 
-          // Build task ID
           const taskId = `${activeProject.id}:${requirementName}`;
           taskIds.push(taskId);
-
-          // Add task to batch
-          taskRunnerStore.addTaskToBatch(batchId, taskId);
-          console.log(`[Screen Coverage] Added task for ${context.name} to ${batchId}:`, taskId);
+          console.log(`[Screen Coverage] Created task for ${context.name}:`, taskId);
         } catch (error) {
           console.error(`[Screen Coverage] Failed to create requirement for ${context.name}:`, error);
-          // Continue with other contexts
         }
       }
 
-      // Re-fetch current batch state before starting
-      batch = useTaskRunnerStore.getState().batches[batchId];
-      if (batch && !isBatchRunning(batch.status) && taskIds.length > 0) {
-        taskRunnerStore.startBatch(batchId);
-        console.log('[Screen Coverage] Started batch:', batchId);
-      }
-
-      // Create event
       await createScreenCoverageEvent(activeProject.id, selectedContexts.length, taskIds);
 
       console.log('[Screen Coverage] All requirements created:', {

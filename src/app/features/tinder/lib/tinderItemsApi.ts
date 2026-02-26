@@ -12,7 +12,29 @@ import {
 
 // In-flight accept tracking to prevent double-submission for directions.
 // Key is directionId, value is the pending promise.
-const inflightTinderAccepts = new Map<string, Promise<{ success: boolean; requirementName?: string; error?: string }>>();
+// Entries auto-expire after INFLIGHT_TTL_MS to prevent stale promises on unmount/navigation.
+const INFLIGHT_TTL_MS = 30_000;
+const inflightTinderAccepts = new Map<string, Promise<AcceptResult>>();
+const inflightTinderTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function trackInflight<T>(map: Map<string, Promise<T>>, timers: Map<string, ReturnType<typeof setTimeout>>, key: string, promise: Promise<T>): void {
+  map.set(key, promise);
+  // Auto-cleanup after TTL in case the await is abandoned (e.g., navigation/unmount)
+  const timer = setTimeout(() => {
+    map.delete(key);
+    timers.delete(key);
+  }, INFLIGHT_TTL_MS);
+  timers.set(key, timer);
+}
+
+function clearInflight<T>(map: Map<string, Promise<T>>, timers: Map<string, ReturnType<typeof setTimeout>>, key: string): void {
+  map.delete(key);
+  const timer = timers.get(key);
+  if (timer) {
+    clearTimeout(timer);
+    timers.delete(key);
+  }
+}
 
 /**
  * Handle API response errors
@@ -104,10 +126,25 @@ export async function fetchIdeaCategories(
  * For directions: concurrent calls for the same ID coalesce into one request.
  * 409 Conflict (already accepted) is treated as success.
  */
+export interface PrerequisiteIdea {
+  id: string;
+  title: string;
+  status: string;
+  category: string;
+}
+
+export interface AcceptResult {
+  success: boolean;
+  requirementName?: string;
+  error?: string;
+  prerequisites?: PrerequisiteIdea[];
+  unlocks?: PrerequisiteIdea[];
+}
+
 export async function acceptTinderItem(
   item: TinderItem,
   projectPath: string
-): Promise<{ success: boolean; requirementName?: string; error?: string }> {
+): Promise<AcceptResult> {
   if (isIdeaItem(item)) {
     // Accept idea via existing endpoint
     const response = await fetch('/api/ideas/tinder/accept', {
@@ -129,12 +166,12 @@ export async function acceptTinderItem(
     if (existing) return existing;
 
     const promise = performAcceptDirection(directionId, projectPath);
-    inflightTinderAccepts.set(directionId, promise);
+    trackInflight(inflightTinderAccepts, inflightTinderTimers, directionId, promise);
 
     try {
       return await promise;
     } finally {
-      inflightTinderAccepts.delete(directionId);
+      clearInflight(inflightTinderAccepts, inflightTinderTimers, directionId);
     }
   }
 
@@ -144,7 +181,7 @@ export async function acceptTinderItem(
 async function performAcceptDirection(
   directionId: string,
   projectPath: string
-): Promise<{ success: boolean; requirementName?: string; error?: string }> {
+): Promise<AcceptResult> {
   const response = await fetch(`/api/directions/${directionId}/accept`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -236,7 +273,8 @@ export async function deleteTinderItem(item: TinderItem): Promise<{ success: boo
 }
 
 // In-flight pair accept tracking to prevent double-submission.
-const inflightPairAccepts = new Map<string, Promise<{ success: boolean; requirementName?: string; error?: string }>>();
+const inflightPairAccepts = new Map<string, Promise<AcceptResult>>();
+const inflightPairTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 /**
  * Accept one variant from a direction pair.
@@ -247,7 +285,7 @@ export async function acceptPairVariant(
   pairId: string,
   variant: 'A' | 'B',
   projectPath: string
-): Promise<{ success: boolean; requirementName?: string; error?: string }> {
+): Promise<AcceptResult> {
   const key = `${pairId}:${variant}`;
   const existing = inflightPairAccepts.get(key);
   if (existing) return existing;
@@ -270,11 +308,11 @@ export async function acceptPairVariant(
     return response.json();
   })();
 
-  inflightPairAccepts.set(key, promise);
+  trackInflight(inflightPairAccepts, inflightPairTimers, key, promise);
   try {
     return await promise;
   } finally {
-    inflightPairAccepts.delete(key);
+    clearInflight(inflightPairAccepts, inflightPairTimers, key);
   }
 }
 

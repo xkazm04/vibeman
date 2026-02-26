@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Loader2, FileText } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import TaskRunnerHeader from '@/app/features/TaskRunner/TaskRunnerHeader';
 import TaskColumn from '@/app/features/TaskRunner/TaskColumn';
@@ -11,17 +11,18 @@ import {
   taskStatusToLegacy,
   isRequirementRunning,
   isRequirementQueued,
-  isRequirementCompleted,
 } from '@/app/features/TaskRunner/lib/types';
+import { usePollingCleanupOnUnmount } from '@/app/features/TaskRunner/lib/pollingManager';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
 import { useTaskRunnerStore, useIsAnyBatchRunning } from '@/app/features/TaskRunner/store';
 import { useShallow } from 'zustand/react/shallow';
-import { useGlobalModal } from '@/hooks/useGlobalModal';
-import ClaudeLogViewer from '@/app/Claude/ClaudeLogViewer';
 
 
 
 const TaskRunnerLayout = () => {
+  // Cleanup all SSE/polling connections when navigating away from TaskRunner
+  usePollingCleanupOnUnmount();
+
   const { projects, initializeProjects } = useProjectConfigStore();
   const [requirements, setRequirements] = useState<ProjectRequirement[]>([]);
   const [selectedRequirements, setSelectedRequirements] = useState<Set<string>>(new Set());
@@ -29,8 +30,6 @@ const TaskRunnerLayout = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [processedCount, setProcessedCount] = useState(0);
   const [error, setError] = useState<string | undefined>();
-  const { showFullScreenModal } = useGlobalModal();
-
   // Get store tasks to sync status (useShallow prevents re-renders when unrelated task properties change)
   const storeTasks = useTaskRunnerStore(useShallow((state) => state.tasks));
 
@@ -320,33 +319,6 @@ const TaskRunnerLayout = () => {
     }
   };
 
-  // Open Claude Log Viewer
-  const handleOpenLogViewer = () => {
-    // Get the first requirement with logs (or most recently run)
-    // For now, use the first completed requirement
-    const completedReq = requirementsWithStatus.find(req => isRequirementCompleted(req.status));
-    const logRequirement = completedReq || requirementsWithStatus[0];
-
-    if (logRequirement) {
-      const logFilePath = `${logRequirement.projectPath}/.claude/logs/${logRequirement.requirementName}.log`;
-
-      showFullScreenModal(
-        'Claude Execution Logs',
-        <ClaudeLogViewer
-          logFilePath={logFilePath}
-          requirementName={logRequirement.requirementName}
-        />,
-        {
-          icon: FileText,
-          iconBgColor: 'from-purple-600/20 to-pink-600/20',
-          iconColor: 'text-purple-400',
-          maxWidth: 'max-w-6xl',
-          maxHeight: 'max-h-[90vh]',
-        }
-      );
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-full bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 flex items-center justify-center">
@@ -420,24 +392,6 @@ const TaskRunnerLayout = () => {
         </LazyContentSection>
       </div>
 
-      {/* Floating Log Viewer Button */}
-      {requirementsWithStatus.length > 0 && (
-        <motion.button
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={handleOpenLogViewer}
-          data-testid="claude-log-viewer-button"
-          className="fixed bottom-8 right-8 z-50 p-4 bg-gradient-to-br from-purple-600/90 to-pink-600/90 hover:from-purple-500 hover:to-pink-500 rounded-full shadow-2xl shadow-purple-500/30 border border-purple-400/30 backdrop-blur-sm transition-all group"
-          title="View Claude Execution Logs"
-        >
-          <FileText className="w-6 h-6 text-white group-hover:rotate-12 transition-transform" />
-
-          {/* Glow effect */}
-          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 blur-xl opacity-50 group-hover:opacity-75 transition-opacity -z-10" />
-        </motion.button>
-      )}
     </div>
   );
 };

@@ -81,6 +81,7 @@ async function handlePost(request: NextRequest) {
           accepted: false,
           contextId: idea.context_id || null,
           contextName: null,
+          rejectionReason: rejectionReason || null,
         });
       }
     } catch {

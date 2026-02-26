@@ -103,7 +103,10 @@ async function handlePost(request: NextRequest) {
       reasoning,
       status,
       user_feedback,
-      user_pattern
+      user_pattern,
+      effort,
+      impact,
+      risk
     } = body;
 
     const validationError = validateIdeasRequired(
@@ -124,7 +127,10 @@ async function handlePost(request: NextRequest) {
       reasoning,
       status,
       user_feedback,
-      user_pattern
+      user_pattern,
+      effort,
+      impact,
+      risk
     });
 
     // Invalidate analytics cache for this project
@@ -150,7 +156,10 @@ async function handlePatch(request: NextRequest) {
       user_pattern,
       title,
       description,
-      reasoning
+      reasoning,
+      effort,
+      impact,
+      risk
     } = body;
 
     const validationError = validateIdeasRequired({ id }, ['id']);
@@ -170,7 +179,10 @@ async function handlePatch(request: NextRequest) {
       user_pattern,
       title,
       description,
-      reasoning
+      reasoning,
+      effort,
+      impact,
+      risk
     });
 
     if (!idea) {

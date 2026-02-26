@@ -21,7 +21,12 @@ export function useChatInput({ autoFocus = true }: { autoFocus?: boolean } = {})
     const trimmed = input.trim();
     if (!trimmed || isLoading) return;
     setInput('');
-    await sendMessage(trimmed);
+    try {
+      await sendMessage(trimmed);
+    } catch {
+      // Send failed — restore the input so the user can retry
+      setInput(trimmed);
+    }
   }, [input, isLoading, sendMessage]);
 
   const handleKeyDown = useCallback(

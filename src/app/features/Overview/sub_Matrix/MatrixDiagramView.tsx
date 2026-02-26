@@ -8,7 +8,7 @@ import MatrixConnectionLine from './MatrixConnectionLine';
 import MatrixNode from './MatrixNode';
 import MatrixTierAggregate from './MatrixTierAggregate';
 import { ZoomableCanvas, type ZoomTransform } from '@/components/ZoomableCanvas';
-import { HighlightRule, isHighlighted, isDimmed, type HighlightRule as HighlightRuleType } from './lib/highlightAlgebra';
+import { HighlightRule, isHighlighted, isDimmed, getImpactLevel, type HighlightRule as HighlightRuleType } from './lib/highlightAlgebra';
 import { getDetailFlagsFromScale, calculateTierAggregates } from './lib/semanticZoom';
 import { archTheme } from './lib/archTheme';
 
@@ -24,6 +24,10 @@ interface MatrixDiagramViewProps {
   onShowMatrix: () => void;
   /** Optional custom highlight rule for advanced highlighting scenarios */
   highlightRule?: HighlightRuleType;
+  /** Whether impact mode is active (enables node click for blast radius) */
+  impactMode?: boolean;
+  /** Click handler for nodes (used by impact mode) */
+  onNodeClick?: (nodeId: string) => void;
 }
 
 export default function MatrixDiagramView({
@@ -37,6 +41,8 @@ export default function MatrixDiagramView({
   showMatrixButton,
   onShowMatrix,
   highlightRule: customHighlightRule,
+  impactMode,
+  onNodeClick,
 }: MatrixDiagramViewProps) {
   /**
    * Declarative highlight rule based on selection state.
@@ -153,6 +159,8 @@ export default function MatrixDiagramView({
                   node={node}
                   isHighlighted={isHighlighted(highlightRule, node.id, 'node')}
                   detailFlags={detailFlags}
+                  impactLevel={customHighlightRule ? getImpactLevel(customHighlightRule, node.id) : null}
+                  onClick={impactMode || customHighlightRule ? onNodeClick : undefined}
                 />
               ))}
             </>

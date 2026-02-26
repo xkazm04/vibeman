@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Folder, File, ChevronRight, FolderOpen, Check } from 'lucide-react';
 import { TreeNode as TreeNodeType } from '@/types';
@@ -17,7 +17,7 @@ interface TreeNodeProps {
   projectPath?: string;
 }
 
-export default function TreeNode({
+const TreeNode = React.memo(function TreeNode({
   node,
   level = 0,
   onToggle,
@@ -32,7 +32,7 @@ export default function TreeNode({
   const nodePath = node.path;
 
   // Construct absolute file path for code preview
-  const absoluteFilePath = (() => {
+  const absoluteFilePath = useMemo(() => {
     if (node.type !== 'file') return nodePath;
 
     if (isAbsolutePath(nodePath)) {
@@ -43,7 +43,7 @@ export default function TreeNode({
     if (!baseProjectPath) return nodePath;
 
     return joinPath(baseProjectPath, nodePath);
-  })();
+  }, [node.type, nodePath, projectPath, activeProject?.path]);
 
   // For checkbox mode, check if any selected path matches this node's path (normalized)
   const isSelected = showCheckboxes
@@ -53,43 +53,38 @@ export default function TreeNode({
   const isHighlighted = highlightedNodes.has(node.id);
   const hasChildren = node.children && node.children.length > 0;
 
-  const getIcon = () => {
+  const Icon = useMemo(() => {
     if (node.type === 'folder') {
       return isExpanded ? FolderOpen : Folder;
     }
     return File;
-  };
+  }, [node.type, isExpanded]);
 
-  const Icon = getIcon();
-
-  const handleNodeClick = (e: React.MouseEvent) => {
+  const handleNodeClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    // Only toggle selection, not expansion
     if (showCheckboxes) {
       onToggle(nodePath);
     } else {
       onToggle(node.id);
     }
-  };
+  }, [showCheckboxes, onToggle, nodePath, node.id]);
 
-  const handleChevronClick = (e: React.MouseEvent) => {
+  const handleChevronClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    // Only handle expansion/collapse for folders
     if (hasChildren) {
-      setIsExpanded(!isExpanded);
+      setIsExpanded(prev => !prev);
     }
-  };
+  }, [hasChildren]);
 
-  const handleContextMenu = (e: React.MouseEvent) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Only show preview for files, not folders
     if (node.type === 'file') {
       setShowPreviewModal(true);
     }
-  };
+  }, [node.type]);
 
-  const getNodeStyling = () => {
+  const nodeStyling = useMemo(() => {
     if (isHighlighted && isSelected) {
       return 'bg-gradient-to-r from-orange-500/20 to-cyan-500/20 border-l-2 border-orange-400 shadow-lg shadow-orange-500/20';
     } else if (isHighlighted) {
@@ -98,7 +93,9 @@ export default function TreeNode({
       return 'bg-cyan-500/15 border-l-2 border-cyan-400';
     }
     return '';
-  };
+  }, [isHighlighted, isSelected]);
+
+  const closePreviewModal = useCallback(() => setShowPreviewModal(false), []);
 
   return (
     <div className="select-none">
@@ -107,7 +104,7 @@ export default function TreeNode({
         whileHover={{ backgroundColor: 'rgba(55, 65, 81, 0.2)' }}
         className={`
           group flex items-center my-[0.5px] py-2 relative px-2 rounded-sm cursor-pointer transition-all duration-200
-          ${getNodeStyling()}
+          ${nodeStyling}
           hover:bg-gray-700/30
         `}
         onClick={handleNodeClick}
@@ -229,8 +226,10 @@ export default function TreeNode({
       <CodePreviewModal
         isOpen={showPreviewModal}
         filePath={absoluteFilePath}
-        onClose={() => setShowPreviewModal(false)}
+        onClose={closePreviewModal}
       />
     </div>
   );
-}
+});
+
+export default TreeNode;

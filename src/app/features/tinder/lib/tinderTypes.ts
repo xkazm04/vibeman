@@ -106,6 +106,16 @@ export interface UseTinderItemsResult {
   handleDeletePair: (pairId: string) => Promise<void>;
   resetStats: () => void;
   loadItems: () => Promise<void>;
+  // Dependency awareness
+  prerequisiteNotification: PrerequisiteNotification | null;
+  dismissPrerequisiteNotification: () => void;
+}
+
+/** Notification shown after accepting an idea with prerequisites or unlocks */
+export interface PrerequisiteNotification {
+  acceptedTitle: string;
+  prerequisites: { id: string; title: string; status: string; category: string }[];
+  unlocks: { id: string; title: string; status: string; category: string }[];
 }
 
 // Helper type guards

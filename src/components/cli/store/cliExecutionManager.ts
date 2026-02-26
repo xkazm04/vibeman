@@ -128,6 +128,15 @@ const activePolling: Map<CLISessionId, PollingState> = new Map();
 // Execution stream tracking
 const activeStreams: Map<string, EventSource> = new Map();
 
+// Auto-cleanup: close SSE connections on page unload to prevent connection leaks.
+// Browsers limit to 6 connections per domain (HTTP/1.1); orphaned EventSource
+// connections consume these slots and cause UI freezes.
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    cleanupAllCLISessions();
+  });
+}
+
 /**
  * Start CLI execution for a task
  */
@@ -483,12 +492,25 @@ export async function abortSessionExecution(sessionId: CLISessionId): Promise<bo
 }
 
 /**
- * Cleanup all CLI sessions (on unmount)
+ * Cleanup all CLI sessions — stops polling and closes SSE streams.
+ * Call on component unmount to prevent connection leaks.
  */
 export function cleanupAllCLISessions(): void {
-  for (const [sessionId] of activePolling) {
-    stopSessionPolling(sessionId);
+  // stopSessionPolling handles both activePolling and activeStreams per session
+  const sessionIds = new Set([
+    ...activePolling.keys(),
+    ...activeStreams.keys(),
+  ]);
+  for (const sessionId of sessionIds) {
+    stopSessionPolling(sessionId as CLISessionId);
   }
+}
+
+/**
+ * Get the count of active SSE streams (useful for debugging connection limits).
+ */
+export function getActiveStreamCount(): number {
+  return activeStreams.size;
 }
 
 /**

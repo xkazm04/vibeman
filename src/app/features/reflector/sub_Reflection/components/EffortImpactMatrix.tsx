@@ -71,27 +71,32 @@ export default function EffortImpactMatrix({ filters, onQuadrantClick, onQuadran
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const controller = new AbortController();
+
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (filters.projectId) params.append('projectId', filters.projectId);
+        if (filters.contextId) params.append('contextId', filters.contextId);
+
+        const response = await fetch(`/api/ideas/effort-impact?${params}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error('Failed to fetch effort-impact data');
+
+        const result = await response.json();
+        setData(result);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+
     loadData();
+    return () => controller.abort();
   }, [filters]);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (filters.projectId) params.append('projectId', filters.projectId);
-      if (filters.contextId) params.append('contextId', filters.contextId);
-
-      const response = await fetch(`/api/ideas/effort-impact?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch effort-impact data');
-
-      const result = await response.json();
-      setData(result);
-    } catch (error) {
-      // Error silently handled
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return (

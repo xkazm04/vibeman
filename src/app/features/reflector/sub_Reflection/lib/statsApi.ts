@@ -135,19 +135,32 @@ async function fetchIdeasStats(params: URLSearchParams): Promise<ReflectionStats
     if (response.ok) {
       return response.json();
     }
-  } catch {
-    // Fall through to legacy endpoint
+    // Server returned an error status - log it before falling back
+    console.warn(
+      `[statsApi] Aggregated endpoint returned ${response.status} ${response.statusText}, falling back to legacy endpoint`
+    );
+  } catch (error) {
+    // Network error (timeout, DNS failure, etc.) - log and fall back
+    console.warn('[statsApi] Aggregated endpoint network error, falling back to legacy endpoint:', error);
   }
 
   // Fallback to legacy endpoint
-  const legacyUrl = `/api/ideas/stats${params.toString() ? `?${params.toString()}` : ''}`;
-  const response = await fetch(legacyUrl);
+  try {
+    const legacyUrl = `/api/ideas/stats${params.toString() ? `?${params.toString()}` : ''}`;
+    const response = await fetch(legacyUrl);
 
-  if (!response.ok) {
+    if (!response.ok) {
+      console.error(
+        `[statsApi] Legacy endpoint also failed: ${response.status} ${response.statusText}. Returning null — dashboard will show empty data.`
+      );
+      return null;
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('[statsApi] Legacy endpoint network error. Returning null — dashboard will show empty data:', error);
     return null;
   }
-
-  return response.json();
 }
 
 /**

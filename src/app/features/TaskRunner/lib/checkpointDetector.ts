@@ -166,10 +166,11 @@ export function updateCheckpointStates(
   activity: TaskActivity,
   events: ActivityEvent[]
 ): Checkpoint[] {
-  return checkpoints.map((checkpoint) => {
+  let changed = false;
+  const updated = checkpoints.map((checkpoint) => {
     const rules = DETECTION_RULES[checkpoint.id];
 
-    // Skip if already completed or skipped
+    // Skip if already completed or skipped - return same reference
     if (checkpoint.status === 'completed' || checkpoint.status === 'skipped') {
       return checkpoint;
     }
@@ -177,6 +178,7 @@ export function updateCheckpointStates(
     // For checkpoints without detection rules, use phase-based fallback
     if (!rules) {
       if (checkpoint.status === 'pending' && activity.phase !== 'idle') {
+        changed = true;
         return {
           ...checkpoint,
           status: 'in_progress' as const,
@@ -186,6 +188,7 @@ export function updateCheckpointStates(
       // Auto-complete unknown checkpoints after staleness timeout
       if (checkpoint.status === 'in_progress' && checkpoint.startedAt) {
         if (Date.now() - checkpoint.startedAt > CHECKPOINT_STALE_MS) {
+          changed = true;
           return {
             ...checkpoint,
             status: 'completed' as const,
@@ -199,6 +202,7 @@ export function updateCheckpointStates(
     // Check for start conditions
     if (checkpoint.status === 'pending') {
       if (rules.startOn(activity, events)) {
+        changed = true;
         return {
           ...checkpoint,
           status: 'in_progress' as const,
@@ -210,6 +214,7 @@ export function updateCheckpointStates(
     // Check for completion conditions
     if (checkpoint.status === 'in_progress') {
       if (rules.completeOn(activity, events)) {
+        changed = true;
         return {
           ...checkpoint,
           status: 'completed' as const,
@@ -219,6 +224,7 @@ export function updateCheckpointStates(
 
       // Staleness timeout: auto-complete if stuck for too long
       if (checkpoint.startedAt && (Date.now() - checkpoint.startedAt > CHECKPOINT_STALE_MS)) {
+        changed = true;
         return {
           ...checkpoint,
           status: 'completed' as const,
@@ -229,6 +235,9 @@ export function updateCheckpointStates(
 
     return checkpoint;
   });
+
+  // Return same array reference if nothing changed to prevent unnecessary re-renders
+  return changed ? updated : checkpoints;
 }
 
 /**
@@ -272,6 +281,12 @@ export function autoAdvanceCheckpoints(checkpoints: Checkpoint[]): Checkpoint[] 
   // Find the index of the current in_progress checkpoint
   const currentIndex = checkpoints.findIndex((c) => c.status === 'in_progress');
   if (currentIndex <= 0) return checkpoints;
+
+  // Check if any earlier checkpoints are pending before creating new array
+  const hasPendingBefore = checkpoints.some(
+    (c, i) => i < currentIndex && c.status === 'pending'
+  );
+  if (!hasPendingBefore) return checkpoints;
 
   // Mark all earlier pending checkpoints as completed
   return checkpoints.map((checkpoint, index) => {

@@ -46,20 +46,12 @@ export default function ContextMapPanel({ projects }: ContextMapPanelProps) {
   const [autoStart, setAutoStart] = useState(false);
   const processingRef = useRef(false);
 
-  // Start batch context map generation
-  const handleStartAll = useCallback(async () => {
-    if (filteredProjects.length === 0) return;
-
-    startBatch('context-map', filteredProjects);
-    processingRef.current = true;
-
-    // Start first project
-    await startProject(filteredProjects[0], 0);
-  }, [filteredProjects, startBatch]);
+  // Ref to always hold the latest startProject, avoiding stale closures in setTimeout
+  const startProjectRef = useRef<(project: { id: string; name: string; path: string }) => Promise<void>>(undefined);
 
   // Start processing for a specific project
   const startProject = useCallback(
-    async (project: { id: string; name: string; path: string }, index: number) => {
+    async (project: { id: string; name: string; path: string }) => {
       if (!project) {
         reset();
         processingRef.current = false;
@@ -104,10 +96,10 @@ Execute the context map generation workflow as described in the skill file.`,
       } catch (error) {
         console.error('Error starting project:', error);
         markProjectComplete(project.id, false);
-        // Try next project
+        // Try next project - use ref to avoid stale closure
         const nextProject = advanceToNext();
         if (nextProject) {
-          setTimeout(() => startProject(nextProject, index + 1), 500);
+          setTimeout(() => startProjectRef.current?.(nextProject), 500);
         } else {
           processingRef.current = false;
         }
@@ -115,6 +107,20 @@ Execute the context map generation workflow as described in the skill file.`,
     },
     [markProjectRunning, markProjectComplete, advanceToNext, reset]
   );
+
+  // Keep ref in sync with latest startProject
+  startProjectRef.current = startProject;
+
+  // Start batch context map generation
+  const handleStartAll = useCallback(async () => {
+    if (filteredProjects.length === 0) return;
+
+    startBatch('context-map', filteredProjects);
+    processingRef.current = true;
+
+    // Start first project
+    await startProject(filteredProjects[0]);
+  }, [filteredProjects, startBatch, startProject]);
 
   // Handle task completion
   const handleTaskComplete = useCallback(
@@ -129,18 +135,16 @@ Execute the context map generation workflow as described in the skill file.`,
       setCurrentTask(null);
       setAutoStart(false);
 
-      // Advance to next project
+      // Advance to next project - use ref to avoid stale closure in setTimeout
       const nextProject = advanceToNext();
       if (nextProject && processingRef.current) {
         // Small delay before starting next to allow cleanup
-        setTimeout(() => {
-          startProject(nextProject, currentIndex + 1);
-        }, 1500);
+        setTimeout(() => startProjectRef.current?.(nextProject), 1500);
       } else {
         processingRef.current = false;
       }
     },
-    [batchProjects, currentIndex, markProjectComplete, advanceToNext, startProject]
+    [batchProjects, currentIndex, markProjectComplete, advanceToNext]
   );
 
   // Cancel batch

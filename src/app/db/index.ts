@@ -68,6 +68,14 @@ import { behavioralSignalRepository } from './repositories/behavioral-signal.rep
 import { directionOutcomeRepository } from './repositories/direction-outcome.repository';
 import { brainReflectionRepository } from './repositories/brain-reflection.repository';
 import { brainInsightRepository } from './repositories/brain-insight.repository';
+import { predictiveIntentRepository } from './repositories/predictive-intent.repository';
+import {
+  queryPatternRepository,
+  schemaRecommendationRepository,
+  optimizationHistoryRepository,
+} from './repositories/schema-intelligence.repository';
+import { scanProfileRepository } from './repositories/scan-profile.repository';
+import { ideaDependencyRepository } from './repositories/idea-dependency.repository';
 import {
   annetteSessionRepository,
   annetteMessageRepository,
@@ -595,6 +603,44 @@ export const brainInsightDb = {
  */
 export const insightEffectivenessCache = {
   ...insightEffectivenessCacheRepository,
+};
+
+/**
+ * Predictive Intent Database Operations
+ * Manages context transitions and intent predictions for Markov chain model
+ */
+export const predictiveIntentDb = {
+  ...predictiveIntentRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Schema Intelligence Database Operations
+ * Self-optimizing database: query patterns, recommendations, optimization history
+ */
+export const schemaIntelligenceDb = {
+  patterns: queryPatternRepository,
+  recommendations: schemaRecommendationRepository,
+  history: optimizationHistoryRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Scan Profile Database Operations
+ * Goal-driven scan configuration and profile management
+ */
+export const scanProfileDb = {
+  ...scanProfileRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Idea Dependency Database Operations
+ * Manages idea relationships (blocks, enables, conflicts_with)
+ */
+export const ideaDependencyDb = {
+  ...ideaDependencyRepository,
+  close: closeDatabase,
 };
 
 /**

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
 import { llmManager } from '@/lib/llm/llm-manager';
 import { SupportedProvider } from '@/lib/llm/types';
@@ -116,31 +116,36 @@ async function readFileContents(
   const maxFiles = 20;
   const maxCharsPerFile = 500;
 
-  for (const filePath of filePaths.slice(0, maxFiles)) {
-    try {
-      // Validate path for directory traversal
-      const traversalError = validatePathTraversal(filePath);
-      if (traversalError) continue;
+  // Read files in parallel with concurrency limit of 5
+  const filesToRead = filePaths.slice(0, maxFiles);
+  const CONCURRENCY = 5;
 
-      const fullPath = path.isAbsolute(filePath)
-        ? filePath
-        : path.join(projectPath, filePath);
+  for (let i = 0; i < filesToRead.length; i += CONCURRENCY) {
+    const batch = filesToRead.slice(i, i + CONCURRENCY);
+    const results = await Promise.allSettled(
+      batch.map(async (filePath) => {
+        const traversalError = validatePathTraversal(filePath);
+        if (traversalError) return null;
 
-      // Ensure resolved path stays within project directory
-      const baseError = validatePathWithinBase(fullPath, projectPath);
-      if (baseError) continue;
+        const fullPath = path.isAbsolute(filePath)
+          ? filePath
+          : path.join(projectPath, filePath);
 
-      if (!fs.existsSync(fullPath)) {
-        continue;
+        const baseError = validatePathWithinBase(fullPath, projectPath);
+        if (baseError) return null;
+
+        const content = await fs.readFile(fullPath, 'utf-8');
+        return {
+          path: filePath,
+          content: content.substring(0, maxCharsPerFile),
+        };
+      })
+    );
+
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value) {
+        fileContents.push(result.value);
       }
-
-      const content = fs.readFileSync(fullPath, 'utf-8');
-      fileContents.push({
-        path: filePath,
-        content: content.substring(0, maxCharsPerFile),
-      });
-    } catch (err) {
-      // Continue with other files
     }
   }
 

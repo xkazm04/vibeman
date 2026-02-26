@@ -1,13 +1,11 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Wifi, WifiOff } from 'lucide-react';
 import type { ProjectRequirement, TaskRunnerActions } from './lib/types';
 import { CLIBatchPanel } from '@/components/cli';
 import TaskMonitor from './components/TaskMonitor';
-import { CollectiveMemoryPanel } from './components/CollectiveMemoryPanel';
 import { useBlueprintStore } from '@/app/features/Onboarding/sub_Blueprint/store/blueprintStore';
-import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useRemoteTaskRunner } from './hooks/useRemoteTaskRunner';
 
 interface TaskRunnerHeaderProps {
@@ -45,10 +43,6 @@ export default function TaskRunnerHeader({
     targetDeviceName,
     toggleRemoteMode,
   } = useRemoteTaskRunner();
-
-  // Collective Memory panel
-  const [memoryPanelOpen, setMemoryPanelOpen] = useState(false);
-  const activeProject = useClientProjectStore(s => s.activeProject);
 
   // Reset tasker progress on mount (no batch progress tracking)
   useEffect(() => {
@@ -88,16 +82,7 @@ export default function TaskRunnerHeader({
 
       {/* Controls Row */}
       <div className="flex items-center justify-between">
-        <div className="flex-1 flex items-center gap-2">
-          {/* Collective Memory Toggle */}
-          {activeProject && (
-            <CollectiveMemoryPanel
-              projectId={activeProject.id}
-              isOpen={memoryPanelOpen}
-              onToggle={() => setMemoryPanelOpen(p => !p)}
-            />
-          )}
-        </div>
+        <div className="flex-1" />
         <div className="flex-1 flex justify-end">
           {/* Remote Mode Toggle */}
           <AnimatePresence>

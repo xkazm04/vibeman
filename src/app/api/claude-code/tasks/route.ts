@@ -6,22 +6,26 @@ import { withObservability } from '@/lib/observability/middleware';
  * GET /api/claude-code/tasks - List all execution tasks
  *
  * RESTful endpoint for listing tasks.
- * Optionally filter by projectPath query param.
+ * Optionally filter by projectPath or projectId query param.
  *
  * Query params:
- * - projectPath?: string (filter tasks by project)
+ * - projectPath?: string (filter tasks by project path)
+ * - projectId?: string (filter tasks by project ID)
  */
 async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectPath = searchParams.get('projectPath');
+    const projectId = searchParams.get('projectId');
 
     const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
 
-    // If projectPath provided, filter by project; otherwise return all tasks
+    // Filter by projectPath or projectId if provided; otherwise return all tasks
     const tasks = projectPath
       ? executionQueue.getProjectTasks(projectPath)
-      : executionQueue.getAllTasks();
+      : projectId
+        ? executionQueue.getTasksByProjectId(projectId)
+        : executionQueue.getAllTasks();
 
     return NextResponse.json({ tasks });
   } catch (error) {

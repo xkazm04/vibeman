@@ -64,56 +64,48 @@ export const scanQueueRepository = {
   /**
    * Atomically claim the next pending queue item for processing.
    * Uses UPDATE ... WHERE status='queued' pattern to prevent race conditions.
-   * Returns the claimed item or null if no items available or claim failed.
+   * Retries with subsequent queued items if a claim fails due to another worker.
+   * Returns the claimed item or null if no queued items remain.
    */
   claimNextPending: (projectId?: string): DbScanQueueItem | null => {
     const db = getDatabase();
     const now = new Date().toISOString();
 
-    // First, find the next pending item
-    let findStmt;
-    let candidate;
+    const findStmt = projectId
+      ? db.prepare(`
+          SELECT id FROM scan_queue
+          WHERE project_id = ? AND status = 'queued'
+          ORDER BY priority DESC, created_at ASC
+        `)
+      : db.prepare(`
+          SELECT id FROM scan_queue
+          WHERE status = 'queued'
+          ORDER BY priority DESC, created_at ASC
+        `);
 
-    if (projectId) {
-      findStmt = db.prepare(`
-        SELECT id FROM scan_queue
-        WHERE project_id = ? AND status = 'queued'
-        ORDER BY priority DESC, created_at ASC
-        LIMIT 1
-      `);
-      candidate = findStmt.get(projectId) as { id: string } | undefined;
-    } else {
-      findStmt = db.prepare(`
-        SELECT id FROM scan_queue
-        WHERE status = 'queued'
-        ORDER BY priority DESC, created_at ASC
-        LIMIT 1
-      `);
-      candidate = findStmt.get() as { id: string } | undefined;
-    }
-
-    if (!candidate) {
-      return null;
-    }
-
-    // Atomically update the status to 'running' only if still 'queued'
-    // This prevents race conditions where multiple workers claim the same item
     const updateStmt = db.prepare(`
       UPDATE scan_queue
       SET status = 'running', started_at = ?, updated_at = ?
       WHERE id = ? AND status = 'queued'
     `);
 
-    const result = updateStmt.run(now, now, candidate.id);
+    // Get all queued candidates and try to claim each in priority order
+    const candidates = (projectId
+      ? findStmt.all(projectId)
+      : findStmt.all()
+    ) as { id: string }[];
 
-    // If no rows were updated, another worker claimed this item
-    if (result.changes === 0) {
-      return null;
+    for (const candidate of candidates) {
+      const result = updateStmt.run(now, now, candidate.id);
+      if (result.changes > 0) {
+        // Successfully claimed - return the item
+        const selectStmt = db.prepare('SELECT * FROM scan_queue WHERE id = ?');
+        return selectStmt.get(candidate.id) as DbScanQueueItem;
+      }
+      // Another worker claimed this one, try the next candidate
     }
 
-    // Return the claimed item
-    const selectStmt = db.prepare('SELECT * FROM scan_queue WHERE id = ?');
-    return selectStmt.get(candidate.id) as DbScanQueueItem;
+    return null;
   },
 
   /**

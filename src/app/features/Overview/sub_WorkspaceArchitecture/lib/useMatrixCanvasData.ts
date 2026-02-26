@@ -1,7 +1,12 @@
 import { useMemo } from 'react';
-import type { IntegrationType } from './types';
+import type { CrossProjectRelationship, IntegrationType } from './types';
 import { useArchitectureData } from './useArchitectureData';
 import { Graph, type GraphEdge } from './Graph';
+
+export interface FilteredCellData {
+  connections: CrossProjectRelationship[];
+  types: IntegrationType[];
+}
 
 interface UseMatrixCanvasDataProps {
   workspaceId: string | null;
@@ -61,6 +66,26 @@ export function useMatrixCanvasData({
     return diagramProjection.resolvedEdges.filter(e => filterTypes.has(e.integrationType));
   }, [diagramProjection.resolvedEdges, filterTypes]);
 
+  // Pre-filtered matrix: single-pass over all edges, building per-cell filtered data
+  // Eliminates O(cells * edges) per-cell filtering in MatrixGrid
+  const filteredMatrix = useMemo(() => {
+    const result = new Map<string, FilteredCellData>();
+    for (const [key, connections] of matrixProjection.matrix) {
+      const filtered = filterTypes.size === 0
+        ? connections
+        : connections.filter(c => filterTypes.has(c.integrationType));
+      if (filtered.length > 0) {
+        const typeSet = new Set<IntegrationType>();
+        for (const c of filtered) typeSet.add(c.integrationType);
+        result.set(key, {
+          connections: filtered,
+          types: [...typeSet].slice(0, 3),
+        });
+      }
+    }
+    return result;
+  }, [matrixProjection.matrix, filterTypes]);
+
   return {
     // Raw data for components that need it
     data,
@@ -74,6 +99,7 @@ export function useMatrixCanvasData({
     // Matrix view data (from graph.toMatrix())
     sortedNodes: matrixProjection.sortedNodes,
     matrix: matrixProjection.matrix,
+    filteredMatrix,
     matrixContentWidth: matrixProjection.dimensions.contentWidth,
     matrixContentHeight: matrixProjection.dimensions.contentHeight,
     matrixPanelWidth: matrixProjection.dimensions.panelWidth,
