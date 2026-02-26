@@ -10,6 +10,8 @@
   --color-border: #334155;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-size-2xs: 0.625rem;
+  --font-size-2xs--line-height: 0.875rem;
   --gradient-primary: linear-gradient(135deg, #0f0f23 0%, #1e2a4a 50%, #1e3a5f 100%);
   --gradient-secondary: linear-gradient(245deg, #0f172a 0%, #1e293b 100%);
 }
@@ -79,6 +81,15 @@ body {
 
 .custom-scrollbar-subtle::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.5);
+}
+
+/* Hidden scrollbar utility for horizontal scroll areas */
+@utility scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* Custom animations */

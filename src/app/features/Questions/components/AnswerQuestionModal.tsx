@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HelpCircle, X, Loader2, Save } from 'lucide-react';
+import { HelpCircle, X, Loader2, Save, Pencil } from 'lucide-react';
 import { DbQuestion } from '@/app/db';
 
 interface AnswerQuestionModalProps {
@@ -71,6 +71,9 @@ export default function AnswerQuestionModal({
     }
   };
 
+  const isEditing = Boolean(question?.answer);
+  const previousAnswer = question?.answer || '';
+
   if (!question) return null;
 
   return (
@@ -104,9 +107,17 @@ export default function AnswerQuestionModal({
                   <HelpCircle className="w-6 h-6 text-purple-400" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-lg font-semibold text-white leading-tight">
-                    Answer Question
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-semibold text-white leading-tight">
+                      {isEditing ? 'Edit Answer' : 'Answer Question'}
+                    </h2>
+                    {isEditing && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                        <Pencil className="w-3 h-3" />
+                        Editing
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-400 mt-0.5">
                     {question.context_map_title}
                   </p>
@@ -131,10 +142,22 @@ export default function AnswerQuestionModal({
                   </div>
                 </div>
 
+                {/* Previous answer preview (edit mode only) */}
+                {isEditing && previousAnswer && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                      Previous Answer
+                    </label>
+                    <div className="bg-gray-800/30 border border-gray-700/30 rounded-lg p-3 text-sm text-gray-500 leading-relaxed line-clamp-4">
+                      {previousAnswer}
+                    </div>
+                  </div>
+                )}
+
                 {/* Answer */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Your Answer
+                    {isEditing ? 'Updated Answer' : 'Your Answer'}
                   </label>
                   <textarea
                     ref={textareaRef}
@@ -184,7 +207,7 @@ export default function AnswerQuestionModal({
                   ) : (
                     <Save className="w-4 h-4" />
                   )}
-                  Save Answer
+                  {isEditing ? 'Update Answer' : 'Save Answer'}
                 </button>
               </div>
             </div>

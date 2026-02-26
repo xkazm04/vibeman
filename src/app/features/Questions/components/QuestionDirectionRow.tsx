@@ -9,11 +9,15 @@ import {
   X,
   Trash2,
   Eye,
-  MessageSquare
+  MessageSquare,
+  Clock,
+  FileText,
+  TrendingUp,
 } from 'lucide-react';
 import { DbQuestion, DbDirection } from '@/app/db';
 import { useModal } from '@/contexts/ModalContext';
 import MarkdownViewer from '@/components/markdown/MarkdownViewer';
+import { type DecisionRecord, renderAdrMarkdown } from '@/lib/directions/adrGenerator';
 import {
   TableRow,
   TableBadge,
@@ -31,6 +35,38 @@ interface QuestionDirectionRowProps {
   onAccept?: () => Promise<void>;
   onReject?: () => Promise<void>;
   onDelete: () => Promise<void>;
+}
+
+/** Compact effort/impact badge shown inline on direction rows */
+function EffortImpactBadge({ effort, impact }: { effort: number | null; impact: number | null }) {
+  const effortColor = effort != null
+    ? effort <= 3 ? 'text-emerald-400' : effort <= 6 ? 'text-yellow-400' : 'text-red-400'
+    : 'text-zinc-500';
+  const impactColor = impact != null
+    ? impact <= 3 ? 'text-red-400' : impact <= 6 ? 'text-yellow-400' : 'text-emerald-400'
+    : 'text-zinc-500';
+
+  return (
+    <div className="flex items-center gap-2.5 mt-1.5">
+      {effort != null && (
+        <span className={`inline-flex items-center gap-1 text-[10px] font-mono ${effortColor}`} title={`Effort: ${effort}/10`}>
+          <Clock className="w-3 h-3" />
+          E:{effort}
+        </span>
+      )}
+      {impact != null && (
+        <span className={`inline-flex items-center gap-1 text-[10px] font-mono ${impactColor}`} title={`Impact: ${impact}/10`}>
+          <TrendingUp className="w-3 h-3" />
+          I:{impact}
+        </span>
+      )}
+      {effort != null && impact != null && (
+        <span className="text-[10px] text-zinc-500 font-mono" title="Impact/Effort ratio">
+          ({(impact / effort).toFixed(1)}x)
+        </span>
+      )}
+    </div>
+  );
 }
 
 function AnswerPreview({ answer }: { answer: string }) {
@@ -84,6 +120,24 @@ export function QuestionDirectionRow({
   const isAnswered = questionData?.status === 'answered';
   const isPending = directionData?.status === 'pending';
 
+  // Status badge config
+  const status = item.data.status;
+  const statusMap: Record<string, { label: string; colorScheme: 'amber' | 'green' | 'red' | 'cyan'; icon: typeof Clock }> = {
+    pending: { label: 'Pending', colorScheme: 'amber', icon: Clock },
+    processing: { label: 'Processing', colorScheme: 'cyan', icon: Clock },
+    answered: { label: 'Answered', colorScheme: 'green', icon: Check },
+    accepted: { label: 'Accepted', colorScheme: 'green', icon: Check },
+    rejected: { label: 'Rejected', colorScheme: 'red', icon: X },
+  };
+  const statusConfig = statusMap[status] ?? { label: status, colorScheme: 'amber' as const, icon: Clock };
+
+  // Parse ADR from decision_record JSON if present
+  const parsedAdr: DecisionRecord | null = (() => {
+    if (!directionData?.decision_record) return null;
+    try { return JSON.parse(directionData.decision_record) as DecisionRecord; }
+    catch { return null; }
+  })();
+
   const handleRowClick = () => {
     if (isDirection && directionData) {
       showModal(
@@ -105,6 +159,26 @@ export function QuestionDirectionRow({
     }
   };
 
+  const handleViewAdr = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!parsedAdr) return;
+    const adrMarkdown = renderAdrMarkdown(parsedAdr);
+    showModal(
+      {
+        title: `ADR: ${parsedAdr.title}`,
+        subtitle: `${parsedAdr.status.toUpperCase()} \u2022 ${parsedAdr.date}`,
+        icon: FileText,
+        iconBgColor: 'from-emerald-500/20 via-green-500/10 to-teal-500/20',
+        iconColor: 'text-emerald-400',
+        maxWidth: 'max-w-4xl',
+        maxHeight: 'max-h-[85vh]',
+        showBackdrop: true,
+        backdropBlur: true,
+      },
+      <MarkdownViewer content={adrMarkdown} />
+    );
+  };
+
   const content = isQuestion ? questionData!.question : directionData!.summary;
   const contextTitle = isQuestion
     ? questionData!.context_map_title
@@ -117,21 +191,28 @@ export function QuestionDirectionRow({
       highlighted={isAnswered}
       highlightColor="green"
     >
-      {/* Type Badge */}
+      {/* Type & Status Badges */}
       <td className="py-3 px-4 w-28 align-top">
-        {isQuestion ? (
+        <div className="flex flex-col gap-1.5">
+          {isQuestion ? (
+            <TableBadge
+              icon={HelpCircle}
+              label="Question"
+              colorScheme="purple"
+            />
+          ) : (
+            <TableBadge
+              icon={Compass}
+              label="Direction"
+              colorScheme="cyan"
+            />
+          )}
           <TableBadge
-            icon={HelpCircle}
-            label="Question"
-            colorScheme="purple"
+            icon={statusConfig.icon}
+            label={statusConfig.label}
+            colorScheme={statusConfig.colorScheme}
           />
-        ) : (
-          <TableBadge
-            icon={Compass}
-            label="Direction"
-            colorScheme="cyan"
-          />
-        )}
+        </div>
       </td>
 
       {/* Content */}
@@ -152,6 +233,10 @@ export function QuestionDirectionRow({
             </motion.span>
           )}
         </div>
+        {/* Effort/Impact badge for directions */}
+        {isDirection && directionData && (directionData.effort != null || directionData.impact != null) && (
+          <EffortImpactBadge effort={directionData.effort} impact={directionData.impact} />
+        )}
         {isAnswered && questionData?.answer && (
           <AnswerPreview answer={questionData.answer} />
         )}
@@ -190,6 +275,16 @@ export function QuestionDirectionRow({
                 e.stopPropagation();
                 handleRowClick();
               }}
+            />
+          )}
+
+          {/* Direction: View ADR (for accepted directions) */}
+          {isDirection && parsedAdr && (
+            <TableActionButton
+              icon={FileText}
+              label="View ADR"
+              colorScheme="green"
+              onClick={handleViewAdr}
             />
           )}
 

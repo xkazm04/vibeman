@@ -9,8 +9,6 @@ const nextConfig: NextConfig = {
   },
   // Externalize server-only packages that shouldn't be bundled
   serverExternalPackages: ['ts-morph', '@ts-morph/common'],
-  // Transpile xterm packages for proper CSS handling
-  transpilePackages: ['@xterm/xterm', '@xterm/addon-fit', '@xterm/addon-web-links'],
   async headers() {
     return [
       {

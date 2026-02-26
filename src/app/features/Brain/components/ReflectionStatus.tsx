@@ -16,6 +16,7 @@ import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { ReflectionTerminal } from './ReflectionTerminal';
 import GlowCard from './GlowCard';
+import BrainPanelHeader from './BrainPanelHeader';
 
 interface Props {
   isLoading: boolean;
@@ -201,12 +202,7 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
     return (
       <GlowCard accentColor={ACCENT_COLOR} glowColor={GLOW_COLOR} borderColorClass="border-purple-500/20" animate={false}>
         <div className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Sparkles className="w-5 h-5 text-purple-400" />
-            <h2 className="text-lg font-semibold text-zinc-200">
-              {scope === 'global' ? 'Global Reflection' : 'Project Reflection'}
-            </h2>
-          </div>
+          <BrainPanelHeader icon={Sparkles} title={scope === 'global' ? 'Global Reflection' : 'Project Reflection'} accentColor={ACCENT_COLOR} glowColor={GLOW_COLOR} />
           <div className="animate-pulse space-y-3">
             <div className="h-4 bg-zinc-800 rounded w-3/4" />
             <div className="h-8 bg-zinc-800 rounded" />
@@ -228,25 +224,14 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
     <GlowCard accentColor={ACCENT_COLOR} glowColor={GLOW_COLOR} borderColorClass="border-purple-500/20">
       <div className="p-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <motion.div
-              className="p-2 rounded-xl border"
-              style={{
-                backgroundColor: `${ACCENT_COLOR}15`,
-                borderColor: `${ACCENT_COLOR}40`,
-                boxShadow: `0 0 20px ${GLOW_COLOR}`
-              }}
-              whileHover={{ scale: 1.05 }}
-            >
-              <Sparkles className="w-5 h-5" style={{ color: ACCENT_COLOR }} />
-            </motion.div>
-            <h2 className="text-lg font-semibold text-zinc-200">
-              {scope === 'global' ? 'Global Reflection' : 'Project Reflection'}
-            </h2>
-          </div>
-          <StatusBadge status={reflectionStatus} elapsedSec={elapsedSec} />
-        </div>
+        <BrainPanelHeader
+          icon={Sparkles}
+          title={scope === 'global' ? 'Global Reflection' : 'Project Reflection'}
+          accentColor={ACCENT_COLOR}
+          glowColor={GLOW_COLOR}
+          glow
+          right={<StatusBadge status={reflectionStatus} elapsedSec={elapsedSec} />}
+        />
 
         {/* Completion Message */}
         {completionMessage && (
@@ -265,7 +250,7 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
             <span className={`text-sm ${completionMessage.type === 'success' ? 'text-emerald-300' : 'text-red-300'}`}>
               {completionMessage.text}
             </span>
-            <button onClick={() => setCompletionMessage(null)} className="ml-auto text-xs text-zinc-500 hover:text-zinc-300 font-mono">
+            <button onClick={() => setCompletionMessage(null)} aria-label="Dismiss message" className="ml-auto text-xs text-zinc-500 hover:text-zinc-300 font-mono focus-visible:ring-2 focus-visible:ring-purple-500/50 rounded outline-none">
               [×]
             </button>
           </motion.div>
@@ -331,7 +316,7 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
               disabled={isTriggering}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all disabled:opacity-50"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none"
               style={{
                 background: `linear-gradient(135deg, ${ACCENT_COLOR}30 0%, ${ACCENT_COLOR}15 100%)`,
                 border: `1px solid ${ACCENT_COLOR}40`,
@@ -351,7 +336,7 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
               onClick={handleCancel}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none"
               style={{
                 background: 'rgba(239, 68, 68, 0.15)',
                 border: '1px solid rgba(239, 68, 68, 0.3)',

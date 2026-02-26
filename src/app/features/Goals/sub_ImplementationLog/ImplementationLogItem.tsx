@@ -43,7 +43,7 @@ export default function ImplementationLogItem({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -20 }}
-      className="relative rounded-lg border border-gray-700/40 bg-gray-800/30 overflow-hidden hover:border-gray-600/50 transition-colors"
+      className="relative rounded-lg border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden hover:border-white/15 transition-colors"
     >
       {/* Header - Always visible */}
       <div
@@ -106,7 +106,7 @@ export default function ImplementationLogItem({
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="border-t border-gray-700/40"
+            className="border-t border-white/10"
           >
             <div className="p-3 pt-2">
               {/* Overview */}
@@ -115,7 +115,7 @@ export default function ImplementationLogItem({
               </p>
 
               {/* Footer */}
-              <div className="flex items-center justify-between text-[10px] text-gray-500 pt-2 border-t border-gray-700/30">
+              <div className="flex items-center justify-between text-[10px] text-gray-500 pt-2 border-t border-white/5">
                 <span className="font-mono truncate" title={log.requirement_name}>
                   {log.requirement_name}
                 </span>

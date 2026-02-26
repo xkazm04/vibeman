@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Filter, X, ChevronDown, ChevronLeft, ChevronRight,
@@ -41,6 +41,50 @@ export default function FilterBar({
 }: FilterBarProps) {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Focus trap and Escape key handling for the filter panel
+  useEffect(() => {
+    if (!isPanelOpen) return;
+
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    // Focus the first focusable element when panel opens
+    const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    const firstFocusable = panel.querySelector<HTMLElement>(focusableSelector);
+    firstFocusable?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsPanelOpen(false);
+        return;
+      }
+
+      if (e.key !== 'Tab') return;
+
+      const focusables = panel.querySelectorAll<HTMLElement>(focusableSelector);
+      if (focusables.length === 0) return;
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isPanelOpen]);
 
   const activeFilterCount = countActiveFilters(filters);
 
@@ -315,6 +359,10 @@ export default function FilterBar({
       <AnimatePresence>
         {isPanelOpen && (
           <motion.div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Filter Ideas"
             className="fixed top-0 right-0 h-screen w-96 bg-gray-900/95 backdrop-blur-xl border-l border-yellow-700/40 shadow-2xl z-50 overflow-y-auto"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}

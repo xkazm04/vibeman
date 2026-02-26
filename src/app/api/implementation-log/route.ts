@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { implementationLogDb } from '@/app/db';
+import { implementationLogDb, ideaDb, contextDb } from '@/app/db';
 import { randomUUID } from 'crypto';
 import { logger } from '@/lib/logger';
+import { signalCollector } from '@/lib/brain/signalCollector';
 
 /**
  * POST - Simplified implementation log creation endpoint
@@ -66,6 +67,35 @@ export async function POST(request: NextRequest) {
       requirementName,
       title,
     });
+
+    // Record brain signal: implementation logged
+    try {
+      signalCollector.recordImplementation(projectId, {
+        requirementId: id,
+        requirementName,
+        contextId: contextId || null,
+        filesCreated: [],
+        filesModified: [],
+        filesDeleted: [],
+        success: true,
+        executionTimeMs: 0,
+      });
+    } catch {
+      // Signal recording must never break the main flow
+    }
+
+    // Auto-update idea status to 'implemented' if matching idea exists
+    try {
+      const idea = ideaDb.getIdeaByRequirementId(requirementName);
+      if (idea && idea.status !== 'implemented') {
+        ideaDb.updateIdea(idea.id, { status: 'implemented' });
+        if (idea.context_id) {
+          contextDb.incrementImplementedTasks(idea.context_id);
+        }
+      }
+    } catch {
+      // Idea update must never break the main flow
+    }
 
     // Fire-and-forget: check if this log matches any active goals
     if (contextId) {

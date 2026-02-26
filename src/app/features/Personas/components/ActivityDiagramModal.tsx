@@ -2,7 +2,9 @@
 
 import { useState, useMemo, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import ReactFlow, {
+import {
+  ReactFlow,
+  ReactFlowProvider,
   MiniMap,
   Controls,
   Background,
@@ -12,9 +14,8 @@ import ReactFlow, {
   type Node,
   type Edge,
   type NodeTypes,
-  ReactFlowProvider,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import {
   X,
   Play,

@@ -68,15 +68,26 @@ async function handleGET(request: NextRequest) {
     // Supplement with behavioral signal stats when direction outcomes are sparse
     const signalStats = computeSignalStats(projectId, days);
 
-    // Merge: use whichever source has more data
-    const mergedStats = {
-      total: Math.max(stats.total, signalStats.total),
-      successful: Math.max(stats.successful, signalStats.successful),
-      failed: Math.max(stats.failed, signalStats.failed),
-      reverted: stats.reverted, // Only direction outcomes track reverts
-      pending: stats.pending,   // Only direction outcomes track pending
-      avgSatisfaction: stats.avgSatisfaction,
-    };
+    // Pick the single source with more total data to keep stats internally consistent
+    // (total must equal successful + failed + reverted + pending)
+    const useSignals = signalStats.total > stats.total;
+    const mergedStats = useSignals
+      ? {
+          total: signalStats.total,
+          successful: signalStats.successful,
+          failed: signalStats.failed,
+          reverted: 0,
+          pending: signalStats.total - signalStats.successful - signalStats.failed,
+          avgSatisfaction: stats.avgSatisfaction,
+        }
+      : {
+          total: stats.total,
+          successful: stats.successful,
+          failed: stats.failed,
+          reverted: stats.reverted,
+          pending: stats.pending,
+          avgSatisfaction: stats.avgSatisfaction,
+        };
 
     return NextResponse.json({
       success: true,

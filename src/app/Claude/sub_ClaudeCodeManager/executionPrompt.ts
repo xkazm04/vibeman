@@ -47,6 +47,8 @@ export function buildExecutionPrompt(config: ExecutionPromptConfig): string {
   }
 
   // Map to wrapper config (omit deprecated dbPath)
+  // vibemanBaseUrl defaults to http://localhost:3000 via rule variable defaults,
+  // ensuring CLI in other projects always calls the correct Vibeman server
   const wrapperConfig: ExecutionWrapperConfig = {
     requirementContent: enhancedContent,
     projectPath: config.projectPath,

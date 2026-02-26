@@ -9,7 +9,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
 } from 'recharts';
 import { Calendar, TrendingUp, LucideIcon } from 'lucide-react';
 
@@ -170,8 +169,7 @@ export default function StackedBarChart({
 
       {/* Chart */}
       <div className="relative z-10" style={{ height: chartHeight }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
+        <BarChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 5 }} responsive width="100%" height="100%">
             <defs>
               {stacks.map((stack, idx) => (
                 <linearGradient key={stack.key} id={`gradient-${idx}`} x1="0" y1="0" x2="0" y2="1">
@@ -215,7 +213,6 @@ export default function StackedBarChart({
               />
             ))}
           </BarChart>
-        </ResponsiveContainer>
       </div>
 
       {/* Legend */}

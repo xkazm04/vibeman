@@ -87,6 +87,20 @@ export function generateId(prefix: string): string {
 }
 
 /**
+ * Safely parse a JSON string column that should contain an array.
+ * Returns an empty array if the value is null/undefined or contains malformed JSON.
+ */
+export function safeParseJsonArray<T>(value: string | null | undefined): T[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Error thrown when a required database table does not exist.
  * Repositories throw this so API routes can return a clear 503 message
  * instead of a generic 500 "Failed to ..." response.

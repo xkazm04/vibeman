@@ -83,7 +83,7 @@ export default function ToolCallDisplay({ toolCalls }: ToolCallDisplayProps) {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           transition={{ delay: toolCalls.length * 0.05 }}
-          className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-white/5 border border-white/10 text-gray-400 hover:text-gray-200 hover:bg-white/10 cursor-pointer transition-colors"
+          className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-white/5 border border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/10 cursor-pointer transition-colors"
           title="Browse all Annette capabilities"
         >
           <Sparkles className="w-3 h-3" />

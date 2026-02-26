@@ -49,7 +49,8 @@ export function EventDetailDrawer({ selectedEvent, onDelete, onClose }: EventDet
                   </div>
                   <button
                     onClick={() => onDelete(selectedEvent)}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-500/10 border border-red-500/30 text-red-400 text-[10px] font-medium hover:bg-red-500/20 transition-colors"
+                    aria-label="Delete event"
+                    className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-500/10 border border-red-500/30 text-red-400 text-[10px] font-medium hover:bg-red-500/20 transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/50 outline-none"
                   >
                     <Trash2 size={10} />
                     Delete
@@ -58,7 +59,8 @@ export function EventDetailDrawer({ selectedEvent, onDelete, onClose }: EventDet
               </div>
               <button
                 onClick={onClose}
-                className="p-1 rounded-md hover:bg-zinc-700/50 text-zinc-500 hover:text-zinc-300 transition-colors"
+                aria-label="Close event details"
+                className="p-1 rounded-md hover:bg-zinc-700/50 text-zinc-500 hover:text-zinc-300 transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/50 outline-none"
               >
                 <X size={14} />
               </button>

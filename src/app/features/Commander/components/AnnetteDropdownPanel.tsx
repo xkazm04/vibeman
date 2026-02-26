@@ -46,7 +46,7 @@ function NotificationBar() {
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className={`flex items-center gap-2 px-3 py-1.5 border-b text-[10px] ${colorMap[notif.type]}`}
+          className={`flex items-center gap-2 px-3 py-1.5 border-b text-xs ${colorMap[notif.type]}`}
         >
           <Bell className="w-3 h-3 flex-shrink-0" />
           <span className="flex-1 truncate">{notif.text}</span>

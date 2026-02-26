@@ -64,7 +64,7 @@ export function ReflectionActions({
       {isRunning ? (
         <button
           onClick={onCancel}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none"
         >
           <StopCircle className="w-4 h-4" />
           Cancel Reflection
@@ -73,7 +73,7 @@ export function ReflectionActions({
         <button
           onClick={onTrigger}
           disabled={isTriggering}
-          className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+          className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none ${
             isTriggering
               ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
               : shouldTrigger

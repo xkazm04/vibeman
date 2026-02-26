@@ -5,9 +5,9 @@
 
 'use client';
 
-import { useEffect, useState, lazy, Suspense } from 'react';
-import { motion } from 'framer-motion';
-import { Brain, Activity, AlertCircle, Layers, Clock, Sparkles } from 'lucide-react';
+import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Brain, Activity, AlertCircle, Layers, Clock, Sparkles, AlertTriangle, TrendingDown, TrendingUp, X } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useBrainStore } from '@/stores/brainStore';
 import BehavioralFocusPanel from './components/BehavioralFocusPanel';
@@ -16,6 +16,8 @@ import ReflectionStatus from './components/ReflectionStatus';
 import ReflectionHistoryPanel from './components/ReflectionHistoryPanel';
 import BrainEffectivenessWidget from './components/BrainEffectivenessWidget';
 import InsightsPanel from './components/InsightsPanel';
+import ActivityHeatmap from './components/ActivityHeatmap';
+import type { SignalAnomaly, AnomalySeverity } from '@/lib/brain/anomalyDetector';
 
 const EventCanvasD3 = lazy(() => import('./sub_MemoryCanvas/EventCanvasD3'));
 const EventCanvasTimeline = lazy(() => import('./sub_Timeline/EventCanvasTimeline'));
@@ -47,16 +49,39 @@ export default function BrainLayout() {
 
   const isGlobalMode = selectedProjectId === 'all';
 
+  // Anomaly detection state
+  const [anomalies, setAnomalies] = useState<SignalAnomaly[]>([]);
+  const [anomaliesDismissed, setAnomaliesDismissed] = useState(false);
+
+  const fetchAnomalies = useCallback(async (projectId: string) => {
+    try {
+      const res = await fetch(`/api/brain/anomalies?projectId=${encodeURIComponent(projectId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.anomalies?.length > 0) {
+          setAnomalies(data.anomalies);
+          setAnomaliesDismissed(false);
+        } else {
+          setAnomalies([]);
+        }
+      }
+    } catch {
+      // Non-critical — don't surface anomaly fetch errors
+    }
+  }, []);
+
   // Load data when project changes or mode switches
   useEffect(() => {
     if (isGlobalMode) {
       fetchGlobalReflectionStatus();
+      setAnomalies([]);
     } else if (activeProject?.id) {
       fetchBehavioralContext(activeProject.id);
       fetchRecentOutcomes(activeProject.id);
       fetchReflectionStatus(activeProject.id);
+      fetchAnomalies(activeProject.id);
     }
-  }, [isGlobalMode, activeProject?.id, fetchBehavioralContext, fetchRecentOutcomes, fetchReflectionStatus, fetchGlobalReflectionStatus]);
+  }, [isGlobalMode, activeProject?.id, fetchBehavioralContext, fetchRecentOutcomes, fetchReflectionStatus, fetchGlobalReflectionStatus, fetchAnomalies]);
 
   if (!isGlobalMode && !activeProject) {
     return (
@@ -107,6 +132,53 @@ export default function BrainLayout() {
         </div>
       </div>
 
+      {/* Anomaly Alert Banner */}
+      <AnimatePresence>
+        {anomalies.length > 0 && !anomaliesDismissed && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="flex-shrink-0 overflow-hidden"
+          >
+            <div className="px-4 py-2 bg-amber-500/5 border-b border-amber-500/20">
+              <div className="flex items-start gap-3 max-w-7xl mx-auto">
+                <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-amber-300">
+                      {anomalies.length} anomal{anomalies.length === 1 ? 'y' : 'ies'} detected
+                    </span>
+                    {anomalies.some((a) => a.severity === 'critical') && (
+                      <span className="px-1.5 py-0.5 text-2xs font-mono bg-red-500/20 text-red-400 border border-red-500/30 rounded">
+                        CRITICAL
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {anomalies.slice(0, 4).map((a) => (
+                      <AnomalyChip key={a.id} anomaly={a} />
+                    ))}
+                    {anomalies.length > 4 && (
+                      <span className="text-2xs text-zinc-500 self-center">
+                        +{anomalies.length - 4} more
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setAnomaliesDismissed(true)}
+                  className="p-1 text-zinc-500 hover:text-zinc-300 transition-colors flex-shrink-0"
+                  aria-label="Dismiss anomaly alerts"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Dashboard Tab - Brain Effectiveness, Learning Insights, Cross-Project Focus, Implementation Outcomes */}
       {activeTab === 'dashboard' && (
         <div className="flex-1 overflow-auto p-6">
@@ -118,6 +190,15 @@ export default function BrainLayout() {
               transition={{ delay: 0.1 }}
             >
               <OutcomesSummary isLoading={isLoadingOutcomes} />
+            </motion.div>
+
+            {/* Activity Heatmap (full width) */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+            >
+              <ActivityHeatmap scope={scope} />
             </motion.div>
 
             {/* Second Row: Effectiveness + Focus */}
@@ -204,6 +285,32 @@ export default function BrainLayout() {
           </Suspense>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Anomaly Chip ─────────────────────────────────────────────────────────────
+
+const SEVERITY_STYLES: Record<AnomalySeverity, string> = {
+  critical: 'bg-red-500/10 border-red-500/30 text-red-300',
+  warning: 'bg-amber-500/10 border-amber-500/30 text-amber-300',
+  info: 'bg-zinc-500/10 border-zinc-500/30 text-zinc-300',
+};
+
+function AnomalyChip({ anomaly }: { anomaly: SignalAnomaly }) {
+  const Icon = anomaly.kind === 'activity_drop' || anomaly.kind === 'context_neglected'
+    ? TrendingDown
+    : anomaly.kind === 'activity_spike'
+      ? TrendingUp
+      : AlertTriangle;
+
+  return (
+    <div
+      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-2xs ${SEVERITY_STYLES[anomaly.severity]}`}
+      title={anomaly.description}
+    >
+      <Icon className="w-3 h-3 flex-shrink-0" />
+      <span className="truncate max-w-[200px]">{anomaly.title}</span>
     </div>
   );
 }

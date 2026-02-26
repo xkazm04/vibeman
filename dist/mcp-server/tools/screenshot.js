@@ -8,11 +8,16 @@ exports.registerScreenshotTools = registerScreenshotTools;
 const zod_1 = require("zod");
 function registerScreenshotTools(server, config, client) {
     // Check if test scenario exists
-    server.tool('check_test_scenario', 'Check if a test scenario exists for a context. Call this BEFORE attempting screenshot capture to verify a scenario is configured.', {
-        contextId: zod_1.z
-            .string()
-            .optional()
-            .describe('Context ID to check. If not provided, uses the configured contextId.'),
+    server.registerTool('check_test_scenario', {
+        title: 'Check Test Scenario',
+        description: 'Check if a test scenario exists for a context. Call this BEFORE attempting screenshot capture to verify a scenario is configured.',
+        inputSchema: zod_1.z.object({
+            contextId: zod_1.z
+                .string()
+                .optional()
+                .describe('Context ID to check. If not provided, uses the configured contextId.'),
+        }),
+        annotations: { readOnlyHint: true },
     }, async ({ contextId }) => {
         const targetContextId = contextId || config.contextId;
         if (!targetContextId) {
@@ -62,11 +67,16 @@ function registerScreenshotTools(server, config, client) {
         };
     });
     // Capture screenshot
-    server.tool('capture_screenshot', 'Capture a screenshot for a context. Only call this if check_test_scenario returned hasScenario: true. The screenshot will be stored and associated with the context.', {
-        contextId: zod_1.z
-            .string()
-            .optional()
-            .describe('Context ID to capture screenshot for. If not provided, uses the configured contextId.'),
+    server.registerTool('capture_screenshot', {
+        title: 'Capture Screenshot',
+        description: 'Capture a screenshot for a context. Only call this if check_test_scenario returned hasScenario: true. The screenshot will be stored and associated with the context.',
+        inputSchema: zod_1.z.object({
+            contextId: zod_1.z
+                .string()
+                .optional()
+                .describe('Context ID to capture screenshot for. If not provided, uses the configured contextId.'),
+        }),
+        annotations: { readOnlyHint: false },
     }, async ({ contextId }) => {
         const targetContextId = contextId || config.contextId;
         if (!targetContextId) {

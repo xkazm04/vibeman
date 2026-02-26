@@ -15,6 +15,12 @@ export const implementationLoggingRule: RuleDefinition = {
   order: 60,
   variables: [
     {
+      name: 'vibemanBaseUrl',
+      placeholder: '{{vibemanBaseUrl}}',
+      configKey: 'vibemanBaseUrl',
+      defaultValue: 'http://localhost:3000',
+    },
+    {
       name: 'projectId',
       placeholder: '{{projectId}}',
       configKey: 'projectId',
@@ -39,7 +45,7 @@ After completing the implementation, log your work via a simple API call.
 **DO**: Make ONE API call to log your implementation:
 
 \`\`\`bash
-curl -X POST "http://localhost:3000/api/implementation-log" \\
+curl -X POST "{{vibemanBaseUrl}}/api/implementation-log" \\
   -H "Content-Type: application/json" \\
   -d '{
     "projectId": "{{projectId}}",{{contextId}}
@@ -58,7 +64,7 @@ curl -X POST "http://localhost:3000/api/implementation-log" \\
 
 **Example**:
 \`\`\`bash
-curl -X POST "http://localhost:3000/api/implementation-log" \\
+curl -X POST "{{vibemanBaseUrl}}/api/implementation-log" \\
   -H "Content-Type: application/json" \\
   -d '{
     "projectId": "proj-123",

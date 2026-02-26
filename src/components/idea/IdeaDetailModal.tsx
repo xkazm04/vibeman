@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useId } from 'react';
+import React, { useState, useEffect, useId, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import FocusTrap from 'focus-trap-react';
 import { AlertCircle, X } from 'lucide-react';
@@ -13,6 +13,9 @@ import type { StatusType } from '@/lib/design-tokens/colors';
 import IdeaDetailHeader from './IdeaDetailHeader';
 import IdeaDetailContent from './IdeaDetailContent';
 import IdeaDetailActions from './IdeaDetailActions';
+import VariantCarousel from '@/app/features/tinder/components/VariantCarousel';
+import { recordScopeChoice } from '@/app/features/tinder/lib/variantApi';
+import type { IdeaVariant } from '@/app/features/tinder/lib/variantApi';
 
 interface IdeaDetailModalProps {
   idea: DbIdea;
@@ -29,6 +32,7 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
   const [saving, setSaving] = useState(false);
   const [showAIError, setShowAIError] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showVariants, setShowVariants] = useState(false);
 
   const { projects, initializeProjects } = useProjectConfigStore();
   const invalidateIdeas = useInvalidateIdeas();
@@ -293,6 +297,27 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
     }
   };
 
+  const handleSelectVariant = useCallback(async (variant: IdeaVariant) => {
+    setShowVariants(false);
+    setError(null);
+
+    // 1. Update idea with variant data
+    const updated = await updateIdea({
+      title: variant.title,
+      description: variant.description,
+      effort: variant.effort,
+      impact: variant.impact,
+      risk: variant.risk,
+    });
+    if (!updated) return;
+
+    // 2. Record scope preference
+    recordScopeChoice(idea.category, variant.scope);
+
+    // 3. Accept the idea (triggers requirement file generation)
+    await handleAccept();
+  }, [idea.category, updateIdea, handleAccept]);
+
   return (
     <FocusTrap
       focusTrapOptions={{
@@ -362,27 +387,48 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
             )}
           </AnimatePresence>
 
-          {/* Scrollable Content */}
-          <IdeaDetailContent
-            idea={idea}
-            userFeedback={userFeedback}
-            setUserFeedback={setUserFeedback}
-            userPattern={userPattern}
-            setUserPattern={setUserPattern}
-            description={description}
-            setDescription={setDescription}
-            isEditingDescription={isEditingDescription}
-            setIsEditingDescription={setIsEditingDescription}
-            handleSaveDescription={handleSaveDescription}
-            handleCancelDescription={handleCancelDescription}
-            saving={saving}
-            requirementError={requirementError}
-            retryRequirementGen={retryRequirementGen}
-            showAIError={showAIError}
-            setShowAIError={setShowAIError}
-            onUpdate={updateIdea}
-            descriptionId={modalDescriptionId}
-          />
+          {/* Scrollable Content or Variant Carousel */}
+          <AnimatePresence mode="wait">
+            {showVariants ? (
+              <motion.div
+                key="variants"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="flex-1 overflow-y-auto px-4 py-4"
+              >
+                <VariantCarousel
+                  ideaId={idea.id}
+                  ideaCategory={idea.category}
+                  onSelectVariant={handleSelectVariant}
+                  onClose={() => setShowVariants(false)}
+                />
+              </motion.div>
+            ) : (
+              <motion.div key="content" initial={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <IdeaDetailContent
+                  idea={idea}
+                  userFeedback={userFeedback}
+                  setUserFeedback={setUserFeedback}
+                  userPattern={userPattern}
+                  setUserPattern={setUserPattern}
+                  description={description}
+                  setDescription={setDescription}
+                  isEditingDescription={isEditingDescription}
+                  setIsEditingDescription={setIsEditingDescription}
+                  handleSaveDescription={handleSaveDescription}
+                  handleCancelDescription={handleCancelDescription}
+                  saving={saving}
+                  requirementError={requirementError}
+                  retryRequirementGen={retryRequirementGen}
+                  showAIError={showAIError}
+                  setShowAIError={setShowAIError}
+                  onUpdate={updateIdea}
+                  descriptionId={modalDescriptionId}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Footer Actions */}
           <IdeaDetailActions
@@ -393,6 +439,7 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
             onDelete={handleDelete}
             onSaveFeedback={handleSaveFeedback}
             onRegenerate={handleRegenerate}
+            onShowVariants={idea.status === 'pending' ? () => setShowVariants(true) : undefined}
           />
         </motion.div>
       </div>

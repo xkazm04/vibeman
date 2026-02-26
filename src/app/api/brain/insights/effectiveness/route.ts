@@ -4,13 +4,18 @@
  *      insight creation dates with direction acceptance rate changes.
  *
  * Uses a 24-hour cache (insight_effectiveness_cache table) to avoid
- * expensive O(insights × directions) cross-join recalculation per request.
- * Cache is invalidated when directions are accepted.
+ * expensive recalculation per request. Cache is invalidated when
+ * directions are accepted.
+ *
+ * Performance: Uses a window-based approach that limits directions to a
+ * configurable recent window (default 90 days) and computes pre/post rates
+ * within a per-insight window, avoiding unbounded CROSS JOIN growth.
  *
  * Query params:
  *   - projectId: string (required)
  *   - minDirections: number (optional, default 3) - minimum directions needed for scoring
  *   - noCache: boolean (optional) - bypass cache and force recalculation
+ *   - windowDays: number (optional, default 90) - direction window in days
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -50,6 +55,7 @@ async function handleGet(request: NextRequest) {
   const projectId = searchParams.get('projectId');
   const minDirections = parseInt(searchParams.get('minDirections') || '3', 10);
   const noCache = searchParams.get('noCache') === 'true';
+  const windowDays = parseInt(searchParams.get('windowDays') || '90', 10);
 
   if (!projectId) {
     return NextResponse.json(
@@ -80,81 +86,73 @@ async function handleGet(request: NextRequest) {
 
     const db = getDatabase();
 
-    // 1. Compute baseline acceptance rate in a single query
+    // 1. Compute baseline acceptance rate (windowed to recent directions)
     const baseline = db.prepare(`
       SELECT
         COUNT(CASE WHEN status = 'accepted' THEN 1 END) AS accepted,
         COUNT(*) AS total
       FROM directions
       WHERE project_id = ? AND status IN ('accepted', 'rejected')
-    `).get(projectId) as { accepted: number; total: number } | undefined;
+        AND created_at >= DATE('now', '-' || ? || ' days')
+    `).get(projectId, windowDays) as { accepted: number; total: number } | undefined;
 
     const baselineAcceptanceRate = baseline && baseline.total > 0
       ? baseline.accepted / baseline.total
       : 0;
 
-    // 2. Single SQL query: compute pre/post direction counts for every insight at once.
-    //    Uses a CROSS JOIN between insights and directions, with conditional aggregation
-    //    to bucket directions into "before" and "after" each insight's completion date.
-    //    This moves O(insights × directions) filtering from JS into SQLite's C engine.
-    const rows = db.prepare(`
-      SELECT
-        bi.id AS insight_id,
-        bi.title,
-        bi.type,
-        bi.confidence,
-        bi.reflection_id,
-        br.completed_at AS insight_date,
-        COUNT(CASE WHEN d.created_at <= br.completed_at AND d.status = 'accepted' THEN 1 END) AS pre_accepted,
-        COUNT(CASE WHEN d.created_at <= br.completed_at THEN 1 END) AS pre_total,
-        COUNT(CASE WHEN d.created_at > br.completed_at AND d.status = 'accepted' THEN 1 END) AS post_accepted,
-        COUNT(CASE WHEN d.created_at > br.completed_at THEN 1 END) AS post_total
-      FROM brain_insights bi
-      JOIN brain_reflections br ON bi.reflection_id = br.id
-      CROSS JOIN directions d
-      WHERE bi.project_id = ?
-        AND br.status = 'completed'
-        AND br.completed_at IS NOT NULL
-        AND d.project_id = ?
-        AND d.status IN ('accepted', 'rejected')
-      GROUP BY bi.id
-      ORDER BY br.completed_at ASC
-    `).all(projectId, projectId) as Array<{
-      insight_id: string;
-      title: string;
-      type: string;
-      confidence: number;
-      reflection_id: string;
-      insight_date: string;
-      pre_accepted: number;
-      pre_total: number;
-      post_accepted: number;
-      post_total: number;
-    }>;
-
-    // 3. Also fetch insights that may have no matching directions (they get score 0)
-    const insightsWithNoDirections = db.prepare(`
+    // 2. Fetch all insights (lightweight — typically tens, not thousands)
+    const allInsights = db.prepare(`
       SELECT bi.id, bi.title, bi.type, bi.confidence, bi.reflection_id, br.completed_at AS insight_date
       FROM brain_insights bi
       JOIN brain_reflections br ON bi.reflection_id = br.id
       WHERE bi.project_id = ? AND br.status = 'completed' AND br.completed_at IS NOT NULL
+      ORDER BY br.completed_at ASC
     `).all(projectId) as Array<{
       id: string; title: string; type: string; confidence: number;
       reflection_id: string; insight_date: string;
     }>;
 
-    // Build a lookup from the aggregated rows
-    const aggregated = new Map(rows.map(r => [r.insight_id, r]));
+    // 3. Fetch windowed directions once (O(D) where D = directions in window)
+    const directions = db.prepare(`
+      SELECT created_at, status
+      FROM directions
+      WHERE project_id = ? AND status IN ('accepted', 'rejected')
+        AND created_at >= DATE('now', '-' || ? || ' days')
+      ORDER BY created_at ASC
+    `).all(projectId, windowDays) as Array<{ created_at: string; status: string }>;
 
-    // 4. Build results from the aggregated data
+    // 4. Build prefix sum of accepted counts for O(1) range queries.
+    //    prefixAccepted[i] = number of accepted directions in directions[0..i-1]
+    const prefixAccepted = new Array(directions.length + 1);
+    prefixAccepted[0] = 0;
+    for (let i = 0; i < directions.length; i++) {
+      prefixAccepted[i + 1] = prefixAccepted[i] + (directions[i].status === 'accepted' ? 1 : 0);
+    }
+    const totalAccepted = prefixAccepted[directions.length];
+
+    // 5. For each insight, compute pre/post using binary search + prefix sum.
+    //    This is O(I * log(D)) total instead of O(I * D) from the CROSS JOIN.
     const results: InsightEffectiveness[] = [];
 
-    for (const insight of insightsWithNoDirections) {
-      const agg = aggregated.get(insight.id);
-      const preTotal = agg?.pre_total ?? 0;
-      const postTotal = agg?.post_total ?? 0;
-      const preAccepted = agg?.pre_accepted ?? 0;
-      const postAccepted = agg?.post_accepted ?? 0;
+    for (const insight of allInsights) {
+      const insightDate = insight.insight_date;
+
+      // Binary search for the split point
+      let lo = 0, hi = directions.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >>> 1;
+        if (directions[mid].created_at <= insightDate) {
+          lo = mid + 1;
+        } else {
+          hi = mid;
+        }
+      }
+      // lo = index of first direction after insight_date
+
+      const preTotal = lo;
+      const postTotal = directions.length - lo;
+      const preAccepted = prefixAccepted[lo];
+      const postAccepted = totalAccepted - preAccepted;
 
       const preRate = preTotal > 0 ? preAccepted / preTotal : 0;
       const postRate = postTotal > 0 ? postAccepted / postTotal : 0;
@@ -193,7 +191,7 @@ async function handleGet(request: NextRequest) {
       });
     }
 
-    // 5. Compute summary
+    // 6. Compute summary
     const scored = results.filter(r => r.reliable);
     const summary: EffectivenessSummary = {
       overallScore: scored.length > 0
@@ -206,7 +204,7 @@ async function handleGet(request: NextRequest) {
       baselineAcceptanceRate: Math.round(baselineAcceptanceRate * 1000) / 1000,
     };
 
-    // 6. Store in cache for future requests
+    // 7. Store in cache for future requests
     try {
       insightEffectivenessCache.set(
         projectId,

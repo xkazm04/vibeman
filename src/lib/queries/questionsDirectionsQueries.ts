@@ -12,7 +12,11 @@ import {
   answerQuestion,
   deleteQuestion,
   fetchSqliteContexts,
+  fetchQuestionTrees,
+  generateFollowUp,
+  generateStrategicBrief,
   QuestionsResponse,
+  QuestionTreeResponse,
 } from '@/app/features/Questions/lib/questionsApi';
 import {
   fetchDirections,
@@ -26,6 +30,7 @@ import {
 export const questionsQueryKeys = {
   all: ['questions'] as const,
   list: (projectId: string) => [...questionsQueryKeys.all, 'list', projectId] as const,
+  trees: (projectId: string) => [...questionsQueryKeys.all, 'trees', projectId] as const,
 };
 
 export const directionsQueryKeys = {
@@ -158,6 +163,50 @@ export function useDeleteQuestion() {
       }
     },
     onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: questionsQueryKeys.all });
+    },
+  });
+}
+
+// ============ QUESTION TREES ============
+
+/**
+ * Hook for fetching question trees
+ */
+export function useQuestionTrees(projectId: string | undefined) {
+  return useQuery({
+    queryKey: questionsQueryKeys.trees(projectId ?? ''),
+    queryFn: () => fetchQuestionTrees(projectId!),
+    enabled: !!projectId,
+    staleTime: 30000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/**
+ * Mutation for generating follow-up questions
+ */
+export function useGenerateFollowUp() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (questionId: string) => generateFollowUp(questionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: questionsQueryKeys.all });
+    },
+  });
+}
+
+/**
+ * Mutation for generating strategic brief
+ */
+export function useGenerateStrategicBrief() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (questionId: string) => generateStrategicBrief(questionId),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: questionsQueryKeys.all });
     },
   });

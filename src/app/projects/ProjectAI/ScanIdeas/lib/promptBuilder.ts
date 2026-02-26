@@ -7,6 +7,7 @@ import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { DbContext, DbIdea, goalDb } from '@/app/db';
 import { buildPrompt, PromptOptions as NewPromptOptions } from '../prompts';
 import { buildContextSection, buildExistingIdeasSection, buildGoalsSection, buildBehavioralSection } from './sectionBuilders';
+import { buildFeedbackSection } from '@/lib/ideas/feedbackSynthesis';
 
 interface BuildPromptOptions {
   projectId: string;
@@ -59,8 +60,15 @@ export function buildIdeaGenerationPrompt(
   // Use the new prompt builder
   const fullPrompt = buildPrompt(scanType, promptOptions);
 
-  // Append goals section to the prompt
-  const finalPrompt = fullPrompt + '\n\n' + goalsSection;
+  // Build feedback section (lessons learned from user decisions)
+  const feedbackSection = buildFeedbackSection(
+    projectId,
+    context?.id || undefined,
+    scanType
+  );
+
+  // Append goals section and feedback section to the prompt
+  const finalPrompt = fullPrompt + '\n\n' + goalsSection + (feedbackSection ? '\n\n' + feedbackSection : '');
 
   // LLM configuration
   const llmConfig = {

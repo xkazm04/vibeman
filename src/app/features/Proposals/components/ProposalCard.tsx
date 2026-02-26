@@ -2,14 +2,13 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Proposal } from '../types';
 import { ProposalCardHeader } from './ProposalCardHeader';
 import { ProposalCardContent } from './ProposalCardContent';
 import { ProposalCardActions } from './ProposalCardActions';
 import { useThemeStore } from '@/stores/themeStore';
 
 export interface ProposalCardProps {
-  proposal: Proposal;
+  proposal: { id: string; title: string; rationale: string };
   isMain?: boolean;
   index?: number;
   onAccept?: () => void;
@@ -92,8 +91,8 @@ export const ProposalCard = React.memo(({
         <div className={`absolute inset-0 bg-gradient-to-br ${colors.bgLight} via-slate-500/5 to-blue-500/5 rounded-3xl`} />
         <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-transparent rounded-3xl" />
         
-        {/* Animated Grid Pattern */}
-        <motion.div
+        {/* Static Grid Pattern */}
+        <div
           className="absolute inset-0 opacity-5 rounded-3xl"
           style={{
             backgroundImage: `
@@ -102,17 +101,9 @@ export const ProposalCard = React.memo(({
             `,
             backgroundSize: '20px 20px'
           }}
-          animate={{
-            backgroundPosition: ['0px 0px', '20px 20px'],
-          }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            ease: "linear"
-          }}
         />
 
-        {/* Floating Neural Particles */}
+        {/* Neural Particles - one-shot entrance */}
         {isMain && Array.from({ length: 8 }).map((_, i) => (
           <motion.div
             key={i}
@@ -121,17 +112,12 @@ export const ProposalCard = React.memo(({
               left: `${10 + i * 10}%`,
               top: `${15 + (i % 3) * 25}%`,
             }}
-            animate={{
-              y: [0, -20, 0],
-              x: [0, Math.random() * 10 - 5, 0],
-              opacity: [0, 1, 0],
-              scale: [0, 1.2, 0],
-            }}
+            initial={{ opacity: 0, scale: 0, y: 10 }}
+            animate={{ opacity: 0.6, scale: 1, y: 0 }}
             transition={{
-              duration: 3 + Math.random() * 2,
-              repeat: Infinity,
-              delay: i * 0.3,
-              ease: "easeInOut"
+              duration: 1.5,
+              delay: i * 0.1,
+              ease: "easeOut"
             }}
           />
         ))}

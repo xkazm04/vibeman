@@ -110,6 +110,24 @@ export interface ContextMapSetupResponse {
   message: string;
 }
 
+export interface QuestionTreeResponse {
+  success: boolean;
+  trees: import('@/app/db/repositories/question.repository').QuestionTreeNode[];
+  treeStats: {
+    rootId: string;
+    rootQuestion: string;
+    context: string;
+    totalNodes: number;
+    maxDepth: number;
+    answeredCount: number;
+    pendingCount: number;
+    hasStrategicBrief: boolean;
+  }[];
+  totalTrees: number;
+  maxDepth: number;
+  totalQuestions: number;
+}
+
 /**
  * Fetch all questions for a project
  */
@@ -122,11 +140,10 @@ export async function fetchQuestions(
   if (options?.contextMapId) params.append('contextMapId', options.contextMapId);
 
   const response = await fetch(`/api/questions?${params.toString()}`);
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to fetch questions');
-  }
   const raw = await safeResponseJson(response, '/api/questions');
+  if (!response.ok) {
+    throw new Error((raw as Record<string, unknown>).error as string || 'Failed to fetch questions');
+  }
   return parseApiResponse(raw, QuestionsResponseSchema, '/api/questions') as unknown as QuestionsResponse;
 }
 
@@ -145,11 +162,10 @@ export async function createQuestion(data: {
     body: JSON.stringify(data)
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to create question');
-  }
   const raw = await safeResponseJson(response, '/api/questions POST');
+  if (!response.ok) {
+    throw new Error((raw as Record<string, unknown>).error as string || 'Failed to create question');
+  }
   return parseApiResponse(raw, QuestionMutationSchema, '/api/questions POST') as unknown as { success: boolean; question: DbQuestion };
 }
 
@@ -166,11 +182,11 @@ export async function answerQuestion(
     body: JSON.stringify({ answer })
   });
 
+  const raw = await safeResponseJson(response, '/api/questions PUT');
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to answer question');
+    throw new Error((raw as Record<string, unknown>).error as string || 'Failed to answer question');
   }
-  return safeResponseJson(response, '/api/questions PUT');
+  return raw as { success: boolean; question: DbQuestion; goal?: unknown; goalCreated: boolean };
 }
 
 /**
@@ -181,11 +197,10 @@ export async function deleteQuestion(questionId: string): Promise<{ success: boo
     method: 'DELETE'
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to delete question');
-  }
   const raw = await safeResponseJson(response, '/api/questions DELETE');
+  if (!response.ok) {
+    throw new Error((raw as Record<string, unknown>).error as string || 'Failed to delete question');
+  }
   return parseApiResponse(raw, SuccessResponseSchema, '/api/questions DELETE');
 }
 
@@ -206,11 +221,11 @@ export async function generateQuestionRequirement(data: {
     body: JSON.stringify(data)
   });
 
+  const raw = await safeResponseJson(response, '/api/questions/generate');
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to generate requirement');
+    throw new Error((raw as Record<string, unknown>).error as string || 'Failed to generate requirement');
   }
-  return safeResponseJson(response, '/api/questions/generate');
+  return raw as GenerateQuestionsResponse;
 }
 
 /**
@@ -224,11 +239,11 @@ export async function setupContextMapGenerator(projectPath: string): Promise<Con
     body: JSON.stringify({ projectPath })
   });
 
+  const raw = await safeResponseJson(response, '/api/context-map/setup');
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to setup context map generator');
+    throw new Error((raw as Record<string, unknown>).error as string || 'Failed to setup context map generator');
   }
-  return safeResponseJson(response, '/api/context-map/setup');
+  return raw as ContextMapSetupResponse;
 }
 
 /**
@@ -245,10 +260,11 @@ export async function fetchSqliteContexts(projectId: string): Promise<SqliteCont
     fetch(`/api/context-groups?projectId=${encodeURIComponent(projectId)}`)
   ]);
 
+  const contextsData: unknown = await contextsRes.json();
+  const groupsData: unknown = await groupsRes.json();
+
   if (!contextsRes.ok || !groupsRes.ok) {
-    const error = !contextsRes.ok
-      ? await contextsRes.json()
-      : await groupsRes.json();
+    const error = !contextsRes.ok ? contextsData : groupsData;
     return {
       success: false,
       contexts: [],
@@ -256,9 +272,6 @@ export async function fetchSqliteContexts(projectId: string): Promise<SqliteCont
       error: (error as ApiErrorResponse).error || 'Failed to fetch contexts'
     };
   }
-
-  const contextsData: unknown = await contextsRes.json();
-  const groupsData: unknown = await groupsRes.json();
 
   // Validate API response shapes using type guards
   if (!isContextsApiSuccess(contextsData)) {
@@ -349,4 +362,48 @@ export function groupContextsByGroup(
   }
 
   return result;
+}
+
+// ============================================================================
+// Question Tree API
+// ============================================================================
+
+/**
+ * Fetch question trees for a project
+ */
+export async function fetchQuestionTrees(projectId: string): Promise<QuestionTreeResponse> {
+  const response = await fetch(`/api/questions/tree?projectId=${encodeURIComponent(projectId)}`);
+  const raw = await safeResponseJson(response, '/api/questions/tree');
+  if (!response.ok) {
+    throw new Error((raw as Record<string, unknown>).error as string || 'Failed to fetch question trees');
+  }
+  return raw as QuestionTreeResponse;
+}
+
+/**
+ * Generate follow-up questions for an answered question
+ */
+export async function generateFollowUp(questionId: string): Promise<{ success: boolean; questions: DbQuestion[] }> {
+  const response = await fetch(`/api/questions/${questionId}/follow-up`, {
+    method: 'POST',
+  });
+  const raw = await safeResponseJson(response, '/api/questions/follow-up');
+  if (!response.ok) {
+    throw new Error((raw as Record<string, unknown>).error as string || 'Failed to generate follow-up questions');
+  }
+  return raw as { success: boolean; questions: DbQuestion[] };
+}
+
+/**
+ * Generate strategic brief for a deep question chain
+ */
+export async function generateStrategicBrief(questionId: string): Promise<{ success: boolean; brief: string }> {
+  const response = await fetch(`/api/questions/${questionId}/strategic-brief`, {
+    method: 'POST',
+  });
+  const raw = await safeResponseJson(response, '/api/questions/strategic-brief');
+  if (!response.ok) {
+    throw new Error((raw as Record<string, unknown>).error as string || 'Failed to generate strategic brief');
+  }
+  return raw as { success: boolean; brief: string };
 }

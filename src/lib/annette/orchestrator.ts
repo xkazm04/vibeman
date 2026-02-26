@@ -8,6 +8,7 @@
 import { getToolDefinitions, executeTool, ToolResult } from './toolRegistry';
 import { buildSystemPrompt } from './systemPrompt';
 import { formatBrainForPrompt } from './brainInjector';
+import { buildRapportPromptContext, analyzeAndUpdateRapport } from './rapportEngine';
 import { logger } from '@/lib/logger';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
@@ -149,10 +150,12 @@ export async function orchestrate(input: OrchestratorInput): Promise<Orchestrato
     throw new Error('ANTHROPIC_API_KEY is required for Annette');
   }
 
-  // Build system prompt with brain context
+  // Build system prompt with brain context and rapport personality
   const brainContext = formatBrainForPrompt(input.projectId);
+  const rapportContext = buildRapportPromptContext(input.projectId);
   const systemPrompt = buildSystemPrompt({
     brainContext,
+    rapportContext,
     sessionSummary: input.sessionSummary,
     relevantTopics: input.relevantTopics,
     userPreferences: input.userPreferences,

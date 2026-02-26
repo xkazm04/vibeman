@@ -19,6 +19,8 @@ export interface CompactListItem {
 export interface CompactListProps {
   /** Title of the list column */
   title: string;
+  /** Extra content rendered next to the title */
+  titleExtra?: React.ReactNode;
   /** Array of items to display */
   items: CompactListItem[];
   /** Click handler for items */
@@ -60,6 +62,7 @@ const getStatusClasses = (status?: string) => {
  */
 export default function CompactList({
   title,
+  titleExtra,
   items,
   onItemClick,
   onItemDelete,
@@ -78,9 +81,12 @@ export default function CompactList({
       {/* Header */}
       <div className="px-3 py-2 bg-gray-800/60 border-b border-gray-700/40">
         <div className="flex items-center justify-between mb-1">
-          <h3 className="text-sm font-semibold text-gray-300 truncate" title={title}>
-            {title}
-          </h3>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <h3 className="text-sm font-semibold text-gray-300 truncate" title={title}>
+              {title}
+            </h3>
+            {titleExtra}
+          </div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-gray-500 font-mono">
               {items.length}
@@ -101,7 +107,13 @@ export default function CompactList({
       </div>
 
       {/* Items List */}
-      <div className={`flex-1 px-2 py-2 space-y-1 min-h-[100px] ${maxHeight} overflow-y-auto custom-scrollbar`}>
+      <div
+        className={`flex-1 px-2 py-2 space-y-1 min-h-[100px] ${maxHeight} overflow-y-auto custom-scrollbar`}
+        style={{
+          maskImage: 'linear-gradient(to bottom, black calc(100% - 24px), transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 24px), transparent 100%)',
+        }}
+      >
         {items.length === 0 ? (
           <div className="flex items-center justify-center h-20 text-[10px] text-gray-600">
             {emptyMessage}

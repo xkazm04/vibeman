@@ -15,9 +15,11 @@ import { getStatusConfig } from './sub_GoalModal/lib/goalConstants';
 import ImplementationLogList from './sub_ImplementationLog/ImplementationLogList';
 import ScreenCatalog from './sub_ScreenCatalog/ScreenCatalog';
 import EventsBarChart from './sub_EventsBarChart/EventsBarChart';
+import StandupHistoryTimeline from '@/app/features/DailyStandup/components/StandupHistoryTimeline';
 import { ContextTargetsList } from '@/components/ContextComponents';
 import GoalEmptyState from './components/GoalEmptyState';
 import { GoalProgressMini } from './components/GoalProgressRing';
+import GlassCard from '@/components/cards/GlassCard';
 
 const caveat = Caveat({
   weight: ['400', '700'],
@@ -163,20 +165,20 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
               </div>
             </div>
 
-            <div className="flex-1 bg-secondary/60 backdrop-blur-md border border-primary/20 rounded-2xl overflow-hidden flex flex-col shadow-[0_0_30px_rgba(59,130,246,0.05)]">
-              <div className="p-4 border-b border-primary/10 bg-primary/5">
+            <GlassCard variant="panel" className="flex-1 overflow-hidden flex flex-col">
+              <div className="p-4 border-b border-white/5 bg-white/[0.03]">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono text-primary/50 uppercase tracking-wider">Active Goals</span>
+                  <span className="text-xs font-mono text-white/40 uppercase tracking-wider">Active Goals</span>
                   <button
                     onClick={() => setShowAddGoal(true)}
-                    className="p-1.5 hover:bg-primary/20 rounded-lg text-primary transition-colors"
+                    className="p-1.5 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
                     data-testid="add-goal-btn"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
               </div>
-              
+
               <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
                 <AnimatePresence>
                   {projectGoals.map((goal) => (
@@ -188,7 +190,7 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
                     />
                   ))}
                 </AnimatePresence>
-                
+
                 {projectGoals.length === 0 && (
                   <GoalEmptyState
                     onAddGoal={() => setShowAddGoal(true)}
@@ -208,7 +210,7 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
                   </div>
                 )}
               </div>
-            </div>
+            </GlassCard>
           </div>
 
           {/* Middle Column: Implementation Logs (5 cols) */}
@@ -217,41 +219,57 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
               <h2 className={caveat.className + ' text-xl font-bold text-primary/80 tracking-wide'}>System Logs</h2>
             </div>
             
-            <div className="flex-1 bg-secondary/60 backdrop-blur-md border border-primary/20 rounded-2xl overflow-hidden relative shadow-[0_0_30px_rgba(59,130,246,0.05)]">
+            <GlassCard variant="panel" className="flex-1 overflow-hidden relative">
               <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] pointer-events-none" />
               <div className="h-full overflow-y-auto p-4 custom-scrollbar">
                 {projectId ? (
                   <ImplementationLogList projectId={projectId} limit={20} />
                 ) : (
-                  <div className="flex items-center justify-center h-full text-primary/30">
+                  <div className="flex items-center justify-center h-full text-white/30">
                     Select a project to view logs
                   </div>
                 )}
               </div>
-            </div>
+            </GlassCard>
           </div>
 
           {/* Right Column: Analytics & Catalog (4 cols) */}
-          <div className="col-span-4 flex flex-col gap-6 h-full">
+          <div className="col-span-4 flex flex-col gap-4 h-full">
             {/* Top: Events Chart */}
-            <div className="h-1/3 bg-secondary/60 backdrop-blur-md border border-primary/20 rounded-2xl overflow-hidden flex flex-col shadow-[0_0_30px_rgba(59,130,246,0.05)]">
-              <div className="p-4 border-b border-primary/10 bg-primary/5">
-                <h3 className="text-xs font-mono text-primary/50 uppercase tracking-wider">Activity Velocity</h3>
+            <GlassCard variant="panel" className="shrink-0 overflow-hidden flex flex-col">
+              <div className="p-4 border-b border-white/5 bg-white/[0.03]">
+                <h3 className="text-xs font-mono text-white/40 uppercase tracking-wider">Activity Velocity</h3>
               </div>
-              <div className="flex-1 p-4 relative">
+              <div className="p-4 relative">
                 {projectId && <EventsBarChart projectId={projectId} limit={10} />}
               </div>
-            </div>
+            </GlassCard>
+
+            {/* Middle: Standup History Timeline */}
+            <GlassCard variant="panel" className="flex-1 overflow-hidden flex flex-col min-h-0">
+              <div className="p-4 border-b border-white/5 bg-white/[0.03]">
+                <h3 className="text-xs font-mono text-white/40 uppercase tracking-wider">Standup History</h3>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                {projectId ? (
+                  <StandupHistoryTimeline projectId={projectId} limit={30} />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-white/30 text-xs">
+                    Select a project
+                  </div>
+                )}
+              </div>
+            </GlassCard>
 
             {/* Bottom: Screen Catalog */}
-            <div className="flex-1 bg-secondary/60 backdrop-blur-md border border-primary/20 rounded-2xl overflow-hidden flex flex-col shadow-[0_0_30px_rgba(59,130,246,0.05)]">
-              <div className="p-4 border-b border-primary/10 bg-primary/5">
-                <h3 className="text-xs font-mono text-primary/50 uppercase tracking-wider">Visual Assets</h3>
+            <GlassCard variant="panel" className="shrink-0 h-[200px] overflow-hidden flex flex-col">
+              <div className="p-4 border-b border-white/5 bg-white/[0.03]">
+                <h3 className="text-xs font-mono text-white/40 uppercase tracking-wider">Visual Assets</h3>
               </div>
               <div className="flex-1 overflow-hidden">
                 <ScreenCatalog projectId={projectId} />
               </div>
-            </div>
+            </GlassCard>
           </div>
 
         </div>

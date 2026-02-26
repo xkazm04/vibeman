@@ -5,6 +5,10 @@ import fs from 'fs';
 // Database path - store in the database directory
 const DB_PATH = path.join(process.cwd(), 'database', 'projects.db');
 
+// Workspace base path - parent of the current working directory (e.g., C:\Users\kazim\dac)
+// All project paths are derived from this base path
+const WORKSPACE_BASE_PATH = path.resolve(process.cwd(), '..');
+
 // Ensure database directory exists
 const dbDir = path.dirname(DB_PATH);
 if (!fs.existsSync(dbDir)) {
@@ -171,7 +175,7 @@ function seedDefaultProjects(): void {
     {
       id: 'vibeman-main',
       name: 'Vibeman',
-      path: '/workspace/vibeman',
+      path: path.join(WORKSPACE_BASE_PATH, 'vibeman'),
       port: 3000,
       type: 'nextjs',
       relatedProjectId: null,
@@ -181,7 +185,7 @@ function seedDefaultProjects(): void {
     {
       id: 'pikselplay-char-ui',
       name: 'PikselPlay Char UI',
-      path: '/workspace/pikselplay/char-ui',
+      path: path.join(WORKSPACE_BASE_PATH, 'pikselplay', 'char-ui'),
       port: 3001,
       type: 'nextjs',
       relatedProjectId: 'pikselplay-char-service',
@@ -191,7 +195,7 @@ function seedDefaultProjects(): void {
     {
       id: 'pikselplay-char-service',
       name: 'PikselPlay Char Service',
-      path: '/workspace/pikselplay/char-service',
+      path: path.join(WORKSPACE_BASE_PATH, 'pikselplay', 'char-service'),
       port: 8000,
       type: 'fastapi',
       relatedProjectId: 'pikselplay-char-ui',
@@ -206,6 +210,48 @@ function seedDefaultProjects(): void {
 }
 
 /**
+ * Migrate stale /workspace/ paths to use the actual workspace base path.
+ * Catches all variations:
+ *   /workspace/vibeman          (original hardcoded Linux path)
+ *   C:\workspace\vibeman        (Windows resolution of /workspace/ on C: drive)
+ *   C:/workspace/vibeman        (forward-slash variant)
+ */
+function migrateStaleWorkspacePaths(): void {
+  if (!db) return;
+
+  // Match any path containing a "workspace" segment that doesn't match the real WORKSPACE_BASE_PATH
+  const stmt = db.prepare('SELECT id, path FROM projects');
+  const allProjects = stmt.all() as { id: string; path: string }[];
+
+  const staleWorkspacePattern = /^(?:\/workspace\/|[A-Za-z]:[\\\/]workspace[\\\/])/;
+  const normalizedBasePath = WORKSPACE_BASE_PATH.replace(/\\/g, '/').toLowerCase();
+
+  const staleProjects = allProjects.filter(p => {
+    // Match paths with /workspace/ or X:\workspace\ prefix
+    if (!staleWorkspacePattern.test(p.path)) return false;
+    // Skip if already pointing to the correct base path
+    const normalizedPath = p.path.replace(/\\/g, '/').toLowerCase();
+    return !normalizedPath.startsWith(normalizedBasePath);
+  });
+
+  if (staleProjects.length === 0) return;
+
+  const updateStmt = db.prepare('UPDATE projects SET path = ?, updated_at = ? WHERE id = ?');
+  const now = new Date().toISOString();
+
+  for (const project of staleProjects) {
+    // Extract relative path after the workspace prefix
+    const relativePath = project.path.replace(/^(?:\/workspace\/|[A-Za-z]:[\\\/]workspace[\\\/])/, '');
+    // Split on both separators and join with platform-correct path
+    const correctedPath = path.join(WORKSPACE_BASE_PATH, ...relativePath.split(/[\\\/]/));
+    updateStmt.run(correctedPath, now, project.id);
+    console.log(`[ProjectDB] Migrated project path: "${project.path}" -> "${correctedPath}"`);
+  }
+
+  console.log(`[ProjectDB] Migrated ${staleProjects.length} project path(s) to workspace base: ${WORKSPACE_BASE_PATH}`);
+}
+
+/**
  * Initialize all database tables and schemas
  */
 function initializeProjectTables() {
@@ -214,6 +260,7 @@ function initializeProjectTables() {
   createProjectsTable();
   addMissingColumns();
   createIndexes();
+  migrateStaleWorkspacePaths();
   seedDefaultProjects();
 }
 

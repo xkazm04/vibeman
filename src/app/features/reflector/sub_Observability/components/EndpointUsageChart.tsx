@@ -8,8 +8,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
-  Cell
+  Rectangle,
 } from 'recharts';
 import { ObsEndpointSummary } from '../lib/types';
 
@@ -45,11 +44,13 @@ export default function EndpointUsageChart({ endpoints, maxItems = 10 }: Endpoin
 
   return (
     <div className="h-80">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
+      <BarChart
           data={data}
           layout="vertical"
           margin={{ top: 10, right: 30, left: 100, bottom: 10 }}
+          responsive
+          width="100%"
+          height="100%"
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
           <XAxis
@@ -88,16 +89,20 @@ export default function EndpointUsageChart({ endpoints, maxItems = 10 }: Endpoin
               return [value, name];
             }}
           />
-          <Bar dataKey="calls" radius={[0, 4, 4, 0]}>
-            {data.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={METHOD_COLORS[entry.method] || '#6b7280'}
-              />
-            ))}
-          </Bar>
+          <Bar
+            dataKey="calls"
+            radius={[0, 4, 4, 0]}
+            shape={(props: any) => {
+              const entry = data[props.index];
+              return (
+                <Rectangle
+                  {...props}
+                  fill={METHOD_COLORS[entry.method] || '#6b7280'}
+                />
+              );
+            }}
+          />
         </BarChart>
-      </ResponsiveContainer>
 
       {/* Legend */}
       <div className="flex items-center justify-center gap-4 mt-2 text-xs">

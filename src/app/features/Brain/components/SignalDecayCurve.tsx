@@ -1,12 +1,26 @@
 'use client';
 
 import { useMemo } from 'react';
+import { motion } from 'framer-motion';
+
+export interface AnomalyZone {
+  /** Start day (0 = today) */
+  startDay: number;
+  /** End day */
+  endDay: number;
+  /** Severity determines the zone color */
+  severity: 'warning' | 'critical';
+  /** Tooltip label */
+  label?: string;
+}
 
 interface SignalDecayCurveProps {
   decayFactor: number;
   retentionDays: number;
   /** Actual signal data points: [daysAgo, weight] */
   actualSignals?: Array<{ daysAgo: number; weight: number }>;
+  /** Highlighted anomaly zones on the chart */
+  anomalyZones?: AnomalyZone[];
 }
 
 const CHART_WIDTH = 280;
@@ -19,7 +33,7 @@ const INNER_HEIGHT = CHART_HEIGHT - PADDING.top - PADDING.bottom;
  * SVG chart showing exponential weight decay over time.
  * Overlays actual signal weights as dots on the theoretical curve.
  */
-export default function SignalDecayCurve({ decayFactor, retentionDays, actualSignals }: SignalDecayCurveProps) {
+export default function SignalDecayCurve({ decayFactor, retentionDays, actualSignals, anomalyZones }: SignalDecayCurveProps) {
   const curvePoints = useMemo(() => {
     const points: string[] = [];
     const steps = 50;
@@ -68,15 +82,55 @@ export default function SignalDecayCurve({ decayFactor, retentionDays, actualSig
 
         {/* Fade zone (after minimal weight threshold) */}
         {minimalDay < retentionDays && (
-          <rect
+          <motion.rect
             x={minimalX}
             y={PADDING.top}
             width={PADDING.left + INNER_WIDTH - minimalX}
             height={INNER_HEIGHT}
             fill="rgba(239,68,68,0.05)"
             rx={2}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.6, ease: 'easeOut' }}
           />
         )}
+
+        {/* Anomaly zones */}
+        {anomalyZones?.map((zone, i) => {
+          const x1 = PADDING.left + (Math.max(0, zone.startDay) / retentionDays) * INNER_WIDTH;
+          const x2 = PADDING.left + (Math.min(zone.endDay, retentionDays) / retentionDays) * INNER_WIDTH;
+          const fill = zone.severity === 'critical' ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.10)';
+          const stroke = zone.severity === 'critical' ? 'rgba(239,68,68,0.4)' : 'rgba(245,158,11,0.35)';
+          return (
+            <g key={`anomaly-${i}`}>
+              <motion.rect
+                x={x1}
+                y={PADDING.top}
+                width={Math.max(x2 - x1, 2)}
+                height={INNER_HEIGHT}
+                fill={fill}
+                rx={2}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.4, delay: 0.8 + i * 0.1 }}
+              />
+              <line
+                x1={x1} y1={PADDING.top}
+                x2={x1} y2={PADDING.top + INNER_HEIGHT}
+                stroke={stroke} strokeWidth={1} strokeDasharray="2,2"
+              />
+              {zone.label && (
+                <text
+                  x={x1 + 2}
+                  y={PADDING.top + 8}
+                  className={`text-[6px] ${zone.severity === 'critical' ? 'fill-red-400' : 'fill-amber-400'}`}
+                >
+                  {zone.label}
+                </text>
+              )}
+            </g>
+          );
+        })}
 
         {/* Y-axis gridlines */}
         {[0.25, 0.5, 0.75].map(v => {
@@ -96,12 +150,15 @@ export default function SignalDecayCurve({ decayFactor, retentionDays, actualSig
         })}
 
         {/* Decay curve */}
-        <polyline
+        <motion.polyline
           points={curvePoints}
           fill="none"
           stroke="url(#decayCurveGradient)"
           strokeWidth={2}
           strokeLinecap="round"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
         />
 
         {/* Gradient for curve */}
@@ -118,13 +175,15 @@ export default function SignalDecayCurve({ decayFactor, retentionDays, actualSig
           const x = PADDING.left + (signal.daysAgo / retentionDays) * INNER_WIDTH;
           const y = PADDING.top + (1 - Math.min(signal.weight, 1)) * INNER_HEIGHT;
           return (
-            <circle
+            <motion.circle
               key={i}
               cx={x}
               cy={y}
               r={2.5}
               fill="#10b981"
-              opacity={0.7}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.7 }}
+              transition={{ duration: 0.3, delay: 0.4 + i * 0.05, ease: 'easeOut' }}
             />
           );
         })}

@@ -2,7 +2,7 @@
  * API Route: Direction by ID
  *
  * GET /api/directions/[id] - Get single direction
- * PUT /api/directions/[id] - Update direction (reject it)
+ * PUT /api/directions/[id] - Update direction (reject or edit content fields)
  * DELETE /api/directions/[id] - Delete direction
  */
 
@@ -59,7 +59,17 @@ async function handlePut(
       );
     }
 
-    const { status, direction, summary, context_map_title } = body;
+    const { status, direction, summary, context_map_title, effort, impact } = body;
+
+    // Block status changes that must go through dedicated endpoints
+    // 'accepted' must use POST /api/directions/[id]/accept (creates requirement files, scans, ideas)
+    // 'processing' is set internally by claimDirectionForProcessing
+    if (status && status !== 'rejected') {
+      return NextResponse.json(
+        { error: `Cannot set status to '${status}' via PUT. Use the dedicated accept endpoint for acceptance.` },
+        { status: 400 }
+      );
+    }
 
     // Handle rejection
     if (status === 'rejected') {
@@ -91,12 +101,13 @@ async function handlePut(
       });
     }
 
-    // General update
+    // General update (content fields + scoring, no status change)
     const updatedDirection = directionDb.updateDirection(id, {
-      status,
       direction,
       summary,
-      context_map_title
+      context_map_title,
+      effort: typeof effort === 'number' ? Math.max(1, Math.min(10, effort)) : undefined,
+      impact: typeof impact === 'number' ? Math.max(1, Math.min(10, impact)) : undefined,
     });
 
     if (!updatedDirection) {

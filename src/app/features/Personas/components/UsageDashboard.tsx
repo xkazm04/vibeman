@@ -11,10 +11,10 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer,
   PieChart,
   Pie,
-  Cell,
+  Sector,
+  Rectangle,
   AreaChart,
   Area,
 } from 'recharts';
@@ -231,8 +231,7 @@ export function UsageDashboard() {
         {/* Tool Invocations (horizontal bar) */}
         <div className="lg:col-span-3 bg-secondary/30 border border-primary/10 rounded-xl p-4">
           <h3 className="text-sm font-medium text-foreground/70 mb-4">Tool Invocations</h3>
-          <ResponsiveContainer width="100%" height={Math.max(200, barData.length * 40)}>
-            <BarChart data={barData} layout="vertical" margin={{ left: 10, right: 20, top: 0, bottom: 0 }}>
+          <BarChart data={barData} layout="vertical" margin={{ left: 10, right: 20, top: 0, bottom: 0 }} responsive width="100%" height={Math.max(200, barData.length * 40)}>
               <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} horizontal={false} />
               <XAxis type="number" tick={{ fill: AXIS_TICK_FILL, fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis
@@ -246,14 +245,12 @@ export function UsageDashboard() {
               <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
               <Bar dataKey="invocations" name="Invocations" fill={COLORS[0]} radius={[0, 4, 4, 0]} barSize={20} />
             </BarChart>
-          </ResponsiveContainer>
         </div>
 
         {/* Distribution (pie) */}
         <div className="lg:col-span-2 bg-secondary/30 border border-primary/10 rounded-xl p-4">
           <h3 className="text-sm font-medium text-foreground/70 mb-4">Distribution</h3>
-          <ResponsiveContainer width="100%" height={260}>
-            <PieChart>
+          <PieChart responsive width="100%" height={260}>
               <Pie
                 data={pieData}
                 cx="50%"
@@ -264,11 +261,8 @@ export function UsageDashboard() {
                 dataKey="value"
                 nameKey="name"
                 stroke="none"
-              >
-                {pieData.map((_, idx) => (
-                  <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
-                ))}
-              </Pie>
+                shape={(props: any) => <Sector {...props} fill={COLORS[props.index % COLORS.length]} />}
+              />
               <Tooltip content={<ChartTooltip />} />
               <Legend
                 verticalAlign="bottom"
@@ -279,7 +273,6 @@ export function UsageDashboard() {
                 )}
               />
             </PieChart>
-          </ResponsiveContainer>
         </div>
       </div>
 
@@ -287,8 +280,7 @@ export function UsageDashboard() {
       {areaData.length > 0 && (
         <div className="bg-secondary/30 border border-primary/10 rounded-xl p-4">
           <h3 className="text-sm font-medium text-foreground/70 mb-4">Usage Over Time</h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <AreaChart data={areaData} margin={{ left: 0, right: 10, top: 0, bottom: 0 }}>
+          <AreaChart data={areaData} margin={{ left: 0, right: 10, top: 0, bottom: 0 }} responsive width="100%" height={280}>
               <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
               <XAxis
                 dataKey="date"
@@ -325,7 +317,6 @@ export function UsageDashboard() {
                 />
               ))}
             </AreaChart>
-          </ResponsiveContainer>
         </div>
       )}
 
@@ -333,8 +324,7 @@ export function UsageDashboard() {
       {personaBarData.length > 0 && (
         <div className="bg-secondary/30 border border-primary/10 rounded-xl p-4">
           <h3 className="text-sm font-medium text-foreground/70 mb-4">By Persona</h3>
-          <ResponsiveContainer width="100%" height={Math.max(180, personaBarData.length * 44)}>
-            <BarChart data={personaBarData} layout="vertical" margin={{ left: 10, right: 20, top: 0, bottom: 0 }}>
+          <BarChart data={personaBarData} layout="vertical" margin={{ left: 10, right: 20, top: 0, bottom: 0 }} responsive width="100%" height={Math.max(180, personaBarData.length * 44)}>
               <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} horizontal={false} />
               <XAxis type="number" tick={{ fill: AXIS_TICK_FILL, fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis
@@ -346,13 +336,17 @@ export function UsageDashboard() {
                 tickLine={false}
               />
               <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-              <Bar dataKey="invocations" name="Invocations" radius={[0, 4, 4, 0]} barSize={22}>
-                {personaBarData.map((entry, idx) => (
-                  <Cell key={idx} fill={entry.color} />
-                ))}
-              </Bar>
+              <Bar
+                dataKey="invocations"
+                name="Invocations"
+                radius={[0, 4, 4, 0]}
+                barSize={22}
+                shape={(props: any) => {
+                  const entry = personaBarData[props.index];
+                  return <Rectangle {...props} fill={entry.color} />;
+                }}
+              />
             </BarChart>
-          </ResponsiveContainer>
         </div>
       )}
     </div>

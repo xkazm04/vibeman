@@ -9,36 +9,6 @@ import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { fetchIdeasBatch, acceptIdea, rejectIdea, deleteIdea } from './tinderApi';
 import { TINDER_CONSTANTS } from './tinderUtils';
 
-/**
- * Helper to perform optimistic update with automatic revert on error
- */
-function useOptimisticUpdate<T>(
-  setItems: React.Dispatch<React.SetStateAction<T[]>>,
-  currentIndex: number,
-  item: T,
-  apiCall: () => Promise<void>,
-  onSuccess: () => void,
-  onError: (error: unknown) => void
-): () => Promise<void> {
-  return async () => {
-    // Optimistically remove the item
-    setItems(prev => prev.filter((_, index) => index !== currentIndex));
-
-    try {
-      await apiCall();
-      onSuccess();
-    } catch (error) {
-      onError(error);
-      // Revert: re-insert the item at the same position
-      setItems(prev => {
-        const newItems = [...prev];
-        newItems.splice(currentIndex, 0, item);
-        return newItems;
-      });
-    }
-  };
-}
-
 export interface TinderStats {
   accepted: number;
   rejected: number;
@@ -114,28 +84,30 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
     if (processing || currentIndex >= ideas.length) return;
 
     const currentIdea = ideas[currentIndex];
+    const ideaId = currentIdea.id;
     const selectedProject = getProject(currentIdea.project_id);
 
     if (!selectedProject || !selectedProject.path) {
-      alert('Project path not found. Cannot create requirement file.');
+      console.error('Project path not found. Cannot create requirement file.');
       return;
     }
 
     setProcessing(true);
 
-    // Optimistically remove the idea
-    setIdeas(prev => prev.filter((_, index) => index !== currentIndex));
+    // Optimistically remove the idea by ID (index-independent)
+    setIdeas(prev => prev.filter(idea => idea.id !== ideaId));
 
     try {
-      await acceptIdea(currentIdea.id, selectedProject.path);
+      await acceptIdea(ideaId, selectedProject.path);
       setStats(prev => ({ ...prev, accepted: prev.accepted + 1 }));
       loadMoreIfNeeded();
     } catch (error) {
-      alert('Failed to accept idea: ' + (error instanceof Error ? error.message : 'Unknown error'));
-      // Revert: re-insert the idea at the same position
+      console.error('Failed to accept idea:', error);
+      // Revert: re-insert at current index, clamped to array bounds
       setIdeas(prev => {
+        const insertAt = Math.min(currentIndex, prev.length);
         const newIdeas = [...prev];
-        newIdeas.splice(currentIndex, 0, currentIdea);
+        newIdeas.splice(insertAt, 0, currentIdea);
         return newIdeas;
       });
     } finally {
@@ -147,23 +119,25 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
     if (processing || currentIndex >= ideas.length) return;
 
     const currentIdea = ideas[currentIndex];
+    const ideaId = currentIdea.id;
     const selectedProject = getProject(currentIdea.project_id);
 
     setProcessing(true);
 
-    // Optimistically remove the idea
-    setIdeas(prev => prev.filter((_, index) => index !== currentIndex));
+    // Optimistically remove the idea by ID (index-independent)
+    setIdeas(prev => prev.filter(idea => idea.id !== ideaId));
 
     try {
-      await rejectIdea(currentIdea.id, selectedProject?.path);
+      await rejectIdea(ideaId, selectedProject?.path);
       setStats(prev => ({ ...prev, rejected: prev.rejected + 1 }));
       loadMoreIfNeeded();
     } catch (error) {
-      alert('Failed to reject idea');
-      // Revert: re-insert the idea at the same position
+      console.error('Failed to reject idea:', error);
+      // Revert: re-insert at current index, clamped to array bounds
       setIdeas(prev => {
+        const insertAt = Math.min(currentIndex, prev.length);
         const newIdeas = [...prev];
-        newIdeas.splice(currentIndex, 0, currentIdea);
+        newIdeas.splice(insertAt, 0, currentIdea);
         return newIdeas;
       });
     } finally {
@@ -175,26 +149,24 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
     if (processing || currentIndex >= ideas.length) return;
 
     const currentIdea = ideas[currentIndex];
-
-    if (!confirm('Are you sure you want to permanently delete this idea?')) {
-      return;
-    }
+    const ideaId = currentIdea.id;
 
     setProcessing(true);
 
-    // Optimistically remove the idea
-    setIdeas(prev => prev.filter((_, index) => index !== currentIndex));
+    // Optimistically remove the idea by ID (index-independent)
+    setIdeas(prev => prev.filter(idea => idea.id !== ideaId));
 
     try {
-      await deleteIdea(currentIdea.id);
+      await deleteIdea(ideaId);
       setStats(prev => ({ ...prev, deleted: prev.deleted + 1 }));
       loadMoreIfNeeded();
     } catch (error) {
-      alert('Failed to delete idea');
-      // Revert: re-insert the idea at the same position
+      console.error('Failed to delete idea:', error);
+      // Revert: re-insert at current index, clamped to array bounds
       setIdeas(prev => {
+        const insertAt = Math.min(currentIndex, prev.length);
         const newIdeas = [...prev];
-        newIdeas.splice(currentIndex, 0, currentIdea);
+        newIdeas.splice(insertAt, 0, currentIdea);
         return newIdeas;
       });
     } finally {

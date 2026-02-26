@@ -1,13 +1,23 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
-import { TrendingUp, BarChart3 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts';
+import { TrendingUp, BarChart3, MousePointerClick } from 'lucide-react';
 import { ScanTypeStats } from '../lib/types';
 import { SCAN_TYPE_CONFIG } from '../lib/config';
+import ChartTooltip from '../../components/ChartTooltip';
+
+export interface AcceptanceBarClickData {
+  scanType: string;
+  label: string;
+  acceptanceRatio: number;
+  total: number;
+}
 
 interface AcceptanceChartProps {
   scanTypeStats: ScanTypeStats[];
+  /** Called when a bar is clicked */
+  onBarClick?: (data: AcceptanceBarClickData) => void;
 }
 
 // Vibrant color palette matching app aesthetics
@@ -103,36 +113,25 @@ const GlowBar = (props: any) => {
 // Custom tooltip with glass morphism
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
-  
+
   const data = payload[0]?.payload;
   const style = getBarStyle(data?.acceptanceRatio || 0);
-  
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 5 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="relative bg-gray-950/95 backdrop-blur-xl border rounded-xl px-4 py-3 shadow-2xl"
-      style={{ borderColor: style.stroke, boxShadow: `0 0 20px ${style.glow}` }}
-    >
-      {/* Corner markers */}
-      <div className="absolute top-0 left-0 w-2 h-2 border-t border-l rounded-tl" style={{ borderColor: style.stroke }} />
-      <div className="absolute top-0 right-0 w-2 h-2 border-t border-r rounded-tr" style={{ borderColor: style.stroke }} />
-      <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l rounded-bl" style={{ borderColor: style.stroke }} />
-      <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r rounded-br" style={{ borderColor: style.stroke }} />
-      
+    <ChartTooltip accentColor={style.stroke} glowColor={style.glow}>
       <p className="text-sm font-semibold text-white mb-2">{label}</p>
       <div className="flex items-center gap-2">
         <div className="w-3 h-3 rounded" style={{ backgroundColor: style.fill }} />
         <span className="text-gray-300 font-mono text-sm">
-          {data?.acceptanceRatio}% 
+          {data?.acceptanceRatio}%
           <span className="text-gray-500 ml-2">({data?.total} ideas)</span>
         </span>
       </div>
-    </motion.div>
+    </ChartTooltip>
   );
 };
 
-export default function AcceptanceChart({ scanTypeStats }: AcceptanceChartProps) {
+export default function AcceptanceChart({ scanTypeStats, onBarClick }: AcceptanceChartProps) {
   // Filter out scan types with no ideas
   const chartData = scanTypeStats
     .filter(stat => stat.total > 0)
@@ -186,20 +185,30 @@ export default function AcceptanceChart({ scanTypeStats }: AcceptanceChartProps)
           </div>
         </div>
         
-        {/* Average indicator */}
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/60 rounded-lg border border-gray-700/50">
-          <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="text-xs font-mono text-gray-400">AVG:</span>
-          <span className="text-sm font-mono font-bold text-cyan-400">{avgAcceptance}%</span>
+        <div className="flex items-center gap-2">
+          {onBarClick && (
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-purple-500/20 bg-purple-500/5">
+              <MousePointerClick className="w-3 h-3 text-purple-500/60" />
+              <span className="text-[9px] font-mono text-purple-500/60">CLICK_TO_DRILL</span>
+            </div>
+          )}
+          {/* Average indicator */}
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/60 rounded-lg border border-gray-700/50">
+            <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="text-xs font-mono text-gray-400">AVG:</span>
+            <span className="text-sm font-mono font-bold text-cyan-400">{avgAcceptance}%</span>
+          </div>
         </div>
       </div>
       
       {/* Chart */}
       <div className="relative z-10 h-96">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
+        <BarChart
             data={chartData}
             margin={{ top: 10, right: 20, left: 0, bottom: 70 }}
+            responsive
+            width="100%"
+            height="100%"
           >
             <defs>
               <linearGradient id="gridGradient" x1="0" y1="0" x2="0" y2="1">
@@ -243,15 +252,25 @@ export default function AcceptanceChart({ scanTypeStats }: AcceptanceChartProps)
               }}
             />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
-            <Bar 
-              dataKey="acceptanceRatio" 
+            <Bar
+              dataKey="acceptanceRatio"
+              className={onBarClick ? 'cursor-pointer' : ''}
+              onClick={(data: any) => {
+                if (onBarClick && data) {
+                  onBarClick({
+                    scanType: data.scanType,
+                    label: data.name,
+                    acceptanceRatio: data.acceptanceRatio,
+                    total: data.total,
+                  });
+                }
+              }}
               shape={(props: any) => {
                 const data = chartData[props.index];
                 return <GlowBar {...props} ratio={data?.acceptanceRatio || 0} />;
               }}
             />
           </BarChart>
-        </ResponsiveContainer>
       </div>
       
       {/* Legend */}

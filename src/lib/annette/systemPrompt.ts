@@ -8,6 +8,7 @@ export interface SystemPromptContext {
   sessionSummary?: string;
   relevantTopics?: string;
   userPreferences?: string;
+  rapportContext?: string;
   audioMode?: boolean;
 }
 
@@ -16,6 +17,10 @@ export interface SystemPromptContext {
  */
 export function buildSystemPrompt(context: SystemPromptContext): string {
   const sections: string[] = [BASE_PROMPT];
+
+  if (context.rapportContext) {
+    sections.push(context.rapportContext);
+  }
 
   if (context.brainContext) {
     sections.push(`## Current Brain Context\n${context.brainContext}`);

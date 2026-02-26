@@ -359,7 +359,7 @@ export default function AnalyticsStudio({ aiInsights, report, className = '' }: 
 
       {/* Grid layout */}
       <AnimatePresence mode="popLayout">
-        <div className={`grid gap-3 ${
+        <div className={`grid gap-4 ${
           expandedPanel ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'
         }`}>
           {visiblePanels.map(renderPanel)}

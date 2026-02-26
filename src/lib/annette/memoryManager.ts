@@ -13,6 +13,7 @@
 
 import { annetteDb } from '@/app/db';
 import { formatBrainForPrompt } from './brainInjector';
+import { buildRapportPromptContext } from './rapportEngine';
 import { ConversationMessage } from './orchestrator';
 import { logger } from '@/lib/logger';
 
@@ -27,6 +28,8 @@ export interface MemoryContext {
   brainContext: string;
   /** Layer 5: Learned user preferences */
   userPreferences: string;
+  /** Layer 6: Developer rapport personality context */
+  rapportContext: string;
 }
 
 const MAX_RECENT_MESSAGES = 20;
@@ -73,12 +76,16 @@ export function buildMemoryContext(projectId: string, sessionId: string): Memory
   // Layer 5: User preferences
   const userPreferences = getUserPreferences(projectId);
 
+  // Layer 6: Developer rapport personality
+  const rapportContext = buildRapportPromptContext(projectId);
+
   return {
     recentMessages,
     sessionSummary,
     relevantTopics,
     brainContext,
     userPreferences,
+    rapportContext,
   };
 }
 

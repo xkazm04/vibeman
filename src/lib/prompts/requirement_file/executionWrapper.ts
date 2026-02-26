@@ -23,6 +23,8 @@ export interface ExecutionWrapperConfig {
   gitCommands?: string[];
   gitCommitMessage?: string;
   uiVerificationEnabled?: boolean;
+  /** Base URL for Vibeman API calls in curl commands (default: http://localhost:3000) */
+  vibemanBaseUrl?: string;
 }
 
 /**

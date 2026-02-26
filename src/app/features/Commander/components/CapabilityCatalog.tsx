@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Brain, Compass, Lightbulb, Target, FolderTree,
@@ -57,7 +57,7 @@ const COLOR_CLASSES: Record<string, { bg: string; border: string; text: string; 
 function UsageBadge({ count }: { count: number }) {
   if (count === 0) return null;
   return (
-    <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-white/5 text-[10px] text-gray-400 font-mono">
+    <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-white/5 text-xs text-slate-400 font-mono">
       <BarChart3 className="w-2.5 h-2.5" />
       {count}x
     </span>
@@ -89,24 +89,24 @@ function ToolCard({
       className={`w-full text-left px-3 py-2.5 rounded-lg border transition-all group ${
         isHighlighted
           ? `${colors.bg} ${colors.border} ring-1 ring-offset-0`
-          : 'border-gray-700/40 hover:border-gray-600/60 hover:bg-gray-800/40'
+          : 'border-slate-700/40 hover:border-slate-600/60 hover:bg-slate-800/40'
       }`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors">
+            <span className="text-sm font-medium text-slate-200 group-hover:text-white transition-colors">
               {tool.label}
             </span>
             {tool.isCLI && (
-              <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium bg-purple-500/15 text-purple-300 border border-purple-500/20">
+              <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-2xs font-medium bg-purple-500/15 text-purple-300 border border-purple-500/20">
                 <Terminal className="w-2.5 h-2.5" />
                 CLI
               </span>
             )}
             <UsageBadge count={usageCount} />
           </div>
-          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{tool.description}</p>
+          <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{tool.description}</p>
         </div>
         <div className={`flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${colors.text}`}>
           {tool.requiresInput ? (
@@ -132,7 +132,7 @@ function CategorySidebar({
   onSelect: (id: string) => void;
 }) {
   return (
-    <div className="w-48 flex-shrink-0 border-r border-gray-700/50 py-2">
+    <div className="w-48 flex-shrink-0 border-r border-slate-700/50 py-2">
       {categories.map((cat) => {
         const isActive = cat.id === activeId;
         const colors = COLOR_CLASSES[cat.color] || COLOR_CLASSES.cyan;
@@ -145,16 +145,16 @@ function CategorySidebar({
             className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-all ${
               isActive
                 ? `${colors.bg} ${colors.text} border-r-2`
-                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
             }`}
             style={isActive ? { borderRightColor: 'currentColor' } : undefined}
           >
-            <span className={isActive ? colors.text : 'text-gray-500'}>
+            <span className={isActive ? colors.text : 'text-slate-500'}>
               {CATEGORY_ICONS[cat.icon] || <Wrench className="w-4 h-4" />}
             </span>
             <span className="text-xs font-medium flex-1 truncate">{cat.label}</span>
             {catUsage > 0 && (
-              <span className="text-[10px] font-mono text-gray-600">{catUsage}</span>
+              <span className="text-xs font-mono text-slate-600">{catUsage}</span>
             )}
           </button>
         );
@@ -190,10 +190,57 @@ export default function CapabilityCatalog({
     sendMessage(tool.triggerPrompt);
   }, [isLoading, onClose, sendMessage]);
 
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
   // Sync initialCategory when it changes while open
   if (initialCategory && initialCategory !== activeCategory && isOpen) {
     setActiveCategory(initialCategory);
   }
+
+  // Focus trap: capture previous focus, trap Tab, restore on close
+  useEffect(() => {
+    if (!isOpen) return;
+
+    previousFocusRef.current = document.activeElement as HTMLElement;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab' || !modalRef.current) return;
+
+      const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    // Focus the close button on open
+    requestAnimationFrame(() => {
+      const closeBtn = modalRef.current?.querySelector<HTMLElement>('button');
+      closeBtn?.focus();
+    });
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      previousFocusRef.current?.focus();
+    };
+  }, [isOpen, onClose]);
 
   return (
     <AnimatePresence>
@@ -210,31 +257,35 @@ export default function CapabilityCatalog({
 
           {/* Modal */}
           <motion.div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Annette Capabilities"
             initial={{ scale: 0.95, opacity: 0, y: 10 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 10 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-2xl max-h-[75vh] bg-gradient-to-br from-gray-900 via-gray-850 to-gray-900 border border-gray-700/60 rounded-xl shadow-2xl flex flex-col overflow-hidden"
+            className="relative w-full max-w-2xl max-h-[75vh] bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900 border border-slate-700/60 rounded-xl shadow-2xl flex flex-col overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/50">
               <div className="flex items-center gap-2.5">
                 <div className="p-1.5 bg-cyan-500/10 rounded-lg border border-cyan-500/30">
                   <Sparkles className="w-4 h-4 text-cyan-400" />
                 </div>
                 <div>
                   <h2 className="text-sm font-semibold text-white">Annette Capabilities</h2>
-                  <p className="text-[11px] text-gray-500 mt-0.5">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     {totalTools} tools across {CAPABILITY_CATEGORIES.length} categories
-                    {usedTools > 0 && <span className="text-gray-600"> &middot; {usedTools} used this session</span>}
+                    {usedTools > 0 && <span className="text-slate-600"> &middot; {usedTools} used this session</span>}
                   </p>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 hover:bg-gray-700/50 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-slate-700/50 rounded-lg transition-colors"
               >
-                <X className="w-4 h-4 text-gray-400" />
+                <X className="w-4 h-4 text-slate-400" />
               </button>
             </div>
 
@@ -253,7 +304,7 @@ export default function CapabilityCatalog({
                   <h3 className={`text-xs font-semibold uppercase tracking-wider ${(COLOR_CLASSES[activeCat.color] || COLOR_CLASSES.cyan).text}`}>
                     {activeCat.label}
                   </h3>
-                  <p className="text-[11px] text-gray-500 mt-0.5">{activeCat.description}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{activeCat.description}</p>
                 </div>
 
                 <div className="space-y-1.5">
@@ -272,8 +323,8 @@ export default function CapabilityCatalog({
             </div>
 
             {/* Footer hint */}
-            <div className="px-4 py-2 border-t border-gray-700/50 bg-gray-800/30">
-              <p className="text-[10px] text-gray-600 text-center">
+            <div className="px-4 py-2 border-t border-slate-700/50 bg-slate-800/30">
+              <p className="text-xs text-slate-600 text-center">
                 Click a tool to ask Annette to use it &middot; Tools with <ChevronRight className="w-2.5 h-2.5 inline" /> will ask for details first
               </p>
             </div>

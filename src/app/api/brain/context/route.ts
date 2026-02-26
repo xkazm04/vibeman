@@ -1,7 +1,7 @@
 /**
  * Brain Context API
  * Returns computed behavioral context for a project
- * Includes 5-minute in-memory cache per project
+ * Includes 60-second in-memory cache per project with event-driven invalidation
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -10,9 +10,21 @@ import { getBehavioralContext } from '@/lib/brain/behavioralContext';
 
 export const dynamic = 'force-dynamic';
 
-// In-memory cache: projectId -> { data, expiry }
+// In-memory cache: cacheKey -> { data, expiry }
 const contextCache = new Map<string, { data: unknown; expiry: number }>();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS = 60 * 1000; // 60 seconds
+
+/**
+ * Invalidate cached context for a project.
+ * Called by signals routes when signals are recorded, deleted, or decayed.
+ */
+export function invalidateContextCache(projectId: string): void {
+  for (const key of contextCache.keys()) {
+    if (key.startsWith(`${projectId}:`)) {
+      contextCache.delete(key);
+    }
+  }
+}
 
 async function handleGET(request: NextRequest) {
   try {
@@ -42,6 +54,12 @@ async function handleGET(request: NextRequest) {
       }
     }
 
+    // Clean up expired entries on every miss
+    const now = Date.now();
+    for (const [key, value] of contextCache.entries()) {
+      if (now > value.expiry) contextCache.delete(key);
+    }
+
     const context = getBehavioralContext(projectId, windowDays);
 
     // Store in cache
@@ -49,14 +67,6 @@ async function handleGET(request: NextRequest) {
       data: context,
       expiry: Date.now() + CACHE_TTL_MS,
     });
-
-    // Cleanup expired entries if cache grows large
-    if (contextCache.size > 50) {
-      const now = Date.now();
-      for (const [key, value] of contextCache.entries()) {
-        if (now > value.expiry) contextCache.delete(key);
-      }
-    }
 
     return NextResponse.json({
       success: true,

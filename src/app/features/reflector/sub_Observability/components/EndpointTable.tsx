@@ -151,11 +151,12 @@ export default function EndpointTable({ endpoints, trends = [] }: EndpointTableP
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-gray-500" />
           <span className="text-sm text-gray-400">Method:</span>
-          <div className="flex gap-1">
+          <div className="flex gap-1" role="group" aria-label="Filter by HTTP method">
             {METHOD_OPTIONS.map(method => (
               <button
                 key={method}
                 onClick={() => handleMethodFilter(method)}
+                aria-pressed={methodFilter === method}
                 className={`px-2 py-1 text-xs rounded transition-colors ${
                   methodFilter === method
                     ? method === 'all'

@@ -288,6 +288,9 @@ export const directionRepository = {
     pair_id?: string | null;
     pair_label?: 'A' | 'B' | null;
     problem_statement?: string | null;
+    // Effort/impact scoring
+    effort?: number | null;
+    impact?: number | null;
   }): DbDirection => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
@@ -296,10 +299,10 @@ export const directionRepository = {
       INSERT INTO directions (
         id, project_id, context_map_id, context_map_title, direction, summary, status,
         requirement_id, requirement_path, context_id, context_name, context_group_id,
-        pair_id, pair_label, problem_statement,
+        pair_id, pair_label, problem_statement, effort, impact,
         created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -318,6 +321,8 @@ export const directionRepository = {
       direction.pair_id || null,
       direction.pair_label || null,
       direction.problem_statement || null,
+      direction.effort ?? null,
+      direction.impact ?? null,
       now,
       now
     );
@@ -335,10 +340,14 @@ export const directionRepository = {
     requirement_id?: string | null;
     requirement_path?: string | null;
     context_map_title?: string;
+    decision_record?: string | null;
     // NEW: SQLite context fields
     context_id?: string | null;
     context_name?: string | null;
     context_group_id?: string | null;
+    // Effort/impact scoring
+    effort?: number | null;
+    impact?: number | null;
   }): DbDirection | null => {
     const db = getDatabase();
     const { fields, values } = buildUpdateQuery(updates);
@@ -398,11 +407,12 @@ export const directionRepository = {
   /**
    * Accept a direction (creates requirement and updates status)
    */
-  acceptDirection: (id: string, requirementId: string, requirementPath: string): DbDirection | null => {
+  acceptDirection: (id: string, requirementId: string, requirementPath: string, decisionRecord?: string | null): DbDirection | null => {
     return directionRepository.updateDirection(id, {
       status: 'accepted',
       requirement_id: requirementId,
-      requirement_path: requirementPath
+      requirement_path: requirementPath,
+      decision_record: decisionRecord ?? null,
     });
   },
 
@@ -498,6 +508,73 @@ export const directionRepository = {
       accepted: result.accepted || 0,
       rejected: result.rejected || 0
     };
+  },
+
+  /**
+   * Get direction counts grouped by context_map_id (SQL aggregation)
+   */
+  getDirectionCountsByContextMap: (projectId: string): Array<{
+    context_map_id: string;
+    context_map_title: string;
+    total: number;
+    pending: number;
+    accepted: number;
+    rejected: number;
+  }> => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT
+        context_map_id,
+        context_map_title,
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN status = 'accepted' THEN 1 ELSE 0 END) as accepted,
+        SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected
+      FROM directions
+      WHERE project_id = ?
+      GROUP BY context_map_id, context_map_title
+    `);
+    return stmt.all(projectId) as Array<{
+      context_map_id: string;
+      context_map_title: string;
+      total: number;
+      pending: number;
+      accepted: number;
+      rejected: number;
+    }>;
+  },
+
+  /**
+   * Get direction counts grouped by day (SQL aggregation)
+   */
+  getDirectionDailyCounts: (projectId: string, days: number = 7): Array<{
+    date: string;
+    total: number;
+    pending: number;
+    accepted: number;
+    rejected: number;
+  }> => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT
+        DATE(created_at) as date,
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN status = 'accepted' THEN 1 ELSE 0 END) as accepted,
+        SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected
+      FROM directions
+      WHERE project_id = ?
+        AND created_at >= DATE('now', '-' || ? || ' days')
+      GROUP BY DATE(created_at)
+      ORDER BY date ASC
+    `);
+    return stmt.all(projectId, days) as Array<{
+      date: string;
+      total: number;
+      pending: number;
+      accepted: number;
+      rejected: number;
+    }>;
   },
 
   // ============ Paired Directions Support ============
@@ -599,9 +676,10 @@ export const directionRepository = {
   acceptPairedDirection: (
     acceptedId: string,
     requirementId: string,
-    requirementPath: string
+    requirementPath: string,
+    decisionRecord?: string | null
   ): { accepted: DbDirection | null; rejected: DbDirection | null } => {
-    const acceptedDirection = directionRepository.acceptDirection(acceptedId, requirementId, requirementPath);
+    const acceptedDirection = directionRepository.acceptDirection(acceptedId, requirementId, requirementPath, decisionRecord);
 
     if (!acceptedDirection || !acceptedDirection.pair_id) {
       return { accepted: acceptedDirection, rejected: null };

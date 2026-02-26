@@ -6,7 +6,6 @@ import {
   Activity,
   Play,
   Square,
-  RefreshCw,
   Settings,
   Clock,
   CheckCircle,
@@ -14,16 +13,20 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
+  Eye,
 } from 'lucide-react';
+import IdeasLoadingState from '@/app/features/Ideas/components/IdeasLoadingState';
 import LifecyclePhaseIndicator from './components/LifecyclePhaseIndicator';
 import LifecycleTimeline from './components/LifecycleTimeline';
 import LifecycleConfigPanel from './components/LifecycleConfigPanel';
+import SimulationPreviewPanel from './components/SimulationPreviewPanel';
 import {
   LifecycleOrchestratorStatus,
   LifecycleCycle,
   LifecycleEvent,
   LifecycleConfig,
   LifecycleTrigger,
+  SimulationPreview,
 } from './lib/lifecycleTypes';
 
 interface LifecycleDashboardProps {
@@ -45,6 +48,7 @@ export default function LifecycleDashboard({
   const [error, setError] = useState<string | null>(null);
   const [showConfig, setShowConfig] = useState(false);
   const [showEvents, setShowEvents] = useState(true);
+  const [simulationPreview, setSimulationPreview] = useState<SimulationPreview | null>(null);
 
   /**
    * Fetch lifecycle status
@@ -62,6 +66,11 @@ export default function LifecycleDashboard({
       setEvents(data.events || []);
       setConfig(data.config || {});
       setError(null);
+
+      // Capture simulation preview from completed simulation cycles
+      if (data.currentCycle?.is_simulation && data.currentCycle?.simulation_preview && data.currentCycle?.phase === 'completed') {
+        setSimulationPreview(data.currentCycle.simulation_preview);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -173,6 +182,19 @@ export default function LifecycleDashboard({
   };
 
   /**
+   * Promote simulation to real deploy — disable simulation mode and re-trigger
+   */
+  const promoteSimulationToDeploy = async () => {
+    try {
+      await updateConfig({ simulation_mode: false, auto_deploy: true, deployment_targets: ['git_branch', 'pull_request'] });
+      setSimulationPreview(null);
+      await triggerCycle('manual');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to promote simulation');
+    }
+  };
+
+  /**
    * Update configuration
    */
   const updateConfig = async (updates: Partial<LifecycleConfig>) => {
@@ -219,10 +241,7 @@ export default function LifecycleDashboard({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-8" data-testid="lifecycle-loading">
-        <RefreshCw className="w-6 h-6 text-gray-400 animate-spin" />
-        <span className="ml-2 text-gray-400">Loading lifecycle...</span>
-      </div>
+      <IdeasLoadingState size="md" label="Loading lifecycle..." data-testid="lifecycle-loading" />
     );
   }
 
@@ -240,6 +259,12 @@ export default function LifecycleDashboard({
             {status?.is_running && (
               <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">
                 Running
+              </span>
+            )}
+            {(config as LifecycleConfig)?.simulation_mode && (
+              <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-500/15 text-amber-400 text-xs rounded-full">
+                <Eye className="w-3 h-3" />
+                Simulation
               </span>
             )}
           </div>
@@ -323,6 +348,14 @@ export default function LifecycleDashboard({
               />
             </div>
 
+            {/* Simulation indicator for active cycle */}
+            {currentCycle.is_simulation && (
+              <div className="mb-2 flex items-center gap-1.5 text-xs text-amber-400">
+                <Eye className="w-3 h-3" />
+                <span>Simulation mode — no real changes will be made</span>
+              </div>
+            )}
+
             {/* Progress Bar */}
             <div className="space-y-1">
               <div className="h-2 bg-gray-700/50 rounded-full overflow-hidden">
@@ -332,6 +365,8 @@ export default function LifecycleDashboard({
                       ? 'bg-red-500'
                       : currentCycle.phase === 'completed'
                       ? 'bg-green-500'
+                      : currentCycle.is_simulation
+                      ? 'bg-amber-500'
                       : 'bg-blue-500'
                   }`}
                   initial={{ width: 0 }}
@@ -419,6 +454,17 @@ export default function LifecycleDashboard({
               }
             />
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Simulation Preview */}
+      <AnimatePresence>
+        {simulationPreview && (
+          <SimulationPreviewPanel
+            preview={simulationPreview}
+            onDismiss={() => setSimulationPreview(null)}
+            onPromoteToDeploy={promoteSimulationToDeploy}
+          />
         )}
       </AnimatePresence>
 

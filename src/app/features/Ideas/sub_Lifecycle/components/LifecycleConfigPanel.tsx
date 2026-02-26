@@ -10,7 +10,7 @@ import {
   Shield,
   Rocket,
   Clock,
-  Bell,
+  Eye,
 } from 'lucide-react';
 import {
   LifecycleConfig,
@@ -160,6 +160,35 @@ export default function LifecycleConfigPanel({
             <div
               className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
                 currentConfig.enabled ? 'translate-x-5' : 'translate-x-0.5'
+              }`}
+            />
+          </button>
+        </label>
+      </div>
+
+      {/* Simulation Mode */}
+      <div className="px-4 py-3 border-b border-gray-700/40">
+        <label className="flex items-center justify-between cursor-pointer">
+          <div className="flex items-center gap-2">
+            <Eye className="w-4 h-4 text-amber-400" />
+            <div>
+              <span className="text-sm text-gray-300">Simulation Mode</span>
+              <p className="text-[10px] text-gray-500 mt-0.5">
+                Runs full pipeline but stops before creating PR
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => onConfigChange({ simulation_mode: !currentConfig.simulation_mode })}
+            disabled={disabled}
+            className={`relative w-10 h-5 rounded-full transition-colors shrink-0 ${
+              currentConfig.simulation_mode ? 'bg-amber-500' : 'bg-gray-600'
+            } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            data-testid="lifecycle-config-simulation-toggle"
+          >
+            <div
+              className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                currentConfig.simulation_mode ? 'translate-x-5' : 'translate-x-0.5'
               }`}
             />
           </button>

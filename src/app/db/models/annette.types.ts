@@ -125,6 +125,37 @@ export interface DbAnnetteKnowledgeEdge {
   created_at: string;
 }
 
+// ─── Rapport Model Types ───
+
+export interface DbAnnetteRapport {
+  id: string;
+  project_id: string;
+  /** Tone axis: 0.0 = very formal, 1.0 = very casual */
+  tone_formal_casual: number;
+  /** Depth axis: 0.0 = expert (terse), 1.0 = teaching (verbose) */
+  depth_expert_teaching: number;
+  /** Initiative axis: 0.0 = reactive only, 1.0 = highly proactive */
+  initiative_reactive_proactive: number;
+  /** Humor axis: 0.0 = strictly professional, 1.0 = playful/witty */
+  humor_level: number;
+  /** Current detected emotional state */
+  detected_mood: 'neutral' | 'focused' | 'frustrated' | 'exploratory' | 'rushed';
+  /** Frustration score: 0.0 = calm, 1.0 = very frustrated */
+  frustration_score: number;
+  /** Total conversation turns analyzed */
+  total_turns_analyzed: number;
+  /** Expertise areas (JSON array of strings) */
+  expertise_areas: string;
+  /** Work rhythm pattern (JSON: { peakHours, avgSessionLength, preferredSessionTime }) */
+  work_rhythm: string;
+  /** Emotional pattern history (JSON array of { mood, timestamp, trigger }) */
+  emotional_history: string;
+  /** Communication style signals (JSON: { avgMessageLength, usesEmoji, usesCodeBlocks, questionFrequency }) */
+  communication_signals: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export type ConsolidationType = 'merge' | 'summarize' | 'compress' | 'archive';
 
 export interface DbAnnetteMemoryConsolidation {

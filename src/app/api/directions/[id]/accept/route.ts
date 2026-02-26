@@ -13,6 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { withObservability } from '@/lib/observability/middleware';
 import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
 import { signalCollector } from '@/lib/brain/signalCollector';
+import { generateAdr } from '@/lib/directions/adrGenerator';
 
 /**
  * Create a slug from the first 5 words of a title
@@ -143,11 +144,21 @@ async function handlePost(
       );
     }
 
-    // Update direction with requirement info
+    // Generate Architecture Decision Record
+    const adr = generateAdr({
+      summary: direction.summary,
+      direction: direction.direction,
+      contextMapTitle: direction.context_map_title,
+      problemStatement: direction.problem_statement,
+    });
+    const decisionRecordJson = JSON.stringify(adr);
+
+    // Update direction with requirement info and ADR
     const updatedDirection = directionDb.acceptDirection(
       id,
       requirementId,
-      result.filePath || ''
+      result.filePath || '',
+      decisionRecordJson
     );
 
     if (!updatedDirection) {

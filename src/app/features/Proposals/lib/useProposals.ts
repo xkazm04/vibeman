@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Proposal, ProposalState } from '../types';
+import { Proposal, ProposalState, DirectionProposal, toDirectionProposal } from '../types';
+import { DbDirection } from '@/app/db';
 
 /**
  * Simulate processing with delay
@@ -9,14 +10,20 @@ const simulateProcessing = (delayMs: number): Promise<void> => {
 };
 
 /**
- * Custom hook for managing proposal state with carousel functionality
+ * Custom hook for managing proposal state with carousel functionality.
+ * When `directions` is provided, uses real data; otherwise falls back to mock.
  */
-export const useProposals = () => {
+export const useProposals = (options?: {
+  directions?: DbDirection[];
+  onAccept?: (directionId: string) => void;
+  onAcceptWithCode?: (directionId: string) => void;
+  onDecline?: (directionId: string) => void;
+}) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
-  // Mock proposal data for demonstration
+  // Mock proposal data for demonstration (fallback when no directions provided)
   const mockProposals: Proposal[] = useMemo(() => [
     {
       id: 'proposal-1',
@@ -41,17 +48,39 @@ export const useProposals = () => {
     }
   ], []);
 
-  const currentProposal = mockProposals[currentIndex] || null;
+  // Map real directions to DirectionProposals
+  const directionProposals: DirectionProposal[] = useMemo(() => {
+    if (!options?.directions) return [];
+    return options.directions
+      .filter(d => d.status === 'pending')
+      .map(toDirectionProposal);
+  }, [options?.directions]);
+
+  const usingRealData = directionProposals.length > 0;
+  const totalItems = usingRealData ? directionProposals.length : mockProposals.length;
+
+  // Clamp index when data changes
+  const safeIndex = Math.min(currentIndex, Math.max(0, totalItems - 1));
+
+  const currentDirectionProposal = usingRealData
+    ? directionProposals[safeIndex] ?? null
+    : null;
+
+  const currentProposal: Proposal | null = usingRealData
+    ? null
+    : mockProposals[safeIndex] ?? null;
+
   const nextProposals = useMemo(() => {
+    const source = usingRealData ? directionProposals : mockProposals;
     const next = [];
     for (let i = 1; i <= 2; i++) {
-      const nextIndex = currentIndex + i;
-      if (nextIndex < mockProposals.length) {
-        next.push(mockProposals[nextIndex]);
+      const nextIndex = safeIndex + i;
+      if (nextIndex < source.length) {
+        next.push(source[nextIndex]);
       }
     }
     return next;
-  }, [currentIndex, mockProposals]);
+  }, [safeIndex, usingRealData, directionProposals, mockProposals]);
 
   const showProposal = useCallback(() => {
     setIsVisible(true);
@@ -62,34 +91,40 @@ export const useProposals = () => {
   }, []);
 
   const moveToNextProposal = useCallback(() => {
-    if (currentIndex < mockProposals.length - 1) {
+    if (safeIndex < totalItems - 1) {
       setCurrentIndex(prev => prev + 1);
     } else {
-      // No more proposals, hide the panel
       setIsVisible(false);
     }
-  }, [currentIndex, mockProposals.length]);
+  }, [safeIndex, totalItems]);
 
   const processProposal = useCallback(async (delayMs: number) => {
-    if (!currentProposal) return;
-
     setIsProcessing(true);
     await simulateProcessing(delayMs);
     setIsProcessing(false);
     moveToNextProposal();
-  }, [currentProposal, moveToNextProposal]);
+  }, [moveToNextProposal]);
 
   const acceptProposal = useCallback(async () => {
-    await processProposal(1000);
-  }, [processProposal]);
+    if (usingRealData && currentDirectionProposal) {
+      options?.onAccept?.(currentDirectionProposal.id);
+    }
+    await processProposal(600);
+  }, [processProposal, usingRealData, currentDirectionProposal, options]);
 
   const acceptWithCode = useCallback(async () => {
-    await processProposal(1500);
-  }, [processProposal]);
+    if (usingRealData && currentDirectionProposal) {
+      options?.onAcceptWithCode?.(currentDirectionProposal.id);
+    }
+    await processProposal(800);
+  }, [processProposal, usingRealData, currentDirectionProposal, options]);
 
   const declineProposal = useCallback(async () => {
-    await processProposal(1000);
-  }, [processProposal]);
+    if (usingRealData && currentDirectionProposal) {
+      options?.onDecline?.(currentDirectionProposal.id);
+    }
+    await processProposal(400);
+  }, [processProposal, usingRealData, currentDirectionProposal, options]);
 
   const proposalState: ProposalState = {
     currentProposal,
@@ -99,9 +134,12 @@ export const useProposals = () => {
 
   return {
     proposalState,
+    currentDirectionProposal,
+    directionProposals,
     nextProposals,
-    currentIndex,
-    totalProposals: mockProposals.length,
+    currentIndex: safeIndex,
+    totalProposals: totalItems,
+    usingRealData,
     showProposal,
     hideProposal,
     acceptProposal,

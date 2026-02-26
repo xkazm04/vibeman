@@ -39,6 +39,11 @@ import { migrate109TeamCanvas } from './109_team_canvas';
 import { migrate110HealingIssues } from './110_healing_issues';
 import { migrate111PersonaGroups } from './111_persona_groups';
 import { migrate112PersonaMemories } from './112_persona_memories';
+import { migrate113DirectionDecisionRecord } from './113_direction_decision_record';
+import { migrate114QuestionTree } from './114_question_tree';
+import { migrate115DirectionEffortImpact } from './115_direction_effort_impact';
+import { migrate116AnnetteRapport } from './116_annette_rapport';
+import { migrate117AutonomousAgent } from './117_autonomous_agent';
 
 /**
  * Migration logger utility
@@ -318,6 +323,21 @@ export function runMigrations() {
 
     // Migration 112: Persona Memories - agent knowledge storage
     migrate112PersonaMemories(db as any, migrationLogger);
+
+    // Migration 113: Direction Decision Record - ADR field
+    migrate113DirectionDecisionRecord(db as any, migrationLogger);
+
+    // Migration 114: Question Tree - recursive strategic question trees
+    migrate114QuestionTree(db as any, migrationLogger);
+
+    // Migration 115: Direction Effort/Impact - prioritization scoring
+    migrate115DirectionEffortImpact(db as any, migrationLogger);
+
+    // Migration 116: Annette Rapport Model - developer relationship personality adaptation
+    migrate116AnnetteRapport(db as any, migrationLogger);
+
+    // Migration 117: Autonomous Agent Mode - goal-driven execution
+    migrate117AutonomousAgent(db as any, migrationLogger);
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {

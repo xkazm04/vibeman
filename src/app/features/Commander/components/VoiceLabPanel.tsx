@@ -71,6 +71,10 @@ const TECH_STACK = [
 
 const DIRECTIONS = [
   {
+    title: 'Always-on Voice Companion (IMPLEMENTED)',
+    body: 'The Companion tab provides an always-on voice companion with ambient listening via WebAudio VAD, wake-word detection ("Hey Annette"), push-to-talk mode, sentiment analysis, and proactive suggestions. The voice pipeline connects capture → downsample → STT → LLM → TTS with interrupt support.',
+  },
+  {
     title: 'Streaming TTS with chunked playback',
     body: 'Instead of waiting for the full LLM response before starting TTS, stream LLM tokens, buffer sentence-sized chunks, and start TTS+playback on the first chunk while the rest generates. This overlaps LLM and TTS latency. Implementation: use Anthropic streaming API, accumulate until sentence boundary, fire TTS request per chunk, queue audio segments.',
   },
@@ -163,8 +167,6 @@ export default function VoiceLabPanel() {
   const [directionsOpen, setDirectionsOpen] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const streamRef = useRef<MediaStream | null>(null);
 
   const stats = computeStats(exchanges);
 
@@ -268,22 +270,22 @@ export default function VoiceLabPanel() {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
-      streamRef.current = stream;
-      audioChunksRef.current = [];
+      // Session-local chunks array — captured by the closures below so that
+      // rapid stop/start cycles never mix audio data between recordings.
+      const sessionChunks: Blob[] = [];
 
       const recorder = new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
 
       recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+        if (e.data.size > 0) sessionChunks.push(e.data);
       };
 
       recorder.onstop = async () => {
-        // Stop media tracks
-        streamRef.current?.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
+        // Stop media tracks for this specific stream
+        stream.getTracks().forEach((t) => t.stop());
 
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioBlob = new Blob(sessionChunks, { type: 'audio/webm' });
         if (audioBlob.size === 0) {
           setError('No audio captured');
           return;
@@ -365,7 +367,8 @@ export default function VoiceLabPanel() {
       <div className="border-b border-slate-800/50">
         <button
           onClick={() => setTechStackOpen(!techStackOpen)}
-          className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium text-slate-400 hover:text-slate-300 transition-colors"
+          className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium text-slate-400 hover:text-slate-300 transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 outline-none"
+          aria-label={techStackOpen ? 'Collapse pipeline overview' : 'Expand pipeline overview'}
         >
           {techStackOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
           <Cpu className="w-3.5 h-3.5" />
@@ -382,7 +385,7 @@ export default function VoiceLabPanel() {
             >
               <div className="px-4 pb-3 space-y-1.5">
                 {TECH_STACK.map((item, i) => (
-                  <div key={i} className="flex items-start gap-2 text-[11px]">
+                  <div key={i} className="flex items-start gap-2 text-xs">
                     <item.icon className="w-3.5 h-3.5 text-slate-500 mt-0.5 flex-shrink-0" />
                     <span>
                       <span className="text-cyan-400 font-medium">{item.label}:</span>{' '}
@@ -404,21 +407,23 @@ export default function VoiceLabPanel() {
           <div className="flex items-center gap-1 bg-slate-800/50 rounded-lg p-0.5">
             <button
               onClick={() => setPipeline('annette')}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 outline-none ${
                 pipeline === 'annette'
                   ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
                   : 'text-slate-500 hover:text-slate-300'
               }`}
+              aria-label="Use Annette full pipeline"
             >
               Annette (full)
             </button>
             <button
               onClick={() => setPipeline('simple')}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 outline-none ${
                 pipeline === 'simple'
                   ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
                   : 'text-slate-500 hover:text-slate-300'
               }`}
+              aria-label="Use simple pipeline without tools"
             >
               Simple (no tools)
             </button>
@@ -427,11 +432,12 @@ export default function VoiceLabPanel() {
           {/* TTS toggle */}
           <button
             onClick={() => setIncludeTts(!includeTts)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 outline-none ${
               includeTts
                 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                 : 'text-slate-500 hover:text-slate-300 bg-slate-800/40 border border-slate-700/30'
             }`}
+            aria-label={includeTts ? 'Disable text-to-speech' : 'Enable text-to-speech'}
           >
             <Volume2 className="w-3 h-3" />
             {includeTts ? 'TTS On' : 'TTS Off'}
@@ -441,11 +447,12 @@ export default function VoiceLabPanel() {
           {includeTts && (
             <button
               onClick={() => setAutoPlay(!autoPlay)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 outline-none ${
                 autoPlay
                   ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
                   : 'text-slate-500 hover:text-slate-300 bg-slate-800/40 border border-slate-700/30'
               }`}
+              aria-label={autoPlay ? 'Disable auto-play audio' : 'Enable auto-play audio'}
             >
               <Play className="w-3 h-3" />
               {autoPlay ? 'Auto-Play' : 'Manual Play'}
@@ -454,7 +461,7 @@ export default function VoiceLabPanel() {
 
           {/* Running averages */}
           {stats.count > 0 && (
-            <div className="flex items-center gap-3 ml-auto text-[10px] text-slate-500">
+            <div className="flex items-center gap-3 ml-auto text-xs text-slate-500">
               {stats.avgStt > 0 && <span>Avg STT: <span className="text-blue-400">{stats.avgStt}ms</span></span>}
               <span>Avg LLM: <span className="text-amber-400">{stats.avgLlm}ms</span></span>
               {stats.avgTts > 0 && <span>Avg TTS: <span className="text-emerald-400">{stats.avgTts}ms</span></span>}
@@ -469,12 +476,13 @@ export default function VoiceLabPanel() {
           <button
             onClick={toggleRecording}
             disabled={isBusy}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 outline-none ${
               isRecording
                 ? 'bg-red-500/20 border border-red-500/40 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.15)]'
                 : 'bg-blue-500/15 border border-blue-500/30 text-blue-400 hover:bg-blue-500/25'
             }`}
             title={isRecording ? 'Stop recording' : 'Record voice (STT test)'}
+            aria-label={isRecording ? 'Stop recording' : 'Record voice input'}
           >
             {isRecording ? (
               <>
@@ -502,7 +510,7 @@ export default function VoiceLabPanel() {
               key={prompt}
               onClick={() => runTest(prompt)}
               disabled={isBusy}
-              className="px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/30 text-slate-400 text-xs hover:bg-slate-800/80 hover:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/30 text-slate-400 text-xs hover:bg-slate-800/80 hover:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 outline-none"
             >
               {prompt}
             </button>
@@ -523,7 +531,8 @@ export default function VoiceLabPanel() {
           <button
             onClick={handleCustomSend}
             disabled={!customInput.trim() || isBusy}
-            className="p-2 rounded-lg bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            className="p-2 rounded-lg bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 outline-none"
+            aria-label="Send custom test prompt"
           >
             {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>
@@ -539,7 +548,7 @@ export default function VoiceLabPanel() {
               className="px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-300 flex items-center justify-between"
             >
               {error}
-              <button onClick={() => setError(null)} className="text-red-400 hover:text-red-300 ml-2">dismiss</button>
+              <button onClick={() => setError(null)} className="text-red-400 hover:text-red-300 ml-2 focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 outline-none rounded" aria-label="Dismiss error">dismiss</button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -556,7 +565,7 @@ export default function VoiceLabPanel() {
               >
                 {/* User prompt */}
                 <div className="flex items-start gap-2">
-                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded flex items-center gap-1 ${
                     ex.inputMethod === 'voice'
                       ? 'text-blue-400 bg-blue-500/10'
                       : 'text-cyan-400 bg-cyan-500/10'
@@ -565,24 +574,25 @@ export default function VoiceLabPanel() {
                     YOU
                   </span>
                   <span className="text-xs text-slate-300">{ex.prompt}</span>
-                  <span className="ml-auto text-[10px] text-slate-600 whitespace-nowrap">{ex.pipeline} · {ex.model}</span>
+                  <span className="ml-auto text-xs text-slate-600 whitespace-nowrap">{ex.pipeline} · {ex.model}</span>
                 </div>
 
                 {/* Response */}
                 <div className="flex items-start gap-2">
-                  <span className="text-[10px] font-medium text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded">AI</span>
+                  <span className="text-xs font-medium text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded">AI</span>
                   <span className="text-xs text-slate-400 whitespace-pre-wrap break-words flex-1">{ex.response}</span>
                   {/* Play button for exchanges with audio */}
                   {ex.audioBase64 && (
                     <button
                       onClick={() => replayAudio(ex.id, ex.audioBase64!)}
                       disabled={isPlaying === ex.id}
-                      className={`flex-shrink-0 p-1 rounded-md transition-colors ${
+                      className={`flex-shrink-0 p-1 rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 outline-none ${
                         isPlaying === ex.id
                           ? 'text-purple-400 bg-purple-500/20'
                           : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50'
                       }`}
                       title="Play audio"
+                      aria-label={isPlaying === ex.id ? 'Audio playing' : 'Replay audio'}
                     >
                       {isPlaying === ex.id ? (
                         <Volume2 className="w-3.5 h-3.5 animate-pulse" />
@@ -617,7 +627,7 @@ export default function VoiceLabPanel() {
       {/* ── C) Session Summary ── */}
       {stats.count > 0 && (
         <div className="border-t border-slate-800/50 px-4 py-3">
-          <h4 className="text-[11px] font-medium text-slate-400 mb-2 flex items-center gap-1.5">
+          <h4 className="text-xs font-medium text-slate-400 mb-2 flex items-center gap-1.5">
             <BarChart3 className="w-3.5 h-3.5" />
             Session Summary
           </h4>
@@ -644,7 +654,8 @@ export default function VoiceLabPanel() {
       <div className="border-t border-slate-800/50">
         <button
           onClick={() => setDirectionsOpen(!directionsOpen)}
-          className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium text-slate-400 hover:text-slate-300 transition-colors"
+          className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium text-slate-400 hover:text-slate-300 transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 outline-none"
+          aria-label={directionsOpen ? 'Collapse development directions' : 'Expand development directions'}
         >
           {directionsOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
           <Zap className="w-3.5 h-3.5" />
@@ -666,7 +677,7 @@ export default function VoiceLabPanel() {
                       <span className="text-cyan-400 mr-1.5">{i + 1}.</span>
                       {dir.title}
                     </h5>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">{dir.body}</p>
+                    <p className="text-xs text-slate-500 leading-relaxed">{dir.body}</p>
                   </div>
                 ))}
               </div>
@@ -692,7 +703,7 @@ function StatBlock({ label, value, accent }: { label: string; value: string; acc
 
   return (
     <div className="bg-slate-800/40 rounded-lg px-3 py-2">
-      <div className="text-[10px] text-slate-500">{label}</div>
+      <div className="text-xs text-slate-500">{label}</div>
       <div className={`text-sm font-medium ${valueColor}`}>{value}</div>
     </div>
   );

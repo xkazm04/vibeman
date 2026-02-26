@@ -9,6 +9,7 @@ import { logger } from '@/lib/logger';
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { generatePairedAdr } from '@/lib/directions/adrGenerator';
 
 export async function POST(
   request: NextRequest,
@@ -88,10 +89,52 @@ ${selectedDirection.direction}
 **Selected Variant**: ${variant} (rejected alternative: ${rejectedDirection.summary})
 `;
 
-    fs.writeFileSync(requirementPath, requirementContent, 'utf-8');
+    try {
+      fs.writeFileSync(requirementPath, requirementContent, 'utf-8');
+    } catch (fileError) {
+      // Rollback: reset direction from 'processing' back to 'pending' so user can retry
+      directionDb.updateDirection(selectedDirection.id, { status: 'pending' });
+      logger.error('[API] Pair requirement file creation failed, rolled back direction to pending:', {
+        pairId,
+        directionId: selectedDirection.id,
+        requirementId,
+        error: fileError,
+      });
+      return NextResponse.json(
+        { error: 'Failed to create requirement file. Direction has been reset — you can retry.' },
+        { status: 500 }
+      );
+    }
+
+    // Generate Architecture Decision Record with rejected alternative
+    const adr = generatePairedAdr({
+      summary: selectedDirection.summary,
+      direction: selectedDirection.direction,
+      contextMapTitle: selectedDirection.context_map_title,
+      problemStatement: selectedDirection.problem_statement,
+      rejectedSummary: rejectedDirection.summary,
+      rejectedDirection: rejectedDirection.direction,
+      selectedVariant: variant as 'A' | 'B',
+    });
+    const decisionRecordJson = JSON.stringify(adr);
 
     // Accept the selected direction and reject the other
-    const result = directionDb.acceptPairedDirection(selectedDirection.id, requirementId, requirementPath);
+    const result = directionDb.acceptPairedDirection(selectedDirection.id, requirementId, requirementPath, decisionRecordJson);
+
+    if (!result.accepted) {
+      // Rollback: clean up orphan file and reset direction
+      try { fs.unlinkSync(requirementPath); } catch { /* best-effort cleanup */ }
+      directionDb.updateDirection(selectedDirection.id, { status: 'pending' });
+      logger.error('[API] Pair DB update failed after file creation, rolled back:', {
+        pairId,
+        directionId: selectedDirection.id,
+        requirementId,
+      });
+      return NextResponse.json(
+        { error: 'Failed to update direction status. Direction has been reset — you can retry.' },
+        { status: 500 }
+      );
+    }
 
     logger.info('[API] Direction pair variant accepted:', {
       pairId,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import {
   IdeasErrorCode,
   handleIdeasApiError,
@@ -7,11 +8,12 @@ import {
   createIdeasErrorResponse,
 } from '@/app/features/Ideas/lib/ideasHandlers';
 import { withObservability } from '@/lib/observability/middleware';
-import { parseProjectIds, filterByProject } from '@/lib/api-helpers/projectFilter';
+import { parseProjectIds } from '@/lib/api-helpers/projectFilter';
 
 /**
  * GET /api/ideas/tinder
  * Fetch ideas in batches for Tinder-style evaluation
+ * Uses SQL-level filtering, sorting, and pagination for O(1) memory usage.
  */
 async function handleGet(request: NextRequest) {
   try {
@@ -37,28 +39,32 @@ async function handleGet(request: NextRequest) {
       });
     }
 
-    // Get ideas filtered by project(s)
+    // Use SQL-level filtering and pagination to avoid loading all ideas into memory
     const filter = parseProjectIds(searchParams);
-    let allIdeas = filter.mode === 'single'
-      ? ideaDb.getIdeasByProject(filter.projectId!)
-      : filterByProject(ideaDb.getAllIdeas(), filter);
 
-    // Filter by status
-    const filteredIdeas = allIdeas.filter(idea => idea.status === status);
+    let ideas: DbIdea[];
+    let total: number;
 
-    // Sort by created_at (newest first)
-    const sortedIdeas = filteredIdeas.sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    if (filter.mode === 'single') {
+      const result = ideaDb.getIdeasByProjectAndStatus(filter.projectId!, status, limit, offset);
+      ideas = result.ideas;
+      total = result.total;
+    } else if (filter.mode === 'multi') {
+      const result = ideaDb.getIdeasByProjectsAndStatus(filter.projectIds!, status, limit, offset);
+      ideas = result.ideas;
+      total = result.total;
+    } else {
+      const result = ideaDb.getAllIdeasByStatusPaginated(status, limit, offset);
+      ideas = result.ideas;
+      total = result.total;
+    }
 
-    // Paginate
-    const paginatedIdeas = sortedIdeas.slice(offset, offset + limit);
-    const hasMore = offset + limit < sortedIdeas.length;
+    const hasMore = offset + limit < total;
 
     return NextResponse.json({
-      ideas: paginatedIdeas,
+      ideas,
       hasMore,
-      total: sortedIdeas.length,
+      total,
     });
   } catch (error) {
     return handleIdeasApiError(error, IdeasErrorCode.DATABASE_ERROR);

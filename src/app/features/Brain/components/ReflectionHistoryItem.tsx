@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronDown,
   ChevronRight,
@@ -70,7 +71,8 @@ export default function ReflectionHistoryItem({ entry }: Props) {
       {/* Header row - always visible */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-800/30 transition-colors text-left"
+        aria-label={`${expanded ? 'Collapse' : 'Expand'} reflection details`}
+        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-800/30 transition-colors text-left focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none"
       >
         {expanded ? (
           <ChevronDown className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" />
@@ -102,7 +104,15 @@ export default function ReflectionHistoryItem({ entry }: Props) {
       </button>
 
       {/* Expanded details */}
+      <AnimatePresence initial={false}>
       {expanded && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.2, ease: 'easeInOut' }}
+          className="overflow-hidden"
+        >
         <div className="px-3 pb-3 pt-1 border-t border-zinc-800/30 space-y-3">
           {/* Stats grid */}
           <div className="grid grid-cols-3 gap-2 text-xs">
@@ -164,7 +174,9 @@ export default function ReflectionHistoryItem({ entry }: Props) {
             </div>
           )}
         </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }

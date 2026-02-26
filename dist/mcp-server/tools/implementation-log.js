@@ -7,20 +7,25 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerImplementationLogTool = registerImplementationLogTool;
 const zod_1 = require("zod");
 function registerImplementationLogTool(server, config, client) {
-    server.tool('log_implementation', 'Log implementation work to Vibeman database. Call this after completing any implementation task to record what was done.', {
-        requirementName: zod_1.z
-            .string()
-            .describe('Requirement filename WITHOUT the .md extension (e.g., "implement-dark-mode")'),
-        title: zod_1.z
-            .string()
-            .describe('Brief 2-6 word summary of what was implemented (e.g., "Dark Mode Implementation")'),
-        overview: zod_1.z
-            .string()
-            .describe('1-2 paragraphs describing what was implemented and how'),
-        overviewBullets: zod_1.z
-            .string()
-            .optional()
-            .describe('Key implementation points separated by newlines (e.g., "Created ThemeProvider\\nUpdated components\\nAdded toggle")'),
+    server.registerTool('log_implementation', {
+        title: 'Log Implementation',
+        description: 'Log implementation work to Vibeman database. Call this after completing any implementation task to record what was done.',
+        inputSchema: zod_1.z.object({
+            requirementName: zod_1.z
+                .string()
+                .describe('Requirement filename WITHOUT the .md extension (e.g., "implement-dark-mode")'),
+            title: zod_1.z
+                .string()
+                .describe('Brief 2-6 word summary of what was implemented (e.g., "Dark Mode Implementation")'),
+            overview: zod_1.z
+                .string()
+                .describe('1-2 paragraphs describing what was implemented and how'),
+            overviewBullets: zod_1.z
+                .string()
+                .optional()
+                .describe('Key implementation points separated by newlines (e.g., "Created ThemeProvider\\nUpdated components\\nAdded toggle")'),
+        }),
+        annotations: { readOnlyHint: false },
     }, async ({ requirementName, title, overview, overviewBullets }) => {
         if (!config.projectId) {
             return {

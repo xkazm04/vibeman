@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { orchestrate, ConversationMessage } from '@/lib/annette/orchestrator';
+import { analyzeAndUpdateRapport } from '@/lib/annette/rapportEngine';
 import { withObservability } from '@/lib/observability/middleware';
 import { logger } from '@/lib/logger';
 
@@ -53,6 +54,21 @@ async function handlePost(request: NextRequest) {
       tokensUsed: result.tokensUsed.total,
       model: result.model,
     });
+
+    // Update rapport model from this conversation turn (non-blocking)
+    try {
+      const userMsgs = [
+        ...(conversationHistory || []).filter(m => m.role === 'user').map(m => m.content),
+        message,
+      ];
+      const assistantMsgs = [
+        ...(conversationHistory || []).filter(m => m.role === 'assistant').map(m => m.content),
+        result.response,
+      ];
+      analyzeAndUpdateRapport(projectId, userMsgs, assistantMsgs, result.toolsUsed);
+    } catch (rapportError) {
+      logger.error('Rapport analysis failed (non-fatal)', { rapportError });
+    }
 
     return NextResponse.json({
       response: result.response,

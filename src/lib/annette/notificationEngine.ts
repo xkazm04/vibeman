@@ -12,12 +12,13 @@
 
 import { brainReflectionDb, brainInsightDb, directionOutcomeDb, behavioralSignalDb, directionDb } from '@/app/db';
 import { consumeTaskEvents, TaskNotificationEvent } from '@/lib/brain/taskNotificationEmitter';
+import { consumeAgentEvents, AgentNotificationEvent } from './agentNotificationBridge';
 import { personaMessageRepository } from '@/app/db/repositories/persona.repository';
 import { logger } from '@/lib/logger';
 
 export interface AnnetteNotification {
   id: string;
-  type: 'insight' | 'outcome' | 'warning' | 'suggestion' | 'status' | 'task_execution';
+  type: 'insight' | 'outcome' | 'warning' | 'suggestion' | 'status' | 'task_execution' | 'autonomous_agent';
   priority: 'low' | 'medium' | 'high';
   title: string;
   message: string;
@@ -61,6 +62,10 @@ export function checkForNotifications(projectId: string): AnnetteNotification[] 
     // Check task execution events
     const taskNotifs = checkTaskExecutionEvents(projectId);
     notifications.push(...taskNotifs);
+
+    // Check autonomous agent events
+    const agentNotifs = checkAgentEvents(projectId);
+    notifications.push(...agentNotifs);
 
     // Check unread persona messages (bridges Annette Voice Bridge → Annette UI badge)
     const personaNotifs = checkPersonaMessages();
@@ -351,6 +356,44 @@ function checkPersonaMessages(): AnnetteNotification[] {
   }
 
   return notifications;
+}
+
+/**
+ * Convert autonomous agent events into notifications
+ */
+function checkAgentEvents(projectId: string): AnnetteNotification[] {
+  const events = consumeAgentEvents(projectId);
+  return events.map(event => agentEventToNotification(event));
+}
+
+function agentEventToNotification(event: AgentNotificationEvent): AnnetteNotification {
+  const priorityMap: Record<string, 'low' | 'medium' | 'high'> = {
+    decomposing: 'low',
+    running: 'low',
+    paused: 'medium',
+    resumed: 'low',
+    cancelled: 'medium',
+    completed: 'high',
+    failed: 'high',
+    step_started: 'low',
+    step_completed: 'low',
+    step_failed: 'medium',
+  };
+
+  return {
+    id: event.id,
+    type: 'autonomous_agent',
+    priority: priorityMap[event.eventType] || 'low',
+    title: `Agent: ${event.eventType.replace(/_/g, ' ')}`,
+    message: event.message,
+    actionable: ['completed', 'failed', 'paused'].includes(event.eventType),
+    suggestedAction: event.eventType === 'completed'
+      ? { tool: 'get_insights', description: 'Review agent results' }
+      : event.eventType === 'failed'
+      ? { tool: 'retry_task', description: 'Review and retry' }
+      : undefined,
+    timestamp: event.timestamp,
+  };
 }
 
 /**

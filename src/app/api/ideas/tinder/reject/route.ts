@@ -9,6 +9,7 @@ import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
 interface RejectIdeaRequest {
   ideaId: string;
   projectPath?: string;
+  rejectionReason?: string;
 }
 
 /**
@@ -46,7 +47,7 @@ async function handlePost(request: NextRequest) {
       return createErrorResponse('ideaId is required', undefined, 400);
     }
 
-    const { ideaId, projectPath } = body;
+    const { ideaId, projectPath, rejectionReason } = body;
 
     // Get the idea to verify it exists
     const idea = ideaDb.getIdeaById(ideaId);
@@ -63,8 +64,12 @@ async function handlePost(request: NextRequest) {
     // Delete requirement file if it exists
     tryDeleteRequirementFile(projectPath, idea.requirement_id);
 
-    // Update idea status to rejected and clear requirement_id
-    ideaDb.updateIdea(ideaId, { status: 'rejected', requirement_id: null });
+    // Update idea status to rejected and store rejection reason in user_feedback
+    ideaDb.updateIdea(ideaId, {
+      status: 'rejected',
+      requirement_id: null,
+      ...(rejectionReason ? { user_feedback: rejectionReason } : {}),
+    });
 
     // Record brain signal: idea rejected (low-weight context preference)
     try {

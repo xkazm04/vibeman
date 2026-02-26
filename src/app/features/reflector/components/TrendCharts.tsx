@@ -13,7 +13,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
   Legend,
 } from 'recharts';
 import {
@@ -28,11 +27,17 @@ import {
 } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import { getScanTypeName, type ScanType } from '@/app/features/Ideas/lib/scanTypes';
+import { REFLECTOR_CHART_COLORS } from '../lib/chartColors';
+import ChartTooltip from './ChartTooltip';
+import type { DrillDownIdea, DrillDownContext } from './DrillDownDrawer';
+import { dbIdeaToDrillDown } from './DrillDownDrawer';
 
 interface TrendChartsProps {
   ideas: DbIdea[];
   dateRange?: { start: Date; end: Date };
   className?: string;
+  /** Called when a chart element is clicked, with the drill-down context */
+  onDrillDown?: (context: DrillDownContext) => void;
 }
 
 /**
@@ -42,6 +47,7 @@ export default function TrendCharts({
   ideas,
   dateRange,
   className = '',
+  onDrillDown,
 }: TrendChartsProps) {
   // Calculate weekly trends
   const weeklyTrends = useMemo(() => {
@@ -65,6 +71,7 @@ export default function TrendCharts({
       .sort((a, b) => a[0].localeCompare(b[0]))
       .slice(-8) // Last 8 weeks
       .map(([week, data]) => ({
+        weekKey: week,
         week: formatWeekLabel(week),
         total: data.total,
         accepted: data.accepted,
@@ -129,6 +136,49 @@ export default function TrendCharts({
     };
   }, [ideas]);
 
+  const handleWeekClick = (data: any) => {
+    if (!onDrillDown || !data?.weekKey) return;
+    const weekStart = new Date(data.weekKey);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+
+    const weekIdeas = ideas.filter(i => {
+      const d = new Date(i.created_at);
+      return d >= weekStart && d <= weekEnd;
+    });
+
+    onDrillDown({
+      title: `Week of ${data.week}`,
+      subtitle: `${weekIdeas.length} ideas`,
+      accentColor: 'rgba(6, 182, 212, 0.4)',
+      ideas: weekIdeas.map(dbIdeaToDrillDown),
+      stats: {
+        total: weekIdeas.length,
+        accepted: weekIdeas.filter(i => i.status === 'accepted').length,
+        rejected: weekIdeas.filter(i => i.status === 'rejected').length,
+        acceptanceRate: data.acceptanceRate,
+      },
+    });
+  };
+
+  const handleScanTypeClick = (data: any) => {
+    if (!onDrillDown || !data?.scanType) return;
+    const scanIdeas = ideas.filter(i => i.scan_type === data.scanType);
+
+    onDrillDown({
+      title: data.name || data.scanType,
+      subtitle: `${scanIdeas.length} ideas · ${data.acceptanceRate}% acceptance`,
+      accentColor: 'rgba(6, 182, 212, 0.4)',
+      ideas: scanIdeas.map(dbIdeaToDrillDown),
+      stats: {
+        total: scanIdeas.length,
+        accepted: scanIdeas.filter(i => i.status === 'accepted').length,
+        rejected: scanIdeas.filter(i => i.status === 'rejected').length,
+        acceptanceRate: data.acceptanceRate,
+      },
+    });
+  };
+
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Period Comparison Cards */}
@@ -175,12 +225,11 @@ export default function TrendCharts({
         </div>
 
         <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={weeklyTrends}>
+            <AreaChart data={weeklyTrends} responsive width="100%" height="100%">
               <defs>
                 <linearGradient id="acceptanceGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+                  <stop offset="5%" stopColor={REFLECTOR_CHART_COLORS.acceptance_rate} stopOpacity={0.3} />
+                  <stop offset="95%" stopColor={REFLECTOR_CHART_COLORS.acceptance_rate} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
@@ -205,14 +254,13 @@ export default function TrendCharts({
               <Area
                 type="monotone"
                 dataKey="acceptanceRate"
-                stroke="#06b6d4"
+                stroke={REFLECTOR_CHART_COLORS.acceptance_rate}
                 strokeWidth={2}
                 fill="url(#acceptanceGradient)"
-                dot={{ fill: '#06b6d4', r: 4 }}
-                activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }}
+                dot={{ fill: REFLECTOR_CHART_COLORS.acceptance_rate, r: 4, cursor: onDrillDown ? 'pointer' : 'default' }}
+                activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2, cursor: onDrillDown ? 'pointer' : 'default', onClick: (_e: any, payload: any) => handleWeekClick(payload?.payload) }}
               />
             </AreaChart>
-          </ResponsiveContainer>
         </div>
       </motion.div>
 
@@ -225,8 +273,8 @@ export default function TrendCharts({
       >
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-500/10 rounded-lg border border-purple-500/30">
-              <Layers className="w-4 h-4 text-purple-400" />
+            <div className="p-2 bg-cyan-500/10 rounded-lg border border-cyan-500/30">
+              <Layers className="w-4 h-4 text-cyan-400" />
             </div>
             <div>
               <h3 className="text-sm font-semibold text-white">Scan Type Effectiveness</h3>
@@ -236,8 +284,7 @@ export default function TrendCharts({
         </div>
 
         <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={scanTypeEffectiveness} layout="vertical">
+            <BarChart data={scanTypeEffectiveness} layout="vertical" responsive width="100%" height="100%">
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} horizontal={false} />
               <XAxis
                 type="number"
@@ -255,12 +302,13 @@ export default function TrendCharts({
               <Tooltip content={<EffectivenessTooltip />} />
               <Bar
                 dataKey="acceptanceRate"
-                fill="#a855f7"
+                fill={REFLECTOR_CHART_COLORS.acceptance_rate}
                 radius={[0, 4, 4, 0]}
                 background={{ fill: '#1f2937', radius: 4 }}
+                className={onDrillDown ? 'cursor-pointer' : ''}
+                onClick={(data: any) => handleScanTypeClick(data)}
               />
             </BarChart>
-          </ResponsiveContainer>
         </div>
       </motion.div>
 
@@ -284,8 +332,7 @@ export default function TrendCharts({
         </div>
 
         <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={weeklyTrends}>
+            <BarChart data={weeklyTrends} responsive width="100%" height="100%">
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
               <XAxis
                 dataKey="week"
@@ -301,10 +348,9 @@ export default function TrendCharts({
                 wrapperStyle={{ paddingTop: 20 }}
                 formatter={(value) => <span className="text-gray-400 text-xs">{value}</span>}
               />
-              <Bar dataKey="total" name="Generated" fill="#6b7280" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="accepted" name="Accepted" fill="#10b981" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="total" name="Generated" fill={REFLECTOR_CHART_COLORS.generated} radius={[4, 4, 0, 0]} className={onDrillDown ? 'cursor-pointer' : ''} onClick={(data: any) => handleWeekClick(data)} />
+              <Bar dataKey="accepted" name="Accepted" fill={REFLECTOR_CHART_COLORS.accepted} radius={[4, 4, 0, 0]} className={onDrillDown ? 'cursor-pointer' : ''} onClick={(data: any) => handleWeekClick(data)} />
             </BarChart>
-          </ResponsiveContainer>
         </div>
       </motion.div>
     </div>
@@ -348,7 +394,7 @@ function ComparisonCard({
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="bg-gradient-to-br from-gray-900/60 to-gray-900/40 border border-gray-800 rounded-xl p-4 backdrop-blur-sm transition-all duration-300 hover:border-gray-700/60 hover:shadow-lg hover:shadow-black/20"
+      className="bg-gradient-to-br from-gray-900/60 to-gray-900/40 border border-gray-800 rounded-xl p-6 backdrop-blur-sm transition-all duration-300 hover:border-gray-700/60 hover:shadow-lg hover:shadow-black/20"
     >
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs text-gray-500 uppercase tracking-wider">{title}</span>
@@ -381,7 +427,7 @@ function TrendTooltip({ active, payload, label }: any) {
   const data = payload[0]?.payload;
 
   return (
-    <div className="bg-gray-950/95 border border-gray-700 rounded-lg px-3 py-2 shadow-xl backdrop-blur-sm">
+    <ChartTooltip accentColor="rgba(6, 182, 212, 0.5)" glowColor="rgba(6, 182, 212, 0.15)">
       <p className="text-sm font-medium text-white mb-1">{label}</p>
       <div className="space-y-1 text-xs">
         <div className="flex items-center gap-2">
@@ -393,7 +439,7 @@ function TrendTooltip({ active, payload, label }: any) {
           {data?.accepted} of {data?.total} ideas
         </div>
       </div>
-    </div>
+    </ChartTooltip>
   );
 }
 
@@ -405,18 +451,18 @@ function EffectivenessTooltip({ active, payload }: any) {
   const data = payload[0]?.payload;
 
   return (
-    <div className="bg-gray-950/95 border border-gray-700 rounded-lg px-3 py-2 shadow-xl backdrop-blur-sm">
+    <ChartTooltip accentColor="rgba(6, 182, 212, 0.5)" glowColor="rgba(6, 182, 212, 0.15)">
       <p className="text-sm font-medium text-white mb-1">{data?.name}</p>
       <div className="space-y-1 text-xs">
         <div className="flex items-center gap-2">
           <span className="text-gray-400">Acceptance:</span>
-          <span className="text-purple-400 font-medium tabular-nums">{data?.acceptanceRate}%</span>
+          <span className="text-cyan-400 font-medium tabular-nums">{data?.acceptanceRate}%</span>
         </div>
         <div className="text-gray-500 tabular-nums">
           {data?.accepted} of {data?.total} ideas
         </div>
       </div>
-    </div>
+    </ChartTooltip>
   );
 }
 
@@ -427,7 +473,7 @@ function VolumeTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
 
   return (
-    <div className="bg-gray-950/95 border border-gray-700 rounded-lg px-3 py-2 shadow-xl">
+    <ChartTooltip accentColor="rgba(16, 185, 129, 0.4)" glowColor="rgba(16, 185, 129, 0.12)">
       <p className="text-sm font-medium text-white mb-1">{label}</p>
       <div className="space-y-1 text-xs">
         {payload.map((entry: any, index: number) => (
@@ -443,7 +489,7 @@ function VolumeTooltip({ active, payload, label }: any) {
           </div>
         ))}
       </div>
-    </div>
+    </ChartTooltip>
   );
 }
 

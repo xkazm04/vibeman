@@ -42,7 +42,7 @@ import {
 const MINI_LOG_ICON_SIZE = 'w-2.5 h-2.5';
 
 const MINI_LOG_TYPE_ICONS: Record<LogEntry['type'], { icon: typeof Bot; colorClass: string }> = {
-  user: { icon: Bot, colorClass: 'text-gray-400' }, // user type falls through to default in original
+  user: { icon: Bot, colorClass: 'text-slate-400' }, // user type falls through to default in original
   assistant: { icon: Bot, colorClass: 'text-purple-400' },
   tool_use: { icon: Wrench, colorClass: 'text-yellow-400' },
   tool_result: { icon: CheckCircle, colorClass: 'text-green-400' },
@@ -293,7 +293,7 @@ export function MiniTerminal({
     }
 
     // Default fallback
-    return <Bot className={`${MINI_LOG_ICON_SIZE} text-gray-400`} />;
+    return <Bot className={`${MINI_LOG_ICON_SIZE} text-slate-400`} />;
   };
 
   // Format log content
@@ -314,7 +314,7 @@ export function MiniTerminal({
       return (
         <span className="flex items-center gap-1 text-yellow-400">
           <Loader2 className="w-3 h-3 animate-spin" />
-          <span className="text-[10px]">Running</span>
+          <span className="text-xs">Running</span>
         </span>
       );
     }
@@ -322,7 +322,7 @@ export function MiniTerminal({
       return (
         <span className="flex items-center gap-1 text-red-400">
           <XCircle className="w-3 h-3" />
-          <span className="text-[10px]">Failed</span>
+          <span className="text-xs">Failed</span>
         </span>
       );
     }
@@ -330,7 +330,7 @@ export function MiniTerminal({
       return (
         <span className="flex items-center gap-1 text-green-400">
           <CheckCircle className="w-3 h-3" />
-          <span className="text-[10px]">Complete</span>
+          <span className="text-xs">Complete</span>
         </span>
       );
     }
@@ -338,7 +338,7 @@ export function MiniTerminal({
       return (
         <button
           onClick={startExecution}
-          className="flex items-center gap-1 px-2 py-0.5 bg-cyan-500/20 hover:bg-cyan-500/30 rounded text-cyan-400 text-[10px] transition-colors"
+          className="flex items-center gap-1 px-2 py-0.5 bg-cyan-500/20 hover:bg-cyan-500/30 rounded text-cyan-400 text-xs transition-colors"
         >
           <Terminal className="w-3 h-3" />
           Start
@@ -352,20 +352,20 @@ export function MiniTerminal({
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`bg-gray-900/80 border border-gray-700/50 rounded-lg overflow-hidden mt-2 ${className}`}
+      className={`bg-slate-900/80 border border-slate-700/50 rounded-lg overflow-hidden mt-2 ${className}`}
     >
       {/* Compact Header */}
       <div
-        className="flex items-center justify-between px-2.5 py-1.5 bg-gray-800/50 cursor-pointer hover:bg-gray-800/70 transition-colors"
+        className="flex items-center justify-between px-2.5 py-1.5 bg-slate-800/50 cursor-pointer hover:bg-slate-800/70 transition-colors"
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
         <div className="flex items-center gap-2">
           <Terminal className="w-3 h-3 text-purple-400" />
-          <span className="text-[11px] font-medium text-gray-300">
+          <span className="text-xs font-medium text-slate-300">
             {title || requirementName}
           </span>
           {sessionId && (
-            <span className="text-[9px] text-purple-400/60 font-mono">
+            <span className="text-2xs text-purple-400/60 font-mono">
               {sessionId.slice(0, 6)}
             </span>
           )}
@@ -374,7 +374,7 @@ export function MiniTerminal({
         <div className="flex items-center gap-2">
           {/* File stats */}
           {(fileStats.edits > 0 || fileStats.writes > 0) && (
-            <div className="flex items-center gap-1 text-[9px]">
+            <div className="flex items-center gap-1 text-2xs">
               {fileStats.edits > 0 && <span className="text-yellow-400">{fileStats.edits}E</span>}
               {fileStats.writes > 0 && <span className="text-green-400">{fileStats.writes}W</span>}
             </div>
@@ -383,9 +383,9 @@ export function MiniTerminal({
           <StatusIndicator />
 
           {isCollapsed ? (
-            <ChevronDown className="w-3 h-3 text-gray-500" />
+            <ChevronDown className="w-3 h-3 text-slate-500" />
           ) : (
-            <ChevronUp className="w-3 h-3 text-gray-500" />
+            <ChevronUp className="w-3 h-3 text-slate-500" />
           )}
         </div>
       </div>
@@ -401,10 +401,10 @@ export function MiniTerminal({
           >
             <div
               ref={scrollRef}
-              className="max-h-[150px] overflow-y-auto border-t border-gray-800/50"
+              className="max-h-[150px] overflow-y-auto border-t border-slate-800/50"
             >
               {logs.length === 0 ? (
-                <div className="flex items-center justify-center py-4 text-gray-600 text-[10px]">
+                <div className="flex items-center justify-center py-4 text-slate-600 text-xs">
                   {hasStarted ? 'Initializing...' : 'Click Start to begin execution'}
                 </div>
               ) : (
@@ -412,29 +412,29 @@ export function MiniTerminal({
                   {logs.map((log) => (
                     <div
                       key={log.id}
-                      className={`flex items-start gap-1.5 px-2.5 py-0.5 hover:bg-gray-800/30 ${
+                      className={`flex items-start gap-1.5 px-2.5 py-0.5 hover:bg-slate-800/30 ${
                         log.type === 'error' ? 'bg-red-500/5' : ''
                       }`}
                     >
                       <span className="flex-shrink-0 mt-0.5">
                         {getLogIcon(log.type, log.toolName)}
                       </span>
-                      <span className={`text-[10px] leading-relaxed break-all flex-1 ${
+                      <span className={`text-xs leading-relaxed break-all flex-1 ${
                         log.type === 'error' ? 'text-red-400' :
-                        log.type === 'tool_result' ? 'text-gray-500 font-mono' :
+                        log.type === 'tool_result' ? 'text-slate-500 font-mono' :
                         log.type === 'system' ? 'text-cyan-400' :
-                        'text-gray-300'
+                        'text-slate-300'
                       }`}>
                         {log.type === 'tool_use' && log.toolName ? (
                           <span className="inline-flex items-center gap-1">
-                            <span className={`inline-block px-1 py-0 rounded text-[9px] font-mono font-medium ${
+                            <span className={`inline-block px-1 py-0 rounded text-2xs font-mono font-medium ${
                               log.toolName === 'Edit' ? 'bg-yellow-500/15 text-yellow-400' :
                               log.toolName === 'Write' ? 'bg-green-500/15 text-green-400' :
                               log.toolName === 'Read' ? 'bg-blue-500/15 text-blue-400' :
                               log.toolName === 'Bash' ? 'bg-purple-500/15 text-purple-400' :
-                              'bg-gray-500/15 text-gray-400'
+                              'bg-slate-500/15 text-slate-400'
                             }`}>{log.toolName}</span>
-                            <span className="text-gray-400">{log.toolInput?.file_path ? String(log.toolInput.file_path).split(/[/\\]/).pop() : ''}</span>
+                            <span className="text-slate-400">{log.toolInput?.file_path ? String(log.toolInput.file_path).split(/[/\\]/).pop() : ''}</span>
                           </span>
                         ) : (
                           formatContent(log)
@@ -447,7 +447,7 @@ export function MiniTerminal({
 
               {/* Streaming indicator */}
               {isStreaming && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 text-purple-400 text-[10px]">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 text-purple-400 text-xs">
                   <Loader2 className="w-2.5 h-2.5 animate-spin" />
                   <span>Working...</span>
                 </div>
@@ -455,13 +455,13 @@ export function MiniTerminal({
 
               {/* Completion summary */}
               {lastResult && !isStreaming && (
-                <div className="flex items-center gap-2 px-2.5 py-1.5 border-t border-gray-800/50">
-                  <div className={`flex items-center gap-1 text-[10px] ${lastResult.isError ? 'text-red-400' : 'text-green-400'}`}>
+                <div className="flex items-center gap-2 px-2.5 py-1.5 border-t border-slate-800/50">
+                  <div className={`flex items-center gap-1 text-xs ${lastResult.isError ? 'text-red-400' : 'text-green-400'}`}>
                     {lastResult.isError ? <AlertCircle className="w-2.5 h-2.5" /> : <CheckCircle className="w-2.5 h-2.5" />}
                     <span>{lastResult.isError ? 'Failed' : 'Done'}</span>
                   </div>
                   {(fileStats.edits > 0 || fileStats.writes > 0) && (
-                    <div className="flex items-center gap-1.5 text-[9px]">
+                    <div className="flex items-center gap-1.5 text-2xs">
                       {fileStats.edits > 0 && (
                         <span className="px-1 py-0 rounded bg-yellow-500/10 text-yellow-400">{fileStats.edits} edits</span>
                       )}
@@ -476,7 +476,7 @@ export function MiniTerminal({
 
             {/* Token usage footer */}
             {lastResult?.usage && (
-              <div className="flex items-center justify-between px-2.5 py-1 border-t border-gray-800/50 text-[9px] text-gray-600">
+              <div className="flex items-center justify-between px-2.5 py-1 border-t border-slate-800/50 text-2xs text-slate-600">
                 <span>
                   {(lastResult.usage.inputTokens / 1000).toFixed(1)}k in / {(lastResult.usage.outputTokens / 1000).toFixed(1)}k out
                 </span>

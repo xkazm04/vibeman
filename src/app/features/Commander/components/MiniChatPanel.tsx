@@ -5,9 +5,9 @@
 
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot } from 'lucide-react';
+import { Bot, GitBranch } from 'lucide-react';
 import { useAnnetteStore, QuickOption } from '@/stores/annetteStore';
 import { ChatBubble, DecisionEventMarker } from './ChatBubble';
 
@@ -28,7 +28,7 @@ function QuickOptionsBar({ options }: { options: QuickOption[] }) {
         <button
           key={i}
           onClick={() => handleClick(opt)}
-          className="px-2 py-1 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-medium hover:bg-cyan-500/20 transition-colors whitespace-nowrap"
+          className="px-2 py-1 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-medium hover:bg-cyan-500/20 transition-colors whitespace-nowrap"
         >
           {opt.label}
         </button>
@@ -39,8 +39,19 @@ function QuickOptionsBar({ options }: { options: QuickOption[] }) {
 
 export default function MiniChatPanel() {
   const messages = useAnnetteStore((s) => s.messages);
+  const branches = useAnnetteStore((s) => s.branches);
   const isLoading = useAnnetteStore((s) => s.isLoading);
   const endRef = useRef<HTMLDivElement>(null);
+
+  // Track loading transitions for aria-live announcements
+  const prevLoadingRef = useRef(false);
+  const liveText = useMemo(() => {
+    const wasLoading = prevLoadingRef.current;
+    prevLoadingRef.current = isLoading;
+    if (isLoading) return 'Annette is thinking';
+    if (wasLoading && !isLoading) return 'Annette responded';
+    return '';
+  }, [isLoading]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -50,13 +61,21 @@ export default function MiniChatPanel() {
   const displayMessages = messages.slice(-20);
 
   return (
-    <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5">
+    <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5" role="log" aria-live="polite" aria-relevant="additions" aria-label="Chat messages">
       {displayMessages.length === 0 && (
         <div className="flex flex-col items-center justify-center h-full text-center py-8">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 flex items-center justify-center mb-3">
             <Bot className="w-5 h-5 text-cyan-400/60" />
           </div>
           <p className="text-slate-500 text-xs">Ask Annette anything...</p>
+        </div>
+      )}
+
+      {/* Branch count indicator */}
+      {branches.length > 0 && (
+        <div className="flex items-center gap-1.5 px-2 py-1 text-2xs text-amber-400/60">
+          <GitBranch className="w-2.5 h-2.5" />
+          <span>{branches.length} previous {branches.length === 1 ? 'attempt' : 'attempts'} saved</span>
         </div>
       )}
 
@@ -83,6 +102,8 @@ export default function MiniChatPanel() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
+          role="status"
+          aria-label="Annette is thinking"
           className="flex items-center gap-2 pl-7 mt-1"
         >
           <div className="w-5 h-5 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-cyan-500/30 flex items-center justify-center flex-shrink-0">
@@ -107,6 +128,11 @@ export default function MiniChatPanel() {
       )}
 
       <div ref={endRef} />
+
+      {/* Screen reader announcement for loading/response states */}
+      <span className="sr-only" role="status" aria-live="polite">
+        {liveText}
+      </span>
     </div>
   );
 }

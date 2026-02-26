@@ -10,6 +10,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Activity, TrendingUp, TrendingDown, Minus, GitCommit, ChevronRight } from 'lucide-react';
+import BrainPanelHeader from './BrainPanelHeader';
 import { useBrainStore } from '@/stores/brainStore';
 import SignalDetailDrawer, { type DrillDownTarget } from './SignalDetailDrawer';
 import ContextSignalDetail from './ContextSignalDetail';
@@ -113,20 +114,13 @@ export default function BehavioralFocusPanel({ isLoading, scope = 'project' }: P
     <>
       <GlowCard accentColor={ACCENT_COLOR} glowColor={GLOW_COLOR} borderColorClass="border-cyan-500/20">
         <div className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <motion.div
-              className="p-2 rounded-xl border"
-              style={{
-                backgroundColor: `${ACCENT_COLOR}15`,
-                borderColor: `${ACCENT_COLOR}40`,
-                boxShadow: `0 0 20px ${GLOW_COLOR}`
-              }}
-              whileHover={{ scale: 1.05 }}
-            >
-              <Activity className="w-5 h-5" style={{ color: ACCENT_COLOR }} />
-            </motion.div>
-            <h2 className="text-lg font-semibold text-zinc-200">Current Focus</h2>
-          </div>
+          <BrainPanelHeader
+            icon={Activity}
+            title="Current Focus"
+            accentColor={ACCENT_COLOR}
+            glowColor={GLOW_COLOR}
+            glow
+          />
 
           {/* Active Contexts */}
           {currentFocus.activeContexts.length > 0 && (
@@ -137,7 +131,8 @@ export default function BehavioralFocusPanel({ isLoading, scope = 'project' }: P
                   <button
                     key={ctx.id}
                     onClick={() => setDrillTarget({ type: 'context', id: ctx.id, name: ctx.name })}
-                    className="w-full flex items-center justify-between p-3 rounded-xl transition-all group cursor-pointer text-left"
+                    aria-label={`View details for ${ctx.name}`}
+                    className="w-full flex items-center justify-between p-3 rounded-xl transition-all group cursor-pointer text-left focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none"
                     style={{
                       background: 'rgba(6, 182, 212, 0.05)',
                       border: '1px solid rgba(6, 182, 212, 0.15)'
@@ -179,12 +174,13 @@ export default function BehavioralFocusPanel({ isLoading, scope = 'project' }: P
                   <button
                     key={i}
                     onClick={() => setDrillTarget({ type: 'theme', theme })}
-                    className="px-3 py-1.5 text-xs rounded-lg truncate max-w-[200px] transition-all cursor-pointer font-mono"
+                    className="px-3 py-1.5 text-xs rounded-lg truncate max-w-[200px] transition-all cursor-pointer font-mono focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none"
                     style={{
                       background: 'rgba(168, 85, 247, 0.1)',
                       border: '1px solid rgba(168, 85, 247, 0.2)',
                       color: '#c084fc'
                     }}
+                    aria-label={`View commits for theme: ${theme}`}
                     title={`Click to view commits: ${theme}`}
                   >
                     {theme}
@@ -203,7 +199,8 @@ export default function BehavioralFocusPanel({ isLoading, scope = 'project' }: P
                   <button
                     key={i}
                     onClick={() => setDrillTarget({ type: 'endpoint', path: endpoint.path, trend: endpoint.trend, changePercent: endpoint.changePercent })}
-                    className="w-full flex items-center justify-between p-3 rounded-xl transition-all group cursor-pointer text-left"
+                    aria-label={`View details for endpoint ${endpoint.path}, trend ${endpoint.trend} ${endpoint.changePercent}%`}
+                    className="w-full flex items-center justify-between p-3 rounded-xl transition-all group cursor-pointer text-left focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none"
                     style={{
                       background: 'rgba(6, 182, 212, 0.03)',
                       border: '1px solid rgba(6, 182, 212, 0.1)'
@@ -265,19 +262,21 @@ export default function BehavioralFocusPanel({ isLoading, scope = 'project' }: P
 function FreshnessBadge({ score }: { score: number }) {
   // Score ranges: 0-1 = stale, 1-3 = moderate, 3+ = fresh
   const config = score >= 3
-    ? { color: '#10b981', glow: 'rgba(16, 185, 129, 0.5)', title: 'Fresh (high activity)' }
+    ? { color: '#10b981', glow: 'rgba(16, 185, 129, 0.5)', label: 'Fresh (high activity)' }
     : score >= 1
-    ? { color: '#f59e0b', glow: 'rgba(245, 158, 11, 0.5)', title: 'Moderate activity' }
-    : { color: '#71717a', glow: 'none', title: 'Stale (low activity)' };
+    ? { color: '#f59e0b', glow: 'rgba(245, 158, 11, 0.5)', label: 'Moderate activity' }
+    : { color: '#71717a', glow: 'none', label: 'Stale (low activity)' };
 
   return (
     <span
       className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+      role="img"
+      aria-label={config.label}
       style={{
         backgroundColor: config.color,
         boxShadow: config.glow !== 'none' ? `0 0 8px ${config.glow}` : undefined
       }}
-      title={config.title}
+      title={config.label}
     />
   );
 }

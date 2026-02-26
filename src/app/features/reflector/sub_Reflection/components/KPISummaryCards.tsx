@@ -18,6 +18,7 @@ import {
   getGlowColor,
   ConfettiParticle,
 } from '../lib/kpiAnimations';
+import ReflectorKPICard from '../../components/ReflectorKPICard';
 
 export type KPIFilterType = 'all' | 'pending' | 'accepted' | 'implemented';
 
@@ -31,17 +32,23 @@ interface KPICardData {
   label: string;
   value: string | number;
   icon: React.ComponentType<{ className?: string }>;
-  color: string;
-  borderColor: string;
-  bgGradient: string;
+  accentColor: string;
   description: string;
   colorKey: 'blue' | 'green' | 'purple' | 'amber';
   filterType: KPIFilterType;
 }
 
+// Accent color hex values matching the Tailwind color palette
+const ACCENT_COLORS = {
+  blue: '#60a5fa',
+  green: '#4ade80',
+  purple: '#c084fc',
+  amber: '#fbbf24',
+} as const;
+
 interface AnimatedValueProps {
   value: string | number;
-  colorClass: string;
+  accentColor: string;
   colorKey: 'blue' | 'green' | 'purple' | 'amber';
   config: KPIAnimationConfig;
   reducedMotion: boolean;
@@ -50,7 +57,7 @@ interface AnimatedValueProps {
 /**
  * Animated value display with spring transition and pulse effects
  */
-function AnimatedValue({ value, colorClass, colorKey, config, reducedMotion }: AnimatedValueProps) {
+function AnimatedValue({ value, accentColor, colorKey, config, reducedMotion }: AnimatedValueProps) {
   const prevValueRef = useRef<number>(parseDisplayValue(value));
   const [isAnimating, setIsAnimating] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -63,11 +70,9 @@ function AnimatedValue({ value, colorClass, colorKey, config, reducedMotion }: A
 
     const prevValue = prevValueRef.current;
 
-    // Check for value change
     if (prevValue !== currentNumeric) {
       setIsAnimating(true);
 
-      // Check for threshold crossing (confetti trigger)
       if (
         config.confettiEnabled &&
         crossedThreshold(prevValue, currentNumeric, config.confettiThreshold)
@@ -78,22 +83,22 @@ function AnimatedValue({ value, colorClass, colorKey, config, reducedMotion }: A
         );
         setConfettiParticles(particles);
         setShowConfetti(true);
-
-        // Clear confetti after animation
         setTimeout(() => setShowConfetti(false), 1000);
       }
 
-      // Reset animation state
       setTimeout(() => setIsAnimating(false), 400);
     }
 
     prevValueRef.current = currentNumeric;
   }, [currentNumeric, config, colorKey, reducedMotion]);
 
-  // For reduced motion, just show the value without animation
   if (reducedMotion || !config.enabled) {
     return (
-      <div className={`text-3xl font-bold ${colorClass} font-mono`} data-testid="kpi-value">
+      <div
+        className="text-4xl font-bold font-mono tracking-tight"
+        style={{ color: accentColor }}
+        data-testid="kpi-value"
+      >
         {value}
       </div>
     );
@@ -101,7 +106,6 @@ function AnimatedValue({ value, colorClass, colorKey, config, reducedMotion }: A
 
   return (
     <div className="relative" data-testid="kpi-value-animated">
-      {/* Confetti particles */}
       <AnimatePresence>
         {showConfetti && (
           <div className="absolute inset-0 overflow-visible pointer-events-none">
@@ -126,9 +130,9 @@ function AnimatedValue({ value, colorClass, colorKey, config, reducedMotion }: A
         )}
       </AnimatePresence>
 
-      {/* Animated value */}
       <motion.div
-        className={`text-3xl font-bold ${colorClass} font-mono`}
+        className="text-4xl font-bold font-mono tracking-tight"
+        style={{ color: accentColor }}
         animate={isAnimating ? 'bounce' : 'initial'}
         variants={valueChangeVariants}
         transition={getSpringTransition(config)}
@@ -141,9 +145,9 @@ function AnimatedValue({ value, colorClass, colorKey, config, reducedMotion }: A
 }
 
 /**
- * Individual KPI Card with animations
+ * Individual KPI Card wrapper preserving glow-pulse animation on threshold crossing
  */
-interface AnimatedKPICardProps {
+interface AnimatedKPICardWrapperProps {
   kpi: KPICardData;
   index: number;
   config: KPIAnimationConfig;
@@ -151,8 +155,7 @@ interface AnimatedKPICardProps {
   onClick?: () => void;
 }
 
-function AnimatedKPICard({ kpi, index, config, reducedMotion, onClick }: AnimatedKPICardProps) {
-  const Icon = kpi.icon;
+function AnimatedKPICardWrapper({ kpi, index, config, reducedMotion, onClick }: AnimatedKPICardWrapperProps) {
   const prevValueRef = useRef<number>(parseDisplayValue(kpi.value));
   const [showGlow, setShowGlow] = useState(false);
 
@@ -163,7 +166,6 @@ function AnimatedKPICard({ kpi, index, config, reducedMotion, onClick }: Animate
 
     const prevValue = prevValueRef.current;
 
-    // Check for significant value increase (>10% relative change or threshold crossing)
     if (prevValue > 0) {
       const percentChange = ((currentNumeric - prevValue) / prevValue) * 100;
       if (percentChange > 10 || crossedThreshold(prevValue, currentNumeric, config.confettiThreshold)) {
@@ -175,32 +177,13 @@ function AnimatedKPICard({ kpi, index, config, reducedMotion, onClick }: Animate
     prevValueRef.current = currentNumeric;
   }, [currentNumeric, config, reducedMotion]);
 
-  // Determine animation properties based on reduced motion preference
-  const animationProps = reducedMotion
-    ? {}
-    : {
-        initial: { scale: 0.9, opacity: 0, y: 20 },
-        animate: { scale: 1, opacity: 1, y: 0 },
-        transition: { delay: index * 0.05, duration: 0.3 },
-        whileHover: { scale: 1.02, y: -2 },
-      };
-
   return (
-    <motion.div
-      key={kpi.label}
-      {...animationProps}
-      onClick={onClick}
-      className={`relative bg-gradient-to-br ${kpi.bgGradient} border ${kpi.borderColor} rounded-lg p-4 backdrop-blur-sm overflow-hidden group ${onClick ? 'cursor-pointer' : ''}`}
-      data-testid={`kpi-card-${kpi.colorKey}`}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
-    >
+    <div className="relative">
       {/* Glow pulse overlay for threshold crossing */}
       <AnimatePresence>
         {showGlow && !reducedMotion && config.enabled && (
           <motion.div
-            className="absolute inset-0 rounded-lg pointer-events-none"
+            className="absolute inset-0 rounded-2xl pointer-events-none z-20"
             initial="initial"
             animate="pulse"
             exit="initial"
@@ -211,38 +194,25 @@ function AnimatedKPICard({ kpi, index, config, reducedMotion, onClick }: Animate
         )}
       </AnimatePresence>
 
-      {/* Background decoration */}
-      <div
-        className={`absolute -top-8 -right-8 w-24 h-24 ${kpi.color} opacity-5 rounded-full blur-2xl group-hover:opacity-10 transition-opacity`}
+      <ReflectorKPICard
+        title={kpi.label}
+        value={
+          <AnimatedValue
+            value={kpi.value}
+            accentColor={kpi.accentColor}
+            colorKey={kpi.colorKey}
+            config={config}
+            reducedMotion={reducedMotion}
+          />
+        }
+        subtitle={kpi.description}
+        icon={kpi.icon}
+        accentColor={kpi.accentColor}
+        delay={index * 0.05}
+        onClick={onClick}
+        data-testid={`kpi-card-${kpi.colorKey}`}
       />
-
-      {/* Content */}
-      <div className="relative">
-        {/* Icon and Label */}
-        <div className="flex items-center gap-2 mb-3">
-          <div
-            className={`p-2 bg-gray-900/60 rounded-lg border ${kpi.borderColor} flex-shrink-0`}
-          >
-            <Icon className={`w-4 h-4 ${kpi.color}`} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold text-gray-300 truncate">
-              {kpi.label}
-            </h3>
-            <p className="text-xs text-gray-500 truncate">{kpi.description}</p>
-          </div>
-        </div>
-
-        {/* Animated Value Display */}
-        <AnimatedValue
-          value={kpi.value}
-          colorClass={kpi.color}
-          colorKey={kpi.colorKey}
-          config={config}
-          reducedMotion={reducedMotion}
-        />
-      </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -251,11 +221,9 @@ export default function KPISummaryCards({
   animationConfig = {},
   onFilterClick,
 }: KPISummaryCardsProps) {
-  // Check for reduced motion preference
   const prefersReducedMotion = useReducedMotion();
   const reducedMotion = prefersReducedMotion ?? false;
 
-  // Merge config with defaults
   const config: KPIAnimationConfig = useMemo(
     () => ({
       ...defaultAnimationConfig,
@@ -264,11 +232,8 @@ export default function KPISummaryCards({
     [animationConfig]
   );
 
-  // Calculate average impact across all scan types
   const calculateAverageImpact = useCallback((): number => {
     if (stats.scanTypes.length === 0) return 0;
-
-    // Assuming impact is based on acceptance ratio
     const totalImpact = stats.scanTypes.reduce(
       (sum, scan) => sum + scan.acceptanceRatio,
       0
@@ -282,9 +247,7 @@ export default function KPISummaryCards({
         label: 'Total Reflections',
         value: stats.overall.total,
         icon: FileText,
-        color: 'text-blue-400',
-        borderColor: 'border-blue-500/40',
-        bgGradient: 'from-blue-500/5 to-blue-600/2',
+        accentColor: ACCENT_COLORS.blue,
         description: 'All ideas generated',
         colorKey: 'blue' as const,
         filterType: 'all' as const,
@@ -293,9 +256,7 @@ export default function KPISummaryCards({
         label: 'Acceptance Rate',
         value: `${stats.overall.acceptanceRatio}%`,
         icon: CheckCircle,
-        color: 'text-green-400',
-        borderColor: 'border-green-500/40',
-        bgGradient: 'from-green-500/5 to-green-600/2',
+        accentColor: ACCENT_COLORS.green,
         description: 'Accepted & implemented',
         colorKey: 'green' as const,
         filterType: 'accepted' as const,
@@ -304,9 +265,7 @@ export default function KPISummaryCards({
         label: 'Average Impact',
         value: `${calculateAverageImpact()}%`,
         icon: TrendingUp,
-        color: 'text-purple-400',
-        borderColor: 'border-purple-500/40',
-        bgGradient: 'from-purple-500/5 to-purple-600/2',
+        accentColor: ACCENT_COLORS.purple,
         description: 'Mean specialist performance',
         colorKey: 'purple' as const,
         filterType: 'implemented' as const,
@@ -315,9 +274,7 @@ export default function KPISummaryCards({
         label: 'Active Specialists',
         value: stats.scanTypes.length,
         icon: Target,
-        color: 'text-amber-400',
-        borderColor: 'border-amber-500/40',
-        bgGradient: 'from-amber-500/5 to-amber-600/2',
+        accentColor: ACCENT_COLORS.amber,
         description: 'Scan types with ideas',
         colorKey: 'amber' as const,
         filterType: 'pending' as const,
@@ -332,7 +289,7 @@ export default function KPISummaryCards({
       data-testid="kpi-summary-cards"
     >
       {kpiCards.map((kpi, index) => (
-        <AnimatedKPICard
+        <AnimatedKPICardWrapper
           key={kpi.label}
           kpi={kpi}
           index={index}

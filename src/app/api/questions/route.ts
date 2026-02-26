@@ -56,12 +56,14 @@ async function handleGet(request: NextRequest) {
     }
 
     const counts = questionDb.getQuestionCounts(projectId);
+    const maxTreeDepth = questionDb.getMaxTreeDepth(projectId);
 
     return NextResponse.json({
       success: true,
       questions,
       grouped: Object.values(grouped),
-      counts
+      counts,
+      maxTreeDepth,
     });
 
   } catch (error) {
@@ -95,6 +97,23 @@ async function handlePost(request: NextRequest) {
     // Create the question
     const id = body.id || `question_${uuidv4()}`;
 
+    // Check for duplicate ID when caller supplies one
+    if (body.id && questionDb.getQuestionById(body.id)) {
+      return NextResponse.json(
+        { error: `Question with ID '${body.id}' already exists`, code: 'DUPLICATE_ID' },
+        { status: 409 }
+      );
+    }
+
+    // Resolve tree depth from parent if parent_id is provided
+    let treeDepth = body.tree_depth ?? 0;
+    if (body.parent_id && !body.tree_depth) {
+      const parent = questionDb.getQuestionById(body.parent_id);
+      if (parent) {
+        treeDepth = (parent.tree_depth ?? 0) + 1;
+      }
+    }
+
     const createdQuestion = questionDb.createQuestion({
       id,
       project_id,
@@ -103,7 +122,9 @@ async function handlePost(request: NextRequest) {
       question,
       answer: body.answer || null,
       status: body.status || 'pending',
-      goal_id: body.goal_id || null
+      goal_id: body.goal_id || null,
+      parent_id: body.parent_id || null,
+      tree_depth: treeDepth,
     });
 
     logger.info('[API] Question created:', { id: createdQuestion.id, context_map_id });

@@ -9,59 +9,58 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
-  Cell,
 } from 'recharts';
-import { Calendar, TrendingUp } from 'lucide-react';
+import { Calendar, TrendingUp, MousePointerClick } from 'lucide-react';
 import { DailyStats } from '../lib/types';
+import { REFLECTOR_CHART_COLORS } from '../../lib/chartColors';
+import ChartTooltip from '../../components/ChartTooltip';
+
+export interface DailyBarClickData {
+  dayName: string;
+  date: string;
+  status: 'accepted' | 'rejected' | 'pending';
+  count: number;
+  acceptanceRate: number;
+}
 
 interface DailyActivityChartProps {
   dailyBreakdown: DailyStats[];
+  /** Called when a bar segment is clicked */
+  onBarClick?: (data: DailyBarClickData) => void;
 }
 
-// Vibrant color palette with gradients
+// Vibrant color palette with gradients — derived from semantic tokens
 const COLORS = {
   accepted: {
-    primary: '#10b981',
-    gradient: ['#10b981', '#059669'],
+    primary: REFLECTOR_CHART_COLORS.accepted,
+    gradient: [REFLECTOR_CHART_COLORS.accepted, '#059669'],
     glow: 'rgba(16, 185, 129, 0.4)',
   },
   rejected: {
-    primary: '#ef4444',
+    primary: REFLECTOR_CHART_COLORS.rejected,
     gradient: ['#f87171', '#dc2626'],
     glow: 'rgba(239, 68, 68, 0.3)',
   },
   pending: {
-    primary: '#f59e0b',
-    gradient: ['#fbbf24', '#d97706'],
-    glow: 'rgba(245, 158, 11, 0.3)',
+    primary: REFLECTOR_CHART_COLORS.pending,
+    gradient: ['#c084fc', '#7c3aed'],
+    glow: 'rgba(168, 85, 247, 0.3)',
   },
 };
 
 // Custom tooltip with glass morphism
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload }: any) => {
   if (!active || !payload?.length) return null;
-  
+
   const data = payload[0]?.payload;
-  
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 5, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      className="relative bg-gray-950/95 backdrop-blur-xl border border-cyan-500/30 rounded-xl px-4 py-3 shadow-2xl"
-      style={{ boxShadow: '0 0 30px rgba(6, 182, 212, 0.15)' }}
-    >
-      {/* Corner markers */}
-      <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-cyan-500/50 rounded-tl" />
-      <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-cyan-500/50 rounded-tr" />
-      <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-cyan-500/50 rounded-bl" />
-      <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-cyan-500/50 rounded-br" />
-      
+    <ChartTooltip accentColor="rgba(6, 182, 212, 0.5)" glowColor="rgba(6, 182, 212, 0.15)">
       <div className="flex items-center gap-2 mb-2">
         <Calendar className="w-3.5 h-3.5 text-cyan-400" />
         <p className="text-sm font-semibold text-white">{data?.fullName}</p>
       </div>
-      
+
       <div className="space-y-1.5">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -79,36 +78,49 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         </div>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-sm bg-gradient-to-b from-amber-400 to-amber-600" />
+            <div className="w-2.5 h-2.5 rounded-sm bg-gradient-to-b from-purple-400 to-purple-600" />
             <span className="text-xs text-gray-400">Pending</span>
           </div>
-          <span className="text-xs font-mono text-amber-400">{data?.pending}</span>
+          <span className="text-xs font-mono text-purple-400">{data?.pending}</span>
         </div>
       </div>
-      
+
       <div className="mt-2 pt-2 border-t border-gray-700/50 flex items-center justify-between">
         <span className="text-xs text-gray-500">Acceptance Rate</span>
         <span className={`text-sm font-mono font-bold ${
-          data?.acceptanceRate >= 70 ? 'text-emerald-400' : 
+          data?.acceptanceRate >= 70 ? 'text-emerald-400' :
           data?.acceptanceRate >= 40 ? 'text-amber-400' : 'text-red-400'
         }`}>
           {data?.acceptanceRate}%
         </span>
       </div>
-    </motion.div>
+    </ChartTooltip>
   );
 };
 
-export default function DailyActivityChart({ dailyBreakdown }: DailyActivityChartProps) {
+export default function DailyActivityChart({ dailyBreakdown, onBarClick }: DailyActivityChartProps) {
   const chartData = dailyBreakdown.map(day => ({
     name: day.dayName.substring(0, 3),
     fullName: day.dayName,
+    date: day.date,
     total: day.total,
     accepted: day.accepted + day.implemented,
     rejected: day.rejected,
     pending: day.total - day.accepted - day.rejected - day.implemented,
     acceptanceRate: day.acceptanceRate,
   }));
+
+  const handleBarClick = (data: any, dataKey: string) => {
+    if (!onBarClick || !data) return;
+    const status = dataKey as 'accepted' | 'rejected' | 'pending';
+    onBarClick({
+      dayName: data.fullName,
+      date: data.date,
+      status,
+      count: data[status] || 0,
+      acceptanceRate: data.acceptanceRate,
+    });
+  };
 
   const maxValue = Math.max(...chartData.map(d => d.total), 1);
   const totalIdeas = chartData.reduce((sum, d) => sum + d.total, 0);
@@ -142,6 +154,12 @@ export default function DailyActivityChart({ dailyBreakdown }: DailyActivityChar
         
         {/* Stats badges */}
         <div className="flex items-center gap-3">
+          {onBarClick && (
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-cyan-500/20 bg-cyan-500/5">
+              <MousePointerClick className="w-3 h-3 text-cyan-500/60" />
+              <span className="text-[9px] font-mono text-cyan-500/60">CLICK_TO_DRILL</span>
+            </div>
+          )}
           <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/60 rounded-lg border border-gray-700/50">
             <span className="text-xs font-mono text-gray-500">TOTAL:</span>
             <span className="text-sm font-mono font-bold text-cyan-400">{totalIdeas}</span>
@@ -156,10 +174,12 @@ export default function DailyActivityChart({ dailyBreakdown }: DailyActivityChar
 
       {/* Chart */}
       <div className="relative z-10 h-72">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
+        <BarChart
             data={chartData}
             margin={{ top: 10, right: 10, left: -10, bottom: 5 }}
+            responsive
+            width="100%"
+            height="100%"
           >
             <defs>
               {/* Gradient definitions */}
@@ -172,8 +192,8 @@ export default function DailyActivityChart({ dailyBreakdown }: DailyActivityChar
                 <stop offset="100%" stopColor="#dc2626" stopOpacity={0.75} />
               </linearGradient>
               <linearGradient id="pendingGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#fcd34d" stopOpacity={0.9} />
-                <stop offset="100%" stopColor="#d97706" stopOpacity={0.75} />
+                <stop offset="0%" stopColor="#c084fc" stopOpacity={0.9} />
+                <stop offset="100%" stopColor="#7c3aed" stopOpacity={0.75} />
               </linearGradient>
               
               {/* Glow filters */}
@@ -208,30 +228,35 @@ export default function DailyActivityChart({ dailyBreakdown }: DailyActivityChar
               content={<CustomTooltip />} 
               cursor={{ fill: 'rgba(6, 182, 212, 0.03)' }} 
             />
-            <Bar 
-              dataKey="accepted" 
-              stackId="a" 
+            <Bar
+              dataKey="accepted"
+              stackId="a"
               fill="url(#acceptedGradient)"
-              stroke="#10b981"
+              stroke={REFLECTOR_CHART_COLORS.accepted}
               strokeWidth={0.5}
+              className={onBarClick ? 'cursor-pointer' : ''}
+              onClick={(data: any) => handleBarClick(data, 'accepted')}
             />
-            <Bar 
-              dataKey="rejected" 
-              stackId="a" 
+            <Bar
+              dataKey="rejected"
+              stackId="a"
               fill="url(#rejectedGradient)"
-              stroke="#ef4444"
+              stroke={REFLECTOR_CHART_COLORS.rejected}
               strokeWidth={0.5}
+              className={onBarClick ? 'cursor-pointer' : ''}
+              onClick={(data: any) => handleBarClick(data, 'rejected')}
             />
-            <Bar 
-              dataKey="pending" 
-              stackId="a" 
+            <Bar
+              dataKey="pending"
+              stackId="a"
               fill="url(#pendingGradient)"
-              stroke="#f59e0b"
+              stroke={REFLECTOR_CHART_COLORS.pending}
               strokeWidth={0.5}
               radius={[4, 4, 0, 0]}
+              className={onBarClick ? 'cursor-pointer' : ''}
+              onClick={(data: any) => handleBarClick(data, 'pending')}
             />
           </BarChart>
-        </ResponsiveContainer>
       </div>
 
       {/* Day stats footer */}
@@ -273,7 +298,7 @@ export default function DailyActivityChart({ dailyBreakdown }: DailyActivityChar
           <span className="text-xs font-mono text-gray-500">REJECTED</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-sm bg-gradient-to-b from-amber-400 to-amber-600 shadow-[0_0_6px_rgba(245,158,11,0.4)]" />
+          <div className="w-3 h-3 rounded-sm bg-gradient-to-b from-purple-400 to-purple-600 shadow-[0_0_6px_rgba(168,85,247,0.4)]" />
           <span className="text-xs font-mono text-gray-500">PENDING</span>
         </div>
       </div>

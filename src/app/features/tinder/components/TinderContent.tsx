@@ -2,24 +2,28 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Sparkles, Trash2, RefreshCw } from 'lucide-react';
+import { Sparkles, Trash2, RefreshCw } from 'lucide-react';
+import IdeasLoadingState from '@/app/features/Ideas/components/IdeasLoadingState';
 import { DbIdea } from '@/app/db';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
 import { GradientButton } from '@/components/ui';
 import IdeaCard from './IdeaCard';
 import ActionButtons from './TinderButtons';
+import VariantCarousel from './VariantCarousel';
 import SwipeProgress from './SwipeProgress';
 import { KeyboardHintCompact } from '@/components/ui/KeyboardHintBar';
 import { TINDER_CONSTANTS, TINDER_ANIMATIONS } from '../lib/tinderUtils';
 import { Context } from '@/lib/queries/contextQueries';
 import { getContextNameFromMap } from '@/app/features/Ideas/lib/contextLoader';
+import type { IdeaVariant } from '../lib/variantApi';
 
 // Tinder keyboard hints
 const TINDER_KEYBOARD_HINTS = [
   { key: 'A', label: 'Accept', color: 'green' as const },
   { key: 'Z', label: 'Reject', color: 'red' as const },
   { key: 'D', label: 'Delete', color: 'gray' as const },
+  { key: 'V', label: 'Variants', color: 'purple' as const },
 ];
 
 interface TinderContentProps {
@@ -34,6 +38,8 @@ interface TinderContentProps {
   onStartOver: () => void;
   onFlushComplete?: () => void;
   contextsMap?: Record<string, Context[]>;
+  /** Called when user accepts a specific variant (updates idea then accepts) */
+  onAcceptVariant?: (ideaId: string, variant: IdeaVariant) => Promise<void>;
 }
 
 export default function TinderContent({
@@ -48,25 +54,56 @@ export default function TinderContent({
   onStartOver,
   onFlushComplete,
   contextsMap = {},
+  onAcceptVariant,
 }: TinderContentProps) {
   const { getProject, projects } = useProjectConfigStore();
   const { selectedProjectId } = useUnifiedProjectStore();
   const [flushing, setFlushing] = React.useState(false);
   const [flushError, setFlushError] = React.useState<string | null>(null);
   const [flushSuccess, setFlushSuccess] = React.useState(false);
+  const [showFlushConfirm, setShowFlushConfirm] = React.useState(false);
+  const [showVariants, setShowVariants] = React.useState(false);
 
-  const handleFlush = async () => {
-    // Confirmation dialog
-    const projectName = selectedProjectId === 'all'
-      ? 'all projects'
-      : projects.find(p => p.id === selectedProjectId)?.name || 'this project';
+  // Reset variant view when idea changes
+  React.useEffect(() => {
+    setShowVariants(false);
+  }, [currentIdea?.id]);
 
-    const confirmed = window.confirm(
-      `Are you sure you want to permanently delete all ideas from ${projectName}?\n\nThis action cannot be undone.`
-    );
+  // Keyboard shortcut for 'V' to toggle variants
+  React.useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+      if (e.key === 'v' || e.key === 'V') {
+        if (!showVariants && currentIdea && !processing) {
+          e.preventDefault();
+          setShowVariants(true);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [showVariants, currentIdea, processing]);
 
-    if (!confirmed) return;
+  const handleSelectVariant = React.useCallback(async (variant: IdeaVariant) => {
+    if (!currentIdea || !onAcceptVariant) return;
+    setShowVariants(false);
+    await onAcceptVariant(currentIdea.id, variant);
+  }, [currentIdea, onAcceptVariant]);
 
+  const flushProjectName = selectedProjectId === 'all'
+    ? 'all projects'
+    : projects.find(p => p.id === selectedProjectId)?.name || 'this project';
+
+  const handleFlushClick = () => {
+    setShowFlushConfirm(true);
+  };
+
+  const handleFlushCancel = () => {
+    setShowFlushConfirm(false);
+  };
+
+  const handleFlushConfirm = async () => {
+    setShowFlushConfirm(false);
     try {
       setFlushing(true);
       setFlushError(null);
@@ -109,8 +146,7 @@ export default function TinderContent({
     return (
       <div className="max-w-2xl mx-auto px-6 py-12">
         <div className="flex flex-col items-center justify-center h-[600px]">
-          <Loader2 className="w-12 h-12 text-purple-400 animate-spin mb-4" />
-          <p className="text-gray-400">Loading ideas...</p>
+          <IdeasLoadingState size="lg" label="Loading ideas..." />
         </div>
       </div>
     );
@@ -142,42 +178,73 @@ export default function TinderContent({
     <div className="max-w-2xl mx-auto px-6 py-8 relative">
       {/* Flush Button - Top Right */}
       <div className="absolute top-4 right-6 z-50">
-        <motion.button
-          onClick={handleFlush}
-          disabled={flushing || loading || processing}
-          className={`p-2.5 rounded-lg border transition-all duration-200 ${
-            flushing
-              ? 'bg-gray-700/50 border-gray-600/50 cursor-not-allowed'
-              : flushSuccess
-              ? 'bg-green-500/20 border-green-500/40 text-green-400'
-              : flushError
-              ? 'bg-red-500/20 border-red-500/40 text-red-400'
-              : 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20 hover:border-red-500/50 text-red-400'
-          }`}
-          whileHover={flushing ? {} : { scale: 1.05 }}
-          whileTap={flushing ? {} : { scale: 0.95, rotate: -5 }}
-          title={
-            flushing
-              ? 'Flushing ideas...'
-              : flushSuccess
-              ? 'Ideas flushed!'
-              : flushError
-              ? flushError
-              : 'Flush all ideas (permanent delete)'
-          }
-          data-testid="flush-ideas-btn"
-        >
-          {flushing ? (
+        <AnimatePresence mode="wait">
+          {showFlushConfirm ? (
             <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+              key="flush-confirm"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 shadow-lg backdrop-blur-sm"
             >
-              <RefreshCw className="w-4 h-4" />
+              <p className="text-xs text-red-300 mb-2 max-w-[200px]">
+                Delete all ideas from {flushProjectName}? This cannot be undone.
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleFlushConfirm}
+                  className="px-2.5 py-1 text-xs font-medium bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 rounded text-red-300 transition-colors"
+                >
+                  Confirm
+                </button>
+                <button
+                  onClick={handleFlushCancel}
+                  className="px-2.5 py-1 text-xs font-medium bg-gray-700/50 hover:bg-gray-700/70 border border-gray-600/40 rounded text-gray-400 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </motion.div>
           ) : (
-            <Trash2 className="w-4 h-4" />
+            <motion.button
+              key="flush-btn"
+              onClick={handleFlushClick}
+              disabled={flushing || loading || processing}
+              className={`p-2.5 rounded-lg border transition-all duration-200 ${
+                flushing
+                  ? 'bg-gray-700/50 border-gray-600/50 cursor-not-allowed'
+                  : flushSuccess
+                  ? 'bg-green-500/20 border-green-500/40 text-green-400'
+                  : flushError
+                  ? 'bg-red-500/20 border-red-500/40 text-red-400'
+                  : 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20 hover:border-red-500/50 text-red-400'
+              }`}
+              whileHover={flushing ? {} : { scale: 1.05 }}
+              whileTap={flushing ? {} : { scale: 0.95, rotate: -5 }}
+              title={
+                flushing
+                  ? 'Flushing ideas...'
+                  : flushSuccess
+                  ? 'Ideas flushed!'
+                  : flushError
+                  ? flushError
+                  : 'Flush all ideas (permanent delete)'
+              }
+              data-testid="flush-ideas-btn"
+            >
+              {flushing ? (
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </motion.div>
+              ) : (
+                <Trash2 className="w-4 h-4" />
+              )}
+            </motion.button>
           )}
-        </motion.button>
+        </AnimatePresence>
 
         {/* Error/Success Tooltip */}
         {(flushError || flushSuccess) && (
@@ -196,40 +263,72 @@ export default function TinderContent({
         )}
       </div>
 
-      {/* Card Stack */}
-      <div className="relative h-[600px]">
-        <AnimatePresence>
-          {ideas.slice(currentIndex, currentIndex + TINDER_CONSTANTS.PREVIEW_CARDS).map((idea, index) => {
-            const projectName = getProject(idea.project_id)?.name || 'Unknown Project';
-            const contextName = idea.context_id
-              ? getContextNameFromMap(idea.context_id, contextsMap)
-              : 'General';
+      {/* Card Stack or Variant Carousel */}
+      <AnimatePresence mode="wait">
+        {showVariants && currentIdea ? (
+          <motion.div
+            key="variants"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="min-h-[600px] flex flex-col justify-center"
+          >
+            <div className="mb-4 text-center">
+              <h3 className="text-sm font-semibold text-gray-300 mb-1">
+                Scope Variants for
+              </h3>
+              <p className="text-lg font-bold text-white truncate px-8">
+                {currentIdea.title}
+              </p>
+            </div>
+            <VariantCarousel
+              ideaId={currentIdea.id}
+              ideaCategory={currentIdea.category}
+              onSelectVariant={handleSelectVariant}
+              onClose={() => setShowVariants(false)}
+            />
+          </motion.div>
+        ) : (
+          <motion.div key="cards">
+            <div className="relative h-[600px]">
+              <AnimatePresence>
+                {ideas.slice(currentIndex, currentIndex + TINDER_CONSTANTS.PREVIEW_CARDS).map((idea, index) => {
+                  const projectName = getProject(idea.project_id)?.name || 'Unknown Project';
+                  const contextName = idea.context_id
+                    ? getContextNameFromMap(idea.context_id, contextsMap)
+                    : 'General';
 
-            return (
-              <IdeaCard
-                key={idea.id}
-                idea={idea}
-                projectName={projectName}
-                contextName={contextName}
-                onSwipeLeft={index === 0 ? onReject : () => {}}
-                onSwipeRight={index === 0 ? onAccept : () => {}}
-                style={{
-                  zIndex: 10 - index,
-                  ...TINDER_ANIMATIONS.CARD_STACK_TRANSFORM(index),
-                }}
-              />
-            );
-          })}
-        </AnimatePresence>
-      </div>
+                  return (
+                    <IdeaCard
+                      key={idea.id}
+                      idea={idea}
+                      projectName={projectName}
+                      contextName={contextName}
+                      onSwipeLeft={index === 0 ? onReject : () => {}}
+                      onSwipeRight={index === 0 ? onAccept : () => {}}
+                      style={{
+                        zIndex: 10 - index,
+                        ...TINDER_ANIMATIONS.CARD_STACK_TRANSFORM(index),
+                      }}
+                    />
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Action Buttons */}
-      <ActionButtons
-        onReject={onReject}
-        onDelete={onDelete}
-        onAccept={onAccept}
-        disabled={processing}
-      />
+      {!showVariants && (
+        <ActionButtons
+          onReject={onReject}
+          onDelete={onDelete}
+          onAccept={onAccept}
+          disabled={processing}
+          onVariants={onAcceptVariant ? () => setShowVariants(true) : undefined}
+        />
+      )}
 
       {/* Keyboard Hints */}
       <div className="mt-4 flex justify-center">

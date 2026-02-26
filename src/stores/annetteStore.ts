@@ -52,6 +52,18 @@ export interface ChatMessage {
   isStreaming?: boolean;
 }
 
+/** A saved conversation branch from a previous edit */
+export interface ConversationBranch {
+  id: string;
+  /** The index of the user message that was edited */
+  editedAtIndex: number;
+  /** Original text of the edited message */
+  originalText: string;
+  /** Messages that were discarded (from editedAtIndex onward) */
+  messages: ChatMessage[];
+  timestamp: string;
+}
+
 interface AnnetteState {
   // Chat messages
   messages: ChatMessage[];
@@ -82,6 +94,11 @@ interface AnnetteState {
   // Decision panel
   snoozedIds: string[];
   snoozeExpiry: Record<string, number>; // id -> timestamp when snooze expires
+
+  // Message editing / branching
+  editingMessageId: string | null;
+  branches: ConversationBranch[];
+  previewBranchId: string | null;
 }
 
 interface AnnetteActions {
@@ -122,6 +139,15 @@ interface AnnetteActions {
   executeAction: (notification: AnnetteNotification) => Promise<void>;
   getActiveNotifications: () => AnnetteNotification[];
 
+  // Message editing
+  setEditingMessage: (id: string | null) => void;
+  editMessageAndResend: (messageId: string, newText: string) => Promise<void>;
+
+  // Branch management
+  previewBranch: (branchId: string | null) => void;
+  restoreBranch: (branchId: string) => void;
+  deleteBranch: (branchId: string) => void;
+
   // Reset
   reset: () => void;
 }
@@ -147,6 +173,9 @@ const initialState: AnnetteState = {
   unreadCount: 0,
   snoozedIds: [],
   snoozeExpiry: {},
+  editingMessageId: null,
+  branches: [],
+  previewBranchId: null,
 };
 
 // ============================================================================
@@ -477,6 +506,79 @@ export const useAnnetteStore = create<AnnetteStore>()(
         // Filter out snoozed (unless snooze expired)
         const activeSnoozed = snoozedIds.filter(id => (snoozeExpiry[id] || 0) > now);
         return notifications.filter(n => !activeSnoozed.includes(n.id));
+      },
+
+      // ─── Message Editing ───
+
+      setEditingMessage: (id) => set({ editingMessageId: id }),
+
+      editMessageAndResend: async (messageId, newText) => {
+        const { messages, sendMessage: send } = get();
+        const idx = messages.findIndex(m => m.id === messageId);
+        if (idx === -1) return;
+
+        // Save the current branch (from the edited message onward)
+        const discarded = messages.slice(idx);
+        const branch: ConversationBranch = {
+          id: `branch-${Date.now()}`,
+          editedAtIndex: idx,
+          originalText: messages[idx].content,
+          messages: discarded,
+          timestamp: new Date().toISOString(),
+        };
+
+        // Truncate messages up to (but not including) the edited message
+        const kept = messages.slice(0, idx);
+        set((state) => ({
+          messages: kept,
+          editingMessageId: null,
+          branches: [branch, ...state.branches].slice(0, 10), // Keep last 10 branches
+        }));
+
+        // Re-send with edited text
+        await send(newText);
+      },
+
+      // ─── Branch Management ───
+
+      previewBranch: (branchId) => set({ previewBranchId: branchId }),
+
+      restoreBranch: (branchId) => {
+        const { branches } = get();
+        const branch = branches.find(b => b.id === branchId);
+        if (!branch) return;
+
+        // Save current messages as a new branch before restoring
+        const { messages } = get();
+        if (messages.length > branch.editedAtIndex) {
+          const currentBranch: ConversationBranch = {
+            id: `branch-${Date.now()}`,
+            editedAtIndex: branch.editedAtIndex,
+            originalText: messages[branch.editedAtIndex]?.content || '',
+            messages: messages.slice(branch.editedAtIndex),
+            timestamp: new Date().toISOString(),
+          };
+
+          set((state) => ({
+            messages: [...messages.slice(0, branch.editedAtIndex), ...branch.messages],
+            branches: [currentBranch, ...state.branches.filter(b => b.id !== branchId)].slice(0, 10),
+            previewBranchId: null,
+          }));
+        } else {
+          // Just restore the branch
+          set((state) => ({
+            messages: [...messages.slice(0, branch.editedAtIndex), ...branch.messages],
+            branches: state.branches.filter(b => b.id !== branchId),
+            previewBranchId: null,
+          }));
+        }
+      },
+
+      deleteBranch: (branchId) => {
+        set((state) => ({
+          branches: state.branches.filter(b => b.id !== branchId),
+          previewBranchId: state.previewBranchId === branchId ? null : state.previewBranchId,
+        }));
       },
 
       // ─── Reset ───

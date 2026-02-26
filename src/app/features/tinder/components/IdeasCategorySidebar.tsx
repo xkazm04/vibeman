@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Filter, Loader2 } from 'lucide-react';
+import { Filter } from 'lucide-react';
+import IdeasLoadingState from '@/app/features/Ideas/components/IdeasLoadingState';
 import { IDEA_CATEGORIES, IdeaCategory, isStandardCategory } from '@/types/ideaCategory';
 
 // Category display configuration
@@ -89,9 +90,7 @@ export default function IdeasCategorySidebar({
 
       {/* Loading State */}
       {loading ? (
-        <div className="flex items-center justify-center py-4">
-          <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
-        </div>
+        <IdeasLoadingState size="sm" />
       ) : (
         <>
           {/* All Ideas Button */}

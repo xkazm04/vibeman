@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { standupDb } from '@/app/db';
 import { StandupSummaryResponse, StandupBlocker, StandupHighlight, StandupFocusArea } from '@/app/db/models/standup.types';
+import { safeParseJsonArray } from '@/app/db/repositories/repository.utils';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
 
@@ -71,12 +72,12 @@ async function handleGet(request: NextRequest) {
         ideasImplemented: dbSummary.ideas_implemented,
         scansCount: dbSummary.scans_count,
       },
-      blockers: dbSummary.blockers ? JSON.parse(dbSummary.blockers) as StandupBlocker[] : [],
-      highlights: dbSummary.highlights ? JSON.parse(dbSummary.highlights) as StandupHighlight[] : [],
+      blockers: safeParseJsonArray<StandupBlocker>(dbSummary.blockers),
+      highlights: safeParseJsonArray<StandupHighlight>(dbSummary.highlights),
       insights: {
         velocityTrend: dbSummary.velocity_trend,
         burnoutRisk: dbSummary.burnout_risk,
-        focusAreas: dbSummary.focus_areas ? JSON.parse(dbSummary.focus_areas) as StandupFocusArea[] : [],
+        focusAreas: safeParseJsonArray<StandupFocusArea>(dbSummary.focus_areas),
       },
       generatedAt: dbSummary.generated_at,
     };

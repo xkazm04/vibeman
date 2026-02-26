@@ -39,14 +39,18 @@ export function registerContextTools(
   client: VibemanHttpClient
 ) {
   // Get context details
-  server.tool(
+  server.registerTool(
     'get_context',
-    'Get detailed information about a specific context including its files, test scenario, and metadata.',
     {
-      contextId: z
-        .string()
-        .optional()
-        .describe('Context ID to fetch. If not provided, uses the configured contextId.'),
+      title: 'Get Context',
+      description: 'Get detailed information about a specific context including its files, test scenario, and metadata.',
+      inputSchema: z.object({
+        contextId: z
+          .string()
+          .optional()
+          .describe('Context ID to fetch. If not provided, uses the configured contextId.'),
+      }),
+      annotations: { readOnlyHint: true },
     },
     async ({ contextId }) => {
       const targetContextId = contextId || config.contextId;
@@ -106,10 +110,13 @@ export function registerContextTools(
   );
 
   // List contexts for project
-  server.tool(
+  server.registerTool(
     'list_contexts',
-    'List all contexts for the current project.',
-    {},
+    {
+      title: 'List Contexts',
+      description: 'List all contexts for the current project.',
+      annotations: { readOnlyHint: true },
+    },
     async () => {
       if (!config.projectId) {
         return {
@@ -168,10 +175,13 @@ export function registerContextTools(
   );
 
   // Get current configuration
-  server.tool(
+  server.registerTool(
     'get_config',
-    'Get the current Vibeman MCP configuration including projectId, contextId, and other settings.',
-    {},
+    {
+      title: 'Get Configuration',
+      description: 'Get the current Vibeman MCP configuration including projectId, contextId, and other settings.',
+      annotations: { readOnlyHint: true },
+    },
     async () => {
       return {
         content: [

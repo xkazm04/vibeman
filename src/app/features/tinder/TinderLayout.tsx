@@ -84,6 +84,8 @@ const TinderLayout = () => {
     handleAccept,
     handleReject,
     handleDelete,
+    // Idea variant handler
+    handleAcceptIdeaVariant,
     // Paired direction handlers
     handleAcceptPairVariant,
     handleRejectPair,
@@ -132,6 +134,76 @@ const TinderLayout = () => {
         />
       </div>
 
+      {/* Mobile/tablet category chip bar - visible below xl breakpoint */}
+      {showCategorySidebar && categories.length > 0 && (
+        <div className="xl:hidden max-w-3xl mx-auto px-4 pt-2">
+          <div
+            className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory"
+            role="tablist"
+            aria-label="Filter by category"
+          >
+            <button
+              role="tab"
+              aria-selected={selectedCategory === null}
+              onClick={() => setCategory(null)}
+              disabled={loading || processing}
+              className={`snap-start flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                loading || processing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+              } ${
+                selectedCategory === null
+                  ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                  : 'text-gray-400 border-gray-700/50 hover:border-gray-600/60 hover:text-gray-300'
+              }`}
+            >
+              <span>🌟</span>
+              <span>All</span>
+              <span className={`px-1.5 py-0.5 text-[10px] font-semibold rounded-full ${
+                selectedCategory === null ? 'bg-purple-500/30 text-purple-200' : 'bg-gray-700/80 text-gray-400'
+              }`}>
+                {categories.reduce((sum, c) => sum + c.count, 0)}
+              </span>
+            </button>
+            {categories.map(({ category, count }) => {
+              const configMap: Record<string, { label: string; emoji: string; activeClass: string }> = {
+                functionality: { label: 'Functionality', emoji: '⚡', activeClass: 'bg-purple-500/20 text-purple-300 border-purple-500/40' },
+                performance: { label: 'Performance', emoji: '📊', activeClass: 'bg-green-500/20 text-green-300 border-green-500/40' },
+                maintenance: { label: 'Maintenance', emoji: '🔧', activeClass: 'bg-orange-500/20 text-orange-300 border-orange-500/40' },
+                ui: { label: 'UI/UX', emoji: '🎨', activeClass: 'bg-pink-500/20 text-pink-300 border-pink-500/40' },
+                code_quality: { label: 'Code Quality', emoji: '💻', activeClass: 'bg-blue-500/20 text-blue-300 border-blue-500/40' },
+                user_benefit: { label: 'User Benefit', emoji: '❤️', activeClass: 'bg-red-500/20 text-red-300 border-red-500/40' },
+              };
+              const cfg = configMap[category] || { label: category.replace(/_/g, ' '), emoji: '📌', activeClass: 'bg-gray-500/20 text-gray-300 border-gray-500/40' };
+              const isActive = selectedCategory === category;
+
+              return (
+                <button
+                  key={category}
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setCategory(category)}
+                  disabled={(loading || processing) || count === 0}
+                  className={`snap-start flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                    (loading || processing) || count === 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                  } ${
+                    isActive
+                      ? cfg.activeClass
+                      : 'text-gray-400 border-gray-700/50 hover:border-gray-600/60 hover:text-gray-300'
+                  }`}
+                >
+                  <span>{cfg.emoji}</span>
+                  <span className="capitalize">{cfg.label}</span>
+                  <span className={`px-1.5 py-0.5 text-[10px] font-semibold rounded-full ${
+                    isActive ? 'bg-white/10' : 'bg-gray-700/80 text-gray-400'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Category Sidebar - absolutely positioned on left, only visible in ideas mode on large screens */}
       <AnimatePresence>
         {showCategorySidebar && (
@@ -163,6 +235,7 @@ const TinderLayout = () => {
         onFlushComplete={loadItems}
         contextsMap={contextsMap}
         goalTitlesMap={goalTitlesMap}
+        onAcceptIdeaVariant={handleAcceptIdeaVariant}
         onAcceptPairVariant={handleAcceptPairVariant}
         onRejectPair={handleRejectPair}
         onDeletePair={handleDeletePair}

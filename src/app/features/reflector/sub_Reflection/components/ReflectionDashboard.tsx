@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation';
 import { Loader2, AlertCircle, FileText, BarChart3 } from 'lucide-react';
 import FilterPanel from './FilterPanel';
 import ScanTypeCard from './ScanTypeCard';
-import AcceptanceChart from './AcceptanceChart';
-import EffortImpactMatrix, { QuadrantType } from './EffortImpactMatrix';
+import AcceptanceChart, { AcceptanceBarClickData } from './AcceptanceChart';
+import EffortImpactMatrix, { QuadrantType, QuadrantDrillDownData } from './EffortImpactMatrix';
 import KPISummaryCards, { KPIFilterType } from './KPISummaryCards';
 import ComparisonView from './ComparisonView';
 import ExecutiveSummary from './ExecutiveSummary';
@@ -18,7 +18,9 @@ import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { getEmptyFilterState } from '@/app/features/reflector/lib/filterIdeas';
 import { buildURLFromFilters } from '@/app/features/reflector/lib/urlFilterSync';
 import SuggestionTypeToggle from '../../components/SuggestionTypeToggle';
+import DrillDownDrawer, { DrillDownContext, dbIdeaToDrillDown } from '../../components/DrillDownDrawer';
 import { SuggestionFilter } from '../../lib/unifiedTypes';
+import { DbIdea } from '@/app/db';
 
 type ViewMode = 'analytics' | 'executive';
 
@@ -35,6 +37,7 @@ export default function ReflectionDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [contexts, setContexts] = useState<Context[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('analytics');
+  const [drillDown, setDrillDown] = useState<DrillDownContext | null>(null);
   const [filters, setFilters] = useState<ComparisonFilterState>({
     projectId: null,
     contextId: null,
@@ -89,7 +92,6 @@ export default function ReflectionDashboard() {
   const handleKPIFilterClick = useCallback((filterType: KPIFilterType) => {
     switch (filterType) {
       case 'all':
-        // Show all ideas (no status filter)
         navigateToFilteredView({});
         break;
       case 'pending':
@@ -117,23 +119,83 @@ export default function ReflectionDashboard() {
   const handleQuadrantClick = useCallback((quadrant: QuadrantType) => {
     switch (quadrant) {
       case 'quickWins':
-        // Low effort, high impact
         navigateToFilteredView({ effortLevels: ['low'], impactLevels: ['high'] });
         break;
       case 'majorProjects':
-        // High effort, high impact
         navigateToFilteredView({ effortLevels: ['high'], impactLevels: ['high'] });
         break;
       case 'fillIns':
-        // Low effort, low impact
         navigateToFilteredView({ effortLevels: ['low'], impactLevels: ['low'] });
         break;
       case 'thankless':
-        // High effort, low impact
         navigateToFilteredView({ effortLevels: ['high'], impactLevels: ['low'] });
         break;
     }
   }, [navigateToFilteredView]);
+
+  /**
+   * Handle acceptance chart bar click - fetch ideas for that scan type
+   */
+  const handleAcceptanceBarClick = useCallback(async (data: AcceptanceBarClickData) => {
+    try {
+      const params = new URLSearchParams();
+      if (filters.projectId) params.set('projectId', filters.projectId);
+      if (filters.contextId) params.set('contextId', filters.contextId);
+
+      const response = await fetch(`/api/ideas?${params}`);
+      if (!response.ok) return;
+      const result = await response.json();
+      const allIdeas: DbIdea[] = result.ideas || [];
+
+      // Filter by scan type client-side
+      const ideas = allIdeas.filter(i => i.scan_type === data.scanType);
+
+      setDrillDown({
+        title: data.label,
+        subtitle: `${ideas.length} ideas · ${data.acceptanceRatio}% acceptance`,
+        accentColor: data.acceptanceRatio >= 70 ? 'rgba(16, 185, 129, 0.4)'
+          : data.acceptanceRatio >= 40 ? 'rgba(245, 158, 11, 0.4)'
+          : 'rgba(239, 68, 68, 0.4)',
+        ideas: ideas.map(dbIdeaToDrillDown),
+        stats: {
+          total: ideas.length,
+          accepted: ideas.filter(i => i.status === 'accepted' || i.status === 'implemented').length,
+          rejected: ideas.filter(i => i.status === 'rejected').length,
+          pending: ideas.filter(i => i.status === 'pending').length,
+          acceptanceRate: data.acceptanceRatio,
+        },
+      });
+    } catch {
+      // Silently fail
+    }
+  }, [filters.projectId, filters.contextId]);
+
+  /**
+   * Handle quadrant drill-down - show ideas from the quadrant
+   */
+  const handleQuadrantDrillDown = useCallback((data: QuadrantDrillDownData) => {
+    setDrillDown({
+      title: data.title,
+      subtitle: data.description,
+      accentColor: data.quadrant === 'quickWins' ? 'rgba(34, 197, 94, 0.4)'
+        : data.quadrant === 'majorProjects' ? 'rgba(59, 130, 246, 0.4)'
+        : data.quadrant === 'fillIns' ? 'rgba(234, 179, 8, 0.4)'
+        : 'rgba(239, 68, 68, 0.4)',
+      ideas: data.ideas.map(i => ({
+        id: i.id,
+        title: i.title,
+        status: i.status as 'pending' | 'accepted' | 'rejected' | 'implemented',
+      })),
+      stats: {
+        total: data.count,
+        acceptanceRate: data.acceptanceRate,
+      },
+    });
+  }, []);
+
+  const handleIdeaAction = useCallback(() => {
+    loadStats();
+  }, []);
 
   /**
    * Handle suggestion type toggle change
@@ -306,7 +368,10 @@ export default function ReflectionDashboard() {
 
               {/* Charts Row */}
               <div className="grid grid-cols-1">
-                <AcceptanceChart scanTypeStats={stats.scanTypes} />
+                <AcceptanceChart
+                  scanTypeStats={stats.scanTypes}
+                  onBarClick={handleAcceptanceBarClick}
+                />
               </div>
 
               {/* Scan Type Cards Grid (Ideas) - Compact 6-column matrix */}
@@ -382,12 +447,23 @@ export default function ReflectionDashboard() {
 
               {/* Effort vs Impact Matrix (Ideas only - directions don't have scores) */}
               {filters.suggestionType !== 'directions' && (
-                <EffortImpactMatrix filters={filters} onQuadrantClick={handleQuadrantClick} />
+                <EffortImpactMatrix
+                  filters={filters}
+                  onQuadrantClick={handleQuadrantClick}
+                  onQuadrantDrillDown={handleQuadrantDrillDown}
+                />
               )}
             </>
           ) : null}
         </>
       )}
+
+      {/* Drill-Down Drawer */}
+      <DrillDownDrawer
+        context={drillDown}
+        onClose={() => setDrillDown(null)}
+        onIdeaAction={handleIdeaAction}
+      />
     </div>
   );
 }

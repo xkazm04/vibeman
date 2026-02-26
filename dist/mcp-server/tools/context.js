@@ -8,11 +8,16 @@ exports.registerContextTools = registerContextTools;
 const zod_1 = require("zod");
 function registerContextTools(server, config, client) {
     // Get context details
-    server.tool('get_context', 'Get detailed information about a specific context including its files, test scenario, and metadata.', {
-        contextId: zod_1.z
-            .string()
-            .optional()
-            .describe('Context ID to fetch. If not provided, uses the configured contextId.'),
+    server.registerTool('get_context', {
+        title: 'Get Context',
+        description: 'Get detailed information about a specific context including its files, test scenario, and metadata.',
+        inputSchema: zod_1.z.object({
+            contextId: zod_1.z
+                .string()
+                .optional()
+                .describe('Context ID to fetch. If not provided, uses the configured contextId.'),
+        }),
+        annotations: { readOnlyHint: true },
     }, async ({ contextId }) => {
         const targetContextId = contextId || config.contextId;
         if (!targetContextId) {
@@ -63,7 +68,11 @@ function registerContextTools(server, config, client) {
         };
     });
     // List contexts for project
-    server.tool('list_contexts', 'List all contexts for the current project.', {}, async () => {
+    server.registerTool('list_contexts', {
+        title: 'List Contexts',
+        description: 'List all contexts for the current project.',
+        annotations: { readOnlyHint: true },
+    }, async () => {
         if (!config.projectId) {
             return {
                 content: [
@@ -113,7 +122,11 @@ function registerContextTools(server, config, client) {
         };
     });
     // Get current configuration
-    server.tool('get_config', 'Get the current Vibeman MCP configuration including projectId, contextId, and other settings.', {}, async () => {
+    server.registerTool('get_config', {
+        title: 'Get Configuration',
+        description: 'Get the current Vibeman MCP configuration including projectId, contextId, and other settings.',
+        annotations: { readOnlyHint: true },
+    }, async () => {
         return {
             content: [
                 {

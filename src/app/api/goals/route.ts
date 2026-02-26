@@ -189,12 +189,13 @@ async function handlePut(request: NextRequest) {
       return createErrorResponse('Goal ID is required', 400);
     }
 
-    // Verify project access via goal's project
+    // Verify goal exists and caller has project access
     const existingGoal = goalDb.getGoalById(id);
-    if (existingGoal) {
-      const accessDenied = checkProjectAccess(existingGoal.project_id, request);
-      if (accessDenied) return accessDenied;
+    if (!existingGoal) {
+      return notFoundResponse('Goal');
     }
+    const accessDenied = checkProjectAccess(existingGoal.project_id, request);
+    if (accessDenied) return accessDenied;
 
     const updateData: {
       title?: string;
@@ -248,11 +249,12 @@ async function handleDelete(request: NextRequest) {
     const goal = goalDb.getGoalById(id);
     const githubItemId = goal?.github_item_id || null;
 
-    // Verify project access via goal's project
-    if (goal) {
-      const accessDenied = checkProjectAccess(goal.project_id, request);
-      if (accessDenied) return accessDenied;
+    // Verify goal exists and caller has project access
+    if (!goal) {
+      return notFoundResponse('Goal');
     }
+    const accessDenied = checkProjectAccess(goal.project_id, request);
+    if (accessDenied) return accessDenied;
 
     const success = goalDb.deleteGoal(id);
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { History, TrendingUp, Lightbulb, Clock, BarChart3 } from 'lucide-react';
+import BrainPanelHeader from './BrainPanelHeader';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import ReflectionHistoryItem, { type ReflectionHistoryEntry } from './ReflectionHistoryItem';
 
@@ -67,10 +68,7 @@ export default function ReflectionHistoryPanel({ scope = 'project' }: Props) {
   if (isLoading) {
     return (
       <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <History className="w-5 h-5 text-purple-400" />
-          <h2 className="text-lg font-semibold text-zinc-200">Reflection History</h2>
-        </div>
+        <BrainPanelHeader icon={History} title="Reflection History" accentColor="#a855f7" glowColor="rgba(168, 85, 247, 0.15)" />
         <div className="animate-pulse space-y-3">
           <div className="h-4 bg-zinc-800 rounded w-1/2" />
           <div className="h-12 bg-zinc-800 rounded" />
@@ -83,10 +81,7 @@ export default function ReflectionHistoryPanel({ scope = 'project' }: Props) {
   if (error) {
     return (
       <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <History className="w-5 h-5 text-purple-400" />
-          <h2 className="text-lg font-semibold text-zinc-200">Reflection History</h2>
-        </div>
+        <BrainPanelHeader icon={History} title="Reflection History" accentColor="#a855f7" glowColor="rgba(168, 85, 247, 0.15)" />
         <div className="text-sm text-red-400">{error}</div>
       </div>
     );
@@ -95,10 +90,7 @@ export default function ReflectionHistoryPanel({ scope = 'project' }: Props) {
   if (history.length === 0) {
     return (
       <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <History className="w-5 h-5 text-purple-400" />
-          <h2 className="text-lg font-semibold text-zinc-200">Reflection History</h2>
-        </div>
+        <BrainPanelHeader icon={History} title="Reflection History" accentColor="#a855f7" glowColor="rgba(168, 85, 247, 0.15)" />
         <div className="text-sm text-zinc-500">No reflections recorded yet.</div>
       </div>
     );
@@ -107,13 +99,15 @@ export default function ReflectionHistoryPanel({ scope = 'project' }: Props) {
   return (
     <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-6">
       {/* Header */}
-      <div className="flex items-center gap-2 mb-4">
-        <History className="w-5 h-5 text-purple-400" />
-        <h2 className="text-lg font-semibold text-zinc-200">Reflection History</h2>
-        {scope === 'global' && (
-          <span className="px-2 py-0.5 bg-zinc-700/50 text-zinc-400 rounded text-xs">Global</span>
-        )}
-      </div>
+      <BrainPanelHeader
+        icon={History}
+        title="Reflection History"
+        accentColor="#a855f7"
+        glowColor="rgba(168, 85, 247, 0.15)"
+        trailing={scope === 'global' ? (
+          <span className="px-2 py-0.5 bg-zinc-700/50 text-zinc-400 rounded text-xs font-mono">GLOBAL</span>
+        ) : undefined}
+      />
 
       {/* Aggregate Stats */}
       {aggregates && (

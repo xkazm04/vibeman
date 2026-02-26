@@ -328,7 +328,7 @@ export function useTinderItems(
     }
   }, [processing, currentIndex, items, isRemoteMode, getProject, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic, sendRemoteTriageCommand]);
 
-  const handleReject = useCallback(async () => {
+  const handleReject = useCallback(async (rejectionReason?: string) => {
     if (processing || currentIndex >= items.length) return;
 
     const currentItem = items[currentIndex];
@@ -346,7 +346,7 @@ export function useTinderItems(
         // Local mode: use existing API
         const projectId = getTinderItemProjectId(currentItem);
         const selectedProject = getProject(projectId);
-        await rejectTinderItem(currentItem, selectedProject?.path);
+        await rejectTinderItem(currentItem, selectedProject?.path, rejectionReason);
       }
 
       updateStats(currentItem, 'rejected');
@@ -421,6 +421,57 @@ export function useTinderItems(
     setSelectedCategory(category);
     // Items will be reloaded automatically via useEffect
   }, []);
+
+  // Handler for accepting an idea scope variant (MVP / Standard / Ambitious)
+  const handleAcceptIdeaVariant = useCallback(async (ideaId: string, variant: { title: string; description: string; effort: number; impact: number; risk: number; scope: string }) => {
+    if (processing || currentIndex >= items.length) return;
+
+    const currentItem = items[currentIndex];
+    if (!isIdeaItem(currentItem)) return;
+
+    const projectId = currentItem.data.project_id;
+    const selectedProject = getProject(projectId);
+
+    if (!selectedProject || !selectedProject.path) {
+      alert('Project path not found. Cannot create requirement file.');
+      return;
+    }
+
+    setProcessing(true);
+    setItems(prev => prev.filter((_, index) => index !== currentIndex));
+
+    try {
+      // 1. Update idea with variant's description and scores
+      await fetch('/api/ideas', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: ideaId,
+          title: variant.title,
+          description: variant.description,
+          effort: variant.effort,
+          impact: variant.impact,
+          risk: variant.risk,
+        }),
+      });
+
+      // 2. Accept the updated idea (creates requirement file)
+      await acceptTinderItem(currentItem, selectedProject.path);
+
+      updateStats(currentItem, 'accepted');
+      updateCategoryCountOptimistic(currentItem);
+      loadMoreIfNeeded();
+    } catch (error) {
+      alert('Failed to accept variant: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      setItems(prev => {
+        const newItems = [...prev];
+        newItems.splice(currentIndex, 0, currentItem);
+        return newItems;
+      });
+    } finally {
+      setProcessing(false);
+    }
+  }, [processing, currentIndex, items, getProject, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic]);
 
   // Handler for accepting a variant from a direction pair
   const handleAcceptPairVariant = useCallback(async (pairId: string, variant: 'A' | 'B') => {
@@ -581,6 +632,8 @@ export function useTinderItems(
     handleAccept,
     handleReject,
     handleDelete,
+    // Idea variant handler
+    handleAcceptIdeaVariant,
     // Paired direction handlers
     handleAcceptPairVariant,
     handleRejectPair,

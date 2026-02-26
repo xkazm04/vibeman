@@ -84,12 +84,13 @@ export default function AnnetteTopBarWidget() {
       {/* Trigger Button */}
       <button
         onClick={handleToggle}
-        className={`relative p-2 rounded-full transition-all ${
+        className={`relative p-2 rounded-full transition-all focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 outline-none ${
           isWidgetOpen
             ? 'bg-cyan-500/20 border border-cyan-500/30'
             : 'bg-slate-800/40 border border-slate-700/40 hover:border-cyan-500/30 hover:bg-slate-800/60'
         }`}
         title="Annette"
+        aria-label="Open Annette assistant"
         data-testid="annette-widget-trigger"
       >
         <Bot className={`w-4.5 h-4.5 ${isWidgetOpen ? 'text-cyan-400' : 'text-slate-400'}`} />
@@ -104,7 +105,7 @@ export default function AnnetteTopBarWidget() {
               transition={{ type: 'spring', stiffness: 500, damping: 30 }}
               className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center"
             >
-              <span className="text-[9px] text-white font-bold">
+              <span className="text-2xs text-white font-bold">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             </motion.div>

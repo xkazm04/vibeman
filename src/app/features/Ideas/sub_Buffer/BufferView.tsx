@@ -3,7 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, XCircle } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import BufferColumn from './BufferColumn';
 import { createIdeaStagingBuffer } from '@/lib/staging-buffer';
@@ -18,7 +18,23 @@ import {
 } from '@/lib/queries/ideaQueries';
 import { useTaskRunnerStore } from '@/app/features/TaskRunner/store/taskRunnerStore';
 import EmptyStateIllustration from '@/components/ui/EmptyStateIllustration';
-import { FullPageSpinner } from '@/components/ui/Spinner';
+import IdeasLoadingState from '@/app/features/Ideas/components/IdeasLoadingState';
+import { getCategoryConfig } from '@/app/features/Ideas/lib/ideaConfig';
+
+/** Find the dominant category color for a set of ideas */
+function getDominantCategoryColor(ideas: DbIdea[]): string | undefined {
+  if (ideas.length === 0) return undefined;
+  const counts = new Map<string, number>();
+  for (const idea of ideas) {
+    counts.set(idea.category, (counts.get(idea.category) ?? 0) + 1);
+  }
+  let maxCount = 0;
+  let dominant = ideas[0].category;
+  for (const [cat, count] of counts) {
+    if (count > maxCount) { maxCount = count; dominant = cat; }
+  }
+  return getCategoryConfig(dominant).color;
+}
 
 interface BufferViewProps {
   filterProject?: string;
@@ -36,6 +52,13 @@ export default function BufferView({
   const router = useRouter();
   const { getProject } = useProjectConfigStore();
   const { reserveBatchSlot, releaseBatchReservation, createSessionBatch } = useTaskRunnerStore();
+
+  const [errorBanner, setErrorBanner] = React.useState<string | null>(null);
+
+  const showError = React.useCallback((msg: string) => {
+    setErrorBanner(msg);
+    setTimeout(() => setErrorBanner(null), 5000);
+  }, []);
 
   // Use React Query for fetching and caching ideas
   const {
@@ -101,7 +124,7 @@ export default function BufferView({
       } catch (error) {
         // Error handling is done in the mutation hook with rollback
         console.error('Failed to delete context ideas:', error);
-        alert(
+        showError(
           error instanceof Error
             ? error.message
             : 'Failed to delete ideas. Please refresh the page.'
@@ -145,7 +168,7 @@ export default function BufferView({
         invalidateIdeas();
       } catch (error) {
         console.error('Failed to convert idea:', error);
-        alert(
+        showError(
           error instanceof Error
             ? error.message
             : 'Failed to convert idea to requirement.'
@@ -174,7 +197,7 @@ export default function BufferView({
       // This prevents race conditions from double-clicks or concurrent requests
       const reservedBatchId = reserveBatchSlot();
       if (!reservedBatchId) {
-        alert('All batch slots are full. Please clear a batch in Task Runner first.');
+        showError('All batch slots are full. Please clear a batch in Task Runner first.');
         return;
       }
 
@@ -220,7 +243,7 @@ export default function BufferView({
         // Release the reservation if the async operation failed
         releaseBatchReservation(reservedBatchId);
         console.error('Failed to queue idea for execution:', error);
-        alert(
+        showError(
           error instanceof Error
             ? error.message
             : 'Failed to queue idea for execution.'
@@ -231,7 +254,7 @@ export default function BufferView({
   );
 
   if (isLoading) {
-    return <FullPageSpinner label="Loading ideas..." />;
+    return <IdeasLoadingState size="lg" label="Loading ideas..." />;
   }
 
   if (filteredIdeas.length === 0) {
@@ -259,6 +282,26 @@ export default function BufferView({
 
   return (
     <div className="space-y-8" data-testid="buffer-view">
+      {/* Inline error banner */}
+      <AnimatePresence>
+        {errorBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2.5 flex items-center gap-3"
+          >
+            <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+            <span className="text-sm text-red-300 flex-1">{errorBanner}</span>
+            <button
+              onClick={() => setErrorBanner(null)}
+              className="text-red-400 hover:text-red-300 transition-colors"
+            >
+              <XCircle className="w-3.5 h-3.5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Project Sections */}
       {sortedGroupedIdeas.map(({ projectId, contexts }) => (
         <motion.div
@@ -294,6 +337,7 @@ export default function BufferView({
                   contextId={contextId === 'no-context' ? null : contextId}
                   projectName={getProjectName(projectId)}
                   ideas={contextIdeas}
+                  accentColor={getDominantCategoryColor(contextIdeas)}
                   onIdeaClick={onIdeaClick}
                   onIdeaDelete={handleIdeaDelete}
                   onContextDelete={handleContextDelete}

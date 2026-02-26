@@ -10,6 +10,7 @@ import { calculateImplementedStats } from '@/app/features/reflector/lib/filterId
 import ReflectorHeader from '@/app/features/reflector/components/ReflectorHeader';
 import ReflectorViewTabs, { ViewMode } from '@/app/features/reflector/components/ReflectorViewTabs';
 import DependenciesTab from '@/app/features/Depndencies/DependenciesTab';
+import CrossContextDashboard from '@/app/features/reflector/sub_Dependencies/CrossContextDashboard';
 import ReflectionDashboard from '@/app/features/reflector/sub_Reflection/components/ReflectionDashboard';
 import { WeeklyDashboard } from '@/app/features/reflector/sub_Weekly/components';
 import ObservatoryDashboard from '@/app/features/reflector/sub_Observability/ObservatoryDashboard';
@@ -63,6 +64,8 @@ const ReflectorLayout = () => {
           <WeeklyDashboard />
         ) : viewMode === 'dependencies' ? (
           <DependenciesTab />
+        ) : viewMode === 'cross_context' ? (
+          <CrossContextDashboard />
         ) : viewMode === 'ideas_stats' ? (
           <ReflectionDashboard />
         ) : viewMode === 'observability' ? (

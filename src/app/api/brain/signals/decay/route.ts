@@ -15,6 +15,7 @@ import { behavioralSignalDb } from '@/app/db';
 import { withObservability } from '@/lib/observability/middleware';
 import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
 import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
+import { invalidateContextCache } from '@/app/api/brain/context/route';
 
 /**
  * POST /api/brain/signals/decay
@@ -53,6 +54,9 @@ async function handlePost(request: NextRequest) {
 
     // Delete signals beyond retention period
     const deleted = behavioralSignalDb.deleteOld(projectId, clampedRetention);
+
+    // Invalidate cached behavioral context after decay changes signal weights
+    invalidateContextCache(projectId);
 
     return NextResponse.json({
       success: true,

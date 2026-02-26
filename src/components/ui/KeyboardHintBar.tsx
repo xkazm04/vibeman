@@ -7,7 +7,7 @@ import { Keyboard } from 'lucide-react';
 export interface KeyboardHint {
   key: string;
   label: string;
-  color?: 'green' | 'red' | 'blue' | 'amber' | 'gray';
+  color?: 'green' | 'red' | 'blue' | 'amber' | 'gray' | 'purple';
 }
 
 interface KeyboardHintBarProps {
@@ -23,6 +23,7 @@ const colorClasses: Record<NonNullable<KeyboardHint['color']>, string> = {
   blue: 'bg-blue-500/20 border-blue-500/40 text-blue-400',
   amber: 'bg-amber-500/20 border-amber-500/40 text-amber-400',
   gray: 'bg-gray-500/20 border-gray-500/40 text-gray-400',
+  purple: 'bg-purple-500/20 border-purple-500/40 text-purple-400',
 };
 
 const keyBgClasses: Record<NonNullable<KeyboardHint['color']>, string> = {
@@ -31,6 +32,7 @@ const keyBgClasses: Record<NonNullable<KeyboardHint['color']>, string> = {
   blue: 'bg-blue-500/30 border-blue-400/50',
   amber: 'bg-amber-500/30 border-amber-400/50',
   gray: 'bg-gray-500/30 border-gray-400/50',
+  purple: 'bg-purple-500/30 border-purple-400/50',
 };
 
 /**

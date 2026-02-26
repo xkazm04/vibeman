@@ -17,13 +17,13 @@ import { contextGroupRelationshipRepository } from '@/app/db/repositories/contex
 
 interface ExecuteRequestBody {
   projectId: string;
-  projectPath: string;
+  projectPath?: string; // Optional — DB path is used as source of truth
 }
 
 async function handlePost(request: NextRequest) {
   try {
     const body = await request.json() as ExecuteRequestBody;
-    const { projectId, projectPath } = body;
+    const { projectId } = body;
 
     if (!projectId) {
       return NextResponse.json(
@@ -32,19 +32,20 @@ async function handlePost(request: NextRequest) {
       );
     }
 
-    if (!projectPath) {
-      return NextResponse.json(
-        { error: 'projectPath is required' },
-        { status: 400 }
-      );
-    }
-
-    // Get the project info
+    // Get the project info — DB path is the source of truth
     const project = await projectServiceDb.getProject(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'Project not found' },
         { status: 404 }
+      );
+    }
+
+    const projectPath = project.path;
+    if (!projectPath) {
+      return NextResponse.json(
+        { error: 'Project has no path configured' },
+        { status: 400 }
       );
     }
 

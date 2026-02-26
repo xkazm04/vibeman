@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { standupDb, implementationLogDb, ideaDb, scanDb, contextDb } from '@/app/db';
 import { StandupSourceData, StandupSummaryResponse, StandupBlocker, StandupHighlight, StandupFocusArea } from '@/app/db/models/standup.types';
+import { safeParseJsonArray } from '@/app/db/repositories/repository.utils';
 import { generateStandupSummary, getPeriodDateRange } from '@/app/features/DailyStandup/lib/standupGenerator';
 import { generatePredictiveStandup } from '@/lib/standup/predictiveStandupEngine';
 import { logger } from '@/lib/logger';
@@ -67,12 +68,12 @@ async function handlePost(request: NextRequest) {
           ideasImplemented: existing.ideas_implemented,
           scansCount: existing.scans_count,
         },
-        blockers: existing.blockers ? JSON.parse(existing.blockers) as StandupBlocker[] : [],
-        highlights: existing.highlights ? JSON.parse(existing.highlights) as StandupHighlight[] : [],
+        blockers: safeParseJsonArray<StandupBlocker>(existing.blockers),
+        highlights: safeParseJsonArray<StandupHighlight>(existing.highlights),
         insights: {
           velocityTrend: existing.velocity_trend,
           burnoutRisk: existing.burnout_risk,
-          focusAreas: existing.focus_areas ? JSON.parse(existing.focus_areas) as StandupFocusArea[] : [],
+          focusAreas: safeParseJsonArray<StandupFocusArea>(existing.focus_areas),
         },
         generatedAt: existing.generated_at,
       };
@@ -88,23 +89,14 @@ async function handlePost(request: NextRequest) {
     const startISO = start.toISOString();
     const endISO = end.toISOString();
 
-    // Get implementation logs for the period
-    const allLogs = implementationLogDb.getLogsByProject(projectId);
-    const periodLogs = allLogs.filter(
-      (log) => log.created_at >= startISO && log.created_at <= endISO
-    );
+    // Get implementation logs for the period (SQL-level date filtering)
+    const periodLogs = implementationLogDb.getLogsByProjectInRange(projectId, startISO, endISO);
 
-    // Get ideas for the period
-    const allIdeas = ideaDb.getIdeasByProject(projectId);
-    const periodIdeas = allIdeas.filter(
-      (idea) => idea.created_at >= startISO && idea.created_at <= endISO
-    );
+    // Get ideas for the period (SQL-level date filtering)
+    const periodIdeas = ideaDb.getIdeasByProjectInRange(projectId, startISO, endISO);
 
-    // Get scans for the period
-    const allScans = scanDb.getScansByProject(projectId);
-    const periodScans = allScans.filter(
-      (scan) => scan.created_at >= startISO && scan.created_at <= endISO
-    );
+    // Get scans for the period (SQL-level date filtering)
+    const periodScans = scanDb.getScansByProjectInRange(projectId, startISO, endISO);
 
     // Content hash check: if existing summary has identical stats, skip LLM call
     if (existing && forceRegenerate) {
@@ -137,12 +129,12 @@ async function handlePost(request: NextRequest) {
             ideasImplemented: existing.ideas_implemented,
             scansCount: existing.scans_count,
           },
-          blockers: existing.blockers ? JSON.parse(existing.blockers) as StandupBlocker[] : [],
-          highlights: existing.highlights ? JSON.parse(existing.highlights) as StandupHighlight[] : [],
+          blockers: safeParseJsonArray<StandupBlocker>(existing.blockers),
+          highlights: safeParseJsonArray<StandupHighlight>(existing.highlights),
           insights: {
             velocityTrend: existing.velocity_trend,
             burnoutRisk: existing.burnout_risk,
-            focusAreas: existing.focus_areas ? JSON.parse(existing.focus_areas) as StandupFocusArea[] : [],
+            focusAreas: safeParseJsonArray<StandupFocusArea>(existing.focus_areas),
           },
           generatedAt: existing.generated_at,
         };
@@ -224,12 +216,12 @@ async function handlePost(request: NextRequest) {
         ideasImplemented: saved.ideas_implemented,
         scansCount: saved.scans_count,
       },
-      blockers: saved.blockers ? JSON.parse(saved.blockers) as StandupBlocker[] : [],
-      highlights: saved.highlights ? JSON.parse(saved.highlights) as StandupHighlight[] : [],
+      blockers: safeParseJsonArray<StandupBlocker>(saved.blockers),
+      highlights: safeParseJsonArray<StandupHighlight>(saved.highlights),
       insights: {
         velocityTrend: saved.velocity_trend,
         burnoutRisk: saved.burnout_risk,
-        focusAreas: saved.focus_areas ? JSON.parse(saved.focus_areas) as StandupFocusArea[] : [],
+        focusAreas: safeParseJsonArray<StandupFocusArea>(saved.focus_areas),
       },
       generatedAt: saved.generated_at,
     };

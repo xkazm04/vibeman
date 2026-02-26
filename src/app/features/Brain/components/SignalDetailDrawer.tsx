@@ -57,7 +57,8 @@ export default function SignalDetailDrawer({ target, onClose, children }: Signal
             <div className="flex items-center gap-3 px-4 py-4 border-b border-zinc-800/50">
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/50 transition-colors"
+                aria-label="Go back"
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/50 transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/50 outline-none"
                 title="Back"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -72,7 +73,8 @@ export default function SignalDetailDrawer({ target, onClose, children }: Signal
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/50 transition-colors"
+                aria-label="Close drawer"
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/50 transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/50 outline-none"
                 title="Close"
               >
                 <X className="w-4 h-4" />

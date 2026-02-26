@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Check, XCircle, Trash2, RefreshCw, LucideIcon } from 'lucide-react';
+import { Check, XCircle, Trash2, RefreshCw, Layers, LucideIcon } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 
 interface Project {
@@ -16,6 +16,7 @@ interface IdeaDetailActionsProps {
   onDelete: () => Promise<void>;
   onSaveFeedback: () => Promise<void>;
   onRegenerate: () => Promise<void>;
+  onShowVariants?: () => void;
 }
 
 interface ActionButtonProps {
@@ -51,6 +52,7 @@ export default function IdeaDetailActions({
   onDelete,
   onSaveFeedback,
   onRegenerate,
+  onShowVariants,
 }: IdeaDetailActionsProps) {
 
   const handleReject = async () => {
@@ -107,8 +109,19 @@ export default function IdeaDetailActions({
         )}
       </div>
 
-      {/* Right: Accept, Regenerate, and Save (grouped) */}
+      {/* Right: Variants, Accept, Regenerate, and Save (grouped) */}
       <div className="flex items-center gap-2">
+        {idea.status === 'pending' && onShowVariants && (
+          <ActionButton
+            onClick={onShowVariants}
+            disabled={saving}
+            icon={Layers}
+            label="Variants"
+            className="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300"
+            testId="idea-detail-variants-button"
+          />
+        )}
+
         {idea.status !== 'accepted' && (
           <ActionButton
             onClick={onAccept}

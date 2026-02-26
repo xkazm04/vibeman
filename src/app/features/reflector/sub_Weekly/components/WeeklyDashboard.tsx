@@ -5,18 +5,20 @@ import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { WeeklyStats, WeeklyFilters } from '../lib/types';
 import { fetchWeeklyStats } from '../lib/weeklyApi';
 import WeeklyKPICards from './WeeklyKPICards';
-import DailyActivityChart from './DailyActivityChart';
+import DailyActivityChart, { DailyBarClickData } from './DailyActivityChart';
 import SpecialistBreakdown from './SpecialistBreakdown';
 import ProjectImplementationRanking from './ProjectImplementationRanking';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import FilterBar from '../../components/FilterBar';
 import SuggestionTypeToggle from '../../components/SuggestionTypeToggle';
+import DrillDownDrawer, { DrillDownContext, dbIdeaToDrillDown } from '../../components/DrillDownDrawer';
 import {
   FilterState,
   FilterBarConfig,
   getEmptyFilterState
 } from '../../lib/filterIdeas';
 import { SuggestionFilter } from '../../lib/unifiedTypes';
+import { DbIdea } from '@/app/db';
 
 // FilterBar configuration for WeeklyDashboard
 const WEEKLY_FILTER_CONFIG: FilterBarConfig = {
@@ -31,6 +33,7 @@ export default function WeeklyDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [unifiedFilters, setUnifiedFilters] = useState<FilterState>(getEmptyFilterState());
+  const [drillDown, setDrillDown] = useState<DrillDownContext | null>(null);
 
   const { projects, initializeProjects } = useProjectConfigStore();
 
@@ -71,6 +74,58 @@ export default function WeeklyDashboard() {
   const handleSuggestionTypeChange = useCallback((type: SuggestionFilter) => {
     setUnifiedFilters(prev => ({ ...prev, suggestionType: type }));
   }, []);
+
+  /** Fetch ideas for a specific date and status, then open drill-down */
+  const handleDailyBarClick = useCallback(async (data: DailyBarClickData) => {
+    if (!stats) return;
+
+    // Map the display status back to API status values
+    const statusMap: Record<string, string[]> = {
+      accepted: ['accepted', 'implemented'],
+      rejected: ['rejected'],
+      pending: ['pending'],
+    };
+    const statuses = statusMap[data.status] || [data.status];
+
+    try {
+      const params = new URLSearchParams();
+      if (filters.projectId) params.set('projectId', filters.projectId);
+
+      const response = await fetch(`/api/ideas?${params}`);
+      if (!response.ok) return;
+      const result = await response.json();
+      const allIdeas: DbIdea[] = result.ideas || [];
+
+      // Filter by date and status client-side
+      const filtered = allIdeas.filter(i => {
+        const ideaDate = new Date(i.created_at).toISOString().split('T')[0];
+        return ideaDate === data.date && statuses.includes(i.status);
+      });
+
+      setDrillDown({
+        title: `${data.dayName} — ${data.status.charAt(0).toUpperCase() + data.status.slice(1)}`,
+        subtitle: `${data.date} · ${data.count} ideas`,
+        accentColor: data.status === 'accepted' ? 'rgba(16, 185, 129, 0.4)'
+          : data.status === 'rejected' ? 'rgba(239, 68, 68, 0.4)'
+          : 'rgba(168, 85, 247, 0.4)',
+        ideas: filtered.map(dbIdeaToDrillDown),
+        stats: {
+          total: filtered.length,
+          accepted: filtered.filter(i => i.status === 'accepted' || i.status === 'implemented').length,
+          rejected: filtered.filter(i => i.status === 'rejected').length,
+          pending: filtered.filter(i => i.status === 'pending').length,
+          acceptanceRate: data.acceptanceRate,
+        },
+      });
+    } catch {
+      // Silently fail
+    }
+  }, [stats, filters.projectId]);
+
+  const handleIdeaAction = useCallback((_ideaId: string, _action: 'accepted' | 'rejected') => {
+    // Refresh stats after action
+    loadStats();
+  }, [loadStats]);
 
   if (loading) {
     return (
@@ -127,7 +182,10 @@ export default function WeeklyDashboard() {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <DailyActivityChart dailyBreakdown={stats.dailyBreakdown} />
+        <DailyActivityChart
+          dailyBreakdown={stats.dailyBreakdown}
+          onBarClick={handleDailyBarClick}
+        />
         <SpecialistBreakdown
           specialists={stats.specialists}
           topPerformers={stats.topPerformers}
@@ -143,20 +201,13 @@ export default function WeeklyDashboard() {
         Data from {new Date(stats.weekStart).toLocaleDateString()} to {new Date(stats.weekEnd).toLocaleDateString()}
         {' '}• Compared against previous week
       </div>
+
+      {/* Drill-Down Drawer */}
+      <DrillDownDrawer
+        context={drillDown}
+        onClose={() => setDrillDown(null)}
+        onIdeaAction={handleIdeaAction}
+      />
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

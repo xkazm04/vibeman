@@ -96,8 +96,10 @@ export interface UseTinderItemsResult {
   setCategory: (category: string | null) => void;
   setFilterMode: (mode: TinderFilterMode) => void;
   handleAccept: () => Promise<void>;
-  handleReject: () => Promise<void>;
+  handleReject: (rejectionReason?: string) => Promise<void>;
   handleDelete: () => Promise<void>;
+  // Idea variant handler (scope: MVP / Standard / Ambitious)
+  handleAcceptIdeaVariant: (ideaId: string, variant: { title: string; description: string; effort: number; impact: number; risk: number; scope: string }) => Promise<void>;
   // Paired direction handlers
   handleAcceptPairVariant: (pairId: string, variant: 'A' | 'B') => Promise<void>;
   handleRejectPair: (pairId: string) => Promise<void>;

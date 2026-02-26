@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import { motion, useTransform } from 'framer-motion';
+import { motion, useTransform, useMotionTemplate } from 'framer-motion';
 import { DbIdea } from '@/app/db';
 import {
   getCategoryConfig,
@@ -37,6 +37,18 @@ export default function IdeaCard({
 }: IdeaCardProps) {
   const { x, rotateZ, exitX, exitOpacity, handleDragEnd } = useDragSwipe(onSwipeLeft, onSwipeRight);
 
+  // Continuous directional feedback: border color shifts during drag
+  // Left (reject) = red-500 rgb(239,68,68), neutral = gray-700/50, right (accept) = green-500 rgb(34,197,94)
+  const borderR = useTransform(x, [-200, 0, 200], [239, 55, 34]);
+  const borderG = useTransform(x, [-200, 0, 200], [68, 65, 197]);
+  const borderB = useTransform(x, [-200, 0, 200], [68, 81, 94]);
+  const borderA = useTransform(x, [-200, -50, 0, 50, 200], [0.4, 0.2, 0.25, 0.2, 0.4]);
+  const borderColor = useMotionTemplate`rgba(${borderR}, ${borderG}, ${borderB}, ${borderA})`;
+
+  // Background tint: subtle green/red wash over the card
+  const bgGreenOpacity = useTransform(x, [0, 50, 200], [0, 0, 0.05]);
+  const bgRedOpacity = useTransform(x, [-200, -50, 0], [0.05, 0, 0]);
+
   const config = getCategoryConfig(idea.category);
 
   return (
@@ -59,7 +71,19 @@ export default function IdeaCard({
         opacity: { duration: 0.2 },
       }}
     >
-      <div className="relative bg-gradient-to-br from-gray-800 to-gray-900 border-2 border-gray-700/50 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden cursor-grab active:cursor-grabbing">
+      <motion.div
+        className="relative bg-gradient-to-br from-gray-800 to-gray-900 border-2 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden cursor-grab active:cursor-grabbing"
+        style={{ borderColor }}
+      >
+        {/* Directional background tint */}
+        <motion.div
+          className="absolute inset-0 bg-gradient-to-r from-transparent to-green-500 pointer-events-none"
+          style={{ opacity: bgGreenOpacity }}
+        />
+        <motion.div
+          className="absolute inset-0 bg-gradient-to-l from-transparent to-red-500 pointer-events-none"
+          style={{ opacity: bgRedOpacity }}
+        />
         {/* Swipe indicators */}
         <motion.div
           className="absolute top-8 right-8 z-10"
@@ -194,7 +218,7 @@ export default function IdeaCard({
 
         {/* Gradient overlay for depth */}
         <div className="absolute inset-0 bg-gradient-to-t from-gray-900/50 via-transparent to-transparent pointer-events-none"></div>
-      </div>
+      </motion.div>
     </motion.div>
   );
 }

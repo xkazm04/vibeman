@@ -33,6 +33,101 @@ export const ideaRepository = {
   },
 
   /**
+   * Get ideas for a project within a date range (SQL-level filtering)
+   */
+  getIdeasByProjectInRange: (projectId: string, startDate: string, endDate: string): DbIdea[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM ideas
+      WHERE project_id = ? AND created_at >= ? AND created_at <= ?
+      ORDER BY created_at DESC
+    `);
+    return stmt.all(projectId, startDate, endDate) as DbIdea[];
+  },
+
+  /**
+   * Get ideas by project and status with SQL-level pagination
+   */
+  getIdeasByProjectAndStatus: (
+    projectId: string,
+    status: string,
+    limit: number,
+    offset: number
+  ): { ideas: DbIdea[]; total: number } => {
+    const db = getDatabase();
+    const countStmt = db.prepare(`
+      SELECT COUNT(*) as count FROM ideas
+      WHERE project_id = ? AND status = ?
+    `);
+    const total = (countStmt.get(projectId, status) as { count: number }).count;
+
+    const stmt = db.prepare(`
+      SELECT * FROM ideas
+      WHERE project_id = ? AND status = ?
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `);
+    const ideas = stmt.all(projectId, status, limit, offset) as DbIdea[];
+
+    return { ideas, total };
+  },
+
+  /**
+   * Get all ideas by status with SQL-level pagination (cross-project)
+   */
+  getAllIdeasByStatusPaginated: (
+    status: string,
+    limit: number,
+    offset: number
+  ): { ideas: DbIdea[]; total: number } => {
+    const db = getDatabase();
+    const countStmt = db.prepare(`
+      SELECT COUNT(*) as count FROM ideas
+      WHERE status = ?
+    `);
+    const total = (countStmt.get(status) as { count: number }).count;
+
+    const stmt = db.prepare(`
+      SELECT * FROM ideas
+      WHERE status = ?
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `);
+    const ideas = stmt.all(status, limit, offset) as DbIdea[];
+
+    return { ideas, total };
+  },
+
+  /**
+   * Get ideas by multiple project IDs and status with SQL-level pagination
+   */
+  getIdeasByProjectsAndStatus: (
+    projectIds: string[],
+    status: string,
+    limit: number,
+    offset: number
+  ): { ideas: DbIdea[]; total: number } => {
+    const db = getDatabase();
+    const placeholders = projectIds.map(() => '?').join(',');
+
+    const countStmt = db.prepare(`
+      SELECT COUNT(*) as count FROM ideas
+      WHERE project_id IN (${placeholders}) AND status = ?
+    `);
+    const total = (countStmt.get(...projectIds, status) as { count: number }).count;
+
+    const stmt = db.prepare(`
+      SELECT * FROM ideas
+      WHERE project_id IN (${placeholders}) AND status = ?
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `);
+    const ideas = stmt.all(...projectIds, status, limit, offset) as DbIdea[];
+
+    return { ideas, total };
+  },
+
+  /**
    * Get ideas by status
    */
   getIdeasByStatus: (status: 'pending' | 'accepted' | 'rejected' | 'implemented'): DbIdea[] => {

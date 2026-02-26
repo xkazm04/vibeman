@@ -169,14 +169,15 @@ async function performAcceptDirection(
  */
 export async function rejectTinderItem(
   item: TinderItem,
-  projectPath?: string
+  projectPath?: string,
+  rejectionReason?: string
 ): Promise<{ success: boolean }> {
   if (isIdeaItem(item)) {
-    // Reject idea via existing endpoint
+    // Reject idea via existing endpoint (with optional reason)
     const response = await fetch('/api/ideas/tinder/reject', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ideaId: item.data.id, projectPath }),
+      body: JSON.stringify({ ideaId: item.data.id, projectPath, rejectionReason }),
     });
 
     if (!response.ok) {

@@ -16,6 +16,12 @@ export const screenshotCaptureRule: RuleDefinition = {
   order: 70,
   variables: [
     {
+      name: 'vibemanBaseUrl',
+      placeholder: '{{vibemanBaseUrl}}',
+      configKey: 'vibemanBaseUrl',
+      defaultValue: 'http://localhost:3000',
+    },
+    {
       name: 'contextId',
       placeholder: '{{contextId}}',
       configKey: 'contextId',
@@ -41,7 +47,7 @@ export const screenshotCaptureRule: RuleDefinition = {
 ### Step 1: Check if Test Scenario Exists
 
 \`\`\`bash
-curl -X POST "http://localhost:3000/api/tester/screenshot" \\
+curl -X POST "{{vibemanBaseUrl}}/api/tester/screenshot" \\
   -H "Content-Type: application/json" \\
   -d '{"contextId":"{{contextId}}","scanOnly":true}'
 \`\`\`
@@ -66,7 +72,7 @@ fi
 ### Step 3: Capture Screenshot
 
 \`\`\`bash
-curl -X POST "http://localhost:3000/api/tester/screenshot" \\
+curl -X POST "{{vibemanBaseUrl}}/api/tester/screenshot" \\
   -H "Content-Type: application/json" \\
   -d '{"contextId":"{{contextId}}"}'
 \`\`\`

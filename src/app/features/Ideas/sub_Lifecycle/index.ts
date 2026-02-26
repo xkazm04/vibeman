@@ -14,3 +14,4 @@ export { default as LifecycleDashboard } from './LifecycleDashboard';
 export { default as LifecyclePhaseIndicator } from './components/LifecyclePhaseIndicator';
 export { default as LifecycleTimeline } from './components/LifecycleTimeline';
 export { default as LifecycleConfigPanel } from './components/LifecycleConfigPanel';
+export { default as SimulationPreviewPanel } from './components/SimulationPreviewPanel';

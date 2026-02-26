@@ -72,7 +72,8 @@ export function CanvasToolbar({
             <button
               key={type}
               onClick={() => onToggleType(type as SignalType)}
-              className={`flex items-center gap-1.5 transition-all duration-200 hover:scale-110 ${
+              aria-label={`${isVisible ? 'Hide' : 'Show'} ${LABELS[type as SignalType]}`}
+              className={`flex items-center gap-1.5 transition-all duration-200 hover:scale-110 focus-visible:ring-2 focus-visible:ring-purple-500/50 rounded outline-none ${
                 isVisible ? 'opacity-100' : 'opacity-30'
               }`}
               title={`${isVisible ? 'Hide' : 'Show'} ${LABELS[type as SignalType]}`}
@@ -90,7 +91,8 @@ export function CanvasToolbar({
         {!focusedGroup && (
           <button
             onClick={onFitToView}
-            className="ml-1 p-1.5 rounded-md hover:bg-zinc-700/60 text-zinc-500 hover:text-zinc-200 transition-all"
+            aria-label="Fit to view"
+            className="ml-1 p-1.5 rounded-md hover:bg-zinc-700/60 text-zinc-500 hover:text-zinc-200 transition-all focus-visible:ring-2 focus-visible:ring-purple-500/50 outline-none"
             title="Fit to view"
           >
             <Maximize2 size={13} />

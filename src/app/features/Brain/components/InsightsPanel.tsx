@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Lightbulb, Filter, RefreshCw, AlertOctagon, Search, Zap, Sparkles } from 'lucide-react';
+import BrainPanelHeader from './BrainPanelHeader';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useBrainStore } from '@/stores/brainStore';
@@ -160,7 +161,8 @@ function InsightsEmptyState({ scope }: { scope: 'project' | 'global' }) {
         <motion.button
           onClick={handleTrigger}
           disabled={isTriggering}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-mono transition-all disabled:opacity-50"
+          aria-label={isTriggering ? 'Reflecting in progress' : 'Trigger reflection'}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-mono transition-all disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none"
           style={{
             background: `linear-gradient(135deg, ${ACCENT_COLOR}18 0%, rgba(168, 85, 247, 0.08) 100%)`,
             border: `1px solid ${ACCENT_COLOR}30`,
@@ -327,109 +329,95 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
   return (
     <GlowCard accentColor={ACCENT_COLOR} glowColor={GLOW_COLOR} borderColorClass="border-amber-500/20">
       <div className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <motion.div
-              className="p-2 rounded-xl border"
-              style={{
-                backgroundColor: `${ACCENT_COLOR}15`,
-                borderColor: `${ACCENT_COLOR}40`,
-                boxShadow: `0 0 20px ${GLOW_COLOR}`
-              }}
-              whileHover={{ scale: 1.05 }}
-            >
-              <Lightbulb className="w-5 h-5" style={{ color: ACCENT_COLOR }} />
-            </motion.div>
-            <h2 className="text-lg font-semibold text-zinc-200">Learning Insights</h2>
-            <span
-              className="text-sm font-mono px-2 py-0.5 rounded"
-              style={{
-                color: ACCENT_COLOR,
-                background: `${ACCENT_COLOR}15`,
-                textShadow: `0 0 10px ${GLOW_COLOR}`
-              }}
-            >
-              {displayed.length}{typeFilter !== 'all' || debouncedSearch.trim() ? ` / ${insights.length}` : ''}
-            </span>
-          </div>
+        <BrainPanelHeader
+          icon={Lightbulb}
+          title="Learning Insights"
+          accentColor={ACCENT_COLOR}
+          glowColor={GLOW_COLOR}
+          glow
+          count={`${displayed.length}${typeFilter !== 'all' || debouncedSearch.trim() ? ` / ${insights.length}` : ''}`}
+          right={
+            <>
+              {/* Search input */}
+              <div className="relative flex items-center">
+                <Search className="absolute left-2.5 w-3.5 h-3.5 text-zinc-500 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  placeholder="Search insights..."
+                  className="rounded-lg text-xs text-zinc-300 pl-8 pr-3 py-1.5 outline-none font-mono w-44 placeholder:text-zinc-600 focus:ring-1 focus:ring-amber-500/40 transition-all"
+                  style={{
+                    background: 'rgba(39, 39, 42, 0.8)',
+                    border: '1px solid rgba(63, 63, 70, 0.5)'
+                  }}
+                />
+              </div>
 
-          <div className="flex items-center gap-3">
-            {/* Search input */}
-            <div className="relative flex items-center">
-              <Search className="absolute left-2.5 w-3.5 h-3.5 text-zinc-500 pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={handleSearchChange}
-                placeholder="Search insights..."
-                className="rounded-lg text-xs text-zinc-300 pl-8 pr-3 py-1.5 outline-none font-mono w-44 placeholder:text-zinc-600 focus:ring-1 focus:ring-amber-500/40 transition-all"
-                style={{
-                  background: 'rgba(39, 39, 42, 0.8)',
-                  border: '1px solid rgba(63, 63, 70, 0.5)'
-                }}
-              />
-            </div>
+              {/* Auto-pruned indicator */}
+              {autoPrunedCount > 0 && (
+                <span
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono bg-amber-500/10 text-amber-400/80 border border-amber-500/20"
+                  title={`${autoPrunedCount} insight${autoPrunedCount !== 1 ? 's' : ''} auto-pruned by effectiveness analysis`}
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>{autoPrunedCount} AUTO-PRUNED</span>
+                </span>
+              )}
 
-            {/* Auto-pruned indicator */}
-            {autoPrunedCount > 0 && (
-              <span
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono bg-amber-500/10 text-amber-400/80 border border-amber-500/20"
-                title={`${autoPrunedCount} insight${autoPrunedCount !== 1 ? 's' : ''} auto-pruned by effectiveness analysis`}
-              >
-                <Zap className="w-3.5 h-3.5" />
-                <span>{autoPrunedCount} AUTO-PRUNED</span>
-              </span>
-            )}
+              {/* Conflicts button - only for unresolved manual conflicts */}
+              {conflictCount > 0 && (
+                <button
+                  onClick={() => setTypeFilter(typeFilter === 'conflicts' ? 'all' : 'conflicts')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none ${
+                    typeFilter === 'conflicts'
+                      ? 'bg-red-500/20 text-red-400 border border-red-500/40'
+                      : 'bg-red-500/10 text-red-400/80 border border-red-500/20 hover:bg-red-500/15'
+                  }`}
+                  aria-label={`${typeFilter === 'conflicts' ? 'Show all insights' : 'Filter to conflicting insights'}`}
+                  title="View conflicting insights needing manual resolution"
+                >
+                  <AlertOctagon className="w-3.5 h-3.5" />
+                  <span>{conflictCount} CONFLICTS</span>
+                </button>
+              )}
 
-            {/* Conflicts button - only for unresolved manual conflicts */}
-            {conflictCount > 0 && (
+              <div className="flex items-center gap-2">
+                <Filter className="w-3.5 h-3.5 text-zinc-500" />
+                <select
+                  value={typeFilter === 'conflicts' ? 'all' : typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value as InsightType | 'all' | 'conflicts')}
+                  aria-label="Filter insight type"
+                  className="rounded-lg text-xs text-zinc-300 px-3 py-1.5 outline-none font-mono focus-visible:ring-2 focus-visible:ring-purple-500/50"
+                  style={{
+                    background: 'rgba(39, 39, 42, 0.8)',
+                    border: '1px solid rgba(63, 63, 70, 0.5)'
+                  }}
+                >
+                  <option value="all">ALL_TYPES</option>
+                  <option value="preference_learned">PREFERENCES</option>
+                  <option value="pattern_detected">PATTERNS</option>
+                  <option value="warning">WARNINGS</option>
+                  <option value="recommendation">RECOMMENDATIONS</option>
+                </select>
+              </div>
+
               <button
-                onClick={() => setTypeFilter(typeFilter === 'conflicts' ? 'all' : 'conflicts')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
-                  typeFilter === 'conflicts'
-                    ? 'bg-red-500/20 text-red-400 border border-red-500/40'
-                    : 'bg-red-500/10 text-red-400/80 border border-red-500/20 hover:bg-red-500/15'
-                }`}
-                title="View conflicting insights needing manual resolution"
-              >
-                <AlertOctagon className="w-3.5 h-3.5" />
-                <span>{conflictCount} CONFLICTS</span>
-              </button>
-            )}
-
-            <div className="flex items-center gap-2">
-              <Filter className="w-3.5 h-3.5 text-zinc-500" />
-              <select
-                value={typeFilter === 'conflicts' ? 'all' : typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value as InsightType | 'all' | 'conflicts')}
-                className="rounded-lg text-xs text-zinc-300 px-3 py-1.5 outline-none font-mono"
+                onClick={fetchInsights}
+                disabled={isLoading}
+                className="p-2 rounded-lg transition-all focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none"
                 style={{
-                  background: 'rgba(39, 39, 42, 0.8)',
+                  background: 'rgba(39, 39, 42, 0.5)',
                   border: '1px solid rgba(63, 63, 70, 0.5)'
                 }}
+                aria-label="Refresh insights"
+                title="Refresh insights"
               >
-                <option value="all">ALL_TYPES</option>
-                <option value="preference_learned">PREFERENCES</option>
-                <option value="pattern_detected">PATTERNS</option>
-                <option value="warning">WARNINGS</option>
-                <option value="recommendation">RECOMMENDATIONS</option>
-              </select>
-            </div>
-
-            <button
-              onClick={fetchInsights}
-              disabled={isLoading}
-              className="p-2 rounded-lg transition-all"
-              style={{
-                background: 'rgba(39, 39, 42, 0.5)',
-                border: '1px solid rgba(63, 63, 70, 0.5)'
-              }}
-              title="Refresh insights"
-            >
-              <RefreshCw className={`w-4 h-4 text-zinc-400 ${isLoading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-        </div>
+                <RefreshCw className={`w-4 h-4 text-zinc-400 ${isLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </>
+          }
+        />
 
         {isLoading && insights.length === 0 ? (
           <div className="py-12 text-center">

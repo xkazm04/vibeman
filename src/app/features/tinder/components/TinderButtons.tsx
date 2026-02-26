@@ -1,12 +1,14 @@
 'use client';
 import { motion } from 'framer-motion';
-import { X, Trash2, Check } from 'lucide-react';
+import { X, Trash2, Check, Layers } from 'lucide-react';
 
 interface ActionButtonsProps {
   onReject: () => void;
   onDelete: () => void;
   onAccept: () => void;
   disabled?: boolean;
+  /** If provided, shows the Variants button */
+  onVariants?: () => void;
 }
 
 export default function ActionButtons({
@@ -14,6 +16,7 @@ export default function ActionButtons({
   onDelete,
   onAccept,
   disabled = false,
+  onVariants,
 }: ActionButtonsProps) {
   return (
     <div className="flex items-center justify-center gap-4 pt-4">
@@ -64,6 +67,24 @@ export default function ActionButtons({
       >
         <Check className="w-6 h-6 transition-transform duration-200" />
       </motion.button>
+
+      {/* Variants Button */}
+      {onVariants && (
+        <motion.button
+          whileHover={{ scale: disabled ? 1 : 1.1 }}
+          whileTap={{ scale: disabled ? 1 : 0.9 }}
+          onClick={onVariants}
+          disabled={disabled}
+          className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ease-out ${
+            disabled
+              ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-60'
+              : 'bg-purple-500/20 hover:bg-purple-500/30 border-2 border-purple-500 text-purple-400 shadow-lg shadow-purple-500/20 hover:shadow-xl hover:shadow-purple-500/40 hover:border-purple-400 active:scale-95'
+          }`}
+          title="Generate Variants (V)"
+        >
+          <Layers className="w-5 h-5 transition-transform duration-200" />
+        </motion.button>
+      )}
     </div>
   );
 }

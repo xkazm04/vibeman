@@ -104,6 +104,9 @@ export interface LifecycleConfig {
   min_cycle_interval_ms: number;      // Minimum time between cycles
   cooldown_on_failure_ms: number;     // Cooldown after failed cycle
 
+  // Simulation mode
+  simulation_mode: boolean;           // Run full pipeline but stop before creating PR
+
   // Notifications
   notify_on_success: boolean;
   notify_on_failure: boolean;
@@ -143,6 +146,8 @@ export const DEFAULT_LIFECYCLE_CONFIG: Omit<LifecycleConfig, 'id' | 'project_id'
   min_cycle_interval_ms: 60000, // 1 minute minimum between cycles
   cooldown_on_failure_ms: 300000, // 5 minute cooldown on failure
 
+  simulation_mode: true, // Start in simulation mode for safety
+
   notify_on_success: true,
   notify_on_failure: true,
   notification_channels: [],
@@ -181,6 +186,10 @@ export interface LifecycleCycle {
   deployment_status?: 'pending' | 'in_progress' | 'completed' | 'failed' | 'skipped';
   deployment_details?: Record<string, unknown>;
 
+  // Simulation
+  is_simulation: boolean;
+  simulation_preview?: SimulationPreview;
+
   // Timing
   started_at: string;
   completed_at?: string;
@@ -212,6 +221,33 @@ export interface LifecycleEvent {
   details?: Record<string, unknown>;
 
   created_at: string;
+}
+
+/**
+ * Simulation preview - shows what WOULD have been deployed
+ */
+export interface SimulationPreview {
+  would_create_branch: string;
+  would_create_pr: boolean;
+  pr_title: string;
+  pr_body: string;
+  files_changed: string[];
+  ideas_implemented: Array<{ id: string; title: string; category: string }>;
+  gate_summary: Array<{ gate: string; passed: boolean; message: string }>;
+  estimated_impact: string;
+  blocked_reason?: string;
+}
+
+/**
+ * Detection result from git analysis
+ */
+export interface DetectionResult {
+  has_changes: boolean;
+  files_changed: string[];
+  insertions: number;
+  deletions: number;
+  untracked_files: string[];
+  current_branch: string;
 }
 
 /**

@@ -117,7 +117,7 @@ export default function EventsBarChart({
         animate={{ opacity: 1 }}
         className="text-center py-8"
       >
-        <BarChart3 className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+        <BarChart3 className="w-8 h-8 text-gray-600 mx-auto mb-3" />
         <p className="text-sm text-gray-500">No events logged yet</p>
         <p className="text-sm text-gray-600 mt-1">
           Activity will appear here after running scans
@@ -130,33 +130,7 @@ export default function EventsBarChart({
   const maxCount = Math.max(...stats.map(s => s.count));
 
   return (
-    <div className="space-y-4 flex flex-col w-[420px]">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-gray-700/50">
-        <div className="flex items-center gap-2.5">
-          <div className="p-1.5 bg-blue-500/10 rounded-lg border border-blue-500/30">
-            <BarChart3 className="w-4 h-4 text-blue-400" />
-          </div>
-          <div>
-            <h2 className="text-base font-semibold text-white">Top Activity</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Most used scans this week</p>
-          </div>
-        </div>
-
-        {/* Total events count */}
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-lg"
-        >
-          <span className="text-xs font-medium text-blue-400">
-            {stats.reduce((sum, s) => sum + s.count, 0)} total
-          </span>
-        </motion.div>
-      </div>
-
-      {/* Bar Chart */}
-      <div className="space-y-3">
+    <div className="w-full space-y-3">
         <AnimatePresence>
           {stats.map((stat, index) => {
             const label = getEventLabel(stat.title);
@@ -203,7 +177,6 @@ export default function EventsBarChart({
             );
           })}
         </AnimatePresence>
-      </div>
     </div>
   );
 }

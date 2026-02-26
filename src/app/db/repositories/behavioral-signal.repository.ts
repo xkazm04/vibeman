@@ -287,6 +287,42 @@ export const behavioralSignalRepository = {
   },
 
   /**
+   * Get daily heatmap data: signal count and decay-weighted total per day,
+   * optionally broken down by signal type and context.
+   */
+  getDailyHeatmap: (
+    projectId: string,
+    windowDays: number = 90
+  ): Array<{
+    date: string;
+    signal_type: BehavioralSignalType;
+    context_id: string | null;
+    context_name: string | null;
+    signal_count: number;
+    total_weight: number;
+  }> => {
+    const db = getDatabase();
+    const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString();
+
+    return selectAll(
+      db,
+      `SELECT
+        DATE(timestamp) as date,
+        signal_type,
+        context_id,
+        context_name,
+        COUNT(*) as signal_count,
+        SUM(weight) as total_weight
+       FROM behavioral_signals
+       WHERE project_id = ? AND timestamp >= ?
+       GROUP BY DATE(timestamp), signal_type, context_id
+       ORDER BY date ASC`,
+      projectId,
+      since
+    );
+  },
+
+  /**
    * Check if any signals exist for a project
    */
   hasSignals: (projectId: string): boolean => {

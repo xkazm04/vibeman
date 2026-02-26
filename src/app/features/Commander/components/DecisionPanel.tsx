@@ -20,7 +20,7 @@ export default function DecisionPanel() {
       <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800/50">
         <h3 className="text-sm font-medium text-slate-200">Decisions</h3>
         {activeNotifications.length > 0 && (
-          <span className="px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 text-[10px] font-medium">
+          <span className="px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 text-xs font-medium">
             {activeNotifications.length}
           </span>
         )}
@@ -38,7 +38,7 @@ export default function DecisionPanel() {
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
             <CheckCircle2 className="w-8 h-8 text-slate-700 mb-3" />
             <p className="text-xs text-slate-500">No pending decisions</p>
-            <p className="text-[10px] text-slate-600 mt-1">
+            <p className="text-xs text-slate-600 mt-1">
               Notifications will appear here as actionable cards
             </p>
           </div>

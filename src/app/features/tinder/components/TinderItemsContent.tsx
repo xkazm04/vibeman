@@ -9,6 +9,7 @@ import { GradientButton } from '@/components/ui';
 import IdeaCard from './IdeaCard';
 import DirectionCard from './DirectionCard';
 import ActionButtons from './TinderButtons';
+import VariantCarousel from './VariantCarousel';
 import SwipeProgress from './SwipeProgress';
 import { KeyboardHintCompact } from '@/components/ui/KeyboardHintBar';
 import { TINDER_CONSTANTS, TINDER_ANIMATIONS } from '../lib/tinderUtils';
@@ -24,13 +25,68 @@ import {
 import { flushTinderItems } from '../lib/tinderItemsApi';
 import { Context } from '@/lib/queries/contextQueries';
 import { getContextNameFromMap } from '@/app/features/Ideas/lib/contextLoader';
+import type { IdeaVariant } from '../lib/variantApi';
 
 // Tinder keyboard hints
 const TINDER_KEYBOARD_HINTS = [
   { key: 'A', label: 'Accept', color: 'green' as const },
   { key: 'Z', label: 'Reject', color: 'red' as const },
   { key: 'D', label: 'Delete', color: 'gray' as const },
+  { key: 'V', label: 'Variants', color: 'purple' as const },
 ];
+
+// ── Rejection Reason Picker ──────────────────────────────────────────────────
+
+const REJECTION_REASONS = [
+  { key: 'too_complex', label: 'Too Complex', emoji: '🏗️' },
+  { key: 'already_exists', label: 'Already Exists', emoji: '🔄' },
+  { key: 'wrong_scope', label: 'Wrong Scope', emoji: '🎯' },
+  { key: 'not_valuable', label: 'Not Valuable', emoji: '📉' },
+  { key: 'not_now', label: 'Not Now', emoji: '⏰' },
+] as const;
+
+function RejectionReasonPicker({
+  onSelect,
+  onSkip,
+}: {
+  onSelect: (reason: string) => void;
+  onSkip: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+      className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-2xl"
+    >
+      <div className="bg-gray-900/95 border border-gray-700/50 rounded-xl p-4 mx-4 max-w-sm w-full shadow-2xl">
+        <p className="text-xs text-gray-400 text-center mb-3">
+          Why are you rejecting this? <span className="text-gray-600">(optional)</span>
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {REJECTION_REASONS.map((reason, i) => (
+            <button
+              key={reason.key}
+              onClick={() => onSelect(reason.key)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800/60 border border-gray-700/40 hover:border-red-500/30 hover:bg-red-500/10 text-sm text-gray-300 hover:text-red-300 transition-all"
+            >
+              <span className="text-2xs text-gray-600 font-mono w-3">{i + 1}</span>
+              <span>{reason.emoji}</span>
+              <span>{reason.label}</span>
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={onSkip}
+          className="w-full mt-2 py-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+        >
+          Skip <span className="text-gray-600 font-mono">(0)</span>
+        </button>
+      </div>
+    </motion.div>
+  );
+}
 
 interface TinderItemsContentProps {
   items: TinderItem[];
@@ -41,13 +97,15 @@ interface TinderItemsContentProps {
   filterMode: TinderFilterMode;
   stats: TinderCombinedStats;
   onAccept: () => Promise<void>;
-  onReject: () => Promise<void>;
+  onReject: (rejectionReason?: string) => Promise<void>;
   onDelete: () => Promise<void>;
   onStartOver: () => void;
   onFlushComplete?: () => void;
   contextsMap?: Record<string, Context[]>;
   /** Map of goal_id -> goal_title for batch-fetched goals */
   goalTitlesMap?: Record<string, string>;
+  // Idea scope variant handler
+  onAcceptIdeaVariant?: (ideaId: string, variant: IdeaVariant) => Promise<void>;
   // Paired direction handlers
   onAcceptPairVariant?: (pairId: string, variant: 'A' | 'B') => Promise<void>;
   onRejectPair?: (pairId: string) => Promise<void>;
@@ -69,6 +127,7 @@ export default function TinderItemsContent({
   onFlushComplete,
   contextsMap = {},
   goalTitlesMap = {},
+  onAcceptIdeaVariant,
   onAcceptPairVariant,
   onRejectPair,
   onDeletePair,
@@ -78,6 +137,74 @@ export default function TinderItemsContent({
   const [flushing, setFlushing] = React.useState(false);
   const [flushError, setFlushError] = React.useState<string | null>(null);
   const [flushSuccess, setFlushSuccess] = React.useState(false);
+  const [showVariants, setShowVariants] = React.useState(false);
+  const [showRejectionPicker, setShowRejectionPicker] = React.useState(false);
+
+  // Reset variant view and rejection picker when current item changes
+  React.useEffect(() => {
+    setShowVariants(false);
+    setShowRejectionPicker(false);
+  }, [currentItem ? getTinderItemId(currentItem) : null]);
+
+  // Rejection picker handlers
+  const triggerReject = React.useCallback(() => {
+    if (!currentItem || processing) return;
+    // Only show picker for idea items — directions reject directly
+    if (isIdeaItem(currentItem)) {
+      setShowRejectionPicker(true);
+    } else {
+      onReject();
+    }
+  }, [currentItem, processing, onReject]);
+
+  const handleRejectWithReason = React.useCallback(async (reason: string) => {
+    setShowRejectionPicker(false);
+    await onReject(reason);
+  }, [onReject]);
+
+  const handleRejectSkip = React.useCallback(async () => {
+    setShowRejectionPicker(false);
+    await onReject();
+  }, [onReject]);
+
+  // Keyboard shortcuts: 'V' for variants, number keys for rejection picker, Escape to dismiss
+  React.useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+
+      // Rejection picker keyboard shortcuts
+      if (showRejectionPicker) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setShowRejectionPicker(false);
+        } else if (e.key >= '1' && e.key <= '5') {
+          e.preventDefault();
+          const idx = parseInt(e.key) - 1;
+          if (idx < REJECTION_REASONS.length) {
+            handleRejectWithReason(REJECTION_REASONS[idx].key);
+          }
+        } else if (e.key === '0' || e.key === 's' || e.key === 'S') {
+          e.preventDefault();
+          handleRejectSkip();
+        }
+        return;
+      }
+
+      // 'V' for variants
+      if ((e.key === 'v' || e.key === 'V') && !showVariants && currentItem && isIdeaItem(currentItem) && !processing && onAcceptIdeaVariant) {
+        e.preventDefault();
+        setShowVariants(true);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [showVariants, showRejectionPicker, currentItem, processing, onAcceptIdeaVariant, handleRejectWithReason, handleRejectSkip]);
+
+  const handleSelectVariant = React.useCallback(async (variant: IdeaVariant) => {
+    if (!currentItem || !isIdeaItem(currentItem) || !onAcceptIdeaVariant) return;
+    setShowVariants(false);
+    await onAcceptIdeaVariant(currentItem.data.id, variant);
+  }, [currentItem, onAcceptIdeaVariant]);
 
   const getFlushItemTypeLabel = () => {
     switch (filterMode) {
@@ -228,94 +355,135 @@ export default function TinderItemsContent({
         )}
       </div>
 
-      {/* Card Stack - taller for pair comparison */}
-      <div className={`relative ${isPairView ? 'h-[620px]' : 'h-[600px]'}`}>
-        <AnimatePresence>
-          {items.slice(currentIndex, currentIndex + TINDER_CONSTANTS.PREVIEW_CARDS).map((item, index) => {
-            const projectId = getTinderItemProjectId(item);
-            const projectName = getProject(projectId)?.name || 'Unknown Project';
-            const itemId = getTinderItemId(item);
+      {/* Card Stack or Variant Carousel */}
+      <AnimatePresence mode="wait">
+        {showVariants && currentItem && isIdeaItem(currentItem) ? (
+          <motion.div
+            key="variants-view"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="min-h-[600px] flex flex-col justify-center"
+          >
+            <div className="mb-4 text-center">
+              <h3 className="text-sm font-semibold text-gray-300 mb-1">
+                Scope Variants for
+              </h3>
+              <p className="text-lg font-bold text-white truncate px-8">
+                {currentItem.data.title}
+              </p>
+            </div>
+            <VariantCarousel
+              ideaId={currentItem.data.id}
+              ideaCategory={currentItem.data.category}
+              onSelectVariant={handleSelectVariant}
+              onClose={() => setShowVariants(false)}
+            />
+          </motion.div>
+        ) : (
+          <motion.div key="cards-view">
+            {/* Card Stack - taller for pair comparison */}
+            <div className={`relative ${isPairView ? 'h-[620px]' : 'h-[600px]'}`}>
+              {/* Rejection Reason Picker Overlay */}
+              <AnimatePresence>
+                {showRejectionPicker && (
+                  <RejectionReasonPicker
+                    onSelect={handleRejectWithReason}
+                    onSkip={handleRejectSkip}
+                  />
+                )}
+              </AnimatePresence>
 
-            if (isIdeaItem(item)) {
-              const contextName = item.data.context_id
-                ? getContextNameFromMap(item.data.context_id, contextsMap)
-                : 'General';
-              const goalTitle = item.data.goal_id ? goalTitlesMap[item.data.goal_id] : undefined;
+              <AnimatePresence>
+                {items.slice(currentIndex, currentIndex + TINDER_CONSTANTS.PREVIEW_CARDS).map((item, index) => {
+                  const projectId = getTinderItemProjectId(item);
+                  const projectName = getProject(projectId)?.name || 'Unknown Project';
+                  const itemId = getTinderItemId(item);
 
-              return (
-                <IdeaCard
-                  key={itemId}
-                  idea={item.data}
-                  projectName={projectName}
-                  contextName={contextName}
-                  goalTitle={goalTitle}
-                  onSwipeLeft={index === 0 ? onReject : () => {}}
-                  onSwipeRight={index === 0 ? onAccept : () => {}}
-                  style={{
-                    zIndex: 10 - index,
-                    ...TINDER_ANIMATIONS.CARD_STACK_TRANSFORM(index),
-                  }}
-                />
-              );
-            } else if (isDirectionPairItem(item)) {
-              // Paired directions - use unified DirectionCard with split view
-              return (
-                <DirectionCard
-                  key={itemId}
-                  direction={item.data.directionA}
-                  directionB={item.data.directionB}
-                  problemStatement={item.data.problemStatement}
-                  pairId={item.data.pairId}
-                  projectName={projectName}
-                  onSwipeLeft={() => {}}
-                  onSwipeRight={() => {}}
-                  onAcceptVariant={index === 0 && onAcceptPairVariant
-                    ? (variant) => onAcceptPairVariant(item.data.pairId, variant)
-                    : undefined
+                  if (isIdeaItem(item)) {
+                    const contextName = item.data.context_id
+                      ? getContextNameFromMap(item.data.context_id, contextsMap)
+                      : 'General';
+                    const goalTitle = item.data.goal_id ? goalTitlesMap[item.data.goal_id] : undefined;
+
+                    return (
+                      <IdeaCard
+                        key={itemId}
+                        idea={item.data}
+                        projectName={projectName}
+                        contextName={contextName}
+                        goalTitle={goalTitle}
+                        onSwipeLeft={index === 0 ? triggerReject : () => {}}
+                        onSwipeRight={index === 0 ? onAccept : () => {}}
+                        style={{
+                          zIndex: 10 - index,
+                          ...TINDER_ANIMATIONS.CARD_STACK_TRANSFORM(index),
+                        }}
+                      />
+                    );
+                  } else if (isDirectionPairItem(item)) {
+                    // Paired directions - use unified DirectionCard with split view
+                    return (
+                      <DirectionCard
+                        key={itemId}
+                        direction={item.data.directionA}
+                        directionB={item.data.directionB}
+                        problemStatement={item.data.problemStatement}
+                        pairId={item.data.pairId}
+                        projectName={projectName}
+                        onSwipeLeft={() => {}}
+                        onSwipeRight={() => {}}
+                        onAcceptVariant={index === 0 && onAcceptPairVariant
+                          ? (variant) => onAcceptPairVariant(item.data.pairId, variant)
+                          : undefined
+                        }
+                        onRejectBoth={index === 0 && onRejectPair ? () => onRejectPair(item.data.pairId) : undefined}
+                        onDeleteBoth={index === 0 && onDeletePair ? () => onDeletePair(item.data.pairId) : undefined}
+                        disabled={index !== 0 || processing}
+                        style={{
+                          zIndex: 10 - index,
+                          ...TINDER_ANIMATIONS.CARD_STACK_TRANSFORM(index),
+                        }}
+                      />
+                    );
+                  } else {
+                    // Single direction
+                    return (
+                      <DirectionCard
+                        key={itemId}
+                        direction={item.data}
+                        projectName={projectName}
+                        onSwipeLeft={index === 0 ? onReject : () => {}}
+                        onSwipeRight={index === 0 ? onAccept : () => {}}
+                        style={{
+                          zIndex: 10 - index,
+                          ...TINDER_ANIMATIONS.CARD_STACK_TRANSFORM(index),
+                        }}
+                      />
+                    );
                   }
-                  onRejectBoth={index === 0 && onRejectPair ? () => onRejectPair(item.data.pairId) : undefined}
-                  onDeleteBoth={index === 0 && onDeletePair ? () => onDeletePair(item.data.pairId) : undefined}
-                  disabled={index !== 0 || processing}
-                  style={{
-                    zIndex: 10 - index,
-                    ...TINDER_ANIMATIONS.CARD_STACK_TRANSFORM(index),
-                  }}
-                />
-              );
-            } else {
-              // Single direction
-              return (
-                <DirectionCard
-                  key={itemId}
-                  direction={item.data}
-                  projectName={projectName}
-                  onSwipeLeft={index === 0 ? onReject : () => {}}
-                  onSwipeRight={index === 0 ? onAccept : () => {}}
-                  style={{
-                    zIndex: 10 - index,
-                    ...TINDER_ANIMATIONS.CARD_STACK_TRANSFORM(index),
-                  }}
-                />
-              );
-            }
-          })}
-        </AnimatePresence>
-      </div>
+                })}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Action Buttons - Hide for paired directions since they have built-in buttons */}
-      {currentItem && !isDirectionPairItem(currentItem) && (
+      {/* Action Buttons - Hide for paired directions and variant view */}
+      {currentItem && !isDirectionPairItem(currentItem) && !showVariants && (
         <ActionButtons
-          onReject={onReject}
+          onReject={triggerReject}
           onDelete={onDelete}
           onAccept={onAccept}
-          disabled={processing}
+          disabled={processing || showRejectionPicker}
+          onVariants={isIdeaItem(currentItem) && onAcceptIdeaVariant ? () => setShowVariants(true) : undefined}
         />
       )}
 
-      {/* Keyboard Hints - hide for paired directions */}
-      {currentItem && !isDirectionPairItem(currentItem) && (
+      {/* Keyboard Hints - hide for paired directions and variant view */}
+      {currentItem && !isDirectionPairItem(currentItem) && !showVariants && (
         <div className="mt-2 flex justify-center">
-          <KeyboardHintCompact hints={TINDER_KEYBOARD_HINTS} />
+          <KeyboardHintCompact hints={isIdeaItem(currentItem) && onAcceptIdeaVariant ? TINDER_KEYBOARD_HINTS : TINDER_KEYBOARD_HINTS.filter(h => h.key !== 'V')} />
         </div>
       )}
 

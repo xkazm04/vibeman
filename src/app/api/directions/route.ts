@@ -107,7 +107,10 @@ async function handlePost(request: NextRequest) {
       // NEW: Paired directions support
       pair_id,
       pair_label,
-      problem_statement
+      problem_statement,
+      // Effort/impact scoring
+      effort,
+      impact
     } = body;
 
     // Validate required fields
@@ -129,6 +132,14 @@ async function handlePost(request: NextRequest) {
     // Create the direction
     const id = body.id || `direction_${uuidv4()}`;
 
+    // Check for duplicate ID when caller supplies one
+    if (body.id && directionDb.getDirectionById(body.id)) {
+      return NextResponse.json(
+        { error: `Direction with ID '${body.id}' already exists`, code: 'DUPLICATE_ID' },
+        { status: 409 }
+      );
+    }
+
     const createdDirection = directionDb.createDirection({
       id,
       project_id,
@@ -146,7 +157,10 @@ async function handlePost(request: NextRequest) {
       // NEW: Paired directions support
       pair_id: pair_id || null,
       pair_label: pair_label || null,
-      problem_statement: problem_statement || null
+      problem_statement: problem_statement || null,
+      // Effort/impact scoring
+      effort: typeof effort === 'number' ? Math.max(1, Math.min(10, effort)) : null,
+      impact: typeof impact === 'number' ? Math.max(1, Math.min(10, impact)) : null,
     });
 
     logger.info('[API] Direction created:', {

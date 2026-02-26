@@ -6,7 +6,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Brain, Activity, AlertTriangle, Lightbulb, Info, Check, X, Clock } from 'lucide-react';
+import { Brain, Activity, AlertTriangle, Lightbulb, Info, Check, X, Clock, Zap } from 'lucide-react';
 import { useAnnetteStore } from '@/stores/annetteStore';
 import type { AnnetteNotification } from '@/lib/annette/notificationEngine';
 
@@ -17,6 +17,7 @@ const ICON_MAP = {
   suggestion: Lightbulb,
   status: Info,
   task_execution: Activity,
+  autonomous_agent: Zap,
 };
 
 const COLOR_MAP = {
@@ -26,6 +27,7 @@ const COLOR_MAP = {
   suggestion: 'border-green-500/30 bg-green-500/5',
   status: 'border-slate-500/30 bg-slate-500/5',
   task_execution: 'border-blue-500/30 bg-blue-500/5',
+  autonomous_agent: 'border-amber-500/30 bg-amber-500/5',
 };
 
 const ICON_COLOR_MAP = {
@@ -35,6 +37,7 @@ const ICON_COLOR_MAP = {
   suggestion: 'text-green-400',
   status: 'text-slate-400',
   task_execution: 'text-blue-400',
+  autonomous_agent: 'text-amber-400',
 };
 
 const PRIORITY_COLOR = {

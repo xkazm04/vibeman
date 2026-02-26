@@ -10,6 +10,64 @@ import { behavioralSignalDb } from '@/app/db';
 import type { BehavioralSignalType } from '@/app/db/models/brain.types';
 import { signalCollector } from '@/lib/brain/signalCollector';
 import { withObservability } from '@/lib/observability/middleware';
+import { invalidateContextCache } from '@/app/api/brain/context/route';
+
+/**
+ * Validate signal data shape matches the expected type.
+ * Returns an error message if invalid, or null if valid.
+ */
+function validateSignalData(signalType: BehavioralSignalType, data: Record<string, unknown>): string | null {
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+    return 'data must be a JSON object';
+  }
+
+  switch (signalType) {
+    case 'git_activity': {
+      if (!Array.isArray(data.filesChanged)) return 'git_activity.data requires filesChanged (string[])';
+      if (typeof data.commitMessage !== 'string') return 'git_activity.data requires commitMessage (string)';
+      if (typeof data.linesAdded !== 'number') return 'git_activity.data requires linesAdded (number)';
+      if (typeof data.linesRemoved !== 'number') return 'git_activity.data requires linesRemoved (number)';
+      if (typeof data.branch !== 'string') return 'git_activity.data requires branch (string)';
+      return null;
+    }
+    case 'api_focus': {
+      if (typeof data.endpoint !== 'string') return 'api_focus.data requires endpoint (string)';
+      if (typeof data.method !== 'string') return 'api_focus.data requires method (string)';
+      if (typeof data.callCount !== 'number') return 'api_focus.data requires callCount (number)';
+      if (typeof data.avgResponseTime !== 'number') return 'api_focus.data requires avgResponseTime (number)';
+      if (typeof data.errorRate !== 'number') return 'api_focus.data requires errorRate (number)';
+      return null;
+    }
+    case 'context_focus': {
+      if (typeof data.contextId !== 'string') return 'context_focus.data requires contextId (string)';
+      if (typeof data.contextName !== 'string') return 'context_focus.data requires contextName (string)';
+      if (typeof data.duration !== 'number') return 'context_focus.data requires duration (number)';
+      if (!Array.isArray(data.actions)) return 'context_focus.data requires actions (string[])';
+      return null;
+    }
+    case 'implementation': {
+      if (typeof data.requirementId !== 'string') return 'implementation.data requires requirementId (string)';
+      if (typeof data.requirementName !== 'string') return 'implementation.data requires requirementName (string)';
+      if (!Array.isArray(data.filesCreated)) return 'implementation.data requires filesCreated (string[])';
+      if (!Array.isArray(data.filesModified)) return 'implementation.data requires filesModified (string[])';
+      if (!Array.isArray(data.filesDeleted)) return 'implementation.data requires filesDeleted (string[])';
+      if (typeof data.success !== 'boolean') return 'implementation.data requires success (boolean)';
+      if (typeof data.executionTimeMs !== 'number') return 'implementation.data requires executionTimeMs (number)';
+      return null;
+    }
+    case 'cli_memory': {
+      const validCategories = ['decision', 'insight', 'pattern', 'context', 'lesson'];
+      if (typeof data.category !== 'string' || !validCategories.includes(data.category)) {
+        return `cli_memory.data requires category (one of: ${validCategories.join(', ')})`;
+      }
+      if (typeof data.message !== 'string') return 'cli_memory.data requires message (string)';
+      if (typeof data.source !== 'string') return 'cli_memory.data requires source (string)';
+      return null;
+    }
+    default:
+      return `Unknown signal type: ${signalType}`;
+  }
+}
 
 /**
  * POST /api/brain/signals
@@ -44,6 +102,15 @@ async function handlePost(request: NextRequest) {
       );
     }
 
+    // Validate signal data shape before passing to collector
+    const validationError = validateSignalData(signalType, data);
+    if (validationError) {
+      return NextResponse.json(
+        { success: false, error: `Invalid signal data: ${validationError}` },
+        { status: 400 }
+      );
+    }
+
     // Route to appropriate collector method
     switch (signalType) {
       case 'git_activity':
@@ -62,6 +129,9 @@ async function handlePost(request: NextRequest) {
         signalCollector.recordCliMemory(projectId, data, contextId, contextName);
         break;
     }
+
+    // Invalidate cached behavioral context so next read reflects new signal
+    invalidateContextCache(projectId);
 
     return NextResponse.json({
       success: true,
@@ -151,6 +221,9 @@ async function handleDelete(request: NextRequest) {
       );
     }
 
+    // Look up project_id before deleting so we can invalidate cache
+    const projectId = searchParams.get('projectId');
+
     const deleted = behavioralSignalDb.deleteById(id);
 
     if (!deleted) {
@@ -158,6 +231,11 @@ async function handleDelete(request: NextRequest) {
         { success: false, error: 'Signal not found' },
         { status: 404 }
       );
+    }
+
+    // Invalidate cached behavioral context if we know the project
+    if (projectId) {
+      invalidateContextCache(projectId);
     }
 
     return NextResponse.json({ success: true });

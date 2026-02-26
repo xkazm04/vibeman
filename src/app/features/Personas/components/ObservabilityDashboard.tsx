@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { usePersonaStore } from '@/stores/personaStore';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  AreaChart, Area, PieChart, Pie, Cell, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  AreaChart, Area, PieChart, Pie, Sector, Legend,
 } from 'recharts';
 import { DollarSign, Zap, CheckCircle, TrendingUp, RefreshCw, Stethoscope, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import HealingIssueModal from './HealingIssueModal';
@@ -130,8 +130,7 @@ export default function ObservabilityDashboard() {
         {/* Cost Over Time */}
         <div className="bg-secondary/30 border border-primary/15 rounded-xl p-4">
           <h3 className="text-sm font-semibold text-foreground/80 mb-3">Cost Over Time</h3>
-          <ResponsiveContainer width="100%" height={240}>
-            <AreaChart data={chartData}>
+          <AreaChart data={chartData} responsive width="100%" height={240}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
               <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.4)' }} />
               <YAxis tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.4)' }} tickFormatter={(v) => `$${v}`} />
@@ -144,23 +143,26 @@ export default function ObservabilityDashboard() {
                 </linearGradient>
               </defs>
             </AreaChart>
-          </ResponsiveContainer>
         </div>
 
         {/* Execution Distribution */}
         <div className="bg-secondary/30 border border-primary/15 rounded-xl p-4">
           <h3 className="text-sm font-semibold text-foreground/80 mb-3">Executions by Persona</h3>
           {pieData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={240}>
-              <PieChart>
-                <Pie data={pieData} dataKey="executions" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
-                  {pieData.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Pie>
+            <PieChart responsive width="100%" height={240}>
+                <Pie
+                  data={pieData}
+                  dataKey="executions"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  labelLine={false}
+                  shape={(props: any) => <Sector {...props} fill={COLORS[props.index % COLORS.length]} />}
+                />
                 <Tooltip contentStyle={{ background: '#18181b', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 8, fontSize: 12 }} />
               </PieChart>
-            </ResponsiveContainer>
           ) : (
             <div className="h-[240px] flex items-center justify-center text-sm text-muted-foreground/40">No execution data</div>
           )}
@@ -170,8 +172,7 @@ export default function ObservabilityDashboard() {
       {/* Charts Row 2 */}
       <div className="bg-secondary/30 border border-primary/15 rounded-xl p-4">
         <h3 className="text-sm font-semibold text-foreground/80 mb-3">Execution Health</h3>
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart data={chartData}>
+        <BarChart data={chartData} responsive width="100%" height={240}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
             <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.4)' }} />
             <YAxis tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.4)' }} />
@@ -180,7 +181,6 @@ export default function ObservabilityDashboard() {
             <Bar dataKey="success" name="Successful" fill="#22c55e" radius={[2, 2, 0, 0]} />
             <Bar dataKey="failed" name="Failed" fill="#ef4444" radius={[2, 2, 0, 0]} />
           </BarChart>
-        </ResponsiveContainer>
       </div>
 
       {/* Health Issues Section */}

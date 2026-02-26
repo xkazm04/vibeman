@@ -2,9 +2,10 @@
 
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus, ArrowRight, GitCompare, BarChart3 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Rectangle, ReferenceLine } from 'recharts';
 import { ComparisonStats } from '../lib/types';
 import { SCAN_TYPE_CONFIG } from '../lib/config';
+import ChartTooltip from '../../components/ChartTooltip';
 
 interface ComparisonViewProps {
   comparisonStats: ComparisonStats;
@@ -28,23 +29,18 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   const data = payload[0]?.payload;
   const style = getBarColor(data?.acceptanceRatio || 0);
-  
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 5 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-gray-950/95 backdrop-blur-xl border rounded-xl px-4 py-3 shadow-2xl"
-      style={{ borderColor: style.stroke, boxShadow: `0 0 20px ${style.glow}` }}
-    >
+    <ChartTooltip accentColor={style.stroke} glowColor={style.glow}>
       <p className="text-sm font-semibold text-white mb-1">{label}</p>
       <div className="flex items-center gap-2">
         <div className="w-3 h-3 rounded" style={{ backgroundColor: style.fill }} />
         <span className="text-gray-300 font-mono text-sm">
-          {data?.acceptanceRatio}% 
+          {data?.acceptanceRatio}%
           <span className="text-gray-500 ml-2">({data?.total} ideas)</span>
         </span>
       </div>
-    </motion.div>
+    </ChartTooltip>
   );
 };
 
@@ -179,8 +175,7 @@ export default function ComparisonView({ comparisonStats }: ComparisonViewProps)
               <div className="text-center py-12 text-gray-600 text-sm font-mono">NO_DATA</div>
             ) : (
               <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData1} margin={{ top: 10, right: 10, left: 0, bottom: 60 }}>
+                <BarChart data={chartData1} margin={{ top: 10, right: 10, left: 0, bottom: 60 }} responsive width="100%" height="100%">
                     <defs>
                       <linearGradient id="p1High" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#34d399" stopOpacity={0.9} />
@@ -201,18 +196,22 @@ export default function ComparisonView({ comparisonStats }: ComparisonViewProps)
                     <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} tick={{ fill: '#9ca3af', fontSize: 10, fontFamily: 'monospace' }} axisLine={{ stroke: '#374151' }} />
                     <YAxis tick={{ fill: '#9ca3af', fontSize: 10, fontFamily: 'monospace' }} domain={[0, 100]} axisLine={{ stroke: '#374151' }} />
                     <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(6,182,212,0.02)' }} />
-                    <Bar dataKey="acceptanceRatio" radius={[6, 6, 0, 0]}>
-                      {chartData1.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={entry.acceptanceRatio >= 70 ? 'url(#p1High)' : entry.acceptanceRatio >= 40 ? 'url(#p1Medium)' : 'url(#p1Low)'}
-                          stroke={getBarColor(entry.acceptanceRatio).stroke}
-                          strokeWidth={0.5}
-                        />
-                      ))}
-                    </Bar>
+                    <Bar
+                      dataKey="acceptanceRatio"
+                      radius={[6, 6, 0, 0]}
+                      shape={(props: any) => {
+                        const entry = chartData1[props.index];
+                        return (
+                          <Rectangle
+                            {...props}
+                            fill={entry.acceptanceRatio >= 70 ? 'url(#p1High)' : entry.acceptanceRatio >= 40 ? 'url(#p1Medium)' : 'url(#p1Low)'}
+                            stroke={getBarColor(entry.acceptanceRatio).stroke}
+                            strokeWidth={0.5}
+                          />
+                        );
+                      }}
+                    />
                   </BarChart>
-                </ResponsiveContainer>
               </div>
             )}
           </div>
@@ -239,8 +238,7 @@ export default function ComparisonView({ comparisonStats }: ComparisonViewProps)
               <div className="text-center py-12 text-gray-600 text-sm font-mono">NO_DATA</div>
             ) : (
               <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData2} margin={{ top: 10, right: 10, left: 0, bottom: 60 }}>
+                <BarChart data={chartData2} margin={{ top: 10, right: 10, left: 0, bottom: 60 }} responsive width="100%" height="100%">
                     <defs>
                       <linearGradient id="p2High" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#34d399" stopOpacity={0.9} />
@@ -261,18 +259,22 @@ export default function ComparisonView({ comparisonStats }: ComparisonViewProps)
                     <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} tick={{ fill: '#9ca3af', fontSize: 10, fontFamily: 'monospace' }} axisLine={{ stroke: '#374151' }} />
                     <YAxis tick={{ fill: '#9ca3af', fontSize: 10, fontFamily: 'monospace' }} domain={[0, 100]} axisLine={{ stroke: '#374151' }} />
                     <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(139,92,246,0.02)' }} />
-                    <Bar dataKey="acceptanceRatio" radius={[6, 6, 0, 0]}>
-                      {chartData2.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={entry.acceptanceRatio >= 70 ? 'url(#p2High)' : entry.acceptanceRatio >= 40 ? 'url(#p2Medium)' : 'url(#p2Low)'}
-                          stroke={getBarColor(entry.acceptanceRatio).stroke}
-                          strokeWidth={0.5}
-                        />
-                      ))}
-                    </Bar>
+                    <Bar
+                      dataKey="acceptanceRatio"
+                      radius={[6, 6, 0, 0]}
+                      shape={(props: any) => {
+                        const entry = chartData2[props.index];
+                        return (
+                          <Rectangle
+                            {...props}
+                            fill={entry.acceptanceRatio >= 70 ? 'url(#p2High)' : entry.acceptanceRatio >= 40 ? 'url(#p2Medium)' : 'url(#p2Low)'}
+                            stroke={getBarColor(entry.acceptanceRatio).stroke}
+                            strokeWidth={0.5}
+                          />
+                        );
+                      }}
+                    />
                   </BarChart>
-                </ResponsiveContainer>
               </div>
             )}
           </div>

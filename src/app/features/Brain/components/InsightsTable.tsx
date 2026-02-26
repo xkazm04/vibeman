@@ -62,15 +62,19 @@ interface InsightsTableProps {
   projectNameMap: Map<string, string>;
 }
 
-function SortHeader({ field, label, sortField, onSort }: { field: SortField; label: string; sortField: SortField; onSort: (f: SortField) => void }) {
+function SortHeader({ field, label, sortField, sortDir, onSort }: { field: SortField; label: string; sortField: SortField; sortDir: SortDir; onSort: (f: SortField) => void }) {
+  const isSorted = sortField === field;
   return (
-    <button
-      onClick={() => onSort(field)}
-      className="flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
-    >
-      {label}
-      {sortField === field && <ArrowUpDown className="w-3 h-3 text-purple-400" />}
-    </button>
+    <div role="columnheader" aria-sort={isSorted ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button
+        onClick={() => onSort(field)}
+        aria-label={`Sort by ${label}`}
+        className="flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-300 transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/50 rounded outline-none"
+      >
+        {label}
+        {isSorted && <ArrowUpDown className="w-3 h-3 text-purple-400" />}
+      </button>
+    </div>
   );
 }
 
@@ -108,17 +112,18 @@ function InsightRow({
   return (
     <>
       <div
+        role="row"
         className={`flex items-start border-b border-zinc-800/30 hover:bg-zinc-800/20 group text-sm ${isExpanded ? 'bg-zinc-800/10' : ''} ${hasConflict ? 'border-l-2 border-l-red-500/50' : ''} ${isAutoPruned ? 'opacity-60' : ''}`}
       >
         {/* Type */}
-        <div className="py-2 pr-3 w-24 shrink-0">
+        <div role="cell" className="py-2 pr-3 w-24 shrink-0">
           <span className={`flex items-center gap-1.5 ${config.color}`}>
             {config.icon}
             <span className="text-xs">{config.label}</span>
           </span>
         </div>
         {/* Title */}
-        <div className="py-2 pr-3 flex-1 min-w-0">
+        <div role="cell" className="py-2 pr-3 flex-1 min-w-0">
           <div className="max-w-md">
             <p className="text-zinc-200 text-sm truncate" title={insight.title}>{insight.title}</p>
             <p className="text-zinc-500 text-xs truncate mt-0.5" title={insight.description}>{insight.description}</p>
@@ -154,14 +159,14 @@ function InsightRow({
         </div>
         {/* Project (global only) */}
         {scope === 'global' && (
-          <div className="py-2 pr-3 w-28 shrink-0">
+          <div role="cell" className="py-2 pr-3 w-28 shrink-0">
             <span className="text-xs text-zinc-400 truncate block max-w-[100px]" title={projectNameMap.get(insight.project_id) || insight.project_id}>
               {projectNameMap.get(insight.project_id) || insight.project_id.slice(0, 8)}
             </span>
           </div>
         )}
         {/* Confidence */}
-        <div className="py-2 pr-3 w-20 shrink-0">
+        <div role="cell" className="py-2 pr-3 w-20 shrink-0">
           <span
             className={`inline-block px-1.5 py-0.5 rounded text-xs font-mono ${
               insight.confidence >= 80 ? 'bg-green-500/15 text-green-400'
@@ -177,7 +182,7 @@ function InsightRow({
           </span>
         </div>
         {/* Trend */}
-        <div className="py-2 pr-3 w-14 shrink-0">
+        <div role="cell" className="py-2 pr-3 w-14 shrink-0">
           {insight.confidenceHistory && insight.confidenceHistory.length > 0 ? (
             <InsightSparkline history={insight.confidenceHistory} />
           ) : (
@@ -185,11 +190,12 @@ function InsightRow({
           )}
         </div>
         {/* Evidence */}
-        <div className="py-2 pr-3 w-16 shrink-0">
+        <div role="cell" className="py-2 pr-3 w-16 shrink-0">
           {hasEvidence ? (
             <button
               onClick={() => onToggleExpand(isExpanded ? null : rowKey)}
-              className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+              aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${insight.evidence.length} evidence link${insight.evidence.length !== 1 ? 's' : ''}`}
+              className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200 transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/50 rounded outline-none"
               title={`${insight.evidence.length} evidence link${insight.evidence.length !== 1 ? 's' : ''} - click to expand`}
             >
               {isExpanded
@@ -203,15 +209,16 @@ function InsightRow({
           )}
         </div>
         {/* Actions */}
-        <div className="py-2 w-10 shrink-0 text-right">
+        <div role="cell" className="py-2 w-10 shrink-0 text-right">
           <div className="flex items-center justify-end gap-1">
             {hasConflict && onResolveConflict && (
               <button
                 onClick={() => onToggleResolving(isResolvingThis ? null : rowKey)}
-                className={`p-1 rounded transition-all ${
+                aria-label="Resolve conflict"
+                className={`p-1 rounded transition-all focus-visible:ring-2 focus-visible:ring-purple-500/50 outline-none ${
                   isResolvingThis
                     ? 'bg-red-500/20 text-red-400'
-                    : 'opacity-0 group-hover:opacity-100 text-red-400/60 hover:text-red-400 hover:bg-red-500/10'
+                    : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-red-400/60 hover:text-red-400 hover:bg-red-500/10'
                 }`}
                 title="Resolve conflict"
               >
@@ -220,7 +227,8 @@ function InsightRow({
             )}
             <button
               onClick={() => onDelete(insight)}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
+              aria-label="Delete insight"
+              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 rounded text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all focus-visible:ring-2 focus-visible:ring-purple-500/50 outline-none"
               title="Delete insight"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -241,15 +249,15 @@ function InsightRow({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => { onResolveConflict(insight, 'keep_both'); onToggleResolving(null); }}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-zinc-700/50 text-zinc-300 hover:bg-zinc-700 transition-colors"
+                className="flex items-center gap-1 px-2.5 py-1 rounded text-xs border border-zinc-500/40 bg-zinc-700/50 text-zinc-200 hover:bg-zinc-600/60 hover:border-zinc-400/50 transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/50 outline-none"
                 title="Keep both insights (mark as compatible)"
               >
-                <Check className="w-3 h-3" />
+                <GitMerge className="w-3 h-3" />
                 Keep Both
               </button>
               <button
                 onClick={() => { onResolveConflict(insight, 'keep_this'); onToggleResolving(null); }}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/50 outline-none"
                 title="Keep this insight, delete the other"
               >
                 <Check className="w-3 h-3" />
@@ -257,15 +265,16 @@ function InsightRow({
               </button>
               <button
                 onClick={() => { onResolveConflict(insight, 'keep_other'); onToggleResolving(null); }}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors"
-                title="Keep the other insight, delete this one"
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-500/15 text-red-400 hover:bg-red-500/25 transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/50 outline-none"
+                title="Keep the other insight, delete this one (destructive)"
               >
-                <X className="w-3 h-3" />
+                <Trash2 className="w-3 h-3" />
                 Keep Other
               </button>
               <button
                 onClick={() => onToggleResolving(null)}
-                className="p-1 rounded text-zinc-500 hover:text-zinc-300 transition-colors"
+                aria-label="Cancel conflict resolution"
+                className="p-1 rounded text-zinc-500 hover:text-zinc-300 transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/50 outline-none"
                 title="Cancel"
               >
                 <X className="w-3.5 h-3.5" />
@@ -330,55 +339,59 @@ export function InsightsTable({ insights, scope, sortField, sortDir, onSort, onD
   }, [scope, expandedRow, resolvingConflict, onDelete, onResolveConflict, projectNameMap, getRowKey]);
 
   return (
-    <div className="overflow-x-auto" ref={containerRef}>
+    <div className="overflow-x-auto" ref={containerRef} role="table" aria-label="Insights table">
       {/* Header row */}
-      <div className="flex items-center border-b border-zinc-800/60 pb-2">
-        <div className="pr-3 w-24 shrink-0">
-          <SortHeader field="type" label="Type" sortField={sortField} onSort={onSort} />
-        </div>
-        <div className="pr-3 flex-1">
-          <SortHeader field="title" label="Title" sortField={sortField} onSort={onSort} />
-        </div>
-        {scope === 'global' && (
-          <div className="pr-3 w-28 shrink-0">
-            <span className="text-xs font-medium text-zinc-500">Project</span>
+      <div role="rowgroup">
+        <div role="row" className="flex items-center border-b border-zinc-800/60 pb-2">
+          <div className="pr-3 w-24 shrink-0">
+            <SortHeader field="type" label="Type" sortField={sortField} sortDir={sortDir} onSort={onSort} />
           </div>
-        )}
-        <div className="pr-3 w-20 shrink-0">
-          <SortHeader field="confidence" label="Conf." sortField={sortField} onSort={onSort} />
-        </div>
-        <div className="pr-3 w-14 shrink-0">
-          <span className="text-xs font-medium text-zinc-500">Trend</span>
-        </div>
-        <div className="pr-3 w-16 shrink-0">
-          <SortHeader field="evidence" label="Evid." sortField={sortField} onSort={onSort} />
-        </div>
-        <div className="w-10 shrink-0">
-          <span className="sr-only">Actions</span>
+          <div className="pr-3 flex-1">
+            <SortHeader field="title" label="Title" sortField={sortField} sortDir={sortDir} onSort={onSort} />
+          </div>
+          {scope === 'global' && (
+            <div role="columnheader" className="pr-3 w-28 shrink-0">
+              <span className="text-xs font-medium text-zinc-500">Project</span>
+            </div>
+          )}
+          <div className="pr-3 w-20 shrink-0">
+            <SortHeader field="confidence" label="Conf." sortField={sortField} sortDir={sortDir} onSort={onSort} />
+          </div>
+          <div role="columnheader" className="pr-3 w-14 shrink-0">
+            <span className="text-xs font-medium text-zinc-500">Trend</span>
+          </div>
+          <div className="pr-3 w-16 shrink-0">
+            <SortHeader field="evidence" label="Evid." sortField={sortField} sortDir={sortDir} onSort={onSort} />
+          </div>
+          <div role="columnheader" className="w-10 shrink-0">
+            <span className="sr-only">Actions</span>
+          </div>
         </div>
       </div>
 
       {/* Rows */}
-      {shouldVirtualize ? (
-        <ReactWindowList
-          height={listHeight}
-          width="100%"
-          itemCount={insights.length}
-          itemSize={ROW_HEIGHT}
-          overscanCount={5}
-          itemKey={(index: number) => getRowKey(insights[index], index)}
-        >
-          {({ index, style }: { index: number; style: React.CSSProperties }) => (
-            <div style={style}>
-              {renderRow(insights[index], index)}
-            </div>
-          )}
-        </ReactWindowList>
-      ) : (
-        <div>
-          {insights.map((insight, idx) => renderRow(insight, idx))}
-        </div>
-      )}
+      <div role="rowgroup">
+        {shouldVirtualize ? (
+          <ReactWindowList
+            height={listHeight}
+            width="100%"
+            itemCount={insights.length}
+            itemSize={ROW_HEIGHT}
+            overscanCount={5}
+            itemKey={(index: number) => getRowKey(insights[index], index)}
+          >
+            {({ index, style }: { index: number; style: React.CSSProperties }) => (
+              <div style={style}>
+                {renderRow(insights[index], index)}
+              </div>
+            )}
+          </ReactWindowList>
+        ) : (
+          <div>
+            {insights.map((insight, idx) => renderRow(insight, idx))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

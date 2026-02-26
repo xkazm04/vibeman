@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   HelpCircle,
@@ -125,31 +125,35 @@ export default function CombinedGeneratePanel({
   const isGenerating = generatingQuestions || generatingDirections;
 
   return (
-    <div className="bg-gray-800/40 backdrop-blur-sm rounded-xl border border-gray-700/40 p-4">
-      <div className="space-y-3">
-        {/* Compact Generate Row */}
-        <div className="flex items-center gap-6 flex-wrap">
-          {/* Questions Generator */}
+    <div className="space-y-3">
+      {/* ── Questions Card ─────────────────────────────────────────── */}
+      <div className="bg-gray-800/40 backdrop-blur-sm rounded-xl border border-purple-500/20 p-4">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 text-purple-400">
-              <HelpCircle className="w-4 h-4" />
-              <span className="text-sm font-medium">Questions</span>
+            <div className="p-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20">
+              <HelpCircle className="w-4 h-4 text-purple-400" />
             </div>
-            <input
-              type="number"
-              min={1}
-              max={10}
-              value={questionsPerContext}
-              onChange={(e) => setQuestionsPerContext(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
-              className="w-12 bg-gray-900/50 border border-gray-700/50 rounded px-2 py-1 text-white text-center text-sm focus:outline-none focus:ring-1 focus:ring-purple-500/50"
-              disabled={isGenerating}
-            />
-            <span className="text-xs text-gray-500">/ctx</span>
+            <span className="text-sm font-medium text-purple-300">Questions</span>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={questionsPerContext}
+                onChange={(e) => setQuestionsPerContext(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                className="w-12 bg-gray-900/50 border border-gray-700/50 rounded px-2 py-1 text-white text-center text-sm focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+                disabled={isGenerating}
+              />
+              <span className="text-xs text-gray-500">/ctx</span>
+            </div>
+
             <button
               onClick={handleGenerateQuestions}
               disabled={disabled || isGenerating || selectedContextCount === 0}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-purple-600/80 hover:bg-purple-500 text-white"
-              title={selectedContextCount > 0 ? `~${questionsPerContext * selectedContextCount} questions (${questionsPerContext}/ctx × ${selectedContextCount} contexts)` : 'Select contexts first'}
             >
               {generatingQuestions ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -159,31 +163,58 @@ export default function CombinedGeneratePanel({
               Ask Questions
             </button>
           </div>
+        </div>
 
-          {/* Separator */}
-          <div className="h-6 w-px bg-gray-700/50" />
+        {/* Context hint */}
+        <div className="mt-2 text-[10px] text-gray-500 tabular-nums">
+          {selectedContextCount > 0
+            ? `~${questionsPerContext * selectedContextCount} items across ${selectedContextCount} context${selectedContextCount !== 1 ? 's' : ''}`
+            : 'Select contexts above to generate questions'}
+        </div>
+      </div>
 
-          {/* Directions Generator */}
+      {/* ── Directions Card ────────────────────────────────────────── */}
+      <div className="bg-gray-800/40 backdrop-blur-sm rounded-xl border border-cyan-500/20 p-4 space-y-3">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 text-cyan-400">
-              <Compass className="w-4 h-4" />
-              <span className="text-sm font-medium">Directions</span>
+            <div className="p-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+              <Compass className="w-4 h-4 text-cyan-400" />
             </div>
-            <input
-              type="number"
-              min={1}
-              max={10}
-              value={directionsPerContext}
-              onChange={(e) => setDirectionsPerContext(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
-              className="w-12 bg-gray-900/50 border border-gray-700/50 rounded px-2 py-1 text-white text-center text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
-              disabled={isGenerating}
-            />
-            <span className="text-xs text-gray-500">{brainstormAll ? 'total' : '/ctx'}</span>
+            <span className="text-sm font-medium text-cyan-300">Directions</span>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            {/* Brainstorm All toggle */}
+            <button
+              onClick={() => setBrainstormAll(!brainstormAll)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                brainstormAll
+                  ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400'
+                  : 'bg-gray-800/50 border border-gray-700/50 text-gray-400 hover:text-white hover:border-gray-600/50'
+              }`}
+              title="Brainstorm across entire project"
+            >
+              <Globe2 className="w-3.5 h-3.5" />
+              <span>All</span>
+            </button>
+
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={directionsPerContext}
+                onChange={(e) => setDirectionsPerContext(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                className="w-12 bg-gray-900/50 border border-gray-700/50 rounded px-2 py-1 text-white text-center text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                disabled={isGenerating}
+              />
+              <span className="text-xs text-gray-500">{brainstormAll ? 'total' : '/ctx'}</span>
+            </div>
+
             <button
               onClick={handleGenerateDirections}
               disabled={disabled || isGenerating || (!brainstormAll && selectedContextCount === 0)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-cyan-600/80 hover:bg-cyan-500 text-white"
-              title={brainstormAll ? `~${directionsPerContext} directions across all contexts` : selectedContextCount > 0 ? `~${directionsPerContext * selectedContextCount} directions (${directionsPerContext}/ctx × ${selectedContextCount} contexts)` : 'Select contexts first'}
             >
               {generatingDirections ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -192,19 +223,7 @@ export default function CombinedGeneratePanel({
               )}
               Get Directions
             </button>
-            {/* Brainstorm All toggle */}
-            <button
-              onClick={() => setBrainstormAll(!brainstormAll)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                brainstormAll
-                  ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400'
-                  : 'bg-gray-800/50 border border-gray-700/50 text-gray-400 hover:text-white hover:border-gray-600/50'
-              }`}
-              title="Brainstorm across entire project"
-            >
-              <Globe2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">All</span>
-            </button>
+
             {/* Expand options button */}
             <button
               onClick={() => setShowDirectionOptions(!showDirectionOptions)}
@@ -214,22 +233,18 @@ export default function CombinedGeneratePanel({
               <ChevronDown className={`w-4 h-4 transition-transform ${showDirectionOptions ? 'rotate-180' : ''}`} />
             </button>
           </div>
-
-          {/* Context count indicator */}
-          {brainstormAll ? (
-            <span className="text-xs text-amber-400/70">
-              Brainstorming across {contexts.length} contexts
-            </span>
-          ) : selectedContextCount === 0 ? (
-            <span className="text-xs text-gray-500">Select contexts above</span>
-          ) : (
-            <span className="text-xs text-gray-400">
-              {selectedContextCount} context{selectedContextCount !== 1 ? 's' : ''} selected
-            </span>
-          )}
         </div>
 
-        {/* Direction Options (collapsible) */}
+        {/* Context hint */}
+        <div className="text-[10px] text-gray-500 tabular-nums">
+          {brainstormAll
+            ? <span className="text-amber-400/70">Brainstorming ~{directionsPerContext} across {contexts.length} contexts</span>
+            : selectedContextCount > 0
+              ? `~${directionsPerContext * selectedContextCount} items across ${selectedContextCount} context${selectedContextCount !== 1 ? 's' : ''}`
+              : 'Select contexts above to generate directions'}
+        </div>
+
+        {/* Direction Options (collapsible, inside the Directions card) */}
         <AnimatePresence>
           {showDirectionOptions && (
             <motion.div
@@ -320,27 +335,27 @@ export default function CombinedGeneratePanel({
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Status Message */}
-        <AnimatePresence>
-          {status && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className={`
-                p-2.5 rounded-lg text-sm
-                ${status === 'success'
-                  ? 'bg-green-500/10 border border-green-500/30 text-green-400'
-                  : 'bg-red-500/10 border border-red-500/30 text-red-400'
-                }
-              `}
-            >
-              {message}
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
+
+      {/* Status Message (shared between both cards) */}
+      <AnimatePresence>
+        {status && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className={`
+              p-2.5 rounded-lg text-sm
+              ${status === 'success'
+                ? 'bg-green-500/10 border border-green-500/30 text-green-400'
+                : 'bg-red-500/10 border border-red-500/30 text-red-400'
+              }
+            `}
+          >
+            {message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

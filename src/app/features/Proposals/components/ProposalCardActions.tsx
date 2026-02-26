@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Check, X, Loader2, Code } from 'lucide-react';
 
@@ -12,17 +12,29 @@ interface ProposalCardActionsProps {
   isProcessing?: boolean;
 }
 
-const ActionButton = React.memo(({ 
-  onClick, 
-  disabled, 
-  icon: Icon, 
-  color 
-}: { 
-  onClick?: () => void; 
-  disabled?: boolean; 
-  icon: React.ComponentType<{ className?: string }>; 
+const PARTICLE_OFFSETS = [
+  { left: '20%', top: '30%', x: -12, y: -14 },
+  { left: '40%', top: '45%', x: 0, y: -16 },
+  { left: '60%', top: '60%', x: 12, y: -14 },
+];
+
+const ActionButton = React.memo(({
+  onClick,
+  disabled,
+  icon: Icon,
+  color
+}: {
+  onClick?: () => void;
+  disabled?: boolean;
+  icon: React.ComponentType<{ className?: string }>;
   color: 'red' | 'purple' | 'green';
 }) => {
+  const [burstKey, setBurstKey] = useState(0);
+
+  const handleHover = useCallback(() => {
+    setBurstKey((k) => k + 1);
+  }, []);
+
   const colorClasses = {
     red: {
       bg: 'from-red-500/20 to-orange-500/20 hover:from-red-500/30 hover:to-orange-500/30',
@@ -53,6 +65,7 @@ const ActionButton = React.memo(({
     <motion.button
       onClick={onClick}
       disabled={disabled}
+      onMouseEnter={handleHover}
       className={`relative group p-4 bg-gradient-to-r ${classes.bg} rounded-2xl border ${classes.border} transition-all duration-300 disabled:opacity-50`}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
@@ -65,7 +78,7 @@ const ActionButton = React.memo(({
           filter: 'blur(8px)',
         }}
       />
-      
+
       <div className="relative flex items-center justify-center">
         {disabled ? (
           <Loader2 className={`w-8 h-8 ${classes.icon} animate-spin`} />
@@ -74,25 +87,15 @@ const ActionButton = React.memo(({
         )}
       </div>
 
-      {/* Floating Particles */}
-      {Array.from({ length: 3 }).map((_, i) => (
+      {/* Hover-triggered particle burst */}
+      {PARTICLE_OFFSETS.map((p, i) => (
         <motion.div
-          key={i}
-          className={`absolute w-1 h-1 ${classes.particle} rounded-full`}
-          style={{
-            left: `${20 + i * 20}%`,
-            top: `${30 + i * 15}%`,
-          }}
-          animate={{
-            y: [0, -10, 0],
-            opacity: [0, 1, 0],
-            scale: [0, 1, 0],
-          }}
-          transition={{
-            duration: 2 + Math.random() * 2,
-            repeat: Infinity,
-            delay: i * 0.5,
-          }}
+          key={`${burstKey}-${i}`}
+          className={`absolute w-1 h-1 ${classes.particle} rounded-full pointer-events-none`}
+          style={{ left: p.left, top: p.top }}
+          initial={{ opacity: 0, scale: 0, x: 0, y: 0 }}
+          animate={{ opacity: [0, 1, 0], scale: [0, 1.2, 0], x: p.x, y: p.y }}
+          transition={{ duration: 0.5, delay: i * 0.08, ease: 'easeOut' }}
         />
       ))}
     </motion.button>

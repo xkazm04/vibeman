@@ -63,11 +63,10 @@ export async function fetchDirections(
   if (options?.contextMapId) params.append('contextMapId', options.contextMapId);
 
   const response = await fetch(`/api/directions?${params.toString()}`);
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to fetch directions');
-  }
   const raw = await safeResponseJson(response, '/api/directions');
+  if (!response.ok) {
+    throw new Error((raw as Record<string, unknown>).error as string || 'Failed to fetch directions');
+  }
   return parseApiResponse(raw, DirectionsResponseSchema, '/api/directions') as unknown as DirectionsResponse;
 }
 
@@ -87,11 +86,10 @@ export async function createDirection(data: {
     body: JSON.stringify(data)
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to create direction');
-  }
   const raw = await safeResponseJson(response, '/api/directions POST');
+  if (!response.ok) {
+    throw new Error((raw as Record<string, unknown>).error as string || 'Failed to create direction');
+  }
   return parseApiResponse(raw, DirectionMutationSchema, '/api/directions POST') as unknown as { success: boolean; direction: DbDirection };
 }
 
@@ -130,22 +128,22 @@ async function performAcceptDirection(
     body: JSON.stringify({ projectPath })
   });
 
+  const raw = await safeResponseJson(response, '/api/directions/accept');
+  const data = raw as Record<string, unknown>;
+
   // 409 Conflict means direction was already accepted — treat as success
   if (response.status === 409) {
-    const data = await response.json();
     return {
       success: true,
-      direction: data.direction ?? { id: directionId, status: 'accepted' } as DbDirection,
-      requirementName: data.requirementName ?? '',
-      requirementPath: data.requirementPath ?? '',
+      direction: (data.direction as DbDirection) ?? { id: directionId, status: 'accepted' } as DbDirection,
+      requirementName: (data.requirementName as string) ?? '',
+      requirementPath: (data.requirementPath as string) ?? '',
     };
   }
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to accept direction');
+    throw new Error(data.error as string || 'Failed to accept direction');
   }
-  const raw = await safeResponseJson(response, '/api/directions/accept');
   return parseApiResponse(raw, AcceptDirectionResponseSchema, '/api/directions/accept') as unknown as AcceptDirectionResponse;
 }
 
@@ -161,11 +159,10 @@ export async function rejectDirection(
     body: JSON.stringify({ status: 'rejected' })
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to reject direction');
-  }
   const raw = await safeResponseJson(response, '/api/directions PUT');
+  if (!response.ok) {
+    throw new Error((raw as Record<string, unknown>).error as string || 'Failed to reject direction');
+  }
   return parseApiResponse(raw, DirectionMutationSchema, '/api/directions PUT') as unknown as { success: boolean; direction: DbDirection };
 }
 
@@ -179,11 +176,10 @@ export async function deleteDirection(
     method: 'DELETE'
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to delete direction');
-  }
   const raw = await safeResponseJson(response, '/api/directions DELETE');
+  if (!response.ok) {
+    throw new Error((raw as Record<string, unknown>).error as string || 'Failed to delete direction');
+  }
   return parseApiResponse(raw, SuccessResponseSchema, '/api/directions DELETE');
 }
 
@@ -210,9 +206,23 @@ export async function generateDirectionRequirement(data: {
     body: JSON.stringify(data)
   });
 
+  const raw = await safeResponseJson(response, '/api/directions/generate');
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to generate direction requirement');
+    throw new Error((raw as Record<string, unknown>).error as string || 'Failed to generate direction requirement');
   }
-  return safeResponseJson(response, '/api/directions/generate');
+  return raw as GenerateDirectionsResponse;
+}
+
+/**
+ * Explain why a direction matters for this project
+ */
+export async function explainDirection(directionId: string): Promise<{ success: boolean; explanation: string }> {
+  const response = await fetch(`/api/directions/${directionId}/explain`, {
+    method: 'POST',
+  });
+  const raw = await safeResponseJson(response, '/api/directions/explain');
+  if (!response.ok) {
+    throw new Error((raw as Record<string, unknown>).error as string || 'Failed to explain direction');
+  }
+  return raw as { success: boolean; explanation: string };
 }

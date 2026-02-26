@@ -25,23 +25,27 @@ export function registerImplementationLogTool(
   config: McpConfig,
   client: VibemanHttpClient
 ) {
-  server.tool(
+  server.registerTool(
     'log_implementation',
-    'Log implementation work to Vibeman database. Call this after completing any implementation task to record what was done.',
     {
-      requirementName: z
-        .string()
-        .describe('Requirement filename WITHOUT the .md extension (e.g., "implement-dark-mode")'),
-      title: z
-        .string()
-        .describe('Brief 2-6 word summary of what was implemented (e.g., "Dark Mode Implementation")'),
-      overview: z
-        .string()
-        .describe('1-2 paragraphs describing what was implemented and how'),
-      overviewBullets: z
-        .string()
-        .optional()
-        .describe('Key implementation points separated by newlines (e.g., "Created ThemeProvider\\nUpdated components\\nAdded toggle")'),
+      title: 'Log Implementation',
+      description: 'Log implementation work to Vibeman database. Call this after completing any implementation task to record what was done.',
+      inputSchema: z.object({
+        requirementName: z
+          .string()
+          .describe('Requirement filename WITHOUT the .md extension (e.g., "implement-dark-mode")'),
+        title: z
+          .string()
+          .describe('Brief 2-6 word summary of what was implemented (e.g., "Dark Mode Implementation")'),
+        overview: z
+          .string()
+          .describe('1-2 paragraphs describing what was implemented and how'),
+        overviewBullets: z
+          .string()
+          .optional()
+          .describe('Key implementation points separated by newlines (e.g., "Created ThemeProvider\\nUpdated components\\nAdded toggle")'),
+      }),
+      annotations: { readOnlyHint: false },
     },
     async ({ requirementName, title, overview, overviewBullets }) => {
       if (!config.projectId) {

@@ -6,14 +6,17 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Bot, Bell, BellOff, Trash2, Volume2, VolumeX, FlaskConical } from 'lucide-react';
+import { Bot, Bell, BellOff, Trash2, Volume2, VolumeX, FlaskConical, Ear, Zap } from 'lucide-react';
 import { useAnnetteStore } from '@/stores/annetteStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useVoiceCompanionStore } from '@/stores/voiceCompanionStore';
 import ChatPanel from './components/ChatPanel';
 import DecisionPanel from './components/DecisionPanel';
 import VoiceLabPanel from './components/VoiceLabPanel';
+import AmbientVoicePanel from './components/AmbientVoicePanel';
+import AutonomousAgentPanel from './components/AutonomousAgentPanel';
 
-type Tab = 'annette' | 'voicelab';
+type Tab = 'annette' | 'voicelab' | 'companion' | 'autonomous';
 
 export default function CommanderLayout() {
   const activeProject = useActiveProjectStore((s) => s.activeProject);
@@ -24,6 +27,8 @@ export default function CommanderLayout() {
   const audioEnabled = useAnnetteStore((s) => s.audioEnabled);
   const toggleAudio = useAnnetteStore((s) => s.toggleAudio);
   const markAllRead = useAnnetteStore((s) => s.markAllRead);
+  const companionIsActive = useVoiceCompanionStore((s) => s.isActive);
+  const companionEngineState = useVoiceCompanionStore((s) => s.engineState);
   const [activeTab, setActiveTab] = useState<Tab>('annette');
 
   // Initialize session when project changes
@@ -58,7 +63,7 @@ export default function CommanderLayout() {
             </div>
             <div>
               <h2 className="text-sm font-medium text-slate-200">Annette</h2>
-              <p className="text-[10px] text-slate-500">Brain-powered AI assistant</p>
+              <p className="text-xs text-slate-500">Brain-powered AI assistant</p>
             </div>
           </div>
 
@@ -119,11 +124,46 @@ export default function CommanderLayout() {
             <FlaskConical className="w-3.5 h-3.5" />
             Voice Lab
           </button>
+          <button
+            onClick={() => setActiveTab('companion')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-medium transition-colors ${
+              activeTab === 'companion'
+                ? 'text-emerald-400 bg-slate-800/50 border border-b-0 border-slate-700/40'
+                : 'text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            <Ear className="w-3.5 h-3.5" />
+            Companion
+            {companionIsActive && (
+              <span className="relative flex h-1.5 w-1.5">
+                <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping ${
+                  companionEngineState === 'listening' ? 'bg-emerald-400' : 'bg-cyan-400'
+                }`} />
+                <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${
+                  companionEngineState === 'listening' ? 'bg-emerald-400' : 'bg-cyan-400'
+                }`} />
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('autonomous')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-medium transition-colors ${
+              activeTab === 'autonomous'
+                ? 'text-amber-400 bg-slate-800/50 border border-b-0 border-slate-700/40'
+                : 'text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5" />
+            Agent
+          </button>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-hidden">
-          {activeTab === 'annette' ? <ChatPanel /> : <VoiceLabPanel />}
+          {activeTab === 'annette' && <ChatPanel />}
+          {activeTab === 'voicelab' && <VoiceLabPanel />}
+          {activeTab === 'companion' && <AmbientVoicePanel />}
+          {activeTab === 'autonomous' && <AutonomousAgentPanel />}
         </div>
       </div>
 

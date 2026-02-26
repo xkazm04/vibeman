@@ -34,6 +34,19 @@ export const implementationLogRepository = {
   },
 
   /**
+   * Get implementation logs for a project within a date range (SQL-level filtering)
+   */
+  getLogsByProjectInRange: (projectId: string, startDate: string, endDate: string): DbImplementationLog[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM implementation_log
+      WHERE project_id = ? AND created_at >= ? AND created_at <= ?
+      ORDER BY created_at DESC
+    `);
+    return stmt.all(projectId, startDate, endDate) as DbImplementationLog[];
+  },
+
+  /**
    * Get a single implementation log by ID
    */
   getLogById: (logId: string): DbImplementationLog | null => {

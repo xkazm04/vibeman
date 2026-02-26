@@ -44,12 +44,29 @@ interface EffortImpactData {
   };
 }
 
+export interface QuadrantDrillDownData {
+  quadrant: QuadrantType;
+  title: string;
+  description: string;
+  ideas: Array<{ id: string; title: string; status: string }>;
+  count: number;
+  acceptanceRate: number;
+}
+
 interface EffortImpactMatrixProps {
   filters: FilterState;
   onQuadrantClick?: (quadrant: QuadrantType) => void;
+  /** Called with the quadrant's idea data for drill-down display */
+  onQuadrantDrillDown?: (data: QuadrantDrillDownData) => void;
 }
 
-export default function EffortImpactMatrix({ filters, onQuadrantClick }: EffortImpactMatrixProps) {
+function rateColor(rate: number): string {
+  if (rate >= 60) return 'text-green-400';
+  if (rate >= 30) return 'text-amber-400';
+  return 'text-red-400';
+}
+
+export default function EffortImpactMatrix({ filters, onQuadrantClick, onQuadrantDrillDown }: EffortImpactMatrixProps) {
   const [data, setData] = useState<EffortImpactData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -166,14 +183,24 @@ export default function EffortImpactMatrix({ filters, onQuadrantClick }: EffortI
         {quadrantCards.map((quadrant, index) => {
           const Icon = quadrant.icon;
           const handleClick = () => {
-            if (onQuadrantClick) {
+            if (onQuadrantDrillDown) {
+              onQuadrantDrillDown({
+                quadrant: quadrant.quadrantType,
+                title: quadrant.title,
+                description: quadrant.description,
+                ideas: quadrant.data.ideas,
+                count: quadrant.data.count,
+                acceptanceRate: quadrant.data.acceptanceRate,
+              });
+            } else if (onQuadrantClick) {
               onQuadrantClick(quadrant.quadrantType);
             }
           };
+          const isClickable = !!(onQuadrantDrillDown || onQuadrantClick);
           const handleKeyDown = (e: React.KeyboardEvent) => {
-            if (onQuadrantClick && (e.key === 'Enter' || e.key === ' ')) {
+            if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
               e.preventDefault();
-              onQuadrantClick(quadrant.quadrantType);
+              handleClick();
             }
           };
           return (
@@ -182,13 +209,13 @@ export default function EffortImpactMatrix({ filters, onQuadrantClick }: EffortI
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.4 + index * 0.05 }}
-              whileHover={onQuadrantClick ? { scale: 1.02, y: -2 } : undefined}
+              whileHover={isClickable ? { scale: 1.02, y: -2 } : undefined}
               onClick={handleClick}
               onKeyDown={handleKeyDown}
-              className={`relative bg-gradient-to-br ${quadrant.bgGradient} border ${quadrant.borderColor} rounded-lg p-4 backdrop-blur-sm ${onQuadrantClick ? 'cursor-pointer' : ''}`}
+              className={`relative bg-gradient-to-br ${quadrant.bgGradient} border ${quadrant.borderColor} rounded-lg p-4 backdrop-blur-sm ${isClickable ? 'cursor-pointer' : ''}`}
               data-testid={`quadrant-card-${quadrant.quadrantType}`}
-              role={onQuadrantClick ? 'button' : undefined}
-              tabIndex={onQuadrantClick ? 0 : undefined}
+              role={isClickable ? 'button' : undefined}
+              tabIndex={isClickable ? 0 : undefined}
             >
               <div className="flex items-start gap-2 mb-3">
                 <div className={`p-2 bg-gray-900/60 rounded-lg border ${quadrant.borderColor}`}>
@@ -229,21 +256,21 @@ export default function EffortImpactMatrix({ filters, onQuadrantClick }: EffortI
               <span className="text-sm text-gray-400">Low Effort</span>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-mono text-gray-300">{data.insights.byEffort.low.count}</span>
-                <span className="text-xs text-green-400">{data.insights.byEffort.low.acceptanceRate}%</span>
+                <span className={`text-xs ${rateColor(data.insights.byEffort.low.acceptanceRate)}`}>{data.insights.byEffort.low.acceptanceRate}%</span>
               </div>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-400">Medium Effort</span>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-mono text-gray-300">{data.insights.byEffort.medium.count}</span>
-                <span className="text-xs text-green-400">{data.insights.byEffort.medium.acceptanceRate}%</span>
+                <span className={`text-xs ${rateColor(data.insights.byEffort.medium.acceptanceRate)}`}>{data.insights.byEffort.medium.acceptanceRate}%</span>
               </div>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-400">High Effort</span>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-mono text-gray-300">{data.insights.byEffort.high.count}</span>
-                <span className="text-xs text-green-400">{data.insights.byEffort.high.acceptanceRate}%</span>
+                <span className={`text-xs ${rateColor(data.insights.byEffort.high.acceptanceRate)}`}>{data.insights.byEffort.high.acceptanceRate}%</span>
               </div>
             </div>
           </div>
@@ -261,21 +288,21 @@ export default function EffortImpactMatrix({ filters, onQuadrantClick }: EffortI
               <span className="text-sm text-gray-400">Low Impact</span>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-mono text-gray-300">{data.insights.byImpact.low.count}</span>
-                <span className="text-xs text-green-400">{data.insights.byImpact.low.acceptanceRate}%</span>
+                <span className={`text-xs ${rateColor(data.insights.byImpact.low.acceptanceRate)}`}>{data.insights.byImpact.low.acceptanceRate}%</span>
               </div>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-400">Medium Impact</span>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-mono text-gray-300">{data.insights.byImpact.medium.count}</span>
-                <span className="text-xs text-green-400">{data.insights.byImpact.medium.acceptanceRate}%</span>
+                <span className={`text-xs ${rateColor(data.insights.byImpact.medium.acceptanceRate)}`}>{data.insights.byImpact.medium.acceptanceRate}%</span>
               </div>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-400">High Impact</span>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-mono text-gray-300">{data.insights.byImpact.high.count}</span>
-                <span className="text-xs text-green-400">{data.insights.byImpact.high.acceptanceRate}%</span>
+                <span className={`text-xs ${rateColor(data.insights.byImpact.high.acceptanceRate)}`}>{data.insights.byImpact.high.acceptanceRate}%</span>
               </div>
             </div>
           </div>

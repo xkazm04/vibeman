@@ -20,6 +20,19 @@ export const scanRepository = {
   },
 
   /**
+   * Get scans for a project within a date range (SQL-level filtering)
+   */
+  getScansByProjectInRange: (projectId: string, startDate: string, endDate: string): DbScan[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM scans
+      WHERE project_id = ? AND created_at >= ? AND created_at <= ?
+      ORDER BY created_at DESC
+    `);
+    return stmt.all(projectId, startDate, endDate) as DbScan[];
+  },
+
+  /**
    * Get a single scan by ID
    */
   getScanById: (scanId: string): DbScan | null => {

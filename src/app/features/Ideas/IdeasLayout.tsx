@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { LayoutGrid, Columns3 } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
@@ -10,6 +11,7 @@ import { useProjectContexts } from '@/lib/queries/contextsQueries';
 // Components
 import IdeasHeaderWithFilter from '@/app/features/Ideas/components/IdeasHeaderWithFilter';
 import BufferView, { useInvalidateIdeas } from '@/app/features/Ideas/sub_Buffer/BufferView';
+import KanbanBoard from '@/app/features/Ideas/sub_Kanban/KanbanBoard';
 import IdeaDetailModal from '@/app/features/Ideas/components/IdeaDetailModal';
 import { ScanType } from '@/app/features/Ideas/sub_IdeasSetup/ScanTypeSelector';
 import ScanInitiator from '@/app/features/Ideas/sub_IdeasSetup/ScanInitiator';
@@ -17,6 +19,8 @@ import LazyContentSection from '@/components/Navigation/LazyContentSection';
 
 // Handlers and utilities
 import { getContextName } from '@/app/features/Ideas/lib/contextLoader';
+
+type IdeasViewMode = 'buffer' | 'kanban';
 
 interface IdeasLayoutProps {
   selectedProjectId?: string;
@@ -26,6 +30,7 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
   const [selectedIdea, setSelectedIdea] = React.useState<DbIdea | null>(null);
   const [filterContextIds, setFilterContextIds] = React.useState<string[]>([]);
   const [selectedScanTypes, setSelectedScanTypes] = React.useState<ScanType[]>([]);
+  const [viewMode, setViewMode] = React.useState<IdeasViewMode>('buffer');
   // Groups selected as whole units for requirement generation (via Shift+Click)
   const [selectedGroupIdsForGeneration, setSelectedGroupIdsForGeneration] = React.useState<string[]>([]);
 
@@ -122,15 +127,50 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
           </div>
         </LazyContentSection>
 
-        {/* Content - BufferView now uses React Query internally */}
+        {/* View mode toggle + Content */}
         <LazyContentSection delay={0.2}>
           <div className="w-full px-6 py-8">
-            <BufferView
-              filterProject={selectedProjectId}
-              getProjectName={getProjectNameCallback}
-              getContextName={getContextNameCallback}
-              onIdeaClick={setSelectedIdea}
-            />
+            {/* View toggle */}
+            <div className="flex items-center gap-1 mb-4">
+              <button
+                onClick={() => setViewMode('buffer')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  viewMode === 'buffer'
+                    ? 'bg-zinc-700/60 text-zinc-200'
+                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40'
+                }`}
+                title="Buffer view"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                Buffer
+              </button>
+              <button
+                onClick={() => setViewMode('kanban')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  viewMode === 'kanban'
+                    ? 'bg-zinc-700/60 text-zinc-200'
+                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40'
+                }`}
+                title="Kanban board view"
+              >
+                <Columns3 className="w-3.5 h-3.5" />
+                Kanban
+              </button>
+            </div>
+
+            {viewMode === 'buffer' ? (
+              <BufferView
+                filterProject={selectedProjectId}
+                getProjectName={getProjectNameCallback}
+                getContextName={getContextNameCallback}
+                onIdeaClick={setSelectedIdea}
+              />
+            ) : (
+              <KanbanBoard
+                filterProject={selectedProjectId}
+                onIdeaClick={setSelectedIdea}
+              />
+            )}
           </div>
         </LazyContentSection>
 

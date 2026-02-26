@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Layers, AlertCircle, Wand2, FileCode } from 'lucide-react';
+import { Check, CheckCircle, Layers, AlertCircle, Wand2, FileCode } from 'lucide-react';
 import CompactList, { CompactListItem } from '@/components/lists/CompactList';
 import { DbContext, DbContextGroup } from '@/app/db';
 import { GroupedContexts } from '../lib/questionsApi';
@@ -265,22 +265,37 @@ export default function ContextMapSelector({
               gridTemplateColumns: `repeat(${Math.min(row.length, MAX_COLUMNS)}, minmax(0, 1fr))`
             }}
           >
-            {row.map(({ group, items }) => (
-              <motion.div
-                key={group.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: rowIndex * 0.1 }}
-              >
-                <CompactList
-                  title={group.name}
-                  items={items}
-                  onItemClick={(item) => onToggleContext(item.id)}
-                  emptyMessage="No contexts"
-                  maxHeight="max-h-[300px]"
-                />
-              </motion.div>
-            ))}
+            {row.map(({ group, items }) => {
+              const selectedInGroup = items.filter(i => i.status === 'accepted').length;
+              const totalInGroup = items.length;
+              const allGroupSelected = totalInGroup > 0 && selectedInGroup === totalInGroup;
+
+              return (
+                <motion.div
+                  key={group.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: rowIndex * 0.1 }}
+                >
+                  <CompactList
+                    title={group.name}
+                    titleExtra={
+                      allGroupSelected ? (
+                        <CheckCircle className="w-3 h-3 text-green-400" />
+                      ) : (
+                        <span className="text-[10px] text-gray-500 tabular-nums">
+                          {selectedInGroup}/{totalInGroup}
+                        </span>
+                      )
+                    }
+                    items={items}
+                    onItemClick={(item) => onToggleContext(item.id)}
+                    emptyMessage="No contexts"
+                    maxHeight="max-h-[300px]"
+                  />
+                </motion.div>
+              );
+            })}
           </div>
         ))}
       </div>

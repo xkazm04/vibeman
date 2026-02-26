@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Brain, TrendingUp, TrendingDown, Minus, AlertTriangle, Zap } from 'lucide-react';
+import { Brain, TrendingUp, TrendingDown, Minus, AlertTriangle, Zap, ChevronDown, ChevronRight, Lightbulb } from 'lucide-react';
+import BrainPanelHeader from './BrainPanelHeader';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import InsightEffectivenessScore from './InsightEffectivenessScore';
 import GlowCard from './GlowCard';
@@ -87,10 +88,7 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
           background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.9) 0%, rgba(3, 7, 18, 0.95) 100%)',
         }}
       >
-        <div className="flex items-center gap-2 mb-4">
-          <Brain className="w-5 h-5 text-purple-400" />
-          <h2 className="text-lg font-semibold text-zinc-200">Brain Effectiveness</h2>
-        </div>
+        <BrainPanelHeader icon={Brain} title="Brain Effectiveness" accentColor="#a855f7" glowColor="rgba(168, 85, 247, 0.15)" />
         <div className="animate-pulse space-y-3">
           <div className="h-4 bg-zinc-800 rounded w-2/3" />
           <div className="h-10 bg-zinc-800 rounded" />
@@ -107,10 +105,7 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
           background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.9) 0%, rgba(3, 7, 18, 0.95) 100%)',
         }}
       >
-        <div className="flex items-center gap-2 mb-4">
-          <Brain className="w-5 h-5 text-purple-400" />
-          <h2 className="text-lg font-semibold text-zinc-200">Brain Effectiveness</h2>
-        </div>
+        <BrainPanelHeader icon={Brain} title="Brain Effectiveness" accentColor="#a855f7" glowColor="rgba(168, 85, 247, 0.15)" />
         <div className="text-sm text-red-400">{error}</div>
       </div>
     );
@@ -124,10 +119,7 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
           background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.9) 0%, rgba(3, 7, 18, 0.95) 100%)',
         }}
       >
-        <div className="flex items-center gap-2 mb-4">
-          <Brain className="w-5 h-5 text-purple-400" />
-          <h2 className="text-lg font-semibold text-zinc-200">Brain Effectiveness</h2>
-        </div>
+        <BrainPanelHeader icon={Brain} title="Brain Effectiveness" accentColor="#a855f7" glowColor="rgba(168, 85, 247, 0.15)" />
         <div className="text-sm text-zinc-500">
           Not enough data yet. Generate directions and reflections to see effectiveness scores.
         </div>
@@ -151,25 +143,16 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
     <GlowCard accentColor={accentColor} glowColor={glowColor} borderColorClass={borderColor}>
       <div className="p-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <motion.div
-              className="p-2 rounded-xl border"
-              style={{
-                backgroundColor: `${accentColor}15`,
-                borderColor: `${accentColor}40`,
-                boxShadow: `0 0 20px ${glowColor}`
-              }}
-              whileHover={{ scale: 1.05 }}
-            >
-              <Brain className="w-5 h-5" style={{ color: accentColor }} />
-            </motion.div>
-            <h2 className="text-lg font-semibold text-zinc-200">Brain Effectiveness</h2>
-          </div>
-          {scope === 'global' && (
+        <BrainPanelHeader
+          icon={Brain}
+          title="Brain Effectiveness"
+          accentColor={accentColor}
+          glowColor={glowColor}
+          glow
+          right={scope === 'global' ? (
             <span className="px-2 py-0.5 bg-zinc-700/50 text-zinc-400 rounded text-xs font-mono">GLOBAL</span>
-          )}
-        </div>
+          ) : undefined}
+        />
 
         {/* Overall Score Card */}
         <div
@@ -245,9 +228,16 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
         {/* Toggle details */}
         <button
           onClick={() => setShowDetails(!showDetails)}
-          className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors font-mono"
+          aria-label={showDetails ? 'Hide per-insight scores' : 'Show per-insight scores'}
+          className="flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-300 transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/50 rounded outline-none px-1.5 py-1 -ml-1.5 hover:bg-zinc-800/30"
         >
-          {showDetails ? '[-] HIDE' : '[+] SHOW'} per-insight scores ({insights.length})
+          {showDetails ? (
+            <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 transition-transform" />
+          ) : (
+            <ChevronRight className="w-3.5 h-3.5 flex-shrink-0 transition-transform" />
+          )}
+          <Lightbulb className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>Per-insight scores ({insights.length})</span>
         </button>
 
         {/* Per-insight detail list */}

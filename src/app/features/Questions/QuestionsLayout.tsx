@@ -2,12 +2,15 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { HelpCircle, Compass, RefreshCw } from 'lucide-react';
+import { HelpCircle, Compass, RefreshCw, GitBranch, Table2, Grid3X3, Layers } from 'lucide-react';
 import { DbQuestion } from '@/app/db';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import ContextMapSelector from './components/ContextMapSelector';
 import CombinedGeneratePanel from './components/CombinedGeneratePanel';
 import UnifiedTable from './components/UnifiedTable';
+import DirectionMatrix from './components/DirectionMatrix';
+import QuestionTree from './components/QuestionTree';
+import DirectionCarousel from '@/app/features/Proposals/components/DirectionCarousel';
 import AnswerQuestionModal from './components/AnswerQuestionModal';
 import {
   groupContextsByGroup,
@@ -21,6 +24,9 @@ import {
 import {
   useSqliteContexts,
   useQuestions,
+  useQuestionTrees,
+  useGenerateFollowUp,
+  useGenerateStrategicBrief,
   useDirections,
   useAnswerQuestion,
   useDeleteQuestion,
@@ -43,6 +49,9 @@ export default function QuestionsLayout() {
 
   // Answer modal state
   const [answerModalQuestion, setAnswerModalQuestion] = useState<DbQuestion | null>(null);
+
+  // View toggle: 'table', 'tree', 'matrix', or 'carousel'
+  const [viewMode, setViewMode] = useState<'table' | 'tree' | 'matrix' | 'carousel'>('table');
 
   // React Query hooks for data fetching
   const {
@@ -68,6 +77,11 @@ export default function QuestionsLayout() {
   const rejectDirectionMutation = useRejectDirection();
   const deleteDirectionMutation = useDeleteDirection();
   const invalidateAll = useInvalidateQuestionsDirections();
+
+  // Tree data & mutations
+  const { data: treeData } = useQuestionTrees(activeProject?.id);
+  const generateFollowUpMutation = useGenerateFollowUp();
+  const generateBriefMutation = useGenerateStrategicBrief();
 
   // Derived data
   const contexts = contextsData?.contexts ?? [];
@@ -229,6 +243,36 @@ export default function QuestionsLayout() {
     deleteDirectionMutation.mutate(directionId);
   }, [deleteDirectionMutation]);
 
+  // Tree handlers
+  const handleGenerateFollowUp = useCallback(async (parentId: string) => {
+    await generateFollowUpMutation.mutateAsync(parentId);
+  }, [generateFollowUpMutation]);
+
+  const handleGenerateBrief = useCallback(async (questionId: string) => {
+    await generateBriefMutation.mutateAsync(questionId);
+  }, [generateBriefMutation]);
+
+  const handleGenerateDirectionFromTree = useCallback(async (questionId: string) => {
+    if (!activeProject) return;
+    const question = questions.find(q => q.id === questionId);
+    if (!question) return;
+
+    try {
+      await generateDirectionRequirement({
+        projectId: activeProject.id,
+        projectName: activeProject.name,
+        projectPath: activeProject.path,
+        selectedContextIds: [question.context_map_id],
+        directionsPerContext: 1,
+        userContext: `Based on strategic question chain ending at: "${question.question}" with answer: "${question.answer || ''}"`,
+        answeredQuestions: [{ id: question.id, question: question.question, answer: question.answer || '' }],
+      });
+      invalidateAll();
+    } catch {
+      // Error handled by UI feedback
+    }
+  }, [activeProject, questions, invalidateAll]);
+
   const handleRefresh = useCallback(() => {
     invalidateAll();
   }, [invalidateAll]);
@@ -303,48 +347,204 @@ export default function QuestionsLayout() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
-            className="space-y-6"
+            className="flex gap-4"
           >
-            {/* Context Map Selector */}
-            <ContextMapSelector
-              groupedContexts={groupedContexts}
-              allContexts={contexts}
-              selectedContextIds={selectedContextIds}
-              onToggleContext={handleToggleContext}
-              onSelectAll={handleSelectAll}
-              onClearAll={handleClearAll}
-              loading={contextLoading}
-              error={contextError instanceof Error ? contextError.message : contextError ? String(contextError) : null}
-              onSetupContextMap={handleSetupContextMap}
-            />
+            {/* Step indicator rail */}
+            <div className="flex flex-col items-center pt-4 flex-shrink-0">
+              {/* Step 1 — Select Contexts */}
+              <div className="group relative flex flex-col items-center">
+                <div
+                  role="img"
+                  aria-label="Step 1: Select Contexts"
+                  title="Select Contexts"
+                  className={`w-6 h-6 rounded-full border text-xs font-bold flex items-center justify-center flex-shrink-0 transition-colors ${
+                    selectedContextIds.length > 0
+                      ? 'bg-purple-500/20 border-purple-500/60 text-purple-400'
+                      : 'bg-gray-800 border-gray-600/40 text-gray-500'
+                  }`}
+                >
+                  1
+                </div>
+                <span className="mt-0.5 text-[9px] leading-tight text-gray-500 font-medium whitespace-nowrap">Select</span>
+                <div className="pointer-events-none absolute left-full ml-2.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 border border-gray-700/60 text-gray-200 text-xs px-2.5 py-1 rounded-md shadow-lg whitespace-nowrap z-50">
+                  Select Contexts
+                </div>
+              </div>
+              {/* Connector line 1→2 */}
+              <div className="w-px flex-1 min-h-[24px] border-l-2 border-dashed border-gray-700/30" />
+              {/* Step 2 — Generate */}
+              <div className="group relative flex flex-col items-center">
+                <div
+                  role="img"
+                  aria-label="Step 2: Generate"
+                  title="Generate"
+                  className={`w-6 h-6 rounded-full border text-xs font-bold flex items-center justify-center flex-shrink-0 transition-colors ${
+                    contexts.length > 0 && selectedContextIds.length > 0
+                      ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-400'
+                      : 'bg-gray-800 border-gray-600/40 text-gray-500'
+                  }`}
+                >
+                  2
+                </div>
+                <span className="mt-0.5 text-[9px] leading-tight text-gray-500 font-medium whitespace-nowrap">Generate</span>
+                <div className="pointer-events-none absolute left-full ml-2.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 border border-gray-700/60 text-gray-200 text-xs px-2.5 py-1 rounded-md shadow-lg whitespace-nowrap z-50">
+                  Generate Questions & Directions
+                </div>
+              </div>
+              {/* Connector line 2→3 */}
+              <div className="w-px flex-1 min-h-[24px] border-l-2 border-dashed border-gray-700/30" />
+              {/* Step 3 — Review Results */}
+              <div className="group relative flex flex-col items-center">
+                <div
+                  role="img"
+                  aria-label="Step 3: Review Results"
+                  title="Review Results"
+                  className={`w-6 h-6 rounded-full border text-xs font-bold flex items-center justify-center flex-shrink-0 transition-colors ${
+                    questions.length > 0 || directions.length > 0
+                      ? 'bg-purple-500/20 border-purple-500/60 text-purple-400'
+                      : 'bg-gray-800 border-gray-600/40 text-gray-500'
+                  }`}
+                >
+                  3
+                </div>
+                <span className="mt-0.5 text-[9px] leading-tight text-gray-500 font-medium whitespace-nowrap">Review</span>
+                <div className="pointer-events-none absolute left-full ml-2.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 border border-gray-700/60 text-gray-200 text-xs px-2.5 py-1 rounded-md shadow-lg whitespace-nowrap z-50">
+                  Review Results
+                </div>
+              </div>
+            </div>
 
-            {/* Combined Generate Panel */}
-            {contexts.length > 0 && (
-              <CombinedGeneratePanel
-                contexts={contexts}
+            {/* Content sections */}
+            <div className="flex-1 min-w-0 space-y-6">
+              {/* Context Map Selector */}
+              <ContextMapSelector
+                groupedContexts={groupedContexts}
+                allContexts={contexts}
                 selectedContextIds={selectedContextIds}
-                answeredQuestions={answeredQuestions}
-                onGenerateQuestions={handleGenerateQuestions}
-                onGenerateDirections={handleGenerateDirections}
-                disabled={selectedContextIds.length === 0}
+                onToggleContext={handleToggleContext}
+                onSelectAll={handleSelectAll}
+                onClearAll={handleClearAll}
+                loading={contextLoading}
+                error={contextError instanceof Error ? contextError.message : contextError ? String(contextError) : null}
+                onSetupContextMap={handleSetupContextMap}
               />
-            )}
 
-            {/* Unified Table */}
-            <div className="pt-4">
-              <h2 className="text-lg font-semibold text-white mb-4">
-                Generated Items
-              </h2>
-              <UnifiedTable
-                questions={questions}
-                directions={directions}
-                onAnswerQuestion={handleOpenAnswerModal}
-                onAcceptDirection={handleAcceptDirection}
-                onRejectDirection={handleRejectDirection}
-                onDeleteQuestion={handleDeleteQuestion}
-                onDeleteDirection={handleDeleteDirection}
-                loading={isLoading}
-              />
+              {/* Combined Generate Panel */}
+              {contexts.length > 0 && (
+                <CombinedGeneratePanel
+                  contexts={contexts}
+                  selectedContextIds={selectedContextIds}
+                  answeredQuestions={answeredQuestions}
+                  onGenerateQuestions={handleGenerateQuestions}
+                  onGenerateDirections={handleGenerateDirections}
+                  disabled={selectedContextIds.length === 0}
+                />
+              )}
+
+              {/* Generated Items with View Toggle */}
+              <div className="pt-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-white">
+                    Generated Items
+                  </h2>
+                  <div className="flex items-center gap-1 bg-gray-800/60 rounded-lg p-0.5 border border-gray-700/40">
+                    <button
+                      onClick={() => setViewMode('table')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                        viewMode === 'table'
+                          ? 'bg-gray-700/80 text-white shadow-sm'
+                          : 'text-gray-400 hover:text-gray-300'
+                      }`}
+                    >
+                      <Table2 className="w-3.5 h-3.5" />
+                      Table
+                    </button>
+                    <button
+                      onClick={() => setViewMode('matrix')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                        viewMode === 'matrix'
+                          ? 'bg-cyan-600/30 text-cyan-300 shadow-sm border border-cyan-500/20'
+                          : 'text-gray-400 hover:text-gray-300'
+                      }`}
+                    >
+                      <Grid3X3 className="w-3.5 h-3.5" />
+                      Matrix
+                    </button>
+                    <button
+                      onClick={() => setViewMode('carousel')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                        viewMode === 'carousel'
+                          ? 'bg-emerald-600/30 text-emerald-300 shadow-sm border border-emerald-500/20'
+                          : 'text-gray-400 hover:text-gray-300'
+                      }`}
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      Carousel
+                      {(directionsData?.counts.pending ?? 0) > 0 && (
+                        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px]">
+                          {directionsData?.counts.pending}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setViewMode('tree')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                        viewMode === 'tree'
+                          ? 'bg-purple-600/30 text-purple-300 shadow-sm border border-purple-500/20'
+                          : 'text-gray-400 hover:text-gray-300'
+                      }`}
+                    >
+                      <GitBranch className="w-3.5 h-3.5" />
+                      Tree
+                      {(treeData?.totalTrees ?? 0) > 0 && (
+                        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 text-[10px]">
+                          {treeData?.totalTrees}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {viewMode === 'table' && (
+                  <UnifiedTable
+                    questions={questions}
+                    directions={directions}
+                    onAnswerQuestion={handleOpenAnswerModal}
+                    onAcceptDirection={handleAcceptDirection}
+                    onRejectDirection={handleRejectDirection}
+                    onDeleteQuestion={handleDeleteQuestion}
+                    onDeleteDirection={handleDeleteDirection}
+                    loading={isLoading}
+                  />
+                )}
+                {viewMode === 'matrix' && (
+                  <DirectionMatrix
+                    directions={directions}
+                    onAcceptDirection={handleAcceptDirection}
+                    onRejectDirection={handleRejectDirection}
+                  />
+                )}
+                {viewMode === 'carousel' && (
+                  <DirectionCarousel
+                    directions={directions}
+                    onAccept={handleAcceptDirection}
+                    onReject={handleRejectDirection}
+                    isLoading={isLoading}
+                  />
+                )}
+                {viewMode === 'tree' && (
+                  <QuestionTree
+                    trees={treeData?.trees ?? []}
+                    onAnswerQuestion={handleOpenAnswerModal}
+                    onGenerateFollowUp={handleGenerateFollowUp}
+                    onGenerateBrief={handleGenerateBrief}
+                    onDeleteQuestion={handleDeleteQuestion}
+                    onGenerateDirection={handleGenerateDirectionFromTree}
+                    generatingFollowUp={generateFollowUpMutation.isPending ? (generateFollowUpMutation.variables ?? null) : null}
+                    generatingBrief={generateBriefMutation.isPending ? (generateBriefMutation.variables ?? null) : null}
+                  />
+                )}
+              </div>
             </div>
           </motion.div>
         )}

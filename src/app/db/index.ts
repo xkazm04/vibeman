@@ -87,8 +87,10 @@ import { crossProjectRelationshipRepository } from './repositories/cross-project
 import { architectureAnalysisRepository } from './repositories/architecture-analysis.repository';
 import { projectArchitectureMetadataRepository } from './repositories/project-architecture-metadata.repository';
 import { crossTaskPlanRepository } from './repositories/cross-task.repository';
+import { annetteRapportRepository } from './repositories/annette-rapport.repository';
 import { groupHealthRepository } from './repositories/group-health.repository';
 import { collectiveMemoryRepository } from './repositories/collective-memory.repository';
+import { agentGoalRepository, agentStepRepository } from './repositories/agent.repository';
 import {
   personaRepository,
   personaToolDefRepository,
@@ -610,6 +612,7 @@ export const annetteDb = {
   knowledgeNodes: annetteKnowledgeNodeRepository,
   knowledgeEdges: annetteKnowledgeEdgeRepository,
   consolidations: annetteMemoryConsolidationRepository,
+  rapport: annetteRapportRepository,
   close: closeDatabase,
 };
 
@@ -714,6 +717,16 @@ export const personaDb = {
   healingIssues: healingIssueRepository,
   groups: personaGroupRepository,
   memories: personaMemoryRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Autonomous Agent Database Operations
+ * Manages goal-driven autonomous execution with step decomposition
+ */
+export const agentDb = {
+  goals: agentGoalRepository,
+  steps: agentStepRepository,
   close: closeDatabase,
 };
 

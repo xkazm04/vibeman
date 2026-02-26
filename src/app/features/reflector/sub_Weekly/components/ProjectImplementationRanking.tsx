@@ -9,8 +9,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
-  Cell,
+  Rectangle,
 } from 'recharts';
 import { Package, TrendingUp, Calendar, Loader2, AlertCircle } from 'lucide-react';
 import { ProjectImplementationStats } from '../lib/types';
@@ -197,11 +196,13 @@ export default function ProjectImplementationRanking() {
         <>
           {/* Chart */}
           <div className="relative z-10 h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
+            <BarChart
                 data={chartData}
                 margin={{ top: 10, right: 10, left: -10, bottom: 60 }}
                 barCategoryGap="20%"
+                responsive
+                width="100%"
+                height="100%"
               >
                 <defs>
                   {/* Generate gradients for each color */}
@@ -251,18 +252,19 @@ export default function ProjectImplementationRanking() {
                   dataKey="implementationCount"
                   radius={[6, 6, 0, 0]}
                   filter="url(#barGlow)"
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={`url(#barGradient-${entry.colorIndex})`}
-                      stroke={BAR_COLORS[entry.colorIndex].primary}
-                      strokeWidth={1}
-                    />
-                  ))}
-                </Bar>
+                  shape={(props: any) => {
+                    const entry = chartData[props.index];
+                    return (
+                      <Rectangle
+                        {...props}
+                        fill={`url(#barGradient-${entry.colorIndex})`}
+                        stroke={BAR_COLORS[entry.colorIndex].primary}
+                        strokeWidth={1}
+                      />
+                    );
+                  }}
+                />
               </BarChart>
-            </ResponsiveContainer>
           </div>
 
           {/* Project list footer */}

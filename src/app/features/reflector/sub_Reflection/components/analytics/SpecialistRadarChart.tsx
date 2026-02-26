@@ -4,7 +4,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  Radar, ResponsiveContainer, Tooltip
+  Radar, Tooltip,
 } from 'recharts';
 import { Trophy, TrendingUp, TrendingDown, ArrowRight, Star, Zap } from 'lucide-react';
 import type { SpecialistRanking } from '../../lib/RuleBasedInsightTypes';
@@ -487,8 +487,7 @@ export default function SpecialistRadarChart({
     <div className={`relative flex flex-col h-full ${className}`}>
       {/* Radar Chart */}
       <div className="flex-1 min-h-[250px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
+        <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%" responsive width="100%" height="100%">
             <PolarGrid stroke="rgba(107,114,128,0.2)" />
             <PolarAngleAxis
               dataKey="subject"
@@ -537,7 +536,6 @@ export default function SpecialistRadarChart({
               itemStyle={{ color: '#9ca3af' }}
             />
           </RadarChart>
-        </ResponsiveContainer>
       </div>
 
       {/* Legend + compare toggle */}

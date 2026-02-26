@@ -52,17 +52,64 @@ export async function updateIdeaImplementationStatus(
 }
 
 /**
+ * Ensure an implementation log exists for a completed task.
+ * Checks existing logs and creates a fallback if none found.
+ * This guarantees a log is always created after CLI execution,
+ * even if Claude didn't call the log_implementation MCP tool.
+ */
+async function ensureImplementationLog(
+  projectId: string,
+  requirementName: string,
+  contextId?: string | null
+): Promise<void> {
+  try {
+    // Check if a log already exists for this requirement
+    const resp = await fetch(
+      `/api/implementation-logs?projectId=${encodeURIComponent(projectId)}&limit=50`
+    );
+    if (resp.ok) {
+      const { logs } = await resp.json();
+      const exists = Array.isArray(logs) && logs.some(
+        (log: { requirement_name?: string }) => log.requirement_name === requirementName
+      );
+      if (exists) return; // Log already created by MCP tool — nothing to do
+    }
+
+    // No log found — create a fallback via the simplified endpoint (which also emits brain signal + updates idea)
+    await fetch('/api/implementation-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectId,
+        requirementName,
+        title: `Implementation: ${requirementName}`,
+        overview: 'Auto-generated after successful CLI execution (no MCP log_implementation call detected).',
+        contextId: contextId || undefined,
+      }),
+    });
+  } catch {
+    // Non-critical — best-effort fallback
+  }
+}
+
+/**
  * Perform post-completion cleanup for a successful task
- * Deletes requirement file and updates idea status
+ * Deletes requirement file, updates idea status, and ensures implementation log exists
  *
  * @returns true if requirement was deleted successfully
  */
 export async function performTaskCleanup(
   projectPath: string,
-  requirementName: string
+  requirementName: string,
+  projectId?: string
 ): Promise<boolean> {
-  // Update idea status (fire-and-forget, non-blocking)
+  // Update idea status (fire-and-forget, non-blocking) — also emits brain signal (Fix B)
   updateIdeaImplementationStatus(requirementName);
+
+  // Ensure implementation log exists (fire-and-forget) — creates fallback if MCP tool was skipped (Fix C)
+  if (projectId) {
+    ensureImplementationLog(projectId, requirementName).catch(() => {});
+  }
 
   // Delete requirement file
   return deleteRequirementFile(projectPath, requirementName);
@@ -277,8 +324,8 @@ async function handleTaskComplete(
   }
 
   if (success) {
-    // Perform shared cleanup (delete requirement, update idea status)
-    await performTaskCleanup(task.projectPath, task.requirementName);
+    // Perform shared cleanup (delete requirement, update idea status, ensure log)
+    await performTaskCleanup(task.projectPath, task.requirementName, task.projectId);
 
     // Remove task from queue after brief delay
     setTimeout(() => {

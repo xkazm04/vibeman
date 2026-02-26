@@ -48,7 +48,7 @@ export default function VoiceLabTimingBar({ sttMs, llmMs, ttsMs, totalMs, ttsCac
           return (
             <div
               key={i}
-              className={`${seg.color}/80 flex items-center justify-center text-[9px] font-medium text-white/90 transition-all`}
+              className={`${seg.color}/80 flex items-center justify-center text-2xs font-medium text-white/90 transition-all`}
               style={{ width: `${pct}%` }}
               title={`${seg.label}: ${seg.ms}ms`}
             >
@@ -63,7 +63,7 @@ export default function VoiceLabTimingBar({ sttMs, llmMs, ttsMs, totalMs, ttsCac
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-3 text-[10px] text-slate-500">
+      <div className="flex items-center gap-3 text-xs text-slate-500">
         {segments.map((seg, i) => (
           <span key={i} className="flex items-center gap-1">
             <span className={`w-2 h-2 rounded-sm ${seg.color}/80`} />

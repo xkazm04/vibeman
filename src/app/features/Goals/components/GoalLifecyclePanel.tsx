@@ -7,6 +7,7 @@ import {
   ChevronDown, ChevronRight, Loader2, RefreshCw, Check, X,
   ListChecks, Sparkles, TrendingUp,
 } from 'lucide-react';
+import GlassCard from '@/components/cards/GlassCard';
 
 interface GoalSignal {
   id: string;
@@ -199,7 +200,7 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
   return (
     <div className="space-y-4">
       {/* Progress Bar Section */}
-      <div className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-4">
+      <GlassCard variant="card" className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-blue-400" />
@@ -258,7 +259,7 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
             {progress}%
           </span>
         </div>
-      </div>
+      </GlassCard>
 
       {/* Auto-Complete Suggestion */}
       <AnimatePresence>
@@ -306,7 +307,7 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
 
       {/* Sub-Goals */}
       {data.subGoals.length > 0 && (
-        <div className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-4">
+        <GlassCard variant="card" className="p-4">
           <div className="flex items-center gap-2 mb-3">
             <ListChecks className="w-4 h-4 text-purple-400" />
             <h4 className="text-xs font-semibold text-white/80 uppercase tracking-wider">
@@ -344,12 +345,12 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
               </div>
             ))}
           </div>
-        </div>
+        </GlassCard>
       )}
 
       {/* Signal Timeline (collapsible) */}
       {totalSignals > 0 && (
-        <div className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 overflow-hidden">
+        <GlassCard variant="card" className="overflow-hidden">
           <button
             onClick={() => setShowSignals(!showSignals)}
             className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
@@ -400,7 +401,7 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
+        </GlassCard>
       )}
     </div>
   );

@@ -657,6 +657,10 @@ export interface DbQuestion {
   question: string;
   answer: string | null;
   status: 'pending' | 'answered';
+  // Question tree fields (strategic cascading)
+  parent_id: string | null;    // NULL = root question, else references parent question id
+  tree_depth: number;          // 0 = root, 1 = first follow-up, etc.
+  strategic_brief: string | null; // Auto-generated synthesis at 3+ depth
   created_at: string;
   updated_at: string;
 }
@@ -682,6 +686,10 @@ export interface DbDirection {
   pair_id: string | null;           // Shared ID between paired directions (null = single direction)
   pair_label: 'A' | 'B' | null;     // Which variant in the pair (null = single direction)
   problem_statement: string | null; // The problem both directions solve (for paired directions)
+  decision_record: string | null;   // Structured ADR (JSON) generated on accept
+  // Impact/effort scoring (1-10 scale, AI-estimated or user-set)
+  effort: number | null;            // 1-10: 1 = trivial, 10 = massive
+  impact: number | null;            // 1-10: 1 = negligible, 10 = transformational
   created_at: string;
   updated_at: string;
 }
@@ -774,6 +782,46 @@ export interface DbWorkspaceProject {
   project_id: string;
   position: number;
   added_at: string;
+}
+
+// === Autonomous Agent Types ===
+
+export type AgentGoalStatus = 'pending' | 'decomposing' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
+export type AgentStepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+
+export interface DbAgentGoal {
+  id: string;
+  project_id: string;
+  objective: string;
+  strategy: string | null;         // LLM-generated decomposition plan (JSON)
+  status: AgentGoalStatus;
+  total_steps: number;
+  completed_steps: number;
+  failed_steps: number;
+  current_step_id: string | null;
+  result_summary: string | null;   // Final summary after completion
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbAgentStep {
+  id: string;
+  goal_id: string;
+  order_index: number;
+  title: string;
+  description: string;
+  tool_name: string | null;        // Which tool to use
+  tool_input: string | null;       // JSON tool input
+  status: AgentStepStatus;
+  result: string | null;           // Tool execution result
+  error_message: string | null;
+  tokens_used: number;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
 }
 
 // Export standard category type for use in type annotations

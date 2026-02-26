@@ -7,6 +7,7 @@ import {
   handleIdeasApiError,
   createIdeasSuccessResponse,
 } from '@/app/features/Ideas/lib/ideasHandlers';
+import { signalCollector } from '@/lib/brain/signalCollector';
 
 /**
  * POST /api/ideas/update-implementation-status
@@ -44,6 +45,22 @@ export async function POST(request: NextRequest) {
     if (idea.context_id) {
       const updatedContext = contextDb.incrementImplementedTasks(idea.context_id);
       contextUpdated = updatedContext !== null;
+    }
+
+    // Record brain signal: implementation completed
+    try {
+      signalCollector.recordImplementation(idea.project_id, {
+        requirementId: idea.id,
+        requirementName,
+        contextId: idea.context_id || null,
+        filesCreated: [],
+        filesModified: [],
+        filesDeleted: [],
+        success: true,
+        executionTimeMs: 0,
+      });
+    } catch {
+      // Signal recording must never break the main flow
     }
 
     return createIdeasSuccessResponse(

@@ -123,7 +123,7 @@ export const brainInsightRepository = {
     `);
 
     for (const insight of insights) {
-      const id = `bi_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      const id = `bi_${crypto.randomUUID()}`;
 
       stmt.run(
         id,
