@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCheck, Trash2 } from 'lucide-react';
-import { useNotificationStore } from '@/stores/notificationStore';
+import { useMessageStore } from '@/stores/messageStore';
 import NotificationItem from './NotificationItem';
 
 interface NotificationFeedProps {
@@ -10,8 +10,8 @@ interface NotificationFeedProps {
 }
 
 export default function NotificationFeed({ onAction }: NotificationFeedProps) {
-  const { notifications, markAsRead, markAllAsRead, clearAll } = useNotificationStore();
-  const unreadCount = useNotificationStore(s => s.getUnreadCount());
+  const { notifications, markAsRead, markAllAsRead, clearAllNotifications } = useMessageStore();
+  const unreadCount = useMessageStore(s => s.getUnreadCount());
 
   return (
     <motion.div
@@ -43,7 +43,7 @@ export default function NotificationFeed({ onAction }: NotificationFeedProps) {
           )}
           {notifications.length > 0 && (
             <button
-              onClick={clearAll}
+              onClick={clearAllNotifications}
               className="p-1 rounded text-gray-400 hover:text-red-400 hover:bg-gray-800/50 transition-colors"
               title="Clear all"
             >

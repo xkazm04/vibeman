@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { FileText } from 'lucide-react';
+import { stripMarkdownListPrefix } from '@/lib/stringUtils';
 
 // Import components
 import MdHeading from './MdHeading';
@@ -148,7 +149,7 @@ export default function MarkdownViewer({
       else if (line.match(/^[-*+]\s/) || line.match(/^\d+\.\s/)) {
         const listItems: string[] = [];
         while (i < lines.length && (lines[i].trim().match(/^[-*+]\s/) || lines[i].trim().match(/^\d+\.\s/))) {
-          const item = lines[i].trim().replace(/^[-*+]\s/, '').replace(/^\d+\.\s/, '');
+          const item = stripMarkdownListPrefix(lines[i]);
           listItems.push(item);
           i++;
         }

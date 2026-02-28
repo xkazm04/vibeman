@@ -1,9 +1,0 @@
-{
-  "name": "persona-tools-gmail",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Gmail tools for Vibeman Persona Agent System",
-  "dependencies": {
-    "googleapis": "^140.0.0"
-  }
-}

@@ -158,11 +158,12 @@ export function queriesToBreakpoints(queries: MediaQueryMatch[]): Breakpoint[] {
   }
 
   // Add 0-first breakpoint if not present
-  if (breakpoints.length > 0 && breakpoints[0].minWidth !== 0) {
+  const firstBp = breakpoints[0];
+  if (firstBp && firstBp.minWidth != null && firstBp.minWidth !== 0) {
     breakpoints.unshift({
       name: 'bp-0',
       minWidth: 0,
-      maxWidth: breakpoints[0].minWidth - 1,
+      maxWidth: firstBp.minWidth - 1,
       label: '0px',
       color: '#64748b',
       isCustom: false,

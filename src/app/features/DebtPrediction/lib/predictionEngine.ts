@@ -255,53 +255,49 @@ export function analyzeFile(filePath: string, content: string): CodeAnalysisResu
 
   // Detect long functions
   const longFunctions = detectLongFunctions(content);
-  longFunctions.forEach(line => {
+  longFunctions.forEach(match => {
     issues.push({
       type: 'long-function',
-      line,
-      severity: 'medium',
-      description: 'Function is too long (>50 lines)',
+      line: match.line,
+      severity: match.severity ?? 'medium',
+      description: match.message ?? 'Function is too long (>50 lines)',
       suggestion: 'Extract smaller functions with single responsibilities',
     });
   });
 
   // Detect complex conditionals
   const complexConditionals = detectComplexConditionals(content);
-  complexConditionals.forEach(issue => {
+  complexConditionals.forEach(match => {
     issues.push({
-      type: issue.type,
-      line: issue.line,
-      severity: issue.severity as 'low' | 'medium' | 'high' | 'critical',
-      description: issue.details,
-      suggestion: issue.type === 'deep-nesting'
-        ? 'Use early returns or extract to separate functions'
-        : 'Extract complex conditions to named boolean variables',
+      type: 'complex-conditional',
+      line: match.line,
+      severity: match.severity ?? 'medium',
+      description: match.message ?? 'Complex conditional detected',
+      suggestion: 'Extract complex conditions to named boolean variables',
     });
   });
 
   // Detect high complexity functions
   const highComplexity = detectHighComplexityFunctions(content);
-  highComplexity.forEach(fn => {
+  highComplexity.forEach(match => {
     issues.push({
       type: 'high-complexity',
-      line: fn.line,
-      severity: fn.complexity > 20 ? 'critical' : 'high',
-      description: `Function "${fn.functionName || 'anonymous'}" has cyclomatic complexity of ${fn.complexity}`,
+      line: match.line,
+      severity: match.severity ?? 'high',
+      description: match.message ?? `Function "${match.functionName || 'anonymous'}" has high cyclomatic complexity`,
       suggestion: 'Break down into smaller functions or use strategy pattern',
     });
   });
 
   // Detect magic numbers
   const magicNumbers = detectMagicNumbers(content);
-  magicNumbers.forEach(mn => {
+  magicNumbers.forEach(match => {
     issues.push({
       type: 'magic-numbers',
-      line: mn.line,
-      severity: mn.severity,
-      description: `Magic number ${mn.number} found: ${mn.context}`,
-      suggestion: mn.suggestedName
-        ? `Extract to constant: const ${mn.suggestedName} = ${mn.number}`
-        : 'Extract to a named constant',
+      line: match.line,
+      severity: match.severity ?? 'low',
+      description: match.message ?? 'Magic number found',
+      suggestion: 'Extract to a named constant',
     });
   });
 
@@ -310,7 +306,7 @@ export function analyzeFile(filePath: string, content: string): CodeAnalysisResu
   if (duplicates.length > 0) {
     issues.push({
       type: 'duplicate-code',
-      line: duplicates[0],
+      line: duplicates[0].line,
       severity: 'medium',
       description: `${duplicates.length} potential duplicate code blocks found`,
       suggestion: 'Extract shared logic to a reusable function',
@@ -319,12 +315,12 @@ export function analyzeFile(filePath: string, content: string): CodeAnalysisResu
 
   // Detect unused imports
   const unusedImports = detectUnusedImports(content);
-  unusedImports.forEach(line => {
+  unusedImports.forEach(match => {
     issues.push({
       type: 'unused-import',
-      line,
+      line: match.line,
       severity: 'low',
-      description: 'Potentially unused import',
+      description: match.message ?? 'Potentially unused import',
       suggestion: 'Remove unused imports to reduce bundle size',
     });
   });
@@ -336,7 +332,7 @@ export function analyzeFile(filePath: string, content: string): CodeAnalysisResu
   // Identify matching patterns
   if (lines.length > 500) patterns.push('god-class');
   if (longFunctions.length > 0) patterns.push('long-function');
-  if (complexConditionals.some(c => c.type === 'deep-nesting')) patterns.push('deep-nesting');
+  if (complexConditionals.length > 0) patterns.push('deep-nesting');
   if (highComplexity.length > 0) patterns.push('high-complexity');
   if (magicNumbers.length > 3) patterns.push('magic-numbers');
   if (duplicates.length > 2) patterns.push('duplicate-code');

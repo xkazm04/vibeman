@@ -117,7 +117,7 @@ function logApiCall(data: {
           const targetLayer = data.contextMapping?.layer === 'external' ? 'external' : 'server';
 
           xrayDb.logEvent({
-            api_call_id: apiCall.id,
+            api_call_id: null, // obs_api_calls lives in hot-writes DB; FK can't resolve cross-database
             context_id: data.contextMapping?.contextId || null,
             context_group_id: data.contextMapping?.contextGroupId || null,
             source_layer: data.sourceLayer || null,

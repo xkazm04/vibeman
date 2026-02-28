@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import type { DbDirection } from '@/app/db/models/types';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useDeviceMeshStore } from '@/stores/deviceMeshStore';
 import { type RemoteDirection } from '@/stores/remoteWorkStore';
@@ -18,6 +19,7 @@ import {
   isIdeaItem,
   isDirectionPairItem,
   getTinderItemProjectId,
+  CategoryCount,
 } from './tinderTypes';
 import {
   fetchTinderItems,
@@ -25,7 +27,6 @@ import {
   rejectTinderItem,
   deleteTinderItem,
   fetchIdeaCategories,
-  CategoryCount,
   acceptPairVariant,
   rejectDirectionPair,
   deleteDirectionPair,
@@ -41,15 +42,13 @@ function remoteDirectionToTinderItem(direction: RemoteDirection): TinderItem {
       project_id: direction.project_id,
       summary: direction.summary,
       direction: direction.direction,
-      context_name: direction.context_name || null,
-      context_map_title: direction.context_map_title || null,
+      context_name: direction.context_name ?? '',
+      context_map_title: direction.context_map_title ?? '',
       status: direction.status,
       created_at: direction.created_at,
-      accepted_at: null,
-      rejected_at: null,
       requirement_id: null,
       requirement_path: null,
-    },
+    } as unknown as DbDirection,
   };
 }
 

@@ -286,7 +286,7 @@ function InsightRow({
       {/* Expanded evidence row */}
       {isExpanded && (
         <div className="border-b border-zinc-800/30 bg-zinc-800/5 py-3 px-4">
-          <InsightEvidenceLinks evidenceIds={insight.evidence} />
+          <InsightEvidenceLinks evidence={insight.evidence} />
         </div>
       )}
     </>

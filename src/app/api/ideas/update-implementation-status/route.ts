@@ -8,7 +8,7 @@ import {
   createIdeasSuccessResponse,
 } from '@/app/features/Ideas/lib/ideasHandlers';
 import { signalCollector } from '@/lib/brain/signalCollector';
-import { invalidateContextCache } from '@/app/api/brain/context/route';
+import { invalidateContextCache } from '@/lib/brain/brainService';
 
 /**
  * POST /api/ideas/update-implementation-status

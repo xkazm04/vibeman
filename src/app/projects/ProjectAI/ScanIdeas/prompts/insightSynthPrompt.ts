@@ -12,6 +12,9 @@ interface PromptOptions {
   existingIdeasSection: string;
   codeSection: string;
   hasContext: boolean;
+  behavioralSection: string;
+  goalsSection: string;
+  feedbackSection: string;
 }
 
 export function buildInsightSynthPrompt(options: PromptOptions): string {
@@ -21,7 +24,10 @@ export function buildInsightSynthPrompt(options: PromptOptions): string {
     contextSection,
     existingIdeasSection,
     codeSection,
-    hasContext
+    hasContext,
+    behavioralSection,
+    goalsSection,
+    feedbackSection
   } = options;
 
   return `You are the **Insight Synthesizer** — a systems philosopher with pattern-recognition mastery over ${hasContext ? 'a specific context within' : ''} the "${projectName}" project.
@@ -59,9 +65,15 @@ ${aiDocsSection}
 
 ${contextSection}
 
+${behavioralSection}
+
 ${existingIdeasSection}
 
 ${codeSection}
+
+${goalsSection}
+
+${feedbackSection}
 
 ---
 

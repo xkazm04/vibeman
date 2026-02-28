@@ -3,8 +3,12 @@
  * Parses Claude Code stream-json output to extract tool usage and classify activity
  */
 
+import {
+  TOOL_NAMES,
+  type ActivityType,
+  type ToolName,
+} from './constants';
 import type {
-  ActivityType,
   ActivityEvent,
   TaskActivity,
   StreamJsonMessage,
@@ -15,18 +19,18 @@ import type {
  * Map tool names to activity types
  */
 const TOOL_TO_ACTIVITY: Record<string, ActivityType> = {
-  'Read': 'reading',
-  'Edit': 'editing',
-  'Write': 'writing',
-  'Grep': 'searching',
-  'Glob': 'searching',
-  'Bash': 'executing',
-  'TodoWrite': 'planning',
-  'Task': 'thinking',
-  'WebSearch': 'searching',
-  'WebFetch': 'reading',
-  'LSP': 'reading',
-  'NotebookEdit': 'editing',
+  [TOOL_NAMES.Read]: 'reading',
+  [TOOL_NAMES.Edit]: 'editing',
+  [TOOL_NAMES.Write]: 'writing',
+  [TOOL_NAMES.Grep]: 'searching',
+  [TOOL_NAMES.Glob]: 'searching',
+  [TOOL_NAMES.Bash]: 'executing',
+  [TOOL_NAMES.TodoWrite]: 'planning',
+  [TOOL_NAMES.Task]: 'thinking',
+  [TOOL_NAMES.WebSearch]: 'searching',
+  [TOOL_NAMES.WebFetch]: 'reading',
+  [TOOL_NAMES.LSP]: 'reading',
+  [TOOL_NAMES.NotebookEdit]: 'editing',
 };
 
 /**
@@ -99,7 +103,7 @@ function createActivityEvent(toolUse: StreamJsonToolUse): ActivityEvent {
 
   return {
     type,
-    tool,
+    tool: tool as ToolName,
     target,
     timestamp: new Date(),
   };

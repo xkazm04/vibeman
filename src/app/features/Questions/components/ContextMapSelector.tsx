@@ -4,14 +4,14 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Check, CheckCircle, Layers, AlertCircle, Wand2, FileCode } from 'lucide-react';
 import CompactList, { CompactListItem } from '@/components/lists/CompactList';
-import { DbContext, DbContextGroup } from '@/app/db';
 import { GroupedContexts } from '../lib/questionsApi';
+import type { Context } from '@/lib/queries/contextQueries';
 
 interface ContextMapSelectorProps {
   /** Grouped contexts from SQLite database */
   groupedContexts: GroupedContexts[];
   /** All contexts (flat list for easier selection tracking) */
-  allContexts: DbContext[];
+  allContexts: Context[];
   /** Selected context IDs */
   selectedContextIds: string[];
   /** Toggle selection for a context */
@@ -45,7 +45,7 @@ const CATEGORY_COLORS: Record<string, string> = {
  * redundant JSON.parse calls on every selection change
  */
 function contextToListItem(
-  context: DbContext,
+  context: { id: string; name: string; category?: string },
   isSelected: boolean,
   parsedFilePaths?: string[]
 ): CompactListItem {
@@ -100,12 +100,7 @@ export default function ContextMapSelector({
   const parsedFilePathsMap = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const ctx of allContexts) {
-      try {
-        const filePaths = JSON.parse(ctx.file_paths || '[]');
-        map.set(ctx.id, Array.isArray(filePaths) ? filePaths : []);
-      } catch {
-        map.set(ctx.id, []);
-      }
+      map.set(ctx.id, Array.isArray(ctx.filePaths) ? ctx.filePaths : []);
     }
     return map;
   }, [allContexts]);

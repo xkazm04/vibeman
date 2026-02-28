@@ -39,7 +39,11 @@ export function RequirementPreview({
       setLoading(true);
       try {
         const reqPath = `${projectPath}/.claude/requirements/${requirementName}.md`;
-        const response = await fetch(`/api/disk/read-file?path=${encodeURIComponent(reqPath)}`);
+        const response = await fetch('/api/disk/file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'read', filePath: reqPath })
+        });
         const data = await response.json();
 
         if (data.success && data.content) {

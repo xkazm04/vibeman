@@ -1,4 +1,20 @@
-export const FILE_SCANNER_PROMPT = `You are a code analysis and optimization assistant. Your task is to analyze the provided code file and perform two main operations:
+function getFileExtension(filePath: string): string {
+  return filePath.split('.').pop() || '';
+}
+
+function getCurrentDate(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+/**
+ * Build the file scanner prompt by direct template literal interpolation.
+ * Single O(n) pass — no placeholder scanning or .replace() chains.
+ */
+export function createFileScannerPrompt(filePath: string, fileContent: string): string {
+  const fileExtension = getFileExtension(filePath);
+  const currentDate = getCurrentDate();
+
+  return `You are a code analysis and optimization assistant. Your task is to analyze the provided code file and perform two main operations:
 
 1. **Clean unused code**: Remove unused constants, functions, imports, and variables
 2. **Add documentation**: Add concise header comments explaining the file's purpose and key logic
@@ -17,7 +33,7 @@ export const FILE_SCANNER_PROMPT = `You are a code analysis and optimization ass
   - What this file does
   - Key functionality or logic
   - Important patterns or architectural decisions
-- Include a timestamp: "Last updated: [current_date]"
+- Include a timestamp: "Last updated: ${currentDate}"
 - Use appropriate comment syntax for the file type
 
 ### Response Format:
@@ -46,29 +62,11 @@ You MUST respond with a valid JSON object in this exact structure:
 - Do not include the original code in your response - we already have it
 
 ### File to analyze:
-File path: {{filePath}}
+File path: ${filePath}
 File content:
-\`\`\`{{fileExtension}}
-{{fileContent}}
+\`\`\`${fileExtension}
+${fileContent}
 \`\`\`
 
 Analyze this file and provide your response in the exact JSON format specified above.`;
-
-function getFileExtension(filePath: string): string {
-  return filePath.split('.').pop() || '';
-}
-
-function getCurrentDate(): string {
-  return new Date().toISOString().split('T')[0];
-}
-
-export function createFileScannerPrompt(filePath: string, fileContent: string): string {
-  const fileExtension = getFileExtension(filePath);
-  const currentDate = getCurrentDate();
-
-  return FILE_SCANNER_PROMPT
-    .replace('{{filePath}}', filePath)
-    .replace('{{fileContent}}', fileContent)
-    .replace('{{fileExtension}}', fileExtension)
-    .replace('[current_date]', currentDate);
 }

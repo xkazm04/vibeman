@@ -50,10 +50,11 @@ export async function saveContextFile(
 ): Promise<void> {
   const fullProjectPath = `${projectPath}/${folderPath}/${fileName}`;
 
-  const response = await fetch('/api/disk/save-context-file', {
+  const response = await fetch('/api/disk/file', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      action: 'write',
       filePath: fullProjectPath,
       content,
     }),

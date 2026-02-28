@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { X, FolderOpen, Copy, MousePointer, FileText, Edit, Trash2, CheckSquare, Square } from 'lucide-react';
+import { X, FolderOpen, Copy, MousePointer, FileText, Edit, Trash2, CheckSquare, Square, RefreshCw } from 'lucide-react';
 import { Context, ContextGroup, useContextStore } from '../../../stores/contextStore';
 import { ContextHealthDot } from './components/ContextHealthIndicator';
 import { FileTypeSummary } from './components/MiniFileTree';
@@ -14,16 +14,19 @@ import ContextFileModal from './sub_ContextFile/ContextFileModal';
 import ContextMenu, { type ContextMenuItem } from '@/components/ContextMenu';
 import { useThemeStore } from '@/stores/themeStore';
 import { getFocusRingStyles } from '@/lib/ui/focusRing';
+import { regenerateContext } from './sub_ContextGen/lib/contextGenApi';
+import { toast } from '@/stores/messageStore';
 
 interface ContextCardProps {
   context: Context;
   groupColor?: string;
   availableGroups: ContextGroup[];
   selectedFilePaths: string[];
-
+  /** Compact mode: reduced padding and tighter layout for related-context grids */
+  compact?: boolean;
 }
 
-const ContextCard = React.memo(function ContextCard({ context, groupColor, availableGroups, selectedFilePaths }: ContextCardProps) {
+const ContextCard = React.memo(function ContextCard({ context, groupColor, availableGroups, selectedFilePaths, compact }: ContextCardProps) {
   // Atomic selectors: actions are stable refs, isSelected is scoped to this card's ID
   const removeContext = useContextStore(s => s.removeContext);
   const toggleContextSelection = useContextStore(s => s.toggleContextSelection);
@@ -39,6 +42,7 @@ const ContextCard = React.memo(function ContextCard({ context, groupColor, avail
   const [isHovered, setIsHovered] = useState(false);
   const [showFileEditor, setShowFileEditor] = useState(false);
   const [showContextFileModal, setShowContextFileModal] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   const handleDragStart = useCallback((e: React.DragEvent) => {
     e.dataTransfer.setData('text/plain', context.id);
@@ -169,6 +173,32 @@ const ContextCard = React.memo(function ContextCard({ context, groupColor, avail
     await saveFileContent(filePath, content);
   }, []);
 
+  const handleRegenerate = useCallback(async () => {
+    setShowContextMenu(false);
+    if (isRegenerating) return;
+    setIsRegenerating(true);
+    try {
+      const result = await regenerateContext(context.id);
+      if (result.success) {
+        toast.success(
+          'Context regenerated',
+          `${context.name}: ${result.stats?.filesAnalyzed ?? 0} files analyzed`
+        );
+        // Refresh contexts in the store
+        if (context.projectId) {
+          useContextStore.getState().loadProjectData(context.projectId);
+        }
+      }
+    } catch (err) {
+      toast.error(
+        'Regeneration failed',
+        err instanceof Error ? err.message : 'Unknown error'
+      );
+    } finally {
+      setIsRegenerating(false);
+    }
+  }, [context.id, context.name, context.projectId, isRegenerating]);
+
   const contextMenuItems: ContextMenuItem[] = useMemo(() => [
     {
       id: 'open-files',
@@ -201,6 +231,12 @@ const ContextCard = React.memo(function ContextCard({ context, groupColor, avail
       action: handleContextFile,
     },
     {
+      id: 'regenerate',
+      label: isRegenerating ? 'Regenerating...' : 'Regenerate',
+      icon: RefreshCw,
+      action: handleRegenerate,
+    },
+    {
       id: 'modify',
       label: 'Modify Node',
       icon: Edit,
@@ -213,7 +249,7 @@ const ContextCard = React.memo(function ContextCard({ context, groupColor, avail
       action: handleDelete,
       isDanger: true,
     },
-  ], [handleOpenFiles, handleCopy, handleSelect, isSelectedForBacklog, handleToggleForBacklog, handleContextFile, handleEdit, handleDelete]);
+  ], [handleOpenFiles, handleCopy, handleSelect, isSelectedForBacklog, handleToggleForBacklog, handleContextFile, isRegenerating, handleRegenerate, handleEdit, handleDelete]);
 
   return (
     <>
@@ -230,7 +266,7 @@ const ContextCard = React.memo(function ContextCard({ context, groupColor, avail
         onMouseLeave={handleMouseLeave}
         onContextMenu={handleContextMenu}
         data-testid={`context-card-${context.id}`}
-        className={`group relative rounded-2xl p-4 cursor-move transition-all duration-300 min-w-[280px] h-fit backdrop-blur-sm ${isSelectedForBacklog
+        className={`group relative ${compact ? 'rounded-xl px-3 py-2' : 'rounded-2xl p-4 min-w-[280px]'} cursor-move transition-all duration-300 h-fit backdrop-blur-sm ${isSelectedForBacklog
             ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-2 border-green-400/60 hover:from-green-500/30 hover:to-emerald-500/30 shadow-lg shadow-green-500/20'
             : 'bg-gradient-to-br from-gray-800/60 to-gray-900/60 border border-gray-600/40 hover:from-gray-800/80 hover:to-gray-900/80 hover:border-gray-500/60'
           }`}
@@ -260,18 +296,18 @@ const ContextCard = React.memo(function ContextCard({ context, groupColor, avail
         )}
 
         {/* Main Content */}
-        <div className="relative space-y-2 card-main-content">
+        <div className={`relative ${compact ? 'space-y-1' : 'space-y-2'} card-main-content`}>
           {/* Header Row - Name and Health */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <ContextHealthDot context={context} />
-              <h5 className="text-base font-bold text-white font-mono truncate" title={context.name}>
+              <h5 className={`${compact ? 'text-sm' : 'text-base'} font-bold text-white font-mono truncate`} title={context.name}>
                 {context.name}
               </h5>
             </div>
             {/* File Count Badge */}
             <div
-              className="px-2 py-0.5 rounded-md text-xs font-bold font-mono"
+              className={`${compact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs'} rounded-md font-bold font-mono`}
               style={{ color: groupColor || '#8B5CF6', backgroundColor: `${groupColor || '#8B5CF6'}15` }}
             >
               {context.filePaths.length} files
@@ -282,7 +318,7 @@ const ContextCard = React.memo(function ContextCard({ context, groupColor, avail
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: isHovered ? 1 : 0.5, height: 'auto' }}
-            className="overflow-hidden"
+            className={`overflow-hidden ${compact ? 'line-clamp-2' : ''}`}
           >
             <FileTypeSummary filePaths={context.filePaths} />
           </motion.div>

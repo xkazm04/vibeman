@@ -6,18 +6,9 @@
  */
 
 import type { ProjectRequirement } from '../lib/types';
-import type { BatchState, TaskState, BatchId } from '../store/taskRunnerStore';
+import type { TaskState } from '../store/taskRunnerStore';
 import {
-  isTaskQueued,
-  isTaskRunning,
-  isTaskCompleted,
-  isTaskFailed,
-  isBatchIdle,
-  isBatchRunning,
-  isBatchPaused,
-  isBatchCompleted,
-  type TaskStatusUnion,
-  type BatchStatusUnion,
+  type TaskStatusType,
 } from '../lib/types';
 
 // ============================================================================
@@ -54,9 +45,9 @@ export function groupRequirementsByProject(
  */
 export function filterRequirementsByStatus(
   requirements: ProjectRequirement[],
-  statuses: ProjectRequirement['status'][]
+  statuses: TaskStatusType[]
 ): ProjectRequirement[] {
-  return requirements.filter((req) => statuses.includes(req.status));
+  return requirements.filter((req) => statuses.includes(req.status.type));
 }
 
 /**
@@ -65,7 +56,7 @@ export function filterRequirementsByStatus(
 export function getSelectableRequirements(
   requirements: ProjectRequirement[]
 ): ProjectRequirement[] {
-  return requirements.filter((req) => req.status !== 'running' && req.status !== 'queued');
+  return requirements.filter((req) => req.status.type !== 'running' && req.status.type !== 'queued');
 }
 
 /**
@@ -73,146 +64,17 @@ export function getSelectableRequirements(
  */
 export function countRequirementsByStatus(
   requirements: ProjectRequirement[]
-): Record<ProjectRequirement['status'], number> {
-  const counts: Record<ProjectRequirement['status'], number> = {
+): Record<TaskStatusType, number> {
+  const counts: Record<TaskStatusType, number> = {
     idle: 0,
     queued: 0,
     running: 0,
     completed: 0,
     failed: 0,
-    'session-limit': 0,
   };
 
   requirements.forEach((req) => {
-    counts[req.status]++;
-  });
-
-  return counts;
-}
-
-// ============================================================================
-// Batch Helpers
-// ============================================================================
-
-/**
- * Get batch progress information
- */
-export function getBatchProgress(batch: BatchState | null): {
-  total: number;
-  completed: number;
-  failed: number;
-  remaining: number;
-  percentage: number;
-} {
-  if (!batch) {
-    return { total: 0, completed: 0, failed: 0, remaining: 0, percentage: 0 };
-  }
-
-  const total = batch.taskIds.length;
-  const completed = batch.completedCount;
-  const failed = batch.failedCount;
-  const remaining = total - completed - failed;
-  const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-  return { total, completed, failed, remaining, percentage };
-}
-
-/**
- * Check if batch can start a new task
- */
-export function canBatchStartTask(
-  batch: BatchState | null,
-  tasks: Record<string, TaskState>
-): boolean {
-  if (!batch || !isBatchRunning(batch.status)) {
-    return false;
-  }
-
-  // Check if any task is currently running
-  const hasRunningTask = batch.taskIds.some((taskId) => {
-    const task = tasks[taskId];
-    return task && isTaskRunning(task.status);
-  });
-
-  return !hasRunningTask;
-}
-
-/**
- * Get next queued task for a batch
- */
-export function getNextQueuedTask(
-  batch: BatchState | null,
-  tasks: Record<string, TaskState>
-): TaskState | null {
-  if (!batch) {
-    return null;
-  }
-
-  for (const taskId of batch.taskIds) {
-    const task = tasks[taskId];
-    if (task && isTaskQueued(task.status)) {
-      return task;
-    }
-  }
-
-  return null;
-}
-
-/**
- * Get all active batches
- */
-export function getActiveBatches(
-  batches: Record<BatchId, BatchState | null>
-): Array<{ id: BatchId; batch: BatchState }> {
-  const batchIds: BatchId[] = ['batch1', 'batch2', 'batch3', 'batch4'];
-  return batchIds
-    .filter((id) => {
-      const batch = batches[id];
-      return batch && isBatchRunning(batch.status);
-    })
-    .map((id) => ({ id, batch: batches[id]! }));
-}
-
-// ============================================================================
-// Task Helpers
-// ============================================================================
-
-/**
- * Get tasks for a specific batch
- */
-export function getTasksForBatch(
-  batchId: BatchId,
-  batch: BatchState | null,
-  tasks: Record<string, TaskState>
-): TaskState[] {
-  if (!batch) {
-    return [];
-  }
-
-  return batch.taskIds.map((id) => tasks[id]).filter(Boolean);
-}
-
-/**
- * Count tasks by status in a batch
- */
-export function countBatchTasksByStatus(
-  batch: BatchState | null,
-  tasks: Record<string, TaskState>
-): { queued: number; running: number; completed: number; failed: number } {
-  if (!batch) {
-    return { queued: 0, running: 0, completed: 0, failed: 0 };
-  }
-
-  const counts = { queued: 0, running: 0, completed: 0, failed: 0 };
-
-  batch.taskIds.forEach((taskId) => {
-    const task = tasks[taskId];
-    if (!task) return;
-
-    if (isTaskQueued(task.status)) counts.queued++;
-    else if (isTaskRunning(task.status)) counts.running++;
-    else if (isTaskCompleted(task.status)) counts.completed++;
-    else if (isTaskFailed(task.status)) counts.failed++;
+    counts[req.status.type]++;
   });
 
   return counts;
@@ -226,48 +88,28 @@ export function countBatchTasksByStatus(
  * Get human-readable status label
  */
 export function getStatusLabel(status: ProjectRequirement['status']): string {
-  const labels: Record<ProjectRequirement['status'], string> = {
+  const labels: Record<TaskStatusType, string> = {
     idle: 'Idle',
     queued: 'Queued',
     running: 'Running',
     completed: 'Completed',
     failed: 'Failed',
-    'session-limit': 'Session Limit',
   };
-  return labels[status];
+  return labels[status.type];
 }
 
 /**
  * Get status color class
  */
 export function getStatusColorClass(status: ProjectRequirement['status']): string {
-  const colors: Record<ProjectRequirement['status'], string> = {
+  const colors: Record<TaskStatusType, string> = {
     idle: 'text-gray-400',
     queued: 'text-amber-400',
     running: 'text-blue-400',
     completed: 'text-green-400',
     failed: 'text-red-400',
-    'session-limit': 'text-red-400',
   };
-  return colors[status];
-}
-
-/**
- * Get batch status label
- */
-export function getBatchStatusLabel(status: BatchStatusUnion): string {
-  switch (status.type) {
-    case 'idle':
-      return 'Idle';
-    case 'running':
-      return 'Running';
-    case 'paused':
-      return 'Paused';
-    case 'completed':
-      return 'Completed';
-    default:
-      return 'Unknown';
-  }
+  return colors[status.type];
 }
 
 // ============================================================================
@@ -368,30 +210,11 @@ export function isValidRequirement(req: unknown): req is ProjectRequirement {
     typeof r.projectName === 'string' &&
     typeof r.projectPath === 'string' &&
     typeof r.requirementName === 'string' &&
-    ['idle', 'queued', 'running', 'completed', 'failed', 'session-limit'].includes(
-      r.status as string
+    typeof r.status === 'object' &&
+    r.status !== null &&
+    ['idle', 'queued', 'running', 'completed', 'failed'].includes(
+      (r.status as Record<string, unknown>).type as string
     )
-  );
-}
-
-/**
- * Validate batch state structure
- */
-export function isValidBatchState(batch: unknown): batch is BatchState {
-  if (!batch || typeof batch !== 'object') return false;
-
-  const b = batch as Record<string, unknown>;
-
-  return (
-    typeof b.id === 'string' &&
-    typeof b.name === 'string' &&
-    Array.isArray(b.taskIds) &&
-    b.taskIds.every((id) => typeof id === 'string') &&
-    typeof b.status === 'object' &&
-    b.status !== null &&
-    typeof (b.status as Record<string, unknown>).type === 'string' &&
-    typeof b.completedCount === 'number' &&
-    typeof b.failedCount === 'number'
   );
 }
 
@@ -405,7 +228,6 @@ export function isValidTaskState(task: unknown): task is TaskState {
 
   return (
     typeof t.id === 'string' &&
-    ['batch1', 'batch2', 'batch3', 'batch4'].includes(t.batchId as string) &&
     typeof t.status === 'object' &&
     t.status !== null &&
     typeof (t.status as Record<string, unknown>).type === 'string'
@@ -425,11 +247,6 @@ export function createMockActions() {
     onDelete: (reqId: string) => console.log('Delete:', reqId),
     onToggleProjectSelection: (projectId: string) =>
       console.log('Toggle project selection:', projectId),
-    onStartBatch: (batchId: BatchId) => console.log('Start batch:', batchId),
-    onPauseBatch: (batchId: BatchId) => console.log('Pause batch:', batchId),
-    onResumeBatch: (batchId: BatchId) => console.log('Resume batch:', batchId),
-    onClearBatch: (batchId: BatchId) => console.log('Clear batch:', batchId),
-    onCreateBatch: (batchId: BatchId) => console.log('Create batch:', batchId),
   };
 }
 
@@ -446,11 +263,6 @@ export function createTrackingActions() {
       onDelete: (reqId: string) => calls.push({ action: 'delete', args: [reqId] }),
       onToggleProjectSelection: (projectId: string) =>
         calls.push({ action: 'toggleProjectSelection', args: [projectId] }),
-      onStartBatch: (batchId: BatchId) => calls.push({ action: 'startBatch', args: [batchId] }),
-      onPauseBatch: (batchId: BatchId) => calls.push({ action: 'pauseBatch', args: [batchId] }),
-      onResumeBatch: (batchId: BatchId) => calls.push({ action: 'resumeBatch', args: [batchId] }),
-      onClearBatch: (batchId: BatchId) => calls.push({ action: 'clearBatch', args: [batchId] }),
-      onCreateBatch: (batchId: BatchId) => calls.push({ action: 'createBatch', args: [batchId] }),
     },
     reset: () => (calls.length = 0),
     getCallsFor: (action: string) => calls.filter((c) => c.action === action),

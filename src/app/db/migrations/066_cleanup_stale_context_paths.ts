@@ -57,7 +57,7 @@ export function migrate066CleanupStaleContextPaths() {
       FROM contexts
       WHERE file_paths IS NOT NULL AND file_paths != '[]'
     `);
-    const contexts = stmt.all() as ContextRow[];
+    const contexts = stmt.all() as unknown as ContextRow[];
 
     let updatedCount = 0;
     let removedPathsCount = 0;

@@ -30,6 +30,7 @@ export {
   getSessionExecutionStatus,
   getActiveStreamCount,
   abortSessionExecution,
+  clearSessionStrategy,
   // Shared task completion utilities
   deleteRequirementFile,
   updateIdeaImplementationStatus,

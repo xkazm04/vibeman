@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { getWorkspaceProjects } from '@/lib/workspaceProjects';
 import type { Project } from '@/types';
 
 /**
@@ -14,15 +15,8 @@ export function useWorkspaceFilteredProjects(): Project[] {
   const activeWorkspaceId = useWorkspaceStore(state => state.activeWorkspaceId);
   const workspaceProjectMap = useWorkspaceStore(state => state.workspaceProjectMap);
 
-  return useMemo(() => {
-    // "Unassigned" = only projects NOT assigned to any workspace
-    if (!activeWorkspaceId || activeWorkspaceId === 'default') {
-      const assignedIds = new Set(Object.values(workspaceProjectMap).flat());
-      return projects.filter(p => !assignedIds.has(p.id));
-    }
-
-    // Named workspace = only its projects
-    const allowedIds = new Set(workspaceProjectMap[activeWorkspaceId] || []);
-    return projects.filter(p => allowedIds.has(p.id));
-  }, [projects, activeWorkspaceId, workspaceProjectMap]);
+  return useMemo(
+    () => getWorkspaceProjects(projects, activeWorkspaceId, workspaceProjectMap),
+    [projects, activeWorkspaceId, workspaceProjectMap],
+  );
 }

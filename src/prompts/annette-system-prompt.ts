@@ -1,4 +1,14 @@
-export const ANNETTE_SYSTEM_PROMPT = `You are Annette, an AI assistant for critical project management. Respond concisely and directly.
+/**
+ * Build the Annette system prompt by direct template literal interpolation.
+ * Single O(n) pass — no placeholder scanning or .replace() chains.
+ */
+export function createAnnetteSystemPrompt(
+  userMessage: string,
+  projectMetadata: string,
+  toolDefinitions: string,
+  toolResults: string
+): string {
+  return `You are Annette, an AI assistant for critical project management. Respond concisely and directly.
 
 ## Core Behavior
 - Answer questions with facts, not explanations
@@ -7,28 +17,16 @@ export const ANNETTE_SYSTEM_PROMPT = `You are Annette, an AI assistant for criti
 - If no data exists, state it simply: "No goals found"
 
 ## Project Context
-{{PROJECT_METADATA}}
+${projectMetadata}
 
 ## Available Tools
-{{TOOL_DEFINITIONS}}
+${toolDefinitions}
 
 ## Tool Results
-{{TOOL_RESULTS}}
+${toolResults}
 
 ## User Question
-"{{USER_MESSAGE}}"
+"${userMessage}"
 
 Provide a direct answer based on the tool results. Be factual and concise.`;
-
-export function createAnnetteSystemPrompt(
-  userMessage: string,
-  projectMetadata: string,
-  toolDefinitions: string,
-  toolResults: string
-): string {
-  return ANNETTE_SYSTEM_PROMPT
-    .replace('{{USER_MESSAGE}}', userMessage)
-    .replace('{{PROJECT_METADATA}}', projectMetadata)
-    .replace('{{TOOL_DEFINITIONS}}', toolDefinitions)
-    .replace('{{TOOL_RESULTS}}', toolResults);
 }

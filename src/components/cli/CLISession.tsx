@@ -8,6 +8,7 @@ import { CLIGitConfigPanel } from './CLIGitConfigPanel';
 import type { QueuedTask } from './types';
 import type { CLISessionId, CLISessionState, CLIGitConfig } from './store';
 import { getAllSkills, type SkillId } from './skills';
+import { PROVIDER_MODELS, type CLIProvider, type CLIModel } from '@/lib/claude-terminal/types';
 
 interface CLISessionProps {
   sessionId: CLISessionId;
@@ -24,16 +25,18 @@ interface CLISessionProps {
   onTaskComplete: (sessionId: CLISessionId, taskId: string, success: boolean) => void;
   onQueueEmpty: (sessionId: CLISessionId) => void;
   onExecutionChange: (sessionId: CLISessionId, executionId: string | null, taskId: string | null) => void;
+  onProviderChange: (sessionId: CLISessionId, provider: CLIProvider) => void;
+  onModelChange: (sessionId: CLISessionId, model: CLIModel | null) => void;
 }
 
 /**
  * Get session statistics from queue
  */
 function getSessionStats(queue: QueuedTask[]) {
-  const pending = queue.filter(t => t.status === 'pending').length;
-  const running = queue.filter(t => t.status === 'running').length;
-  const completed = queue.filter(t => t.status === 'completed').length;
-  const failed = queue.filter(t => t.status === 'failed').length;
+  const pending = queue.filter(t => t.status.type === 'queued').length;
+  const running = queue.filter(t => t.status.type === 'running').length;
+  const completed = queue.filter(t => t.status.type === 'completed').length;
+  const failed = queue.filter(t => t.status.type === 'failed').length;
   return { pending, running, completed, failed, total: queue.length };
 }
 
@@ -58,6 +61,8 @@ export function CLISession({
   onTaskComplete,
   onQueueEmpty,
   onExecutionChange,
+  onProviderChange,
+  onModelChange,
 }: CLISessionProps) {
   const [copiedTaskId, setCopiedTaskId] = useState<string | null>(null);
   const [showGitConfig, setShowGitConfig] = useState(false);
@@ -311,6 +316,34 @@ export function CLISession({
             </div>
           )}
 
+          {/* Provider & Model selectors - only when not running */}
+          {!session.isRunning && (
+            <div className="flex items-center gap-1 px-1 border-l border-gray-700/50 ml-1">
+              <select
+                value={session.provider || 'claude'}
+                onChange={(e) => onProviderChange(sessionId, e.target.value as CLIProvider)}
+                className="text-[10px] bg-gray-800/80 text-gray-300 border border-gray-700/50 rounded px-1 py-0.5 outline-none focus:border-purple-500/50 cursor-pointer hover:bg-gray-700/50 transition-colors appearance-none"
+                title="CLI Provider"
+              >
+                <option value="claude">Claude</option>
+                <option value="gemini">Gemini</option>
+                <option value="vscode">VS Code</option>
+                <option value="ollama">Ollama</option>
+              </select>
+              <select
+                value={session.model || ''}
+                onChange={(e) => onModelChange(sessionId, (e.target.value || null) as CLIModel | null)}
+                className="text-[10px] bg-gray-800/80 text-gray-300 border border-gray-700/50 rounded px-1 py-0.5 outline-none focus:border-purple-500/50 cursor-pointer hover:bg-gray-700/50 transition-colors appearance-none"
+                title="Model"
+              >
+                <option value="">Default</option>
+                {(PROVIDER_MODELS[session.provider || 'claude'] || PROVIDER_MODELS.claude).map(m => (
+                  <option key={m.id} value={m.id}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Skill toggles - only show when session has tasks and not running */}
           {hasQueue && !session.isRunning && (
             <div className="flex items-center gap-0.5 px-1 border-l border-gray-700/50 ml-1">
@@ -357,9 +390,9 @@ export function CLISession({
                 key={task.id}
                 onClick={() => handleCopyFilename(task.id, task.requirementName)}
                 className={`text-[9px] px-1.5 py-0.5 rounded-md truncate max-w-[100px] flex items-center gap-1 cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 ${
-                  task.status === 'running' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 shadow-sm shadow-blue-500/10' :
-                  task.status === 'completed' ? 'bg-green-500/10 text-green-400 hover:bg-green-500/20' :
-                  task.status === 'failed' ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' :
+                  task.status.type === 'running' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 shadow-sm shadow-blue-500/10' :
+                  task.status.type === 'completed' ? 'bg-green-500/10 text-green-400 hover:bg-green-500/20' :
+                  task.status.type === 'failed' ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' :
                   'bg-gray-700/50 text-gray-400 hover:bg-gray-600/50'
                 }`}
                 title={`${task.requirementName} (click to copy)`}
@@ -398,6 +431,8 @@ export function CLISession({
             onTaskComplete={handleTaskComplete}
             onQueueEmpty={handleQueueEmpty}
             onExecutionChange={handleExecutionChange}
+            provider={session.provider}
+            model={session.model}
           />
         ) : (
           <div className="flex items-center justify-center h-full text-gray-600 text-xs">

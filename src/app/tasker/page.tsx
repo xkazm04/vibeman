@@ -8,6 +8,7 @@ import TaskColumn from '@/app/features/TaskRunner/TaskColumn';
 import ImplementationLogList from '@/app/features/Goals/sub_ImplementationLog/ImplementationLogList';
 import { loadRequirementsBatch, deleteRequirement } from '@/app/Claude/lib/requirementApi';
 import type { ProjectRequirement, TaskRunnerActions } from '@/app/features/TaskRunner/lib/types';
+import { createIdleStatus } from '@/app/features/TaskRunner/lib/types';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
 
 
@@ -71,7 +72,7 @@ export default function TaskRunnerPage() {
               projectName: project.name,
               projectPath: project.path,
               requirementName: reqName,
-              status: 'idle',
+              status: createIdleStatus(),
             });
           });
         }
@@ -108,7 +109,7 @@ export default function TaskRunnerPage() {
 
   const toggleSelection = (reqId: string) => {
     const req = requirements.find((r) => getRequirementId(r) === reqId);
-    if (!req || req.status === 'running' || req.status === 'queued') return;
+    if (!req || req.status.type === 'running' || req.status.type === 'queued') return;
 
     setSelectedRequirements((prev) => {
       const newSet = new Set(prev);
@@ -124,7 +125,7 @@ export default function TaskRunnerPage() {
   const toggleProjectSelection = (projectId: string) => {
     const projectReqs = groupedRequirements[projectId] || [];
     const selectableReqs = projectReqs.filter(
-      (req) => req.status !== 'running' && req.status !== 'queued'
+      (req) => req.status.type !== 'running' && req.status.type !== 'queued'
     );
 
     // Check if all selectable requirements are selected

@@ -3,7 +3,7 @@ import { implementationLogDb, ideaDb, contextDb } from '@/app/db';
 import { randomUUID } from 'crypto';
 import { logger } from '@/lib/logger';
 import { signalCollector } from '@/lib/brain/signalCollector';
-import { invalidateContextCache } from '@/app/api/brain/context/route';
+import { invalidateContextCache } from '@/lib/brain/brainService';
 
 /**
  * POST - Simplified implementation log creation endpoint

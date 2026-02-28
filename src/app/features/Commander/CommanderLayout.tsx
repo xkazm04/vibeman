@@ -7,7 +7,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Bot, Bell, BellOff, Trash2, Volume2, VolumeX, FlaskConical, Ear, Zap } from 'lucide-react';
-import { useAnnetteStore } from '@/stores/annetteStore';
+import { useChatStore } from '@/stores/annette/chatStore';
+import { useAnnetteNotificationStore } from '@/stores/annette/notificationStore';
+import { useVoiceStore } from '@/stores/annette/voiceStore';
+import { useWidgetStore } from '@/stores/annette/widgetStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useVoiceCompanionStore } from '@/stores/voiceCompanionStore';
 import ChatPanel from './components/ChatPanel';
@@ -20,13 +23,13 @@ type Tab = 'annette' | 'voicelab' | 'companion' | 'autonomous';
 
 export default function CommanderLayout() {
   const activeProject = useActiveProjectStore((s) => s.activeProject);
-  const setSession = useAnnetteStore((s) => s.setSession);
-  const clearMessages = useAnnetteStore((s) => s.clearMessages);
-  const notificationsMuted = useAnnetteStore((s) => s.notificationsMuted);
-  const toggleMute = useAnnetteStore((s) => s.toggleMute);
-  const audioEnabled = useAnnetteStore((s) => s.audioEnabled);
-  const toggleAudio = useAnnetteStore((s) => s.toggleAudio);
-  const markAllRead = useAnnetteStore((s) => s.markAllRead);
+  const setSession = useChatStore((s) => s.setSession);
+  const clearMessages = useChatStore((s) => s.clearMessages);
+  const notificationsMuted = useAnnetteNotificationStore((s) => s.notificationsMuted);
+  const toggleMute = useAnnetteNotificationStore((s) => s.toggleMute);
+  const audioEnabled = useVoiceStore((s) => s.audioEnabled);
+  const toggleAudio = useVoiceStore((s) => s.toggleAudio);
+  const markAllRead = useWidgetStore((s) => s.markAllRead);
   const companionIsActive = useVoiceCompanionStore((s) => s.isActive);
   const companionEngineState = useVoiceCompanionStore((s) => s.engineState);
   const [activeTab, setActiveTab] = useState<Tab>('annette');

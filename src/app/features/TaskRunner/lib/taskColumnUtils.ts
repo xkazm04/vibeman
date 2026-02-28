@@ -5,13 +5,14 @@ import type { GroupedRequirement } from '../components/TaskGroupedList';
 
 const NO_CONTEXT_KEY = '__no_context__';
 
-const STATUS_ORDER: Record<string, number> = {
+import type { TaskStatusType } from './types';
+
+const STATUS_ORDER: Record<TaskStatusType, number> = {
   idle: 0,
   queued: 1,
   running: 2,
   failed: 3,
-  'session-limit': 4,
-  completed: 5,
+  completed: 4,
 };
 
 /**
@@ -24,7 +25,7 @@ export function groupRequirementsByContext(
 ): GroupedRequirement[] {
   // Sort by status first
   const sorted = [...requirements].sort(
-    (a, b) => (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99)
+    (a, b) => (STATUS_ORDER[a.status.type] ?? 99) - (STATUS_ORDER[b.status.type] ?? 99)
   );
 
   // Group by context_id from the associated idea
@@ -71,7 +72,7 @@ export function calculateSelectionStats(
   getRequirementId: (req: ProjectRequirement) => string
 ) {
   const selectableRequirements = requirements.filter(
-    (req) => req.status !== 'running' && req.status !== 'queued'
+    (req) => req.status.type !== 'running' && req.status.type !== 'queued'
   );
 
   const selectedCount = selectableRequirements.filter((req) =>
@@ -82,15 +83,15 @@ export function calculateSelectionStats(
   const someSelected = selectedCount > 0 && !allSelected;
 
   const clearableRequirements = requirements.filter(
-    (r) => r.status === 'completed' || r.status === 'failed' || r.status === 'session-limit'
+    (r) => r.status.type === 'completed' || r.status.type === 'failed'
   );
 
   const failedRequirements = requirements.filter(
-    (r) => r.status === 'failed' || r.status === 'session-limit'
+    (r) => r.status.type === 'failed'
   );
 
   const queuedRequirements = requirements.filter(
-    (r) => r.status === 'queued'
+    (r) => r.status.type === 'queued'
   );
 
   const selectedInColumn = requirements.filter((r) => selectedRequirements.has(getRequirementId(r)));

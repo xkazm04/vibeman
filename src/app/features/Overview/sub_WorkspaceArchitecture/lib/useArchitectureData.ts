@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
+import { getWorkspaceProjects } from '@/lib/workspaceProjects';
 import type { Project } from '@/types';
 import type {
   WorkspaceProjectNode,
@@ -117,15 +118,7 @@ export function useArchitectureData(workspaceId: string | null): UseArchitecture
   const [initAttempted, setInitAttempted] = useState(false);
 
   // Get projects for the current workspace
-  const workspaceProjects = (() => {
-    if (!workspaceId || workspaceId === 'default') {
-      // Default workspace - show all unassigned projects or all projects
-      const assignedIds = new Set(Object.values(workspaceProjectMap).flat());
-      return allProjects.filter(p => !assignedIds.has(p.id));
-    }
-    const projectIds = workspaceProjectMap[workspaceId] || [];
-    return allProjects.filter(p => projectIds.includes(p.id));
-  })();
+  const workspaceProjects = getWorkspaceProjects(allProjects, workspaceId, workspaceProjectMap);
 
   // Pre-build connectionCount map in O(m) instead of O(n*m)
   const connectionCountMap = useMemo(() => {

@@ -58,10 +58,10 @@ export default function FolderBrowserInput({
 
     setLoading(true);
     try {
-      const response = await fetch('/api/disk/list-directories', {
+      const response = await fetch('/api/disk/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path })
+        body: JSON.stringify({ type: 'directories', path })
       });
 
       const data = await response.json();

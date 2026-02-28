@@ -122,15 +122,13 @@ export interface TierAggregate {
   tierColor: string;
   nodeCount: number;
   totalConnections: number;
-  incomingConnections: number;
-  outgoingConnections: number;
 }
 
 /**
  * Calculate tier aggregates from nodes for low-zoom rendering
  */
 export function calculateTierAggregates(
-  nodes: Array<{ tier: string; connectionCount: number; incomingConnections?: unknown[]; outgoingConnections?: unknown[] }>,
+  nodes: Array<{ tier: string; connectionCount: number }>,
   tierConfigs: Array<{ id: string; label: string; color: string; y: number; height: number }>
 ): TierAggregate[] {
   const tierMap = new Map<string, TierAggregate>();
@@ -143,8 +141,6 @@ export function calculateTierAggregates(
       tierColor: config.color,
       nodeCount: 0,
       totalConnections: 0,
-      incomingConnections: 0,
-      outgoingConnections: 0,
     });
   }
 
@@ -154,8 +150,6 @@ export function calculateTierAggregates(
     if (aggregate) {
       aggregate.nodeCount++;
       aggregate.totalConnections += node.connectionCount;
-      aggregate.incomingConnections += node.incomingConnections?.length ?? 0;
-      aggregate.outgoingConnections += node.outgoingConnections?.length ?? 0;
     }
   }
 

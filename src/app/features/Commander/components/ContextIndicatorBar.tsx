@@ -12,7 +12,7 @@ import {
   Sparkles,
   RefreshCw,
 } from 'lucide-react';
-import { useAnnetteStore } from '@/stores/annetteStore';
+import { useChatStore } from '@/stores/annette/chatStore';
 
 interface MemoryItem {
   id: string;
@@ -89,7 +89,7 @@ export default function ContextIndicatorBar({
   const [dismissedMemories, setDismissedMemories] = useState<Set<string>>(new Set());
   const [dismissedNodes, setDismissedNodes] = useState<Set<string>>(new Set());
 
-  const sessionId = useAnnetteStore((s) => s.sessionId);
+  const sessionId = useChatStore((s) => s.sessionId);
 
   const fetchContext = useCallback(async () => {
     if (!projectId) return;

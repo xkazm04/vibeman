@@ -2,15 +2,15 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Sparkles, Trash2, RefreshCw, Link2, AlertTriangle, Zap } from 'lucide-react';
+import { Loader2, Sparkles, Trash2, RefreshCw, Link2, AlertTriangle, Zap, X, Check } from 'lucide-react';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
 import { GradientButton } from '@/components/ui';
 import IdeaCard from './IdeaCard';
 import DirectionCard from './DirectionCard';
-import ActionButtons from './TinderButtons';
+import ActionButtons, { SideActionButton, CompactBottomBar } from './TinderButtons';
 import VariantCarousel from './VariantCarousel';
-import SwipeProgress from './SwipeProgress';
+import { SwipeProgressCompact } from './SwipeProgress';
 import { KeyboardHintCompact } from '@/components/ui/KeyboardHintBar';
 import { TINDER_CONSTANTS, TINDER_ANIMATIONS } from '../lib/tinderUtils';
 import {
@@ -261,10 +261,16 @@ export default function TinderItemsContent({
     }
   };
 
+  const isPairView = currentItem && isDirectionPairItem(currentItem);
+  const showSideButtons = currentItem && !isPairView && !showVariants;
+  const keyboardHints = currentItem && isIdeaItem(currentItem) && onAcceptIdeaVariant
+    ? TINDER_KEYBOARD_HINTS
+    : TINDER_KEYBOARD_HINTS.filter(h => h.key !== 'V');
+
   if (loading && currentIndex === 0) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-4">
-        <div className="flex flex-col items-center justify-center h-[600px]">
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center">
           <Loader2 className="w-12 h-12 text-purple-400 animate-spin mb-4" />
           <p className="text-gray-400">Loading {getFlushItemTypeLabel()}...</p>
         </div>
@@ -280,8 +286,8 @@ export default function TinderItemsContent({
         : "You've reviewed all pending items";
 
     return (
-      <div className="max-w-3xl mx-auto px-4 py-4">
-        <div className="flex flex-col items-center justify-center h-[600px]">
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center">
           <Sparkles className="w-16 h-16 text-purple-400 mb-4" />
           <h2 className="text-2xl font-bold text-white mb-2">All Done!</h2>
           <p className="text-gray-400 mb-6">{emptyMessage}</p>
@@ -298,16 +304,10 @@ export default function TinderItemsContent({
     );
   }
 
-  // Use wider container for direction pairs
-  const isPairView = currentItem && isDirectionPairItem(currentItem);
-  const containerClass = isPairView
-    ? 'max-w-5xl mx-auto px-4 py-4 relative' // Wider for pair comparison
-    : 'max-w-3xl mx-auto px-4 py-4 relative'; // Standard width for single cards
-
   return (
-    <div className={containerClass}>
+    <div className="flex-1 min-h-0 flex flex-col px-4 relative">
       {/* Flush Button - Top Right */}
-      <div className="absolute top-0 right-4 z-50">
+      <div className="absolute top-2 right-4 z-50">
         <motion.button
           onClick={handleFlush}
           disabled={flushing || loading || processing}
@@ -369,7 +369,7 @@ export default function TinderItemsContent({
             initial={{ opacity: 0, y: -10, height: 0 }}
             animate={{ opacity: 1, y: 0, height: 'auto' }}
             exit={{ opacity: 0, y: -10, height: 0 }}
-            className="mb-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3"
+            className="flex-shrink-0 mb-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-start gap-2.5 flex-1 min-w-0">
@@ -409,7 +409,7 @@ export default function TinderItemsContent({
         )}
       </AnimatePresence>
 
-      {/* Card Stack or Variant Carousel */}
+      {/* Card area with side buttons */}
       <AnimatePresence mode="wait">
         {showVariants && currentItem && isIdeaItem(currentItem) ? (
           <motion.div
@@ -417,7 +417,7 @@ export default function TinderItemsContent({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="min-h-[600px] flex flex-col justify-center"
+            className="flex-1 min-h-0 flex flex-col justify-center max-w-3xl mx-auto w-full"
           >
             <div className="mb-4 text-center">
               <h3 className="text-sm font-semibold text-gray-300 mb-1">
@@ -435,9 +435,28 @@ export default function TinderItemsContent({
             />
           </motion.div>
         ) : (
-          <motion.div key="cards-view">
-            {/* Card Stack - taller for pair comparison */}
-            <div className={`relative ${isPairView ? 'h-[620px]' : 'h-[600px]'}`}>
+          <motion.div
+            key="cards-view"
+            className={`flex-1 min-h-0 flex items-center justify-center gap-4 lg:gap-6 py-4 ${
+              isPairView ? 'max-w-5xl' : 'max-w-3xl lg:max-w-[900px]'
+            } mx-auto w-full`}
+          >
+            {/* Left: Reject button — desktop only, hide for pairs */}
+            {showSideButtons && (
+              <div className="hidden lg:flex items-center flex-shrink-0">
+                <SideActionButton
+                  onClick={triggerReject}
+                  disabled={processing || showRejectionPicker}
+                  color="red"
+                  icon={<X className="w-7 h-7" />}
+                  title="Reject (Swipe Left)"
+                  ariaLabel="Reject"
+                />
+              </div>
+            )}
+
+            {/* Center: Card stack */}
+            <div className="relative flex-1 h-full min-h-0">
               {/* Rejection Reason Picker Overlay */}
               <AnimatePresence>
                 {showRejectionPicker && (
@@ -469,6 +488,7 @@ export default function TinderItemsContent({
                         goalTitle={goalTitle}
                         onSwipeLeft={index === 0 ? triggerReject : () => {}}
                         onSwipeRight={index === 0 ? onAccept : () => {}}
+                        className="max-h-full"
                         style={{
                           zIndex: 10 - index,
                           ...TINDER_ANIMATIONS.CARD_STACK_TRANSFORM(index),
@@ -476,7 +496,6 @@ export default function TinderItemsContent({
                       />
                     );
                   } else if (isDirectionPairItem(item)) {
-                    // Paired directions - use unified DirectionCard with split view
                     return (
                       <DirectionCard
                         key={itemId}
@@ -501,7 +520,6 @@ export default function TinderItemsContent({
                       />
                     );
                   } else {
-                    // Single direction
                     return (
                       <DirectionCard
                         key={itemId}
@@ -519,42 +537,75 @@ export default function TinderItemsContent({
                 })}
               </AnimatePresence>
             </div>
+
+            {/* Right: Accept button — desktop only, hide for pairs */}
+            {showSideButtons && (
+              <div className="hidden lg:flex items-center flex-shrink-0">
+                <SideActionButton
+                  onClick={onAccept}
+                  disabled={processing || showRejectionPicker}
+                  color="green"
+                  icon={<Check className="w-7 h-7" />}
+                  title="Accept (Swipe Right)"
+                  ariaLabel="Accept"
+                />
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Action Buttons - Hide for paired directions and variant view */}
-      {currentItem && !isDirectionPairItem(currentItem) && !showVariants && (
-        <ActionButtons
-          onReject={triggerReject}
-          onDelete={onDelete}
-          onAccept={onAccept}
-          disabled={processing || showRejectionPicker}
-          onVariants={isIdeaItem(currentItem) && onAcceptIdeaVariant ? () => setShowVariants(true) : undefined}
-        />
-      )}
+      {/* Bottom bar */}
+      {!showVariants && (
+        <div className="flex-shrink-0 pb-3 pt-1">
+          {/* Mobile-only: full action buttons (hidden on lg), skip for pairs */}
+          {currentItem && !isDirectionPairItem(currentItem) && (
+            <div className="lg:hidden">
+              <ActionButtons
+                onReject={triggerReject}
+                onDelete={onDelete}
+                onAccept={onAccept}
+                disabled={processing || showRejectionPicker}
+                onVariants={isIdeaItem(currentItem) && onAcceptIdeaVariant ? () => setShowVariants(true) : undefined}
+              />
+            </div>
+          )}
 
-      {/* Keyboard Hints - hide for paired directions and variant view */}
-      {currentItem && !isDirectionPairItem(currentItem) && !showVariants && (
-        <div className="mt-2 flex justify-center">
-          <KeyboardHintCompact hints={isIdeaItem(currentItem) && onAcceptIdeaVariant ? TINDER_KEYBOARD_HINTS : TINDER_KEYBOARD_HINTS.filter(h => h.key !== 'V')} />
-        </div>
-      )}
+          {/* Desktop: compact bar with secondary actions + progress + hints */}
+          <div className="flex items-center justify-between gap-4 mt-2 lg:mt-0">
+            {/* Left: delete + variants (desktop only, skip for pairs) */}
+            {currentItem && !isDirectionPairItem(currentItem) && (
+              <div className="hidden lg:block">
+                <CompactBottomBar
+                  onDelete={onDelete}
+                  disabled={processing || showRejectionPicker}
+                  onVariants={isIdeaItem(currentItem) && onAcceptIdeaVariant ? () => setShowVariants(true) : undefined}
+                />
+              </div>
+            )}
 
-      {/* Progress Indicator */}
-      <div className="mt-3">
-        <SwipeProgress
-          total={items.length}
-          reviewed={currentIndex}
-          accepted={stats.accepted}
-          rejected={stats.rejected}
-        />
-      </div>
+            {/* Center: progress */}
+            <div className="flex-1 max-w-xs mx-auto lg:mx-0">
+              <SwipeProgressCompact
+                current={currentIndex}
+                total={items.length}
+              />
+            </div>
 
-      {/* Loading indicator for next batch */}
-      {loading && (
-        <div className="mt-4 text-center">
-          <p className="text-sm text-gray-500">Loading more {getFlushItemTypeLabel()}...</p>
+            {/* Right: keyboard hints (desktop only) */}
+            {currentItem && !isDirectionPairItem(currentItem) && (
+              <div className="hidden lg:block">
+                <KeyboardHintCompact hints={keyboardHints} />
+              </div>
+            )}
+          </div>
+
+          {/* Loading indicator for next batch */}
+          {loading && (
+            <div className="mt-2 text-center">
+              <p className="text-xs text-gray-500">Loading more {getFlushItemTypeLabel()}...</p>
+            </div>
+          )}
         </div>
       )}
     </div>

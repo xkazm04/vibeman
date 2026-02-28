@@ -99,13 +99,9 @@ export async function POST(request: NextRequest) {
       if (includePriority) {
         priority = calculatePriorityScore(item, {
           classification,
-          sentiment: sentiment
-            ? { score: sentiment.overall.score, sentiment: sentiment.overall.sentiment }
-            : undefined,
+          sentiment: sentiment || undefined,
           emotion: emotions || undefined,
-          urgency: urgency
-            ? { level: urgency.level, score: urgency.score }
-            : undefined,
+          urgency: urgency || undefined,
         });
       }
 

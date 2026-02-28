@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronUp, Map, GitBranch, Layers, FileText } from 'lucide-react';
 import ContextMapPanel from './ContextMapPanel';
@@ -37,6 +37,30 @@ export default function ArchitectureBottomBar({
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<BottomBarTab>('context-map');
   const [viewingPlanId, setViewingPlanId] = useState<string | null>(null);
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  const handleTabKeyDown = useCallback((e: React.KeyboardEvent<HTMLButtonElement>) => {
+    const currentIndex = TABS.findIndex(t => t.id === activeTab);
+    let nextIndex: number | null = null;
+
+    if (e.key === 'ArrowRight') {
+      nextIndex = (currentIndex + 1) % TABS.length;
+    } else if (e.key === 'ArrowLeft') {
+      nextIndex = (currentIndex - 1 + TABS.length) % TABS.length;
+    } else if (e.key === 'Home') {
+      nextIndex = 0;
+    } else if (e.key === 'End') {
+      nextIndex = TABS.length - 1;
+    }
+
+    if (nextIndex !== null) {
+      e.preventDefault();
+      const nextTab = TABS[nextIndex];
+      setActiveTab(nextTab.id);
+      if (!isExpanded) setIsExpanded(true);
+      tabRefs.current[nextTab.id]?.focus();
+    }
+  }, [activeTab, isExpanded]);
 
   const handleViewPlan = (planId: string) => {
     setViewingPlanId(planId);
@@ -52,7 +76,7 @@ export default function ArchitectureBottomBar({
         {/* Header bar with tabs integrated */}
         <div className="h-10 flex items-center bg-zinc-900/60 backdrop-blur-sm border-t border-cyan-500/10">
           {/* Left: Tab switcher */}
-          <div className="flex items-center gap-0.5 px-2">
+          <div className="flex items-center gap-0.5 px-2" role="tablist" aria-label="Analysis views">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -74,10 +98,17 @@ export default function ArchitectureBottomBar({
               return (
                 <button
                   key={tab.id}
+                  ref={(el) => { tabRefs.current[tab.id] = el; }}
+                  role="tab"
+                  id={`bottombar-tab-${tab.id}`}
+                  aria-selected={isActive}
+                  aria-controls={`bottombar-tabpanel-${tab.id}`}
+                  tabIndex={isActive ? 0 : -1}
                   onClick={() => {
                     setActiveTab(tab.id);
                     if (!isExpanded) setIsExpanded(true);
                   }}
+                  onKeyDown={handleTabKeyDown}
                   className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium rounded-md border transition-all ${colorClasses}`}
                 >
                   <Icon className="w-3 h-3" />
@@ -90,6 +121,8 @@ export default function ArchitectureBottomBar({
           {/* Center: Expand/Collapse toggle */}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
+            aria-expanded={isExpanded}
+            aria-label={isExpanded ? 'Collapse panel' : 'Expand panel'}
             className="flex-1 h-full flex items-center justify-center hover:bg-zinc-800/40 transition-all group"
           >
             <ChevronUp
@@ -131,6 +164,9 @@ export default function ArchitectureBottomBar({
                     {activeTab === 'context-map' && (
                       <motion.div
                         key="context-map"
+                        role="tabpanel"
+                        id="bottombar-tabpanel-context-map"
+                        aria-labelledby="bottombar-tab-context-map"
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 10 }}
@@ -143,6 +179,9 @@ export default function ArchitectureBottomBar({
                     {activeTab === 'architecture' && (
                       <motion.div
                         key="architecture"
+                        role="tabpanel"
+                        id="bottombar-tabpanel-architecture"
+                        aria-labelledby="bottombar-tab-architecture"
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 10 }}
@@ -158,6 +197,9 @@ export default function ArchitectureBottomBar({
                     {activeTab === 'cross-task' && (
                       <motion.div
                         key="cross-task"
+                        role="tabpanel"
+                        id="bottombar-tabpanel-cross-task"
+                        aria-labelledby="bottombar-tab-cross-task"
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 10 }}
@@ -174,6 +216,9 @@ export default function ArchitectureBottomBar({
                     {activeTab === 'plans' && (
                       <motion.div
                         key="plans"
+                        role="tabpanel"
+                        id="bottombar-tabpanel-plans"
+                        aria-labelledby="bottombar-tab-plans"
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 10 }}

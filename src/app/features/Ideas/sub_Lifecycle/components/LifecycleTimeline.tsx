@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -15,6 +15,15 @@ import {
   LucideIcon,
 } from 'lucide-react';
 import { LifecycleEvent, LifecyclePhase } from '../lib/lifecycleTypes';
+
+type EventFilterCategory = 'phases' | 'scans' | 'gates' | 'errors';
+
+const EVENT_FILTER_CATEGORIES: Array<{ id: EventFilterCategory; label: string; types: LifecycleEvent['event_type'][] }> = [
+  { id: 'phases', label: 'Phase Changes', types: ['phase_change'] },
+  { id: 'scans', label: 'Scans', types: ['scan_start', 'scan_complete'] },
+  { id: 'gates', label: 'Gates', types: ['gate_start', 'gate_complete'] },
+  { id: 'errors', label: 'Errors', types: ['error', 'warning'] },
+];
 
 interface LifecycleTimelineProps {
   events: LifecycleEvent[];
@@ -112,9 +121,32 @@ export default function LifecycleTimeline({
   maxEvents = 20,
   compact = false,
 }: LifecycleTimelineProps) {
-  const displayEvents = events.slice(-maxEvents).reverse();
+  const [activeFilters, setActiveFilters] = useState<Set<EventFilterCategory>>(new Set());
 
-  if (displayEvents.length === 0) {
+  const toggleFilter = (category: EventFilterCategory) => {
+    setActiveFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  };
+
+  const allEvents = events.slice(-maxEvents).reverse();
+
+  // When no filters active, show all events; otherwise show only matching types
+  const allowedTypes = activeFilters.size > 0
+    ? new Set(EVENT_FILTER_CATEGORIES.filter((c) => activeFilters.has(c.id)).flatMap((c) => c.types))
+    : null;
+
+  const displayEvents = allowedTypes
+    ? allEvents.filter((e) => allowedTypes.has(e.event_type))
+    : allEvents;
+
+  if (allEvents.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500" data-testid="lifecycle-timeline-empty">
         <Info className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -125,6 +157,32 @@ export default function LifecycleTimeline({
 
   return (
     <div className="space-y-1" data-testid="lifecycle-timeline">
+      {/* Filter chips */}
+      <div className="flex flex-wrap gap-1.5 pb-2">
+        {EVENT_FILTER_CATEGORIES.map((cat) => {
+          const isActive = activeFilters.has(cat.id);
+          const count = allEvents.filter((e) => cat.types.includes(e.event_type)).length;
+          return (
+            <button
+              key={cat.id}
+              onClick={() => toggleFilter(cat.id)}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                isActive
+                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+                  : 'bg-gray-700/30 text-gray-400 border border-gray-700/40 hover:bg-gray-700/50 hover:text-gray-300'
+              }`}
+            >
+              {cat.label}
+              {count > 0 && (
+                <span className={`ml-1.5 ${isActive ? 'text-blue-400/70' : 'text-gray-500'}`}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
       <AnimatePresence mode="popLayout">
         {displayEvents.map((event, index) => {
           const config = EVENT_ICONS[event.event_type];

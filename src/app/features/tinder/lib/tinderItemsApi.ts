@@ -90,10 +90,7 @@ export async function fetchTinderItems(
 /**
  * Fetch idea categories with counts for filtering
  */
-export interface CategoryCount {
-  category: string;
-  count: number;
-}
+import type { CategoryCount } from './tinderTypes';
 
 export interface CategoriesResponse {
   categories: CategoryCount[];

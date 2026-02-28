@@ -174,7 +174,7 @@ export default function ContextResultDisplay({
         description: extractDescriptionFromContent(context.content)
       }));
 
-      const response = await fetch('/api/disk/save-contexts-batch', {
+      const response = await fetch('/api/disk/batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

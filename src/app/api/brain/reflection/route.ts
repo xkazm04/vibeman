@@ -11,6 +11,7 @@ import { brainReflectionDb, brainInsightDb } from '@/app/db';
 import { withObservability } from '@/lib/observability/middleware';
 import type { ReflectionTriggerType } from '@/app/db/models/brain.types';
 import { dbInsightToLearning } from '@/app/db/repositories/brain-insight.repository';
+import { startReflection, startGlobalReflection } from '@/lib/brain/brainService';
 
 /**
  * GET /api/brain/reflection
@@ -39,9 +40,13 @@ async function handleGet(request: NextRequest) {
 
       const reflections = brainReflectionDb.getByProject(projectId, limit);
 
-      // Compute stats for each reflection (using brain_insights table)
+      // Batch-fetch all insights for these reflections in one query (avoids N+1)
+      const reflectionIds = reflections.map(r => r.id);
+      const insightsByReflection = brainInsightDb.getByReflectionIds(reflectionIds);
+
+      // Compute stats for each reflection
       const history = reflections.map((r) => {
-        const insightRows = brainInsightDb.getByReflection(r.id);
+        const insightRows = insightsByReflection.get(r.id) || [];
         const insights = insightRows.map(dbInsightToLearning);
 
         let sectionsUpdated: string[] = [];
@@ -162,7 +167,7 @@ async function handlePost(request: NextRequest) {
         );
       }
 
-      const result = await reflectionAgent.startGlobalReflection(projects, workspacePath);
+      const result = await startGlobalReflection({ projects, workspacePath });
 
       if (!result.success) {
         return NextResponse.json(
@@ -196,13 +201,12 @@ async function handlePost(request: NextRequest) {
       ? triggerType
       : 'manual';
 
-    // Start reflection (async - gathers git history)
-    const result = await reflectionAgent.startReflection(
+    const result = await startReflection({
       projectId,
       projectName,
       projectPath,
-      trigger
-    );
+      triggerType: trigger,
+    });
 
     if (!result.success) {
       return NextResponse.json(
@@ -211,7 +215,7 @@ async function handlePost(request: NextRequest) {
           error: result.error,
           reflectionId: result.reflectionId,
         },
-        { status: result.reflectionId ? 409 : 400 } // 409 if already running
+        { status: result.reflectionId ? 409 : 400 }
       );
     }
 

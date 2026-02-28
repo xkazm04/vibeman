@@ -6,6 +6,7 @@ import { ViewToggleHeader, type OverviewView } from './sub_WorkspaceArchitecture
 import ArchitectureBottomBar from './sub_WorkspaceArchitecture/components/ArchitectureBottomBar';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
+import { getWorkspaceProjects } from '@/lib/workspaceProjects';
 
 // Lazy load views
 const MatrixDiagramCanvas = lazy(() => import('./sub_WorkspaceArchitecture/views/MatrixDiagramCanvas'));
@@ -31,14 +32,13 @@ export default function OverviewLayout() {
   const { activeWorkspaceId, workspaceProjectMap } = useWorkspaceStore();
   const { projects } = useServerProjectStore();
 
-  // Get workspace projects for bottom bar
-  const workspaceProjects = useMemo(() => {
-    if (!activeWorkspaceId || activeWorkspaceId === 'default') {
-      return projects;
-    }
-    const projectIds = workspaceProjectMap[activeWorkspaceId] || [];
-    return projects.filter((p) => projectIds.includes(p.id));
-  }, [activeWorkspaceId, workspaceProjectMap, projects]);
+  // Get workspace projects for bottom bar (all projects when no workspace selected)
+  const workspaceProjects = useMemo(
+    () => (!activeWorkspaceId || activeWorkspaceId === 'default')
+      ? projects
+      : getWorkspaceProjects(projects, activeWorkspaceId, workspaceProjectMap),
+    [activeWorkspaceId, workspaceProjectMap, projects],
+  );
 
   // Handle project selection from architecture view
   const handleProjectSelect = useCallback((projectId: string) => {

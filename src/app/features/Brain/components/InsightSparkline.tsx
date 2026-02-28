@@ -46,8 +46,9 @@ export default function InsightSparkline({ history, width = 48, height = 18 }: P
         width={width}
         height={height}
         className="inline-block"
-        title={`${history[0].confidence}%`}
+        aria-label={`${history[0].confidence}%`}
       >
+        <title>{`${history[0].confidence}%`}</title>
         <circle
           cx={width / 2}
           cy={height / 2}

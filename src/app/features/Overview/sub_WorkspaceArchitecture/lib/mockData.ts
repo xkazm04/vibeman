@@ -9,7 +9,6 @@ import type {
   ProjectTier,
   FrameworkCategory,
   IntegrationType,
-  ConnectionSummary,
 } from './types';
 import { TIER_CONFIG } from './types';
 
@@ -154,8 +153,6 @@ export function generateMockProjects(count: number = 10): WorkspaceProjectNode[]
     contextGroupCount: Math.floor(Math.random() * 4) + 2,
     contextCount: Math.floor(Math.random() * 15) + 5,
     connectionCount: 0,
-    outgoingConnections: [],
-    incomingConnections: [],
     color: TIER_CONFIG[template.tier].color,
   }));
 }
@@ -188,29 +185,6 @@ export function generateMockRelationships(
       // Update connection counts
       source.connectionCount++;
       target.connectionCount++;
-
-      // Add to connection summaries
-      const outgoing: ConnectionSummary = {
-        relationshipId: relationship.id,
-        targetId: target.id,
-        targetName: target.name,
-        integrationType: template.integrationType,
-        label: template.label,
-        direction: 'outgoing',
-      };
-      source.outgoingConnections = source.outgoingConnections || [];
-      source.outgoingConnections.push(outgoing);
-
-      const incoming: ConnectionSummary = {
-        relationshipId: relationship.id,
-        targetId: source.id,
-        targetName: source.name,
-        integrationType: template.integrationType,
-        label: template.label,
-        direction: 'incoming',
-      };
-      target.incomingConnections = target.incomingConnections || [];
-      target.incomingConnections.push(incoming);
     }
   }
 

@@ -395,7 +395,7 @@ function getApiTrends(
       .slice(0, 5)
       .map(t => ({
         path: t.endpoint,
-        trend: t.direction,
+        trend: (t.direction === 'increasing' ? 'up' : t.direction === 'decreasing' ? 'down' : 'stable') as 'up' | 'down' | 'stable',
         changePercent: t.change_percent,
       }));
   } catch {

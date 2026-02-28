@@ -4,6 +4,9 @@
  * Handles generating ideas using Claude Code by:
  * 1. Calling the server API to build prompts with context/goals
  * 2. Creating Claude Code requirement files (user manages execution via TaskRunner)
+ *
+ * Selection model: flat list of context IDs. Groups are expanded to
+ * individual contexts at the UI layer before reaching here.
  */
 
 import { ScanType, SCAN_TYPE_CONFIGS } from '../../lib/scanTypes';
@@ -14,8 +17,7 @@ export interface ClaudeIdeasExecutorConfig {
   projectName: string;
   projectPath: string;
   scanTypes: ScanType[];
-  contextIds: string[];  // Individual contexts
-  groupIds: string[];    // Whole context groups
+  contextIds: string[];  // Individual contexts (groups already expanded)
   goalId?: string;       // Goal ID for goal-driven scans
 }
 
@@ -32,19 +34,12 @@ interface ClaudeIdeasApiResponse {
   requirementContent: string;
   scanType: ScanType;
   contextId: string | null;
-  groupId: string | null;
   error?: string;
-}
-
-/** Represents an item to process - either a context or a group */
-interface ProcessItem {
-  type: 'context' | 'group';
-  id: string | undefined;
 }
 
 /**
  * Execute Claude Ideas generation for multiple scan types and contexts
- * Creates Claude Code requirement files only - user manages execution via TaskRunner batches
+ * Creates Claude Code requirement files only - user manages execution via TaskRunner
  */
 export async function executeClaudeIdeasWithContexts(config: ClaudeIdeasExecutorConfig): Promise<ClaudeIdeasExecutorResult> {
   console.log('[ClaudeIdeasExecutor] === STARTING EXECUTION ===');
@@ -55,7 +50,6 @@ export async function executeClaudeIdeasWithContexts(config: ClaudeIdeasExecutor
     scanTypesCount: config.scanTypes.length,
     scanTypes: config.scanTypes,
     contextIdsCount: config.contextIds.length,
-    groupIdsCount: config.groupIds.length,
   }, null, 2));
 
   const result: ClaudeIdeasExecutorResult = {
@@ -80,30 +74,21 @@ export async function executeClaudeIdeasWithContexts(config: ClaudeIdeasExecutor
     return result;
   }
 
-  // Build list of items to process (contexts + groups)
-  const itemsToProcess: ProcessItem[] = [];
+  // Build list of context IDs to process (empty = full project)
+  const contextIds: Array<string | undefined> = config.contextIds.length > 0
+    ? config.contextIds
+    : [undefined]; // undefined means full project analysis
 
-  // Add individual contexts
-  config.contextIds.forEach(id => itemsToProcess.push({ type: 'context', id }));
-
-  // Add whole groups
-  config.groupIds.forEach(id => itemsToProcess.push({ type: 'group', id }));
-
-  // If nothing selected, default to full project analysis
-  if (itemsToProcess.length === 0) {
-    itemsToProcess.push({ type: 'context', id: undefined });
-  }
-
-  // Process each scan type for each item (context or group)
+  // Process each scan type for each context
   for (const scanType of config.scanTypes) {
-    for (const item of itemsToProcess) {
+    for (const contextId of contextIds) {
       const scanConfig = SCAN_TYPE_CONFIGS.find(s => s.value === scanType);
       const scanLabel = scanConfig?.label ?? scanType;
-      const itemLabel = item.id
-        ? `${item.type}-${item.id.slice(0, 8)}`
+      const itemLabel = contextId
+        ? `ctx-${contextId.slice(0, 8)}`
         : 'full-project';
 
-      console.log(`[ClaudeIdeasExecutor] Processing: ${scanLabel} for ${itemLabel} (${item.type})`);
+      console.log(`[ClaudeIdeasExecutor] Processing: ${scanLabel} for ${itemLabel}`);
 
       try {
         // Step 1: Call API to build prompt with context/goals
@@ -116,8 +101,7 @@ export async function executeClaudeIdeasWithContexts(config: ClaudeIdeasExecutor
             projectName: config.projectName,
             projectPath: config.projectPath,
             scanType,
-            contextId: item.type === 'context' ? item.id : undefined,
-            groupId: item.type === 'group' ? item.id : undefined,
+            contextId,
             goalId: config.goalId,
           })
         });

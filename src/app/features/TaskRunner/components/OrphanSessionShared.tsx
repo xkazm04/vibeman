@@ -77,10 +77,10 @@ export const OrphanedSessionItem = memo(function OrphanedSessionItem({
       <button
         onClick={() => onCleanup(session.id)}
         disabled={isDisabled}
-        className="p-1 hover:bg-red-500/20 rounded transition-all duration-200 text-gray-400 hover:text-red-400 hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30"
+        className="relative p-2 hover:bg-red-500/20 rounded transition-all duration-200 text-gray-400 hover:text-red-400 hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 before:absolute before:inset-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:w-11 before:h-11 before:content-['']"
         title="Clean up this session"
       >
-        <Trash2 className="w-3 h-3" />
+        <Trash2 className="w-4 h-4" />
       </button>
     </motion.div>
   );

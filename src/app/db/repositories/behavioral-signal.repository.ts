@@ -1,9 +1,13 @@
 /**
  * Behavioral Signal Repository
  * Handles CRUD operations for behavioral signals (user activity tracking)
+ *
+ * All operations target the hot-writes database (hot-writes.db) to avoid
+ * write contention with the main goals.db. The hot-writes DB is optimised
+ * for high-frequency append-only workloads like signal recording.
  */
 
-import { getDatabase } from '../connection';
+import { getHotWritesDatabase } from '../hot-writes';
 import type {
   DbBehavioralSignal,
   BehavioralSignalType,
@@ -28,7 +32,7 @@ export const behavioralSignalRepository = {
    * Create a new behavioral signal
    */
   create: (input: CreateBehavioralSignalInput): DbBehavioralSignal => {
-    const db = getDatabase();
+    const db = getHotWritesDatabase();
     const now = getCurrentTimestamp();
 
     const stmt = db.prepare(`
@@ -70,7 +74,7 @@ export const behavioralSignalRepository = {
       since?: string;
     }
   ): DbBehavioralSignal[] => {
-    const db = getDatabase();
+    const db = getHotWritesDatabase();
     let query = 'SELECT * FROM behavioral_signals WHERE project_id = ?';
     const params: unknown[] = [projectId];
 
@@ -107,7 +111,7 @@ export const behavioralSignalRepository = {
     signalType: BehavioralSignalType,
     windowDays: number = 7
   ): DbBehavioralSignal[] => {
-    const db = getDatabase();
+    const db = getHotWritesDatabase();
     const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString();
 
     return selectAll<DbBehavioralSignal>(
@@ -130,7 +134,7 @@ export const behavioralSignalRepository = {
     startDate: string,
     endDate: string
   ): DbBehavioralSignal[] => {
-    const db = getDatabase();
+    const db = getHotWritesDatabase();
     return selectAll<DbBehavioralSignal>(
       db,
       `SELECT * FROM behavioral_signals
@@ -150,7 +154,7 @@ export const behavioralSignalRepository = {
     projectId: string,
     windowDays: number = 7
   ): Array<{ context_id: string; context_name: string; signal_count: number; total_weight: number }> => {
-    const db = getDatabase();
+    const db = getHotWritesDatabase();
     const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString();
 
     return selectAll(
@@ -176,7 +180,7 @@ export const behavioralSignalRepository = {
     projectId: string,
     windowDays: number = 7
   ): Record<BehavioralSignalType, number> => {
-    const db = getDatabase();
+    const db = getHotWritesDatabase();
     const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString();
 
     const rows = selectAll<{ signal_type: BehavioralSignalType; count: number }>(
@@ -194,6 +198,9 @@ export const behavioralSignalRepository = {
       api_focus: 0,
       context_focus: 0,
       implementation: 0,
+      cross_task_analysis: 0,
+      cross_task_selection: 0,
+      cli_memory: 0,
     };
 
     for (const row of rows) {
@@ -216,7 +223,7 @@ export const behavioralSignalRepository = {
    * @returns Number of signals updated
    */
   applyDecay: (projectId: string, decayFactor: number = 0.9, olderThanDays: number = 7): number => {
-    const db = getDatabase();
+    const db = getHotWritesDatabase();
     const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString();
     const now = getCurrentTimestamp();
     const BATCH_SIZE = 1000;
@@ -254,7 +261,7 @@ export const behavioralSignalRepository = {
    * Delete old signals beyond retention period
    */
   deleteOld: (projectId: string, retentionDays: number = 30): number => {
-    const db = getDatabase();
+    const db = getHotWritesDatabase();
     const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
 
     const stmt = db.prepare(`
@@ -270,7 +277,7 @@ export const behavioralSignalRepository = {
    * Delete a single signal by ID
    */
   deleteById: (id: string): boolean => {
-    const db = getDatabase();
+    const db = getHotWritesDatabase();
     const stmt = db.prepare('DELETE FROM behavioral_signals WHERE id = ?');
     const result = stmt.run(id);
     return result.changes > 0;
@@ -280,7 +287,7 @@ export const behavioralSignalRepository = {
    * Delete signals by project
    */
   deleteByProject: (projectId: string): number => {
-    const db = getDatabase();
+    const db = getHotWritesDatabase();
     const stmt = db.prepare('DELETE FROM behavioral_signals WHERE project_id = ?');
     const result = stmt.run(projectId);
     return result.changes;
@@ -301,7 +308,7 @@ export const behavioralSignalRepository = {
     signal_count: number;
     total_weight: number;
   }> => {
-    const db = getDatabase();
+    const db = getHotWritesDatabase();
     const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString();
 
     return selectAll(
@@ -326,7 +333,7 @@ export const behavioralSignalRepository = {
    * Check if any signals exist for a project
    */
   hasSignals: (projectId: string): boolean => {
-    const db = getDatabase();
+    const db = getHotWritesDatabase();
     const result = selectOne<{ count: number }>(
       db,
       'SELECT COUNT(*) as count FROM behavioral_signals WHERE project_id = ? LIMIT 1',

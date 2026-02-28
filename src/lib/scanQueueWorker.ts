@@ -10,7 +10,7 @@ import { ScanType, getScanTypeName } from '@/app/features/Ideas/lib/scanTypes';
 import { SupportedProvider } from '@/lib/llm/types';
 import { contextRepository } from '@/app/db/repositories/context.repository';
 import { generateNotificationId } from '@/lib/idGenerator';
-import { projectServiceDb } from '@/lib/projectServiceDb';
+import { projectDb } from '@/lib/project_database';
 
 interface WorkerConfig {
   pollIntervalMs: number;
@@ -519,8 +519,8 @@ class ScanQueueWorker {
   /**
    * Get project info from the project database
    */
-  private async getProjectInfo(projectId: string): Promise<{ name: string; path: string }> {
-    const project = await projectServiceDb.getProject(projectId);
+  private getProjectInfo(projectId: string): { name: string; path: string } {
+    const project = projectDb.projects.get(projectId);
     if (!project) {
       throw new Error(`Project not found: ${projectId}`);
     }

@@ -587,7 +587,7 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
           <div className="ml-4">
             <ExecutiveAnalysisTrigger
               filters={filters}
-              projectName={report.filterContext.projectName}
+              projectName={report.filterContext.projectName ?? undefined}
               projectPath={undefined}
               onAnalysisStart={() => setActiveTab('ai_analysis')}
             />

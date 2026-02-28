@@ -14,22 +14,22 @@ export type {
   AnnetteSession,
 } from './hooks/useAnnetteSession';
 
-// Lib
-export { memoryStore } from './lib/memoryStore';
-export type {
-  Memory,
-  MemoryCreateInput,
-  MemorySearchOptions,
-} from './lib/memoryStore';
-
-export { knowledgeGraph } from './lib/knowledgeGraph';
+// Unified Knowledge Store (primary API)
+export { unifiedKnowledgeStore, buildEdgeMap } from './lib/unifiedKnowledgeStore';
 export type {
   KnowledgeNode,
   KnowledgeEdge,
   ExtractedEntity,
   ExtractedRelationship,
-} from './lib/knowledgeGraph';
+  Memory,
+  MemoryCreateInput,
+  MemorySearchOptions,
+  SimilarityResult,
+} from './lib/unifiedKnowledgeStore';
 
+// Legacy facades (delegate to unified store)
+export { memoryStore } from './lib/memoryStore';
+export { knowledgeGraph } from './lib/knowledgeGraph';
 export { semanticIndexer } from './lib/semanticIndexer';
 
 export { contextualRecaller } from './lib/contextualRecaller';

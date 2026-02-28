@@ -40,10 +40,10 @@ export default function CodePreviewModal({
     setFileError(null);
 
     try {
-      const res = await fetch('/api/disk/read-file', {
+      const res = await fetch('/api/disk/file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath }),
+        body: JSON.stringify({ action: 'read', filePath }),
       });
 
       const statusCode = res.status;
@@ -85,10 +85,10 @@ export default function CodePreviewModal({
     setFileError(null);
 
     try {
-      const res = await fetch('/api/disk/write-file', {
+      const res = await fetch('/api/disk/file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath, content }),
+        body: JSON.stringify({ action: 'write', filePath, content }),
       });
 
       const statusCode = res.status;

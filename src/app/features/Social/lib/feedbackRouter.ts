@@ -428,13 +428,13 @@ function getConditionValue(condition: RoutingCondition, context: RoutingContext)
 
     case 'author':
       if (condition.field) {
-        return getNestedValue(item.author, condition.field);
+        return getNestedValue(item.author as unknown as Record<string, unknown>, condition.field);
       }
       return item.author;
 
     case 'engagement':
       if (condition.field && item.engagement) {
-        return getNestedValue(item.engagement, condition.field);
+        return getNestedValue(item.engagement as unknown as Record<string, unknown>, condition.field);
       }
       return item.engagement;
 

@@ -48,12 +48,12 @@ export const createWizardSlice: StateCreator<
   selectAllGroups: () => {
     const { wizardPlan } = get();
     if (wizardPlan) {
-      const allIds = new Set<string>(wizardPlan.recommendedGroups.map(g => g.id));
+      const allIds = new Set<string>(wizardPlan.steps.map(g => g.id));
       set({ selectedScanGroups: allIds });
     } else {
       // If no wizard plan, select all available groups
-      import('@/app/features/RefactorWizard/lib/scanTechniques').then(({ SCAN_TECHNIQUE_GROUPS }) => {
-        const allGroupIds = new Set(SCAN_TECHNIQUE_GROUPS.map(g => g.id));
+      import('@/app/features/RefactorWizard/lib/scanTechniques').then(({ getScanTechniques }) => {
+        const allGroupIds = new Set(getScanTechniques().map(g => g.id));
         set({ selectedScanGroups: allGroupIds });
       });
     }
@@ -79,8 +79,8 @@ export const createWizardSlice: StateCreator<
     // Initialize with all groups selected by default
     const { selectedScanGroups } = get();
     if (selectedScanGroups.size === 0) {
-      import('@/app/features/RefactorWizard/lib/scanTechniques').then(({ SCAN_TECHNIQUE_GROUPS }) => {
-        const allGroupIds = new Set(SCAN_TECHNIQUE_GROUPS.map(g => g.id));
+      import('@/app/features/RefactorWizard/lib/scanTechniques').then(({ getScanTechniques }) => {
+        const allGroupIds = new Set(getScanTechniques().map(g => g.id));
         set({ selectedScanGroups: allGroupIds });
       });
     }

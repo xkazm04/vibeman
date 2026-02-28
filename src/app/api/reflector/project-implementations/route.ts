@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { projectServiceDb } from '@/lib/projectServiceDb';
+import { projectDb } from '@/lib/project_database';
 import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
 import { logger } from '@/lib/logger';
 
@@ -10,7 +10,7 @@ import { logger } from '@/lib/logger';
 export async function GET() {
   try {
     // Get all projects
-    const projects = await projectServiceDb.getAllProjects();
+    const projects = projectDb.projects.getAll();
 
     // Get all implementation logs
     const allLogs = implementationLogRepository.getLogsByProject('');

@@ -12,6 +12,9 @@ interface PromptOptions {
   existingIdeasSection: string;
   codeSection: string;
   hasContext: boolean;
+  behavioralSection: string;
+  goalsSection: string;
+  feedbackSection: string;
 }
 
 export function buildCodeRefactorPrompt(options: PromptOptions): string {
@@ -21,7 +24,10 @@ export function buildCodeRefactorPrompt(options: PromptOptions): string {
     contextSection,
     existingIdeasSection,
     codeSection,
-    hasContext
+    hasContext,
+    behavioralSection,
+    goalsSection,
+    feedbackSection
   } = options;
 
   return `You are the **Code Refactor Specialist** — a cleanup expert who transforms messy codebases into clean, maintainable systems for ${hasContext ? 'a specific context within' : ''} the "${projectName}" project.
@@ -93,9 +99,15 @@ ${aiDocsSection}
 
 ${contextSection}
 
+${behavioralSection}
+
 ${existingIdeasSection}
 
 ${codeSection}
+
+${goalsSection}
+
+${feedbackSection}
 
 ---
 

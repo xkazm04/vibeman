@@ -115,6 +115,41 @@ export interface CompactSessionRequest {
 }
 
 // ============================================================================
+// CANONICAL STATUS ADAPTERS
+// ============================================================================
+
+import type { TaskStatusUnion } from '@/app/features/TaskRunner/lib/types';
+import { legacyToTaskStatus, taskStatusToDbString } from '@/app/features/TaskRunner/lib/types';
+
+/**
+ * Convert a DB task status string to the canonical TaskStatusUnion.
+ * Use at the DB read boundary.
+ */
+export function dbTaskStatusToCanonical(
+  dbStatus: ClaudeCodeSessionTaskStatus,
+  row?: Pick<DbSessionTask, 'started_at' | 'completed_at' | 'error_message'>
+): TaskStatusUnion {
+  return legacyToTaskStatus(dbStatus, {
+    startedAt: row?.started_at ? new Date(row.started_at).getTime() : undefined,
+    completedAt: row?.completed_at ? new Date(row.completed_at).getTime() : undefined,
+    error: row?.error_message || undefined,
+  });
+}
+
+/**
+ * Convert a canonical TaskStatusUnion to a DB task status string.
+ * Use at the DB write boundary.
+ */
+export function canonicalToDbTaskStatus(status: TaskStatusUnion): ClaudeCodeSessionTaskStatus {
+  const s = taskStatusToDbString(status);
+  // Map canonical types to the DB's narrower type set
+  if (s === 'idle' || s === 'session-limit') {
+    return s === 'idle' ? 'pending' : 'failed';
+  }
+  return s as ClaudeCodeSessionTaskStatus;
+}
+
+// ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 

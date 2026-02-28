@@ -23,8 +23,6 @@ interface ScanInitiatorProps {
   selectedScanTypes: ScanType[];
   onScanTypesChange?: (types: ScanType[]) => void;
   selectedContextIds: string[];
-  /** Groups selected as whole units for requirement generation */
-  selectedGroupIds?: string[];
   onBatchScan?: () => void;
 }
 
@@ -33,7 +31,6 @@ export default function ScanInitiator({
   selectedScanTypes,
   onScanTypesChange,
   selectedContextIds: propSelectedContextIds,
-  selectedGroupIds: propSelectedGroupIds = [],
 }: ScanInitiatorProps) {
   const [message, setMessage] = React.useState<string>('');
 
@@ -66,7 +63,6 @@ export default function ScanInitiator({
 
   // Use prop selected context IDs directly - context loading is handled by IdeasHeaderWithFilter
   const currentSelectedContextIds = propSelectedContextIds;
-  const currentSelectedGroupIds = propSelectedGroupIds;
 
   // Goal-Driven Scan: auto-generate profile and execute
   const handleGoalScan = async () => {
@@ -95,7 +91,6 @@ export default function ScanInitiator({
       const profile = profileData.data;
       const scanTypes = JSON.parse(profile.scan_types) as ScanType[];
       const contextIds = profile.context_ids ? JSON.parse(profile.context_ids) as string[] : [];
-      const groupIds = profile.group_ids ? JSON.parse(profile.group_ids) as string[] : [];
 
       setMessage(`Profile created: ${scanTypes.length} agents selected. Creating requirement files...`);
 
@@ -106,7 +101,6 @@ export default function ScanInitiator({
         projectPath: activeProject.path,
         scanTypes,
         contextIds,
-        groupIds,
         goalId: selectedGoalId,
       });
 
@@ -135,21 +129,13 @@ export default function ScanInitiator({
 
   // Generated Ideas: Create requirement files directly
   const handleGeneratedIdeasClick = async () => {
-    console.log('[ScanInitiator] handleGeneratedIdeasClick called');
-    console.log('[ScanInitiator] activeProject:', activeProject);
-    console.log('[ScanInitiator] selectedScanTypes:', selectedScanTypes);
-    console.log('[ScanInitiator] currentSelectedContextIds:', currentSelectedContextIds);
-    console.log('[ScanInitiator] currentSelectedGroupIds:', currentSelectedGroupIds);
-
     if (!activeProject) {
       setMessage('No active project selected');
-      console.error('[ScanInitiator] ERROR: No active project');
       return;
     }
 
     if (!activeProject.path) {
       setMessage('Project path is not defined');
-      console.error('[ScanInitiator] ERROR: Project has no path:', activeProject);
       return;
     }
 
@@ -157,22 +143,8 @@ export default function ScanInitiator({
     setMessage('Creating Claude Code requirement files...');
 
     try {
-      // Calculate expected file count for user feedback
-      // Count individual contexts + whole groups (each counts as 1 item per scan type)
-      const contextCount = currentSelectedContextIds.length;
-      const groupCount = currentSelectedGroupIds.length;
-      const totalItems = contextCount + groupCount;
-      const itemCount = totalItems > 0 ? totalItems : 1; // At least 1 for full project
+      const itemCount = currentSelectedContextIds.length > 0 ? currentSelectedContextIds.length : 1;
       const expectedFiles = selectedScanTypes.length * itemCount;
-
-      console.log('[ScanInitiator] Calling executeClaudeIdeasWithContexts with config:', {
-        projectId: activeProject.id,
-        projectName: activeProject.name,
-        projectPath: activeProject.path,
-        scanTypes: selectedScanTypes,
-        contextIds: currentSelectedContextIds,
-        groupIds: currentSelectedGroupIds,
-      });
 
       const result = await executeClaudeIdeasWithContexts({
         projectId: activeProject.id,
@@ -180,25 +152,17 @@ export default function ScanInitiator({
         projectPath: activeProject.path,
         scanTypes: selectedScanTypes,
         contextIds: currentSelectedContextIds,
-        groupIds: currentSelectedGroupIds,
       });
-
-      console.log('[ScanInitiator] executeClaudeIdeasWithContexts result:', result);
 
       if (result.success) {
         setMessage(`${result.filesCreated}/${expectedFiles} requirement files created! Use TaskRunner to execute them.`);
         onScanComplete();
-
-        // Clear message after delay
-        setTimeout(() => {
-          setMessage('');
-        }, 8000);
+        setTimeout(() => setMessage(''), 8000);
       } else {
         setMessage(`Partial success: ${result.filesCreated} files created. Errors: ${result.errors.join(', ')}`);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('[ScanInitiator] executeClaudeIdeasWithContexts EXCEPTION:', error);
       setMessage(`Failed to create requirement files: ${errorMessage}`);
     } finally {
       setIsProcessing(false);
@@ -240,7 +204,6 @@ export default function ScanInitiator({
               isProcessing={isProcessing}
               scanTypesCount={selectedScanTypes.length}
               contextsCount={currentSelectedContextIds.length}
-              groupsCount={currentSelectedGroupIds.length}
             />
           )}
 

@@ -40,6 +40,7 @@ export async function executeRequirement(
   sessionLimitReached?: boolean;
   logFilePath?: string;
   capturedClaudeSessionId?: string;  // Claude session ID captured from output
+  memoryApplicationIds?: string[];   // Collective memory application IDs for feedback loop
 }> {
   const { spawn } = require('child_process');
 
@@ -109,21 +110,24 @@ export async function executeRequirement(
     logMessage('');
 
     return new Promise((resolve) => {
+      let memoryApplicationIds: string[] = [];
       try {
         // Read the requirement content to pass as prompt
         const requirementContent = readResult.content || '';
 
         // Build the enhanced prompt with logging instructions
         const dbPath = path.join(safeProjectPath, 'database', 'goals.db');
-        const fullPrompt = buildExecutionPrompt({
+        const { prompt: fullPrompt, memoryApplicationIds: appIds } = buildExecutionPrompt({
           requirementContent,
           projectPath: safeProjectPath,
           projectId,
           dbPath,
+          taskId: requirementName,
           gitEnabled: gitConfig?.enabled,
           gitCommands: gitConfig?.commands,
           gitCommitMessage: gitConfig?.commitMessage,
         });
+        memoryApplicationIds = appIds;
 
         // Write prompt to temporary file with cryptographically random name
         const tempPromptFile = secureTempPath(getLogsDirectory(safeProjectPath), 'prompt');
@@ -249,6 +253,7 @@ export async function executeRequirement(
               output: stdout || 'Requirement executed successfully',
               logFilePath,
               capturedClaudeSessionId,
+              memoryApplicationIds,
             });
           } else {
             // Check for session limit errors
@@ -267,12 +272,14 @@ export async function executeRequirement(
                 error: `Session limit reached. Check log file: ${logFilePath}`,
                 sessionLimitReached: true,
                 logFilePath,
+                memoryApplicationIds,
               });
             } else {
               resolve({
                 success: false,
                 error: `Execution failed (code ${code}). Check log file: ${logFilePath}\n\n${stderr}`,
                 logFilePath,
+                memoryApplicationIds,
               });
             }
           }
@@ -301,6 +308,7 @@ export async function executeRequirement(
               output: `[SIMULATION MODE - Claude CLI not installed]\n\nRequirement: ${requirementName}\n\n✓ Simulated execution completed\n\nLog file: ${logFilePath}`,
               logFilePath,
               capturedClaudeSessionId: simulatedSessionId,
+              memoryApplicationIds,
             });
           } else {
             // Other spawn errors
@@ -311,6 +319,7 @@ export async function executeRequirement(
               success: false,
               error: `Failed to spawn process: ${err.message}`,
               logFilePath,
+              memoryApplicationIds,
             });
           }
         });
@@ -338,6 +347,7 @@ export async function executeRequirement(
           success: false,
           error: `Execution exception: ${execError instanceof Error ? execError.message : String(execError)}`,
           logFilePath,
+          memoryApplicationIds,
         });
       }
     });

@@ -34,10 +34,11 @@ export function useHighLevelDocs({ projectPath, projectName, projectId }: UseHig
     setError(null);
 
     try {
-      const response = await fetch('/api/disk/read-file', {
+      const response = await fetch('/api/disk/file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          action: 'read',
           filePath: `${projectPath}/context/high.md`
         })
       });
@@ -132,14 +133,13 @@ export function useHighLevelDocs({ projectPath, projectName, projectId }: UseHig
     setError(null);
 
     try {
-      const response = await fetch('/api/disk/save-file', {
+      const response = await fetch('/api/disk/file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          folderPath: 'context',
-          fileName: 'high.md',
-          content: saveContent,
-          projectPath
+          action: 'write',
+          filePath: projectPath + '/context/high.md',
+          content: saveContent
         })
       });
 

@@ -138,29 +138,29 @@ const initialState: BrainState = {
 type ReflectionScope = 'project' | 'global';
 
 interface ScopeConfig {
-  statusKey: 'reflectionStatus' | 'globalReflectionStatus';
-  lastKey: 'lastReflection' | 'lastGlobalReflection';
-  runIdKey: 'runningReflectionId' | 'globalRunningReflectionId';
-  promptKey: 'promptContent' | 'globalPromptContent';
   storagePrefix: string;
 }
 
 const scopeConfigs: Record<ReflectionScope, ScopeConfig> = {
   project: {
-    statusKey: 'reflectionStatus',
-    lastKey: 'lastReflection',
-    runIdKey: 'runningReflectionId',
-    promptKey: 'promptContent',
     storagePrefix: 'brain-prompt-',
   },
   global: {
-    statusKey: 'globalReflectionStatus',
-    lastKey: 'lastGlobalReflection',
-    runIdKey: 'globalRunningReflectionId',
-    promptKey: 'globalPromptContent',
     storagePrefix: 'brain-prompt-global-',
   },
 };
+
+interface ReflectionUpdate {
+  status?: ReflectionStatus | 'idle';
+  last?: DbBrainReflection | null;
+  runId?: string | null;
+  prompt?: string | null;
+  // Project specific
+  decisionsSinceReflection?: number;
+  nextThreshold?: number;
+  shouldTrigger?: boolean;
+  triggerReason?: string | null;
+}
 
 // ============================================================================
 // STORE
@@ -171,25 +171,46 @@ export const useBrainStore = create<BrainStore>()(
     (set, get) => {
       // ---- Internal helpers (not exposed on the store) ----
 
+      const setProjectState = (update: ReflectionUpdate): Partial<BrainStore> => ({
+        ...(update.status !== undefined && { reflectionStatus: update.status }),
+        ...(update.last !== undefined && { lastReflection: update.last }),
+        ...(update.runId !== undefined && { runningReflectionId: update.runId }),
+        ...(update.prompt !== undefined && { promptContent: update.prompt }),
+        ...(update.decisionsSinceReflection !== undefined && { decisionsSinceReflection: update.decisionsSinceReflection }),
+        ...(update.nextThreshold !== undefined && { nextThreshold: update.nextThreshold }),
+        ...(update.shouldTrigger !== undefined && { shouldTrigger: update.shouldTrigger }),
+        ...(update.triggerReason !== undefined && { triggerReason: update.triggerReason }),
+      });
+
+      const setGlobalState = (update: Pick<ReflectionUpdate, 'status' | 'last' | 'runId' | 'prompt'>): Partial<BrainStore> => ({
+        ...(update.status !== undefined && { globalReflectionStatus: update.status }),
+        ...(update.last !== undefined && { lastGlobalReflection: update.last }),
+        ...(update.runId !== undefined && { globalRunningReflectionId: update.runId }),
+        ...(update.prompt !== undefined && { globalPromptContent: update.prompt }),
+      });
+
+      const setScopeState = (scope: ReflectionScope, update: ReflectionUpdate) => {
+        if (scope === 'project') {
+          set(setProjectState(update));
+        } else {
+          set(setGlobalState(update));
+        }
+      };
+
       const _fetchReflectionStatus = async (scope: ReflectionScope, query: string) => {
         const cfg = scopeConfigs[scope];
         try {
           const response = await fetch(`/api/brain/reflection?${query}`);
           if (!response.ok) {
-            const idleState: Partial<BrainState> = {
-              [cfg.statusKey]: 'idle',
-              [cfg.lastKey]: null,
-              [cfg.runIdKey]: null,
-              [cfg.promptKey]: null,
-            };
-            if (scope === 'project') {
-              Object.assign(idleState, {
-                decisionsSinceReflection: 0,
-                shouldTrigger: false,
-                triggerReason: null,
-              });
-            }
-            set(idleState as Partial<BrainStore>);
+            setScopeState(scope, {
+              status: 'idle',
+              last: null,
+              runId: null,
+              prompt: null,
+              decisionsSinceReflection: 0,
+              shouldTrigger: false,
+              triggerReason: null,
+            });
             return;
           }
 
@@ -201,45 +222,43 @@ export const useBrainStore = create<BrainStore>()(
             : parseApiResponseSafe(raw, BrainReflectionStatusSchema, fallback, label);
           const status = data.isRunning ? 'running' : (data.lastCompleted ? 'completed' : 'idle');
 
-          const update: Partial<BrainState> = {
-            [cfg.statusKey]: status,
-            [cfg.lastKey]: data.lastCompleted || null,
-            [cfg.runIdKey]: data.runningReflection?.id || null,
-          };
-          if (scope === 'project') {
-            update.decisionsSinceReflection = data.decisionsSinceLastReflection;
-            update.nextThreshold = data.nextThreshold;
-            update.shouldTrigger = data.shouldTrigger;
-            update.triggerReason = data.triggerReason;
-          }
-          set(update as Partial<BrainStore>);
+          setScopeState(scope, {
+            status,
+            last: data.lastCompleted || null,
+            runId: data.runningReflection?.id || null,
+            decisionsSinceReflection: data.decisionsSinceLastReflection,
+            nextThreshold: data.nextThreshold,
+            shouldTrigger: data.shouldTrigger,
+            triggerReason: data.triggerReason,
+          });
 
           // Restore promptContent from sessionStorage if running but no prompt in memory
-          const currentPrompt = get()[cfg.promptKey];
+          const currentPrompt = scope === 'project' ? get().promptContent : get().globalPromptContent;
           const runId = data.runningReflection?.id;
           if (status === 'running' && !currentPrompt && runId && typeof window !== 'undefined') {
             try {
               const savedPrompt = sessionStorage.getItem(`${cfg.storagePrefix}${runId}`);
               if (savedPrompt) {
-                set({ [cfg.promptKey]: savedPrompt } as Partial<BrainStore>);
+                setScopeState(scope, { prompt: savedPrompt });
               }
             } catch { /* sessionStorage unavailable */ }
           }
         } catch (error) {
           console.error(`Failed to fetch ${scope} reflection status:`, error);
-          set({
-            [cfg.statusKey]: 'idle',
-            [cfg.lastKey]: null,
-            [cfg.runIdKey]: null,
-            [cfg.promptKey]: null,
-          } as Partial<BrainStore>);
+          setScopeState(scope, {
+            status: 'idle',
+            last: null,
+            runId: null,
+            prompt: null,
+          });
         }
       };
 
       const _triggerReflection = async (scope: ReflectionScope, body: Record<string, unknown>) => {
         const cfg = scopeConfigs[scope];
         const label = `/api/brain/reflection POST${scope === 'global' ? ' global' : ''}`;
-        set({ [cfg.statusKey]: 'running', error: null } as Partial<BrainStore>);
+        setScopeState(scope, { status: 'running' });
+        set({ error: null });
 
         try {
           const response = await fetch('/api/brain/reflection', {
@@ -252,12 +271,12 @@ export const useBrainStore = create<BrainStore>()(
             const errorData = await safeResponseJson<Record<string, unknown>>(response, label);
 
             if (response.status === 409 && errorData.reflectionId) {
-              set({
-                [cfg.statusKey]: 'running',
-                [cfg.runIdKey]: errorData.reflectionId as string,
-                [cfg.promptKey]: null,
-                error: null,
-              } as Partial<BrainStore>);
+              setScopeState(scope, {
+                status: 'running',
+                runId: errorData.reflectionId as string,
+                prompt: null,
+              });
+              set({ error: null });
               return;
             }
 
@@ -267,17 +286,14 @@ export const useBrainStore = create<BrainStore>()(
           const raw = await safeResponseJson(response, label);
           const data = parseApiResponseSafe(raw, BrainReflectionTriggerSchema, { reflectionId: undefined, promptContent: null }, label);
 
-          const update: Partial<BrainState> = {
-            [cfg.statusKey]: 'running',
-            [cfg.runIdKey]: data.reflectionId || null,
-            [cfg.promptKey]: data.promptContent || null,
-          };
-          if (scope === 'project') {
-            update.decisionsSinceReflection = 0;
-            update.shouldTrigger = false;
-            update.triggerReason = null;
-          }
-          set(update as Partial<BrainStore>);
+          setScopeState(scope, {
+            status: 'running',
+            runId: data.reflectionId || null,
+            prompt: data.promptContent || null,
+            decisionsSinceReflection: 0,
+            shouldTrigger: false,
+            triggerReason: null,
+          });
 
           // Persist promptContent to sessionStorage for refresh recovery
           if (typeof window !== 'undefined' && data.promptContent && data.reflectionId) {
@@ -289,12 +305,14 @@ export const useBrainStore = create<BrainStore>()(
             } catch { /* sessionStorage full or unavailable */ }
           }
         } catch (error) {
+          setScopeState(scope, {
+            status: 'failed',
+            runId: null,
+            prompt: null,
+          });
           set({
-            [cfg.statusKey]: 'failed',
             error: error instanceof Error ? error.message : `Failed to trigger ${scope} reflection`,
-            [cfg.runIdKey]: null,
-            [cfg.promptKey]: null,
-          } as Partial<BrainStore>);
+          });
         }
       };
 

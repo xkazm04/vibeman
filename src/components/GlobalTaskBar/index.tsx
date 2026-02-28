@@ -12,10 +12,6 @@ import {
   isTaskQueued,
   isTaskCompleted,
   isTaskFailed,
-  isBatchRunning,
-  isBatchPaused,
-  isBatchCompleted,
-  isBatchIdle,
 } from '@/app/features/TaskRunner/lib/types';
 import { toast } from 'sonner';
 
@@ -28,7 +24,7 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
   const [showCompleted, setShowCompleted] = useState(false);
 
   // Subscribe to TaskRunner store
-  const { tasks, batches } = useTaskRunnerStore();
+  const { tasks } = useTaskRunnerStore();
 
   // Subscribe to CLI Session store
   const cliSessions = useAllSessions();
@@ -91,10 +87,10 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
       const session = cliSessions[id];
       if (session && session.queue.length > 0) {
         session.queue.forEach(task => {
-          if (task.status === 'running') running++;
-          else if (task.status === 'pending') pending++;
-          else if (task.status === 'completed') completed++;
-          else if (task.status === 'failed') failed++;
+          if (task.status.type === 'running') running++;
+          else if (task.status.type === 'queued') pending++;
+          else if (task.status.type === 'completed') completed++;
+          else if (task.status.type === 'failed') failed++;
         });
       }
     });
@@ -346,7 +342,7 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
               <div className="px-4 py-2.5 flex items-center justify-between border-b border-gray-800/50">
                 <div className="flex items-center gap-4">
                   <h3 className="text-sm font-semibold text-gray-200">
-                    Task Batches
+                    Tasks
                   </h3>
 
                   {/* Status badges */}
@@ -401,94 +397,41 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
                 </div>
               </div>
 
-              {/* 4-Column Batch Grid */}
-              <div className="grid grid-cols-4 gap-4 p-4 max-h-96 overflow-y-auto">
-                {(['batch1', 'batch2', 'batch3', 'batch4'] as const).map((batchId) => {
-                  const batch = batches[batchId];
-                  const batchTasks = Object.values(tasks).filter(
-                    (t): t is TaskState => Boolean(t && t.id && t.batchId === batchId)
-                  );
-                  const batchRunning = batchTasks.filter(t => isTaskRunning(t.status) || isTaskQueued(t.status));
-                  const batchCompleted = batchTasks.filter(t => isTaskCompleted(t.status));
-                  const batchFailed = batchTasks.filter(t => isTaskFailed(t.status));
-
+              {/* Task List */}
+              <div className="p-4 max-h-96 overflow-y-auto space-y-1">
+                {/* Running/Queued */}
+                {runningTasks.map((task) => {
+                  const { requirementName } = parseTaskId(task.id);
                   return (
-                    <div
-                      key={batchId}
-                      className="border border-gray-800/50 rounded-lg bg-slate-900/50 overflow-hidden"
-                    >
-                      {/* Batch Header */}
-                      <div className="px-3 py-2 border-b border-gray-800/50 bg-slate-900/80">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono text-gray-400">
-                              {batchId.toUpperCase()}
-                            </span>
-                            {batch && (
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                                isBatchRunning(batch.status) ? 'bg-cyan-500/20 text-cyan-400' :
-                                isBatchCompleted(batch.status) ? 'bg-green-500/20 text-green-400' :
-                                isBatchPaused(batch.status) ? 'bg-amber-500/20 text-amber-400' :
-                                'bg-gray-500/20 text-gray-400'
-                              }`}>
-                                {batch.status.type}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        {batch && batch.name && (
-                          <div className="text-xs text-gray-500 mt-1 truncate">
-                            {batch.name}
-                          </div>
-                        )}
-                      </div>
+                    <TaskProgressItem
+                      key={task.id}
+                      task={task}
+                      requirementName={requirementName}
+                    />
+                  );
+                })}
 
-                      {/* Batch Tasks */}
-                      <div className="min-h-[100px] max-h-64 overflow-y-auto">
-                        {/* Running/Queued */}
-                        {batchRunning.map((task) => {
-                          const { requirementName } = parseTaskId(task.id);
-                          return (
-                            <TaskProgressItem
-                              key={task.id}
-                              task={task}
-                              requirementName={requirementName}
-                            />
-                          );
-                        })}
+                {/* Failed */}
+                {failedTasks.map((task) => {
+                  const { requirementName } = parseTaskId(task.id);
+                  return (
+                    <TaskProgressItem
+                      key={task.id}
+                      task={task}
+                      requirementName={requirementName}
+                    />
+                  );
+                })}
 
-                        {/* Completed (if enabled) */}
-                        {showCompleted && batchCompleted.map((task) => {
-                          const { requirementName } = parseTaskId(task.id);
-                          return (
-                            <TaskProgressItem
-                              key={task.id}
-                              task={task}
-                              requirementName={requirementName}
-                            />
-                          );
-                        })}
-
-                        {/* Failed */}
-                        {batchFailed.map((task) => {
-                          const { requirementName } = parseTaskId(task.id);
-                          return (
-                            <TaskProgressItem
-                              key={task.id}
-                              task={task}
-                              requirementName={requirementName}
-                            />
-                          );
-                        })}
-
-                        {/* Empty State */}
-                        {batchTasks.length === 0 && (
-                          <div className="px-3 py-8 text-center text-gray-600 text-xs">
-                            No tasks
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                {/* Completed (if enabled) */}
+                {showCompleted && completedTasks.map((task) => {
+                  const { requirementName } = parseTaskId(task.id);
+                  return (
+                    <TaskProgressItem
+                      key={task.id}
+                      task={task}
+                      requirementName={requirementName}
+                    />
                   );
                 })}
               </div>
@@ -518,8 +461,8 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
                         const session = cliSessions[sessionId];
                         if (!session || session.queue.length === 0) return null;
 
-                        const runningTask = session.queue.find(t => t.status === 'running');
-                        const pendingCount = session.queue.filter(t => t.status === 'pending').length;
+                        const runningTask = session.queue.find(t => t.status.type === 'running');
+                        const pendingCount = session.queue.filter(t => t.status.type === 'queued').length;
 
                         return (
                           <div

@@ -13,6 +13,9 @@ interface PromptOptions {
   existingIdeasSection: string;
   codeSection: string;
   hasContext: boolean;
+  behavioralSection: string;
+  goalsSection: string;
+  feedbackSection: string;
 }
 
 export function buildUserEmpathyChampionPrompt(options: PromptOptions): string {
@@ -22,7 +25,10 @@ export function buildUserEmpathyChampionPrompt(options: PromptOptions): string {
     contextSection,
     existingIdeasSection,
     codeSection,
-    hasContext
+    hasContext,
+    behavioralSection,
+    goalsSection,
+    feedbackSection
   } = options;
 
   return `You are the **User Empathy Champion** — a human-centered design expert with deep insight into user emotions for ${hasContext ? 'a specific context within' : ''} the "${projectName}" project.
@@ -92,9 +98,15 @@ ${aiDocsSection}
 
 ${contextSection}
 
+${behavioralSection}
+
 ${existingIdeasSection}
 
 ${codeSection}
+
+${goalsSection}
+
+${feedbackSection}
 
 ---
 

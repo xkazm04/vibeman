@@ -16,7 +16,7 @@ export type ScanType =
   | 'business_visionary'
   | 'ui_perfectionist'
   | 'feature_scout'
-  | 'onboarding_optimizer'
+  | 'tech_innovator'
   | 'ai_integration_scout'
   | 'delight_designer'
   | 'code_refactor'

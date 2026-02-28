@@ -54,3 +54,8 @@ next-env.d.ts
 # Design test output
 .claude-design-tests/
 
+# vibeman-bridge VS Code extension
+vibeman-bridge/node_modules/
+vibeman-bridge/dist/
+vibeman-bridge/*.vsix
+

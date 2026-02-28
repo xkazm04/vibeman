@@ -15,7 +15,7 @@ export {
   CustomerProfile,
   HistoryTimeline,
   useUnifiedInbox,
-} from './unified-inbox';
+} from './sub_UnifiedInbox';
 
 // Hooks - export specific hooks
 export { useSplitView } from './hooks/useSplitView';
@@ -28,7 +28,7 @@ export type {
   InboxPanelState,
   UnifiedInboxFilters,
   InboxStats,
-} from './unified-inbox';
+} from './sub_UnifiedInbox';
 
 // State providers
 export { KanbanStateProviders } from './state/KanbanStateProviders';

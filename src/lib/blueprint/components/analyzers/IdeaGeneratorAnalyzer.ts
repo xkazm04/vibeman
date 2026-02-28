@@ -43,7 +43,7 @@ export const PROMPT_DISPLAY_NAMES: Record<string, string> = {
   business_visionary: 'Business Visionary',
   ui_perfectionist: 'UI Perfectionist',
   feature_scout: 'Feature Scout',
-  onboarding_optimizer: 'Onboarding Optimizer',
+  tech_innovator: 'Tony Stark',
   ai_integration_scout: 'AI Integration Scout',
   delight_designer: 'Delight Designer',
   user_empathy_champion: 'User Empathy Champion',
@@ -66,6 +66,7 @@ const PROMPT_TO_IDEA_TYPE: Record<string, IdeaIssue['ideaType']> = {
   moonshot_architect: 'feature',
   paradigm_shifter: 'feature',
   ai_integration_scout: 'feature',
+  tech_innovator: 'optimization',
 };
 
 // Prompt options structure for integration with existing prompt system
@@ -208,7 +209,7 @@ ${files.length > maxFiles ? `\n... and ${files.length - maxFiles} more files` : 
             'business_visionary',
             'ui_perfectionist',
             'feature_scout',
-            'onboarding_optimizer',
+            'tech_innovator',
             'ai_integration_scout',
             'delight_designer',
             'user_empathy_champion',

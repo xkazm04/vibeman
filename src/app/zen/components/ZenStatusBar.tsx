@@ -17,7 +17,7 @@ export function ZenStatusBar() {
 
   const activeSessions = Object.values(sessions).filter(s => s.isRunning).length;
   const totalQueued = Object.values(sessions).reduce(
-    (sum, s) => sum + s.queue.filter(t => t.status === 'pending').length,
+    (sum, s) => sum + s.queue.filter(t => t.status.type === 'queued').length,
     0
   );
 

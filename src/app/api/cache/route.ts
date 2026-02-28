@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getGlobalCache } from '@/lib/api-cache';
 import { getGitHubCacheStats, cleanupGitHubCache, invalidateAllGitHubCache } from '@/lib/github';
 import { getTaskCleanupService } from '@/lib/api-cache';
+import { handleApiError } from '@/lib/api-errors';
 
 /**
  * GET /api/cache
@@ -33,11 +34,7 @@ export async function GET() {
       stats,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Fetch cache stats');
   }
 }
 
@@ -117,10 +114,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Cache operation');
   }
 }

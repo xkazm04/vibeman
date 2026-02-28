@@ -1,4 +1,66 @@
-export const BUILD_ERROR_FIXER_PROMPT = `You are a build error fixing assistant. Your task is to analyze the provided code file and fix specific build errors while being extremely conservative to avoid breaking working code.
+export interface BuildErrorForFix {
+  file: string;
+  line?: number;
+  column?: number;
+  message: string;
+  severity: 'error' | 'warning';
+  type: 'typescript' | 'eslint' | 'webpack' | 'nextjs' | 'unknown';
+  rule?: string;
+}
+
+export interface BuildErrorFixResult {
+  hasChanges: boolean;
+  fixedErrors: Array<{
+    line: number;
+    column: number;
+    originalError: string;
+    fixApplied: string;
+    confidence: 'high' | 'medium' | 'low';
+  }>;
+  skippedErrors: Array<{
+    line: number;
+    column: number;
+    originalError: string;
+    reason: string;
+  }>;
+  updatedCode: string;
+}
+
+function getFileExtension(filePath: string): string {
+  return filePath.split('.').pop() || '';
+}
+
+function formatBuildErrors(filePath: string, buildErrors: BuildErrorForFix[]): string {
+  const relevantErrors = buildErrors.filter(error => error.file === filePath);
+
+  if (relevantErrors.length === 0) {
+    return 'No build errors found for this file.';
+  }
+
+  return relevantErrors
+    .map(error => {
+      const location = error.line && error.column
+        ? `Line ${error.line}, Column ${error.column}`
+        : 'Unknown location';
+      const rule = error.rule ? ` (${error.rule})` : '';
+      return `- ${location}: ${error.message}${rule} [${error.type}/${error.severity}]`;
+    })
+    .join('\n');
+}
+
+/**
+ * Build the build-error fixer prompt by direct template literal interpolation.
+ * Single O(n) pass — no placeholder scanning or .replace() chains.
+ */
+export function createBuildErrorFixerPrompt(
+  filePath: string,
+  fileContent: string,
+  buildErrors: BuildErrorForFix[]
+): string {
+  const formattedErrors = formatBuildErrors(filePath, buildErrors);
+  const fileExtension = getFileExtension(filePath);
+
+  return `You are a build error fixing assistant. Your task is to analyze the provided code file and fix specific build errors while being extremely conservative to avoid breaking working code.
 
 ## Your Mission:
 Fix ONLY the specific build errors provided. Do NOT make any other changes to the code.
@@ -51,13 +113,13 @@ You MUST respond with a valid JSON object in this exact structure:
 \`\`\`
 
 ## Build Errors to Fix:
-{{buildErrors}}
+${formattedErrors}
 
 ## File Information:
-File path: {{filePath}}
+File path: ${filePath}
 File content:
-\`\`\`{{fileExtension}}
-{{fileContent}}
+\`\`\`${fileExtension}
+${fileContent}
 \`\`\`
 
 ## Instructions:
@@ -69,80 +131,4 @@ File content:
 6. List all fixes applied and errors skipped with reasons
 
 Remember: It's better to skip an error than to introduce new bugs. Be conservative and only fix what you're absolutely certain about.`;
-
-export interface BuildErrorForFix {
-  file: string;
-  line?: number;
-  column?: number;
-  message: string;
-  severity: 'error' | 'warning';
-  type: 'typescript' | 'eslint' | 'webpack' | 'nextjs' | 'unknown';
-  rule?: string;
-}
-
-export interface BuildErrorFixResult {
-  hasChanges: boolean;
-  fixedErrors: Array<{
-    line: number;
-    column: number;
-    originalError: string;
-    fixApplied: string;
-    confidence: 'high' | 'medium' | 'low';
-  }>;
-  skippedErrors: Array<{
-    line: number;
-    column: number;
-    originalError: string;
-    reason: string;
-  }>;
-  updatedCode: string;
-}
-
-function getFileExtension(filePath: string): string {
-  return filePath.split('.').pop() || '';
-}
-
-function formatBuildErrors(filePath: string, buildErrors: BuildErrorForFix[]): string {
-  const relevantErrors = buildErrors.filter(error => error.file === filePath);
-
-  if (relevantErrors.length === 0) {
-    return 'No build errors found for this file.';
-  }
-
-  return relevantErrors
-    .map(error => {
-      const location = error.line && error.column
-        ? `Line ${error.line}, Column ${error.column}`
-        : 'Unknown location';
-      const rule = error.rule ? ` (${error.rule})` : '';
-      return `- ${location}: ${error.message}${rule} [${error.type}/${error.severity}]`;
-    })
-    .join('\n');
-}
-
-function replacePromptPlaceholders(
-  template: string,
-  filePath: string,
-  fileContent: string,
-  buildErrors: string
-): string {
-  return template
-    .replace('{{buildErrors}}', buildErrors)
-    .replace('{{filePath}}', filePath)
-    .replace('{{fileContent}}', fileContent)
-    .replace('{{fileExtension}}', getFileExtension(filePath));
-}
-
-export function createBuildErrorFixerPrompt(
-  filePath: string,
-  fileContent: string,
-  buildErrors: BuildErrorForFix[]
-): string {
-  const formattedErrors = formatBuildErrors(filePath, buildErrors);
-  return replacePromptPlaceholders(
-    BUILD_ERROR_FIXER_PROMPT,
-    filePath,
-    fileContent,
-    formattedErrors
-  );
 }

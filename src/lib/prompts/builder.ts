@@ -16,7 +16,9 @@ import {
 import { getPromptTemplate } from './templates';
 
 /**
- * Replace placeholders in a template string with actual values
+ * Replace placeholders in a template string with actual values.
+ * Uses a single-pass regex to match all {{KEY}} placeholders at once,
+ * avoiding repeated string scans and regex-escaping issues.
  *
  * @param template - Template string with {{PLACEHOLDER}} syntax
  * @param values - Key-value pairs for replacement
@@ -26,16 +28,41 @@ export function replacePlaceholders(
   template: string,
   values: Record<string, any>
 ): string {
-  let result = template;
-
-  // Replace all {{KEY}} placeholders
-  Object.entries(values).forEach(([key, value]) => {
-    const placeholder = `{{${key}}}`;
-    const stringValue = value !== undefined && value !== null ? String(value) : '';
-    result = result.replace(new RegExp(placeholder, 'g'), stringValue);
+  return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+    const value = values[key];
+    return value !== undefined && value !== null ? String(value) : '';
   });
+}
 
-  return result;
+/**
+ * Tagged template literal for building prompt templates.
+ *
+ * Returns a function that accepts a values object and produces the final string.
+ * Placeholder keys are inferred from the template's interpolated expressions.
+ *
+ * Usage:
+ *   const greet = promptTemplate`Hello ${'NAME'}, welcome to ${'PROJECT'}!`;
+ *   greet({ NAME: 'Alice', PROJECT: 'Vibeman' });
+ *   // => "Hello Alice, welcome to Vibeman!"
+ *
+ * Missing or null values are replaced with an empty string (same as replacePlaceholders).
+ * The template is compiled once; each invocation is a single O(n) concat — no regex scanning.
+ */
+export function promptTemplate(
+  strings: TemplateStringsArray,
+  ...keys: string[]
+): (values: Record<string, any>) => string {
+  return (values: Record<string, any>): string => {
+    const parts: string[] = [];
+    for (let i = 0; i < strings.length; i++) {
+      parts.push(strings[i]);
+      if (i < keys.length) {
+        const v = values[keys[i]];
+        parts.push(v !== undefined && v !== null ? String(v) : '');
+      }
+    }
+    return parts.join('');
+  };
 }
 
 /**

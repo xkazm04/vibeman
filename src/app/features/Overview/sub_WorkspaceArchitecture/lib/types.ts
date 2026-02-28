@@ -49,23 +49,9 @@ export interface WorkspaceProjectNode {
   contextCount: number;
   connectionCount: number;
 
-  // Connections summary for inline display
-  outgoingConnections?: ConnectionSummary[];
-  incomingConnections?: ConnectionSummary[];
-
   // Visual
   color: string;
   icon?: string;
-}
-
-// Connection summary for inline port display
-export interface ConnectionSummary {
-  relationshipId: string;
-  targetId: string;
-  targetName: string;
-  integrationType: IntegrationType;
-  label: string;
-  direction: 'outgoing' | 'incoming';
 }
 
 // Tier configuration for swimlanes

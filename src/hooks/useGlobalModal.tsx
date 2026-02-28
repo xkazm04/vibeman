@@ -104,7 +104,7 @@ export const useGlobalModal = () => {
 
   // 2) Generic shell hook: caller provides props for Header/Content/Footer
   const showShellModal = (
-    config: ModalOptions,
+    config: GlobalModalOptions,
     shell: {
       header?: ModalShellSectionConfig;
       content?: ModalShellSectionConfig;

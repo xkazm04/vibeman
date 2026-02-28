@@ -4,12 +4,15 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useThemeStore } from '@/stores/themeStore';
 
-interface ContextMenuItem {
+export interface ContextMenuItem {
+  id?: string;
   label: string;
   icon?: React.ComponentType<{ className?: string }>;
-  onClick: () => void;
+  onClick?: () => void;
+  action?: () => void;
   disabled?: boolean;
   destructive?: boolean;
+  isDanger?: boolean;
 }
 
 interface ContextMenuProps {
@@ -184,12 +187,12 @@ export default function ContextMenu({
                     key={index}
                     onClick={() => {
                       if (!item.disabled) {
-                        item.onClick();
+                        (item.onClick ?? item.action)?.();
                         onClose();
                       }
                     }}
                     disabled={item.disabled}
-                    className={getButtonClasses(variant, item.disabled, item.destructive)}
+                    className={getButtonClasses(variant, item.disabled, item.destructive || item.isDanger)}
                     whileHover={variant === 'neural' ? { x: 6, scale: 1.02 } : {}}
                     whileTap={variant === 'neural' ? { scale: 0.98 } : {}}
                   >

@@ -72,12 +72,12 @@ export default function EndpointUsageChart({ endpoints, maxItems = 10 }: Endpoin
               borderRadius: '8px',
               color: '#f3f4f6'
             }}
-            formatter={(value: number, name: string, props) => {
+            formatter={(value, name, props) => {
               const payload = props?.payload as { fullName?: string; method?: string; avgTime?: number } | undefined;
               if (name === 'calls' && payload) {
                 return [
                   <span key="value">
-                    {value.toLocaleString()} calls
+                    {(value ?? 0).toLocaleString()} calls
                     <br />
                     <span className="text-gray-400 text-xs">
                       {payload.method} | Avg: {payload.avgTime?.toFixed(0)}ms

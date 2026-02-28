@@ -3,7 +3,7 @@
  * Polls Supabase for pending commands and dispatches to handlers
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseService } from './supabaseService';
 import type {
   RemoteCommand,
   RemoteCommandType,
@@ -12,34 +12,12 @@ import type {
   CommandHandlerResult,
 } from './types';
 
-class RemoteCommandProcessor {
-  private supabase: SupabaseClient | null = null;
+class RemoteCommandProcessor extends SupabaseService {
+  protected readonly serviceName = 'RemoteCommandProcessor';
   private handlers: Map<RemoteCommandType, CommandHandler> = new Map();
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private isProcessing = false;
-  private isConfigured = false;
   private localDeviceId: string | null = null;
-
-  /**
-   * Configure with Supabase credentials
-   */
-  configure(url: string, serviceRoleKey: string): void {
-    this.supabase = createClient(url, serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
-    this.isConfigured = true;
-    console.log('[RemoteCommandProcessor] Configured successfully');
-  }
-
-  /**
-   * Check if processor is ready
-   */
-  isReady(): boolean {
-    return this.isConfigured && this.supabase !== null;
-  }
 
   /**
    * Set the local device ID for filtering commands

@@ -1,7 +1,49 @@
 import * as d3 from 'd3';
-import type { SignalType, BrainEvent, Group } from './types';
+import type { SignalType, BrainEvent, Group, SpatialIndex } from './types';
 import { COLORS, BUBBLE_SCALE, BUBBLE_PADDING, GOLDEN_ANGLE, LANE_TYPES } from './constants';
 import { getEventRadius } from './helpers';
+
+function cellKey(cx: number, cy: number): string {
+  return `${cx},${cy}`;
+}
+
+export function buildSpatialIndex(events: BrainEvent[], cellSize: number = 30): SpatialIndex {
+  const cells = new Map<string, BrainEvent[]>();
+  for (const evt of events) {
+    const cx = Math.floor(evt.x / cellSize);
+    const cy = Math.floor(evt.y / cellSize);
+    const key = cellKey(cx, cy);
+    const bucket = cells.get(key);
+    if (bucket) bucket.push(evt);
+    else cells.set(key, [evt]);
+  }
+  return { cellSize, cells };
+}
+
+export function queryNearest(
+  index: SpatialIndex,
+  x: number,
+  y: number,
+  maxDistSq: number,
+): BrainEvent | null {
+  const cx = Math.floor(x / index.cellSize);
+  const cy = Math.floor(y / index.cellSize);
+  let closest: BrainEvent | null = null;
+  let closestDist = maxDistSq;
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      const bucket = index.cells.get(cellKey(cx + dx, cy + dy));
+      if (!bucket) continue;
+      for (const evt of bucket) {
+        const ex = evt.x - x;
+        const ey = evt.y - y;
+        const dist = ex * ex + ey * ey;
+        if (dist < closestDist) { closestDist = dist; closest = evt; }
+      }
+    }
+  }
+  return closest;
+}
 
 export function formGroups(events: BrainEvent[]): Group[] {
   const map = new Map<string, BrainEvent[]>();
@@ -18,10 +60,13 @@ export function formGroups(events: BrainEvent[]): Group[] {
     const dominantType = Object.entries(typeCounts)
       .sort((a, b) => b[1] - a[1])[0][0] as SignalType;
 
+    const sortedEvents = [...evts].sort((a, b) => a.timestamp - b.timestamp);
+
     return {
       id: evts[0].context_id,
       name,
       events: evts,
+      sortedEvents,
       radius: Math.sqrt(evts.length) * BUBBLE_SCALE,
       x: 0,
       y: 0,
@@ -60,7 +105,11 @@ export function runForceLayout(groups: Group[], width: number, height: number): 
 export function packEventsInGroup(group: Group): void {
   const { events, x: cx, y: cy, radius } = group;
   if (events.length === 0) return;
-  if (events.length === 1) { events[0].x = cx; events[0].y = cy; return; }
+  if (events.length === 1) {
+    events[0].x = cx; events[0].y = cy;
+    group.spatialIndex = buildSpatialIndex(events);
+    return;
+  }
 
   // Phase 1: Golden-angle spiral seeding
   const sorted = [...events].sort((a, b) => a.timestamp - b.timestamp);
@@ -71,42 +120,74 @@ export function packEventsInGroup(group: Group): void {
     evt.y = cy + r * Math.sin(theta);
   });
 
-  // Phase 2: 8-pass iterative pairwise repulsion
+  // Phase 2: Spatial-grid collision resolution (replaces O(n²) pairwise scan)
+  // Max possible event radius: DOT_RADIUS_MAX(14) * recencyBoost(1.3) ≈ 18.2
+  // Cell size = 2 * maxRadius + gap so neighbors cover all possible collisions
+  const GRID_CELL = 40;
   const maxBoundary = radius * 0.85;
-  for (let pass = 0; pass < 8; pass++) {
-    for (let i = 0; i < events.length; i++) {
-      for (let j = i + 1; j < events.length; j++) {
-        const a = events[i];
-        const b = events[j];
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const minDist = getEventRadius(a.weight, a.timestamp) + getEventRadius(b.weight, b.timestamp) + 2;
+  const MAX_PASSES = 8;
+  const EARLY_EXIT_THRESHOLD = 0.5; // px — stop when displacements are negligible
 
-        if (dist < minDist && dist > 0) {
-          const overlap = (minDist - dist) / 2;
-          const nx = dx / dist;
-          const ny = dy / dist;
+  for (let pass = 0; pass < MAX_PASSES; pass++) {
+    // Build collision grid for this pass
+    const grid = new Map<string, BrainEvent[]>();
+    for (const evt of events) {
+      const gx = Math.floor(evt.x / GRID_CELL);
+      const gy = Math.floor(evt.y / GRID_CELL);
+      const key = cellKey(gx, gy);
+      const bucket = grid.get(key);
+      if (bucket) bucket.push(evt);
+      else grid.set(key, [evt]);
+    }
 
-          a.x -= nx * overlap;
-          a.y -= ny * overlap;
-          b.x += nx * overlap;
-          b.y += ny * overlap;
+    let maxDisplacement = 0;
 
-          // Clamp both to group radius boundary
-          for (const evt of [a, b]) {
-            const ex = evt.x - cx;
-            const ey = evt.y - cy;
-            const eDist = Math.sqrt(ex * ex + ey * ey);
-            if (eDist > maxBoundary) {
-              evt.x = cx + (ex / eDist) * maxBoundary;
-              evt.y = cy + (ey / eDist) * maxBoundary;
+    // Check each event against neighbors in surrounding cells
+    for (const evt of events) {
+      const gx = Math.floor(evt.x / GRID_CELL);
+      const gy = Math.floor(evt.y / GRID_CELL);
+
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const bucket = grid.get(cellKey(gx + dx, gy + dy));
+          if (!bucket) continue;
+
+          for (const other of bucket) {
+            if (other === evt) continue;
+            const ddx = other.x - evt.x;
+            const ddy = other.y - evt.y;
+            const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+            const minDist = getEventRadius(evt.weight, evt.timestamp) + getEventRadius(other.weight, other.timestamp) + 2;
+
+            if (dist < minDist && dist > 0) {
+              const overlap = (minDist - dist) / 2;
+              const nx = ddx / dist;
+              const ny = ddy / dist;
+
+              // Only push the current event (other will be pushed when it's the current)
+              evt.x -= nx * overlap;
+              evt.y -= ny * overlap;
+              maxDisplacement = Math.max(maxDisplacement, overlap);
             }
           }
         }
       }
+
+      // Clamp to group radius boundary
+      const ex = evt.x - cx;
+      const ey = evt.y - cy;
+      const eDist = Math.sqrt(ex * ex + ey * ey);
+      if (eDist > maxBoundary) {
+        evt.x = cx + (ex / eDist) * maxBoundary;
+        evt.y = cy + (ey / eDist) * maxBoundary;
+      }
     }
+
+    // Early exit when settled
+    if (maxDisplacement < EARLY_EXIT_THRESHOLD) break;
   }
+
+  group.spatialIndex = buildSpatialIndex(events);
 }
 
 export function layoutFocusedGroup(group: Group, width: number, height: number): void {
@@ -116,6 +197,7 @@ export function layoutFocusedGroup(group: Group, width: number, height: number):
   if (events.length === 1) {
     events[0].x = width / 2;
     events[0].y = height / 2;
+    group.spatialIndex = buildSpatialIndex(events);
     return;
   }
 
@@ -183,4 +265,6 @@ export function layoutFocusedGroup(group: Group, width: number, height: number):
       }
     }
   }
+
+  group.spatialIndex = buildSpatialIndex(events);
 }

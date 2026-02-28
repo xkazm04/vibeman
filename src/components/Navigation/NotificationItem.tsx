@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { AlertTriangle, CheckCircle, Info, Lightbulb, Zap, Clock } from 'lucide-react';
-import type { StoredNotification } from '@/stores/notificationStore';
+import type { StoredNotification } from '@/stores/messageStore';
 
 interface NotificationItemProps {
   notification: StoredNotification;

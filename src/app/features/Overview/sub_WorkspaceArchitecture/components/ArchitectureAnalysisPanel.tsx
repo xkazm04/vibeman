@@ -4,6 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { GitBranch, Play, Loader2, AlertTriangle, X } from 'lucide-react';
 import { CompactTerminal } from '@/components/cli/CompactTerminal';
 import type { QueuedTask } from '@/components/cli/types';
+import { createQueuedStatus, createCompletedStatus, createFailedStatus } from '@/app/features/TaskRunner/lib/types';
 
 interface ArchitectureAnalysisPanelProps {
   workspaceId: string | null;
@@ -57,7 +58,7 @@ export default function ArchitectureAnalysisPanel({
         projectPath: projects[0]?.path || '.',
         projectName: 'Architecture Analysis',
         requirementName: `analysis-${analysisId.slice(-8)}`,
-        status: 'pending',
+        status: createQueuedStatus(),
         addedAt: Date.now(),
         directPrompt: promptContent,
       };
@@ -77,7 +78,7 @@ export default function ArchitectureAnalysisPanel({
     if (analysisTask) {
       setAnalysisTask({
         ...analysisTask,
-        status: success ? 'completed' : 'failed',
+        status: success ? createCompletedStatus() : createFailedStatus('Analysis failed'),
         completedAt: Date.now(),
       });
     }
@@ -88,7 +89,7 @@ export default function ArchitectureAnalysisPanel({
     setAutoStart(false);
   }, []);
 
-  const isRunning = analysisTask?.status === 'running' || (analysisTask?.status === 'pending' && autoStart);
+  const isRunning = analysisTask?.status.type === 'running' || (analysisTask?.status.type === 'queued' && autoStart);
   const hasProjects = projects.length > 0;
 
   return (
@@ -151,22 +152,22 @@ export default function ArchitectureAnalysisPanel({
       {analysisTask && (
         <div className="px-3 py-1.5 border-b border-purple-500/5 bg-zinc-900/50 text-[10px]">
           <div className="flex items-center gap-2">
-            {analysisTask.status === 'pending' && autoStart && (
+            {analysisTask.status.type === 'queued' && autoStart && (
               <span className="flex items-center gap-1 text-amber-400">
                 <Loader2 className="w-2.5 h-2.5 animate-spin" />
                 Starting...
               </span>
             )}
-            {analysisTask.status === 'running' && (
+            {analysisTask.status.type === 'running' && (
               <span className="flex items-center gap-1.5 text-purple-400">
                 <Loader2 className="w-2.5 h-2.5 animate-spin" />
                 Analyzing {projects.length} project{projects.length !== 1 ? 's' : ''}...
               </span>
             )}
-            {analysisTask.status === 'completed' && (
+            {analysisTask.status.type === 'completed' && (
               <span className="text-emerald-400">Analysis complete</span>
             )}
-            {analysisTask.status === 'failed' && (
+            {analysisTask.status.type === 'failed' && (
               <span className="text-red-400">Analysis failed</span>
             )}
           </div>

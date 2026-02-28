@@ -505,7 +505,7 @@ curl -X POST ${apiUrl}/api/brain/reflection/${reflectionId}/complete \\
         "title": "Short descriptive title",
         "description": "What you learned",
         "confidence": 75,
-        "evidence": ["direction_id_1", "direction_id_2"],
+        "evidence": [{ "type": "direction", "id": "direction_id_1" }, { "type": "signal", "id": "sig_abc" }],
         "evolves": "Title of previous insight if updating one"
       }
     ],
@@ -532,7 +532,7 @@ If an existing insight now has stronger evidence, include \`"evolves": "Previous
 ## Quality Guidelines
 
 - **Be specific, not generic**: Use actual direction titles
-- **Show evidence**: Reference specific directions
+- **Show evidence**: Each evidence item must be { "type": "direction"|"signal"|"reflection", "id": "the_actual_id" }
 - **Don't overfit**: 2 examples isn't a strong pattern
 - **Preserve history**: Add to existing learning, don't replace
 - **Stay objective**: Report what you see, not what you assume
@@ -749,7 +749,7 @@ curl -X POST ${apiUrl}/api/brain/reflection/${reflectionId}/complete \\
         "title": "Cross-project pattern title",
         "description": "What you observed across projects",
         "confidence": 75,
-        "evidence": ["project_id_1", "project_id_2"]
+        "evidence": [{ "type": "direction", "id": "dir_abc" }, { "type": "direction", "id": "dir_xyz" }]
       }
     ],
     "guideSectionsUpdated": ["Universal Preferences", "Cross-Project Strategies"]

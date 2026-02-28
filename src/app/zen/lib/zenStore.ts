@@ -8,8 +8,6 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
-
 export interface ActivityItem {
   id: string;
   timestamp: Date;
@@ -26,9 +24,14 @@ export interface ZenStats {
   sessionStart: Date;
 }
 
+type ZenMode = 'online' | 'offline';
+
 interface ZenState {
+  // Zen mode toggle
+  mode: ZenMode;
+
   // Selected batch to monitor
-  selectedBatchId: BatchId | null;
+  selectedBatchId: string | null;
 
   // Connection state (SSE/Supabase)
   isConnected: boolean;
@@ -39,7 +42,8 @@ interface ZenState {
   // Session statistics
   stats: ZenStats;
 
-  selectBatch: (batchId: BatchId | null) => void;
+  setMode: (mode: ZenMode) => void;
+  selectBatch: (batchId: string | null) => void;
   setConnected: (connected: boolean) => void;
   addActivity: (item: Omit<ActivityItem, 'id'>) => void;
   updateStats: (updates: Partial<ZenStats>) => void;
@@ -52,6 +56,7 @@ interface ZenState {
 export const useZenStore = create<ZenState>()(
   persist(
     (set) => ({
+      mode: 'offline',
       selectedBatchId: null,
       isConnected: false,
       recentActivity: [],
@@ -63,6 +68,7 @@ export const useZenStore = create<ZenState>()(
       },
 
       // Actions
+      setMode: (mode) => set({ mode }),
       selectBatch: (batchId) => set({ selectedBatchId: batchId }),
 
       setConnected: (connected) => set({ isConnected: connected }),

@@ -2,16 +2,17 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Trash2, RefreshCw } from 'lucide-react';
+import { Sparkles, Trash2, RefreshCw, X, Check } from 'lucide-react';
 import IdeasLoadingState from '@/app/features/Ideas/components/IdeasLoadingState';
 import { DbIdea } from '@/app/db';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
 import { GradientButton } from '@/components/ui';
 import IdeaCard from './IdeaCard';
+import { SideActionButton, CompactBottomBar } from './TinderButtons';
 import ActionButtons from './TinderButtons';
 import VariantCarousel from './VariantCarousel';
-import SwipeProgress from './SwipeProgress';
+import { SwipeProgressCompact } from './SwipeProgress';
 import { KeyboardHintCompact } from '@/components/ui/KeyboardHintBar';
 import { TINDER_CONSTANTS, TINDER_ANIMATIONS } from '../lib/tinderUtils';
 import { Context } from '@/lib/queries/contextQueries';
@@ -125,18 +126,14 @@ export default function TinderContent({
       console.log(`Flushed ${data.deletedCount} ideas`);
       setFlushSuccess(true);
 
-      // Call the callback to refresh the ideas list
       if (onFlushComplete) {
         onFlushComplete();
       }
 
-      // Clear success message after 3 seconds
       setTimeout(() => setFlushSuccess(false), 3000);
     } catch (error) {
       console.error('Flush failed:', error);
       setFlushError(error instanceof Error ? error.message : 'Flush failed');
-
-      // Clear error message after 5 seconds
       setTimeout(() => setFlushError(null), 5000);
     } finally {
       setFlushing(false);
@@ -145,18 +142,16 @@ export default function TinderContent({
 
   if (loading && currentIndex === 0) {
     return (
-      <div className="max-w-2xl mx-auto px-6 py-12">
-        <div className="flex flex-col items-center justify-center h-[600px]">
-          <IdeasLoadingState size="lg" label="Loading ideas..." />
-        </div>
+      <div className="flex-1 flex items-center justify-center">
+        <IdeasLoadingState size="lg" label="Loading ideas..." />
       </div>
     );
   }
 
   if (!currentIdea) {
     return (
-      <div className="max-w-2xl mx-auto px-6 py-12">
-        <div className="flex flex-col items-center justify-center h-[600px]">
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center justify-center">
           <Sparkles className="w-16 h-16 text-purple-400 mb-4" />
           <h2 className="text-2xl font-bold text-white mb-2">All Done!</h2>
           <p className="text-gray-400 mb-6">
@@ -176,9 +171,9 @@ export default function TinderContent({
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-8 relative">
+    <div className="flex-1 min-h-0 flex flex-col px-6 relative">
       {/* Flush Button - Top Right */}
-      <div className="absolute top-4 right-6 z-50">
+      <div className="absolute top-2 right-6 z-50">
         <AnimatePresence mode="wait">
           {showFlushConfirm ? (
             <motion.div
@@ -264,7 +259,7 @@ export default function TinderContent({
         )}
       </div>
 
-      {/* Card Stack or Variant Carousel */}
+      {/* Main content area: side buttons + card */}
       <AnimatePresence mode="wait">
         {showVariants && currentIdea ? (
           <motion.div
@@ -272,7 +267,7 @@ export default function TinderContent({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="min-h-[600px] flex flex-col justify-center"
+            className="flex-1 min-h-0 flex flex-col justify-center max-w-2xl lg:max-w-3xl mx-auto w-full"
           >
             <div className="mb-4 text-center">
               <h3 className="text-sm font-semibold text-gray-300 mb-1">
@@ -290,8 +285,21 @@ export default function TinderContent({
             />
           </motion.div>
         ) : (
-          <motion.div key="cards">
-            <div className="relative h-[600px]">
+          <motion.div key="cards" className="flex-1 min-h-0 flex items-center justify-center gap-4 lg:gap-6 py-4">
+            {/* Left: Reject button — desktop only */}
+            <div className="hidden lg:flex items-center flex-shrink-0">
+              <SideActionButton
+                onClick={onReject}
+                disabled={processing}
+                color="red"
+                icon={<X className="w-7 h-7" />}
+                title="Reject (Swipe Left)"
+                ariaLabel="Reject idea"
+              />
+            </div>
+
+            {/* Center: Card stack */}
+            <div className="relative flex-1 max-w-2xl lg:max-w-3xl h-full min-h-0">
               <AnimatePresence>
                 {ideas.slice(currentIndex, currentIndex + TINDER_CONSTANTS.PREVIEW_CARDS).map((idea, index) => {
                   const projectName = getProject(idea.project_id)?.name || 'Unknown Project';
@@ -307,6 +315,7 @@ export default function TinderContent({
                       contextName={contextName}
                       onSwipeLeft={index === 0 ? onReject : () => {}}
                       onSwipeRight={index === 0 ? onAccept : () => {}}
+                      className="max-h-full"
                       style={{
                         zIndex: 10 - index,
                         ...TINDER_ANIMATIONS.CARD_STACK_TRANSFORM(index),
@@ -316,40 +325,67 @@ export default function TinderContent({
                 })}
               </AnimatePresence>
             </div>
+
+            {/* Right: Accept button — desktop only */}
+            <div className="hidden lg:flex items-center flex-shrink-0">
+              <SideActionButton
+                onClick={onAccept}
+                disabled={processing}
+                color="green"
+                icon={<Check className="w-7 h-7" />}
+                title="Accept (Swipe Right)"
+                ariaLabel="Accept idea"
+              />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Action Buttons */}
+      {/* Bottom bar: compact actions + progress + hints */}
       {!showVariants && (
-        <ActionButtons
-          onReject={onReject}
-          onDelete={onDelete}
-          onAccept={onAccept}
-          disabled={processing}
-          onVariants={onAcceptVariant ? () => setShowVariants(true) : undefined}
-        />
-      )}
+        <div className="flex-shrink-0 pb-3 pt-1">
+          {/* Mobile-only: full action buttons row (hidden on lg) */}
+          <div className="lg:hidden">
+            <ActionButtons
+              onReject={onReject}
+              onDelete={onDelete}
+              onAccept={onAccept}
+              disabled={processing}
+              onVariants={onAcceptVariant ? () => setShowVariants(true) : undefined}
+            />
+          </div>
 
-      {/* Keyboard Hints */}
-      <div className="mt-4 flex justify-center">
-        <KeyboardHintCompact hints={TINDER_KEYBOARD_HINTS} />
-      </div>
+          {/* Desktop: compact bar with secondary actions + progress + hints */}
+          <div className="flex items-center justify-between gap-4 mt-2 lg:mt-0">
+            {/* Left: delete + variants */}
+            <div className="hidden lg:block">
+              <CompactBottomBar
+                onDelete={onDelete}
+                disabled={processing}
+                onVariants={onAcceptVariant ? () => setShowVariants(true) : undefined}
+              />
+            </div>
 
-      {/* Progress Indicator */}
-      <div className="mt-6">
-        <SwipeProgress
-          total={ideas.length}
-          reviewed={currentIndex}
-          accepted={ideas.slice(0, currentIndex).filter(i => i.status === 'accepted').length}
-          rejected={ideas.slice(0, currentIndex).filter(i => i.status === 'rejected').length}
-        />
-      </div>
+            {/* Center: progress */}
+            <div className="flex-1 max-w-xs mx-auto lg:mx-0">
+              <SwipeProgressCompact
+                current={currentIndex}
+                total={ideas.length}
+              />
+            </div>
 
-      {/* Loading indicator for next batch */}
-      {loading && (
-        <div className="mt-4 text-center">
-          <p className="text-sm text-gray-500">Loading more ideas...</p>
+            {/* Right: keyboard hints */}
+            <div className="hidden lg:block">
+              <KeyboardHintCompact hints={TINDER_KEYBOARD_HINTS} />
+            </div>
+          </div>
+
+          {/* Loading indicator for next batch */}
+          {loading && (
+            <div className="mt-2 text-center">
+              <p className="text-xs text-gray-500">Loading more ideas...</p>
+            </div>
+          )}
         </div>
       )}
     </div>

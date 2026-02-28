@@ -48,10 +48,10 @@ export default function MissionControl() {
       const s = sessions[id];
       if (s.isRunning) active++;
       s.queue.forEach(t => {
-        if (t.status === 'completed') completed++;
-        if (t.status === 'failed') failed++;
-        if (t.status === 'pending') pending++;
-        if (t.status === 'running') running++;
+        if (t.status.type === 'completed') completed++;
+        if (t.status.type === 'failed') failed++;
+        if (t.status.type === 'queued') pending++;
+        if (t.status.type === 'running') running++;
       });
       completed += s.completedCount;
     });
@@ -123,7 +123,7 @@ export default function MissionControl() {
   // Launch sequence trigger
   const triggerLaunch = useCallback(() => {
     const totalPending = SESSION_IDS.reduce((sum, id) =>
-      sum + sessions[id].queue.filter(t => t.status === 'pending').length, 0
+      sum + sessions[id].queue.filter(t => t.status.type === 'queued').length, 0
     );
     if (totalPending > 0) {
       setLaunchTaskCount(totalPending);

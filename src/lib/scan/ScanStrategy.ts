@@ -194,14 +194,12 @@ export abstract class BaseScanStrategy implements ScanStrategy {
 
           try {
             const content = await fs.readFile(filePath, 'utf-8');
-            const lines = content.split('\n').length;
             const size = Buffer.byteLength(content, 'utf-8');
 
             files.push({
               path: relativePath,
               content,
               size,
-              lines,
             });
           } catch (error) {
             // Skip files that can't be read

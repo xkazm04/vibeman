@@ -6,6 +6,7 @@ import { useOrchestratorStore } from '@/stores/orchestratorStore';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { CompactTerminal } from '@/components/cli/CompactTerminal';
 import type { QueuedTask } from '@/components/cli/types';
+import { createQueuedStatus } from '@/app/features/TaskRunner/lib/types';
 
 interface ContextMapPanelProps {
   projects: Array<{ id: string; name: string; path: string }>;
@@ -79,7 +80,7 @@ export default function ContextMapPanel({ projects }: ContextMapPanelProps) {
           projectPath: project.path,
           projectName: project.name,
           requirementName: `context-map-${project.name}`,
-          status: 'pending',
+          status: createQueuedStatus(),
           addedAt: Date.now(),
           directPrompt: `You have a skill file at .claude/skills/context-map-generator.md
 

@@ -202,6 +202,7 @@ export default function MatrixDiagramCanvas({
               onToggleFilter={toggleFilter}
               onCellHover={handleCellHover}
               onCellSelect={handleCellSelect}
+              highlightRule={blastRadiusHighlightRule}
             />
           )}
         </AnimatePresence>

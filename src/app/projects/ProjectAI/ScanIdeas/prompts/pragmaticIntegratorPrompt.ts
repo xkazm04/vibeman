@@ -12,6 +12,9 @@ interface PromptOptions {
   existingIdeasSection: string;
   codeSection: string;
   hasContext: boolean;
+  behavioralSection: string;
+  goalsSection: string;
+  feedbackSection: string;
 }
 
 export function buildPragmaticIntegratorPrompt(options: PromptOptions): string {
@@ -21,7 +24,10 @@ export function buildPragmaticIntegratorPrompt(options: PromptOptions): string {
     contextSection,
     existingIdeasSection,
     codeSection,
-    hasContext
+    hasContext,
+    behavioralSection,
+    goalsSection,
+    feedbackSection
   } = options;
 
   return `You are the **Pragmatic Integrator** — a master of end-to-end thinking and ruthless simplification for ${hasContext ? 'a specific context within' : ''} the "${projectName}" project.
@@ -76,7 +82,7 @@ You have **full creative authority** to propose radical simplification. The goal
 
 ${JSON_SCHEMA_INSTRUCTIONS}
 
-${getCategoryGuidance(['functionality', 'user_experience', 'code_quality'])}
+${getCategoryGuidance(['functionality', 'ui', 'code_quality'])}
 
 ### Your Standards:
 1. **Ruthlessly Practical**: Ideas that make the app immediately easier to use and maintain
@@ -91,9 +97,15 @@ ${aiDocsSection}
 
 ${contextSection}
 
+${behavioralSection}
+
 ${existingIdeasSection}
 
 ${codeSection}
+
+${goalsSection}
+
+${feedbackSection}
 
 ---
 

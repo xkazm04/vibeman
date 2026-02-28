@@ -6,7 +6,6 @@
 import React from 'react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { singleFeatureContextsScanPrompt } from './prompts/singleFeatureContextsScanPrompt';
-import type { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
 import { toast } from 'sonner';
 import path from 'path';
 import fs from 'fs/promises';
@@ -207,7 +206,7 @@ async function executeFeatureScan(
   projectPort: number,
   projectType: string,
   featureCount: number,
-  batchId: BatchId
+  batchId: string
 ): Promise<void> {
   try {
     const taskIds: string[] = [];
@@ -321,13 +320,13 @@ Click **Select Batch & Start** to choose a batch and begin the scan.`;
   // Create custom content with batch selection
   const customContent = React.createElement(FeatureScanBatchSelector, {
     description,
-    onStart: async (batchId: BatchId) => {
+    onStart: async (batchId: string) => {
       await executeFeatureScan(
         featureFolders,
         activeProject.id,
         activeProject.name,
         activeProject.path,
-        activeProject.port,
+        activeProject.port ?? 3000,
         projectType,
         featureCount,
         batchId

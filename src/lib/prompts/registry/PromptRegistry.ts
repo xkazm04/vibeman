@@ -21,6 +21,7 @@ import {
   PromptVariable,
   ScanType,
 } from './types';
+import { replacePlaceholders } from '../builder';
 
 class PromptRegistryClass {
   private prompts: Map<string, RegisteredPrompt> = new Map();
@@ -449,28 +450,23 @@ ${base.userPromptTemplate}`;
     values: Record<string, string | number | boolean | undefined>,
     variables: PromptVariable[]
   ): string {
-    let result = template;
-
-    // First, apply provided values
-    for (const [key, value] of Object.entries(values)) {
-      if (value !== undefined && value !== null) {
-        const placeholder = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-        result = result.replace(placeholder, String(value));
-      }
-    }
-
-    // Then, apply default values for remaining placeholders
+    // Build a merged lookup: provided values take precedence over defaults
+    const defaults: Record<string, string> = {};
     for (const variable of variables) {
       if (variable.defaultValue !== undefined) {
-        const placeholder = new RegExp(`\\{\\{${variable.name}\\}\\}`, 'g');
-        result = result.replace(placeholder, variable.defaultValue);
+        defaults[variable.name] = variable.defaultValue;
       }
     }
 
-    // Remove any remaining unsubstituted placeholders
-    result = result.replace(/\{\{[^}]+\}\}/g, '');
+    const merged: Record<string, string> = { ...defaults };
+    for (const [key, value] of Object.entries(values)) {
+      if (value !== undefined && value !== null) {
+        merged[key] = String(value);
+      }
+    }
 
-    return result;
+    // Delegate to shared single-pass replacer
+    return replacePlaceholders(template, merged);
   }
 }
 

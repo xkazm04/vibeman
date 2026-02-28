@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
+import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Activity, AlertCircle, Layers, Clock, Sparkles, AlertTriangle, TrendingDown, TrendingUp, X, Castle } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
@@ -119,17 +119,18 @@ export default function BrainLayout() {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${isActive
-                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-                  }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{tab.label}</span>
-              </button>
+              <TabTooltip key={tab.id} text={tab.description}>
+                <button
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${isActive
+                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                    }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{tab.label}</span>
+                </button>
+              </TabTooltip>
             );
           })}
         </div>
@@ -299,6 +300,39 @@ export default function BrainLayout() {
             {activeTab === 'timeline' && <EventCanvasTimeline />}
             {activeTab === 'palace' && <MemoryPalace />}
           </Suspense>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Tab Tooltip ──────────────────────────────────────────────────────────────
+
+function TabTooltip({ text, children }: { text: string; children: React.ReactNode }) {
+  const [visible, setVisible] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleEnter = () => {
+    timerRef.current = setTimeout(() => setVisible(true), 300);
+  };
+
+  const handleLeave = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setVisible(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  return (
+    <div className="relative" onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
+      {children}
+      {visible && (
+        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 whitespace-nowrap bg-zinc-900/95 backdrop-blur-sm border border-zinc-700/50 rounded-lg px-3 py-2 text-xs text-zinc-300 shadow-xl pointer-events-none">
+          {text}
         </div>
       )}
     </div>

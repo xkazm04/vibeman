@@ -21,15 +21,15 @@ interface ZenSessionPanelProps {
  */
 export function ZenSessionPanel({ sessionId, session, index }: ZenSessionPanelProps) {
   const stats = useMemo(() => {
-    const pending = session.queue.filter(t => t.status === 'pending').length;
-    const running = session.queue.filter(t => t.status === 'running').length;
-    const completed = session.queue.filter(t => t.status === 'completed').length;
-    const failed = session.queue.filter(t => t.status === 'failed').length;
+    const pending = session.queue.filter(t => t.status.type === 'queued').length;
+    const running = session.queue.filter(t => t.status.type === 'running').length;
+    const completed = session.queue.filter(t => t.status.type === 'completed').length;
+    const failed = session.queue.filter(t => t.status.type === 'failed').length;
     return { pending, running, completed, failed };
   }, [session.queue]);
 
   const runningTask = useMemo(() =>
-    session.queue.find(t => t.status === 'running'),
+    session.queue.find(t => t.status.type === 'running'),
     [session.queue]
   );
 

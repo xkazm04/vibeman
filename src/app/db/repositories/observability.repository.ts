@@ -1,4 +1,5 @@
 import { getDatabase } from '../connection';
+import { getHotWritesDatabase } from '../hot-writes';
 import { v4 as uuidv4 } from 'uuid';
 import {
   DbObsApiCall,
@@ -21,15 +22,15 @@ export const observabilityRepository = {
   // ===== API Calls =====
 
   /**
-   * Log a single API call
+   * Log a single API call (writes to hot-writes DB for reduced contention)
    */
   logApiCall: (data: CreateObsApiCall): DbObsApiCall => {
-    const db = getDatabase();
+    const hotDb = getHotWritesDatabase();
     const id = uuidv4();
     const now = new Date().toISOString();
     const calledAt = data.called_at || now;
 
-    const stmt = db.prepare(`
+    const stmt = hotDb.prepare(`
       INSERT INTO obs_api_calls (
         id, project_id, endpoint, method, status_code, response_time_ms,
         request_size_bytes, response_size_bytes, user_agent, error_message,
@@ -52,12 +53,12 @@ export const observabilityRepository = {
       now
     );
 
-    const selectStmt = db.prepare('SELECT * FROM obs_api_calls WHERE id = ?');
+    const selectStmt = hotDb.prepare('SELECT * FROM obs_api_calls WHERE id = ?');
     return selectStmt.get(id) as DbObsApiCall;
   },
 
   /**
-   * Get API calls for an endpoint within a date range
+   * Get API calls for an endpoint within a date range (reads from hot-writes DB)
    */
   getApiCallsByEndpoint: (
     projectId: string,
@@ -65,7 +66,7 @@ export const observabilityRepository = {
     startDate?: string,
     endDate?: string
   ): DbObsApiCall[] => {
-    const db = getDatabase();
+    const db = getHotWritesDatabase();
     let query = `
       SELECT * FROM obs_api_calls
       WHERE project_id = ? AND endpoint = ?
@@ -88,10 +89,10 @@ export const observabilityRepository = {
   },
 
   /**
-   * Get recent API calls for a project
+   * Get recent API calls for a project (reads from hot-writes DB)
    */
   getRecentApiCalls: (projectId: string, limit: number = 100): DbObsApiCall[] => {
-    const db = getDatabase();
+    const db = getHotWritesDatabase();
     const stmt = db.prepare(`
       SELECT * FROM obs_api_calls
       WHERE project_id = ?
@@ -102,10 +103,10 @@ export const observabilityRepository = {
   },
 
   /**
-   * Delete old API call logs (for cleanup)
+   * Delete old API call logs (for cleanup, deletes from hot-writes DB)
    */
   deleteOldApiCalls: (projectId: string, beforeDate: string): number => {
-    const db = getDatabase();
+    const db = getHotWritesDatabase();
     const stmt = db.prepare(`
       DELETE FROM obs_api_calls
       WHERE project_id = ? AND called_at < ?
@@ -374,13 +375,14 @@ export const observabilityRepository = {
   },
 
   /**
-   * Aggregate raw API calls into hourly stats
+   * Aggregate raw API calls into hourly stats.
+   * Reads from hot-writes DB, writes rollups to main DB.
    */
   aggregateHourlyStats: (projectId: string): number => {
-    const db = getDatabase();
+    const hotDb = getHotWritesDatabase();
 
-    // Get unprocessed calls (calls not yet in stats)
-    const callsStmt = db.prepare(`
+    // Get unprocessed calls from hot-writes DB
+    const callsStmt = hotDb.prepare(`
       SELECT
         endpoint,
         method,
@@ -537,9 +539,11 @@ export const observabilityRepository = {
    */
   deleteConfig: (projectId: string): boolean => {
     const db = getDatabase();
+    const hotDb = getHotWritesDatabase();
 
-    // Delete in order: calls, stats, config
-    db.prepare('DELETE FROM obs_api_calls WHERE project_id = ?').run(projectId);
+    // Delete calls from hot-writes DB
+    hotDb.prepare('DELETE FROM obs_api_calls WHERE project_id = ?').run(projectId);
+    // Delete stats and config from main DB
     db.prepare('DELETE FROM obs_endpoint_stats WHERE project_id = ?').run(projectId);
     const result = db.prepare('DELETE FROM obs_config WHERE project_id = ?').run(projectId);
 

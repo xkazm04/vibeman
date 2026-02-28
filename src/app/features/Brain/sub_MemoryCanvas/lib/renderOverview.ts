@@ -1,6 +1,6 @@
 import type { Group, FilterState } from './types';
 import { COLORS, FOCUS_ZOOM_THRESHOLD, RECENCY_GLOW_HOURS, LABEL_MIN_ZOOM } from './constants';
-import { hexToRgba, getEventAlpha, getEventRadius, computeLabelRects } from './helpers';
+import { hexToRgba, colorAt, getEventAlpha, getEventRadius, computeLabelRects } from './helpers';
 
 interface RenderOverviewParams {
   ctx: CanvasRenderingContext2D;
@@ -86,26 +86,25 @@ function renderGroupBubble(ctx: CanvasRenderingContext2D, group: Group, k: numbe
   const color = group.dominantColor;
   const { x: gx, y: gy, radius } = group;
 
-  // Ambient glow halo
+  // Ambient glow halo — solid fill with globalAlpha instead of per-frame radial gradient
   if (k > 0.5) {
-    const haloGrad = ctx.createRadialGradient(gx, gy, radius * 0.5, gx, gy, radius * 1.6);
-    haloGrad.addColorStop(0, hexToRgba(color, isSelected ? 0.12 : 0.04));
-    haloGrad.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = haloGrad;
+    ctx.save();
+    ctx.globalAlpha = isSelected ? 0.08 : 0.03;
+    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.arc(gx, gy, radius * 1.6, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
   }
 
-  // Radial gradient bubble fill
-  const bubbleGrad = ctx.createRadialGradient(gx - radius * 0.3, gy - radius * 0.3, 0, gx, gy, radius);
-  bubbleGrad.addColorStop(0, hexToRgba(color, isSelected ? 0.18 : 0.1));
-  bubbleGrad.addColorStop(0.6, hexToRgba(color, isSelected ? 0.08 : 0.04));
-  bubbleGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  // Bubble fill — solid fill with globalAlpha instead of per-frame radial gradient
+  ctx.save();
+  ctx.globalAlpha = isSelected ? 0.12 : 0.06;
+  ctx.fillStyle = color;
   ctx.beginPath();
   ctx.arc(gx, gy, radius, 0, Math.PI * 2);
-  ctx.fillStyle = bubbleGrad;
   ctx.fill();
+  ctx.restore();
 
   // Bubble border
   if (isSelected) {
@@ -118,7 +117,7 @@ function renderGroupBubble(ctx: CanvasRenderingContext2D, group: Group, k: numbe
     ctx.lineWidth = 2.5 / k;
     ctx.stroke();
     ctx.shadowBlur = 12 / k;
-    ctx.strokeStyle = hexToRgba(color, 0.4);
+    ctx.strokeStyle = colorAt(color, 0.4);
     ctx.lineWidth = 1 / k;
     ctx.beginPath();
     ctx.arc(gx, gy, radius + 4 / k, 0, Math.PI * 2);
@@ -127,20 +126,21 @@ function renderGroupBubble(ctx: CanvasRenderingContext2D, group: Group, k: numbe
   } else {
     ctx.beginPath();
     ctx.arc(gx, gy, radius, 0, Math.PI * 2);
-    ctx.strokeStyle = hexToRgba(color, 0.2);
+    ctx.strokeStyle = colorAt(color, 0.2);
     ctx.lineWidth = 1 / k;
     ctx.stroke();
   }
 
   // Ultra zoomed out - condensed view
   if (k < 0.6) {
-    const coreGrad = ctx.createRadialGradient(gx, gy, 0, gx, gy, radius * 0.6);
-    coreGrad.addColorStop(0, hexToRgba(color, 0.6));
-    coreGrad.addColorStop(1, hexToRgba(color, 0.15));
+    // Solid fill with globalAlpha instead of per-frame radial gradient
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.arc(gx, gy, radius * 0.6, 0, Math.PI * 2);
-    ctx.fillStyle = coreGrad;
     ctx.fill();
+    ctx.restore();
 
     ctx.fillStyle = '#f4f4f5';
     ctx.font = `bold ${Math.max(10, 13 / k)}px Inter, system-ui, sans-serif`;
@@ -163,10 +163,15 @@ function renderGroupBubble(ctx: CanvasRenderingContext2D, group: Group, k: numbe
   ctx.fillText(group.name, gx, gy - radius - 4 / k);
 
   // Event count
-  ctx.fillStyle = hexToRgba(color, 0.8);
+  ctx.fillStyle = colorAt(color, 0.8);
   ctx.font = `${9 / k}px Inter, system-ui, sans-serif`;
   ctx.textBaseline = 'top';
   ctx.fillText(`${group.events.length} events`, gx, gy + radius + 3 / k);
+
+  // Pre-compute frame-level pulse phase (shared across all events this frame)
+  const now = Date.now();
+  const pulsePhase = (now % 2000) / 2000;
+  const pulseAlphaBase = 0.3 * (1 - pulsePhase);
 
   // Event dots
   const labelCandidates: Array<{ x: number; y: number; radius: number; label: string; priority: number }> = [];
@@ -179,41 +184,46 @@ function renderGroupBubble(ctx: CanvasRenderingContext2D, group: Group, k: numbe
     const evtColor = COLORS[evt.type];
     const dotRadius = getEventRadius(evt.weight, evt.timestamp) / Math.max(0.7, k * 0.5);
 
+    // Glow halo for high-weight/recent events
     if ((evt.weight > 1.0 && alpha > 0.5) || alpha > 0.8) {
       ctx.save();
       ctx.shadowBlur = (8 + evt.weight * 4) / k;
-      ctx.shadowColor = hexToRgba(evtColor, 0.5 * alpha);
+      ctx.shadowColor = colorAt(evtColor, 0.5 * alpha);
+      ctx.globalAlpha = 0.15 * alpha;
+      ctx.fillStyle = evtColor;
       ctx.beginPath();
       ctx.arc(evt.x, evt.y, dotRadius * 1.2, 0, Math.PI * 2);
-      ctx.fillStyle = hexToRgba(evtColor, 0.15 * alpha);
       ctx.fill();
       ctx.restore();
     }
 
-    const dotGrad = ctx.createRadialGradient(evt.x, evt.y, 0, evt.x, evt.y, dotRadius);
-    dotGrad.addColorStop(0, hexToRgba(evtColor, Math.min(1, alpha + 0.3)));
-    dotGrad.addColorStop(1, hexToRgba(evtColor, alpha * 0.6));
+    // Solid dot fill with globalAlpha — replaces per-event radial gradient
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, alpha + 0.15);
+    ctx.fillStyle = evtColor;
     ctx.beginPath();
     ctx.arc(evt.x, evt.y, dotRadius, 0, Math.PI * 2);
-    ctx.fillStyle = dotGrad;
     ctx.fill();
+    ctx.restore();
 
+    // White core highlight for high-weight events
     if (evt.weight > 1.5) {
+      ctx.save();
+      ctx.globalAlpha = 0.5 * alpha;
+      ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.arc(evt.x, evt.y, dotRadius * 0.35, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255,255,255,${0.5 * alpha})`;
       ctx.fill();
+      ctx.restore();
     }
 
-    // Animated pulse ring for recent events
-    const ageHours = (Date.now() - evt.timestamp) / 3600000;
+    // Animated pulse ring for recent events (using frame-level cached phase)
+    const ageHours = (now - evt.timestamp) / 3600000;
     if (ageHours < RECENCY_GLOW_HOURS) {
-      const pulsePhase = (Date.now() % 2000) / 2000;
       const pulseRadius = dotRadius * (1.5 + pulsePhase * 0.8);
-      const pulseAlpha = 0.3 * (1 - pulsePhase);
       ctx.beginPath();
       ctx.arc(evt.x, evt.y, pulseRadius, 0, Math.PI * 2);
-      ctx.strokeStyle = hexToRgba(evtColor, pulseAlpha);
+      ctx.strokeStyle = colorAt(evtColor, pulseAlphaBase);
       ctx.lineWidth = 1.5 / k;
       ctx.stroke();
     }

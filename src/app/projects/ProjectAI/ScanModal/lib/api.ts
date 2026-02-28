@@ -12,10 +12,10 @@ export async function readFileFromDisk(filePath: string): Promise<{
   error?: string;
 }> {
   try {
-    const response = await fetch('/api/disk/read-file', {
+    const response = await fetch('/api/disk/file', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filePath })
+      body: JSON.stringify({ action: 'read', filePath })
     });
 
     if (response.ok) {
@@ -41,10 +41,11 @@ export async function checkAIDocsExist(projectPath: string): Promise<boolean> {
   if (!projectPath) return false;
 
   try {
-    const response = await fetch('/api/disk/read-file', {
+    const response = await fetch('/api/disk/file', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        action: 'read',
         filePath: `${projectPath}/context/high.md`
       })
     });

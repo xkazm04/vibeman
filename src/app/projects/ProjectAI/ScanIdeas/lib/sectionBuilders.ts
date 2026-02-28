@@ -5,6 +5,7 @@
 
 import { DbIdea, DbContext, DbGoal } from '@/app/db';
 import { getBehavioralContext, formatBehavioralForPrompt } from '@/lib/brain/behavioralContext';
+import { NEXTJS_STRUCTURE, type ProjectStructureTemplate } from '@/app/api/structure-scan/structureTemplates';
 
 /**
  * Truncate long descriptions to save tokens
@@ -151,4 +152,62 @@ export function buildBehavioralSection(projectId: string): string {
   } catch {
     return ''; // Never break idea generation if behavioral context fails
   }
+}
+
+/**
+ * Build project structure section from template.
+ * Provides all scan types with awareness of the project's architectural conventions.
+ */
+export function buildProjectStructureSection(template: ProjectStructureTemplate = NEXTJS_STRUCTURE): string {
+  let section = `## Project Structure Standards\n\n`;
+  section += `**${template.name}**\n`;
+  section += `${template.description}\n\n`;
+
+  const requiredRules = template.rules.filter(r => r.required);
+  const contextRules = template.rules.filter(r => r.context);
+  const antiPatterns = template.rules.filter(r => r.description.includes('AVOID'));
+  const optionalRules = template.rules.filter(r => !r.required && !r.context && !r.description.includes('AVOID'));
+
+  if (requiredRules.length > 0) {
+    section += `### Core Structure (Required)\n\n`;
+    for (const rule of requiredRules) {
+      section += `- **\`${rule.pattern}\`**: ${rule.description}\n`;
+      if (rule.examples && rule.examples.length > 0) {
+        section += `  - Examples: ${rule.examples.map(e => `\`${e}\``).join(', ')}\n`;
+      }
+    }
+    section += `\n`;
+  }
+
+  if (optionalRules.length > 0) {
+    section += `### Recommended Structure\n\n`;
+    for (const rule of optionalRules) {
+      section += `- **\`${rule.pattern}\`**: ${rule.description}\n`;
+      if (rule.examples && rule.examples.length > 0) {
+        section += `  - Examples: ${rule.examples.map(e => `\`${e}\``).join(', ')}\n`;
+      }
+    }
+    section += `\n`;
+  }
+
+  if (contextRules.length > 0) {
+    section += `### Context Boundaries\n\n`;
+    for (const rule of contextRules) {
+      section += `- **\`${rule.pattern}\`**: ${rule.description}\n`;
+      if (rule.examples && rule.examples.length > 0) {
+        section += `  - Examples: ${rule.examples.map(e => `\`${e}\``).join(', ')}\n`;
+      }
+    }
+    section += `\n`;
+  }
+
+  if (antiPatterns.length > 0) {
+    section += `### Anti-Patterns to Avoid\n\n`;
+    for (const rule of antiPatterns) {
+      section += `- **\`${rule.pattern}\`**: ${rule.description}\n`;
+    }
+    section += `\n`;
+  }
+
+  return section;
 }

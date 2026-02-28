@@ -90,12 +90,12 @@ function parseGitCommand(
   // Remove surrounding quotes from markers that might be in the template
   // e.g., git commit -m "{commitMessage}" -> git commit -m __COMMIT_MESSAGE__
   markedCommand = markedCommand
-    .replace(new RegExp(`"${COMMIT_MSG_MARKER}"`, 'g'), COMMIT_MSG_MARKER)
-    .replace(new RegExp(`'${COMMIT_MSG_MARKER}'`, 'g'), COMMIT_MSG_MARKER)
-    .replace(new RegExp(`"${BRANCH_MARKER}"`, 'g'), BRANCH_MARKER)
-    .replace(new RegExp(`'${BRANCH_MARKER}'`, 'g'), BRANCH_MARKER)
-    .replace(new RegExp(`"${PROJECT_NAME_MARKER}"`, 'g'), PROJECT_NAME_MARKER)
-    .replace(new RegExp(`'${PROJECT_NAME_MARKER}'`, 'g'), PROJECT_NAME_MARKER);
+    .replaceAll(`"${COMMIT_MSG_MARKER}"`, COMMIT_MSG_MARKER)
+    .replaceAll(`'${COMMIT_MSG_MARKER}'`, COMMIT_MSG_MARKER)
+    .replaceAll(`"${BRANCH_MARKER}"`, BRANCH_MARKER)
+    .replaceAll(`'${BRANCH_MARKER}'`, BRANCH_MARKER)
+    .replaceAll(`"${PROJECT_NAME_MARKER}"`, PROJECT_NAME_MARKER)
+    .replaceAll(`'${PROJECT_NAME_MARKER}'`, PROJECT_NAME_MARKER);
 
   // Split command into parts (handle quoted strings for non-template values)
   const parts = markedCommand.trim().split(/\s+/);

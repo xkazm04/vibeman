@@ -9,7 +9,8 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, Maximize2, Volume2, VolumeX, Bell, X } from 'lucide-react';
 import { useOnboardingStore } from '@/stores/onboardingStore';
-import { useAnnetteStore } from '@/stores/annetteStore';
+import { useVoiceStore } from '@/stores/annette/voiceStore';
+import { useWidgetStore } from '@/stores/annette/widgetStore';
 import MiniChatPanel from './MiniChatPanel';
 import MiniChatInput from './MiniChatInput';
 
@@ -64,13 +65,13 @@ function NotificationBar() {
 
 export default function AnnetteDropdownPanel({ onClose }: { onClose: () => void }) {
   const setActiveModule = useOnboardingStore((s) => s.setActiveModule);
-  const audioEnabled = useAnnetteStore((s) => s.audioEnabled);
-  const toggleAudio = useAnnetteStore((s) => s.toggleAudio);
+  const audioEnabled = useVoiceStore((s) => s.audioEnabled);
+  const toggleAudio = useVoiceStore((s) => s.toggleAudio);
 
   const handleExpand = () => {
     setActiveModule('commander');
     onClose();
-    useAnnetteStore.getState().markAllRead();
+    useWidgetStore.getState().markAllRead();
   };
 
   return (

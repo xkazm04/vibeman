@@ -14,7 +14,8 @@ export type IntegrationProvider =
   | 'jira'
   | 'linear'
   | 'notion'
-  | 'postgres';
+  | 'postgres'
+  | 'supabase';
 
 // Integration status
 export type IntegrationStatus = 'active' | 'inactive' | 'error' | 'pending';

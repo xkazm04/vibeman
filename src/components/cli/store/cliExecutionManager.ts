@@ -1,14 +1,30 @@
 /**
  * CLI Execution Manager
  *
- * Manages CLI task execution with polling, recovery, and background processing.
- * Similar to TaskRunner's polling manager but for CLI sessions.
+ * Manages CLI task execution with recovery and background processing.
+ * Delegates actual execution, streaming, and cancellation to the
+ * ExecutionStrategy pattern (TerminalStrategy by default).
  */
 
 import { useCLISessionStore, type CLISessionId } from './cliSessionStore';
 import type { QueuedTask } from '../types';
 // Import directly to avoid circular dependency through barrel exports
 import { remoteEvents } from '@/lib/remote/eventPublisher';
+import {
+  createStrategy,
+  type ExecutionStrategy,
+  type ExecutionEvent,
+  hasCapability,
+} from '@/app/features/TaskRunner/lib/executionStrategy';
+import {
+  createRunningStatus,
+  createFailedStatus,
+  createCompletedStatus,
+  createQueuedStatus,
+} from '@/app/features/TaskRunner/lib/types';
+// Register strategies on import
+import '@/app/features/TaskRunner/lib/strategies/terminalStrategy';
+import '@/app/features/TaskRunner/lib/strategies/vscodeStrategy';
 
 // ============ Shared Task Completion Utilities ============
 
@@ -93,8 +109,10 @@ async function ensureImplementationLog(
 }
 
 /**
- * Perform post-completion cleanup for a successful task
- * Deletes requirement file, updates idea status, and ensures implementation log exists
+ * Perform post-completion cleanup for a successful task.
+ * Sequential cascade: update status → ensure log → delete file.
+ * The requirement file must stay on disk until status/log updates
+ * finish, since downstream endpoints may reference the idea by name.
  *
  * @returns true if requirement was deleted successfully
  */
@@ -103,30 +121,56 @@ export async function performTaskCleanup(
   requirementName: string,
   projectId?: string
 ): Promise<boolean> {
-  // Update idea status (fire-and-forget, non-blocking) — also emits brain signal (Fix B)
-  updateIdeaImplementationStatus(requirementName);
+  // 1. Update idea status (await so it completes before file deletion)
+  await updateIdeaImplementationStatus(requirementName);
 
-  // Ensure implementation log exists (fire-and-forget) — creates fallback if MCP tool was skipped (Fix C)
+  // 2. Ensure implementation log exists — creates fallback if MCP tool was skipped
   if (projectId) {
-    ensureImplementationLog(projectId, requirementName).catch(() => {});
+    await ensureImplementationLog(projectId, requirementName).catch(() => {});
   }
 
-  // Delete requirement file
+  // 3. Delete requirement file last — after all lookups are done
   return deleteRequirementFile(projectPath, requirementName);
 }
 
-// Polling state per session
-interface PollingState {
-  intervalId: NodeJS.Timeout;
-  executionId: string;
-  startedAt: number;
+// ============================================================================
+// Strategy-backed execution
+// ============================================================================
+
+// Per-session strategy instances and stream unsubscribers
+const sessionStrategies = new Map<CLISessionId, ExecutionStrategy>();
+const sessionUnsubscribers = new Map<CLISessionId, () => void>();
+// Track executionId per session for cancel/cleanup
+const sessionExecutionIds = new Map<CLISessionId, string>();
+
+/**
+ * Get or create the execution strategy for a session.
+ * Routes to 'vscode' strategy when session provider is 'vscode',
+ * otherwise uses 'terminal' strategy (for claude/gemini).
+ */
+function getSessionStrategy(sessionId: CLISessionId): ExecutionStrategy {
+  let strategy = sessionStrategies.get(sessionId);
+  if (!strategy) {
+    const store = useCLISessionStore.getState();
+    const session = store.sessions[sessionId];
+    const strategyType = session?.provider === 'vscode' ? 'vscode' : 'terminal';
+    strategy = createStrategy(strategyType);
+    sessionStrategies.set(sessionId, strategy);
+  }
+  return strategy;
 }
 
-// Module-level polling tracking (survives component re-renders)
-const activePolling: Map<CLISessionId, PollingState> = new Map();
-
-// Execution stream tracking
-const activeStreams: Map<string, EventSource> = new Map();
+/**
+ * Clear cached strategy for a session.
+ * Call when the provider changes so the next execution creates the correct strategy.
+ */
+export function clearSessionStrategy(sessionId: CLISessionId): void {
+  const existing = sessionStrategies.get(sessionId);
+  if (existing) {
+    existing.cleanup();
+    sessionStrategies.delete(sessionId);
+  }
+}
 
 // Auto-cleanup: close SSE connections on page unload to prevent connection leaks.
 // Browsers limit to 6 connections per domain (HTTP/1.1); orphaned EventSource
@@ -138,7 +182,7 @@ if (typeof window !== 'undefined') {
 }
 
 /**
- * Start CLI execution for a task
+ * Start CLI execution for a task via the ExecutionStrategy.
  */
 export async function startCLIExecution(
   sessionId: CLISessionId,
@@ -146,158 +190,83 @@ export async function startCLIExecution(
   resumeSessionId?: string | null
 ): Promise<{ success: boolean; streamUrl?: string; error?: string }> {
   const store = useCLISessionStore.getState();
+  const strategy = getSessionStrategy(sessionId);
 
   // Update task status to running
-  store.updateTaskStatus(sessionId, task.id, 'running');
+  store.updateTaskStatus(sessionId, task.id, createRunningStatus());
   store.setRunning(sessionId, true);
 
-  try {
-    const response = await fetch('/api/claude-terminal/query', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        projectPath: task.projectPath,
-        prompt: `Execute the requirement file: ${task.requirementName}`,
-        resumeSessionId: resumeSessionId || undefined,
-      }),
-    });
+  // Read session provider/model config
+  const session = store.sessions[sessionId];
 
-    if (!response.ok) {
-      const err = await response.json();
-      store.updateTaskStatus(sessionId, task.id, 'failed');
-      store.setRunning(sessionId, false);
-      return { success: false, error: err.error || 'Failed to start execution' };
+  // Execute via strategy
+  const result = await strategy.execute(
+    {
+      id: task.id,
+      projectId: task.projectId,
+      projectPath: task.projectPath,
+      projectName: task.projectName,
+      requirementName: task.requirementName,
+      directPrompt: task.directPrompt,
+    },
+    {
+      resumeSessionId: resumeSessionId || undefined,
+      provider: session.provider,
+      model: session.model,
     }
+  );
 
-    const { streamUrl, executionId } = await response.json();
-
-    // Start monitoring the execution
-    startExecutionMonitoring(sessionId, task, executionId, streamUrl);
-
-    return { success: true, streamUrl };
-  } catch (error) {
-    store.updateTaskStatus(sessionId, task.id, 'failed');
+  if (!result.success) {
+    store.updateTaskStatus(sessionId, task.id, createFailedStatus(result.error || 'Failed to start execution'));
     store.setRunning(sessionId, false);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
-}
-
-/**
- * Start monitoring a CLI execution via SSE
- */
-function startExecutionMonitoring(
-  sessionId: CLISessionId,
-  task: QueuedTask,
-  executionId: string,
-  streamUrl: string
-): void {
-  const store = useCLISessionStore.getState();
-
-  // Close any existing stream for this session
-  const existingStream = activeStreams.get(sessionId);
-  if (existingStream) {
-    existingStream.close();
-    activeStreams.delete(sessionId);
+    return { success: false, error: result.error || 'Failed to start execution' };
   }
 
-  // Connect to SSE stream
-  const eventSource = new EventSource(streamUrl);
-  activeStreams.set(sessionId, eventSource);
+  const executionId = result.executionId!;
+  sessionExecutionIds.set(sessionId, executionId);
 
-  eventSource.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-
-      // Update session activity
+  // Subscribe to execution events for monitoring if supported
+  if (hasCapability(strategy, 'stream')) {
+    const unsubscribe = strategy.stream(executionId, (event: ExecutionEvent) => {
       store.updateLastActivity(sessionId);
 
-      // Handle completion events
-      if (data.type === 'result') {
-        const claudeSessionId = data.data?.sessionId;
+      if (event.type === 'result') {
+        // Extract claude session ID if present
+        const eventData = event.data as Record<string, any> | undefined;
+        const claudeSessionId = eventData?.data?.sessionId || eventData?.claudeSessionId;
         if (claudeSessionId) {
           store.setClaudeSessionId(sessionId, claudeSessionId);
         }
 
-        // Task completed successfully
         handleTaskComplete(sessionId, task, true);
-        eventSource.close();
-        activeStreams.delete(sessionId);
-      } else if (data.type === 'error') {
-        // Task failed
+        cleanupSessionExecution(sessionId);
+      } else if (event.type === 'error') {
         handleTaskComplete(sessionId, task, false);
-        eventSource.close();
-        activeStreams.delete(sessionId);
+        cleanupSessionExecution(sessionId);
       }
-    } catch (e) {
-      console.error('[CLI] Failed to parse SSE:', e);
-    }
-  };
+    });
 
-  eventSource.onerror = () => {
-    // Connection lost - start polling fallback
-    eventSource.close();
-    activeStreams.delete(sessionId);
-    startPollingFallback(sessionId, task, executionId);
-  };
+    // Store unsubscriber for cleanup
+    sessionUnsubscribers.set(sessionId, unsubscribe);
+  } else {
+    // If strategy doesn't support streaming, we need an alternative way to detect completion.
+    // For now, Terminal and VSCode both support it, so this is just for type safety.
+    console.warn(`[CLI] Strategy ${strategy.name} does not support streaming - completion detection may fail.`);
+  }
 
-  // Store polling state for recovery
-  const pollingState: PollingState = {
-    intervalId: setTimeout(() => {}, 0), // Placeholder
-    executionId,
-    startedAt: Date.now(),
-  };
-  activePolling.set(sessionId, pollingState);
+  return { success: true, streamUrl: result.streamUrl };
 }
 
 /**
- * Fallback polling when SSE disconnects
+ * Clean up execution resources for a session (unsubscribe stream, remove tracking)
  */
-function startPollingFallback(
-  sessionId: CLISessionId,
-  task: QueuedTask,
-  executionId: string
-): void {
-  // Check if we already have polling for this session
-  const existing = activePolling.get(sessionId);
-  if (existing && existing.intervalId) {
-    clearInterval(existing.intervalId);
+function cleanupSessionExecution(sessionId: CLISessionId): void {
+  const unsubscribe = sessionUnsubscribers.get(sessionId);
+  if (unsubscribe) {
+    unsubscribe();
+    sessionUnsubscribers.delete(sessionId);
   }
-
-  let isPolling = false;
-  const intervalId = setInterval(async () => {
-    if (isPolling) return;
-    isPolling = true;
-    try {
-      const response = await fetch(
-        `/api/claude-terminal/status?executionId=${executionId}`
-      );
-
-      if (!response.ok) {
-        return;
-      }
-
-      const status = await response.json();
-
-      if (status.completed) {
-        clearInterval(intervalId);
-        activePolling.delete(sessionId);
-        handleTaskComplete(sessionId, task, status.success);
-      }
-    } catch {
-      // Continue polling on error
-    } finally {
-      isPolling = false;
-    }
-  }, 10000); // Poll every 10 seconds
-
-  activePolling.set(sessionId, {
-    intervalId,
-    executionId,
-    startedAt: Date.now(),
-  });
+  sessionExecutionIds.delete(sessionId);
 }
 
 /**
@@ -309,10 +278,13 @@ async function handleTaskComplete(
   success: boolean
 ): Promise<void> {
   const store = useCLISessionStore.getState();
-  const session = store.sessions[sessionId];
 
   // Update task status
-  store.updateTaskStatus(sessionId, task.id, success ? 'completed' : 'failed');
+  store.updateTaskStatus(
+    sessionId,
+    task.id,
+    success ? createCompletedStatus() : createFailedStatus('Task execution failed')
+  );
 
   // Publish completion/failure event to Supabase for Butler
   if (task.projectId) {
@@ -360,8 +332,8 @@ export function executeNextTask(sessionId: CLISessionId): void {
     return;
   }
 
-  // Find next pending task
-  const nextTask = session.queue.find((t) => t.status === 'pending');
+  // Find next queued task
+  const nextTask = session.queue.find((t) => t.status.type === 'queued');
 
   if (!nextTask) {
     // Queue empty
@@ -408,18 +380,18 @@ export async function recoverCLISessions(): Promise<void> {
 
   for (const session of sessionsToRecover) {
     // Check if we have a running task that needs monitoring
-    const runningTask = session.queue.find((t) => t.status === 'running');
+    const runningTask = session.queue.find((t) => t.status.type === 'running');
 
     if (runningTask) {
       // Check if the requirement file still exists
       const exists = await checkRequirementExists(runningTask.projectPath, runningTask.requirementName);
 
       if (exists) {
-        // Task was interrupted - restart it
-        store.updateTaskStatus(session.id, runningTask.id, 'pending');
+        // Task was interrupted - restart it (re-queue)
+        store.updateTaskStatus(session.id, runningTask.id, createQueuedStatus());
       } else {
         // Requirement file was deleted - task completed successfully
-        store.updateTaskStatus(session.id, runningTask.id, 'completed');
+        store.updateTaskStatus(session.id, runningTask.id, createCompletedStatus());
         // Remove from queue after short delay
         setTimeout(() => {
           store.removeTask(session.id, runningTask.id);
@@ -427,14 +399,14 @@ export async function recoverCLISessions(): Promise<void> {
       }
     }
 
-    // If autoStart was true and there are still pending tasks, continue execution
+    // If autoStart was true and there are still queued tasks, continue execution
     const updatedSession = store.sessions[session.id];
-    const hasPendingTasks = updatedSession.queue.some((t) => t.status === 'pending');
+    const hasQueuedTasks = updatedSession.queue.some((t) => t.status.type === 'queued');
 
-    if (session.autoStart && hasPendingTasks) {
+    if (session.autoStart && hasQueuedTasks) {
       store.setRunning(session.id, true);
       setTimeout(() => executeNextTask(session.id), 1000);
-    } else if (!hasPendingTasks) {
+    } else if (!hasQueuedTasks) {
       // No more pending tasks - clear autoStart
       store.setAutoStart(session.id, false);
       store.setRunning(session.id, false);
@@ -443,20 +415,10 @@ export async function recoverCLISessions(): Promise<void> {
 }
 
 /**
- * Stop all polling for a session
+ * Stop execution monitoring for a session
  */
 export function stopSessionPolling(sessionId: CLISessionId): void {
-  const polling = activePolling.get(sessionId);
-  if (polling) {
-    clearInterval(polling.intervalId);
-    activePolling.delete(sessionId);
-  }
-
-  const stream = activeStreams.get(sessionId);
-  if (stream) {
-    stream.close();
-    activeStreams.delete(sessionId);
-  }
+  cleanupSessionExecution(sessionId);
 }
 
 /**
@@ -467,23 +429,19 @@ export async function abortSessionExecution(sessionId: CLISessionId): Promise<bo
   const store = useCLISessionStore.getState();
   const session = store.sessions[sessionId];
 
-  // Stop any polling/streaming first
-  stopSessionPolling(sessionId);
-
-  // Try to abort the execution via API if we have an execution ID
-  if (session.currentExecutionId) {
+  // Cancel via strategy if we have an execution ID
+  const executionId = sessionExecutionIds.get(sessionId) || session.currentExecutionId;
+  if (executionId) {
+    const strategy = getSessionStrategy(sessionId);
     try {
-      const response = await fetch(
-        `/api/claude-terminal/query?executionId=${session.currentExecutionId}`,
-        { method: 'DELETE' }
-      );
-
-      // Abort request sent - response indicates success/failure
-      // No action needed either way as we clear state below
+      await strategy.cancel(executionId);
     } catch (error) {
       console.error('[CLI] Error aborting execution:', error);
     }
   }
+
+  // Clean up execution resources
+  cleanupSessionExecution(sessionId);
 
   // Clear the session state
   store.clearSession(sessionId);
@@ -492,25 +450,26 @@ export async function abortSessionExecution(sessionId: CLISessionId): Promise<bo
 }
 
 /**
- * Cleanup all CLI sessions — stops polling and closes SSE streams.
+ * Cleanup all CLI sessions — stops monitoring and releases strategy resources.
  * Call on component unmount to prevent connection leaks.
  */
 export function cleanupAllCLISessions(): void {
-  // stopSessionPolling handles both activePolling and activeStreams per session
-  const sessionIds = new Set([
-    ...activePolling.keys(),
-    ...activeStreams.keys(),
-  ]);
-  for (const sessionId of sessionIds) {
-    stopSessionPolling(sessionId as CLISessionId);
+  // Clean up all execution subscriptions
+  for (const sessionId of sessionUnsubscribers.keys()) {
+    cleanupSessionExecution(sessionId as CLISessionId);
   }
+  // Clean up all strategy instances
+  for (const [sessionId, strategy] of sessionStrategies) {
+    strategy.cleanup();
+  }
+  sessionStrategies.clear();
 }
 
 /**
- * Get the count of active SSE streams (useful for debugging connection limits).
+ * Get the count of active executions (useful for debugging connection limits).
  */
 export function getActiveStreamCount(): number {
-  return activeStreams.size;
+  return sessionExecutionIds.size;
 }
 
 /**
@@ -521,12 +480,12 @@ export function getSessionExecutionStatus(sessionId: CLISessionId): {
   isStreaming: boolean;
   executionId?: string;
 } {
-  const polling = activePolling.get(sessionId);
-  const stream = activeStreams.get(sessionId);
+  const executionId = sessionExecutionIds.get(sessionId);
+  const hasSubscription = sessionUnsubscribers.has(sessionId);
 
   return {
-    isPolling: !!polling,
-    isStreaming: !!stream,
-    executionId: polling?.executionId,
+    isPolling: false, // Strategy handles polling internally
+    isStreaming: hasSubscription,
+    executionId,
   };
 }

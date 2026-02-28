@@ -37,10 +37,11 @@ export default function PromptEditorModal({
     try {
       // Find the prompt file path based on scan type
       const promptFileName = getPromptFileName(scanType);
-      const response = await fetch(`/api/disk/read-file`, {
+      const response = await fetch(`/api/disk/file`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          action: 'read',
           filePath: `src/app/projects/ProjectAI/ScanIdeas/prompts/${promptFileName}`
         })
       });
@@ -66,10 +67,11 @@ export default function PromptEditorModal({
     setSuccessMessage('');
     try {
       const promptFileName = getPromptFileName(scanType);
-      const response = await fetch(`/api/disk/save-file`, {
+      const response = await fetch(`/api/disk/file`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          action: 'write',
           filePath: `src/app/projects/ProjectAI/ScanIdeas/prompts/${promptFileName}`,
           content: promptContent
         })
@@ -221,7 +223,7 @@ function getPromptFileName(scanType: ScanType): string {
     business_visionary: 'businessVisionaryPrompt.ts',
     ui_perfectionist: 'uiPerfectionistPrompt.ts',
     feature_scout: 'featureScoutPrompt.ts',
-    onboarding_optimizer: 'onboardingOptimizerPrompt.ts',
+    tech_innovator: 'techInnovatorPrompt.ts',
     ai_integration_scout: 'aiIntegrationScoutPrompt.ts',
     delight_designer: 'delightDesignerPrompt.ts',
     code_refactor: 'codeRefactorPrompt.ts',

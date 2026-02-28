@@ -2,7 +2,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import * as d3 from 'd3';
 import type { BrainEvent, Group } from './types';
 import { FOCUS_ZOOM_THRESHOLD } from './constants';
-import { layoutFocusedGroup, runForceLayout, packEventsInGroup } from './canvasLayout';
+import { layoutFocusedGroup, runForceLayout, packEventsInGroup, queryNearest } from './canvasLayout';
 
 interface UseCanvasInteractionParams {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -49,34 +49,66 @@ export function useCanvasInteraction({
   const findEventAt = useCallback((screenX: number, screenY: number): BrainEvent | null => {
     const t = transformRef.current;
     const focusId = focusedGroupRef.current;
-    let closest: BrainEvent | null = null;
-    let closestDist = Infinity;
 
     if (focusId) {
-      const threshold = 20 ** 2;
-      for (const group of groupsRef.current.filter(g => g.id === focusId)) {
-        for (const evt of group.events) {
-          const evtScreenX = evt.x * t.k + t.x;
-          const ex = evtScreenX - screenX;
-          const ey = evt.y - screenY;
-          const dist = ex * ex + ey * ey;
-          if (dist < closestDist && dist < threshold) { closestDist = dist; closest = evt; }
-        }
+      // Focused mode: layout uses screen coords directly.
+      // evt.x is in layout space (transformed via t.k + t.x to screen).
+      // evt.y is in screen space directly.
+      // We query using layout-space coords for consistency with the spatial index.
+      const group = groupsRef.current.find(g => g.id === focusId);
+      if (!group) return null;
+
+      const queryX = (screenX - t.x) / t.k;
+      const queryY = screenY;
+
+      if (group.spatialIndex) {
+        const candidate = queryNearest(group.spatialIndex, queryX, queryY, Infinity);
+        if (!candidate) return null;
+        // Verify in screen space for accuracy
+        const ex = candidate.x * t.k + t.x - screenX;
+        const ey = candidate.y - screenY;
+        return (ex * ex + ey * ey <= 20 ** 2) ? candidate : null;
       }
-    } else {
-      const dataX = (screenX - t.x) / t.k;
-      const dataY = (screenY - t.y) / t.k;
-      const threshold = (15 / t.k) ** 2;
-      for (const group of groupsRef.current) {
+      // Fallback linear scan
+      let closest: BrainEvent | null = null;
+      let closestDist = 20 ** 2;
+      for (const evt of group.events) {
+        const ex = evt.x * t.k + t.x - screenX;
+        const ey = evt.y - screenY;
+        const dist = ex * ex + ey * ey;
+        if (dist < closestDist) { closestDist = dist; closest = evt; }
+      }
+      return closest;
+    }
+
+    // Overview mode: convert screen to data coords
+    const dataX = (screenX - t.x) / t.k;
+    const dataY = (screenY - t.y) / t.k;
+    const threshold = (15 / t.k) ** 2;
+
+    // Use spatial index per group
+    let best: BrainEvent | null = null;
+    let bestDist = threshold;
+    for (const group of groupsRef.current) {
+      if (group.spatialIndex) {
+        const candidate = queryNearest(group.spatialIndex, dataX, dataY, bestDist);
+        if (candidate) {
+          const ex = candidate.x - dataX;
+          const ey = candidate.y - dataY;
+          const dist = ex * ex + ey * ey;
+          if (dist < bestDist) { bestDist = dist; best = candidate; }
+        }
+      } else {
+        // Fallback linear scan for groups without index
         for (const evt of group.events) {
           const ex = evt.x - dataX;
           const ey = evt.y - dataY;
           const dist = ex * ex + ey * ey;
-          if (dist < closestDist && dist < threshold) { closestDist = dist; closest = evt; }
+          if (dist < bestDist) { bestDist = dist; best = evt; }
         }
       }
     }
-    return closest;
+    return best;
   }, [transformRef, focusedGroupRef, groupsRef]);
 
   const enterFocus = useCallback((group: Group) => {

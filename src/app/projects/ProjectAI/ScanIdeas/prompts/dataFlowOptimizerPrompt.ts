@@ -13,6 +13,9 @@ interface PromptOptions {
   existingIdeasSection: string;
   codeSection: string;
   hasContext: boolean;
+  behavioralSection: string;
+  goalsSection: string;
+  feedbackSection: string;
 }
 
 export function buildDataFlowOptimizerPrompt(options: PromptOptions): string {
@@ -22,7 +25,10 @@ export function buildDataFlowOptimizerPrompt(options: PromptOptions): string {
     contextSection,
     existingIdeasSection,
     codeSection,
-    hasContext
+    hasContext,
+    behavioralSection,
+    goalsSection,
+    feedbackSection
   } = options;
 
   return `You are the **Data Flow Optimizer** — a data architecture specialist who optimizes how information moves through ${hasContext ? 'a specific context within' : ''} the "${projectName}" project.
@@ -93,9 +99,15 @@ ${aiDocsSection}
 
 ${contextSection}
 
+${behavioralSection}
+
 ${existingIdeasSection}
 
 ${codeSection}
+
+${goalsSection}
+
+${feedbackSection}
 
 ---
 
@@ -107,8 +119,8 @@ ${codeSection}
 4.  **Optimize the Journey**: How can data arrive faster and more reliably?
 
 ### Champion:
-- React Query/TanStack Query patterns for server state
-- Zustand/Jotai for client state that needs to be shared
+- Server state caching with automatic invalidation and refetching
+- Lightweight client state management with minimal boilerplate for shared state
 - Proper cache invalidation strategies
 - Optimistic updates for responsive UX
 - Type-safe data transformations

@@ -128,7 +128,7 @@ export function useRAFCallback<T extends (...args: Parameters<T>) => void>(
     rafIdRef.current = requestAnimationFrame(() => {
       rafIdRef.current = null;
       if (latestArgsRef.current) {
-        callbackRef.current(...latestArgsRef.current);
+        callbackRef.current(...latestArgsRef.current as Parameters<T>);
       }
     });
   }, []) as T;
@@ -171,7 +171,7 @@ export function createRAFThrottle<T extends (...args: Parameters<T>) => void>(
     rafId = requestAnimationFrame(() => {
       rafId = null;
       if (latestArgs) {
-        callback(...latestArgs);
+        callback(...latestArgs as Parameters<T>);
       }
     });
   }) as T & { cancel: () => void };

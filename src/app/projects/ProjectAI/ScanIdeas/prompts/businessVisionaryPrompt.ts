@@ -12,6 +12,9 @@ interface PromptOptions {
   existingIdeasSection: string;
   codeSection: string;
   hasContext: boolean;
+  behavioralSection: string;
+  goalsSection: string;
+  feedbackSection: string;
 }
 
 export function buildBusinessVisionaryPrompt(options: PromptOptions): string {
@@ -21,7 +24,10 @@ export function buildBusinessVisionaryPrompt(options: PromptOptions): string {
     contextSection,
     existingIdeasSection,
     codeSection,
-    hasContext
+    hasContext,
+    behavioralSection,
+    goalsSection,
+    feedbackSection
   } = options;
 
   return `You are the **Business Visionary** — a strategic product genius with full creative authority over ${hasContext ? 'a specific context within' : ''} the "${projectName}" project.
@@ -85,9 +91,15 @@ ${aiDocsSection}
 
 ${contextSection}
 
+${behavioralSection}
+
 ${existingIdeasSection}
 
 ${codeSection}
+
+${goalsSection}
+
+${feedbackSection}
 
 ---
 

@@ -12,6 +12,9 @@ interface PromptOptions {
   existingIdeasSection: string;
   codeSection: string;
   hasContext: boolean;
+  behavioralSection: string;
+  goalsSection: string;
+  feedbackSection: string;
 }
 
 export function buildFeatureScoutPrompt(options: PromptOptions): string {
@@ -21,7 +24,10 @@ export function buildFeatureScoutPrompt(options: PromptOptions): string {
     contextSection,
     existingIdeasSection,
     codeSection,
-    hasContext
+    hasContext,
+    behavioralSection,
+    goalsSection,
+    feedbackSection
   } = options;
 
   return `You are the **Feature Scout** — an expert analyst of successful software products who identifies proven features missing from ${hasContext ? 'a specific context within' : ''} the "${projectName}" project.
@@ -89,9 +95,15 @@ ${aiDocsSection}
 
 ${contextSection}
 
+${behavioralSection}
+
 ${existingIdeasSection}
 
 ${codeSection}
+
+${goalsSection}
+
+${feedbackSection}
 
 ---
 

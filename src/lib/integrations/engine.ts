@@ -15,7 +15,7 @@ import type {
   IntegrationProvider,
 } from '@/app/db/models/integration.types';
 import { isEventSupported } from './registry';
-import { decryptFieldOrRaw } from '@/lib/personas/credentialCrypto';
+import { decryptFieldOrRaw } from '@/lib/integrations/credentialCrypto';
 import { GitHubConnector } from './connectors/github';
 import { SlackConnector } from './connectors/slack';
 import { DiscordConnector } from './connectors/discord';

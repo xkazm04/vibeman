@@ -4,6 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { Layers, Check, Play, Info, ChevronRight, Loader2, Eye, X } from 'lucide-react';
 import { CompactTerminal } from '@/components/cli/CompactTerminal';
 import type { QueuedTask } from '@/components/cli/types';
+import { createQueuedStatus, createCompletedStatus, createFailedStatus } from '@/app/features/TaskRunner/lib/types';
 
 interface CrossTaskPanelProps {
   workspaceId: string | null;
@@ -89,7 +90,7 @@ export default function CrossTaskPanel({
         projectPath: selectedProjectDetails[0]?.path || '.',
         projectName: 'Cross-Task Analysis',
         requirementName: `cross-task-${planId.slice(-8)}`,
-        status: 'pending',
+        status: createQueuedStatus(),
         addedAt: Date.now(),
         directPrompt: promptContent,
       };
@@ -110,7 +111,7 @@ export default function CrossTaskPanel({
     if (currentTask) {
       setCurrentTask({
         ...currentTask,
-        status: success ? 'completed' : 'failed',
+        status: success ? createCompletedStatus() : createFailedStatus('Analysis failed'),
         completedAt: Date.now(),
       });
     }
@@ -132,8 +133,8 @@ export default function CrossTaskPanel({
   const hasProjects = projects.length > 0;
   const hasSelection = selectedProjects.size > 0;
   const hasRequirement = requirement.trim().length > 0;
-  const isRunning = currentTask?.status === 'running' || (currentTask?.status === 'pending' && autoStart);
-  const isCompleted = currentTask?.status === 'completed';
+  const isRunning = currentTask?.status.type === 'running' || (currentTask?.status.type === 'queued' && autoStart);
+  const isCompleted = currentTask?.status.type === 'completed';
   const canRun = hasSelection && hasRequirement && !isRunning && !isLoading && !currentTask;
 
   // If we have a running/completed task, show the terminal view
@@ -173,13 +174,13 @@ export default function CrossTaskPanel({
         {/* Status bar */}
         <div className="px-3 py-1.5 border-b border-amber-500/5 bg-zinc-900/50 text-[10px]">
           <div className="flex items-center gap-2">
-            {currentTask.status === 'pending' && autoStart && (
+            {currentTask.status.type === 'queued' && autoStart && (
               <span className="flex items-center gap-1 text-amber-400">
                 <Loader2 className="w-2.5 h-2.5 animate-spin" />
                 Starting analysis...
               </span>
             )}
-            {currentTask.status === 'running' && (
+            {currentTask.status.type === 'running' && (
               <span className="flex items-center gap-1.5 text-amber-400">
                 <Loader2 className="w-2.5 h-2.5 animate-spin" />
                 Analyzing {selectedProjects.size} project{selectedProjects.size !== 1 ? 's' : ''}...
@@ -188,7 +189,7 @@ export default function CrossTaskPanel({
             {isCompleted && (
               <span className="text-emerald-400">Analysis complete - 3 implementation plans generated</span>
             )}
-            {currentTask.status === 'failed' && (
+            {currentTask.status.type === 'failed' && (
               <span className="text-red-400">Analysis failed</span>
             )}
           </div>

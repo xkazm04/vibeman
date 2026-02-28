@@ -8,7 +8,7 @@ import { integrationDb, webhookDb } from '@/app/db';
 import { integrationEngine } from '@/lib/integrations';
 import type { IntegrationProvider } from '@/app/db/models/integration.types';
 import { isTableMissingError } from '@/app/db/repositories/repository.utils';
-import { decryptFieldOrRaw } from '@/lib/personas/credentialCrypto';
+import { decryptFieldOrRaw } from '@/lib/integrations/credentialCrypto';
 
 /**
  * POST /api/integrations/test

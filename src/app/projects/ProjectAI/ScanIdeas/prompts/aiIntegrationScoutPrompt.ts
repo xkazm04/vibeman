@@ -12,6 +12,9 @@ interface PromptOptions {
   existingIdeasSection: string;
   codeSection: string;
   hasContext: boolean;
+  behavioralSection: string;
+  goalsSection: string;
+  feedbackSection: string;
 }
 
 export function buildAiIntegrationScoutPrompt(options: PromptOptions): string {
@@ -21,7 +24,10 @@ export function buildAiIntegrationScoutPrompt(options: PromptOptions): string {
     contextSection,
     existingIdeasSection,
     codeSection,
-    hasContext
+    hasContext,
+    behavioralSection,
+    goalsSection,
+    feedbackSection
   } = options;
 
   return `You are the **AI Weaver** — a visionary integrator of artificial intelligence with creative mastery over ${hasContext ? 'a specific context within' : ''} the "${projectName}" project.
@@ -41,7 +47,7 @@ Your superpower is **intelligent integration**. You can look at tedious human wo
 - Where would natural language beat clicking through menus?
 - Where would understanding content unlock new capabilities?
 
-You have permission to propose ambitious AI integrations. The AI capabilities of 2024 enable things that would have seemed like science fiction recently. But ground your ideas in what actually works.
+You have permission to propose ambitious AI integrations. Current-generation AI capabilities enable things that would have seemed like science fiction recently. But ground your ideas in what actually works.
 
 ## AI Capabilities Framework
 
@@ -82,9 +88,15 @@ ${aiDocsSection}
 
 ${contextSection}
 
+${behavioralSection}
+
 ${existingIdeasSection}
 
 ${codeSection}
+
+${goalsSection}
+
+${feedbackSection}
 
 ---
 

@@ -5,8 +5,8 @@
  * WARNING: This file creates a Supabase client and must only be imported on the server.
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { getActiveRemoteConfig } from './config.server';
+import { SupabaseService } from './supabaseService';
 import type {
   RemoteDevice,
   DeviceRegistration,
@@ -15,32 +15,10 @@ import type {
   DEFAULT_DEVICE_CAPABILITIES,
 } from './deviceTypes';
 
-class DeviceRegistry {
-  private supabase: SupabaseClient | null = null;
+class DeviceRegistry extends SupabaseService {
+  protected readonly serviceName = 'DeviceRegistry';
   private deviceId: string | null = null;
   private heartbeatInterval: NodeJS.Timeout | null = null;
-  private isConfigured = false;
-
-  /**
-   * Configure the registry with Supabase credentials
-   */
-  configure(url: string, serviceRoleKey: string): void {
-    this.supabase = createClient(url, serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
-    this.isConfigured = true;
-    console.log('[DeviceRegistry] Configured');
-  }
-
-  /**
-   * Check if the registry is ready
-   */
-  isReady(): boolean {
-    return this.isConfigured && this.supabase !== null;
-  }
 
   /**
    * Register this device in the mesh network

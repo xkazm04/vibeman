@@ -168,22 +168,21 @@ export class FilepathSelectorProcessor extends BaseProcessor<
       const excludePatterns = this.buildExcludePatterns();
 
       // Fetch files from API
-      const response = await fetch('/api/disk/list-files', {
+      const response = await fetch('/api/disk/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          path: projectPath,
+          type: 'glob',
+          projectPath,
           patterns: includePatterns,
           excludePatterns,
-          recursive: this.config.recursive ?? true,
-          maxDepth: this.config.maxDepth,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        if (data.success && data.files) {
-          files.push(...data.files);
+        if (data.files) {
+          files.push(...data.files.map((f: { relativePath: string }) => f.relativePath));
         }
       }
     } catch (error) {
@@ -199,10 +198,10 @@ export class FilepathSelectorProcessor extends BaseProcessor<
    */
   async getFolderTree(projectPath: string, maxDepth: number = 5): Promise<FolderNode | null> {
     try {
-      const response = await fetch('/api/disk/list-directories', {
+      const response = await fetch('/api/disk/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: projectPath }),
+        body: JSON.stringify({ type: 'directories', path: projectPath }),
       });
 
       if (!response.ok) {
@@ -249,10 +248,10 @@ export class FilepathSelectorProcessor extends BaseProcessor<
         }
 
         try {
-          const response = await fetch('/api/disk/list-directories', {
+          const response = await fetch('/api/disk/search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: child.path }),
+            body: JSON.stringify({ type: 'directories', path: child.path }),
           });
 
           if (response.ok) {

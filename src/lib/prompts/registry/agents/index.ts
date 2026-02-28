@@ -15,7 +15,7 @@ export * from './ambiguity-guardian';
 export * from './business-visionary';
 export * from './ui-perfectionist';
 export * from './feature-scout';
-export * from './onboarding-optimizer';
+export * from './tech-innovator';
 export * from './ai-integration-scout';
 export * from './delight-designer';
 export * from './user-empathy-champion';
@@ -37,7 +37,7 @@ import { AMBIGUITY_GUARDIAN_PROMPT } from './ambiguity-guardian';
 import { BUSINESS_VISIONARY_PROMPT } from './business-visionary';
 import { UI_PERFECTIONIST_PROMPT } from './ui-perfectionist';
 import { FEATURE_SCOUT_PROMPT } from './feature-scout';
-import { ONBOARDING_OPTIMIZER_PROMPT } from './onboarding-optimizer';
+import { TECH_INNOVATOR_PROMPT } from './tech-innovator';
 import { AI_INTEGRATION_SCOUT_PROMPT } from './ai-integration-scout';
 import { DELIGHT_DESIGNER_PROMPT } from './delight-designer';
 import { USER_EMPATHY_CHAMPION_PROMPT } from './user-empathy-champion';
@@ -64,7 +64,7 @@ export const ALL_AGENT_PROMPTS: PromptDefinition[] = [
   BUSINESS_VISIONARY_PROMPT,
   UI_PERFECTIONIST_PROMPT,
   FEATURE_SCOUT_PROMPT,
-  ONBOARDING_OPTIMIZER_PROMPT,
+  TECH_INNOVATOR_PROMPT,
   AI_INTEGRATION_SCOUT_PROMPT,
   DELIGHT_DESIGNER_PROMPT,
   USER_EMPATHY_CHAMPION_PROMPT,

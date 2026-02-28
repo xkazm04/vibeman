@@ -1,11 +1,57 @@
 import { DOT_RADIUS_MIN, DOT_RADIUS_MAX, LABEL_COLLISION_PADDING } from './constants';
-import type { LabelRect } from './types';
+import { COLORS } from './constants';
+import type { SignalType, LabelRect } from './types';
 
 export function hexToRgba(hex: string, alpha: number): string {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r},${g},${b},${alpha})`;
+}
+
+/**
+ * Pre-computed color lookup table keyed by (hex, alpha-bucket).
+ * Alpha is quantized to 0.05 increments (21 buckets: 0.00..1.00).
+ * Eliminates ~12,000 hexToRgba() calls/sec at 30fps with 200 events.
+ */
+const colorLUT = new Map<string, string>();
+
+function buildColorLUT(): void {
+  const allHexColors = new Set<string>();
+  for (const c of Object.values(COLORS)) allHexColors.add(c);
+
+  for (const hex of allHexColors) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    for (let bucket = 0; bucket <= 20; bucket++) {
+      const a = Math.round(bucket * 5) / 100; // 0.00, 0.05, ... 1.00
+      colorLUT.set(`${hex}:${bucket}`, `rgba(${r},${g},${b},${a})`);
+    }
+  }
+}
+buildColorLUT();
+
+/** Fast rgba lookup using pre-computed LUT. Falls back to hexToRgba for unknown colors. */
+export function colorAt(hex: string, alpha: number): string {
+  const bucket = Math.round(Math.min(1, Math.max(0, alpha)) * 20);
+  const key = `${hex}:${bucket}`;
+  return colorLUT.get(key) ?? hexToRgba(hex, alpha);
+}
+
+/** Get the parsed RGB triple for a hex color (cached). */
+const rgbCache = new Map<string, [number, number, number]>();
+export function hexRgb(hex: string): [number, number, number] {
+  let rgb = rgbCache.get(hex);
+  if (!rgb) {
+    rgb = [
+      parseInt(hex.slice(1, 3), 16),
+      parseInt(hex.slice(3, 5), 16),
+      parseInt(hex.slice(5, 7), 16),
+    ];
+    rgbCache.set(hex, rgb);
+  }
+  return rgb;
 }
 
 /**

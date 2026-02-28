@@ -1,13 +1,39 @@
 /**
  * Default execution prompt template for Claude Code CLI
  * Extracted from ExecutionPromptEditor for maintainability
+ *
+ * Uses a typed builder function with direct template literal interpolation
+ * instead of {{PLACEHOLDER}} markers + .replace() chains.
  */
 
-export const DEFAULT_PROMPT_TEMPLATE = `You are an expert software engineer. Execute the following requirement immediately. Do not ask questions, do not wait for confirmation. Read the requirement carefully and implement all changes to the codebase as specified.
+export interface TaskPromptParams {
+  requirementContent: string;
+  dbPath: string;
+  projectId: string;
+  projectIdComment: string;
+  projectIdValue: string;
+  gitSection: string;
+}
+
+/**
+ * Build the task execution prompt by direct interpolation.
+ * Single O(n) pass — no placeholder scanning or .replace() chains.
+ */
+export function buildTaskPrompt(params: TaskPromptParams): string {
+  const {
+    requirementContent,
+    dbPath,
+    projectId,
+    projectIdComment,
+    projectIdValue,
+    gitSection,
+  } = params;
+
+  return `You are an expert software engineer. Execute the following requirement immediately. Do not ask questions, do not wait for confirmation. Read the requirement carefully and implement all changes to the codebase as specified.
 
 REQUIREMENT TO EXECUTE NOW:
 
-{{REQUIREMENT_CONTENT}}
+${requirementContent}
 
 IMPORTANT INSTRUCTIONS:
 - Analyze the requirement thoroughly
@@ -91,9 +117,9 @@ Examples:
 
 **CRITICAL**: After completing the implementation, create a log entry in the SQLite database to track what was implemented.
 
-Database Path: \`{{DB_PATH}}\`
+Database Path: \`${dbPath}\`
 Table: \`implementation_log\`
-{{PROJECT_ID_COMMENT}}
+${projectIdComment}
 
 Execute this SQL command after implementation (replace placeholders with actual values):
 
@@ -108,7 +134,7 @@ INSERT INTO implementation_log (
   created_at
 ) VALUES (
   '<generate-unique-uuid>',
-  '{{PROJECT_ID}}',
+  '${projectId}',
   '<requirement-name>',
   '<short-descriptive-title>',
   '<detailed-overview-of-changes>',
@@ -119,7 +145,7 @@ INSERT INTO implementation_log (
 
 **Log Entry Guidelines**:
 - \`id\`: Generate a unique UUID (e.g., using \`crypto.randomUUID()\` or similar)
-- \`project_id\`: The project identifier{{PROJECT_ID_VALUE}}
+- \`project_id\`: The project identifier${projectIdValue}
 - \`requirement_name\`: Name of the requirement file being executed
 - \`title\`: Short, descriptive title (2-6 words, e.g., "Add User Authentication")
 - \`overview\`: Detailed paragraph describing:
@@ -156,13 +182,13 @@ INSERT INTO implementation_log (
 Use the sqlite3 command-line tool or Node.js better-sqlite3 library:
 
 \`\`\`bash
-sqlite3 "{{DB_PATH}}" "INSERT INTO implementation_log (...) VALUES (...);"
+sqlite3 "${dbPath}" "INSERT INTO implementation_log (...) VALUES (...);"
 \`\`\`
 
 Or in Node.js/TypeScript:
 \`\`\`typescript
 import Database from 'better-sqlite3';
-const db = new Database('{{DB_PATH}}');
+const db = new Database('${dbPath}');
 db.prepare(\`
   INSERT INTO implementation_log (id, project_id, requirement_name, title, overview, tested, created_at)
   VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
@@ -170,7 +196,7 @@ db.prepare(\`
 db.close();
 \`\`\`
 
-{{GIT_SECTION}}
+${gitSection}
 
 ## Final Checklist
 
@@ -185,13 +211,24 @@ Before finishing:
 - [ ] Git operations executed (if enabled)
 
 Begin implementation now.`;
-
-export const STORAGE_KEY = 'taskRunner_executionPrompt';
+}
 
 /**
- * Build the example Git section for prompt preview
+ * Build preview content by calling buildTaskPrompt with example values.
+ * Both real and preview paths use the same function — no parallel maintenance.
  */
-export function buildExampleGitSection(): string {
+export function buildPreviewContent(): string {
+  return buildTaskPrompt({
+    requirementContent: '[Your requirement content will appear here]',
+    dbPath: '/path/to/project/database/goals.db',
+    projectId: 'example-project-id',
+    projectIdComment: 'Project ID: `example-project-id`',
+    projectIdValue: ' (use: "example-project-id")',
+    gitSection: buildExampleGitSection(),
+  });
+}
+
+function buildExampleGitSection(): string {
   return `
 ## Git Operations
 
@@ -237,18 +274,4 @@ git push
 
 **Note**: Only proceed with git operations after ALL other tasks are complete (implementation, testing, logging, context updates).
 `;
-}
-
-/**
- * Replace template variables with example values for preview
- */
-export function buildPreviewContent(content: string): string {
-  return content
-    .replace(/\{\{REQUIREMENT_CONTENT\}\}/g, '[Your requirement content will appear here]')
-    .replace(/\{\{DB_PATH\}\}/g, '/path/to/project/database/goals.db')
-    .replace(/\{\{PROJECT_PATH\}\}/g, '/path/to/project')
-    .replace(/\{\{PROJECT_ID\}\}/g, 'example-project-id')
-    .replace(/\{\{PROJECT_ID_COMMENT\}\}/g, 'Project ID: `example-project-id`')
-    .replace(/\{\{PROJECT_ID_VALUE\}\}/g, ' (use: "example-project-id")')
-    .replace(/\{\{GIT_SECTION\}\}/g, buildExampleGitSection());
 }

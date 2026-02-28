@@ -9,6 +9,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { QueuedTask } from '../types';
 import type { SkillId } from '../skills';
+import type { CLIProvider, CLIModel } from '@/lib/claude-terminal/types';
 
 // Session IDs
 export type CLISessionId = 'cliSession1' | 'cliSession2' | 'cliSession3' | 'cliSession4';
@@ -42,6 +43,8 @@ export interface CLISessionState {
   enabledSkills: SkillId[]; // Active skills for this session
   gitEnabled: boolean; // Whether to auto-commit after tasks
   gitConfig: CLIGitConfig | null; // Git commands and template
+  provider: CLIProvider; // CLI provider: 'claude' or 'gemini'
+  model: CLIModel | null; // Model override (null = provider default)
 }
 
 // Store state
@@ -65,6 +68,8 @@ interface CLISessionStoreState {
   setProjectId: (sessionId: CLISessionId, projectId: string | null) => void;
   setGitEnabled: (sessionId: CLISessionId, enabled: boolean) => void;
   setGitConfig: (sessionId: CLISessionId, config: CLIGitConfig | null) => void;
+  setProvider: (sessionId: CLISessionId, provider: CLIProvider) => void;
+  setModel: (sessionId: CLISessionId, model: CLIModel | null) => void;
 
   // Recovery
   startRecovery: (durationMs?: number) => void;
@@ -90,6 +95,8 @@ const createDefaultSession = (id: CLISessionId): CLISessionState => ({
   enabledSkills: [],
   gitEnabled: false,
   gitConfig: null,
+  provider: 'claude',
+  model: null,
 });
 
 // Session IDs
@@ -165,8 +172,8 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
           const session = state.sessions[sessionId];
           const task = session.queue.find((t) => t.id === taskId);
           // Increment completed count only when transitioning to 'completed'
-          const wasCompleted = task?.status === 'completed';
-          const isNowCompleted = status === 'completed';
+          const wasCompleted = task?.status.type === 'completed';
+          const isNowCompleted = status.type === 'completed';
           const incrementCompleted = !wasCompleted && isNowCompleted ? 1 : 0;
 
           return {
@@ -179,8 +186,8 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
                     ? {
                         ...t,
                         status,
-                        ...(status === 'running' ? { startedAt: Date.now() } : {}),
-                        ...(status === 'completed' || status === 'failed'
+                        ...(status.type === 'running' ? { startedAt: Date.now() } : {}),
+                        ...(status.type === 'completed' || status.type === 'failed'
                           ? { completedAt: Date.now() }
                           : {}),
                       }
@@ -344,6 +351,34 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
         }));
       },
 
+      setProvider: (sessionId, provider) => {
+        set((state) => ({
+          sessions: {
+            ...state.sessions,
+            [sessionId]: {
+              ...state.sessions[sessionId],
+              provider,
+              model: null, // Reset model when provider changes
+              claudeSessionId: null, // Can't resume across providers
+              lastActivityAt: Date.now(),
+            },
+          },
+        }));
+      },
+
+      setModel: (sessionId, model) => {
+        set((state) => ({
+          sessions: {
+            ...state.sessions,
+            [sessionId]: {
+              ...state.sessions[sessionId],
+              model,
+              lastActivityAt: Date.now(),
+            },
+          },
+        }));
+      },
+
       startRecovery: (durationMs = 10000) => {
         set({
           recoveryState: {
@@ -365,7 +400,7 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
       getActiveSessions: () => {
         const { sessions } = get();
         return SESSION_IDS.map((id) => sessions[id]).filter(
-          (s) => s.isRunning || s.queue.some((t) => t.status === 'running')
+          (s) => s.isRunning || s.queue.some((t) => t.status.type === 'running')
         );
       },
 
@@ -374,17 +409,17 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
         return SESSION_IDS.map((id) => sessions[id]).filter((s) => {
           // Session needs recovery if:
           // 1. It has a running task but isRunning is false (crashed mid-execution)
-          // 2. It has pending tasks and autoStart was true
-          const hasRunningTask = s.queue.some((t) => t.status === 'running');
-          const hasPendingTasks = s.queue.some((t) => t.status === 'pending');
+          // 2. It has queued tasks and autoStart was true
+          const hasRunningTask = s.queue.some((t) => t.status.type === 'running');
+          const hasQueuedTasks = s.queue.some((t) => t.status.type === 'queued');
 
-          return hasRunningTask || (hasPendingTasks && s.autoStart);
+          return hasRunningTask || (hasQueuedTasks && s.autoStart);
         });
       },
     }),
     {
       name: 'cli-session-storage',
-      version: 5, // Bump when adding new fields
+      version: 6, // v6: added provider + model for multi-provider support
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         // Only persist session data, not ephemeral state
@@ -427,6 +462,18 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
                   projectId: existingSession.projectId ?? null,
                   gitEnabled: existingSession.gitEnabled ?? false,
                   gitConfig: existingSession.gitConfig ?? null,
+                };
+              }
+              // v5 -> v6: Add provider and model for multi-provider support
+              if (version < 6) {
+                const existingSession = migratedSessions[id] as CLISessionState & {
+                  provider?: CLIProvider;
+                  model?: CLIModel | null;
+                };
+                migratedSessions[id] = {
+                  ...migratedSessions[id],
+                  provider: existingSession.provider ?? 'claude',
+                  model: existingSession.model ?? null,
                 };
               }
             }

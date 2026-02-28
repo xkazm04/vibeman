@@ -43,5 +43,6 @@ export {
 // Re-export execution prompt utilities
 export {
   type ExecutionPromptConfig,
+  type ExecutionPromptResult,
   buildExecutionPrompt,
 } from '../sub_ClaudeCodeManager/executionPrompt';

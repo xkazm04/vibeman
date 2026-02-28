@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { llmManager } from '@/lib/llm';
 import { withObservability } from '@/lib/observability/middleware';
+import { handleApiError } from '@/lib/api-errors';
 
 interface GenerateResponseData {
   response?: string;
@@ -24,11 +25,11 @@ function validatePrompt(prompt?: string) {
   return null;
 }
 
-function createErrorResponse(error: string | unknown, statusCode = 500) {
+function createErrorResponse(error: string, statusCode = 500) {
   return NextResponse.json(
     {
       success: false,
-      error: typeof error === 'string' ? error : (error instanceof Error ? error.message : 'Unknown error')
+      error
     },
     { status: statusCode }
   );
@@ -81,7 +82,7 @@ async function handlePost(request: NextRequest) {
     return createSuccessResponse(response);
 
   } catch (error) {
-    return createErrorResponse(error);
+    return handleApiError(error, 'LLM generation');
   }
 }
 

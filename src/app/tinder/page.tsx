@@ -40,17 +40,19 @@ export default function TinderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900">
-      <TinderHeader
-        selectedProjectId={selectedProjectId}
-        onProjectChange={setSelectedProjectId}
-        remainingCount={remainingCount}
-        stats={stats}
-        loading={loading}
-        processing={processing}
-        onSyncComplete={loadIdeas}
-      />
-      
+    <div className="h-dvh flex flex-col bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 overflow-hidden">
+      <div className="flex-shrink-0">
+        <TinderHeader
+          selectedProjectId={selectedProjectId}
+          onProjectChange={setSelectedProjectId}
+          remainingCount={remainingCount}
+          stats={stats}
+          loading={loading}
+          processing={processing}
+          onSyncComplete={loadIdeas}
+        />
+      </div>
+
       <TinderContent
         ideas={ideas}
         currentIndex={currentIndex}

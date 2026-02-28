@@ -30,10 +30,10 @@ export default function PromptManager() {
   const loadPrompts = async () => {
     try {
       // Load analysis task
-      const analysisResponse = await fetch('/api/disk/read-file', {
+      const analysisResponse = await fetch('/api/disk/file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath: 'data/prompts/analysis-task.txt' })
+        body: JSON.stringify({ action: 'read', filePath: 'data/prompts/analysis-task.txt' })
       });
       const analysisData = await analysisResponse.json();
       if (analysisData.success) {
@@ -42,10 +42,10 @@ export default function PromptManager() {
       }
 
       // Load response instructions
-      const instructionsResponse = await fetch('/api/disk/read-file', {
+      const instructionsResponse = await fetch('/api/disk/file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath: 'data/prompts/response-instructions.txt' })
+        body: JSON.stringify({ action: 'read', filePath: 'data/prompts/response-instructions.txt' })
       });
       const instructionsData = await instructionsResponse.json();
       if (instructionsData.success) {
@@ -54,10 +54,10 @@ export default function PromptManager() {
       }
 
       // Load response guidelines
-      const guidelinesResponse = await fetch('/api/disk/read-file', {
+      const guidelinesResponse = await fetch('/api/disk/file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath: 'data/prompts/response-guidelines.txt' })
+        body: JSON.stringify({ action: 'read', filePath: 'data/prompts/response-guidelines.txt' })
       });
       const guidelinesData = await guidelinesResponse.json();
       if (guidelinesData.success) {
@@ -78,12 +78,12 @@ export default function PromptManager() {
     try {
       // Save analysis task
       if (analysisTask !== analysisTaskOriginal) {
-        const analysisResponse = await fetch('/api/disk/save-file', {
+        const analysisResponse = await fetch('/api/disk/file', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            folderPath: 'data/prompts',
-            fileName: 'analysis-task.txt',
+            action: 'write',
+            filePath: 'data/prompts' + '/' + 'analysis-task.txt',
             content: analysisTask
           })
         });
@@ -93,12 +93,12 @@ export default function PromptManager() {
 
       // Save response instructions
       if (responseInstructions !== responseInstructionsOriginal) {
-        const instructionsResponse = await fetch('/api/disk/save-file', {
+        const instructionsResponse = await fetch('/api/disk/file', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            folderPath: 'data/prompts',
-            fileName: 'response-instructions.txt',
+            action: 'write',
+            filePath: 'data/prompts' + '/' + 'response-instructions.txt',
             content: responseInstructions
           })
         });
@@ -108,12 +108,12 @@ export default function PromptManager() {
 
       // Save response guidelines
       if (responseGuidelines !== responseGuidelinesOriginal) {
-        const guidelinesResponse = await fetch('/api/disk/save-file', {
+        const guidelinesResponse = await fetch('/api/disk/file', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            folderPath: 'data/prompts',
-            fileName: 'response-guidelines.txt',
+            action: 'write',
+            filePath: 'data/prompts' + '/' + 'response-guidelines.txt',
             content: responseGuidelines
           })
         });

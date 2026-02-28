@@ -88,8 +88,8 @@ export function useCLIRecoveryStatus(): {
     for (const id of SESSION_IDS) {
       const s = sessions[id];
       // During recovery, count sessions with running or pending+autoStart tasks
-      const hasRunningTask = s.queue.some((t) => t.status === 'running');
-      const hasPendingTasks = s.queue.some((t) => t.status === 'pending');
+      const hasRunningTask = s.queue.some((t) => t.status.type === 'running');
+      const hasPendingTasks = s.queue.some((t) => t.status.type === 'queued');
       if (hasRunningTask || (hasPendingTasks && s.autoStart)) {
         count++;
       }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CompactTerminal } from '@/components/cli/CompactTerminal';
 import type { QueuedTask } from '@/components/cli/types';
+import { createQueuedStatus, createRunningStatus, createCompletedStatus, createFailedStatus } from '@/app/features/TaskRunner/lib/types';
 
 interface ReflectionTerminalProps {
   scope: 'project' | 'global';
@@ -50,7 +51,7 @@ export function ReflectionTerminal({
           projectPath,
           projectName: projectName || 'Unknown',
           requirementName: `Reflection ${runningReflectionId.slice(0, 12)}`, // Display name only
-          status: 'pending',
+          status: createQueuedStatus(),
           addedAt: Date.now(),
           directPrompt: promptContent, // Use direct prompt instead of file
         };
@@ -71,7 +72,7 @@ export function ReflectionTerminal({
   const handleTaskStart = useCallback((taskId: string) => {
     setStoredTaskId(taskId);
     if (terminalTask) {
-      setTerminalTask({ ...terminalTask, status: 'running', startedAt: Date.now() });
+      setTerminalTask({ ...terminalTask, status: createRunningStatus() });
     }
   }, [terminalTask]);
 
@@ -82,7 +83,7 @@ export function ReflectionTerminal({
     if (terminalTask) {
       setTerminalTask({
         ...terminalTask,
-        status: success ? 'completed' : 'failed',
+        status: success ? createCompletedStatus() : createFailedStatus('Reflection failed'),
         completedAt: Date.now(),
       });
     }

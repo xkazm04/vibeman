@@ -4,7 +4,7 @@ import { UniversalSelect } from '@/components/ui/UniversalSelect';
 interface Project {
   id: string;
   name: string;
-  port?: number;
+  port?: number | null;
   type?: string;
 }
 

@@ -15,8 +15,9 @@ export {
   useAllSessions,
   getActiveSessions,
   getSessionsNeedingRecovery,
-  useCLIRecovery,
-  useCLIRecoveryStatus,
   type CLISessionId,
   type CLISessionState,
 } from './store';
+
+// Client-only hooks (not in store index to avoid SSR issues)
+export { useCLIRecovery, useCLIRecoveryStatus } from './store/useCLIRecovery';

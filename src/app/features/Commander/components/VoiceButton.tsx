@@ -12,7 +12,7 @@
 import { useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Mic, Volume2, Ear, Loader2 } from 'lucide-react';
-import { useAnnetteStore } from '@/stores/annetteStore';
+import { useVoiceStore } from '@/stores/annette/voiceStore';
 import { useVoiceCompanionStore } from '@/stores/voiceCompanionStore';
 
 function RecordingWaveform() {
@@ -89,7 +89,7 @@ export function downsampleAudioBuffer(
 }
 
 export default function VoiceButton() {
-  const isSpeaking = useAnnetteStore((s) => s.isSpeaking);
+  const isSpeaking = useVoiceStore((s) => s.isSpeaking);
   const {
     isActive, engineState, mode,
     startCompanion, stopCompanion, startPushToTalk, stopPushToTalk,

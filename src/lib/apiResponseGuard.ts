@@ -190,7 +190,7 @@ export const BrainReflectionTriggerSchema = z.object({
 
 export const BrainSignalsResponseSchema = z.object({
   success: z.boolean(),
-  signals: z.array(z.record(z.unknown())).default([]),
+  signals: z.array(z.record(z.string(), z.unknown())).default([]),
 });
 
 // --- Goals API Schemas ---
@@ -219,11 +219,11 @@ export const GoalMutationResponseSchema = z.object({
 
 export const QuestionsResponseSchema = z.object({
   success: z.boolean(),
-  questions: z.array(z.record(z.unknown())).default([]),
+  questions: z.array(z.record(z.string(), z.unknown())).default([]),
   grouped: z.array(z.object({
     contextMapId: z.string(),
     contextMapTitle: z.string(),
-    questions: z.array(z.record(z.unknown())),
+    questions: z.array(z.record(z.string(), z.unknown())),
   })).default([]),
   counts: z.object({
     pending: z.number(),
@@ -234,18 +234,18 @@ export const QuestionsResponseSchema = z.object({
 
 export const QuestionMutationSchema = z.object({
   success: z.boolean(),
-  question: z.record(z.unknown()),
+  question: z.record(z.string(), z.unknown()),
 });
 
 // --- Directions API Schemas ---
 
 export const DirectionsResponseSchema = z.object({
   success: z.boolean(),
-  directions: z.array(z.record(z.unknown())).default([]),
+  directions: z.array(z.record(z.string(), z.unknown())).default([]),
   grouped: z.array(z.object({
     contextMapId: z.string(),
     contextMapTitle: z.string(),
-    directions: z.array(z.record(z.unknown())),
+    directions: z.array(z.record(z.string(), z.unknown())),
   })).default([]),
   counts: z.object({
     pending: z.number(),
@@ -257,12 +257,12 @@ export const DirectionsResponseSchema = z.object({
 
 export const DirectionMutationSchema = z.object({
   success: z.boolean(),
-  direction: z.record(z.unknown()),
+  direction: z.record(z.string(), z.unknown()),
 });
 
 export const AcceptDirectionResponseSchema = z.object({
   success: z.boolean(),
-  direction: z.record(z.unknown()),
+  direction: z.record(z.string(), z.unknown()),
   requirementName: z.string(),
   requirementPath: z.string(),
 });

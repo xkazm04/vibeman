@@ -123,9 +123,9 @@ const BufferColumn = React.memo(function BufferColumn({
             </h3>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-gray-500 font-mono">
+            <motion.span key={ideas.length} className="text-[10px] text-gray-500 font-mono" initial={{ scale: 1.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
               {ideas.length}
-            </span>
+            </motion.span>
             {/* Show delete button for any column with ideas (including General/no-context) */}
             {ideas.length > 0 && !showConfirm && (
               <motion.button

@@ -3,30 +3,16 @@
  *
  * POST /api/brain/signals/decay - Apply decay to signals with configurable settings
  *
- * Designed to be called as a weekly scheduled job. The repository's applyDecay()
- * uses decay_applied_at tracking to ensure signals are only decayed once per
- * weekly cycle (Monday-Sunday). Safe to call multiple times per week — duplicates
- * are skipped automatically. Updates are batched in 1000-row chunks to avoid
- * table locks.
+ * Designed to be called as a weekly scheduled job. Safe to call multiple times
+ * per week — duplicates are skipped automatically.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { behavioralSignalDb } from '@/app/db';
 import { withObservability } from '@/lib/observability/middleware';
 import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
 import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
-import { invalidateContextCache } from '@/app/api/brain/context/route';
+import { applySignalDecay } from '@/lib/brain/brainService';
 
-/**
- * POST /api/brain/signals/decay
- * Apply exponential decay to signals older than the threshold,
- * and delete signals beyond retention period.
- *
- * Body:
- * - projectId: string (required, or "all" to decay all projects)
- * - decayFactor: number (0.8-0.99, default 0.9)
- * - retentionDays: number (7-90, default 30)
- */
 async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
@@ -47,16 +33,7 @@ async function handlePost(request: NextRequest) {
     const clampedFactor = Math.max(0.8, Math.min(0.99, Number(decayFactor)));
     const clampedRetention = Math.max(7, Math.min(90, Math.floor(Number(retentionDays))));
 
-    // Apply decay to signals older than 7 days.
-    // Batched in 1000-row chunks with decay_applied_at tracking
-    // to skip already-decayed signals in the current weekly cycle.
-    const decayed = behavioralSignalDb.applyDecay(projectId, clampedFactor, 7);
-
-    // Delete signals beyond retention period
-    const deleted = behavioralSignalDb.deleteOld(projectId, clampedRetention);
-
-    // Invalidate cached behavioral context after decay changes signal weights
-    invalidateContextCache(projectId);
+    const { decayed, deleted } = applySignalDecay(projectId, clampedFactor, clampedRetention);
 
     return NextResponse.json({
       success: true,

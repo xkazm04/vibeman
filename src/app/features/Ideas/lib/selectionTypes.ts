@@ -1,59 +1,36 @@
 /**
  * Selection Types for Ideas Module
  *
- * Defines types for context and group selection in the Ideas feature.
- * Supports both individual context selection and whole-group selection.
+ * Context-only selection model. Clicking a group is UI sugar for
+ * multi-selecting its child contexts — no separate group selection state.
  */
 
 /**
  * Selection state for the Ideas module
- * Tracks both individual context selections and whole-group selections
+ * Flat list of individual context IDs
  */
 export interface SelectionState {
   /** Individual context IDs selected for filtering/generation */
   contextIds: string[];
-  /** Context group IDs selected as whole units for generation */
-  groupIds: string[];
 }
 
 /**
- * Selection mode based on current selection state
- */
-export type SelectionMode = 'contexts' | 'groups' | 'mixed' | 'none';
-
-/**
- * Get the current selection mode based on selection state
- */
-export function getSelectionMode(state: SelectionState): SelectionMode {
-  const hasContexts = state.contextIds.length > 0;
-  const hasGroups = state.groupIds.length > 0;
-
-  if (!hasContexts && !hasGroups) return 'none';
-  if (hasGroups && !hasContexts) return 'groups';
-  if (hasContexts && !hasGroups) return 'contexts';
-  return 'mixed';
-}
-
-/**
- * Check if a selection is empty (no contexts or groups selected)
+ * Check if a selection is empty
  */
 export function isSelectionEmpty(state: SelectionState): boolean {
-  return state.contextIds.length === 0 && state.groupIds.length === 0;
+  return state.contextIds.length === 0;
 }
 
 /**
  * Get total selection count
  */
 export function getSelectionCount(state: SelectionState): number {
-  return state.contextIds.length + state.groupIds.length;
+  return state.contextIds.length;
 }
 
 /**
  * Create an empty selection state
  */
 export function createEmptySelection(): SelectionState {
-  return {
-    contextIds: [],
-    groupIds: [],
-  };
+  return { contextIds: [] };
 }

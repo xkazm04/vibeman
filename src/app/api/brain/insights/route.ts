@@ -7,9 +7,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { brainInsightDb, directionDb } from '@/app/db';
+import { brainInsightDb, directionDb, brainReflectionDb } from '@/app/db';
+import { getHotWritesDatabase } from '@/app/db/hot-writes';
 import { withObservability } from '@/lib/observability/middleware';
-import type { LearningInsight } from '@/app/db/models/brain.types';
+import type { LearningInsight, EvidenceRef } from '@/app/db/models/brain.types';
 
 export interface ConfidencePoint {
   confidence: number;
@@ -59,9 +60,6 @@ async function handleDelete(request: NextRequest) {
       return NextResponse.json({ error: 'Insight not found' }, { status: 404 });
     }
 
-    // Keep JSON blob in sync
-    brainInsightDb.syncToReflectionJson(reflectionId);
-
     const remaining = brainInsightDb.countByReflection(reflectionId);
     return NextResponse.json({ success: true, remaining });
   } catch (error) {
@@ -72,50 +70,100 @@ async function handleDelete(request: NextRequest) {
 
 /**
  * POST /api/brain/insights
- * Batch-resolve evidence IDs (direction IDs) to summaries
- * Body: { evidenceIds: string[] }
+ * Batch-resolve typed evidence refs to summaries.
+ * Accepts both new format { evidenceRefs: EvidenceRef[] } and
+ * legacy format { evidenceIds: string[] } (treated as directions).
  */
 async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
-    const { evidenceIds } = body;
 
-    if (!Array.isArray(evidenceIds) || evidenceIds.length === 0) {
+    // Accept both new typed refs and legacy string IDs
+    let refs: EvidenceRef[];
+    if (Array.isArray(body.evidenceRefs)) {
+      refs = body.evidenceRefs.slice(0, 50);
+    } else if (Array.isArray(body.evidenceIds)) {
+      refs = body.evidenceIds.slice(0, 50).map((id: string) => ({ type: 'direction' as const, id }));
+    } else {
       return NextResponse.json(
-        { error: 'evidenceIds array required' },
+        { error: 'evidenceRefs or evidenceIds array required' },
         { status: 400 }
       );
     }
 
-    // Limit batch size to prevent abuse
-    const ids = evidenceIds.slice(0, 50);
+    if (refs.length === 0) {
+      return NextResponse.json(
+        { error: 'evidenceRefs array must not be empty' },
+        { status: 400 }
+      );
+    }
 
-    const directions: Record<string, {
+    // Partition by type
+    const directionIds = refs.filter(r => r.type === 'direction').map(r => r.id);
+    const signalIds = refs.filter(r => r.type === 'signal').map(r => r.id);
+    const reflectionIds = refs.filter(r => r.type === 'reflection').map(r => r.id);
+
+    const resolved: Record<string, {
+      refType: EvidenceRef['type'];
       id: string;
       summary: string;
-      status: string;
-      contextName: string | null;
-      contextMapTitle: string;
+      status?: string;
+      contextName?: string | null;
+      contextMapTitle?: string;
       createdAt: string;
     } | null> = {};
 
-    for (const id of ids) {
-      const direction = directionDb.getDirectionById(id);
-      if (direction) {
-        directions[id] = {
+    // Resolve directions (batch)
+    if (directionIds.length > 0) {
+      const directionMap = directionDb.getDirectionsByIds(directionIds);
+      for (const id of directionIds) {
+        const direction = directionMap.get(id);
+        resolved[id] = direction ? {
+          refType: 'direction',
           id: direction.id,
           summary: direction.summary,
           status: direction.status,
           contextName: direction.context_name,
           contextMapTitle: direction.context_map_title,
           createdAt: direction.created_at,
-        };
-      } else {
-        directions[id] = null;
+        } : null;
       }
     }
 
-    return NextResponse.json({ success: true, directions });
+    // Resolve signals (batch via raw query)
+    if (signalIds.length > 0) {
+      const hotDb = getHotWritesDatabase();
+      const placeholders = signalIds.map(() => '?').join(',');
+      const rows = hotDb.prepare(
+        `SELECT id, signal_type, context_name, created_at FROM behavioral_signals WHERE id IN (${placeholders})`
+      ).all(...signalIds) as Array<{ id: string; signal_type: string; context_name: string | null; created_at: string }>;
+      const signalMap = new Map(rows.map(r => [r.id, r]));
+      for (const id of signalIds) {
+        const sig = signalMap.get(id);
+        resolved[id] = sig ? {
+          refType: 'signal',
+          id: sig.id,
+          summary: `Signal: ${sig.signal_type}`,
+          contextName: sig.context_name,
+          createdAt: sig.created_at,
+        } : null;
+      }
+    }
+
+    // Resolve reflections (batch)
+    if (reflectionIds.length > 0) {
+      for (const id of reflectionIds) {
+        const ref = brainReflectionDb.getById(id);
+        resolved[id] = ref ? {
+          refType: 'reflection',
+          id: ref.id,
+          summary: `Reflection (${ref.scope}) — ${ref.status}`,
+          createdAt: ref.created_at,
+        } : null;
+      }
+    }
+
+    return NextResponse.json({ success: true, evidence: resolved });
   } catch (error) {
     console.error('[Brain Insights POST] Error:', error);
     return NextResponse.json(
@@ -207,9 +255,6 @@ async function handlePatch(request: NextRequest) {
         }
       }
     }
-
-    // Keep JSON blob in sync
-    brainInsightDb.syncToReflectionJson(reflectionId);
 
     const remaining = brainInsightDb.countByReflection(reflectionId);
     return NextResponse.json({

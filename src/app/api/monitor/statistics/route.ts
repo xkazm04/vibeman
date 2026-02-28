@@ -1,20 +1,18 @@
 import { NextResponse } from 'next/server';
-import { monitorServiceDb } from '@/lib/monitorServiceDb';
+import { monitorDb } from '@/lib/monitor_database';
 import { withObservability } from '@/lib/observability/middleware';
+import { handleApiError } from '@/lib/api-errors';
 
 async function handleGet() {
   try {
-    const stats = await monitorServiceDb.getCallStatistics();
+    const stats = monitorDb.calls.getStatistics();
 
     return NextResponse.json({
       success: true,
       statistics: stats
     });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch statistics' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Fetch statistics');
   }
 }
 

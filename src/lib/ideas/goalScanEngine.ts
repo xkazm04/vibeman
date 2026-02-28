@@ -75,11 +75,11 @@ const KEYWORD_RULES: KeywordRule[] = [
     agents: ['ai_integration_scout', 'insight_synth'],
     category: 'business',
   },
-  // Onboarding/user experience goals
+  // Tech stack & engineering innovation goals
   {
-    keywords: ['onboard', 'tutorial', 'guide', 'first time', 'new user', 'signup', 'registration'],
-    agents: ['onboarding_optimizer', 'user_empathy_champion'],
-    category: 'user',
+    keywords: ['stack', 'framework', 'language', 'runtime', 'build', 'compile', 'type system', 'reliability'],
+    agents: ['tech_innovator', 'perf_optimizer'],
+    category: 'technical',
   },
   // Data/state management goals
   {

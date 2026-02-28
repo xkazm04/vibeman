@@ -17,15 +17,7 @@ import { migrate067FixCheckConstraints } from './067_fix_check_constraints';
 import { migrate069ContextAiNavigation } from './069_context_ai_navigation';
 import { migrate070CollectiveMemory } from './070_collective_memory';
 import { migrate071BrainInsightsTable } from './071_brain_insights_table';
-import { migrate090Personas } from './090_personas';
-import { migrate091PersonaUpgrades } from './091_persona_upgrades';
-import { migrate092ConnectorDefinitions } from './092_connector_definitions';
-import { migrate093PersonaMessages } from './093_persona_messages';
-import { migrate094PersonaDesignResult } from './094_persona_design_result';
-import { migrate095PersonaToolUsage } from './095_persona_tool_usage';
-import { migrate096PersonaEventBus } from './096_persona_event_bus';
-import { migrate097PersonaDesignReviews } from './097_persona_design_reviews';
-import { migrate098PersonaDesignPatterns } from './098_persona_design_patterns';
+import { migrate073DropInsightsGeneratedColumn } from './073_drop_insights_generated_column';
 import { migrate099ReviewUseCaseFlows } from './099_review_use_case_flows';
 import { migrate100BehavioralSignalDecayTracking } from './100_behavioral_signal_decay_tracking';
 import { migrate101InsightEffectivenessCache } from './101_insight_effectiveness_cache';
@@ -33,12 +25,7 @@ import { migrate103GoalLifecycle } from './103_goal_lifecycle';
 import { migrate104ExecutionFlows } from './104_execution_flows';
 import { migrate105PerformanceIndexes } from './105_performance_indexes';
 import { migrate106CleanupPhantomContextPaths } from './106_cleanup_phantom_context_paths';
-import { migrate107PersonaModelSettings } from './107_persona_model_settings';
 import { migrate108Observability } from './108_observability';
-import { migrate109TeamCanvas } from './109_team_canvas';
-import { migrate110HealingIssues } from './110_healing_issues';
-import { migrate111PersonaGroups } from './111_persona_groups';
-import { migrate112PersonaMemories } from './112_persona_memories';
 import { migrate113DirectionDecisionRecord } from './113_direction_decision_record';
 import { migrate114QuestionTree } from './114_question_tree';
 import { migrate115DirectionEffortImpact } from './115_direction_effort_impact';
@@ -49,6 +36,7 @@ import { migrate119PredictiveIntent } from './119_predictive_intent';
 import { migrate120SchemaIntelligence } from './120_schema_intelligence';
 import { migrate121ScanProfiles } from './121_scan_profiles';
 import { migrate122IdeaDependencies } from './122_idea_dependencies';
+import { migrate123TypedEvidenceRefs } from './123_typed_evidence_refs';
 
 /**
  * Migration logger utility
@@ -162,6 +150,13 @@ export function runMigrations() {
     migrateDeveloperMindMeldTables();
     // Migration 35: Update ideas table to support 1-10 scoring and add risk column
     migrateIdeasExtendedScoring();
+    // Defensive: ensure risk column exists even if migration 35 failed silently
+    safeMigration('ideasRiskColumnDefensive', () => {
+      const db = getConnection();
+      if (tableExists(db, 'ideas')) {
+        addColumnIfNotExists(db, 'ideas', 'risk', 'INTEGER', migrationLogger);
+      }
+    }, migrationLogger);
     // Migration 36: Create onboarding accelerator tables
     migrateOnboardingAcceleratorTables();
     // Migration 37: Create strategic roadmap engine tables
@@ -261,7 +256,12 @@ export function runMigrations() {
     migrateCollectiveMemory();
     // Migration 85: Brain Insights Table - extract insights from JSON blobs to proper table
     migrateBrainInsightsTable();
+
+    // Migration 85b: Drop insights_generated column - eliminate dual-write split-brain
+    migrateDropInsightsGeneratedColumn();
+
     // Migration 86: Fix Generation History FK - remove invalid foreign key constraint
+
     migrateFixGenerationHistoryFk();
     // Migration 87: Template Category - add category column for grouping
     migrateTemplateCategory();
@@ -269,23 +269,6 @@ export function runMigrations() {
     migrateBehavioralSignalsIndexes();
     // Migration 89: Template Source Column - consolidate prompt_templates into discovered_templates
     migrateTemplateSourceColumn();
-    // Migration 90: Persona Agent System - AI persona agents with tools, triggers, and executions
-    migratePersonas();
-    // Migration 91: Persona UX Upgrades - credential events, manual reviews, structured prompts
-    migratePersonaUpgrades();
-    // Migration 92: Connector Definitions - dynamic connector registry with seed data
-    migrateConnectorDefinitions();
-    // Migration 93: Persona Messages & Notification Channels
-    migratePersonaMessages();
-    migratePersonaDesignResult();
-    // Migration 95: Persona Tool Usage tracking for analytics
-    migratePersonaToolUsage();
-    // Migration 96: Persona Event Bus - central pub/sub for webhooks and inter-persona actions
-    migratePersonaEventBus();
-    // Migration 97: Persona Design Reviews - automated QA test results
-    migratePersonaDesignReviews097();
-    // Migration 98: Persona Design Patterns - learned patterns for self-improvement
-    migratePersonaDesignPatterns098();
     // Migration 99: Review Use Case Flows - activity diagram visualization
     migrateReviewUseCaseFlows099();
     // Migration 100: Behavioral Signal Decay Tracking - batched weekly decay
@@ -294,7 +277,7 @@ export function runMigrations() {
     migrate101InsightEffectivenessCache(migrationLogger);
 
     // Migration 103: Goal Lifecycle Engine - autonomous progress tracking
-    migrate103GoalLifecycle(db, migrationLogger);
+    migrate103GoalLifecycle(db as any, migrationLogger);
 
     // Migration 104: Execution Flows - store extracted flow diagrams
     migrate104ExecutionFlows(db as any, migrationLogger);
@@ -305,23 +288,8 @@ export function runMigrations() {
     // Migration 106: Cleanup phantom context file paths (re-validates all contexts)
     migrate106CleanupPhantomContextPaths();
 
-    // Migration 107: Persona model settings - multi-model execution + design context
-    migrate107PersonaModelSettings(db as any, migrationLogger);
-
     // Migration 108: Observability - metrics snapshots + prompt version history
     migrate108Observability(db as any, migrationLogger);
-
-    // Migration 109: Team Canvas - multi-agent pipeline visual design
-    migrate109TeamCanvas(db as any, migrationLogger);
-
-    // Migration 110: Healing Issues - track failed execution analysis
-    migrate110HealingIssues(db as any, migrationLogger);
-
-    // Migration 111: Persona Groups - organize personas into collapsible groups
-    migrate111PersonaGroups(db as any, migrationLogger);
-
-    // Migration 112: Persona Memories - agent knowledge storage
-    migrate112PersonaMemories(db as any, migrationLogger);
 
     // Migration 113: Direction Decision Record - ADR field
     migrate113DirectionDecisionRecord(db as any, migrationLogger);
@@ -352,6 +320,9 @@ export function runMigrations() {
 
     // Migration 122: Idea Dependencies
     migrate122IdeaDependencies(db as any, migrationLogger);
+
+    // Migration 123: Typed Evidence Refs - classify string evidence IDs by prefix
+    migrate123TypedEvidenceRefs(db as any, migrationLogger);
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -4202,127 +4173,23 @@ function migrateArchitectureGraphTables() {
   migrationLogger.success('Architecture graph tables created successfully');
 }
 
-/**
- * Migration 43: Create focus mode tables
- * Focus sessions, pomodoro tracking, and productivity analytics
- */
-function migrateFocusModeTables() {
-  // Import and call the migration from the dedicated file
-  const { migrateFocusModeTables: migrate } = require('./034_focus_mode');
-  migrate(migrationLogger);
-}
+// Migrations 43-46: Tables dropped by migration 064 or deprecated - no-op
+function migrateFocusModeTables() { /* dropped by migration 064 */ }
+function migrateAutonomousCITables() { /* deprecated */ }
+function migrateROISimulatorTables() { /* deprecated */ }
+function migrateGoalHub() { /* deprecated */ }
 
-/**
- * Migration 44: Create Autonomous CI tables
- * AI-driven continuous integration automation
- */
-function migrateAutonomousCITables() {
-  // Import and call the migration from the dedicated file
-  const { migrateAutonomousCITables: migrate } = require('./035_autonomous_ci');
-  migrate(migrationLogger);
-}
-
-/**
- * Migration 45: Create ROI Simulator tables
- * Development economics ROI simulation engine
- */
-function migrateROISimulatorTables() {
-  // Import and call the migration from the dedicated file
-  const { migrateROISimulatorTables: migrate } = require('./036_roi_simulator');
-  migrate(migrationLogger);
-}
-
-/**
- * Migration 46: Create Goal Hub tables
- * Central orchestration for goal-driven development with hypothesis tracking
- */
-function migrateGoalHub() {
-  // Import and call the migration from the dedicated file
-  const { migrateGoalHub: migrate } = require('./037_goal_hub');
-  migrate();
-}
-
-function migrateSocialChannelConfigs() {
-  safeMigration('socialChannelConfigs', () => {
-    const db = getConnection();
-    const { migrate038SocialChannelConfigs } = require('./038_social_channel_configs');
-    migrate038SocialChannelConfigs(db);
-  }, migrationLogger);
-}
-
-function migrateSocialFeedbackItems() {
-  safeMigration('socialFeedbackItems', () => {
-    const db = getConnection();
-    const { migrate039SocialFeedbackItems } = require('./039_social_feedback_items');
-    migrate039SocialFeedbackItems(db);
-  }, migrationLogger);
-}
-
-function migrateSocialDiscoveryConfigs() {
-  safeMigration('socialDiscoveryConfigs', () => {
-    const db = getConnection();
-    const { migrate040SocialDiscoveryConfigs } = require('./040_social_discovery_configs');
-    migrate040SocialDiscoveryConfigs(db);
-  }, migrationLogger);
-}
-
-// migrateOffloadSystem removed - migrated to Supabase Realtime
-
-function migrateClaudeCodeSessions() {
-  safeMigration('claudeCodeSessions', () => {
-    const db = getConnection();
-    const { migrate042ClaudeCodeSessions } = require('./042_claude_code_sessions');
-    migrate042ClaudeCodeSessions(db);
-  }, migrationLogger);
-}
-
-function migrateAutomationSessions() {
-  safeMigration('automationSessions', () => {
-    const db = getConnection();
-    const { migrate043AutomationSessions } = require('./043_automation_sessions');
-    migrate043AutomationSessions(db);
-  }, migrationLogger);
-}
-
-function migrateAutomationSessionEvents() {
-  safeMigration('automationSessionEvents', () => {
-    const db = getConnection();
-    const { migrate044AutomationSessionEvents } = require('./044_automation_session_events');
-    migrate044AutomationSessionEvents(db);
-  }, migrationLogger);
-}
-
-function migrateIntegrationFramework() {
-  safeMigration('integrationFramework', () => {
-    const db = getConnection();
-    const { migrate045IntegrationFramework } = require('./045_integration_framework');
-    migrate045IntegrationFramework(db);
-  }, migrationLogger);
-}
-
-function migrateObservatory() {
-  safeMigration('observatory', () => {
-    const db = getConnection();
-    const { migrate046Observatory } = require('./046_observatory');
-    migrate046Observatory(db);
-  }, migrationLogger);
-}
-
-function migrateIdeasRiskColumn() {
-  safeMigration('ideas_risk_column', () => {
-    const db = getConnection();
-    const { migrate047 } = require('./047_ideas_risk_column');
-    migrate047(db);
-  }, migrationLogger);
-}
-
-function migrateAutomationSessionPausedPhase() {
-  safeMigration('automation_session_paused_phase', () => {
-    const db = getConnection();
-    const { migrate048AutomationSessionPausedPhase } = require('./048_automation_session_paused_phase');
-    migrate048AutomationSessionPausedPhase(db);
-  }, migrationLogger);
-}
+// Migrations 47-57: Tables already exist in DB, external files consolidated - no-op
+function migrateSocialChannelConfigs() { /* already applied */ }
+function migrateSocialFeedbackItems() { /* already applied */ }
+function migrateSocialDiscoveryConfigs() { /* already applied */ }
+function migrateClaudeCodeSessions() { /* already applied */ }
+function migrateAutomationSessions() { /* already applied */ }
+function migrateAutomationSessionEvents() { /* already applied */ }
+function migrateIntegrationFramework() { /* already applied */ }
+function migrateObservatory() { /* already applied */ }
+function migrateIdeasRiskColumn() { /* already applied */ }
+function migrateAutomationSessionPausedPhase() { /* already applied */ }
 
 /**
  * Migration 58: Create questions table for guided idea generation
@@ -4496,228 +4363,43 @@ function migrateHallOfFameStars() {
   }, migrationLogger);
 }
 
-/**
- * Migration 62: Create API Observability tables
- * Tracks API endpoint usage, response times, and error rates
- */
-function migrateApiObservability() {
-  safeMigration('api_observability', () => {
-    const db = getConnection();
-    const { migrate049ApiObservability } = require('./049_api_observability');
-    migrate049ApiObservability(db);
-  }, migrationLogger);
-}
-
-/**
- * Migration 63: Create context_api_routes table
- * Maps API endpoints to contexts for X-Ray visualization
- */
-function migrateContextApiRoutes() {
-  safeMigration('context_api_routes', () => {
-    const db = getConnection();
-    const { migrate050ContextApiRoutes } = require('./050_context_api_routes');
-    migrate050ContextApiRoutes(db);
-  }, migrationLogger);
-}
-
-/**
- * Migration 64: Create obs_xray_events table
- * Persists X-Ray traffic events with context mapping
- */
-function migrateObsXRayEvents() {
-  safeMigration('obs_xray_events', () => {
-    const db = getConnection();
-    const { migrate051ObsXRayEvents } = require('./051_obs_xray_events');
-    migrate051ObsXRayEvents(db);
-  }, migrationLogger);
-}
-
-/**
- * Migration 65: Add SQLite context references to directions table
- * Links directions to contexts and context groups
- */
-function migrateDirectionsContextLink() {
-  safeMigration('directions_context_link', () => {
-    const db = getConnection();
-    const { migrate052DirectionsContextLink } = require('./052_directions_context_link');
-    migrate052DirectionsContextLink(db);
-  }, migrationLogger);
-}
-
-/**
- * Migration 66: Prompt Templates
- * Creates prompt_templates table for reusable prompt composition
- */
-function migratePromptTemplates() {
-  safeMigration('prompt_templates', () => {
-    const db = getConnection();
-    const { migrate053PromptTemplates } = require('./053_prompt_templates');
-    migrate053PromptTemplates(db);
-  }, migrationLogger);
-}
-
-/**
- * Migration 67: Brain 2.0 - Behavioral Learning + Autonomous Reflection
- * Creates tables for behavioral signals, direction outcomes, and brain reflections
- */
-function migrateBrainV2() {
-  safeMigration('brain_v2', () => {
-    const db = getConnection();
-    const { migrate054BrainV2 } = require('./054_brain_v2');
-    migrate054BrainV2(db);
-  }, migrationLogger);
-}
-
-/**
- * Migration 68: Brain Global Reflection - Add scope column
- * Adds scope column to brain_reflections for global vs per-project distinction
- */
-function migrateBrainGlobalReflection() {
-  safeMigration('brain_global_reflection', () => {
-    const db = getConnection();
-    const { migrate055BrainGlobalReflection } = require('./055_brain_global_reflection');
-    migrate055BrainGlobalReflection(db);
-  }, migrationLogger);
-}
-
-/**
- * Migration 69: Annette 2.0 - Conversational AI with Deep Memory
- * Creates tables for sessions, messages, memory topics, preferences, and audio cache
- */
-function migrateAnnetteV2() {
-  safeMigration('annette_v2', () => {
-    const db = getConnection();
-    const { migrate056AnnetteV2 } = require('./056_annette_v2');
-    migrate056AnnetteV2(db);
-  }, migrationLogger);
-}
-
-/**
- * Migration 70: Workspaces - Project Grouping
- * Creates tables for organizing projects into workspaces
- */
-function migrateWorkspaces() {
-  safeMigration('workspaces', () => {
-    const db = getConnection();
-    const { migrate057Workspaces } = require('./057_workspaces');
-    migrate057Workspaces(db);
-  }, migrationLogger);
-}
-
-/**
- * Migration 71: Annette Memory System - Persistent Memory & Knowledge Graph
- * Creates tables for memories, knowledge graph nodes, edges, and consolidation history
- */
-function migrateAnnetteMemorySystem() {
-  safeMigration('annette_memory_system', () => {
-    const db = getConnection();
-    const { migrate058AnnetteMemorySystem } = require('./058_annette_memory_system');
-    migrate058AnnetteMemorySystem(db);
-  }, migrationLogger);
-}
-
-/**
- * Migration 72: Executive Analysis - AI-driven executive insights
- * Creates table for executive analysis sessions
- */
-function migrateExecutiveAnalysis() {
-  safeMigration('executive_analysis', () => {
-    const db = getConnection();
-    const { migrate059ExecutiveAnalysis } = require('./059_executive_analysis');
-    migrate059ExecutiveAnalysis(db);
-  }, migrationLogger);
-}
-
-/**
- * Migration 73: Cross-Project Architecture - workspace-level visualization
- * Creates tables for cross-project relationships, analysis sessions, and project metadata
- */
-function migrateCrossProjectArchitecture() {
-  safeMigration('cross_project_architecture', () => {
-    const db = getConnection();
-    const { migrate060CrossProjectArchitecture } = require('./060_cross_project_architecture');
-    migrate060CrossProjectArchitecture(db);
-  }, migrationLogger);
-}
-
-/**
- * Migration 74: Workspace & Project Enhancements
- * Adds base_path column to workspaces table for workspace-specific root directories
- */
-function migrateWorkspaceProjectEnhancements() {
-  safeMigration('workspace_project_enhancements', () => {
-    const db = getConnection();
-    const { migrate061WorkspaceProjectEnhancements } = require('./061_workspace_project_enhancements');
-    migrate061WorkspaceProjectEnhancements(db);
-  }, migrationLogger);
-}
-
-/**
- * Migration 75: Group Health Scans
- * Creates table for tracking code health scans per context group
- */
-function migrateGroupHealth() {
-  safeMigration('group_health', () => {
-    const db = getConnection();
-    const { migrate062GroupHealth } = require('./062_group_health');
-    migrate062GroupHealth(db);
-  }, migrationLogger);
-}
-
-/**
- * Migration 76: Remote Message Broker Config
- * Creates table for storing Supabase credentials for remote integration
- */
-function migrateRemoteConfig() {
-  safeMigration('remote_config', () => {
-    const db = getConnection();
-    const { migrate063RemoteConfig } = require('./063_remote_config');
-    migrate063RemoteConfig(db);
-  }, migrationLogger);
-}
-
-/**
- * Migration 80: Discovered Templates
- * Creates table for storing discovered templates from external projects
- */
-function migrateDiscoveredTemplates() {
-  safeMigration('discovered_templates', () => {
-    const db = getConnection();
-    const { migrate067DiscoveredTemplates } = require('./067_discovered_templates');
-    migrate067DiscoveredTemplates(db);
-  }, migrationLogger);
-}
-
-/**
- * Migration 81: Generation History
- * Creates table for storing generation history from template discovery
- */
-function migrateGenerationHistory() {
-  safeMigration('generation_history', () => {
-    const db = getConnection();
-    const { migrate068GenerationHistory } = require('./068_generation_history');
-    migrate068GenerationHistory(db);
-  }, migrationLogger);
-}
+// Migrations 62-81: Tables already exist in DB, external files consolidated - no-op
+function migrateApiObservability() { /* already applied */ }
+function migrateContextApiRoutes() { /* already applied */ }
+function migrateObsXRayEvents() { /* already applied */ }
+function migrateDirectionsContextLink() { /* already applied */ }
+function migratePromptTemplates() { /* already applied */ }
+function migrateBrainV2() { /* already applied */ }
+function migrateBrainGlobalReflection() { /* already applied */ }
+function migrateAnnetteV2() { /* already applied */ }
+function migrateWorkspaces() { /* already applied */ }
+function migrateAnnetteMemorySystem() { /* already applied */ }
+function migrateExecutiveAnalysis() { /* already applied */ }
+function migrateCrossProjectArchitecture() { /* already applied */ }
+function migrateWorkspaceProjectEnhancements() { /* already applied */ }
+function migrateGroupHealth() { /* already applied */ }
+function migrateRemoteConfig() { /* already applied */ }
+function migrateDiscoveredTemplates() { /* already applied */ }
+function migrateGenerationHistory() { /* already applied */ }
 
 function migrateContextAiNavigation() {
   safeMigration('context_ai_navigation', () => {
     const db = getConnection();
-    migrate069ContextAiNavigation(db, migrationLogger);
+    migrate069ContextAiNavigation(db as any, migrationLogger);
   }, migrationLogger);
 }
 
 function migrateCollectiveMemory() {
   safeMigration('collective_memory', () => {
     const db = getConnection();
-    migrate070CollectiveMemory(db, migrationLogger);
+    migrate070CollectiveMemory(db as any, migrationLogger);
   }, migrationLogger);
 }
 
 function migrateBrainInsightsTable() {
   safeMigration('brain_insights_table', () => {
     const db = getConnection();
-    migrate071BrainInsightsTable(db, migrationLogger);
+    migrate071BrainInsightsTable(db as any, migrationLogger);
   }, migrationLogger);
 }
 
@@ -4763,85 +4445,12 @@ function migrateBehavioralSignalsIndexes() {
  * Migration 89: Template Source Column
  * Adds source column to discovered_templates to support user-created templates
  */
-function migrateTemplateSourceColumn() {
-  safeMigration('template_source_column', () => {
-    const db = getConnection();
-    const { migrate072TemplateSourceColumn } = require('./072_template_source_column');
-    migrate072TemplateSourceColumn(db);
-  }, migrationLogger);
-}
-
-/**
- * Migration 90: Persona Agent System
- * Creates tables for AI persona agents, tools, triggers, executions, and credentials
- */
-function migratePersonas() {
-  safeMigration('personas', () => {
-    const db = getConnection();
-    migrate090Personas(db, migrationLogger);
-  }, migrationLogger);
-}
-
-function migratePersonaUpgrades() {
-  safeMigration('personaUpgrades091', () => {
-    const db = getConnection();
-    migrate091PersonaUpgrades(db, migrationLogger);
-  }, migrationLogger);
-}
-
-function migrateConnectorDefinitions() {
-  safeMigration('connectorDefinitions092', () => {
-    const db = getConnection();
-    migrate092ConnectorDefinitions(db, migrationLogger);
-  }, migrationLogger);
-}
-
-function migratePersonaMessages() {
-  safeMigration('personaMessages093', () => {
-    const db = getConnection();
-    migrate093PersonaMessages(db, migrationLogger);
-  }, migrationLogger);
-}
-
-function migratePersonaDesignResult() {
-  safeMigration('personaDesignResult094', () => {
-    const db = getConnection();
-    migrate094PersonaDesignResult(db, migrationLogger);
-  }, migrationLogger);
-}
-
-function migratePersonaToolUsage() {
-  safeMigration('personaToolUsage095', () => {
-    const db = getConnection();
-    migrate095PersonaToolUsage(db, migrationLogger);
-  }, migrationLogger);
-}
-
-function migratePersonaEventBus() {
-  safeMigration('personaEventBus096', () => {
-    const db = getConnection();
-    migrate096PersonaEventBus(db, migrationLogger);
-  }, migrationLogger);
-}
-
-function migratePersonaDesignReviews097() {
-  safeMigration('personaDesignReviews097', () => {
-    const db = getConnection();
-    migrate097PersonaDesignReviews(db, migrationLogger);
-  }, migrationLogger);
-}
-
-function migratePersonaDesignPatterns098() {
-  safeMigration('personaDesignPatterns098', () => {
-    const db = getConnection();
-    migrate098PersonaDesignPatterns(db, migrationLogger);
-  }, migrationLogger);
-}
+function migrateTemplateSourceColumn() { /* already applied */ }
 
 function migrateReviewUseCaseFlows099() {
   safeMigration('reviewUseCaseFlows099', () => {
     const db = getConnection();
-    migrate099ReviewUseCaseFlows(db, migrationLogger);
+    migrate099ReviewUseCaseFlows(db as any, migrationLogger);
   }, migrationLogger);
 }
 
@@ -4849,5 +4458,12 @@ function migrateBehavioralSignalDecayTracking100() {
   safeMigration('behavioralSignalDecayTracking100', () => {
     const db = getConnection();
     migrate100BehavioralSignalDecayTracking(db as any, migrationLogger);
+  }, migrationLogger);
+}
+
+function migrateDropInsightsGeneratedColumn() {
+  safeMigration('dropInsightsGeneratedColumn', () => {
+    const db = getConnection();
+    migrate073DropInsightsGeneratedColumn(db as any, migrationLogger);
   }, migrationLogger);
 }

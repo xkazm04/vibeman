@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { projectServiceDb } from '@/lib/projectServiceDb';
+import { projectDb } from '@/lib/project_database';
 import { startExecution } from '@/lib/claude-terminal/cli-service';
 import { buildContextGenerationPrompt } from '@/app/features/Context/lib/contextGenerationPrompt';
 import { logger } from '@/lib/logger';
@@ -33,7 +33,7 @@ async function handlePost(request: NextRequest) {
     }
 
     // Get the project info — DB path is the source of truth
-    const project = await projectServiceDb.getProject(projectId);
+    const project = projectDb.projects.get(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'Project not found' },

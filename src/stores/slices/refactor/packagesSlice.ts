@@ -48,21 +48,6 @@ export const createPackagesSlice: StateCreator<
 
     // Select this package
     selected.add(packageId);
-
-    // Select all dependencies recursively
-    const selectDeps = (pkgId: string) => {
-      const p = packages.find(p => p.id === pkgId);
-      if (!p) return;
-
-      for (const depId of p.dependsOn) {
-        if (!selected.has(depId)) {
-          selected.add(depId);
-          selectDeps(depId); // Recursive
-        }
-      }
-    };
-
-    selectDeps(packageId);
     set({ selectedPackages: selected });
   },
 
@@ -99,7 +84,7 @@ export const createPackagesSlice: StateCreator<
   selectPackagesByCategory: (category: string) => {
     const selected = new Set(
       get().packages
-        .filter(p => p.category === category)
+        .filter(p => p.name.toLowerCase().includes(category.toLowerCase()))
         .map(p => p.id)
     );
     set({ selectedPackages: selected });
@@ -108,7 +93,7 @@ export const createPackagesSlice: StateCreator<
   selectFoundationalPackages: () => {
     const selected = new Set(
       get().packages
-        .filter(p => p.executionOrder === 1 || p.dependsOn.length === 0)
+        .filter(p => p.priority === 1 || p.priority === undefined)
         .map(p => p.id)
     );
     set({ selectedPackages: selected });

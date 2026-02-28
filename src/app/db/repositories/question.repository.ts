@@ -264,49 +264,42 @@ export const questionRepository = {
   /**
    * Get full ancestry chain from a question up to root.
    * Returns array ordered root-first: [root, ..., parent, self]
+   * Uses a recursive CTE to traverse the tree in a single query.
    */
   getAncestryChain: (questionId: string): DbQuestion[] => {
     const db = getDatabase();
-    const chain: DbQuestion[] = [];
-    let currentId: string | null = questionId;
-
-    while (currentId) {
-      const found: DbQuestion | null = selectOne<DbQuestion>(db, 'SELECT * FROM questions WHERE id = ?', currentId);
-      if (!found) break;
-      chain.unshift(found); // prepend so root comes first
-      currentId = found.parent_id;
-    }
-
-    return chain;
+    const stmt = db.prepare(`
+      WITH RECURSIVE ancestry AS (
+        SELECT *, 0 AS _depth FROM questions WHERE id = ?
+        UNION ALL
+        SELECT q.*, a._depth + 1 FROM questions q
+        JOIN ancestry a ON q.id = a.parent_id
+      )
+      SELECT * FROM ancestry ORDER BY _depth DESC
+    `);
+    const rows = stmt.all(questionId) as (DbQuestion & { _depth: number })[];
+    // Strip the helper column
+    return rows.map(({ _depth, ...rest }) => rest as DbQuestion);
   },
 
   /**
-   * Get the full subtree under a question (BFS).
-   * Returns flat array including the root question.
+   * Get the full subtree under a question.
+   * Returns flat array including the root question, ordered by tree depth then created_at.
+   * Uses a recursive CTE to traverse the tree in a single query.
    */
   getSubtree: (questionId: string): DbQuestion[] => {
     const db = getDatabase();
-    const result: DbQuestion[] = [];
-    const queue: string[] = [questionId];
-
-    const childStmt = db.prepare(`
-      SELECT * FROM questions WHERE parent_id = ? ORDER BY created_at ASC
+    const stmt = db.prepare(`
+      WITH RECURSIVE subtree AS (
+        SELECT *, 0 AS _depth FROM questions WHERE id = ?
+        UNION ALL
+        SELECT q.*, s._depth + 1 FROM questions q
+        JOIN subtree s ON q.parent_id = s.id
+      )
+      SELECT * FROM subtree ORDER BY _depth ASC, created_at ASC
     `);
-
-    // Include the root itself
-    const root = selectOne<DbQuestion>(db, 'SELECT * FROM questions WHERE id = ?', questionId);
-    if (root) result.push(root);
-
-    while (queue.length > 0) {
-      const parentId = queue.shift()!;
-      const children = childStmt.all(parentId) as DbQuestion[];
-      for (const child of children) {
-        result.push(child);
-        queue.push(child.id);
-      }
-    }
-
-    return result;
+    const rows = stmt.all(questionId) as (DbQuestion & { _depth: number })[];
+    return rows.map(({ _depth, ...rest }) => rest as DbQuestion);
   },
 
   /**

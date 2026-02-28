@@ -167,7 +167,7 @@ class RulesLoader {
       }
 
       // Replace all occurrences of the placeholder
-      result = result.replace(new RegExp(escapeRegExp(placeholder), 'g'), value);
+      result = result.replaceAll(placeholder, value);
     }
 
     return result;
@@ -179,13 +179,6 @@ class RulesLoader {
   clear(): void {
     this.rules.clear();
   }
-}
-
-/**
- * Escape special regex characters in a string
- */
-function escapeRegExp(string: string): string {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**

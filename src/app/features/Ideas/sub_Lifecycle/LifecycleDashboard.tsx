@@ -495,7 +495,7 @@ export default function LifecycleDashboard({
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="px-4 pb-4 max-h-64 overflow-y-auto"
+              className="px-4 pb-4 max-h-96 overflow-y-auto"
             >
               <LifecycleTimeline events={events} compact />
             </motion.div>

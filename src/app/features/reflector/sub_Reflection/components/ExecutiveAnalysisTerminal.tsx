@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CompactTerminal } from '@/components/cli/CompactTerminal';
 import type { QueuedTask } from '@/components/cli/types';
+import { createQueuedStatus, createRunningStatus, createCompletedStatus, createFailedStatus } from '@/app/features/TaskRunner/lib/types';
 
 interface ExecutiveAnalysisTerminalProps {
   analysisStatus: string;
@@ -40,7 +41,7 @@ export function ExecutiveAnalysisTerminal({
           projectPath,
           projectName,
           requirementName: `Analysis ${runningAnalysisId.slice(0, 12)}`,
-          status: 'pending',
+          status: createQueuedStatus(),
           addedAt: Date.now(),
           directPrompt: promptContent,
         };
@@ -61,7 +62,7 @@ export function ExecutiveAnalysisTerminal({
   const handleTaskStart = useCallback((taskId: string) => {
     setStoredTaskId(taskId);
     if (terminalTask) {
-      setTerminalTask({ ...terminalTask, status: 'running', startedAt: Date.now() });
+      setTerminalTask({ ...terminalTask, status: createRunningStatus(), startedAt: Date.now() });
     }
   }, [terminalTask]);
 
@@ -72,7 +73,7 @@ export function ExecutiveAnalysisTerminal({
     if (terminalTask) {
       setTerminalTask({
         ...terminalTask,
-        status: success ? 'completed' : 'failed',
+        status: success ? createCompletedStatus() : createFailedStatus('Task failed'),
         completedAt: Date.now(),
       });
     }

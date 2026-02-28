@@ -9,7 +9,6 @@ import {
   TrendingUp,
   Palette,
   Compass,
-  GraduationCap,
   Sparkles,
   Heart,
   Wrench,
@@ -100,13 +99,13 @@ export const SCAN_TYPE_CONFIG: Record<ScanType, ScanTypeConfig> = {
     bgGradient: 'from-blue-500/5 to-blue-600/2',
     description: 'Adjacent feature opportunities'
   },
-  onboarding_optimizer: {
-    label: 'Onboarding Optimizer',
-    icon: GraduationCap,
-    color: 'text-orange-400',
-    borderColor: 'border-orange-500/40',
-    bgGradient: 'from-orange-500/5 to-orange-600/2',
-    description: 'User experience & time-to-value'
+  tech_innovator: {
+    label: 'Tony Stark',
+    icon: Wrench,
+    color: 'text-red-400',
+    borderColor: 'border-red-500/40',
+    bgGradient: 'from-red-500/5 to-amber-500/2',
+    description: 'Tech stack mastery & innovative engineering'
   },
   ai_integration_scout: {
     label: 'AI Integration Scout',

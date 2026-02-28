@@ -181,6 +181,129 @@ export interface DbPattern {
   updated_at: string;
 }
 
+// ============= CamelCase types (used by API routes) =============
+
+export interface Call {
+  callId: string;
+  userId?: string;
+  startTime: string;
+  endTime?: string;
+  duration?: number;
+  status: 'active' | 'completed' | 'failed' | 'abandoned';
+  intent?: string;
+  outcome?: string;
+  promptVersionId?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Message {
+  messageId: string;
+  callId: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: string;
+  nodeId?: string;
+  latencyMs?: number;
+  metadata?: Record<string, unknown>;
+  evalOk: boolean;
+  reviewOk: boolean;
+  evalClass?: string;
+  createdAt: string;
+}
+
+export interface MessageClass {
+  classId: string;
+  className: string;
+  description?: string;
+  frequency: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Pattern {
+  patternId: string;
+  patternType: 'flow' | 'decision' | 'failure';
+  description?: string;
+  frequency: number;
+  exampleCallIds?: string[];
+  detectedAt: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CallStatistics {
+  total: number;
+  completed: number;
+  failed: number;
+  abandoned: number;
+  active: number;
+  avgDuration: number | null;
+}
+
+// ============= Conversion functions =============
+
+function dbCallToCall(dbCall: DbCall): Call {
+  return {
+    callId: dbCall.call_id,
+    userId: dbCall.user_id || undefined,
+    startTime: dbCall.start_time,
+    endTime: dbCall.end_time || undefined,
+    duration: dbCall.duration || undefined,
+    status: (dbCall.status as Call['status']) || 'active',
+    intent: dbCall.intent || undefined,
+    outcome: dbCall.outcome || undefined,
+    promptVersionId: dbCall.prompt_version_id || undefined,
+    metadata: dbCall.metadata ? JSON.parse(dbCall.metadata) : undefined,
+    createdAt: dbCall.created_at,
+    updatedAt: dbCall.updated_at,
+  };
+}
+
+function dbMessageToMessage(dbMessage: DbMessage): Message {
+  return {
+    messageId: dbMessage.message_id,
+    callId: dbMessage.call_id,
+    role: dbMessage.role as Message['role'],
+    content: dbMessage.content,
+    timestamp: dbMessage.timestamp,
+    nodeId: dbMessage.node_id || undefined,
+    latencyMs: dbMessage.latency_ms || undefined,
+    metadata: dbMessage.metadata ? JSON.parse(dbMessage.metadata) : undefined,
+    evalOk: dbMessage.eval_ok === 1,
+    reviewOk: dbMessage.review_ok === 1,
+    evalClass: dbMessage.eval_class || undefined,
+    createdAt: dbMessage.created_at,
+  };
+}
+
+function dbMessageClassToMessageClass(dbClass: DbMessageClass): MessageClass {
+  return {
+    classId: dbClass.class_id,
+    className: dbClass.class_name,
+    description: dbClass.description || undefined,
+    frequency: dbClass.frequency,
+    createdAt: dbClass.created_at,
+    updatedAt: dbClass.updated_at,
+  };
+}
+
+function dbPatternToPattern(dbPattern: DbPattern): Pattern {
+  return {
+    patternId: dbPattern.pattern_id,
+    patternType: dbPattern.pattern_type as Pattern['patternType'],
+    description: dbPattern.description || undefined,
+    frequency: dbPattern.frequency,
+    exampleCallIds: dbPattern.example_call_ids ? JSON.parse(dbPattern.example_call_ids) : undefined,
+    detectedAt: dbPattern.detected_at,
+    metadata: dbPattern.metadata ? JSON.parse(dbPattern.metadata) : undefined,
+    createdAt: dbPattern.created_at,
+    updatedAt: dbPattern.updated_at,
+  };
+}
+
 // Monitor database operations
 export const monitorDb = {
   // ============= CALLS OPERATIONS =============
@@ -626,8 +749,109 @@ export const monitorDb = {
     return (stmt.get(callId) as { count: number }).count;
   },
 
+  // ============= CAMELCASE API (used by API routes) =============
+
+  calls: {
+    getAll: (): Call[] => monitorDb.getAllCalls().map(dbCallToCall),
+    get: (callId: string): Call | null => {
+      const row = monitorDb.getCall(callId);
+      return row ? dbCallToCall(row) : null;
+    },
+    getByStatus: (status: Call['status']): Call[] => monitorDb.getCallsByStatus(status).map(dbCallToCall),
+    getByDateRange: (start: string, end: string): Call[] => monitorDb.getCallsByDateRange(start, end).map(dbCallToCall),
+    create: (call: {
+      callId: string; userId?: string; startTime: string;
+      status?: Call['status']; intent?: string; promptVersionId?: string;
+      metadata?: Record<string, unknown>;
+    }): Call => dbCallToCall(monitorDb.createCall({
+      call_id: call.callId, user_id: call.userId, start_time: call.startTime,
+      status: call.status, intent: call.intent, prompt_version_id: call.promptVersionId,
+      metadata: call.metadata,
+    })),
+    update: (callId: string, updates: {
+      endTime?: string; duration?: number; status?: Call['status'];
+      intent?: string; outcome?: string; promptVersionId?: string;
+      metadata?: Record<string, unknown>;
+    }): Call | null => {
+      const row = monitorDb.updateCall(callId, {
+        end_time: updates.endTime, duration: updates.duration, status: updates.status,
+        intent: updates.intent, outcome: updates.outcome, prompt_version_id: updates.promptVersionId,
+        metadata: updates.metadata,
+      });
+      return row ? dbCallToCall(row) : null;
+    },
+    delete: (callId: string): boolean => {
+      monitorDb.deletePatternsForCall(callId);
+      return monitorDb.deleteCall(callId);
+    },
+    getStatistics: (): CallStatistics => monitorDb.getCallStatistics(),
+    getMessageCount: (callId: string): number => monitorDb.getMessageCount(callId),
+  },
+
+  messages: {
+    getForCall: (callId: string): Message[] => monitorDb.getCallMessages(callId).map(dbMessageToMessage),
+    get: (messageId: string): Message | null => {
+      const row = monitorDb.getMessage(messageId);
+      return row ? dbMessageToMessage(row) : null;
+    },
+    create: (msg: {
+      messageId: string; callId: string; role: Message['role']; content: string;
+      timestamp: string; nodeId?: string; latencyMs?: number;
+      metadata?: Record<string, unknown>;
+    }): Message => dbMessageToMessage(monitorDb.createMessage({
+      message_id: msg.messageId, call_id: msg.callId, role: msg.role,
+      content: msg.content, timestamp: msg.timestamp, node_id: msg.nodeId,
+      latency_ms: msg.latencyMs, metadata: msg.metadata,
+    })),
+    delete: (messageId: string): boolean => monitorDb.deleteMessage(messageId),
+    updateEvaluation: (messageId: string, evalData: {
+      evalOk?: boolean; reviewOk?: boolean; evalClass?: string;
+    }): Message | null => {
+      const row = monitorDb.updateMessageEvaluation(messageId, {
+        eval_ok: evalData.evalOk, review_ok: evalData.reviewOk, eval_class: evalData.evalClass,
+      });
+      return row ? dbMessageToMessage(row) : null;
+    },
+  },
+
+  messageClasses: {
+    getAll: (): MessageClass[] => monitorDb.getAllMessageClasses().map(dbMessageClassToMessageClass),
+    getByName: (className: string): MessageClass | null => {
+      const row = monitorDb.getMessageClassByName(className);
+      return row ? dbMessageClassToMessageClass(row) : null;
+    },
+    create: (mc: { classId: string; className: string; description?: string }): MessageClass =>
+      dbMessageClassToMessageClass(monitorDb.createMessageClass({
+        class_id: mc.classId, class_name: mc.className, description: mc.description,
+      })),
+    incrementFrequency: (className: string): boolean => monitorDb.incrementMessageClassFrequency(className),
+  },
+
+  patterns: {
+    getAll: (): Pattern[] => monitorDb.getAllPatterns().map(dbPatternToPattern),
+    getByType: (type: Pattern['patternType']): Pattern[] => monitorDb.getPatternsByType(type).map(dbPatternToPattern),
+    get: (patternId: string): Pattern | null => {
+      const row = monitorDb.getPattern(patternId);
+      return row ? dbPatternToPattern(row) : null;
+    },
+    create: (p: {
+      patternId: string; patternType: Pattern['patternType']; description?: string;
+      frequency?: number; exampleCallIds?: string[]; detectedAt: string;
+      metadata?: Record<string, unknown>;
+    }): Pattern => dbPatternToPattern(monitorDb.createPattern({
+      pattern_id: p.patternId, pattern_type: p.patternType, description: p.description,
+      frequency: p.frequency, example_call_ids: p.exampleCallIds, detected_at: p.detectedAt,
+      metadata: p.metadata,
+    })),
+    updateFrequency: (patternId: string, frequency: number): Pattern | null => {
+      const row = monitorDb.updatePatternFrequency(patternId, frequency);
+      return row ? dbPatternToPattern(row) : null;
+    },
+    delete: (patternId: string): boolean => monitorDb.deletePattern(patternId),
+  },
+
   // ============= CLEANUP OPERATIONS =============
-  
+
   // Close database connection
   close: () => {
     if (db) {

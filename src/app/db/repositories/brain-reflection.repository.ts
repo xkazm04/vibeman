@@ -6,10 +6,7 @@
 import { getDatabase } from '../connection';
 import type {
   DbBrainReflection,
-  ReflectionStatus,
-  ReflectionTriggerType,
   CreateBrainReflectionInput,
-  LearningInsight,
 } from '../models/brain.types';
 import { getCurrentTimestamp, selectOne, selectAll } from './repository.utils';
 
@@ -159,7 +156,6 @@ export const brainReflectionRepository = {
       directions_analyzed: number;
       outcomes_analyzed: number;
       signals_analyzed: number;
-      insights_generated: LearningInsight[];
       guide_sections_updated: string[];
     }
   ): DbBrainReflection | null => {
@@ -173,7 +169,6 @@ export const brainReflectionRepository = {
           directions_analyzed = ?,
           outcomes_analyzed = ?,
           signals_analyzed = ?,
-          insights_generated = ?,
           guide_sections_updated = ?
       WHERE id = ?
     `);
@@ -183,7 +178,6 @@ export const brainReflectionRepository = {
       data.directions_analyzed,
       data.outcomes_analyzed,
       data.signals_analyzed,
-      JSON.stringify(data.insights_generated),
       JSON.stringify(data.guide_sections_updated),
       id
     );
@@ -254,12 +248,10 @@ export const brainReflectionRepository = {
       projectId
     );
 
-    // Count total insights across all reflections
+    // Count total insights from the normalized brain_insights table
     const insights = selectOne<{ total: number }>(
       db,
-      `SELECT SUM(json_array_length(insights_generated)) as total
-       FROM brain_reflections
-       WHERE project_id = ? AND insights_generated IS NOT NULL`,
+      `SELECT COUNT(*) as total FROM brain_insights WHERE project_id = ?`,
       projectId
     );
 
@@ -309,60 +301,6 @@ export const brainReflectionRepository = {
   },
 
   /**
-   * Get all insights from completed reflections for a project
-   * Used to prevent duplicate insight generation
-   */
-  getAllInsights: (projectId: string, limit: number = 20): LearningInsight[] => {
-    const db = getDatabase();
-    const rows = selectAll<{ insights_generated: string }>(
-      db,
-      `SELECT insights_generated FROM brain_reflections
-       WHERE project_id = ? AND status = 'completed' AND insights_generated IS NOT NULL
-       ORDER BY completed_at DESC
-       LIMIT ?`,
-      projectId,
-      limit
-    );
-
-    const all: LearningInsight[] = [];
-    for (const row of rows) {
-      try {
-        const parsed = JSON.parse(row.insights_generated);
-        if (Array.isArray(parsed)) all.push(...parsed);
-      } catch { /* skip corrupted rows */ }
-    }
-    return all;
-  },
-
-  /**
-   * Get all insights from completed reflections across all projects (global)
-   */
-  getAllInsightsGlobal: (limit: number = 30): Array<LearningInsight & { project_id: string }> => {
-    const db = getDatabase();
-    const rows = selectAll<{ insights_generated: string; project_id: string }>(
-      db,
-      `SELECT insights_generated, project_id FROM brain_reflections
-       WHERE status = 'completed' AND insights_generated IS NOT NULL
-       ORDER BY completed_at DESC
-       LIMIT ?`,
-      limit
-    );
-
-    const all: Array<LearningInsight & { project_id: string }> = [];
-    for (const row of rows) {
-      try {
-        const parsed = JSON.parse(row.insights_generated);
-        if (Array.isArray(parsed)) {
-          for (const insight of parsed) {
-            all.push({ ...insight, project_id: row.project_id });
-          }
-        }
-      } catch { /* skip corrupted rows */ }
-    }
-    return all;
-  },
-
-  /**
    * Get running global reflection (scope = 'global')
    */
   getRunningGlobal: (): DbBrainReflection | null => {
@@ -390,13 +328,4 @@ export const brainReflectionRepository = {
     );
   },
 
-  /**
-   * Update insights_generated JSON for a reflection (used for deletion)
-   */
-  updateInsights: (reflectionId: string, insightsJson: string): void => {
-    const db = getDatabase();
-    db.prepare(
-      `UPDATE brain_reflections SET insights_generated = ? WHERE id = ?`
-    ).run(insightsJson, reflectionId);
-  },
 };

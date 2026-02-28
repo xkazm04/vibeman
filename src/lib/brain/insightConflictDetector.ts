@@ -5,6 +5,7 @@
  */
 
 import type { LearningInsight } from '@/app/db/models/brain.types';
+import { normalize, tokenOverlap, CONFLICT_THRESHOLD } from './insightSimilarity';
 
 // Opposing keyword pairs that indicate potential conflicts
 const OPPOSING_KEYWORDS: Array<[string[], string[]]> = [
@@ -40,17 +41,10 @@ export interface ConflictResult {
 }
 
 /**
- * Normalize text for comparison
- */
-function normalizeText(text: string): string {
-  return text.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
-}
-
-/**
  * Check if text contains any keywords from a set
  */
 function containsKeywords(text: string, keywords: string[]): boolean {
-  const normalized = normalizeText(text);
+  const normalized = normalize(text);
   return keywords.some(kw => normalized.includes(kw.toLowerCase()));
 }
 
@@ -58,7 +52,7 @@ function containsKeywords(text: string, keywords: string[]): boolean {
  * Check if text contains negation before a keyword
  */
 function hasNegatedKeyword(text: string, keywords: string[]): boolean {
-  const normalized = normalizeText(text);
+  const normalized = normalize(text);
   for (const kw of keywords) {
     const kwLower = kw.toLowerCase();
     const idx = normalized.indexOf(kwLower);
@@ -70,24 +64,6 @@ function hasNegatedKeyword(text: string, keywords: string[]): boolean {
     }
   }
   return false;
-}
-
-/**
- * Calculate simple word overlap similarity (Jaccard-like)
- */
-function calculateWordSimilarity(text1: string, text2: string): number {
-  const words1 = new Set(normalizeText(text1).split(' ').filter(w => w.length > 3));
-  const words2 = new Set(normalizeText(text2).split(' ').filter(w => w.length > 3));
-
-  if (words1.size === 0 || words2.size === 0) return 0;
-
-  let intersection = 0;
-  for (const w of words1) {
-    if (words2.has(w)) intersection++;
-  }
-
-  const union = words1.size + words2.size - intersection;
-  return union > 0 ? intersection / union : 0;
 }
 
 /**
@@ -156,12 +132,12 @@ function detectSemanticConflict(
   const text2 = `${insight2.title} ${insight2.description}`;
 
   // High similarity but different type suggests potential conflict
-  const similarity = calculateWordSimilarity(text1, text2);
+  const similarity = tokenOverlap(text1, text2, 4);
 
-  if (similarity > 0.4) {
+  if (similarity > CONFLICT_THRESHOLD) {
     // Check for negation differences
-    const hasNeg1 = NEGATION_PATTERNS.some(neg => normalizeText(text1).includes(neg));
-    const hasNeg2 = NEGATION_PATTERNS.some(neg => normalizeText(text2).includes(neg));
+    const hasNeg1 = NEGATION_PATTERNS.some(neg => normalize(text1).includes(neg));
+    const hasNeg2 = NEGATION_PATTERNS.some(neg => normalize(text2).includes(neg));
 
     if (hasNeg1 !== hasNeg2) {
       return {

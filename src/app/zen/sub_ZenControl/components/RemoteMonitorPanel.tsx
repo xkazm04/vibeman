@@ -386,7 +386,7 @@ function EventItem({ event }: { event: RemoteEvent }) {
       <span className={eventConfig.color}>{eventConfig.icon}</span>
       <span className="text-gray-400 truncate flex-1">
         {eventConfig.label}
-        {event.payload?.name && (
+        {event.payload?.name != null && (
           <span className="text-gray-500">: {String(event.payload.name)}</span>
         )}
       </span>

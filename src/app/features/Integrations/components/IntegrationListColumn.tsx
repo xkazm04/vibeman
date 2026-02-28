@@ -79,7 +79,13 @@ export const PROVIDER_CONFIG: Record<IntegrationProvider, {
     border: 'border-gray-500/30',
     text: 'text-gray-400',
   },
-  // Note: 'supabase' removed - use Zen Mode for cross-device sync
+  supabase: {
+    label: 'Supabase',
+    icon: '⚡',
+    gradient: 'from-emerald-700/20 to-emerald-900/20',
+    border: 'border-emerald-500/30',
+    text: 'text-emerald-400',
+  },
   postgres: {
     label: 'PostgreSQL',
     icon: '🐘',

@@ -16,10 +16,6 @@ interface ContextRowSelectionProps {
   contextGroups: ContextGroup[];
   selectedContextIds: string[];
   onSelectContexts: (contextIds: string[]) => void;
-  /** Groups selected as whole units for requirement generation */
-  selectedGroupIdsForGeneration?: string[];
-  /** Callback when groups are selected for generation via Shift+Click */
-  onSelectGroupsForGeneration?: (groupIds: string[]) => void;
 }
 
 export default function ContextRowSelection({
@@ -27,38 +23,22 @@ export default function ContextRowSelection({
   contextGroups,
   selectedContextIds,
   onSelectContexts,
-  selectedGroupIdsForGeneration: externalSelectedGroupIdsForGeneration,
-  onSelectGroupsForGeneration,
 }: ContextRowSelectionProps) {
   const { getThemeColors } = useThemeStore();
 
   // Internal state: which groups are expanded (to show individual contexts)
   const [selectedGroupIds, setSelectedGroupIds] = React.useState<string[]>([]);
 
-  // State for groups selected as whole units for requirement generation (Shift+Click)
-  const [internalSelectedGroupIdsForGeneration, setInternalSelectedGroupIdsForGeneration] = React.useState<string[]>([]);
-  const selectedGroupIdsForGeneration = externalSelectedGroupIdsForGeneration ?? internalSelectedGroupIdsForGeneration;
-
-  const updateGroupsForGeneration = React.useCallback((groupIds: string[]) => {
-    if (onSelectGroupsForGeneration) {
-      onSelectGroupsForGeneration(groupIds);
-    } else {
-      setInternalSelectedGroupIdsForGeneration(groupIds);
-    }
-  }, [onSelectGroupsForGeneration]);
-
-  const isFullProjectSelected = selectedContextIds.length === 0 && selectedGroupIds.length === 0 && selectedGroupIdsForGeneration.length === 0;
+  const isFullProjectSelected = selectedContextIds.length === 0 && selectedGroupIds.length === 0;
 
   const handleFullProjectClick = () => {
     setSelectedGroupIds([]);
     onSelectContexts([]);
-    updateGroupsForGeneration([]);
   };
 
   const handleClearAll = () => {
     setSelectedGroupIds([]);
     onSelectContexts([]);
-    updateGroupsForGeneration([]);
   };
 
   // Count contexts per group (for badge display)
@@ -70,16 +50,31 @@ export default function ContextRowSelection({
     return counts;
   }, [contextGroups, contexts]);
 
+  // Map group ID → child context IDs (for shift+click bulk toggle)
+  const contextIdsByGroup = React.useMemo(() => {
+    const map: Record<string, string[]> = {};
+    contextGroups.forEach((group) => {
+      map[group.id] = contexts
+        .filter((ctx) => ctx.groupId === group.id)
+        .map((ctx) => ctx.id);
+    });
+    return map;
+  }, [contextGroups, contexts]);
+
   // Groups with at least one context
   const nonEmptyGroups = React.useMemo(
     () => contextGroups.filter((g) => (contextCountByGroup[g.id] || 0) > 0),
     [contextGroups, contextCountByGroup],
   );
 
-  // Selection counts for badge
+  // Check if all contexts of a group are selected
+  const isGroupFullySelected = React.useCallback((groupId: string) => {
+    const childIds = contextIdsByGroup[groupId] || [];
+    return childIds.length > 0 && childIds.every((id) => selectedContextIds.includes(id));
+  }, [contextIdsByGroup, selectedContextIds]);
+
+  // Selection count for badge
   const contextCount = selectedContextIds.length;
-  const groupCount = selectedGroupIdsForGeneration.length;
-  const totalSelectedCount = contextCount + groupCount;
 
   // --- Level definitions for HierarchicalSelector ---
 
@@ -91,45 +86,50 @@ export default function ContextRowSelection({
     renderItem: (group, { isSelected, onToggle }) => {
       const count = contextCountByGroup[group.id] || 0;
       const rgb = getRGBFromHex(group.color || '#6b7280');
-      const isSelectedForGeneration = selectedGroupIdsForGeneration.includes(group.id);
+      const allChildrenSelected = isGroupFullySelected(group.id);
 
       return (
         <motion.button
           data-testid={`context-group-select-${group.id}`}
           onClick={(e) => {
             if (e.shiftKey) {
-              // Shift+Click: toggle group for generation
-              if (selectedGroupIdsForGeneration.includes(group.id)) {
-                updateGroupsForGeneration(selectedGroupIdsForGeneration.filter((id) => id !== group.id));
+              // Shift+Click: toggle all child contexts of this group
+              const childIds = contextIdsByGroup[group.id] || [];
+              if (allChildrenSelected) {
+                // Deselect all children
+                onSelectContexts(selectedContextIds.filter((id) => !childIds.includes(id)));
               } else {
-                updateGroupsForGeneration([...selectedGroupIdsForGeneration, group.id]);
-                if (!selectedGroupIds.includes(group.id)) {
-                  setSelectedGroupIds((prev) => [...prev, group.id]);
-                }
+                // Select all children (union with existing)
+                const merged = new Set([...selectedContextIds, ...childIds]);
+                onSelectContexts([...merged]);
+              }
+              // Also expand the group so user can see the children
+              if (!selectedGroupIds.includes(group.id)) {
+                setSelectedGroupIds((prev) => [...prev, group.id]);
               }
             } else {
               onToggle();
             }
           }}
-          title="Click to expand/collapse. Shift+Click to select entire group for generation."
+          title="Click to expand/collapse. Shift+Click to select all contexts in this group."
           className={`relative shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 ${
-            isSelected || isSelectedForGeneration
+            isSelected || allChildrenSelected
               ? 'text-white border-2'
               : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300'
           }`}
           style={{
-            backgroundColor: (isSelected || isSelectedForGeneration) ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.25)` : undefined,
-            borderColor: isSelectedForGeneration ? '#22c55e' : (isSelected ? group.color : undefined),
+            backgroundColor: (isSelected || allChildrenSelected) ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.25)` : undefined,
+            borderColor: allChildrenSelected ? '#22c55e' : (isSelected ? group.color : undefined),
           }}
           whileHover={{
-            boxShadow: (isSelected || isSelectedForGeneration)
+            boxShadow: (isSelected || allChildrenSelected)
               ? `0 0 12px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`
               : '0 0 8px rgba(107, 114, 128, 0.3)',
           }}
           whileTap={{ scale: 0.95 }}
         >
           <AnimatePresence>
-            {isSelectedForGeneration && (
+            {allChildrenSelected && (
               <motion.div
                 className="absolute -top-1.5 -right-1.5 bg-green-500 rounded-full p-0.5 shadow-lg"
                 initial={{ opacity: 0, scale: 0 }}
@@ -143,7 +143,7 @@ export default function ContextRowSelection({
           </AnimatePresence>
           <span>{group.name}</span>
           <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-            isSelected || isSelectedForGeneration ? 'bg-white/20 text-white' : 'bg-gray-700/60 text-gray-500'
+            isSelected || allChildrenSelected ? 'bg-white/20 text-white' : 'bg-gray-700/60 text-gray-500'
           }`}>
             {count}
           </span>
@@ -157,7 +157,7 @@ export default function ContextRowSelection({
       return childSelectedIds.filter((id) => !groupContextIds.includes(id));
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [nonEmptyGroups, contextCountByGroup, selectedGroupIdsForGeneration, selectedGroupIds, contexts, updateGroupsForGeneration]);
+  }), [nonEmptyGroups, contextCountByGroup, selectedGroupIds, contexts, contextIdsByGroup, selectedContextIds, onSelectContexts, isGroupFullySelected]);
 
   const contextLevel: HierarchicalLevel<Context> = React.useMemo(() => ({
     key: 'contexts',
@@ -253,7 +253,7 @@ export default function ContextRowSelection({
 
         {/* Selection count badge */}
         <AnimatePresence>
-          {totalSelectedCount > 0 && (
+          {contextCount > 0 && (
             <motion.span
               className="shrink-0 px-2 py-1 rounded-full text-[10px] font-semibold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
               initial={{ opacity: 0, scale: 0.8 }}
@@ -261,11 +261,7 @@ export default function ContextRowSelection({
               exit={{ opacity: 0, scale: 0.8 }}
               data-testid="context-selection-count"
             >
-              {groupCount > 0 && contextCount > 0
-                ? `${contextCount} ctx + ${groupCount} grp`
-                : groupCount > 0
-                  ? `${groupCount} group${groupCount > 1 ? 's' : ''}`
-                  : `${contextCount} selected`}
+              {contextCount} selected
             </motion.span>
           )}
         </AnimatePresence>

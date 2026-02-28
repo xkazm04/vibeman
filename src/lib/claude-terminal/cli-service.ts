@@ -1,13 +1,14 @@
 /**
- * CLI-based Claude Terminal Service
+ * CLI-based Terminal Service
  *
- * Spawns Claude Code CLI process and parses stream-json output.
- * Uses web subscription authentication instead of API key.
+ * Spawns CLI processes (Claude Code or Gemini CLI) and parses stream-json output.
+ * Provider-agnostic: the buildSpawnConfig() function maps provider+model to command/args/env.
  */
 
 import { spawn, ChildProcess } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import type { CLIProvider, CLIProviderConfig } from './types';
 
 // Stream-json message types from Claude CLI
 export interface CLISystemMessage {
@@ -67,9 +68,62 @@ export interface CLIResultMessage {
   duration_ms?: number;
   cost_usd?: number;
   is_error?: boolean;
+  // Gemini result fields
+  status?: string;
+  stats?: {
+    total_tokens?: number;
+    input_tokens?: number;
+    output_tokens?: number;
+    cached?: number;
+    input?: number;
+    duration_ms?: number;
+    tool_calls?: number;
+  };
+  error?: { type?: string; message?: string } | string;
 }
 
-export type CLIMessage = CLISystemMessage | CLIAssistantMessage | CLIUserMessage | CLIResultMessage;
+// Gemini-specific stream-json message types
+export interface GeminiInitMessage {
+  type: 'init';
+  session_id?: string;
+  model?: string;
+  timestamp?: string;
+}
+
+export interface GeminiTextMessage {
+  type: 'message';
+  role: string;
+  content: string;
+  delta?: boolean;
+  timestamp?: string;
+}
+
+export interface GeminiToolUseMessage {
+  type: 'tool_use';
+  tool_name: string;
+  tool_id: string;
+  parameters?: Record<string, unknown>;
+  timestamp?: string;
+}
+
+export interface GeminiToolResultMessage {
+  type: 'tool_result';
+  tool_id: string;
+  status?: string;
+  output?: string | Record<string, unknown>;
+  error?: { type?: string; message?: string };
+  timestamp?: string;
+}
+
+export type CLIMessage =
+  | CLISystemMessage
+  | CLIAssistantMessage
+  | CLIUserMessage
+  | CLIResultMessage
+  | GeminiInitMessage
+  | GeminiTextMessage
+  | GeminiToolUseMessage
+  | GeminiToolResultMessage;
 
 // Events emitted during execution
 export interface CLIExecutionEvent {
@@ -84,6 +138,7 @@ export interface CLIExecution {
   prompt: string;
   process: ChildProcess | null;
   sessionId?: string;
+  provider?: CLIProvider;
   status: 'running' | 'completed' | 'error' | 'aborted';
   startTime: number;
   endTime?: number;
@@ -120,12 +175,93 @@ function ensureLogsDirectory(projectPath: string): void {
 }
 
 /**
- * Generate log file path
+ * Generate log file path (prefixed with provider name)
  */
-function getLogFilePath(projectPath: string, executionId: string): string {
+function getLogFilePath(projectPath: string, executionId: string, provider: CLIProvider = 'claude'): string {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const sanitized = executionId.replace(/[^a-zA-Z0-9-_]/g, '_').slice(0, 50);
-  return path.join(getLogsDirectory(projectPath), `terminal_${sanitized}_${timestamp}.log`);
+  return path.join(getLogsDirectory(projectPath), `${provider}_${sanitized}_${timestamp}.log`);
+}
+
+/**
+ * Build provider-specific spawn configuration.
+ * Maps (provider, model, prompt) → (command, args, env, stdinPrompt).
+ */
+interface SpawnConfig {
+  command: string;
+  args: string[];
+  env: NodeJS.ProcessEnv;
+  /** If true, write prompt to stdin; otherwise prompt is in args */
+  stdinPrompt: boolean;
+}
+
+function buildSpawnConfig(
+  prompt: string,
+  resumeSessionId?: string,
+  providerConfig?: CLIProviderConfig
+): SpawnConfig {
+  const provider = providerConfig?.provider || 'claude';
+  const model = providerConfig?.model;
+
+  if (provider === 'vscode') {
+    throw new Error('VS Code provider uses direct HTTP communication with the vibeman-bridge extension. It cannot be executed via the CLI service.');
+  }
+
+  if (provider === 'ollama') {
+    // Ollama supports Anthropic Messages API at /v1/messages.
+    // Claude CLI sends to ANTHROPIC_BASE_URL + '/v1/messages', so we point
+    // the base URL at Ollama's root. Auth uses Ollama's SSH keypair
+    // (run `ollama login` or visit the signin URL if cloud models fail).
+    // OLLAMA_API_KEY is passed as a fallback for API key auth setups.
+    const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    const ollamaApiKey = process.env.OLLAMA_API_KEY || 'ollama';
+
+    const args = [
+      '-p', '-', // Read from stdin
+      '--output-format', 'stream-json',
+      '--verbose',
+      '--dangerously-skip-permissions',
+      '--model', model || 'qwen3.5:cloud',
+    ];
+    if (resumeSessionId) args.push('--resume', resumeSessionId);
+
+    const env = { ...process.env };
+    env.ANTHROPIC_BASE_URL = ollamaBaseUrl;
+    env.ANTHROPIC_API_KEY = ollamaApiKey;
+    return { command: 'claude', args, env, stdinPrompt: true };
+  }
+
+  if (provider === 'gemini') {
+    const args = [
+      '-o', 'stream-json',
+      '--approval-mode=yolo',
+    ];
+    if (model) args.push('-m', model);
+    if (resumeSessionId) args.push('--resume', resumeSessionId);
+    // Use stdin for prompt delivery + '-p _' to trigger headless mode.
+    // On Windows, shell:true causes spawn to split multi-word -p values
+    // into positional args. Gemini appends stdin to -p value, so the
+    // effective prompt is: <stdin>\n\n_ (trailing _ is harmless).
+    args.push('-p', '_');
+
+    const env = { ...process.env };
+    delete env.ANTHROPIC_API_KEY;
+    return { command: 'gemini', args, env, stdinPrompt: true };
+  }
+
+  // Claude (default)
+  const args = [
+    '-p', '-', // Read from stdin
+    '--output-format', 'stream-json',
+    '--verbose',
+    '--dangerously-skip-permissions',
+  ];
+  if (model) args.push('--model', model);
+  if (resumeSessionId) args.push('--resume', resumeSessionId);
+
+  const env = { ...process.env };
+  delete env.ANTHROPIC_API_KEY; // Force web subscription auth
+  return { command: 'claude', args, env, stdinPrompt: true };
 }
 
 /**
@@ -178,18 +314,21 @@ export function startExecution(
   projectPath: string,
   prompt: string,
   resumeSessionId?: string,
-  onEvent?: (event: CLIExecutionEvent) => void
+  onEvent?: (event: CLIExecutionEvent) => void,
+  providerConfig?: CLIProviderConfig
 ): string {
+  const provider = providerConfig?.provider || 'claude';
   const executionId = `exec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   ensureLogsDirectory(projectPath);
-  const logFilePath = getLogFilePath(projectPath, executionId);
+  const logFilePath = getLogFilePath(projectPath, executionId, provider);
 
   const execution: CLIExecution = {
     id: executionId,
     projectPath,
     prompt,
     process: null,
+    provider,
     status: 'running',
     startTime: Date.now(),
     events: [],
@@ -197,7 +336,7 @@ export function startExecution(
   };
 
   activeExecutions.set(executionId, execution);
-  console.log(`[CLI] Registered execution: ${executionId}. Total active: ${activeExecutions.size}`);
+  console.log(`[CLI:${provider}] Registered execution: ${executionId}. Total active: ${activeExecutions.size}`);
 
   // Create log file stream
   const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
@@ -229,8 +368,9 @@ export function startExecution(
     }
   };
 
-  logMessage('=== Claude Terminal Execution Started ===');
+  logMessage(`=== CLI Terminal Execution Started (${provider}) ===`);
   logMessage(`Execution ID: ${executionId}`);
+  logMessage(`Provider: ${provider}${providerConfig?.model ? ` (model: ${providerConfig.model})` : ''}`);
   logMessage(`Project Path: ${projectPath}`);
   logMessage(`Prompt length: ${prompt.length} characters`);
   if (resumeSessionId) {
@@ -238,40 +378,25 @@ export function startExecution(
   }
   logMessage('');
 
-  // Spawn CLI process
-  // On Windows, use 'claude' (not 'claude.cmd') because the shell resolves
-  // both .exe (WinGet installs) and .cmd (npm global installs) automatically.
+  // Build provider-specific spawn configuration
+  // On Windows, shell resolves both .exe and .cmd installs automatically
   const isWindows = process.platform === 'win32';
-  const command = 'claude';
-  const args = [
-    '-p',
-    '-', // Read from stdin
-    '--output-format',
-    'stream-json',
-    '--verbose',
-    '--dangerously-skip-permissions',
-  ];
-
-  if (resumeSessionId) {
-    args.push('--resume', resumeSessionId);
-  }
-
-  // Remove ANTHROPIC_API_KEY to force web subscription auth
-  const env = { ...process.env };
-  delete env.ANTHROPIC_API_KEY;
+  const spawnConfig = buildSpawnConfig(prompt, resumeSessionId, providerConfig);
 
   try {
-    const childProcess = spawn(command, args, {
+    const childProcess = spawn(spawnConfig.command, spawnConfig.args, {
       cwd: projectPath,
       stdio: ['pipe', 'pipe', 'pipe'],
       shell: isWindows,
-      env,
+      env: spawnConfig.env,
     });
 
     execution.process = childProcess;
 
-    // Write prompt to stdin
-    childProcess.stdin.write(prompt);
+    // Write prompt to stdin only for providers that use it (Claude)
+    if (spawnConfig.stdinPrompt) {
+      childProcess.stdin.write(prompt);
+    }
     childProcess.stdin.end();
 
     // Buffer for incomplete lines
@@ -280,11 +405,13 @@ export function startExecution(
     let initEventReceived = false;
     let assistantMessageCount = 0;
 
-    // Process a single line of JSON output
+    // Process a single line of JSON output.
+    // Handles both Claude CLI and Gemini CLI stream-json formats.
     const processLine = (line: string) => {
       const parsed = parseStreamJsonLine(line);
       if (!parsed) return;
 
+      // ── Claude: {"type":"system","subtype":"init",...}
       if (parsed.type === 'system' && parsed.subtype === 'init') {
         initEventReceived = true;
         execution.sessionId = parsed.session_id;
@@ -299,70 +426,131 @@ export function startExecution(
           },
           timestamp: Date.now(),
         });
+
+      // ── Gemini: {"type":"init","session_id":"...","model":"..."}
+      } else if (parsed.type === 'init') {
+        initEventReceived = true;
+        execution.sessionId = parsed.session_id;
+        emitEvent({
+          type: 'init',
+          data: {
+            sessionId: parsed.session_id,
+            model: parsed.model,
+          },
+          timestamp: Date.now(),
+        });
+
+      // ── Claude: {"type":"assistant","message":{"role":"assistant","content":[...]}}
       } else if (parsed.type === 'assistant') {
         assistantMessageCount++;
-        // Extract text content
         const textContent = extractTextContent(parsed);
         if (textContent) {
           emitEvent({
             type: 'text',
-            data: {
-              content: textContent,
-              model: parsed.message.model,
-            },
+            data: { content: textContent, model: parsed.message.model },
             timestamp: Date.now(),
           });
         }
-
-        // Extract tool uses
         const toolUses = extractToolUses(parsed);
         for (const toolUse of toolUses) {
           emitEvent({
             type: 'tool_use',
-            data: {
-              id: toolUse.id,
-              name: toolUse.name,
-              input: toolUse.input,
-            },
+            data: { id: toolUse.id, name: toolUse.name, input: toolUse.input },
             timestamp: Date.now(),
           });
         }
-      } else if (parsed.type === 'user') {
-        // Tool results
-        const results = parsed.message.content.filter(c => c.type === 'tool_result');
+
+      // ── Gemini: {"type":"message","role":"assistant","content":"...","delta":true}
+      // ── Gemini: {"type":"message","role":"user","content":"..."}
+      } else if (parsed.type === 'message') {
+        if (parsed.role === 'assistant' && parsed.content) {
+          assistantMessageCount++;
+          emitEvent({
+            type: 'text',
+            data: { content: parsed.content, model: undefined },
+            timestamp: Date.now(),
+          });
+        }
+        // Gemini tool calls come as separate action/action_result events (handled below)
+
+      // ── Gemini: {"type":"tool_use","tool_name":"glob","tool_id":"glob_...","parameters":{...}}
+      } else if (parsed.type === 'tool_use') {
+        emitEvent({
+          type: 'tool_use',
+          data: {
+            id: parsed.tool_id,
+            name: parsed.tool_name,
+            input: parsed.parameters || {},
+          },
+          timestamp: Date.now(),
+        });
+
+      // ── Gemini: {"type":"tool_result","tool_id":"glob_...","status":"success","output":"..."}
+      } else if (parsed.type === 'tool_result') {
+        emitEvent({
+          type: 'tool_result',
+          data: {
+            toolUseId: parsed.tool_id,
+            content: typeof parsed.output === 'string' ? parsed.output : JSON.stringify(parsed.output || ''),
+          },
+          timestamp: Date.now(),
+        });
+
+      // ── Claude: {"type":"user","message":{"content":[{"type":"tool_result",...}]}}
+      } else if (parsed.type === 'user' && parsed.message?.content) {
+        const results = parsed.message.content.filter((c: any) => c.type === 'tool_result');
         for (const result of results) {
-          // Normalize content to string - Claude CLI can return content as
-          // string or Array<{type: "text", text: "..."}> (Anthropic API format)
           const rawContent = result.content;
           const normalizedContent = typeof rawContent === 'string'
             ? rawContent
             : Array.isArray(rawContent)
               ? rawContent.map((block: { type: string; text?: string }) => block.text || '').join('\n')
               : String(rawContent || '');
-
           emitEvent({
             type: 'tool_result',
+            data: { toolUseId: result.tool_use_id, content: normalizedContent },
+            timestamp: Date.now(),
+          });
+        }
+
+      // ── Both: {"type":"result",...}
+      // Claude: {"result":{"session_id":"..."},"duration_ms":...,"cost_usd":...}
+      // Gemini: {"status":"success","stats":{"total_tokens":...,"duration_ms":...}}
+      } else if (parsed.type === 'result') {
+        resultEventEmitted = true;
+        // Claude format
+        if (parsed.result) {
+          execution.sessionId = parsed.result.session_id || execution.sessionId;
+          emitEvent({
+            type: 'result',
             data: {
-              toolUseId: result.tool_use_id,
-              content: normalizedContent,
+              sessionId: parsed.result.session_id,
+              usage: parsed.result.usage,
+              durationMs: parsed.duration_ms,
+              costUsd: parsed.cost_usd,
+              isError: parsed.is_error,
+            },
+            timestamp: Date.now(),
+          });
+        } else {
+          // Gemini format
+          const stats = parsed.stats || {};
+          const isError = parsed.status === 'error';
+          emitEvent({
+            type: isError ? 'error' : 'result',
+            data: {
+              sessionId: execution.sessionId,
+              usage: stats.total_tokens ? {
+                inputTokens: stats.input_tokens || 0,
+                outputTokens: stats.output_tokens || 0,
+              } : undefined,
+              durationMs: stats.duration_ms,
+              isError,
+              ...(isError && parsed.error ? { message: typeof parsed.error === 'string' ? parsed.error : (parsed.error.message || String(parsed.error)) } : {}),
             },
             timestamp: Date.now(),
           });
         }
-      } else if (parsed.type === 'result') {
-        resultEventEmitted = true;
-        execution.sessionId = parsed.result?.session_id || execution.sessionId;
-        emitEvent({
-          type: 'result',
-          data: {
-            sessionId: parsed.result?.session_id,
-            usage: parsed.result?.usage,
-            durationMs: parsed.duration_ms,
-            costUsd: parsed.cost_usd,
-            isError: parsed.is_error,
-          },
-          timestamp: Date.now(),
-        });
       }
     };
 
@@ -409,16 +597,19 @@ export function startExecution(
       logMessage(`Duration: ${durationMs}ms`);
       logMessage(`Init received: ${initEventReceived}, Assistant messages: ${assistantMessageCount}`);
       logMessage(`Result event emitted: ${resultEventEmitted}`);
-      logMessage('=== Claude Terminal Execution Finished ===');
+      logMessage(`=== CLI Terminal Execution Finished (${provider}) ===`);
       closeLogStream();
 
       execution.endTime = Date.now();
       execution.status = code === 0 ? 'completed' : 'error';
 
       if (code !== 0) {
+        const errorMsg = !initEventReceived && durationMs < 3000
+          ? `'${spawnConfig.command}' CLI failed to start (exit code ${code}). Is it installed and in PATH?`
+          : `Process exited with code ${code}`;
         emitEvent({
           type: 'error',
-          data: { exitCode: code, message: `Process exited with code ${code}` },
+          data: { exitCode: code, message: errorMsg },
           timestamp: Date.now(),
         });
       } else if (!resultEventEmitted) {
@@ -449,16 +640,23 @@ export function startExecution(
     });
 
     // Handle spawn errors
-    childProcess.on('error', (err: Error) => {
+    childProcess.on('error', (err: Error & { code?: string }) => {
       logMessage(`[ERROR] ${err.message}`);
       closeLogStream();
 
       execution.endTime = Date.now();
       execution.status = 'error';
 
+      // Provide helpful error messages for common spawn failures
+      let errorMessage = err.message;
+      if (err.code === 'ENOENT') {
+        const cliName = spawnConfig.command;
+        errorMessage = `'${cliName}' CLI not found. Please install it and ensure it's available in PATH.`;
+      }
+
       emitEvent({
         type: 'error',
-        data: { message: err.message },
+        data: { message: errorMessage },
         timestamp: Date.now(),
       });
     });

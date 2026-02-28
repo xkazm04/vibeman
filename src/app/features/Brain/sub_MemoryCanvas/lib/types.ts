@@ -12,15 +12,23 @@ export interface BrainEvent {
   y: number;
 }
 
+export interface SpatialIndex {
+  cellSize: number;
+  cells: Map<string, BrainEvent[]>;
+}
+
 export interface Group {
   id: string;
   name: string;
   events: BrainEvent[];
+  /** Events pre-sorted by timestamp (computed once at group formation) */
+  sortedEvents: BrainEvent[];
   radius: number;
   x: number;
   y: number;
   dominantType: SignalType;
   dominantColor: string;
+  spatialIndex?: SpatialIndex;
 }
 
 export interface UndoEntry {

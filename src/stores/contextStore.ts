@@ -13,7 +13,7 @@ import {
   createDebouncedLoadingManager,
   type DebouncedLoadingManager
 } from './utils/storeHelpers';
-import { toast } from './toastStore';
+import { toast } from './messageStore';
 
 // Singleton debounced loading manager for the context store
 // Initialized lazily to avoid issues with SSR
@@ -168,8 +168,7 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
       description: contextData.description || '',
       filePaths: contextData.filePaths,
       hasContextFile: contextData.hasContextFile || false,
-      contextFilePath: contextData.contextFilePath || null,
-      previewImage: null,
+      contextFilePath: contextData.contextFilePath || undefined,
       target: null,
       target_fulfillment: null,
       createdAt: new Date(),

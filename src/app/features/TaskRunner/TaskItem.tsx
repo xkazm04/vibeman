@@ -73,10 +73,10 @@ const TaskItem = React.memo(function TaskItem({
   };
 
   // Determine if task is in progress (running or queued)
-  const isInProgress = status === 'running' || status === 'queued';
+  const isInProgress = status.type === 'running' || status.type === 'queued';
 
   // Determine if task has a status that can be reset (not idle/open)
-  const hasStatus = status && status !== 'idle';
+  const hasStatus = status.type !== 'idle';
 
   // Build context menu items based on task state
   const contextMenuItems = isInProgress
@@ -124,13 +124,12 @@ const TaskItem = React.memo(function TaskItem({
       ];
 
   const getStatusIcon = () => {
-    switch (status) {
+    switch (status.type) {
       case 'running':
         return <Loader2 className="w-3 h-3 text-blue-400" />;
       case 'completed':
         return <CheckCircle2 className="w-3 h-3 text-green-400" />;
       case 'failed':
-      case 'session-limit':
         return <XCircle className="w-3 h-3 text-red-400" />;
       case 'queued':
         return <Clock className="w-3 h-3 text-amber-400" />;
@@ -140,13 +139,12 @@ const TaskItem = React.memo(function TaskItem({
   };
 
   const getStatusColor = () => {
-    switch (status) {
+    switch (status.type) {
       case 'running':
         return 'border-blue-500/40 bg-blue-500/5';
       case 'completed':
         return 'border-green-500/40 bg-green-500/5';
       case 'failed':
-      case 'session-limit':
         return 'border-red-500/40 bg-red-500/5';
       case 'queued':
         return 'border-amber-500/40 bg-amber-500/5';
@@ -155,9 +153,9 @@ const TaskItem = React.memo(function TaskItem({
     }
   };
 
-  const isDisabled = status === 'running' || status === 'queued';
+  const isDisabled = status.type === 'running' || status.type === 'queued';
 
-  const canDelete = status !== 'running' && status !== 'queued';
+  const canDelete = status.type !== 'running' && status.type !== 'queued';
 
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -227,7 +225,7 @@ const TaskItem = React.memo(function TaskItem({
         )}
 
         {/* Progress bar for running/queued tasks */}
-        {(status === 'running' || status === 'queued') && (
+        {(status.type === 'running' || status.type === 'queued') && (
           <div className="absolute bottom-0 left-0 right-0">
             <TaskProgress status={status} />
           </div>
@@ -241,11 +239,11 @@ const TaskItem = React.memo(function TaskItem({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               onClick={handleDeleteClick}
-              className="absolute top-1/2 -translate-y-1/2 right-2 p-1.5 rounded-full bg-red-500/20 hover:bg-red-500/40 transition-colors"
+              className="absolute top-1/2 -translate-y-1/2 right-2 p-2 rounded-full bg-red-500/20 hover:bg-red-500/40 transition-colors before:absolute before:inset-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:w-11 before:h-11 before:content-['']"
               title="Delete task"
               data-testid={`task-delete-btn-${requirementName}`}
             >
-              <Trash2 className="w-3.5 h-3.5 text-red-400" />
+              <Trash2 className="w-4 h-4 text-red-400" />
             </motion.button>
           )}
         </AnimatePresence>

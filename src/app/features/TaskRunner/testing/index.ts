@@ -3,16 +3,6 @@
  *
  * Central export for all testing utilities, mock generators, and factory functions.
  * Import from this file for all testing needs.
- *
- * @example
- * ```typescript
- * import {
- *   createMockRequirement,
- *   createRunningBatch,
- *   getRequirementId,
- *   createTrackingActions,
- * } from '@/app/features/TaskRunner/testing';
- * ```
  */
 
 // Mock Data Generators
@@ -27,14 +17,6 @@ export {
   createMockRequirementsForProject,
   createMockRequirementsByProject,
   createMixedStatusRequirements,
-  createBatchExecutionScenario,
-
-  // Batch State Generators
-  createMockBatchState,
-  createIdleBatch,
-  createRunningBatch,
-  createPausedBatch,
-  createCompletedBatch,
 
   // Task State Generators
   createMockTaskState,
@@ -46,11 +28,9 @@ export {
   // Complete Scenario Generators
   createTaskRunnerScenario,
   createEmptyScenario,
-  createAllBatchesActiveScenario,
 
   // Types
   type MockRequirementOptions,
-  type MockBatchOptions,
   type MockTaskOptions,
 } from './mockGenerators';
 
@@ -63,20 +43,9 @@ export {
   getSelectableRequirements,
   countRequirementsByStatus,
 
-  // Batch Helpers
-  getBatchProgress,
-  canBatchStartTask,
-  getNextQueuedTask,
-  getActiveBatches,
-
-  // Task Helpers
-  getTasksForBatch,
-  countBatchTasksByStatus,
-
   // Status Utilities
   getStatusLabel,
   getStatusColorClass,
-  getBatchStatusLabel,
 
   // Selection Helpers
   toggleRequirementSelection,
@@ -86,7 +55,6 @@ export {
 
   // Validation Helpers
   isValidRequirement,
-  isValidBatchState,
   isValidTaskState,
 
   // Mock Actions

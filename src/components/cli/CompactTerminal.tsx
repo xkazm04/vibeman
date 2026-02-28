@@ -70,6 +70,9 @@ const LOG_ITEM_HEIGHT = 24; // px - matches py-0.5 + text-xs line height
 const ANIMATED_LOG_COUNT = 5; // Number of recent logs to animate
 const VIRTUALIZATION_THRESHOLD = 50; // Start virtualizing after this many logs
 
+// VS Code extension bridge URL (direct cross-origin communication)
+const VSCODE_BRIDGE_URL = 'http://localhost:9876';
+
 // Get icon for log type - uses static maps for O(1) lookup
 const getLogIcon = (type: LogEntry['type'], toolName?: string) => {
   // For tool_use, check tool-specific icons first
@@ -158,6 +161,8 @@ export function CompactTerminal({
   currentExecutionId,
   currentStoredTaskId,
   onExecutionChange,
+  provider = 'claude',
+  model,
 }: CompactTerminalProps) {
   // Local state for this instance
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -181,7 +186,8 @@ export function CompactTerminal({
   const currentTaskIdRef = useRef<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<List>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const listRef = useRef<any>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -211,7 +217,7 @@ export function CompactTerminal({
     if (isAutoScroll) {
       if (useVirtualization && listRef.current) {
         // Scroll virtualized list to end
-        listRef.current.scrollToItem(virtualizedLogs.length - 1, 'end');
+        listRef.current.scrollToRow({ index: virtualizedLogs.length - 1, align: 'end' });
       }
       if (scrollRef.current) {
         scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -372,6 +378,8 @@ export function CompactTerminal({
     // Only attempt reconnection once per mount
     if (hasAttemptedReconnectRef.current) return;
     if (!currentExecutionId || isStreaming) return;
+    // VS Code extension has no server-side execution state to reconnect to
+    if (provider === 'vscode') return;
 
     hasAttemptedReconnectRef.current = true;
 
@@ -515,18 +523,23 @@ export function CompactTerminal({
     });
 
     try {
-      const response = await fetch('/api/claude-terminal/query', {
+      // Route to VS Code extension or cli-service based on provider
+      const isVSCode = provider === 'vscode';
+      const executeUrl = isVSCode
+        ? `${VSCODE_BRIDGE_URL}/execute-task`
+        : '/api/claude-terminal/query';
+      const executeBody = isVSCode
+        ? { projectPath: task.projectPath, prompt: taskPrompt, model: model || undefined }
+        : { projectPath: task.projectPath, prompt: taskPrompt, resumeSessionId: resumeSession ? sessionId : undefined, provider, model: model || undefined };
+
+      const response = await fetch(executeUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectPath: task.projectPath,
-          prompt: taskPrompt,
-          resumeSessionId: resumeSession ? sessionId : undefined,
-        }),
+        body: JSON.stringify(executeBody),
       });
 
       if (!response.ok) {
-        const err = await response.json();
+        const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
         setError(err.error);
         setIsStreaming(false);
         // Register failure with server
@@ -551,7 +564,10 @@ export function CompactTerminal({
 
       connectToStream(streamUrl);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to start task');
+      const errorMsg = provider === 'vscode'
+        ? 'VS Code extension (vibeman-bridge) is not running. Open VS Code and ensure the extension is active.'
+        : e instanceof Error ? e.message : 'Failed to start task';
+      setError(errorMsg);
       setIsStreaming(false);
       // Register failure with server
       registerTaskComplete(task.id, instanceId, false);
@@ -564,7 +580,7 @@ export function CompactTerminal({
         heartbeatIntervalRef.current = null;
       }
     }
-  }, [sessionId, instanceId, addLog, connectToStream, onTaskStart, onTaskComplete, onExecutionChange, enabledSkills]);
+  }, [sessionId, instanceId, addLog, connectToStream, onTaskStart, onTaskComplete, onExecutionChange, enabledSkills, provider, model]);
 
   // Track pending next task execution
   const pendingNextTaskRef = useRef<NodeJS.Timeout | null>(null);
@@ -662,7 +678,7 @@ export function CompactTerminal({
     if (isStreaming || taskQueue.length === 0) return;
 
     // Find next pending task (store status is the single source of truth)
-    const nextTask = taskQueue.find(t => t.status === 'pending');
+    const nextTask = taskQueue.find(t => t.status.type === 'queued');
 
     if (nextTask && autoStart) {
       // Add delay before starting next task to allow cleanup to complete
@@ -707,18 +723,23 @@ export function CompactTerminal({
     });
 
     try {
-      const response = await fetch('/api/claude-terminal/query', {
+      // Route to VS Code extension or cli-service based on provider
+      const isVSCode = provider === 'vscode';
+      const executeUrl = isVSCode
+        ? `${VSCODE_BRIDGE_URL}/execute-task`
+        : '/api/claude-terminal/query';
+      const executeBody = isVSCode
+        ? { projectPath, prompt, model: model || undefined }
+        : { projectPath, prompt, resumeSessionId: resumeSession ? sessionId : undefined, provider, model: model || undefined };
+
+      const response = await fetch(executeUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectPath,
-          prompt,
-          resumeSessionId: resumeSession ? sessionId : undefined,
-        }),
+        body: JSON.stringify(executeBody),
       });
 
       if (!response.ok) {
-        const err = await response.json();
+        const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
         setError(err.error);
         setIsStreaming(false);
         return;
@@ -727,10 +748,13 @@ export function CompactTerminal({
       const { streamUrl } = await response.json();
       connectToStream(streamUrl);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to start');
+      const errorMsg = provider === 'vscode'
+        ? 'VS Code extension (vibeman-bridge) is not running. Open VS Code and ensure the extension is active.'
+        : e instanceof Error ? e.message : 'Failed to start';
+      setError(errorMsg);
       setIsStreaming(false);
     }
-  }, [input, isStreaming, projectPath, sessionId, addLog, connectToStream]);
+  }, [input, isStreaming, projectPath, sessionId, addLog, connectToStream, provider, model]);
 
   // Abort execution
   const handleAbort = useCallback(async () => {
@@ -798,7 +822,7 @@ export function CompactTerminal({
 
   const editCount = fileChanges.filter(c => c.changeType === 'edit').length;
   const writeCount = fileChanges.filter(c => c.changeType === 'write').length;
-  const queuePendingCount = taskQueue.filter(t => t.status === 'pending').length;
+  const queuePendingCount = taskQueue.filter(t => t.status.type === 'queued').length;
 
   return (
     <div className={`flex flex-col bg-gradient-to-br from-gray-900 to-gray-950 border border-gray-800/80 rounded-lg overflow-hidden shadow-inner ${className}`}>
@@ -911,12 +935,12 @@ export function CompactTerminal({
             {/* Virtualized older logs */}
             {virtualizedLogs.length > 0 && (
               <List<LogRowData>
-                ref={listRef}
+                listRef={listRef}
                 defaultHeight={Math.min(virtualizedLogs.length * LOG_ITEM_HEIGHT, 200)}
                 rowCount={virtualizedLogs.length}
                 rowHeight={LOG_ITEM_HEIGHT}
                 overscanCount={5}
-                rowComponent={LogRow}
+                rowComponent={LogRow as any}
                 rowProps={{ logs: virtualizedLogs }}
               />
             )}
@@ -980,7 +1004,7 @@ export function CompactTerminal({
             setIsAutoScroll(true);
             // Scroll virtualized list to bottom if active
             if (useVirtualization && listRef.current) {
-              listRef.current.scrollToItem(virtualizedLogs.length - 1, 'end');
+              listRef.current.scrollToRow({ index: virtualizedLogs.length - 1, align: 'end' });
             }
             scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
           }}

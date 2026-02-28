@@ -12,6 +12,7 @@ import { ideaRepository } from '@/app/db/repositories/idea.repository';
 import { randomUUID } from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
+import { stripCodeFences } from '@/lib/stringUtils';
 
 export interface GoalCandidate {
   title: string;
@@ -530,11 +531,7 @@ Return ONLY the JSON array, no other text.`);
 function parseLLMResponse(response: string): GoalCandidate[] {
   try {
     // Clean up the response - remove markdown code blocks if present
-    let cleaned = response.trim();
-
-    // Remove markdown code fences
-    cleaned = cleaned.replace(/^```json\s*\n?/i, '').replace(/\n?```\s*$/i, '');
-    cleaned = cleaned.replace(/^```\s*\n?/i, '').replace(/\n?```\s*$/i, '');
+    let cleaned = stripCodeFences(response);
 
     // Try to find JSON array in the response
     const jsonMatch = cleaned.match(/\[[\s\S]*\]/);

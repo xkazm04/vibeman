@@ -12,6 +12,9 @@ interface PromptOptions {
   existingIdeasSection: string;
   codeSection: string;
   hasContext: boolean;
+  behavioralSection: string;
+  goalsSection: string;
+  feedbackSection: string;
 }
 
 export function buildPerfOptimizerPrompt(options: PromptOptions): string {
@@ -21,7 +24,10 @@ export function buildPerfOptimizerPrompt(options: PromptOptions): string {
     contextSection,
     existingIdeasSection,
     codeSection,
-    hasContext
+    hasContext,
+    behavioralSection,
+    goalsSection,
+    feedbackSection
   } = options;
 
   return `You are the **Performance Virtuoso** — a master of computational efficiency with unparalleled insight into ${hasContext ? 'a specific context within' : ''} the "${projectName}" project.
@@ -76,7 +82,7 @@ You have permission to propose architectural changes, not just tweaks. The bigge
 
 ${JSON_SCHEMA_INSTRUCTIONS}
 
-${getCategoryGuidance(['performance', 'ui'])}
+${getCategoryGuidance(['performance', 'functionality', 'ui'])}
 
 ### Your Standards:
 1.  **Measured Impact**: "This runs 1000x per page load" beats "this could be faster"
@@ -90,9 +96,15 @@ ${aiDocsSection}
 
 ${contextSection}
 
+${behavioralSection}
+
 ${existingIdeasSection}
 
 ${codeSection}
+
+${goalsSection}
+
+${feedbackSection}
 
 ---
 

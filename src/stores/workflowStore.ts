@@ -44,7 +44,6 @@ export const MODULE_METADATA: Record<AppModule, { label: string; description: st
   integrations: { label: 'Integrations', description: 'Manage external integrations and connectors', keywords: ['integrations', 'connectors', 'webhooks', 'external'], icon: 'Plug' },
   brain: { label: 'Brain', description: 'AI learning and memory system', keywords: ['brain', 'ai', 'learning', 'memory', 'signals'], icon: 'Brain' },
   commander: { label: 'Annette', description: 'Voice assistant and commander', keywords: ['annette', 'assistant', 'voice', 'commander'], icon: 'Bot' },
-  personas: { label: 'Personas', description: 'AI agent personas and teams', keywords: ['personas', 'agents', 'teams', 'ai'], icon: 'Sparkles' },
 };
 
 interface WorkflowState {

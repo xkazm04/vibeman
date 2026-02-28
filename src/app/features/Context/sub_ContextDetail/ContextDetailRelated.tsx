@@ -39,20 +39,20 @@ export default function ContextDetailRelated({
         <span>Other Contexts in {contextGroup?.name || 'Group'} ({groupContexts.length})</span>
       </h3>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {groupContexts.map((context, index) => (
           <motion.div
             key={context.id}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.5 + index * 0.1 }}
-            className="transform scale-75 origin-top-left"
           >
             <ContextCard
               context={context}
               groupColor={contextGroup?.color}
               availableGroups={allGroups}
               selectedFilePaths={[]}
+              compact
             />
           </motion.div>
         ))}

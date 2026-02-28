@@ -3,17 +3,15 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Layers, Zap } from 'lucide-react';
-import { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
-
 interface BatchSelectionModalProps {
   isOpen: boolean;
-  onSelect: (batchId: BatchId) => void;
+  onSelect: (batchId: string) => void;
   onCancel: () => void;
   title?: string;
   description?: string;
 }
 
-const BATCH_OPTIONS: { id: BatchId; label: string; color: string }[] = [
+const BATCH_OPTIONS: { id: string; label: string; color: string }[] = [
   { id: 'batch1', label: 'Batch 1', color: 'cyan' },
   { id: 'batch2', label: 'Batch 2', color: 'purple' },
   { id: 'batch3', label: 'Batch 3', color: 'emerald' },
@@ -62,7 +60,7 @@ export default function BatchSelectionModal({
   title = 'Select Batch',
   description = 'Choose which batch to execute tasks in',
 }: BatchSelectionModalProps) {
-  const handleSelect = (batchId: BatchId) => {
+  const handleSelect = (batchId: string) => {
     onSelect(batchId);
   };
 

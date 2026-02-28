@@ -13,6 +13,9 @@ interface PromptOptions {
   existingIdeasSection: string;
   codeSection: string;
   hasContext: boolean;
+  behavioralSection: string;
+  goalsSection: string;
+  feedbackSection: string;
 }
 
 export function buildCompetitorPrompt(options: PromptOptions): string {
@@ -22,7 +25,10 @@ export function buildCompetitorPrompt(options: PromptOptions): string {
     contextSection,
     existingIdeasSection,
     codeSection,
-    hasContext
+    hasContext,
+    behavioralSection,
+    goalsSection,
+    feedbackSection
   } = options;
 
   return `You are the **Competitor Analyst** — a market intelligence expert who studies ${hasContext ? 'a specific feature context within' : ''} the "${projectName}" project and identifies opportunities from competitor analysis.
@@ -78,7 +84,7 @@ You have full authority to propose adopting proven patterns. The goal isn't to b
 
 ${JSON_SCHEMA_INSTRUCTIONS}
 
-${getCategoryGuidance(['feature', 'business_value', 'user_benefit'])}
+${getCategoryGuidance(['functionality', 'user_benefit', 'ui'])}
 
 ### Your Standards:
 1.  **Specific Competitor Reference**: "Notion does X", "Linear's Y feature"
@@ -92,9 +98,15 @@ ${aiDocsSection}
 
 ${contextSection}
 
+${behavioralSection}
+
 ${existingIdeasSection}
 
 ${codeSection}
+
+${goalsSection}
+
+${feedbackSection}
 
 ---
 

@@ -26,7 +26,7 @@ import IntegrationsLayout from './features/Integrations/IntegrationsLayout';
 import { BrainLayout } from './features/Brain';
 import { CommanderLayout } from './features/Commander';
 import { OverviewLayout } from './features/Overview';
-import VibePilotLayout from './features/Personas/VibePilotLayout';
+
 
 export default function Home() {
   const [shouldFreezeComponents] = useState(false);
@@ -75,8 +75,6 @@ export default function Home() {
         return <BrainLayout key="brain" />;
       case 'commander':
         return <CommanderLayout key="commander" />;
-      case 'personas':
-        return <VibePilotLayout key="personas" />;
       default:
         return <OverviewLayout key="overview" />;
     }

@@ -4,8 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { knowledgeGraph } from '@/app/features/Annette/lib/knowledgeGraph';
-import { semanticIndexer } from '@/app/features/Annette/lib/semanticIndexer';
+import { unifiedKnowledgeStore } from '@/app/features/Annette/lib/unifiedKnowledgeStore';
 import type { KnowledgeNodeType } from '@/app/db/models/annette.types';
 
 /**
@@ -31,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     // If specific node requested
     if (nodeId) {
-      const node = knowledgeGraph.getNode(nodeId);
+      const node = unifiedKnowledgeStore.getNode(nodeId);
       if (!node) {
         return NextResponse.json(
           { error: 'Node not found' },
@@ -39,20 +38,20 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const relatedNodes = knowledgeGraph.getRelatedNodes(nodeId, 20);
-      const edges = knowledgeGraph.getEdges(nodeId, 'both');
+      const relatedNodes = unifiedKnowledgeStore.getRelatedNodes(nodeId, 20);
+      const edges = unifiedKnowledgeStore.getEdges(nodeId, 'both');
 
       return NextResponse.json({ node, relatedNodes, edges });
     }
 
     // If search query provided
     if (query) {
-      const nodes = knowledgeGraph.searchNodes(projectId, query, nodeLimit);
+      const nodes = unifiedKnowledgeStore.searchNodes(projectId, query, nodeLimit);
       return NextResponse.json({ nodes });
     }
 
     // Get full graph
-    const { nodes, edges } = knowledgeGraph.getGraph(projectId, {
+    const { nodes, edges } = unifiedKnowledgeStore.getGraph(projectId, {
       nodeLimit,
       edgeLimit,
       minImportance: type ? undefined : 0.3,
@@ -64,7 +63,7 @@ export async function GET(request: NextRequest) {
       : nodes;
 
     // Get stats
-    const stats = knowledgeGraph.getStats(projectId);
+    const stats = unifiedKnowledgeStore.getGraphStats(projectId);
 
     return NextResponse.json({
       nodes: filteredNodes,
@@ -105,7 +104,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const node = knowledgeGraph.upsertNode({
+        const node = unifiedKnowledgeStore.upsertNode({
           projectId,
           nodeType: data.nodeType,
           name: data.name,
@@ -114,7 +113,7 @@ export async function POST(request: NextRequest) {
         });
 
         // Index the node
-        await semanticIndexer.indexKnowledgeNode(node.id);
+        await unifiedKnowledgeStore.indexItem(node.id, 'knowledge');
 
         return NextResponse.json({ node });
       }
@@ -127,7 +126,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const edge = knowledgeGraph.upsertEdge({
+        const edge = unifiedKnowledgeStore.upsertEdge({
           projectId,
           sourceNodeId: data.sourceNodeId,
           targetNodeId: data.targetNodeId,
@@ -147,7 +146,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const extracted = await knowledgeGraph.extractFromText(projectId, data.text);
+        const extracted = await unifiedKnowledgeStore.extractFromText(projectId, data.text);
         return NextResponse.json(extracted);
       }
 
@@ -159,7 +158,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const result = await knowledgeGraph.buildFromText(projectId, data.text);
+        const result = await unifiedKnowledgeStore.buildFromText(projectId, data.text);
         return NextResponse.json({
           nodes: result.nodes,
           edges: result.edges,
@@ -176,7 +175,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const result = await knowledgeGraph.query(projectId, data.question);
+        const result = await unifiedKnowledgeStore.queryGraph(projectId, data.question);
         return NextResponse.json(result);
       }
 
@@ -206,12 +205,12 @@ export async function DELETE(request: NextRequest) {
     const edgeId = searchParams.get('edgeId');
 
     if (nodeId) {
-      const success = knowledgeGraph.deleteNode(nodeId);
+      const success = unifiedKnowledgeStore.deleteNode(nodeId);
       return NextResponse.json({ success, deleted: 'node' });
     }
 
     if (edgeId) {
-      const success = knowledgeGraph.deleteEdge(edgeId);
+      const success = unifiedKnowledgeStore.deleteEdge(edgeId);
       return NextResponse.json({ success, deleted: 'edge' });
     }
 

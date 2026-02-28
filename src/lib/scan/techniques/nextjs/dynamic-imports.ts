@@ -10,7 +10,7 @@ export function checkDynamicImports(
   opportunities: RefactorOpportunity[]
 ): void {
   const hasUseClient = file.content.includes("'use client'");
-  const isLarge = file.lines > 300;
+  const isLarge = file.content.split('\n').length > 300;
   const hasHeavyLibs =
     file.content.includes('import Chart') ||
     file.content.includes('import { Editor') ||

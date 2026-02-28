@@ -10,7 +10,6 @@
  */
 
 import { ScanType } from '../../lib/scanTypes';
-import { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
 import { executeClaudeIdeasWithContexts } from './claudeIdeasExecutor';
 
 export interface ClaudeIdeasConfig {
@@ -20,7 +19,7 @@ export interface ClaudeIdeasConfig {
   scanTypes: ScanType[];
   contextId?: string;
   contextName?: string;
-  batchId: BatchId;
+  batchId: string;
 }
 
 export interface ClaudeIdeasResult {
@@ -46,7 +45,6 @@ export async function executeClaudeIdeas(config: ClaudeIdeasConfig): Promise<Cla
     projectPath: config.projectPath,
     scanTypes: config.scanTypes,
     contextIds,
-    groupIds: [], // Legacy wrapper doesn't support groups
   });
 
   // Transform executor result to handler result format
@@ -67,7 +65,7 @@ export async function executeClaudeIdeasBatch(config: {
   projectPath: string;
   scanTypes: ScanType[];
   contexts: Array<{ id: string; name: string }>;
-  batchId: BatchId;
+  batchId: string;
 }): Promise<ClaudeIdeasResult> {
   const contextIds = config.contexts.map(c => c.id);
 
@@ -79,7 +77,6 @@ export async function executeClaudeIdeasBatch(config: {
     projectPath: config.projectPath,
     scanTypes: config.scanTypes,
     contextIds,
-    groupIds: [], // Legacy wrapper doesn't support groups
   });
 
   // Also run full project analysis (no context) - for backward compatibility
@@ -89,7 +86,6 @@ export async function executeClaudeIdeasBatch(config: {
     projectPath: config.projectPath,
     scanTypes: config.scanTypes,
     contextIds: [], // Empty means full project
-    groupIds: [], // Legacy wrapper doesn't support groups
   });
 
   // Transform executor results to handler result format

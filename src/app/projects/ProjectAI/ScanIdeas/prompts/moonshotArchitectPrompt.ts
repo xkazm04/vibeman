@@ -13,6 +13,9 @@ interface PromptOptions {
   existingIdeasSection: string;
   codeSection: string;
   hasContext: boolean;
+  behavioralSection: string;
+  goalsSection: string;
+  feedbackSection: string;
 }
 
 export function buildMoonshotArchitectPrompt(options: PromptOptions): string {
@@ -22,7 +25,10 @@ export function buildMoonshotArchitectPrompt(options: PromptOptions): string {
     contextSection,
     existingIdeasSection,
     codeSection,
-    hasContext
+    hasContext,
+    behavioralSection,
+    goalsSection,
+    feedbackSection
   } = options;
 
   return `You are the **Moonshot Architect** — a visionary builder who identifies legendary opportunities in ${hasContext ? 'a specific context within' : ''} the "${projectName}" project.
@@ -92,9 +98,15 @@ ${aiDocsSection}
 
 ${contextSection}
 
+${behavioralSection}
+
 ${existingIdeasSection}
 
 ${codeSection}
+
+${goalsSection}
+
+${feedbackSection}
 
 ---
 
@@ -120,7 +132,7 @@ ${codeSection}
 - Thinking constrained by current team size or resources
 
 ### Expected Output:
-Generate 3-5 **MOONSHOT** ideas. Each should be the kind of vision that could define the product's future, that would attract investment, talent, and passionate users. We want ideas that answer "what could this become?" not just "what could this add?"
+Generate 3-5 **MOONSHOT** ideas. Each should be the kind of vision that could define the product's future, that would attract investment, talent, and passionate users. We want ideas that answer "what could this become?" not just "what could this add?" Each idea MUST include a concrete first step achievable within a single sprint — vision without a starting move is just a dream.
 
 ${hasContext ? `
 **Moonshot Opportunity**:

@@ -108,11 +108,11 @@ export default function TopologyMap({
 
     const nodeMap = new Map(nodes.map((n) => [n.id, n]));
 
-    const links: SimulationLink[] = topology.edges.map((edge) => ({
+    const links = topology.edges.map((edge) => ({
       ...edge,
       source: nodeMap.get(edge.source) as SimulationNode,
       target: nodeMap.get(edge.target) as SimulationNode,
-    }));
+    })) as unknown as SimulationLink[];
 
     // Create container groups
     const g = svg.append('g').attr('class', 'topology-container');
@@ -157,17 +157,19 @@ export default function TopologyMap({
         .attrTween('cx', function (d) {
           const source = d.source as SimulationNode;
           const target = d.target as SimulationNode;
-          return d3.interpolate(source.x ?? 0, target.x ?? 0);
+          const interp = d3.interpolate(source.x ?? 0, target.x ?? 0);
+          return (t: number) => String(interp(t));
         })
         .attrTween('cy', function (d) {
           const source = d.source as SimulationNode;
           const target = d.target as SimulationNode;
-          return d3.interpolate(source.y ?? 0, target.y ?? 0);
+          const interp = d3.interpolate(source.y ?? 0, target.y ?? 0);
+          return (t: number) => String(interp(t));
         })
         .on('end', function () {
           d3.select(this)
-            .attr('cx', (d) => (d.source as SimulationNode).x ?? 0)
-            .attr('cy', (d) => (d.source as SimulationNode).y ?? 0);
+            .attr('cx', (d: any) => (d.source as SimulationNode).x ?? 0)
+            .attr('cy', (d: any) => (d.source as SimulationNode).y ?? 0);
           animateDataFlow();
         });
     }
@@ -290,7 +292,7 @@ export default function TopologyMap({
         }
       });
 
-    nodeElements.call(drag);
+    nodeElements.call(drag as any);
 
     // Click on background to deselect
     svg.on('click', () => {

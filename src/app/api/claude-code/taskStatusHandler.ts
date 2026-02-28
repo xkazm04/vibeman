@@ -2,14 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
-import {
-  parseProgressLines,
-  classifyActivity,
-} from '@/app/features/TaskRunner/lib/activityClassifier';
-import type {
-  ActivityEvent,
-  TaskActivity,
-} from '@/app/features/TaskRunner/lib/activityClassifier.types';
+import { processProgress, finalizeProgress, type ProgressState } from '@/app/features/TaskRunner/lib/progressTracker';
+import type { ActivityEvent } from '@/app/features/TaskRunner/lib/activityClassifier.types';
 
 interface Task {
   id: string;
@@ -28,8 +22,9 @@ interface TaskWithActivity extends Task {
     current: ActivityEvent | null;
     history: ActivityEvent[];
     toolCounts: Record<string, number>;
-    phase: TaskActivity['phase'];
+    phase: ProgressState['activity']['phase'];
   };
+  progressState?: ProgressState;
 }
 
 interface DbProject {
@@ -164,13 +159,17 @@ export async function getTaskStatus(taskId: string): Promise<NextResponse> {
     }
   }
 
-  // Parse activity from progress lines
+  // Unified progress processing
+  let progressState: ProgressState | undefined;
   let activityData: TaskWithActivity['activity'] = undefined;
   if (task.progress && task.progress.length > 0) {
     try {
-      const events = parseProgressLines(task.progress);
-      if (events.length > 0) {
-        const activity = classifyActivity(events);
+      progressState = processProgress(task.progress);
+      if (task.status === 'completed') {
+        progressState = finalizeProgress(progressState);
+      }
+      const { activity } = progressState;
+      if (activity.currentActivity) {
         activityData = {
           current: activity.currentActivity,
           history: activity.activityHistory,
@@ -179,11 +178,10 @@ export async function getTaskStatus(taskId: string): Promise<NextResponse> {
         };
       }
     } catch (parseError) {
-      logger.warn('Failed to parse activity from progress', { taskId, error: parseError });
+      logger.warn('Failed to process progress', { taskId, error: parseError });
     }
   }
 
-  // Log detailed task status for debugging
   logger.info('Task status retrieved', {
     taskId,
     status: task.status,
@@ -191,12 +189,13 @@ export async function getTaskStatus(taskId: string): Promise<NextResponse> {
     hasOutput: !!task.output,
     progressLines: task.progress?.length || 0,
     activityPhase: activityData?.phase,
-    toolsUsed: activityData ? Object.keys(activityData.toolCounts).length : 0,
+    percentage: progressState?.percentage ?? 0,
   });
 
   const taskWithActivity: TaskWithActivity = {
     ...task,
     activity: activityData,
+    progressState,
   };
 
   return NextResponse.json({ task: taskWithActivity });

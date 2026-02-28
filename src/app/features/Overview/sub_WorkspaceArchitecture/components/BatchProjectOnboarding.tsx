@@ -73,10 +73,10 @@ export default function BatchProjectOnboarding({
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/disk/list-directories', {
+      const response = await fetch('/api/disk/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: basePath }),
+        body: JSON.stringify({ type: 'directories', path: basePath }),
       });
 
       const data = await response.json();

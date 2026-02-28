@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { projectServiceDb } from '@/lib/projectServiceDb';
+import { projectDb } from '@/lib/project_database';
 import { logger } from '@/lib/logger';
 import { detectProjectTypeSync } from '@/lib/projectTypeDetector';
 import type { ProjectType } from '@/types';
@@ -12,7 +12,7 @@ const VALID_PROJECT_TYPES: ProjectType[] = [
 // GET /api/projects - Get all projects
 async function handleGet() {
   try {
-    const projects = await projectServiceDb.getAllProjects();
+    const projects = projectDb.projects.getAll();
     return NextResponse.json({ projects });
   } catch (error) {
     logger.error('Projects API GET error:', { error: error });
@@ -61,7 +61,7 @@ async function handlePost(request: NextRequest) {
       id: project.id,
       name: project.name,
       path: project.path,
-      port: project.port ?? null, // Port is now optional
+      port: project.port ?? null,
       workspaceId: project.workspaceId || null,
       type: project.type || detectedType,
       relatedProjectId: project.relatedProjectId,
@@ -76,7 +76,7 @@ async function handlePost(request: NextRequest) {
       } : undefined
     };
 
-    await projectServiceDb.addProject(projectData);
+    projectDb.projects.add(projectData);
 
     return NextResponse.json({
       success: true,
@@ -123,7 +123,7 @@ async function handlePut(request: NextRequest) {
       } : updates.git
     };
 
-    await projectServiceDb.updateProject(projectId, projectUpdates);
+    projectDb.projects.update(projectId, projectUpdates);
 
     return NextResponse.json({
       success: true,
@@ -150,7 +150,7 @@ async function handleDelete(request: NextRequest) {
       );
     }
 
-    await projectServiceDb.removeProject(projectId);
+    projectDb.projects.remove(projectId);
 
     return NextResponse.json({
       success: true,
@@ -169,4 +169,4 @@ async function handleDelete(request: NextRequest) {
 export const GET = withObservability(handleGet, '/api/projects');
 export const POST = withObservability(handlePost, '/api/projects');
 export const PUT = withObservability(handlePut, '/api/projects');
-export const DELETE = withObservability(handleDelete, '/api/projects'); 
+export const DELETE = withObservability(handleDelete, '/api/projects');

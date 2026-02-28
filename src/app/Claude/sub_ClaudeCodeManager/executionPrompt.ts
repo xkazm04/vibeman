@@ -20,27 +20,39 @@ export interface ExecutionPromptConfig {
   gitEnabled?: boolean; // Whether git operations are enabled
   gitCommands?: string[]; // List of git commands to execute
   gitCommitMessage?: string; // Commit message template
+  taskId?: string; // Task ID for collective memory application tracking
+}
+
+export interface ExecutionPromptResult {
+  prompt: string;
+  /** Application IDs for injected collective memories (resolve after task completes) */
+  memoryApplicationIds: string[];
 }
 
 /**
- * Build the full execution prompt with enhanced instructions
+ * Build the full execution prompt with enhanced instructions.
  *
  * This function wraps the requirement content with execution instructions
  * using the centralized execution wrapper for consistency.
- * Injects relevant collective memory knowledge from past sessions.
+ * Injects relevant collective memory knowledge from past sessions and
+ * creates application records for feedback loop tracking.
  */
-export function buildExecutionPrompt(config: ExecutionPromptConfig): string {
-  // Inject collective memory knowledge if we have a project ID
+export function buildExecutionPrompt(config: ExecutionPromptConfig): ExecutionPromptResult {
   let enhancedContent = config.requirementContent;
+  let memoryApplicationIds: string[] = [];
+
+  // Inject collective memory knowledge if we have a project ID
   if (config.projectId) {
     try {
-      const { promptSection } = getTaskKnowledge({
+      const { promptSection, applicationIds } = getTaskKnowledge({
         projectId: config.projectId,
         requirementName: config.requirementContent.slice(0, 200),
+        taskId: config.taskId,
       });
       if (promptSection) {
         enhancedContent = `${config.requirementContent}\n${promptSection}`;
       }
+      memoryApplicationIds = applicationIds;
     } catch {
       // Collective memory injection must never break execution
     }
@@ -61,5 +73,8 @@ export function buildExecutionPrompt(config: ExecutionPromptConfig): string {
     gitCommitMessage: config.gitCommitMessage,
   };
 
-  return wrapRequirementForExecution(wrapperConfig);
+  return {
+    prompt: wrapRequirementForExecution(wrapperConfig),
+    memoryApplicationIds,
+  };
 }

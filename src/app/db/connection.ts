@@ -14,6 +14,7 @@ import Database from 'better-sqlite3';
 import { getConnection as getDriverConnection, closeDatabase as closeDriver } from './drivers';
 import { queryPatternCollector } from '@/lib/db/queryPatternCollector';
 import { queryPatternRepository } from './repositories/schema-intelligence.repository';
+import { statementCache } from '@/lib/db/PreparedStatementCache';
 
 // Wire collector flush to persist patterns into the DB
 let collectorWired = false;
@@ -41,7 +42,11 @@ function wireCollector(): void {
 /**
  * Wrap a better-sqlite3 Statement to instrument timing.
  */
+const IS_INSTRUMENTED = Symbol('is_instrumented');
+
 function instrumentStatement(stmt: Database.Statement, sql: string): Database.Statement {
+  if ((stmt as any)[IS_INSTRUMENTED]) return stmt;
+
   const originalGet = stmt.get.bind(stmt);
   const originalAll = stmt.all.bind(stmt);
   const originalRun = stmt.run.bind(stmt);
@@ -67,6 +72,7 @@ function instrumentStatement(stmt: Database.Statement, sql: string): Database.St
     return result;
   } as typeof stmt.run;
 
+  (stmt as any)[IS_INSTRUMENTED] = true;
   return stmt;
 }
 
@@ -91,10 +97,10 @@ export function getDatabase(): Database.Database {
   // In the future, repositories should use the DbConnection interface instead
   const rawDb: Database.Database = (connection as any).db || connection;
 
-  // Wrap prepare() to instrument all queries
+  // Wrap prepare() to instrument all queries and cache prepared statements
   const originalPrepare = rawDb.prepare.bind(rawDb);
   rawDb.prepare = function (sql: string) {
-    const stmt = originalPrepare(sql);
+    const stmt = statementCache.get(sql, (s) => originalPrepare(s));
     return instrumentStatement(stmt, sql);
   } as typeof rawDb.prepare;
 

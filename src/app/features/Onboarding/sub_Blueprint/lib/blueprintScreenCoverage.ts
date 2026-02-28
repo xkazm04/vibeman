@@ -6,7 +6,6 @@
 import React from 'react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useBlueprintStore } from '../store/blueprintStore';
-import type { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
 import { toast } from 'sonner';
 import ScreenCoverageWithBatchSelection from '../components/ScreenCoverageWithBatchSelection';
 
@@ -325,7 +324,7 @@ This scan identifies contexts that don't have test scenarios and generates requi
 **Select contexts below to generate coverage requirements.**`;
 
   // Execute screen coverage with selected batch
-  const handleExecute = async (selectedContextIds: string[], batchId: BatchId) => {
+  const handleExecute = async (selectedContextIds: string[], batchId: string) => {
     if (selectedContextIds.length === 0) {
       toast.error('No contexts selected', {
         description: 'Please select at least one context to generate screen coverage.',

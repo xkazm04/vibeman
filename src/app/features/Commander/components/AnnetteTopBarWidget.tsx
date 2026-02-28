@@ -6,50 +6,46 @@
 
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot } from 'lucide-react';
-import { useAnnetteStore } from '@/stores/annetteStore';
+import { useWidgetStore } from '@/stores/annette/widgetStore';
+import { useChatStore } from '@/stores/annette/chatStore';
+import { useAnnetteNotificationStore } from '@/stores/annette/notificationStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useSSEStreamWithBackoff } from '@/hooks/useSSEStreamWithBackoff';
 import type { AnnetteNotification } from '@/lib/annette/notificationEngine';
 import AnnetteDropdownPanel from './AnnetteDropdownPanel';
 
 export default function AnnetteTopBarWidget() {
   const activeProject = useActiveProjectStore((s) => s.activeProject);
-  const isWidgetOpen = useAnnetteStore((s) => s.isWidgetOpen);
-  const unreadCount = useAnnetteStore((s) => s.unreadCount);
-  const isLoading = useAnnetteStore((s) => s.isLoading);
-  const toggleWidget = useAnnetteStore((s) => s.toggleWidget);
-  const closeWidget = useAnnetteStore((s) => s.closeWidget);
-  const addNotification = useAnnetteStore((s) => s.addNotification);
+  const isWidgetOpen = useWidgetStore((s) => s.isWidgetOpen);
+  const unreadCount = useWidgetStore((s) => s.unreadCount);
+  const toggleWidget = useWidgetStore((s) => s.toggleWidget);
+  const closeWidget = useWidgetStore((s) => s.closeWidget);
+  const isLoading = useChatStore((s) => s.isLoading);
+  const addNotification = useAnnetteNotificationStore((s) => s.addNotification);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const eventSourceRef = useRef<EventSource | null>(null);
 
-  // ─── SSE Notification Stream (global lifecycle) ───
-  useEffect(() => {
-    if (!activeProject?.id) return;
+  // ─── SSE Notification Stream (global lifecycle, with exponential backoff) ───
+  const streamUrl = activeProject?.id
+    ? `/api/annette/stream?projectId=${activeProject.id}`
+    : null;
 
-    const projectId = activeProject.id;
-    const eventSource = new EventSource(`/api/annette/stream?projectId=${projectId}`);
-    eventSourceRef.current = eventSource;
-
-    eventSource.addEventListener('notification', (event) => {
+  const eventListeners = useMemo(() => ({
+    notification: (event: MessageEvent) => {
       try {
         const notification: AnnetteNotification = JSON.parse(event.data);
         addNotification(notification);
       } catch {}
-    });
+    },
+  }), [addNotification]);
 
-    eventSource.onerror = () => {
-      // Will auto-reconnect
-    };
-
-    return () => {
-      eventSource.close();
-      eventSourceRef.current = null;
-    };
-  }, [activeProject?.id, addNotification]);
+  const { status: sseStatus } = useSSEStreamWithBackoff({
+    url: streamUrl,
+    eventListeners,
+  });
 
   // ─── Click-outside detection ───
   useEffect(() => {
@@ -94,6 +90,16 @@ export default function AnnetteTopBarWidget() {
         data-testid="annette-widget-trigger"
       >
         <Bot className={`w-4.5 h-4.5 ${isWidgetOpen ? 'text-cyan-400' : 'text-slate-400'}`} />
+
+        {/* SSE connection status dot */}
+        {sseStatus !== 'connected' && streamUrl && (
+          <div
+            className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-slate-900 ${
+              sseStatus === 'connecting' ? 'bg-amber-400' : 'bg-slate-500'
+            }`}
+            title={sseStatus === 'connecting' ? 'Reconnecting...' : 'Disconnected'}
+          />
+        )}
 
         {/* Unread badge */}
         <AnimatePresence>

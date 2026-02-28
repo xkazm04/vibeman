@@ -44,7 +44,7 @@ function shortLabel(scanType: string): string {
     business_visionary: 'Business',
     ui_perfectionist: 'UI/UX',
     feature_scout: 'Features',
-    onboarding_optimizer: 'Onboard',
+    tech_innovator: 'Stark',
     ai_integration_scout: 'AI Scout',
     delight_designer: 'Delight',
     code_refactor: 'Refactor',

@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as d3 from 'd3';
 import { ArrowLeft } from 'lucide-react';
 import type { BrainEvent, Group, UndoEntry, SignalType, FilterState } from './lib/types';
-import { BG, RECENCY_GLOW_HOURS } from './lib/constants';
-import { formGroups, runForceLayout, packEventsInGroup } from './lib/canvasLayout';
+import { BG } from './lib/constants';
+import { packEventsInGroup } from './lib/canvasLayout';
+import { CanvasStore } from './lib/canvasStore';
 import { useCanvasData } from './lib/useCanvasData';
 import { renderFocused } from './lib/renderFocused';
 import { renderOverview } from './lib/renderOverview';
@@ -31,22 +32,32 @@ export default function EventCanvasD3() {
   const momentumAnimRef = useRef<number>(0);
   const zoomCenterRef = useRef({ x: 0, y: 0 });
   const selectedGroupRef = useRef<string | null>(null);
+  const emptyFrameRef = useRef(0);
+  const emptyAnimRef = useRef<number>(0);
+  const filterStateRef = useRef<FilterState>({ visibleTypes: new Set(ALL_TYPES) });
 
+  // ── Imperative store (events/groups live here, not React state) ──
+  const storeRef = useRef<CanvasStore>(null!);
+  if (!storeRef.current) {
+    storeRef.current = new CanvasStore();
+  }
+  const store = storeRef.current;
+
+  // ── React state: UI-only concerns ────────────────────────────────
   const [zoomLevel, setZoomLevel] = useState(1);
   const [selectedEvent, setSelectedEvent] = useState<BrainEvent | null>(null);
   const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
   const [focusedGroupId, setFocusedGroupId] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [visibleTypes, setVisibleTypes] = useState<Set<SignalType>>(new Set(ALL_TYPES));
-  const emptyFrameRef = useRef(0);
-  const emptyAnimRef = useRef<number>(0);
-  const filterStateRef = useRef<FilterState>({ visibleTypes: new Set(ALL_TYPES) });
+  // Toolbar needs groups/eventCount — we track a render version to trigger re-reads
+  const [toolbarVersion, setToolbarVersion] = useState(0);
 
   const toggleType = useCallback((type: SignalType) => {
     setVisibleTypes(prev => {
       const next = new Set(prev);
       if (next.has(type)) {
-        if (next.size <= 1) return prev; // prevent deselecting all
+        if (next.size <= 1) return prev;
         next.delete(type);
       } else {
         next.add(type);
@@ -56,32 +67,7 @@ export default function EventCanvasD3() {
     });
   }, []);
 
-  // Fetch real behavioral signals
-  const { events: fetchedEvents, isEmpty, isLoading } = useCanvasData();
-  const [events, setEvents] = useState<BrainEvent[]>([]);
-
-  // Sync fetched events into local state (allows deletion/undo to work)
-  useEffect(() => {
-    setEvents(fetchedEvents);
-  }, [fetchedEvents]);
-
-  const groups = useMemo(() => {
-    const g = formGroups(events);
-    const { width, height } = dimRef.current;
-    if (width > 0 && height > 0) {
-      runForceLayout(g, width, height);
-      g.forEach(packEventsInGroup);
-    }
-    groupsRef.current = g;
-    return g;
-  }, [events]);
-
-  const focusedGroup = useMemo(() => {
-    if (!focusedGroupId) return null;
-    return groups.find(g => g.id === focusedGroupId) || null;
-  }, [focusedGroupId, groups]);
-
-  // Render callback
+  // ── Render callback (reads entirely from refs/store) ─────────────
   const render = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -92,8 +78,12 @@ export default function EventCanvasD3() {
     const dpr = window.devicePixelRatio || 1;
     const transform = transformRef.current;
     const currentFocusId = focusedGroupRef.current;
-    const currentGroups = groupsRef.current;
+    const currentGroups = store.groups;
     const filterState = filterStateRef.current;
+
+    // Keep store dimensions and groupsRef in sync
+    store.setDimensions(width, height);
+    groupsRef.current = currentGroups;
 
     // Empty state: animated particles
     if (currentGroups.length === 0) {
@@ -131,17 +121,37 @@ export default function EventCanvasD3() {
     } else {
       renderOverview({ ctx, groups: currentGroups, width, height, transform, dpr, selectedGroupId: selectedGroupRef.current, filterState });
     }
-  }, []);
+  }, [store]);
 
   const requestRender = useCallback(() => {
     cancelAnimationFrame(animRef.current);
     animRef.current = requestAnimationFrame(render);
   }, [render]);
 
+  // Wire store render callback
+  useEffect(() => {
+    store.onRender(() => {
+      requestRender();
+      // Bump toolbar version so it re-reads groups/eventCount from store
+      setToolbarVersion(v => v + 1);
+    });
+  }, [store, requestRender]);
+
+  // Re-render on filter changes (filter state is in a ref, but the
+  // React state change is our signal to redraw)
+  useEffect(() => { requestRender(); }, [visibleTypes, requestRender]);
+
+  // Re-render when focus changes (UI state drives which render path to use)
+  useEffect(() => { requestRender(); }, [focusedGroupId, requestRender]);
+
+  // ── Data fetching (pushes into store, not React state) ───────────
+  const getFocusedGroupId = useCallback(() => focusedGroupRef.current, []);
+  useCanvasData({ store, getFocusedGroupId });
+
   // Fit to view
   const fitToView = useCallback(() => {
     const canvas = canvasRef.current;
-    const currentGroups = groupsRef.current;
+    const currentGroups = store.groups;
     if (!canvas || currentGroups.length === 0 || !zoomBehaviorRef.current) return;
     const { width, height } = dimRef.current;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -156,11 +166,11 @@ export default function EventCanvasD3() {
     (d3.select(canvas) as any).transition().duration(600).call(
       zoomBehaviorRef.current.transform, d3.zoomIdentity.translate(tx, ty).scale(scale)
     );
-  }, []);
+  }, [store]);
 
-  // Delete/Undo
+  // ── Delete / Undo (mutate store directly) ────────────────────────
   const handleDelete = useCallback((evt: BrainEvent) => {
-    setEvents(prev => prev.filter(e => e.id !== evt.id));
+    store.removeEvent(evt.id, focusedGroupRef.current);
     setSelectedEvent(null);
     const timeout = setTimeout(() => {
       setUndoStack(prev => prev.filter(u => u.event.id !== evt.id));
@@ -171,18 +181,17 @@ export default function EventCanvasD3() {
         if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
       })
       .catch(() => {
-        // Revert optimistic delete: re-add event and clear undo entry
         clearTimeout(timeout);
         setUndoStack(prev => prev.filter(u => u.event.id !== evt.id));
-        setEvents(prev => prev.some(e => e.id === evt.id) ? prev : [...prev, evt]);
+        store.restoreEvent(evt, focusedGroupRef.current);
       });
-  }, []);
+  }, [store]);
 
   const handleUndo = useCallback((entry: UndoEntry) => {
     clearTimeout(entry.timeout);
     setUndoStack(prev => prev.filter(u => u.event.id !== entry.event.id));
-    setEvents(prev => [...prev, entry.event]);
-  }, []);
+    store.restoreEvent(entry.event, focusedGroupRef.current);
+  }, [store]);
 
   // Canvas interaction hook
   useCanvasInteraction({
@@ -193,12 +202,9 @@ export default function EventCanvasD3() {
     requestRender, fitToView,
   });
 
-  // Re-render on group/focus/filter changes
-  useEffect(() => { requestRender(); }, [groups, focusedGroupId, visibleTypes, requestRender]);
-
   // Empty state animation loop
   useEffect(() => {
-    if (isEmpty && events.length === 0) {
+    if (store.isEmpty && store.events.length === 0) {
       resetEmptyState();
       let running = true;
       const loop = () => {
@@ -212,7 +218,12 @@ export default function EventCanvasD3() {
         cancelAnimationFrame(emptyAnimRef.current);
       };
     }
-  }, [isEmpty, events.length, render]);
+  }, [store.isEmpty, render]);
+
+  // Read from store for toolbar (triggered by toolbarVersion bumps)
+  const toolbarGroups = store.groups;
+  const toolbarEventCount = store.events.length;
+  const focusedGroup = store.getFocusedGroup(focusedGroupId);
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden" style={{ background: BG }}>
@@ -221,7 +232,7 @@ export default function EventCanvasD3() {
 
         {focusedGroupId && (
           <button
-            onClick={() => { focusedGroupRef.current = null; setFocusedGroupId(null); setSelectedEvent(null); groupsRef.current.forEach(packEventsInGroup); requestRender(); }}
+            onClick={() => { focusedGroupRef.current = null; setFocusedGroupId(null); setSelectedEvent(null); store.groups.forEach(packEventsInGroup); requestRender(); }}
             className="absolute top-4 left-4 z-50 flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-900/80 backdrop-blur-xl border border-zinc-700/30 text-zinc-300 text-xs font-medium hover:bg-zinc-800/90 hover:border-zinc-600/40 hover:text-zinc-100 transition-all shadow-lg"
           >
             <ArrowLeft size={13} />
@@ -240,8 +251,8 @@ export default function EventCanvasD3() {
 
       <CanvasToolbar
         zoomLevel={zoomLevel}
-        groups={groups}
-        eventCount={events.length}
+        groups={toolbarGroups}
+        eventCount={toolbarEventCount}
         focusedGroup={focusedGroup}
         selectedGroupId={selectedGroupId}
         onFitToView={fitToView}

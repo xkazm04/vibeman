@@ -77,7 +77,7 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete, onC
         tabIndex={0}
         role="button"
         aria-label={`${idea.title} - ${idea.status}`}
-        className={`flex items-center gap-2 px-2 py-1.5 rounded-md border cursor-pointer transition-all duration-200 ease-out ${statusClasses}`}
+        className={`flex items-center gap-2 px-2 py-1.5 rounded-md border cursor-pointer transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${statusClasses}`}
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
         whileHover={{
@@ -133,7 +133,8 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete, onC
             {onConvert && (
               <motion.button
                 onClick={handleConvertClick}
-                className="p-1 rounded hover:bg-amber-500/20 text-amber-400/60 hover:text-amber-400 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70"
+                role="button"
+                className="p-1 rounded hover:bg-amber-500/20 text-amber-400/60 hover:text-amber-400 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 focus-visible:ring-cyan-400"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 title="Convert to requirement"
@@ -146,7 +147,8 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete, onC
             {onQueueForExecution && (
               <motion.button
                 onClick={handleQueueClick}
-                className="p-1 rounded hover:bg-green-500/20 text-green-400/60 hover:text-green-400 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
+                role="button"
+                className="p-1 rounded hover:bg-green-500/20 text-green-400/60 hover:text-green-400 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 focus-visible:ring-cyan-400"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 title="Queue for execution"

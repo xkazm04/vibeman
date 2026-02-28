@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { monitorServiceDb } from '@/lib/monitorServiceDb';
+import { monitorDb } from '@/lib/monitor_database';
 import { withObservability } from '@/lib/observability/middleware';
+import { handleApiError } from '@/lib/api-errors';
 
 function createErrorResponse(error: string, status: number) {
   return NextResponse.json({ success: false, error }, { status });
@@ -15,14 +16,14 @@ async function handleGet(request: NextRequest) {
       return createErrorResponse('callId is required', 400);
     }
 
-    const messages = await monitorServiceDb.getCallMessages(callId);
+    const messages = monitorDb.messages.getForCall(callId);
 
     return NextResponse.json({
       success: true,
       messages
     });
   } catch (error) {
-    return createErrorResponse('Failed to fetch messages', 500);
+    return handleApiError(error, 'Fetch messages');
   }
 }
 
@@ -30,7 +31,7 @@ async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const message = await monitorServiceDb.createMessage({
+    const message = monitorDb.messages.create({
       messageId: body.messageId,
       callId: body.callId,
       role: body.role,
@@ -38,7 +39,7 @@ async function handlePost(request: NextRequest) {
       timestamp: body.timestamp,
       nodeId: body.nodeId,
       latencyMs: body.latencyMs,
-      metadata: body.metadata
+      metadata: body.metadata,
     });
 
     return NextResponse.json({
@@ -46,7 +47,7 @@ async function handlePost(request: NextRequest) {
       message
     });
   } catch (error) {
-    return createErrorResponse('Failed to create message', 500);
+    return handleApiError(error, 'Create message');
   }
 }
 

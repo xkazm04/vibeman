@@ -4,7 +4,7 @@
  * Replaces bridge eventEmitter for cross-app communication
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseService } from './supabaseService';
 import type {
   RemoteEventType,
   IdeaEventPayload,
@@ -14,44 +14,8 @@ import type {
   ScanEventPayload,
 } from './types';
 
-class RemoteEventPublisher {
-  private supabase: SupabaseClient | null = null;
-  private isConfigured = false;
-  private configError: string | null = null;
-
-  /**
-   * Initialize with Supabase credentials
-   */
-  configure(url: string, serviceRoleKey: string): void {
-    try {
-      this.supabase = createClient(url, serviceRoleKey, {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      });
-      this.isConfigured = true;
-      this.configError = null;
-      console.log('[RemoteEventPublisher] Configured successfully');
-    } catch (error) {
-      this.configError = error instanceof Error ? error.message : 'Failed to configure';
-      console.error('[RemoteEventPublisher] Configuration error:', this.configError);
-    }
-  }
-
-  /**
-   * Check if publisher is ready
-   */
-  isReady(): boolean {
-    return this.isConfigured && this.supabase !== null;
-  }
-
-  /**
-   * Get configuration error if any
-   */
-  getError(): string | null {
-    return this.configError;
-  }
+class RemoteEventPublisher extends SupabaseService {
+  protected readonly serviceName = 'RemoteEventPublisher';
 
   /**
    * Publish an event (fire-and-forget)
@@ -69,19 +33,21 @@ class RemoteEventPublisher {
     }
 
     // Fire and forget - don't await
-    this.supabase!.from('vibeman_events')
-      .insert({
-        project_id: projectId,
-        event_type: eventType,
-        payload,
-        source,
-      })
+    Promise.resolve(
+      this.supabase!.from('vibeman_events')
+        .insert({
+          project_id: projectId,
+          event_type: eventType,
+          payload,
+          source,
+        })
+    )
       .then(({ error }) => {
         if (error) {
           console.warn('[RemoteEventPublisher] Failed to publish event:', error.message);
         }
       })
-      .catch((err) => {
+      .catch((err: Error) => {
         console.warn('[RemoteEventPublisher] Network error:', err.message);
       });
   }
@@ -106,14 +72,16 @@ class RemoteEventPublisher {
       source: e.source || 'vibeman',
     }));
 
-    this.supabase!.from('vibeman_events')
-      .insert(records)
+    Promise.resolve(
+      this.supabase!.from('vibeman_events')
+        .insert(records)
+    )
       .then(({ error }) => {
         if (error) {
           console.warn('[RemoteEventPublisher] Failed to publish batch:', error.message);
         }
       })
-      .catch((err) => {
+      .catch((err: Error) => {
         console.warn('[RemoteEventPublisher] Batch network error:', err.message);
       });
   }

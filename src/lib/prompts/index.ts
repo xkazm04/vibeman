@@ -21,7 +21,7 @@ export * from './templates';
 export * from './builder';
 
 // Re-export main functions for convenience (legacy)
-export { buildPrompt, buildSections, SectionBuilders } from './builder';
+export { buildPrompt, buildSections, SectionBuilders, promptTemplate } from './builder';
 export { getPromptTemplate, listPromptTemplates } from './templates';
 
 // NEW: Centralized Prompt Registry
@@ -47,7 +47,7 @@ export {
   BUSINESS_VISIONARY_PROMPT,
   UI_PERFECTIONIST_PROMPT,
   FEATURE_SCOUT_PROMPT,
-  ONBOARDING_OPTIMIZER_PROMPT,
+  TECH_INNOVATOR_PROMPT,
   AI_INTEGRATION_SCOUT_PROMPT,
   DELIGHT_DESIGNER_PROMPT,
   USER_EMPATHY_CHAMPION_PROMPT,

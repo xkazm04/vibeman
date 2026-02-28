@@ -3,19 +3,17 @@
  * Used to parse and display Claude Code tool usage from stream-json output
  */
 
-export type ActivityType =
-  | 'reading'      // Read tool
-  | 'editing'      // Edit tool
-  | 'writing'      // Write tool
-  | 'searching'    // Grep, Glob tools
-  | 'executing'    // Bash tool
-  | 'planning'     // TodoWrite tool
-  | 'thinking'     // No tool, assistant thinking
-  | 'idle';        // No recent activity
+import type {
+  ActivityType,
+  TaskPhase,
+  ToolName,
+} from './constants';
+
+export { ActivityType };
 
 export interface ActivityEvent {
   type: ActivityType;
-  tool: string;
+  tool: ToolName;
   target?: string;      // File path or command
   timestamp: Date;
   duration?: number;    // ms since last event
@@ -25,7 +23,7 @@ export interface TaskActivity {
   currentActivity: ActivityEvent | null;
   activityHistory: ActivityEvent[];  // Last 5 events
   toolCounts: Record<string, number>;
-  phase: 'analyzing' | 'planning' | 'implementing' | 'validating' | 'idle';
+  phase: TaskPhase;
 }
 
 /**

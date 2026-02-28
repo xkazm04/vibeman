@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import ContextSelectionList from './ContextSelectionList';
 import BatchSelectionModal from './BatchSelectionModal';
-import { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
 
 interface ScreenCoverageWithBatchSelectionProps {
   contexts: Array<{
@@ -13,7 +12,7 @@ interface ScreenCoverageWithBatchSelectionProps {
     filePaths: string[];
     groupName?: string;
   }>;
-  onExecute: (selectedContextIds: string[], batchId: BatchId) => Promise<void>;
+  onExecute: (selectedContextIds: string[], batchId: string) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -37,7 +36,7 @@ export default function ScreenCoverageWithBatchSelection({
     setShowBatchModal(true);
   };
 
-  const handleBatchSelect = async (batchId: BatchId) => {
+  const handleBatchSelect = async (batchId: string) => {
     setShowBatchModal(false);
     setIsExecuting(true);
 

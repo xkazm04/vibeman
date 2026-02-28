@@ -1,6 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isClaudeFolderInitialized } from '@/app/Claude/lib/claudeCodeManager';
+import { claudeFolderExists, isClaudeFolderInitialized } from '@/app/Claude/lib/claudeCodeManager';
+import { validateRequired, errorResponse } from '@/lib/api-errors';
 import { withObservability } from '@/lib/observability/middleware';
+
+/**
+ * GET /api/claude-code/status
+ * Check Claude folder status via query params
+ *
+ * Query params:
+ * - projectPath: string (required)
+ */
+async function handleGet(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const projectPath = searchParams.get('projectPath');
+
+    const validationError = validateRequired({ projectPath }, ['projectPath']);
+    if (validationError) return validationError;
+
+    const exists = claudeFolderExists(projectPath!);
+    const initStatus = isClaudeFolderInitialized(projectPath!);
+
+    return NextResponse.json({
+      exists,
+      initialized: initStatus.initialized,
+      missing: initStatus.missing,
+    });
+  } catch (error) {
+    return errorResponse(error, 'Error in GET /api/claude-code/status');
+  }
+}
 
 /**
  * POST /api/claude-code/status
@@ -34,4 +63,5 @@ async function handlePost(request: NextRequest) {
   }
 }
 
+export const GET = withObservability(handleGet, '/api/claude-code/status');
 export const POST = withObservability(handlePost, '/api/claude-code/status');

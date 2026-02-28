@@ -13,7 +13,7 @@ import {
   Terminal, FolderOpen, ClipboardList, Search, Wrench,
   Zap, ChevronRight, BarChart3, Sparkles,
 } from 'lucide-react';
-import { useAnnetteStore } from '@/stores/annetteStore';
+import { useChatStore } from '@/stores/annette/chatStore';
 import {
   CAPABILITY_CATEGORIES,
   CapabilityCategory,
@@ -170,9 +170,9 @@ export default function CapabilityCatalog({
   highlightTool,
 }: CapabilityCatalogProps) {
   const [activeCategory, setActiveCategory] = useState(initialCategory || CAPABILITY_CATEGORIES[0].id);
-  const messages = useAnnetteStore((s) => s.messages);
-  const sendMessage = useAnnetteStore((s) => s.sendMessage);
-  const isLoading = useAnnetteStore((s) => s.isLoading);
+  const messages = useChatStore((s) => s.messages);
+  const sendMessage = useChatStore((s) => s.sendMessage);
+  const isLoading = useChatStore((s) => s.isLoading);
 
   const usageCounts = useMemo(() => countToolUsage(messages), [messages]);
 

@@ -8,7 +8,6 @@ import React from 'react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import { useBlueprintStore } from '../../store/blueprintStore';
 import { contextReviewPrompt } from './prompts/contextReview';
-import type { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
 import { toast } from 'sonner';
 import FeatureScanBatchSelector from '../../components/FeatureScanBatchSelector';
 import {
@@ -177,7 +176,7 @@ async function executeContextReview(
   contextName: string,
   projectId: string,
   projectPath: string,
-  batchId: BatchId
+  batchId: string
 ): Promise<void> {
   try {
     // Fetch full context details
@@ -297,7 +296,7 @@ Click **Select Batch & Start** to choose a batch and start the intelligent revie
   // Create custom content with batch selection
   const customContent = React.createElement(FeatureScanBatchSelector, {
     description,
-    onStart: async (batchId: BatchId) => {
+    onStart: async (batchId: string) => {
       await executeContextReview(
         contextId,
         contextName,

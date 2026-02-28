@@ -1,6 +1,6 @@
 import { getDatabase } from '../connection';
 import { DbDirection } from '../models/types';
-import { buildUpdateQuery, getCurrentTimestamp, selectOne } from './repository.utils';
+import { buildUpdateQuery, getCurrentTimestamp, selectOne, selectAll } from './repository.utils';
 
 /**
  * Direction Repository
@@ -203,6 +203,29 @@ export const directionRepository = {
   getDirectionById: (directionId: string): DbDirection | null => {
     const db = getDatabase();
     return selectOne<DbDirection>(db, 'SELECT * FROM directions WHERE id = ?', directionId);
+  },
+
+  /**
+   * Get multiple directions by IDs in a single query.
+   * Returns a Map keyed by direction ID for O(1) lookup.
+   */
+  getDirectionsByIds: (ids: string[]): Map<string, DbDirection> => {
+    const result = new Map<string, DbDirection>();
+    if (ids.length === 0) return result;
+
+    const db = getDatabase();
+    const placeholders = ids.map(() => '?').join(',');
+    const rows = selectAll<DbDirection>(
+      db,
+      `SELECT * FROM directions WHERE id IN (${placeholders})`,
+      ...ids
+    );
+
+    for (const row of rows) {
+      result.set(row.id, row);
+    }
+
+    return result;
   },
 
   /**
@@ -508,6 +531,52 @@ export const directionRepository = {
       accepted: result.accepted || 0,
       rejected: result.rejected || 0
     };
+  },
+
+  /**
+   * Count decided directions (accepted or rejected) since a given date for a project
+   */
+  getDecidedCountSince: (projectId: string, since?: Date | null): number => {
+    const db = getDatabase();
+    if (since) {
+      const stmt = db.prepare(`
+        SELECT COUNT(*) as count FROM directions
+        WHERE project_id = ? AND status IN ('accepted', 'rejected') AND updated_at > ?
+      `);
+      const result = stmt.get(projectId, since.toISOString()) as { count: number };
+      return result.count || 0;
+    } else {
+      const stmt = db.prepare(`
+        SELECT COUNT(*) as count FROM directions
+        WHERE project_id = ? AND status IN ('accepted', 'rejected')
+      `);
+      const result = stmt.get(projectId) as { count: number };
+      return result.count || 0;
+    }
+  },
+
+  /**
+   * Count decided directions (accepted or rejected) since a given date for multiple projects
+   */
+  getDecidedCountSinceMultiple: (projectIds: string[], since?: Date | null): number => {
+    if (projectIds.length === 0) return 0;
+    const db = getDatabase();
+    const placeholders = projectIds.map(() => '?').join(', ');
+    if (since) {
+      const stmt = db.prepare(`
+        SELECT COUNT(*) as count FROM directions
+        WHERE project_id IN (${placeholders}) AND status IN ('accepted', 'rejected') AND updated_at > ?
+      `);
+      const result = stmt.get(...projectIds, since.toISOString()) as { count: number };
+      return result.count || 0;
+    } else {
+      const stmt = db.prepare(`
+        SELECT COUNT(*) as count FROM directions
+        WHERE project_id IN (${placeholders}) AND status IN ('accepted', 'rejected')
+      `);
+      const result = stmt.get(...projectIds) as { count: number };
+      return result.count || 0;
+    }
   },
 
   /**

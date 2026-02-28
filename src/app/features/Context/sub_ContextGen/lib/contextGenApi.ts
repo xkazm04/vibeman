@@ -116,3 +116,32 @@ export async function updateContext(
 ): Promise<void> {
   await patchRequest(`/api/contexts/${contextId}`, updates);
 }
+
+export interface RegenerateContextResult {
+  success: boolean;
+  data?: {
+    id: string;
+    name: string;
+    description?: string;
+    filePaths: string[];
+  };
+  stats?: {
+    filesAnalyzed: number;
+    totalFiles: number;
+    skippedFiles: number;
+  };
+}
+
+/**
+ * Regenerate a single context's description from its current file list.
+ * Re-reads the context's files and runs the LLM to produce an updated description.
+ */
+export async function regenerateContext(
+  contextId: string,
+  options?: { provider?: string; model?: string }
+): Promise<RegenerateContextResult> {
+  return postRequest('/api/context-generation/regenerate', {
+    contextId,
+    ...options,
+  });
+}

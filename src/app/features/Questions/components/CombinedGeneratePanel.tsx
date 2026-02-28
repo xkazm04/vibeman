@@ -21,7 +21,7 @@ interface GenerateResult {
 
 interface CombinedGeneratePanelProps {
   /** SQLite contexts */
-  contexts: DbContext[];
+  contexts: { id: string; name: string }[];
   selectedContextIds: string[];
   answeredQuestions: DbQuestion[];
   onGenerateQuestions: (count: number) => Promise<GenerateResult | void>;

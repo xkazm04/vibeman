@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell } from 'lucide-react';
-import { useNotificationStore, type StoredNotification } from '@/stores/notificationStore';
+import { useMessageStore, type StoredNotification } from '@/stores/messageStore';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import NotificationFeed from './NotificationFeed';
 
@@ -13,8 +13,8 @@ import NotificationFeed from './NotificationFeed';
  * real-time notifications and stores them in the notification store.
  */
 export default function NotificationBell() {
-  const { isOpen, setOpen, addNotification, pruneExpired } = useNotificationStore();
-  const unreadCount = useNotificationStore(s => s.getUnreadCount());
+  const { isOpen, setOpen, addNotification, pruneExpired } = useMessageStore();
+  const unreadCount = useMessageStore(s => s.getUnreadCount());
   const activeProject = useClientProjectStore(s => s.activeProject);
   const bellRef = useRef<HTMLDivElement>(null);
   const [sseConnected, setSseConnected] = useState(false);
@@ -45,7 +45,7 @@ export default function NotificationBell() {
 
     const handleNotification = (event: MessageEvent) => {
       try {
-        const data = JSON.parse(event.data) as Omit<StoredNotification, 'read' | 'receivedAt'>;
+        const data = JSON.parse(event.data) as Omit<StoredNotification, 'kind' | 'read' | 'receivedAt' | 'createdAt' | 'ttl'>;
         addNotification(data);
       } catch {
         // Ignore parse errors

@@ -7,6 +7,7 @@
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { sanitizeErrorDetails, sanitizeErrorMessage } from '@/lib/api-helpers/errorSanitizer';
+import { ErrorClassifier, ErrorType, type RecoveryAction } from '@/lib/errorClassifier';
 
 /**
  * API Error Codes - Typed enum for all possible API error conditions
@@ -116,6 +117,10 @@ export interface ApiErrorResponse {
   details?: string | Record<string, unknown>;
   /** Optional field-specific errors for validation */
   fieldErrors?: Record<string, string>;
+  /** Actionable user-facing message from ErrorClassifier */
+  userMessage?: string;
+  /** Suggested recovery actions from ErrorClassifier */
+  recoveryActions?: RecoveryAction[];
 }
 
 /**
@@ -258,7 +263,24 @@ export function validateRequiredFields(
 }
 
 /**
- * Handle errors consistently and return appropriate API error response
+ * Map ErrorClassifier ErrorType to ApiErrorCode
+ */
+function classifiedTypeToApiCode(type: ErrorType): ApiErrorCode {
+  switch (type) {
+    case ErrorType.NETWORK: return ApiErrorCode.EXTERNAL_SERVICE_ERROR;
+    case ErrorType.TIMEOUT: return ApiErrorCode.SERVICE_UNAVAILABLE;
+    case ErrorType.AUTH: return ApiErrorCode.UNAUTHORIZED;
+    case ErrorType.NOT_FOUND: return ApiErrorCode.RESOURCE_NOT_FOUND;
+    case ErrorType.RATE_LIMIT: return ApiErrorCode.RATE_LIMITED;
+    case ErrorType.SERVER: return ApiErrorCode.INTERNAL_ERROR;
+    case ErrorType.VALIDATION: return ApiErrorCode.VALIDATION_ERROR;
+    default: return ApiErrorCode.UNKNOWN_ERROR;
+  }
+}
+
+/**
+ * Handle errors consistently and return appropriate API error response.
+ * Uses ErrorClassifier to provide actionable userMessage and recoveryActions.
  */
 export function handleApiError(
   error: unknown,
@@ -270,36 +292,40 @@ export function handleApiError(
     return NextResponse.json(error.toResponse(), { status: error.getStatus() });
   }
 
-  // Handle standard Error instances
+  // Classify the error for actionable user messaging
+  const classified = ErrorClassifier.classify(error);
+
+  // Log full details server-side only
   if (error instanceof Error) {
-    // Log full stack trace server-side only; never send to client
     logger.error(`[handleApiError] ${operation}: ${error.message}`, {
       stack: error.stack,
       operation,
+      classifiedType: classified.type,
     });
-    return createApiErrorResponse(
-      defaultCode,
-      'An internal error occurred',
-      {
-        logError: false, // Already logged above
-        logContext: { operation },
-      }
-    );
+  } else {
+    logger.error(`[handleApiError] ${operation}: Unknown error`, {
+      error: String(error),
+      operation,
+      classifiedType: classified.type,
+    });
   }
 
-  // Handle unknown errors
-  logger.error(`[handleApiError] ${operation}: Unknown error`, {
-    error: String(error),
-    operation,
-  });
-  return createApiErrorResponse(
-    ApiErrorCode.UNKNOWN_ERROR,
-    'An internal error occurred',
-    {
-      logError: false, // Already logged above
-      logContext: { operation },
-    }
-  );
+  // Use classified type to pick the best API error code, falling back to the caller's default
+  const code = classified.type !== ErrorType.UNKNOWN
+    ? classifiedTypeToApiCode(classified.type)
+    : defaultCode;
+
+  const status = classified.statusCode ?? ERROR_CODE_STATUS_MAP[code];
+
+  const response: ApiErrorResponse = {
+    success: false,
+    error: sanitizeErrorMessage(classified.userMessage),
+    code,
+    userMessage: classified.userMessage,
+    recoveryActions: classified.recoveryActions,
+  };
+
+  return NextResponse.json(response, { status });
 }
 
 /**

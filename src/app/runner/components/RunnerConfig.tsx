@@ -47,7 +47,7 @@ const RunnerConfig = ({project, editedProject, handleConfigChange, hasChanges, s
                     <label className="text-sm text-gray-400">Port</label>
                     <input
                         type="number"
-                        value={editedProject.port}
+                        value={editedProject.port ?? ''}
                         onChange={(e) => handleConfigChange('port', parseInt(e.target.value))}
                         className="w-full px-2 py-1 text-sm bg-gray-800 border border-gray-700 rounded text-gray-100 font-mono focus:border-blue-500 focus:outline-none"
                     />

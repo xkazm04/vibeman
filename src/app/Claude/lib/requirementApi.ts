@@ -42,7 +42,7 @@ export async function loadRequirements(projectPath: string): Promise<string[]> {
   const promise = (async () => {
     try {
       const response = await fetch(
-        `/api/claude-code?projectPath=${encodeURIComponent(projectPath)}&action=list-requirements`
+        `/api/claude-code/requirements?projectPath=${encodeURIComponent(projectPath)}`
       );
 
       if (response.ok) {
@@ -276,7 +276,7 @@ export async function readRequirement(
   requirementName: string
 ): Promise<string> {
   const response = await fetch(
-    `/api/claude-code?projectPath=${encodeURIComponent(projectPath)}&action=read-requirement&name=${encodeURIComponent(requirementName)}`
+    `/api/claude-code/requirements/${encodeURIComponent(requirementName)}?projectPath=${encodeURIComponent(projectPath)}`
   );
 
   if (response.ok) {
@@ -324,13 +324,11 @@ export async function updateRequirement(
   requirementName: string,
   content: string
 ): Promise<boolean> {
-  const response = await fetch('/api/claude-code', {
+  const response = await fetch(`/api/claude-code/requirements/${encodeURIComponent(requirementName)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       projectPath,
-      action: 'update-requirement',
-      requirementName,
       content,
     }),
   });
@@ -351,13 +349,11 @@ export async function saveRequirement(
   requirementName: string,
   content: string
 ): Promise<boolean> {
-  const response = await fetch('/api/claude-code', {
+  const response = await fetch(`/api/claude-code/requirements/${encodeURIComponent(requirementName)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       projectPath,
-      action: 'update-requirement',
-      requirementName,
       content,
     }),
   });

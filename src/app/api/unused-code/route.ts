@@ -3,6 +3,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as ts from 'typescript';
 import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/api-errors';
 
 /**
  * POST /api/unused-code
@@ -706,15 +707,6 @@ export async function POST(request: NextRequest) {
     const result = await analyzeUnusedCode(projectPath);
     return NextResponse.json(result);
   } catch (error) {
-    logger.error('[UnusedCode] API error:', { error });
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error',
-        unusedFiles: [],
-        stats: { totalFiles: 0, totalExports: 0, unusedExports: 0 },
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Unused code analysis');
   }
 }

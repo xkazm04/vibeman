@@ -5,6 +5,7 @@ import { DbDirection } from '@/app/db';
 import { Calendar, Compass, MapPin, Check, X, Trash2 } from 'lucide-react';
 import { formatCardDate } from '../lib/tinderUtils';
 import { useDragSwipe } from '../lib/tinderHooks';
+import { stripMarkdownListPrefix } from '@/lib/stringUtils';
 
 interface DirectionCardProps {
   direction: DbDirection;
@@ -96,7 +97,7 @@ function CompactMarkdown({ content, compact = false }: { content: string; compac
       else if (line.match(/^[-*+]\s/) || line.match(/^\d+\.\s/)) {
         const listItems: string[] = [];
         while (i < lines.length && (lines[i].trim().match(/^[-*+]\s/) || lines[i].trim().match(/^\d+\.\s/))) {
-          const item = lines[i].trim().replace(/^[-*+]\s/, '').replace(/^\d+\.\s/, '');
+          const item = stripMarkdownListPrefix(lines[i]);
           listItems.push(item);
           i++;
         }

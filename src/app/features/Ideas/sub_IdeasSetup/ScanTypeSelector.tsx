@@ -57,8 +57,9 @@ export default function ScanTypeSelector({ selectedTypes, onChange }: ScanTypeSe
         </div>
         <button
           onClick={handleSelectAllOrClear}
-          className="text-[11px] text-cyan-500 hover:text-cyan-300 transition-colors"
+          className="text-[11px] text-cyan-500 hover:text-cyan-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 focus-visible:ring-cyan-400 rounded"
         >
+
           {allSelected ? 'Clear' : 'Select All'}
         </button>
       </div>
@@ -72,7 +73,7 @@ export default function ScanTypeSelector({ selectedTypes, onChange }: ScanTypeSe
               key={type.value}
               onClick={() => handleToggle(type.value)}
               onContextMenu={(e) => handleRightClick(e, type.value, type.label)}
-              className={`relative px-4 py-3 rounded-lg border-2 transition-all duration-300 ${
+              className={`relative px-4 py-3 rounded-lg border-2 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 focus-visible:ring-cyan-400 ${
                 isSelected
                   ? type.color
                   : 'bg-gray-800/40 border-gray-700/40 text-gray-400 hover:bg-gray-800/60 hover:border-gray-600/40'

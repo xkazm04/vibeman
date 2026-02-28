@@ -10,8 +10,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, User, Check, X, Clock, Bell, Pencil, Send, CornerDownLeft } from 'lucide-react';
-import type { ChatMessage, DecisionEvent } from '@/stores/annetteStore';
-import { useAnnetteStore } from '@/stores/annetteStore';
+import type { ChatMessage, DecisionEvent } from '@/stores/annette/types';
+import { useChatStore } from '@/stores/annette/chatStore';
+import { useEditingStore } from '@/stores/annette/editingStore';
 import ToolCallDisplay from './ToolCallDisplay';
 import ToolExecutionInline from './ToolExecutionInline';
 
@@ -47,10 +48,10 @@ const SIZE = {
 export function ChatBubble({ message, size = 'full' }: { message: ChatMessage; size?: BubbleSize }) {
   const isUser = message.role === 'user';
   const s = SIZE[size];
-  const editingMessageId = useAnnetteStore((st) => st.editingMessageId);
-  const setEditingMessage = useAnnetteStore((st) => st.setEditingMessage);
-  const editMessageAndResend = useAnnetteStore((st) => st.editMessageAndResend);
-  const isLoading = useAnnetteStore((st) => st.isLoading);
+  const editingMessageId = useEditingStore((st) => st.editingMessageId);
+  const setEditingMessage = useEditingStore((st) => st.setEditingMessage);
+  const editMessageAndResend = useEditingStore((st) => st.editMessageAndResend);
+  const isLoading = useChatStore((st) => st.isLoading);
 
   const isEditing = editingMessageId === message.id;
   const [editText, setEditText] = useState(message.content);

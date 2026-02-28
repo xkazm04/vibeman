@@ -40,7 +40,7 @@ function getQuickActionsForModule(currentModule: AppModule): QuickActionDef[] {
     case 'contexts':
       return [
         { id: 'ideas', label: 'Generate Ideas', description: 'Ideas for selected contexts', icon: Lightbulb, module: 'ideas', variant: 'primary' },
-        { id: 'composer', label: 'Run Blueprint', description: 'Analyze project structure', icon: Layers, module: 'composer', variant: 'secondary' },
+        { id: 'blueprint', label: 'Run Blueprint', description: 'Analyze project structure', icon: Layers, module: 'blueprint', variant: 'secondary' },
         { id: 'coder', label: 'View Goals', description: 'See project goals', icon: Sparkles, module: 'coder', variant: 'ghost' },
       ];
 
@@ -67,12 +67,12 @@ function getQuickActionsForModule(currentModule: AppModule): QuickActionDef[] {
 
     case 'manager':
       return [
-        { id: 'refactor', label: 'Refactor', description: 'Find improvements', icon: Wand2, module: 'refactor', variant: 'primary' },
+        { id: 'reflector', label: 'Refactor', description: 'Find improvements', icon: Wand2, module: 'reflector', variant: 'primary' },
         { id: 'contexts', label: 'Contexts', description: 'Organize code areas', icon: FolderTree, module: 'contexts', variant: 'secondary' },
         { id: 'ideas', label: 'Ideas', description: 'Generate suggestions', icon: Lightbulb, module: 'ideas', variant: 'ghost' },
       ];
 
-    case 'refactor':
+    case 'reflector':
       return [
         { id: 'tasker', label: 'Run Refactors', description: 'Execute improvements', icon: Play, module: 'tasker', variant: 'primary' },
         { id: 'contexts', label: 'Review Contexts', description: 'Check affected areas', icon: FolderTree, module: 'contexts', variant: 'secondary' },
@@ -86,7 +86,7 @@ function getQuickActionsForModule(currentModule: AppModule): QuickActionDef[] {
         { id: 'coder', label: 'Goals', description: 'Review progress', icon: Sparkles, module: 'coder', variant: 'ghost' },
       ];
 
-    case 'composer':
+    case 'blueprint':
       return [
         { id: 'contexts', label: 'Review Contexts', description: 'Check generated contexts', icon: FolderTree, module: 'contexts', variant: 'primary' },
         { id: 'ideas', label: 'Generate Ideas', description: 'Get suggestions', icon: Lightbulb, module: 'ideas', variant: 'secondary' },

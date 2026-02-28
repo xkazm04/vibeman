@@ -33,6 +33,18 @@ const INNER_HEIGHT = CHART_HEIGHT - PADDING.top - PADDING.bottom;
  * SVG chart showing exponential weight decay over time.
  * Overlays actual signal weights as dots on the theoretical curve.
  */
+function formatDayLabel(day: number): string {
+  if (day === 0) return 'Today';
+  if (day === 7) return '1 week';
+  if (day === 14) return '2 weeks';
+  if (day === 21) return '3 weeks';
+  if (day === 28 || day === 30) return '1 month';
+  if (day === 60) return '2 months';
+  if (day === 90) return '3 months';
+  if (day % 7 === 0) return `${day / 7}w`;
+  return `${day}d`;
+}
+
 export default function SignalDecayCurve({ decayFactor, retentionDays, actualSignals, anomalyZones }: SignalDecayCurveProps) {
   const curvePoints = useMemo(() => {
     const points: string[] = [];
@@ -67,9 +79,15 @@ export default function SignalDecayCurve({ decayFactor, retentionDays, actualSig
     return labels;
   }, [retentionDays]);
 
+  const endStrength = useMemo(() => {
+    return Math.round(Math.pow(decayFactor, retentionDays) * 100);
+  }, [decayFactor, retentionDays]);
+
+  const ariaLabel = `Signal decay curve: starts at 100%, decays to ${endStrength}% over ${retentionDays} days with factor ${decayFactor.toFixed(2)}${anomalyZones?.length ? `, ${anomalyZones.length} anomaly zone${anomalyZones.length > 1 ? 's' : ''} detected` : ''}`;
+
   return (
     <div className="w-full">
-      <svg width="100%" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} className="overflow-visible">
+      <svg width="100%" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} className="overflow-visible" role="img" aria-label={ariaLabel}>
         {/* Background */}
         <rect
           x={PADDING.left}
@@ -123,7 +141,7 @@ export default function SignalDecayCurve({ decayFactor, retentionDays, actualSig
                 <text
                   x={x1 + 2}
                   y={PADDING.top + 8}
-                  className={`text-[6px] ${zone.severity === 'critical' ? 'fill-red-400' : 'fill-amber-400'}`}
+                  className={`text-[9px] font-medium ${zone.severity === 'critical' ? 'fill-red-400' : 'fill-amber-400'}`}
                 >
                   {zone.label}
                 </text>
@@ -162,7 +180,7 @@ export default function SignalDecayCurve({ decayFactor, retentionDays, actualSig
         />
 
         {/* Gradient for curve */}
-        <defs>
+        <defs aria-hidden="true">
           <linearGradient id="decayCurveGradient" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#a855f7" />
             <stop offset="100%" stopColor="#3b82f6" />
@@ -191,7 +209,7 @@ export default function SignalDecayCurve({ decayFactor, retentionDays, actualSig
         {/* X-axis labels */}
         {xLabels.map(({ day, x }) => (
           <text key={day} x={x} y={CHART_HEIGHT - 4} textAnchor="middle" className="fill-zinc-500 text-[8px]">
-            {day}d
+            {formatDayLabel(day)}
           </text>
         ))}
 

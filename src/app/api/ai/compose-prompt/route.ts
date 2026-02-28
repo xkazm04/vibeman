@@ -3,6 +3,7 @@ import { generateWithLLM } from '@/lib/llm'
 import { logger } from '@/lib/logger'
 import { withObservability } from '@/lib/observability/middleware'
 import { withRateLimit } from '@/lib/api-helpers/rateLimiter'
+import { handleApiError } from '@/lib/api-errors'
 
 interface PromptOption {
   label: string
@@ -121,7 +122,7 @@ function buildUserPrompt(request: ComposePromptRequest): string {
  * 
  * Requirements: FR-3.1, FR-3.2
  */
-async function handlePost(request: NextRequest): Promise<NextResponse<ComposePromptResponse>> {
+async function handlePost(request: NextRequest): Promise<NextResponse> {
   try {
     const body: ComposePromptRequest = await request.json()
     const maxLength = body.maxLength || DEFAULT_MAX_LENGTH
@@ -212,21 +213,7 @@ async function handlePost(request: NextRequest): Promise<NextResponse<ComposePro
     })
 
   } catch (error) {
-    // Log unexpected errors with details (NFR-2)
-    logger.error('Unexpected error in compose-prompt API', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-    })
-
-    return NextResponse.json(
-      {
-        success: false,
-        prompt: '',
-        truncated: false,
-        error: 'Failed to compose prompt',
-      },
-      { status: 500 }
-    )
+    return handleApiError(error, 'Compose prompt')
   }
 }
 

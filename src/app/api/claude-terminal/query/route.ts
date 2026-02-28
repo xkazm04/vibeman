@@ -12,11 +12,14 @@ import {
   abortExecution,
   getExecution,
 } from '@/lib/claude-terminal/cli-service';
+import type { CLIProvider, CLIModel } from '@/lib/claude-terminal/types';
 
 interface QueryRequestBody {
   projectPath: string;
   prompt: string;
   resumeSessionId?: string;
+  provider?: CLIProvider;
+  model?: CLIModel;
 }
 
 /**
@@ -25,7 +28,7 @@ interface QueryRequestBody {
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as QueryRequestBody;
-    const { projectPath, prompt, resumeSessionId } = body;
+    const { projectPath, prompt, resumeSessionId, provider, model } = body;
 
     if (!projectPath) {
       return NextResponse.json(
@@ -41,8 +44,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Start CLI execution
-    const executionId = startExecution(projectPath, prompt, resumeSessionId);
+    // Start CLI execution with provider-specific configuration
+    const executionId = startExecution(
+      projectPath,
+      prompt,
+      resumeSessionId,
+      undefined,
+      provider ? { provider, model: model || undefined } : undefined
+    );
 
     // Return execution ID and stream URL
     return NextResponse.json({

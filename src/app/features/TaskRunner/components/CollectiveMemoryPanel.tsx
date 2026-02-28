@@ -76,10 +76,10 @@ export function CollectiveMemoryPanel({ projectId, isOpen, onToggle }: Props) {
                   )}
                   <button
                     onClick={() => setShowDashboard(true)}
-                    className="p-1 rounded hover:bg-gray-700/50 text-gray-500 hover:text-cyan-400 transition-colors"
+                    className="relative p-2 rounded hover:bg-gray-700/50 text-gray-500 hover:text-cyan-400 transition-colors before:absolute before:inset-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:w-11 before:h-11 before:content-['']"
                     title="Open full dashboard"
                   >
-                    <Maximize2 className="w-3 h-3" />
+                    <Maximize2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Grid3X3 } from 'lucide-react';
 import type { WorkspaceProjectNode, TierConfig } from '../sub_WorkspaceArchitecture/lib/types';
 import type { GraphEdge } from '../sub_WorkspaceArchitecture/lib/Graph';
@@ -9,8 +9,31 @@ import MatrixNode from './MatrixNode';
 import MatrixTierAggregate from './MatrixTierAggregate';
 import { ZoomableCanvas, type ZoomTransform } from '@/components/ZoomableCanvas';
 import { HighlightRule, isHighlighted, isDimmed, getImpactLevel, type HighlightRule as HighlightRuleType } from './lib/highlightAlgebra';
-import { getDetailFlagsFromScale, calculateTierAggregates } from './lib/semanticZoom';
+import { getDetailFlagsFromScale, getSemanticZoomLevel, calculateTierAggregates, ZOOM_THRESHOLDS } from './lib/semanticZoom';
 import { archTheme } from './lib/archTheme';
+
+const ZOOM_LEVEL_LABELS: Record<string, string> = {
+  low: 'Overview',
+  medium: 'Standard',
+  high: 'Detailed',
+};
+
+function getThresholdHint(scale: number): string | null {
+  const margin = 0.1;
+  if (scale < ZOOM_THRESHOLDS.LOW_TO_MEDIUM && scale >= ZOOM_THRESHOLDS.LOW_TO_MEDIUM - margin) {
+    return 'Zoom in for node details';
+  }
+  if (scale >= ZOOM_THRESHOLDS.LOW_TO_MEDIUM && scale < ZOOM_THRESHOLDS.LOW_TO_MEDIUM + margin) {
+    return 'Zoom out for overview';
+  }
+  if (scale < ZOOM_THRESHOLDS.MEDIUM_TO_HIGH && scale >= ZOOM_THRESHOLDS.MEDIUM_TO_HIGH - margin) {
+    return 'Zoom in for full details';
+  }
+  if (scale >= ZOOM_THRESHOLDS.MEDIUM_TO_HIGH && scale < ZOOM_THRESHOLDS.MEDIUM_TO_HIGH + margin) {
+    return 'Zoom out for simplified view';
+  }
+  return null;
+}
 
 interface MatrixDiagramViewProps {
   nodes: WorkspaceProjectNode[];
@@ -44,6 +67,18 @@ export default function MatrixDiagramView({
   impactMode,
   onNodeClick,
 }: MatrixDiagramViewProps) {
+  const [currentScale, setCurrentScale] = useState(1);
+
+  const handleTransformChange = useCallback((t: ZoomTransform) => {
+    setCurrentScale(t.k);
+  }, []);
+
+  const zoomLevel = getSemanticZoomLevel(currentScale);
+  const zoomLabel = ZOOM_LEVEL_LABELS[zoomLevel];
+  const zoomPercent = Math.round(currentScale * 100);
+  const thresholdHint = getThresholdHint(currentScale);
+  const isNearThreshold = thresholdHint !== null;
+
   /**
    * Declarative highlight rule based on selection state.
    * Uses the highlight algebra to compute visual emphasis for elements.
@@ -88,11 +123,29 @@ export default function MatrixDiagramView({
         </button>
       )}
 
+      {/* Zoom level badge */}
+      <div className="absolute top-4 right-[4.5rem] z-10 flex items-center gap-2 pointer-events-none select-none">
+        <div
+          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-zinc-900/90 border backdrop-blur-sm transition-all duration-200 ${
+            isNearThreshold
+              ? 'border-cyan-400/50 shadow-md shadow-cyan-500/10 animate-pulse'
+              : 'border-zinc-700/50'
+          }`}
+        >
+          <span className="text-[11px] font-medium text-cyan-400">{zoomLabel}</span>
+          <span className="text-[10px] text-zinc-500">{zoomPercent}%</span>
+        </div>
+        {thresholdHint && (
+          <span className="text-[10px] text-cyan-400/70 whitespace-nowrap">{thresholdHint}</span>
+        )}
+      </div>
+
       <ZoomableCanvas
         width={width}
         height={height}
         background={background}
         config={{ minScale: 0.3, maxScale: 2.5 }}
+        onTransformChange={handleTransformChange}
       >
         {(transform: ZoomTransform) => {
           // Get semantic zoom detail flags based on current scale
@@ -128,41 +181,47 @@ export default function MatrixDiagramView({
               ))}
 
               {/* LOW ZOOM: Tier aggregates instead of individual nodes */}
-              {detailFlags.showTierAggregates && tierAggregates.map((aggregate) => {
-                const tierConfig = tierConfigs.find(t => t.id === aggregate.tierId);
-                if (!tierConfig) return null;
-                return (
-                  <MatrixTierAggregate
-                    key={aggregate.tierId}
-                    aggregate={aggregate}
-                    tierY={tierConfig.y}
-                    tierHeight={tierConfig.height}
-                    canvasWidth={width / transform.k}
-                  />
-                );
-              })}
+              <g style={{ opacity: detailFlags.showTierAggregates ? 1 : 0, transition: 'opacity 200ms ease-in-out' }}>
+                {detailFlags.showTierAggregates && tierAggregates.map((aggregate) => {
+                  const tierConfig = tierConfigs.find(t => t.id === aggregate.tierId);
+                  if (!tierConfig) return null;
+                  return (
+                    <MatrixTierAggregate
+                      key={aggregate.tierId}
+                      aggregate={aggregate}
+                      tierY={tierConfig.y}
+                      tierHeight={tierConfig.height}
+                      canvasWidth={width / transform.k}
+                    />
+                  );
+                })}
+              </g>
 
               {/* MEDIUM+ ZOOM: Connection lines */}
-              {detailFlags.showConnections && resolvedEdges.map((edge) => (
-                <MatrixConnectionLine
-                  key={edge.id}
-                  edge={edge}
-                  isHighlighted={isHighlighted(highlightRule, edge.sourceProjectId, 'connection', edge.targetProjectId)}
-                  isDimmed={isDimmed(highlightRule, edge.sourceProjectId, 'connection', edge.targetProjectId)}
-                />
-              ))}
+              <g style={{ opacity: detailFlags.showConnections ? 1 : 0, transition: 'opacity 200ms ease-in-out' }}>
+                {detailFlags.showConnections && resolvedEdges.map((edge) => (
+                  <MatrixConnectionLine
+                    key={edge.id}
+                    edge={edge}
+                    isHighlighted={isHighlighted(highlightRule, edge.sourceProjectId, 'connection', edge.targetProjectId)}
+                    isDimmed={isDimmed(highlightRule, edge.sourceProjectId, 'connection', edge.targetProjectId)}
+                  />
+                ))}
+              </g>
 
               {/* MEDIUM+ ZOOM: Individual nodes with progressive detail */}
-              {detailFlags.showNodes && nodes.map((node) => (
-                <MatrixNode
-                  key={node.id}
-                  node={node}
-                  isHighlighted={isHighlighted(highlightRule, node.id, 'node')}
-                  detailFlags={detailFlags}
-                  impactLevel={customHighlightRule ? getImpactLevel(customHighlightRule, node.id) : null}
-                  onClick={impactMode || customHighlightRule ? onNodeClick : undefined}
-                />
-              ))}
+              <g style={{ opacity: detailFlags.showNodes ? 1 : 0, transition: 'opacity 200ms ease-in-out' }}>
+                {detailFlags.showNodes && nodes.map((node) => (
+                  <MatrixNode
+                    key={node.id}
+                    node={node}
+                    isHighlighted={isHighlighted(highlightRule, node.id, 'node')}
+                    detailFlags={detailFlags}
+                    impactLevel={customHighlightRule ? getImpactLevel(customHighlightRule, node.id) : null}
+                    onClick={impactMode || customHighlightRule ? onNodeClick : undefined}
+                  />
+                ))}
+              </g>
             </>
           );
         }}

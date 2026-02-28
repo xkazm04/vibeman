@@ -45,6 +45,6 @@
     "**/__tests__/**",
     "**/*.test.ts",
     "**/*.test.tsx",
-    "persona-tools"
+    "vibeman-bridge"
   ]
 }

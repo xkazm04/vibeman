@@ -8,7 +8,7 @@ import { useActiveProjectStore } from '@/stores/activeProjectStore';
 
 interface IdeaDetailMetaProps {
   idea: DbIdea;
-  onUpdate: (updates: Partial<DbIdea>) => Promise<void>;
+  onUpdate: (updates: Partial<DbIdea>) => Promise<boolean | void>;
 }
 
 export default function IdeaDetailMeta({ idea, onUpdate }: IdeaDetailMetaProps) {

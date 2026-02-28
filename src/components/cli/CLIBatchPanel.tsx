@@ -10,11 +10,13 @@ import {
   abortSessionExecution,
   performTaskCleanup,
   cleanupAllCLISessions,
+  clearSessionStrategy,
   type CLISessionId,
 } from './store';
 import { useCLIRecovery } from './store/useCLIRecovery';
 import { RecoveryBanner } from './RecoveryBanner';
 import type { SkillId } from './skills';
+import type { CLIProvider, CLIModel } from '@/lib/claude-terminal/types';
 import {
   useTaskRunnerStore,
   createQueuedStatus,
@@ -59,6 +61,8 @@ export function CLIBatchPanel({
   const setCurrentExecution = useCLISessionStore((state) => state.setCurrentExecution);
   const setGitEnabled = useCLISessionStore((state) => state.setGitEnabled);
   const setGitConfig = useCLISessionStore((state) => state.setGitConfig);
+  const setProvider = useCLISessionStore((state) => state.setProvider);
+  const setModel = useCLISessionStore((state) => state.setModel);
 
   // Clean up SSE connections and polling on unmount to prevent connection leaks
   useEffect(() => {
@@ -101,7 +105,7 @@ export function CLIBatchPanel({
     const session = sessions[sessionId];
     // Collect queued task IDs before clearing the session
     const queuedTaskIds = session.queue
-      .filter(t => t.status === 'pending')
+      .filter(t => t.status.type === 'queued')
       .map(t => t.id);
 
     await abortSessionExecution(sessionId);
@@ -131,7 +135,7 @@ export function CLIBatchPanel({
 
   // Handle task start
   const handleTaskStart = useCallback((sessionId: CLISessionId, taskId: string) => {
-    updateTaskStatus(sessionId, taskId, 'running');
+    updateTaskStatus(sessionId, taskId, createRunningStatus());
     // Sync to TaskRunner store so TaskColumn shows correct status
     updateTaskRunnerStatus(taskId, createRunningStatus());
   }, [updateTaskStatus, updateTaskRunnerStatus]);
@@ -143,7 +147,7 @@ export function CLIBatchPanel({
     const task = session?.queue.find(t => t.id === taskId);
 
     // Update CLI store immediately
-    updateTaskStatus(sessionId, taskId, success ? 'completed' : 'failed');
+    updateTaskStatus(sessionId, taskId, success ? createCompletedStatus() : createFailedStatus('Task failed'));
     // Sync to TaskRunner store so TaskColumn shows correct status
     updateTaskRunnerStatus(taskId, success ? createCompletedStatus() : createFailedStatus('Task failed'));
 
@@ -220,6 +224,17 @@ export function CLIBatchPanel({
     }
   }, [sessions, setGitConfig, setGitEnabled]);
 
+  // Handle provider change — clear cached strategy so next execution uses the correct one
+  const handleProviderChange = useCallback((sessionId: CLISessionId, provider: CLIProvider) => {
+    setProvider(sessionId, provider);
+    clearSessionStrategy(sessionId);
+  }, [setProvider]);
+
+  // Handle model change
+  const handleModelChange = useCallback((sessionId: CLISessionId, model: CLIModel | null) => {
+    setModel(sessionId, model);
+  }, [setModel]);
+
   return (
     <div className="space-y-3 w-full">
       {/* Header */}
@@ -257,6 +272,8 @@ export function CLIBatchPanel({
             onTaskComplete={handleTaskComplete}
             onQueueEmpty={handleQueueEmpty}
             onExecutionChange={handleExecutionChange}
+            onProviderChange={handleProviderChange}
+            onModelChange={handleModelChange}
           />
         ))}
       </div>

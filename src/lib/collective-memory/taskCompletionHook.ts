@@ -1,10 +1,12 @@
 /**
  * Task Completion Hook for Collective Memory
- * Captures learnings from completed task executions.
+ * Captures learnings from completed task executions and tracks
+ * which memories were applied (creating a closed feedback loop).
  */
 
 import { recordTaskLearning, getRelevantKnowledge, formatKnowledgeForPrompt } from './collectiveMemoryService';
-import type { DbCollectiveMemoryEntry } from '@/app/db/models/collective-memory.types';
+import { collectiveMemoryDb } from '@/app/db';
+import type { DbCollectiveMemoryEntry, ApplicationOutcome } from '@/app/db/models/collective-memory.types';
 
 /**
  * Called after a task execution completes.
@@ -30,14 +32,28 @@ export function onTaskCompleted(params: {
 }
 
 /**
+ * Result of getTaskKnowledge — includes application IDs so the caller
+ * can resolve them after the task completes (closing the feedback loop).
+ */
+export interface TaskKnowledgeResult {
+  memories: DbCollectiveMemoryEntry[];
+  promptSection: string;
+  /** Application IDs created for each injected memory (for later resolution) */
+  applicationIds: string[];
+}
+
+/**
  * Called before a task execution starts.
  * Returns relevant knowledge to inject into the execution context.
+ * Creates application records for each injected memory to enable
+ * feedback loop resolution after the task completes.
  */
 export function getTaskKnowledge(params: {
   projectId: string;
   requirementName: string;
+  taskId?: string;
   filePatterns?: string[];
-}): { memories: DbCollectiveMemoryEntry[]; promptSection: string } {
+}): TaskKnowledgeResult {
   try {
     const memories = getRelevantKnowledge({
       projectId: params.projectId,
@@ -45,9 +61,48 @@ export function getTaskKnowledge(params: {
       filePatterns: params.filePatterns,
     });
     const promptSection = formatKnowledgeForPrompt(memories);
-    return { memories, promptSection };
+
+    // Create application records for each injected memory
+    const applicationIds: string[] = [];
+    for (const memory of memories) {
+      try {
+        const appId = `cma_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        collectiveMemoryDb.createApplication({
+          id: appId,
+          memory_id: memory.id,
+          project_id: params.projectId,
+          task_id: params.taskId,
+          requirement_name: params.requirementName,
+        });
+        collectiveMemoryDb.updateLastApplied(memory.id);
+        applicationIds.push(appId);
+      } catch {
+        // Individual application record failure shouldn't block others
+      }
+    }
+
+    return { memories, promptSection, applicationIds };
   } catch (error) {
     console.error('[CollectiveMemory] Failed to get task knowledge:', error);
-    return { memories: [], promptSection: '' };
+    return { memories: [], promptSection: '', applicationIds: [] };
+  }
+}
+
+/**
+ * Resolve pending application records after a task completes.
+ * This closes the feedback loop: injected memories get their
+ * effectiveness scores updated based on actual task outcomes.
+ */
+export function resolveTaskApplications(
+  applicationIds: string[],
+  outcome: ApplicationOutcome,
+  details?: string
+): void {
+  for (const appId of applicationIds) {
+    try {
+      collectiveMemoryDb.resolveApplication(appId, outcome, details);
+    } catch {
+      // Individual resolution failure shouldn't block others
+    }
   }
 }

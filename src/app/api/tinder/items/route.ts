@@ -133,9 +133,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Sort all items by created_at (newest first)
-    items.sort((a, b) =>
-      new Date(b.data.created_at).getTime() - new Date(a.data.created_at).getTime()
-    );
+    const getCreatedAt = (item: (typeof items)[number]): number => {
+      if ('created_at' in item.data) return new Date(item.data.created_at).getTime();
+      if ('directionA' in item.data) return new Date(item.data.directionA.created_at).getTime();
+      return 0;
+    };
+    items.sort((a, b) => getCreatedAt(b) - getCreatedAt(a));
 
     // Paginate
     const paginatedItems = items.slice(offset, offset + limit);

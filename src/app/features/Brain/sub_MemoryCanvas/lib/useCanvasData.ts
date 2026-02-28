@@ -1,10 +1,11 @@
 /**
  * useCanvasData
- * Hook that fetches real behavioral signals from the API and transforms
- * them into BrainEvent[] for the D3 canvas visualization.
+ * Hook that fetches real behavioral signals from the API and pushes
+ * them into the CanvasStore for imperative rendering.
  *
- * Replaces mock data with real project signals.
- * Auto-refreshes every 30 seconds.
+ * Only `isLoading` and `error` are React state (for UI indicators).
+ * Event data lives in the store — polling updates that don't change
+ * the signal set skip layout recalculation entirely.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -13,27 +14,27 @@ import type { BrainEvent } from './types';
 import type { DbBehavioralSignal } from '@/app/db/models/brain.types';
 import { mapSignalsToEvents } from './signalMapper';
 import { safeResponseJson, parseApiResponse, BrainSignalsResponseSchema } from '@/lib/apiResponseGuard';
+import type { CanvasStore } from './canvasStore';
 
 const REFRESH_INTERVAL_MS = 30_000;
 const MAX_SIGNALS = 200;
 const WINDOW_DAYS = 14;
 
-interface CanvasDataState {
-  events: BrainEvent[];
-  isLoading: boolean;
-  isEmpty: boolean;
-  error: string | null;
-  lastFetched: number | null;
+interface UseCanvasDataOptions {
+  store: CanvasStore;
+  getFocusedGroupId: () => string | null;
 }
 
-export function useCanvasData(): CanvasDataState & { refresh: () => void } {
+interface CanvasDataStatus {
+  isLoading: boolean;
+  error: string | null;
+}
+
+export function useCanvasData({ store, getFocusedGroupId }: UseCanvasDataOptions): CanvasDataStatus & { refresh: () => void } {
   const activeProject = useClientProjectStore(s => s.activeProject);
-  const [state, setState] = useState<CanvasDataState>({
-    events: [],
+  const [status, setStatus] = useState<CanvasDataStatus>({
     isLoading: true,
-    isEmpty: false,
     error: null,
-    lastFetched: null,
   });
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
@@ -63,34 +64,17 @@ export function useCanvasData(): CanvasDataState & { refresh: () => void } {
 
       if (!mountedRef.current) return;
 
-      if (events.length === 0) {
-        setState({
-          events: [],
-          isLoading: false,
-          isEmpty: true,
-          error: null,
-          lastFetched: Date.now(),
-        });
-      } else {
-        setState({
-          events,
-          isLoading: false,
-          isEmpty: false,
-          error: null,
-          lastFetched: Date.now(),
-        });
-      }
+      // Push into store — diff check inside skips layout if unchanged
+      store.setEvents(events, getFocusedGroupId());
+      setStatus({ isLoading: false, error: null });
     } catch (err) {
       if (!mountedRef.current) return;
-      setState(prev => ({
-        events: prev.events,
+      setStatus({
         isLoading: false,
-        isEmpty: prev.events.length === 0,
         error: err instanceof Error ? err.message : 'Unknown error',
-        lastFetched: prev.lastFetched,
-      }));
+      });
     }
-  }, []);
+  }, [store, getFocusedGroupId]);
 
   const refresh = useCallback(() => {
     if (activeProject?.id) {
@@ -103,17 +87,12 @@ export function useCanvasData(): CanvasDataState & { refresh: () => void } {
     mountedRef.current = true;
 
     if (!activeProject?.id) {
-      setState({
-        events: [],
-        isLoading: false,
-        isEmpty: true,
-        error: null,
-        lastFetched: null,
-      });
+      store.setEvents([], null);
+      setStatus({ isLoading: false, error: null });
       return;
     }
 
-    setState(prev => ({ ...prev, isLoading: true }));
+    setStatus(prev => ({ ...prev, isLoading: true }));
     fetchSignals(activeProject.id);
 
     // Auto-refresh every 30s
@@ -128,7 +107,7 @@ export function useCanvasData(): CanvasDataState & { refresh: () => void } {
         intervalRef.current = null;
       }
     };
-  }, [activeProject?.id, fetchSignals]);
+  }, [activeProject?.id, fetchSignals, store]);
 
-  return { ...state, refresh };
+  return { ...status, refresh };
 }

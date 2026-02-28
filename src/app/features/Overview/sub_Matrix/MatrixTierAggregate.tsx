@@ -82,7 +82,7 @@ export default function MatrixTierAggregate({
           fontSize={9}
           textAnchor="middle"
         >
-          {aggregate.incomingConnections}↓ · {aggregate.outgoingConnections}↑ connections
+          {aggregate.totalConnections} connections
         </text>
       )}
     </g>

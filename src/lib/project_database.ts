@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import type { Project, ProjectType } from '@/types';
 
 // Database path - store in the database directory
 const DB_PATH = path.join(process.cwd(), 'database', 'projects.db');
@@ -269,14 +270,14 @@ function initializeProjectTables() {
  */
 function addUpdateField(
   fieldName: string,
-  value: string | number | boolean | undefined,
+  value: string | number | boolean | null | undefined,
   updateFields: string[],
-  values: (string | number)[],
+  values: (string | number | null)[],
   transform?: (val: string | number | boolean) => string | number
 ): void {
   if (value !== undefined) {
     updateFields.push(`${fieldName} = ?`);
-    values.push(transform ? transform(value) : value as string | number);
+    values.push(value === null ? null : transform ? transform(value) : value as string | number);
   }
 }
 
@@ -601,6 +602,115 @@ export const projectDb = {
     const stmt = db.prepare('UPDATE projects SET workspace_id = ?, updated_at = ? WHERE id = ?');
     const result = stmt.run(workspaceId, now, projectId);
     return result.changes > 0;
+  },
+
+  // ============= CAMELCASE API (used by API routes) =============
+
+  toProject: (dbProject: DbProject): Project => {
+    const type = dbProject.type;
+    const normalizedType: ProjectType = (!type || type === 'other') ? 'generic' : type as ProjectType;
+    return {
+      id: dbProject.id,
+      name: dbProject.name,
+      path: dbProject.path,
+      port: dbProject.port ?? undefined,
+      workspaceId: dbProject.workspace_id || undefined,
+      type: normalizedType,
+      relatedProjectId: dbProject.related_project_id || undefined,
+      allowMultipleInstances: dbProject.allow_multiple_instances === 1,
+      basePort: dbProject.base_port || dbProject.port || undefined,
+      instanceOf: dbProject.instance_of || undefined,
+      runScript: dbProject.run_script,
+      git: dbProject.git_repository ? {
+        repository: dbProject.git_repository,
+        branch: dbProject.git_branch,
+        autoSync: false,
+      } : undefined,
+    };
+  },
+
+  projects: {
+    getAll: (): Project[] => projectDb.getAllProjects().map(projectDb.toProject),
+
+    get: (projectId: string): Project | undefined => {
+      const row = projectDb.getProject(projectId);
+      return row ? projectDb.toProject(row) : undefined;
+    },
+
+    add: (project: Project): void => {
+      const existingByPath = projectDb.getProjectByPath(project.path);
+      if (existingByPath) {
+        throw new Error(`A project with the same path already exists: ${existingByPath.name}`);
+      }
+      if (project.port != null) {
+        const isPortAvailable = projectDb.isPortAvailableInWorkspace(
+          project.port, project.workspaceId || null,
+        );
+        if (!isPortAvailable) {
+          throw new Error(`Port ${project.port} is already in use by another project in this workspace`);
+        }
+      }
+      projectDb.createProject({
+        id: project.id, name: project.name, path: project.path,
+        port: project.port ?? null, workspace_id: project.workspaceId || null,
+        type: project.type, related_project_id: project.relatedProjectId,
+        git_repository: project.git?.repository, git_branch: project.git?.branch,
+        run_script: project.runScript || 'npm run dev',
+        allow_multiple_instances: project.allowMultipleInstances,
+        base_port: project.basePort, instance_of: project.instanceOf,
+      });
+    },
+
+    update: (projectId: string, updates: Partial<Project>): void => {
+      const existing = projectDb.getProject(projectId);
+      if (!existing) throw new Error('Project not found');
+
+      if (updates.path) {
+        const existingByPath = projectDb.getProjectByPath(updates.path);
+        if (existingByPath && existingByPath.id !== projectId) {
+          throw new Error(`A project with the same path already exists: ${existingByPath.name}`);
+        }
+      }
+      if (updates.port !== undefined && updates.port !== existing.port) {
+        if (updates.port != null) {
+          const wsId = updates.workspaceId !== undefined ? updates.workspaceId : existing.workspace_id;
+          if (!projectDb.isPortAvailableInWorkspace(updates.port, wsId || null, projectId)) {
+            throw new Error(`Port ${updates.port} is already in use by another project in this workspace`);
+          }
+        }
+      }
+
+      const updateData: Record<string, string | number | boolean | null | undefined> = {};
+      if (updates.name !== undefined) updateData.name = updates.name;
+      if (updates.path !== undefined) updateData.path = updates.path;
+      if (updates.port !== undefined) updateData.port = updates.port;
+      if (updates.workspaceId !== undefined) updateData.workspace_id = updates.workspaceId;
+      if (updates.type !== undefined) updateData.type = updates.type;
+      if (updates.relatedProjectId !== undefined && updates.relatedProjectId) updateData.related_project_id = updates.relatedProjectId;
+      if (updates.runScript !== undefined) updateData.run_script = updates.runScript;
+      if (updates.allowMultipleInstances !== undefined) updateData.allow_multiple_instances = updates.allowMultipleInstances;
+      if (updates.basePort !== undefined) updateData.base_port = updates.basePort;
+      if (updates.git !== undefined) {
+        if (updates.git?.repository) updateData.git_repository = updates.git.repository;
+        if (updates.git?.branch) updateData.git_branch = updates.git.branch;
+      }
+
+      const result = projectDb.updateProject(projectId, updateData);
+      if (!result) throw new Error('Project not found');
+    },
+
+    remove: (projectId: string): void => {
+      if (!projectDb.deleteProject(projectId)) throw new Error('Project not found');
+    },
+
+    getInstances: (baseProjectId: string): Project[] =>
+      projectDb.getProjectInstances(baseProjectId).map(projectDb.toProject),
+
+    resetToDefaults: (): void => {
+      for (const p of projectDb.getAllProjects()) {
+        projectDb.deleteProject(p.id);
+      }
+    },
   },
 
   // Close database connection (for cleanup)

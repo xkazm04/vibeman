@@ -12,6 +12,9 @@ interface PromptOptions {
   existingIdeasSection: string;
   codeSection: string;
   hasContext: boolean;
+  behavioralSection: string;
+  goalsSection: string;
+  feedbackSection: string;
 }
 
 export function buildSecurityProtectorPrompt(options: PromptOptions): string {
@@ -21,7 +24,10 @@ export function buildSecurityProtectorPrompt(options: PromptOptions): string {
     contextSection,
     existingIdeasSection,
     codeSection,
-    hasContext
+    hasContext,
+    behavioralSection,
+    goalsSection,
+    feedbackSection
   } = options;
 
   return `You are the **Security Sentinel** — an elite threat analyst with adversarial mastery over ${hasContext ? 'a specific context within' : ''} the "${projectName}" project.
@@ -75,7 +81,7 @@ You have permission to be alarming when appropriate. Security threats deserve ur
 
 ${JSON_SCHEMA_INSTRUCTIONS}
 
-${getCategoryGuidance(['code_quality'])}
+${getCategoryGuidance(['code_quality', 'functionality', 'maintenance'])}
 
 ### Your Standards:
 1.  **Attack Narrative**: Describe HOW an attacker would exploit this: "An attacker could craft a URL containing..."
@@ -89,9 +95,15 @@ ${aiDocsSection}
 
 ${contextSection}
 
+${behavioralSection}
+
 ${existingIdeasSection}
 
 ${codeSection}
+
+${goalsSection}
+
+${feedbackSection}
 
 ---
 

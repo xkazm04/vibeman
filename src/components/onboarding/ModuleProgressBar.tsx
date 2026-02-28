@@ -13,6 +13,7 @@ interface ModuleProgressBarProps {
 
 // Map modules to their associated onboarding steps
 const MODULE_STEPS: Record<AppModule, OnboardingStep | null> = {
+  overview: null,
   coder: 'create-project',
   blueprint: 'run-blueprint',
   contexts: 'review-contexts',
@@ -21,13 +22,13 @@ const MODULE_STEPS: Record<AppModule, OnboardingStep | null> = {
   tasker: 'run-task',
   manager: 'review-impl',
   reflector: null,
-  refactor: null,
   halloffame: null,
   social: null,
-  composer: null,
   zen: null,
   questions: null,
   integrations: null,
+  brain: null,
+  commander: null,
 };
 
 const STEP_LABELS: Record<OnboardingStep, string> = {

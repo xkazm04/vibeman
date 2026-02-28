@@ -9,6 +9,7 @@ import MatrixFilterChips from './MatrixFilterChips';
 import MatrixGrid from './MatrixGrid';
 import MatrixCellInfo from './MatrixCellInfo';
 import { archTheme } from './lib/archTheme';
+import type { HighlightRule } from './lib/highlightAlgebra';
 
 interface MatrixPanelProps {
   sortedNodes: WorkspaceProjectNode[];
@@ -25,6 +26,8 @@ interface MatrixPanelProps {
   onToggleFilter: (type: IntegrationType) => void;
   onCellHover: (cell: { sourceId: string; targetId: string } | null) => void;
   onCellSelect: (cell: { sourceId: string; targetId: string } | null) => void;
+  /** Optional highlight rule for blast radius visualization */
+  highlightRule?: HighlightRule;
 }
 
 export default function MatrixPanel({
@@ -42,6 +45,7 @@ export default function MatrixPanel({
   onToggleFilter,
   onCellHover,
   onCellSelect,
+  highlightRule,
 }: MatrixPanelProps) {
   return (
     <motion.div
@@ -81,6 +85,7 @@ export default function MatrixPanel({
           onCellSelect={onCellSelect}
           contentWidth={contentWidth}
           contentHeight={contentHeight}
+          highlightRule={highlightRule}
         />
 
         {selectedCell && (

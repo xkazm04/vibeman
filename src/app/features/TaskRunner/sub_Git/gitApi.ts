@@ -30,14 +30,14 @@ export async function executeGitOperations(
 }
 
 /**
- * Generate commit message from template
+ * Generate commit message from template.
+ * Single-pass replacement for all {key} placeholders.
  */
 export function generateCommitMessage(
   template: string,
   requirementName: string,
   projectName: string
 ): string {
-  return template
-    .replace(/{requirementName}/g, requirementName)
-    .replace(/{projectName}/g, projectName);
+  const values: Record<string, string> = { requirementName, projectName };
+  return template.replace(/\{(\w+)\}/g, (_match, key) => values[key] ?? _match);
 }

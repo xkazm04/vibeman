@@ -15,7 +15,7 @@ import { TemplateVariableForm } from './TemplateVariableForm';
 import { PromptPreviewModal } from './PromptPreviewModal';
 import { GenerationHistoryPanel, type GenerationHistoryPanelRef } from './GenerationHistoryPanel';
 import TemplateColumn from './TemplateColumn';
-import { toast } from '@/stores/toastStore';
+import { toast } from '@/stores/messageStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import type { DbDiscoveredTemplate } from '../../../db/models/types';
 

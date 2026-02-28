@@ -4,22 +4,20 @@
  */
 
 import { NextResponse } from 'next/server';
-import { monitorServiceDb } from '@/lib/monitorServiceDb';
+import { monitorDb } from '@/lib/monitor_database';
 import { withObservability } from '@/lib/observability/middleware';
+import { handleApiError } from '@/lib/api-errors';
 
 async function handleGet() {
   try {
-    const patterns = await monitorServiceDb.getAllPatterns();
+    const patterns = monitorDb.patterns.getAll();
 
     return NextResponse.json({
       success: true,
       patterns
     });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch patterns' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Fetch patterns');
   }
 }
 

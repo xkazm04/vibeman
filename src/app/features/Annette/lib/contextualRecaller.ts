@@ -1,13 +1,18 @@
 /**
  * Annette Contextual Recaller
- * Automatically retrieves relevant memories based on conversation context
+ * Retrieves relevant memories and knowledge based on conversation context.
+ * Queries the unified knowledge store instead of merging from two separate systems.
  */
 
 import { annetteDb, contextDb } from '@/app/db';
 import type { DbAnnetteMemory, DbAnnetteKnowledgeNode } from '@/app/db/models/annette.types';
-import { memoryStore, Memory } from './memoryStore';
-import { knowledgeGraph, buildEdgeMap, KnowledgeNode, KnowledgeEdge } from './knowledgeGraph';
-import { semanticIndexer } from './semanticIndexer';
+import {
+  unifiedKnowledgeStore,
+  buildEdgeMap,
+  type Memory,
+  type KnowledgeNode,
+  type KnowledgeEdge,
+} from './unifiedKnowledgeStore';
 import { generateWithLLM } from '@/lib/llm';
 
 export interface RecallContext {
@@ -77,7 +82,8 @@ Respond in JSON format:
   },
 
   /**
-   * Recall relevant memories and knowledge based on conversation context
+   * Recall relevant memories and knowledge based on conversation context.
+   * Uses a single unified search instead of querying two stores and merging.
    */
   async recall(context: RecallContext): Promise<RecalledContext> {
     const {
@@ -89,7 +95,6 @@ Respond in JSON format:
       minRelevanceScore = 0.3,
     } = context;
 
-    // Build search query from current message and recent context
     const searchQuery = currentMessage || recentMessages.map(m => m.content).join(' ');
 
     if (!searchQuery.trim()) {
@@ -102,31 +107,40 @@ Respond in JSON format:
       };
     }
 
-    // Run LLM extraction and semantic searches in parallel
-    const [signals, similarMemories, similarNodes] = await Promise.all([
+    // Run LLM extraction and unified semantic search in parallel
+    const totalLimit = (maxMemories + maxNodes) * 2;
+    const [signals, unifiedResults] = await Promise.all([
       this.extractContextSignals(searchQuery),
-      semanticIndexer.findSimilarMemories(projectId, searchQuery, maxMemories * 2, minRelevanceScore),
-      semanticIndexer.findSimilarNodes(projectId, searchQuery, maxNodes * 2, minRelevanceScore),
+      unifiedKnowledgeStore.findSimilar(projectId, searchQuery, totalLimit, minRelevanceScore),
     ]);
 
-    // These depend on signals from the LLM extraction
+    // Context keyword matches
     const contextMatches = this.findContextsByKeywords(projectId, signals);
 
-    // Also search for entities mentioned in the message
+    // Also search for entity name matches in the graph
     const entityNodes: Array<{ item: DbAnnetteKnowledgeNode; similarity: number }> = [];
     for (const entity of signals.entities) {
-      const found = knowledgeGraph.searchNodes(projectId, entity, 3);
+      const found = unifiedKnowledgeStore.searchNodes(projectId, entity, 3);
       for (const node of found) {
         const dbNode = annetteDb.knowledgeNodes.getById(node.id);
         if (dbNode) {
-          entityNodes.push({ item: dbNode, similarity: 0.8 }); // High relevance for exact matches
+          entityNodes.push({ item: dbNode, similarity: 0.8 });
         }
       }
     }
 
-    // Combine and deduplicate nodes
+    // Split unified results into memories and nodes
+    const memoryResults = unifiedResults
+      .filter(r => r.source === 'memory')
+      .map(r => ({ item: r.item as DbAnnetteMemory, similarity: r.similarity }));
+
+    const nodeResults = unifiedResults
+      .filter(r => r.source === 'knowledge')
+      .map(r => ({ item: r.item as DbAnnetteKnowledgeNode, similarity: r.similarity }));
+
+    // Deduplicate nodes (entity matches + semantic matches)
     const nodeMap = new Map<string, { item: DbAnnetteKnowledgeNode; similarity: number }>();
-    for (const result of [...similarNodes, ...entityNodes]) {
+    for (const result of [...nodeResults, ...entityNodes]) {
       const existing = nodeMap.get(result.item.id);
       if (!existing || result.similarity > existing.similarity) {
         nodeMap.set(result.item.id, result);
@@ -143,10 +157,10 @@ Respond in JSON format:
     );
 
     // Convert to output format
-    const memories = similarMemories
+    const memories = memoryResults
       .slice(0, maxMemories)
       .map(result => {
-        const memory = memoryStore.getById(result.item.id);
+        const memory = unifiedKnowledgeStore.getMemory(result.item.id);
         if (!memory) return null;
         return { ...memory, relevanceScore: result.similarity };
       })
@@ -157,7 +171,7 @@ Respond in JSON format:
       .slice(0, maxNodes);
 
     const knowledgeNodes = nodesArray.map(result => {
-      const node = knowledgeGraph.getNode(result.item.id);
+      const node = unifiedKnowledgeStore.getNode(result.item.id);
       if (!node) return null;
       return { ...node, relevanceScore: result.similarity };
     }).filter((n): n is KnowledgeNode & { relevanceScore: number } => n !== null);
@@ -166,7 +180,7 @@ Respond in JSON format:
     const nodeIds = new Set(knowledgeNodes.map(n => n.id));
     const knowledgeEdges = buildEdgeMap(
       nodeIds,
-      (id) => knowledgeGraph.getEdges(id, 'both'),
+      (id) => unifiedKnowledgeStore.getEdges(id, 'both'),
       'both',
     );
 
@@ -190,7 +204,6 @@ Respond in JSON format:
         'Matched contexts:\n' + contextLines.join('\n');
     }
 
-    // Estimate tokens
     const tokenEstimate = this.estimateTokens(memories, knowledgeNodes, enrichedSummary);
 
     return {
@@ -249,18 +262,13 @@ Respond in JSON format:
     summary: string
   ): number {
     let tokens = 0;
-
-    // Rough estimate: 1 token per 4 characters
     for (const memory of memories) {
       tokens += (memory.content.length + (memory.summary?.length || 0)) / 4;
     }
-
     for (const node of nodes) {
       tokens += (node.name.length + (node.description?.length || 0)) / 4;
     }
-
     tokens += summary.length / 4;
-
     return Math.round(tokens);
   },
 
@@ -373,12 +381,11 @@ Respond in JSON format:
     });
 
     const systemContext = this.formatForPrompt(recalled);
-
     return { systemContext, recalled };
   },
 
   /**
-   * Learn from conversation by extracting and storing memories
+   * Learn from conversation by extracting memories and building knowledge graph
    */
   async learnFromConversation(
     projectId: string,
@@ -390,18 +397,18 @@ Respond in JSON format:
     edgesCreated: number;
   }> {
     // Extract memories
-    const memories = await memoryStore.extractFromConversation(projectId, sessionId, messages);
+    const memories = await unifiedKnowledgeStore.extractMemoriesFromConversation(projectId, sessionId, messages);
 
     // Build conversation text for entity extraction
     const conversationText = messages.map(m => m.content).join('\n');
 
     // Extract and build knowledge graph
-    const { nodes, edges } = await knowledgeGraph.buildFromText(projectId, conversationText);
+    const { nodes, edges } = await unifiedKnowledgeStore.buildFromText(projectId, conversationText);
 
     // Index new memories and nodes in parallel
     await Promise.all([
-      ...memories.map(memory => semanticIndexer.indexMemory(memory.id)),
-      ...nodes.map(node => semanticIndexer.indexKnowledgeNode(node.id)),
+      ...memories.map(memory => unifiedKnowledgeStore.indexItem(memory.id, 'memory')),
+      ...nodes.map(node => unifiedKnowledgeStore.indexItem(node.id, 'knowledge')),
     ]);
 
     return {
@@ -420,20 +427,17 @@ Respond in JSON format:
     consolidatedCount: number;
     indexedCount: number;
   }> {
-    // Apply decay to memories
-    const decayedCount = memoryStore.applyDecay(projectId, 0.99);
-
-    // Prune very old memories
-    const prunedCount = memoryStore.pruneOld(projectId, 0.01);
+    const decayedCount = unifiedKnowledgeStore.applyMemoryDecay(projectId, 0.99);
+    const prunedCount = unifiedKnowledgeStore.pruneOldMemories(projectId, 0.01);
 
     // Find clusters of similar memories for consolidation
-    const clusters = await semanticIndexer.clusterMemories(projectId, 0.8);
+    const clusters = await unifiedKnowledgeStore.clusterMemories(projectId, 0.8);
     let consolidatedCount = 0;
 
     for (const cluster of clusters) {
       if (cluster.length >= 3) {
         const memoryIds = cluster.map(m => m.id);
-        const consolidated = await memoryStore.consolidateMemories(projectId, memoryIds);
+        const consolidated = await unifiedKnowledgeStore.consolidateMemories(projectId, memoryIds);
         if (consolidated) {
           consolidatedCount += memoryIds.length;
         }
@@ -441,14 +445,13 @@ Respond in JSON format:
     }
 
     // Index any unindexed items
-    const indexedMemories = await semanticIndexer.indexAllMemories(projectId);
-    const indexedNodes = await semanticIndexer.indexAllKnowledgeNodes(projectId);
+    const indexed = await unifiedKnowledgeStore.indexAllUnindexed(projectId);
 
     return {
       decayedCount,
       prunedCount,
       consolidatedCount,
-      indexedCount: indexedMemories + indexedNodes,
+      indexedCount: indexed.memories + indexed.nodes,
     };
   },
 };

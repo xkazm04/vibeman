@@ -203,6 +203,121 @@ SQLite databases are created automatically on first run. No manual setup require
 
 ---
 
+## Local Setup
+
+### Prerequisites
+
+```bash
+npm install
+npm run dev        # Start the development server on http://localhost:3000
+```
+
+### CLI Providers
+
+The Task Runner supports multiple CLI providers for executing implementation tasks. Each provider uses a different AI backend but integrates through the same SSE-based streaming UI.
+
+#### Claude Code CLI (Default)
+
+The primary provider. Uses Anthropic's Claude models via the `claude` CLI.
+
+```bash
+# Install Claude Code CLI
+npm install -g @anthropic-ai/claude-code
+
+# Verify installation
+claude --version
+
+# Auth: uses web-based subscription auth by default.
+# For API key auth, set ANTHROPIC_API_KEY in .env
+```
+
+**Models:** Opus, Sonnet
+
+---
+
+#### Gemini CLI
+
+Uses Google's Gemini models via the `gemini` CLI.
+
+```bash
+# Install Gemini CLI
+npm install -g @google/gemini-cli
+
+# Verify installation
+gemini --version
+
+# Auth: run 'gemini' once interactively to complete OAuth login,
+# or set GEMINI_API_KEY in .env
+```
+
+**Models:** Gemini 3.1 Pro Preview
+
+---
+
+#### Ollama (via Claude CLI)
+
+Routes Claude CLI through a local Ollama instance. Ollama exposes an Anthropic-compatible Messages API at `/v1/messages`, so Claude CLI works transparently with Ollama-hosted models.
+
+```bash
+# Install Ollama: https://ollama.com/download
+# Start Ollama (runs on http://localhost:11434 by default)
+
+# Pull the cloud model
+ollama pull qwen3.5:cloud
+
+# For cloud models, authenticate:
+ollama login
+# Or visit the signin URL shown when accessing a cloud model
+
+# Optional: configure in .env
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_API_KEY=ollama
+```
+
+**Models:** Qwen 3.5 Cloud
+
+**How it works:** When you select "Ollama" as the provider, Vibeman spawns `claude` CLI with `ANTHROPIC_BASE_URL` pointed at your Ollama instance and `--model qwen3.5:cloud`. The Claude CLI handles the agentic loop while Ollama serves the model.
+
+---
+
+#### VS Code Copilot Bridge
+
+Leverages GitHub Copilot subscription models (GPT-5.3 Codex, Claude Opus 4.6, GPT-4.1) through a lightweight VS Code extension that exposes Copilot's `vscode.lm` API over HTTP.
+
+```bash
+# 1. Build the extension
+cd vibeman-bridge
+npm install
+npm run compile
+
+# 2. Package as .vsix
+npx @vscode/vsce package --allow-missing-repository
+
+# 3. Install in VS Code / VS Code Insiders
+code --install-extension vibeman-bridge-0.1.0.vsix
+# or for Insiders:
+code-insiders --install-extension vibeman-bridge-0.1.0.vsix
+
+# 4. Reload VS Code (Ctrl+Shift+P -> "Developer: Reload Window")
+
+# 5. Verify: the extension auto-starts and runs on port 9876
+curl http://localhost:9876/health
+```
+
+**Models:** GPT 5.3 Codex (1x), Claude Opus 4.6 (3x), GPT 4.1 (0x)
+
+**Requires:** Active GitHub Copilot subscription in VS Code.
+
+**Updating after code changes:**
+```bash
+cd vibeman-bridge
+npm run compile
+npx @vscode/vsce package --allow-missing-repository
+code-insiders --install-extension vibeman-bridge-0.1.0.vsix
+```
+
+---
+
 ## Architecture
 
 ```

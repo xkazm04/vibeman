@@ -1,6 +1,69 @@
 import type { Group, FilterState } from './types';
 import { COLORS, LABELS, LANE_TYPES, RECENCY_GLOW_HOURS, LABEL_MIN_ZOOM } from './constants';
-import { hexToRgba, getEventAlpha, getEventRadius, computeLabelRects, relTime } from './helpers';
+import { hexToRgba, colorAt, getEventAlpha, getEventRadius, computeLabelRects, relTime } from './helpers';
+
+// --- Cached lane background OffscreenCanvas ---
+let _laneCache: OffscreenCanvas | null = null;
+let _laneCacheKey = '';
+
+function getLaneCacheKey(width: number, height: number, filterState?: FilterState): string {
+  const typeKey = filterState ? Array.from(filterState.visibleTypes).sort().join(',') : 'all';
+  return `${width}:${height}:${typeKey}`;
+}
+
+function getLaneBackground(width: number, height: number, filterState?: FilterState): OffscreenCanvas {
+  const key = getLaneCacheKey(width, height, filterState);
+  if (_laneCache && _laneCacheKey === key) return _laneCache;
+
+  const oc = new OffscreenCanvas(width, height);
+  const octx = oc.getContext('2d')!;
+
+  const yTop = height * 0.06;
+  const yBottom = height * 0.08;
+  const laneHeight = (height - yTop - yBottom) / LANE_TYPES.length;
+
+  for (let i = 0; i < LANE_TYPES.length; i++) {
+    const laneY = yTop + i * laneHeight;
+    const laneColor = COLORS[LANE_TYPES[i]];
+    const laneVisible = !filterState || filterState.visibleTypes.has(LANE_TYPES[i]);
+
+    octx.save();
+    octx.globalAlpha = laneVisible ? 0.04 : 0.015;
+    octx.fillStyle = laneColor;
+    octx.fillRect(0, laneY, width, laneHeight);
+    octx.restore();
+
+    octx.strokeStyle = colorAt(laneColor, 0.15);
+    octx.lineWidth = 1;
+    octx.beginPath();
+    octx.moveTo(0, laneY);
+    octx.lineTo(width, laneY);
+    octx.stroke();
+
+    octx.fillStyle = colorAt(laneColor, 0.08);
+    octx.font = `bold ${Math.min(laneHeight * 0.35, 48)}px Inter, system-ui, sans-serif`;
+    octx.textAlign = 'center';
+    octx.textBaseline = 'middle';
+    octx.fillText(LABELS[LANE_TYPES[i]].toUpperCase(), width / 2, laneY + laneHeight / 2);
+
+    octx.fillStyle = colorAt(laneColor, 0.6);
+    octx.font = 'bold 10px Inter, system-ui, sans-serif';
+    octx.textAlign = 'left';
+    octx.textBaseline = 'top';
+    octx.fillText(LABELS[LANE_TYPES[i]], 10, laneY + 6);
+  }
+
+  // Bottom lane separator
+  octx.strokeStyle = 'rgba(63,63,70,0.3)';
+  octx.beginPath();
+  octx.moveTo(0, yTop + LANE_TYPES.length * laneHeight);
+  octx.lineTo(width, yTop + LANE_TYPES.length * laneHeight);
+  octx.stroke();
+
+  _laneCache = oc;
+  _laneCacheKey = key;
+  return oc;
+}
 
 interface RenderFocusedParams {
   ctx: CanvasRenderingContext2D;
@@ -20,53 +83,15 @@ export function renderFocused({ ctx, group, width, height, transform, dpr, filte
   const xPad = width * 0.10;
   const xRange = width - xPad * 2;
 
-  // Lane backgrounds with type-colored gradients
-  for (let i = 0; i < LANE_TYPES.length; i++) {
-    const laneY = yTop + i * laneHeight;
-    const laneColor = COLORS[LANE_TYPES[i]];
-    const laneVisible = !filterState || filterState.visibleTypes.has(LANE_TYPES[i]);
-    const midAlpha = laneVisible ? 0.06 : 0.02;
-
-    const laneGrad = ctx.createLinearGradient(0, laneY, 0, laneY + laneHeight);
-    laneGrad.addColorStop(0, hexToRgba(laneColor, 0.03));
-    laneGrad.addColorStop(0.5, hexToRgba(laneColor, midAlpha));
-    laneGrad.addColorStop(1, hexToRgba(laneColor, 0.02));
-    ctx.fillStyle = laneGrad;
-    ctx.fillRect(0, laneY, width, laneHeight);
-
-    ctx.strokeStyle = hexToRgba(laneColor, 0.15);
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, laneY);
-    ctx.lineTo(width, laneY);
-    ctx.stroke();
-
-    ctx.fillStyle = hexToRgba(laneColor, 0.08);
-    ctx.font = `bold ${Math.min(laneHeight * 0.35, 48)}px Inter, system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(LABELS[LANE_TYPES[i]].toUpperCase(), width / 2, laneY + laneHeight / 2);
-
-    ctx.fillStyle = hexToRgba(laneColor, 0.6);
-    ctx.font = 'bold 10px Inter, system-ui, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText(LABELS[LANE_TYPES[i]], 10, laneY + 6);
-  }
-
-  // Bottom lane separator
-  ctx.strokeStyle = 'rgba(63,63,70,0.3)';
-  ctx.beginPath();
-  ctx.moveTo(0, yTop + LANE_TYPES.length * laneHeight);
-  ctx.lineTo(width, yTop + LANE_TYPES.length * laneHeight);
-  ctx.stroke();
+  // Lane backgrounds — blit from cached OffscreenCanvas
+  ctx.drawImage(getLaneBackground(width, height, filterState), 0, 0);
 
   // Time axis
   renderTimeAxis(ctx, group, width, height, yTop, yBottom, xPad, xRange, laneHeight, transform);
 
-  // Connection lines
-  const sorted = [...group.events].sort((a, b) => a.timestamp - b.timestamp);
-  ctx.strokeStyle = hexToRgba(group.dominantColor, 0.08);
+  // Connection lines — use pre-sorted events instead of re-sorting per frame
+  const sorted = group.sortedEvents;
+  ctx.strokeStyle = colorAt(group.dominantColor, 0.08);
   ctx.lineWidth = 1;
   for (let i = 1; i < sorted.length; i++) {
     const prev = sorted[i - 1];
@@ -197,6 +222,10 @@ function renderFocusedEvents(
   const now = Date.now();
   const labelCandidates: Array<{ x: number; y: number; radius: number; label: string; priority: number }> = [];
 
+  // Pre-compute frame-level pulse phase (shared across all events this frame)
+  const pulsePhase = (now % 2000) / 2000;
+  const pulseAlphaBase = 0.3 * (1 - pulsePhase);
+
   for (const evt of group.events) {
     // Skip filtered-out events
     if (filterState && !filterState.visibleTypes.has(evt.type)) continue;
@@ -212,31 +241,34 @@ function renderFocusedEvents(
       const dotRadius = getEventRadius(evt.weight, evt.timestamp) * Math.min(k, 1.3);
       const isRecent = (now - evt.timestamp) < 86400000;
 
+      // Solid fill with globalAlpha — replaces per-event hexToRgba calls
       if (isRecent || evt.weight > 1.5) {
         ctx.save();
         ctx.shadowBlur = 10 + evt.weight * 5;
-        ctx.shadowColor = hexToRgba(evtColor, 0.5);
+        ctx.shadowColor = colorAt(evtColor, 0.5);
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = evtColor;
         ctx.beginPath();
         ctx.arc(screenX, screenY, dotRadius, 0, Math.PI * 2);
-        ctx.fillStyle = hexToRgba(evtColor, 0.9);
         ctx.fill();
         ctx.restore();
       } else {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = evtColor;
         ctx.beginPath();
         ctx.arc(screenX, screenY, dotRadius, 0, Math.PI * 2);
-        ctx.fillStyle = hexToRgba(evtColor, alpha);
         ctx.fill();
+        ctx.restore();
       }
 
-      // Animated pulse ring for recent events
+      // Animated pulse ring for recent events (using frame-level cached phase)
       const ageHours = (now - evt.timestamp) / 3600000;
       if (ageHours < RECENCY_GLOW_HOURS) {
-        const pulsePhase = (now % 2000) / 2000;
         const pulseRadius = dotRadius * (1.5 + pulsePhase * 0.8);
-        const pulseAlpha = 0.3 * (1 - pulsePhase);
         ctx.beginPath();
         ctx.arc(screenX, screenY, pulseRadius, 0, Math.PI * 2);
-        ctx.strokeStyle = hexToRgba(evtColor, pulseAlpha);
+        ctx.strokeStyle = colorAt(evtColor, pulseAlphaBase);
         ctx.lineWidth = 1.5;
         ctx.stroke();
       }
@@ -257,7 +289,7 @@ function renderFocusedEvents(
       const cy = screenY - cardH / 2;
 
       ctx.fillStyle = 'rgba(24,24,27,0.92)';
-      ctx.strokeStyle = hexToRgba(evtColor, alpha * 0.7);
+      ctx.strokeStyle = colorAt(evtColor, alpha * 0.7);
       ctx.lineWidth = 1.2;
       ctx.beginPath();
       ctx.roundRect(cx, cy, cardW, cardH, 6 * cardScale);

@@ -113,9 +113,6 @@ export function autoPruneInsights(projectId: string, minDirections: number = 3):
     });
   }
 
-  // Track which reflection IDs were modified so we can sync JSON at the end
-  const modifiedReflectionIds = new Set<string>();
-
   // 4. Process each insight row
   for (const row of insightRows) {
     const effectiveness = scoreMap.get(row.id);
@@ -137,8 +134,6 @@ export function autoPruneInsights(projectId: string, minDirections: number = 3):
         });
 
         misleadingDemoted++;
-        modifiedReflectionIds.add(row.reflection_id);
-
         actions.push({
           type: 'confidence_lowered',
           insightTitle: row.title,
@@ -184,7 +179,6 @@ export function autoPruneInsights(projectId: string, minDirections: number = 3):
           }
 
           brainInsightDb.update(row.id, thisUpdate);
-          modifiedReflectionIds.add(row.reflection_id);
 
           // Also resolve the other side
           const otherRow = otherEffectiveness.row;
@@ -206,7 +200,6 @@ export function autoPruneInsights(projectId: string, minDirections: number = 3):
             }
 
             brainInsightDb.update(otherRow.id, otherUpdate);
-            modifiedReflectionIds.add(otherRow.reflection_id);
           }
 
           conflictsAutoResolved++;
@@ -221,11 +214,6 @@ export function autoPruneInsights(projectId: string, minDirections: number = 3):
         }
       }
     }
-  }
-
-  // 5. Sync JSON blobs for all modified reflections (backward compat)
-  for (const reflectionId of modifiedReflectionIds) {
-    brainInsightDb.syncToReflectionJson(reflectionId);
   }
 
   return {

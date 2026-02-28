@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processManager } from '@/lib/processManager';
-import { projectServiceDb } from '@/lib/projectServiceDb';
+import { projectDb } from '@/lib/project_database';
 
 export async function POST(request: NextRequest) {
   try {
     const { projectId, port: overridePort } = await request.json();
 
-    const project = await projectServiceDb.getProject(projectId);
+    const project = projectDb.projects.get(projectId);
 
     if (!project) {
       return NextResponse.json(

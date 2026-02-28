@@ -3,7 +3,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
-import { useToastStore, Toast as ToastType, ToastType as ToastVariant } from '@/stores/toastStore';
+import { useMessageStore, Toast as ToastType, ToastType as ToastVariant } from '@/stores/messageStore';
 
 const icons: Record<ToastVariant, React.ElementType> = {
   success: CheckCircle,
@@ -111,7 +111,7 @@ const positionClasses: Record<string, string> = {
 };
 
 export function ToastContainer({ position = 'top-right', maxVisible = 5 }: ToastContainerProps) {
-  const { toasts, removeToast } = useToastStore();
+  const { toasts, removeToast } = useMessageStore();
   const visibleToasts = toasts.slice(-maxVisible);
 
   return (

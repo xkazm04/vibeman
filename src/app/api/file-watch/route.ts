@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { scanQueueDb } from '@/app/db';
 import { fileWatcherManager } from '@/lib/fileWatcher';
 import { logger } from '@/lib/logger';
-import { createErrorResponse, notFoundResponse } from '@/lib/api-helpers';
+import { createErrorResponse, handleApiError, notFoundResponse } from '@/lib/api-helpers';
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,11 +24,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ config });
   } catch (error) {
-    logger.error('Error fetching file watch config:', { error });
-    return NextResponse.json(
-      { error: 'Failed to fetch file watch config', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Fetch file watch config');
   }
 }
 
@@ -70,11 +66,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ config });
   } catch (error) {
-    logger.error('Error creating/updating file watch config:', { error });
-    return NextResponse.json(
-      { error: 'Failed to create/update file watch config', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Create/update file watch config');
   }
 }
 
@@ -102,10 +94,6 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ config });
   } catch (error) {
-    logger.error('Error toggling file watch:', { error });
-    return NextResponse.json(
-      { error: 'Failed to toggle file watch', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Toggle file watch');
   }
 }

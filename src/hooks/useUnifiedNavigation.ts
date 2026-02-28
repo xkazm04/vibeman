@@ -20,7 +20,7 @@ const ENTITY_MODULE_MAP: Record<NavigableEntity['type'], AppModule> = {
   idea: 'ideas',
   task: 'tasker',
   requirement: 'tasker',
-  scan: 'composer',
+  scan: 'blueprint',
 };
 
 /**

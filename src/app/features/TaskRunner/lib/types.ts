@@ -1,17 +1,18 @@
-import type { Requirement } from '@/app/Claude/lib/requirementApi';
-import type { BatchId } from '../store/taskRunnerStore';
 import { RequirementId, type RequirementIdString, type ParsedRequirementId } from './requirementId';
 
 // Re-export RequirementId for consumers
 export { RequirementId, type RequirementIdString, type ParsedRequirementId };
 
-// Re-export ProgressEmitter types for progress tracking
-// See @/lib/progress for the unified progress interface
-export type { ProgressSnapshot, ProgressEmitter } from '@/lib/progress';
-
 // ============================================================================
 // Discriminated Union Types for Task Status
 // ============================================================================
+
+/**
+ * Task is idle (not yet queued for execution)
+ */
+export interface TaskStatusIdle {
+  type: 'idle';
+}
 
 /**
  * Task is waiting in queue to be executed
@@ -23,12 +24,8 @@ export interface TaskStatusQueued {
 /**
  * Task is currently being executed
  *
- * Progress is tracked via the progressLines metric in the store's taskProgress map.
- * progressLines (0-100) serves as a normalized proxy for execution progress,
- * implementing the ProgressEmitter pattern. See @/lib/progress for details.
- *
- * The progress field here is optional and may differ from progressLines -
- * use taskProgress[taskId] from the store for the canonical progressLines value.
+ * Progress is tracked by the unified ProgressTracker (see lib/progressTracker.ts)
+ * which derives activity, checkpoints, and percentage from CLI stdout.
  */
 export interface TaskStatusRunning {
   type: 'running';
@@ -57,6 +54,8 @@ export interface TaskStatusFailed {
 
 /**
  * Discriminated union type for all possible task statuses.
+ * This is the canonical status type used across all layers.
+ *
  * Using discriminated unions ensures:
  * 1. You can only access status-specific properties after checking the type
  * 2. TypeScript enforces exhaustive handling of all status types
@@ -66,6 +65,9 @@ export interface TaskStatusFailed {
  * ```typescript
  * function handleTaskStatus(status: TaskStatusUnion) {
  *   switch (status.type) {
+ *     case 'idle':
+ *       // Task not yet queued
+ *       break;
  *     case 'queued':
  *       // No additional properties available
  *       break;
@@ -85,6 +87,7 @@ export interface TaskStatusFailed {
  * ```
  */
 export type TaskStatusUnion =
+  | TaskStatusIdle
   | TaskStatusQueued
   | TaskStatusRunning
   | TaskStatusCompleted
@@ -97,61 +100,15 @@ export type TaskStatusUnion =
 export type TaskStatusType = TaskStatusUnion['type'];
 
 // ============================================================================
-// Discriminated Union Types for Batch Status
-// ============================================================================
-
-/**
- * Batch is idle (not started)
- */
-export interface BatchStatusIdle {
-  type: 'idle';
-}
-
-/**
- * Batch is currently running
- */
-export interface BatchStatusRunning {
-  type: 'running';
-  startedAt: number;
-  currentTaskId?: string; // ID of the currently running task
-}
-
-/**
- * Batch is paused
- */
-export interface BatchStatusPaused {
-  type: 'paused';
-  startedAt: number;
-  pausedAt: number;
-}
-
-/**
- * Batch completed (all tasks processed)
- */
-export interface BatchStatusCompleted {
-  type: 'completed';
-  startedAt: number;
-  completedAt: number;
-  totalDuration: number; // Total duration in ms
-}
-
-/**
- * Discriminated union type for all possible batch statuses
- */
-export type BatchStatusUnion =
-  | BatchStatusIdle
-  | BatchStatusRunning
-  | BatchStatusPaused
-  | BatchStatusCompleted;
-
-/**
- * Simple string literal type for backward compatibility
- */
-export type BatchStatusType = BatchStatusUnion['type'];
-
-// ============================================================================
 // Helper Functions for Status Operations
 // ============================================================================
+
+/**
+ * Create an idle task status
+ */
+export function createIdleStatus(): TaskStatusIdle {
+  return { type: 'idle' };
+}
 
 /**
  * Create a queued task status
@@ -182,36 +139,10 @@ export function createFailedStatus(error: string, completedAt: number = Date.now
 }
 
 /**
- * Create an idle batch status
+ * Type guard to check if task status is idle
  */
-export function createIdleBatchStatus(): BatchStatusIdle {
-  return { type: 'idle' };
-}
-
-/**
- * Create a running batch status
- */
-export function createRunningBatchStatus(startedAt: number = Date.now(), currentTaskId?: string): BatchStatusRunning {
-  return { type: 'running', startedAt, currentTaskId };
-}
-
-/**
- * Create a paused batch status
- */
-export function createPausedBatchStatus(startedAt: number, pausedAt: number = Date.now()): BatchStatusPaused {
-  return { type: 'paused', startedAt, pausedAt };
-}
-
-/**
- * Create a completed batch status
- */
-export function createCompletedBatchStatus(startedAt: number, completedAt: number = Date.now()): BatchStatusCompleted {
-  return {
-    type: 'completed',
-    startedAt,
-    completedAt,
-    totalDuration: completedAt - startedAt,
-  };
+export function isTaskIdle(status: TaskStatusUnion | undefined): status is TaskStatusIdle {
+  return status?.type === 'idle';
 }
 
 /**
@@ -243,39 +174,20 @@ export function isTaskFailed(status: TaskStatusUnion | undefined): status is Tas
 }
 
 /**
- * Type guard to check if batch status is idle
- */
-export function isBatchIdle(status: BatchStatusUnion | undefined): status is BatchStatusIdle {
-  return status?.type === 'idle';
-}
-
-/**
- * Type guard to check if batch status is running
- */
-export function isBatchRunning(status: BatchStatusUnion | undefined): status is BatchStatusRunning {
-  return status?.type === 'running';
-}
-
-/**
- * Type guard to check if batch status is paused
- */
-export function isBatchPaused(status: BatchStatusUnion | undefined): status is BatchStatusPaused {
-  return status?.type === 'paused';
-}
-
-/**
- * Type guard to check if batch status is completed
- */
-export function isBatchCompleted(status: BatchStatusUnion | undefined): status is BatchStatusCompleted {
-  return status?.type === 'completed';
-}
-
-/**
- * Convert legacy string status to TaskStatusUnion
- * Used for backward compatibility during migration
+ * Convert a legacy string status to TaskStatusUnion.
+ * Handles all known status strings from the Requirement API, DB layer,
+ * QueuedTask, and ExecutionStatus types.
+ *
+ * - 'idle'          → TaskStatusIdle
+ * - 'pending'       → TaskStatusQueued (semantically identical to queued)
+ * - 'queued'        → TaskStatusQueued
+ * - 'running'       → TaskStatusRunning
+ * - 'completed'     → TaskStatusCompleted
+ * - 'failed'        → TaskStatusFailed
+ * - 'session-limit' → TaskStatusFailed with isSessionLimit: true
  */
 export function legacyToTaskStatus(
-  status: 'queued' | 'running' | 'completed' | 'failed',
+  status: string,
   options?: {
     startedAt?: number;
     completedAt?: number;
@@ -284,13 +196,23 @@ export function legacyToTaskStatus(
   }
 ): TaskStatusUnion {
   switch (status) {
+    case 'idle':
+      return createIdleStatus();
+    case 'pending':
     case 'queued':
       return createQueuedStatus();
     case 'running':
       return createRunningStatus(options?.startedAt);
     case 'completed':
       return createCompletedStatus(options?.completedAt);
+    case 'session-limit':
+      return createFailedStatus(
+        options?.error || 'Session limit reached',
+        options?.completedAt,
+        true
+      );
     case 'failed':
+    default:
       return createFailedStatus(
         options?.error || 'Unknown error',
         options?.completedAt,
@@ -300,99 +222,43 @@ export function legacyToTaskStatus(
 }
 
 /**
- * Convert TaskStatusUnion to legacy string status
- * Used for serialization and backward compatibility
+ * Convert TaskStatusUnion to a DB-compatible string status.
+ * Used at the SQLite boundary for persistence.
  */
-export function taskStatusToLegacy(status: TaskStatusUnion): 'queued' | 'running' | 'completed' | 'failed' {
+export function taskStatusToDbString(status: TaskStatusUnion): string {
+  if (status.type === 'failed' && status.isSessionLimit) {
+    return 'session-limit';
+  }
   return status.type;
 }
 
+// ============================================================================
+// Status Display Helpers
+// ============================================================================
+
 /**
- * Convert legacy string status to BatchStatusUnion
+ * Get display label for a task status
  */
-export function legacyToBatchStatus(
-  status: 'idle' | 'running' | 'paused' | 'completed',
-  options?: {
-    startedAt?: number;
-    completedAt?: number;
-    pausedAt?: number;
-    currentTaskId?: string;
-  }
-): BatchStatusUnion {
-  switch (status) {
-    case 'idle':
-      return createIdleBatchStatus();
+export function getStatusLabel(status: TaskStatusUnion): string {
+  switch (status.type) {
     case 'running':
-      return createRunningBatchStatus(options?.startedAt, options?.currentTaskId);
-    case 'paused':
-      return createPausedBatchStatus(options?.startedAt || Date.now(), options?.pausedAt);
+      return 'Running';
     case 'completed':
-      return createCompletedBatchStatus(options?.startedAt || Date.now(), options?.completedAt);
+      return 'Done';
+    case 'failed':
+      return status.isSessionLimit ? 'Limit' : 'Failed';
+    case 'queued':
+      return 'Queued';
+    case 'idle':
+      return 'Idle';
   }
 }
 
 /**
- * Convert BatchStatusUnion to legacy string status
+ * Categorize items by their TaskStatusUnion status
  */
-export function batchStatusToLegacy(status: BatchStatusUnion): 'idle' | 'running' | 'paused' | 'completed' {
-  return status.type;
-}
-
-// ============================================================================
-// ProjectRequirement Status Helpers (for API/UI layer)
-// ============================================================================
-
-/**
- * ProjectRequirement uses legacy string status from the API.
- * These helpers provide type-safe status checking for UI components.
- */
-
-/**
- * Type alias for the legacy string status values used in ProjectRequirement
- */
-export type RequirementStatusString = Requirement['status'];
-
-/**
- * Check if requirement status is 'queued'
- */
-export function isRequirementQueued(status: RequirementStatusString): boolean {
-  return status === 'queued';
-}
-
-/**
- * Check if requirement status is 'running'
- */
-export function isRequirementRunning(status: RequirementStatusString): boolean {
-  return status === 'running';
-}
-
-/**
- * Check if requirement status is 'completed'
- */
-export function isRequirementCompleted(status: RequirementStatusString): boolean {
-  return status === 'completed';
-}
-
-/**
- * Check if requirement status is 'failed' (includes session-limit)
- */
-export function isRequirementFailed(status: RequirementStatusString): boolean {
-  return status === 'failed' || status === 'session-limit';
-}
-
-/**
- * Check if requirement status is 'idle'
- */
-export function isRequirementIdle(status: RequirementStatusString): boolean {
-  return status === 'idle';
-}
-
-/**
- * Categorize requirements by status
- * Returns a discriminated object with arrays for each status category
- */
-export function categorizeRequirementsByStatus<T extends { status: RequirementStatusString }>(
-  requirements: T[]
+export function categorizeByStatus<T extends { status: TaskStatusUnion }>(
+  items: T[]
 ): {
   idle: T[];
   queued: T[];
@@ -401,34 +267,47 @@ export function categorizeRequirementsByStatus<T extends { status: RequirementSt
   failed: T[];
 } {
   return {
-    idle: requirements.filter(r => isRequirementIdle(r.status)),
-    queued: requirements.filter(r => isRequirementQueued(r.status)),
-    running: requirements.filter(r => isRequirementRunning(r.status)),
-    completed: requirements.filter(r => isRequirementCompleted(r.status)),
-    failed: requirements.filter(r => isRequirementFailed(r.status)),
+    idle: items.filter(r => isTaskIdle(r.status)),
+    queued: items.filter(r => isTaskQueued(r.status)),
+    running: items.filter(r => isTaskRunning(r.status)),
+    completed: items.filter(r => isTaskCompleted(r.status)),
+    failed: items.filter(r => isTaskFailed(r.status)),
   };
 }
 
-/**
- * Get display label for requirement status
- */
-export function getRequirementStatusLabel(status: RequirementStatusString): string {
-  switch (status) {
-    case 'running':
-      return 'Running';
-    case 'completed':
-      return 'Done';
-    case 'failed':
-      return 'Failed';
-    case 'session-limit':
-      return 'Limit';
-    case 'queued':
-      return 'Queued';
-    case 'idle':
-    default:
-      return 'Idle';
-  }
+// Backward-compatible aliases — these operate on TaskStatusUnion directly
+// since ProjectRequirement.status is now TaskStatusUnion
+/** @deprecated Use isTaskQueued instead */
+export const isRequirementQueued = isTaskQueued;
+/** @deprecated Use isTaskRunning instead */
+export const isRequirementRunning = isTaskRunning;
+/** @deprecated Use isTaskCompleted instead */
+export const isRequirementCompleted = isTaskCompleted;
+/** @deprecated Use isTaskFailed instead */
+export const isRequirementFailed = isTaskFailed;
+/** @deprecated Use isTaskIdle instead */
+export const isRequirementIdle = isTaskIdle;
+
+/** @deprecated Use getStatusLabel instead */
+export function getRequirementStatusLabel(status: TaskStatusUnion): string {
+  return getStatusLabel(status);
 }
+
+/** @deprecated Use categorizeByStatus instead */
+export function categorizeRequirementsByStatus<T extends { status: TaskStatusUnion }>(
+  requirements: T[]
+): {
+  idle: T[];
+  queued: T[];
+  running: T[];
+  completed: T[];
+  failed: T[];
+} {
+  return categorizeByStatus(requirements);
+}
+
+/** @deprecated Use TaskStatusType instead */
+export type RequirementStatusString = TaskStatusType;
 
 // ============================================================================
 // Original Types (kept for backward compatibility)
@@ -439,9 +318,8 @@ export interface ProjectRequirement {
   projectName: string;
   projectPath: string;
   requirementName: string;
-  status: Requirement['status'];
+  status: TaskStatusUnion;
   taskId?: string;
-  batchId?: BatchId | null; // Track which batch this requirement belongs to (up to 4 batches)
 }
 
 /**

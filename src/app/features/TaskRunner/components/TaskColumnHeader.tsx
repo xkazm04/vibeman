@@ -149,76 +149,82 @@ export default function TaskColumnHeader({
           </h3>
         </div>
 
-        {/* Action buttons and count badge */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Aggregate button */}
-          {aggregationCheck?.canAggregate && (
-            <button
-              onClick={onAggregate}
-              disabled={isAggregating}
-              className="text-violet-400 hover:text-violet-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-violet-500/10 hover:bg-violet-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title={`Aggregate ${aggregationCheck.aggregatableFiles} idea files`}
-              data-testid={`aggregate-btn-${projectId}`}
-            >
-              <Layers className="w-3 h-3" />
-              <span>{aggregationCheck.aggregatableFiles}</span>
-            </button>
+        {/* Action buttons: constructive (left) | cleanup (right) */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Constructive actions group */}
+          <div className="flex items-center gap-1.5">
+            {aggregationCheck?.canAggregate && (
+              <button
+                onClick={onAggregate}
+                disabled={isAggregating}
+                className="text-violet-400 hover:text-violet-300 text-[11px] flex items-center gap-1 px-2 py-0.5 rounded border border-violet-500/30 bg-violet-500/10 hover:bg-violet-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={`Aggregate ${aggregationCheck.aggregatableFiles} idea files`}
+                data-testid={`aggregate-btn-${projectId}`}
+              >
+                <Layers className="w-3 h-3" />
+                <span>{aggregationCheck.aggregatableFiles}</span>
+              </button>
+            )}
+
+            {selectedCount > 0 && (
+              <span className="text-[11px] text-emerald-400 font-mono">
+                {selectedCount}/{selectableCount}
+              </span>
+            )}
+            <span className="text-[11px] text-gray-500 font-mono">{requirementsCount}</span>
+          </div>
+
+          {/* Divider between groups */}
+          {(failedCount > 0 || queuedCount > 0 || clearableCount > 0 || (selectedInColumnCount > 0 && canBulkDelete)) && (
+            <div className="w-px h-4 bg-gray-600/50 mx-0.5" />
           )}
 
-          {/* Delete selected button with inline confirmation */}
-          {selectedInColumnCount > 0 && canBulkDelete && (
-            <InlineDeleteButton
-              count={selectedInColumnCount}
-              onConfirm={onBulkDeleteSelected}
-              projectId={projectId}
-            />
-          )}
+          {/* Cleanup / destructive actions group */}
+          <div className="flex items-center gap-1">
+            {failedCount > 0 && canReset && (
+              <button
+                onClick={onResetAllFailed}
+                className="text-gray-400 hover:text-amber-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-gray-500/10 hover:bg-amber-500/15 transition-colors"
+                title={`Reset ${failedCount} failed task${failedCount > 1 ? 's' : ''}`}
+                data-testid={`reset-failed-btn-${projectId}`}
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>{failedCount}</span>
+              </button>
+            )}
 
-          {/* Reset all failed button */}
-          {failedCount > 0 && canReset && (
-            <button
-              onClick={onResetAllFailed}
-              className="text-amber-400 hover:text-amber-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
-              title={`Reset ${failedCount} failed task${failedCount > 1 ? 's' : ''}`}
-              data-testid={`reset-failed-btn-${projectId}`}
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span>{failedCount}</span>
-            </button>
-          )}
+            {queuedCount > 0 && canReset && (
+              <button
+                onClick={onResetAllQueued}
+                className="text-gray-400 hover:text-blue-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-gray-500/10 hover:bg-blue-500/15 transition-colors"
+                title={`Reset ${queuedCount} queued task${queuedCount > 1 ? 's' : ''} to open`}
+                data-testid={`reset-queued-btn-${projectId}`}
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>{queuedCount}q</span>
+              </button>
+            )}
 
-          {/* Reset all queued button */}
-          {queuedCount > 0 && canReset && (
-            <button
-              onClick={onResetAllQueued}
-              className="text-blue-400 hover:text-blue-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
-              title={`Reset ${queuedCount} queued task${queuedCount > 1 ? 's' : ''} to open`}
-              data-testid={`reset-queued-btn-${projectId}`}
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span>{queuedCount}q</span>
-            </button>
-          )}
+            {clearableCount > 0 && canBulkDelete && (
+              <button
+                onClick={onClearCompleted}
+                className="text-gray-400 hover:text-gray-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-gray-500/10 hover:bg-gray-500/20 transition-colors"
+                title="Clear completed and failed tasks"
+                data-testid={`clear-completed-btn-${projectId}`}
+              >
+                <XCircle className="w-3 h-3" />
+                <span>{clearableCount}</span>
+              </button>
+            )}
 
-          {/* Clear completed/failed button */}
-          {clearableCount > 0 && canBulkDelete && (
-            <button
-              onClick={onClearCompleted}
-              className="text-gray-400 hover:text-gray-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-gray-500/10 hover:bg-gray-500/20 transition-colors"
-              title="Clear completed and failed tasks"
-              data-testid={`clear-completed-btn-${projectId}`}
-            >
-              <XCircle className="w-3 h-3" />
-              <span>{clearableCount}</span>
-            </button>
-          )}
-
-          {selectedCount > 0 && (
-            <span className="text-[10px] text-emerald-400 font-mono">
-              {selectedCount}/{selectableCount}
-            </span>
-          )}
-          <span className="text-[10px] text-gray-500 font-mono">{requirementsCount}</span>
+            {selectedInColumnCount > 0 && canBulkDelete && (
+              <InlineDeleteButton
+                count={selectedInColumnCount}
+                onConfirm={onBulkDeleteSelected}
+                projectId={projectId}
+              />
+            )}
+          </div>
         </div>
       </div>
     </div>

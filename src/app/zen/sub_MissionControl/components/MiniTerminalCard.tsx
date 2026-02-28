@@ -27,8 +27,8 @@ const STATUS_CONFIGS = {
 
 function getSessionStatus(session: CLISessionState) {
   if (session.isRunning) return 'running';
-  const hasCompleted = session.queue.some(t => t.status === 'completed');
-  const hasFailed = session.queue.some(t => t.status === 'failed');
+  const hasCompleted = session.queue.some(t => t.status.type === 'completed');
+  const hasFailed = session.queue.some(t => t.status.type === 'failed');
   if (hasFailed) return 'failed';
   if (hasCompleted) return 'completed';
   return 'idle';
@@ -40,10 +40,10 @@ export default function MiniTerminalCard({ sessionId, session, index, isCompact 
   const StatusIcon = config.icon;
 
   const stats = useMemo(() => {
-    const pending = session.queue.filter(t => t.status === 'pending').length;
-    const completed = session.queue.filter(t => t.status === 'completed').length + session.completedCount;
-    const failed = session.queue.filter(t => t.status === 'failed').length;
-    const running = session.queue.find(t => t.status === 'running');
+    const pending = session.queue.filter(t => t.status.type === 'queued').length;
+    const completed = session.queue.filter(t => t.status.type === 'completed').length + session.completedCount;
+    const failed = session.queue.filter(t => t.status.type === 'failed').length;
+    const running = session.queue.find(t => t.status.type === 'running');
     const total = session.queue.length;
     return { pending, completed, failed, running, total };
   }, [session.queue, session.completedCount]);

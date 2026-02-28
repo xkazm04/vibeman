@@ -4,7 +4,7 @@ import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
 import { logger } from '@/lib/logger';
-import { createErrorResponse, handleError, notFoundResponse } from '@/lib/api-helpers';
+import { createErrorResponse, handleError, handleApiError, notFoundResponse } from '@/lib/api-helpers';
 import { deduplicateBuildErrors } from '@/lib/deduplication';
 import { generateId } from '@/lib/idGenerator';
 import { withObservability } from '@/lib/observability/middleware';
@@ -423,11 +423,7 @@ async function handlePost(request: NextRequest) {
         return createErrorResponse('Invalid action', 400);
     }
   } catch (error) {
-    logger.error('File fixer API error:', { error });
-    return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'File fixer');
   }
 }
 
@@ -438,8 +434,7 @@ async function handleGet(request: NextRequest) {
     const buildCommand = await detectBuildCommand(projectPath || undefined);
     return NextResponse.json({ buildCommand });
   } catch (error) {
-    logger.error('File fixer GET error:', { error });
-    return createErrorResponse('Internal server error', 500);
+    return handleApiError(error, 'File fixer GET');
   }
 }
 

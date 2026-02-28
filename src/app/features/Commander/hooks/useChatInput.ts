@@ -5,13 +5,13 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useAnnetteStore } from '@/stores/annetteStore';
+import { useChatStore } from '@/stores/annette/chatStore';
 
 export function useChatInput({ autoFocus = true }: { autoFocus?: boolean } = {}) {
   const [input, setInput] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
-  const isLoading = useAnnetteStore((s) => s.isLoading);
-  const sendMessage = useAnnetteStore((s) => s.sendMessage);
+  const isLoading = useChatStore((s) => s.isLoading);
+  const sendMessage = useChatStore((s) => s.sendMessage);
 
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus();

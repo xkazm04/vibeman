@@ -172,7 +172,7 @@ export default function QuestionsLayout() {
     await answerQuestionMutation.mutateAsync({ questionId, answer });
   }, [answerQuestionMutation]);
 
-  const handleDeleteQuestion = useCallback((questionId: string) => {
+  const handleDeleteQuestion = useCallback(async (questionId: string) => {
     deleteQuestionMutation.mutate(questionId);
   }, [deleteQuestionMutation]);
 
@@ -230,16 +230,16 @@ export default function QuestionsLayout() {
     }
   };
 
-  const handleAcceptDirection = useCallback((directionId: string) => {
+  const handleAcceptDirection = useCallback(async (directionId: string) => {
     if (!activeProject?.path) return;
     acceptDirectionMutation.mutate({ directionId, projectPath: activeProject.path });
   }, [activeProject?.path, acceptDirectionMutation]);
 
-  const handleRejectDirection = useCallback((directionId: string) => {
+  const handleRejectDirection = useCallback(async (directionId: string) => {
     rejectDirectionMutation.mutate(directionId);
   }, [rejectDirectionMutation]);
 
-  const handleDeleteDirection = useCallback((directionId: string) => {
+  const handleDeleteDirection = useCallback(async (directionId: string) => {
     deleteDirectionMutation.mutate(directionId);
   }, [deleteDirectionMutation]);
 

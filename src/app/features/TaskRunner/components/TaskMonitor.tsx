@@ -8,8 +8,10 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  Ghost,
   Loader2,
   CheckCircle2,
+  Play,
   XCircle,
   RefreshCw,
   Eye,
@@ -67,15 +69,18 @@ async function fetchAllTasks(projectId?: string): Promise<ExecutionTask[]> {
 /**
  * Get status icon based on task status
  */
-function getStatusIcon(status: ExecutionTask['status'], progressCount: number) {
+function getStatusIcon(status: ExecutionTask['status'], progressCount: number, reducedMotion?: boolean | null) {
   switch (status) {
     case 'pending':
       return <Clock className="w-3.5 h-3.5 text-amber-400" />;
     case 'running':
       return progressCount === 0 ? (
-        <AlertTriangle className="w-3.5 h-3.5 text-orange-400" />
+        <span className="flex items-center gap-1">
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+          <Loader2 className={`w-3.5 h-3.5 text-amber-400 ${reducedMotion ? 'animate-pulse' : 'animate-spin'}`} />
+        </span>
       ) : (
-        <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin" />
+        <Loader2 className={`w-3.5 h-3.5 text-blue-400 ${reducedMotion ? 'animate-pulse' : 'animate-spin'}`} />
       );
     case 'completed':
       return <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />;
@@ -90,13 +95,13 @@ function getStatusIcon(status: ExecutionTask['status'], progressCount: number) {
 /**
  * Get status color class
  */
-function getStatusColor(status: ExecutionTask['status'], progressCount: number): string {
+function getStatusColor(status: ExecutionTask['status'], progressCount: number, reducedMotion?: boolean | null): string {
   switch (status) {
     case 'pending':
       return 'border-amber-500/30 bg-amber-500/5';
     case 'running':
       return progressCount === 0
-        ? 'border-orange-500/30 bg-orange-500/5'
+        ? `border-amber-500/40 bg-amber-500/10 ${reducedMotion ? '' : 'animate-pulse'}`
         : 'border-blue-500/30 bg-blue-500/5';
     case 'completed':
       return 'border-green-500/30 bg-green-500/5';
@@ -140,20 +145,20 @@ const TaskItem = memo(function TaskItem({ task }: { task: ExecutionTask }) {
     <motion.div
       initial={prefersReducedMotion ? false : { opacity: 0, y: -5 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`border rounded-lg overflow-hidden ${getStatusColor(task.status, progressCount)}`}
+      className={`border rounded-lg overflow-hidden ${getStatusColor(task.status, progressCount, prefersReducedMotion)}`}
     >
       <div
         className="flex items-center justify-between p-2 cursor-pointer hover:bg-white/5 transition-colors"
         onClick={() => setShowDetails(!showDetails)}
       >
         <div className="flex items-center gap-2 min-w-0">
-          {getStatusIcon(task.status, progressCount)}
+          {getStatusIcon(task.status, progressCount, prefersReducedMotion)}
           <div className="min-w-0">
             <div className="text-xs font-medium text-gray-300 truncate">
               {task.requirementName}
             </div>
-            <div className="text-[10px] text-gray-500 flex items-center gap-2">
-              <span>{task.status}</span>
+            <div className={`text-[10px] flex items-center gap-2 ${isStuck ? 'text-amber-400/80' : 'text-gray-500'}`}>
+              <span>{isStuck ? 'stuck' : task.status}</span>
               <span>|</span>
               <span>{progressCount} lines</span>
               <span>|</span>
@@ -161,7 +166,7 @@ const TaskItem = memo(function TaskItem({ task }: { task: ExecutionTask }) {
               {isStuck && (
                 <>
                   <span>|</span>
-                  <span className="text-orange-400">No progress</span>
+                  <span className="text-amber-400 font-medium">No progress</span>
                 </>
               )}
             </div>
@@ -317,27 +322,32 @@ export const TaskMonitor = memo(function TaskMonitor({
           </span>
           <div className="flex items-center gap-1.5 text-[10px]">
             {orphanCount > 0 && (
-              <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400">
+              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400" aria-label={`${orphanCount} orphaned session${orphanCount !== 1 ? 's' : ''}`}>
+                <Ghost className="w-2.5 h-2.5" />
                 {orphanCount} orphan{orphanCount !== 1 ? 's' : ''}
               </span>
             )}
             {pendingCount > 0 && (
-              <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400">
+              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400" aria-label={`${pendingCount} task${pendingCount !== 1 ? 's' : ''} pending`}>
+                <Clock className="w-2.5 h-2.5" />
                 {pendingCount} pending
               </span>
             )}
             {runningCount > 0 && (
-              <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400">
+              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400" aria-label={`${runningCount} task${runningCount !== 1 ? 's' : ''} running`}>
+                <Play className="w-2.5 h-2.5" />
                 {runningCount} running
               </span>
             )}
             {stuckCount > 0 && (
-              <span className="px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400">
+              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-300 font-semibold ring-1 ring-amber-500/40" aria-label={`${stuckCount} task${stuckCount !== 1 ? 's' : ''} stuck`}>
+                <AlertTriangle className="w-2.5 h-2.5" />
                 {stuckCount} stuck
               </span>
             )}
             {failedCount > 0 && (
-              <span className="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400">
+              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/20 text-red-400" aria-label={`${failedCount} task${failedCount !== 1 ? 's' : ''} failed`}>
+                <XCircle className="w-2.5 h-2.5" />
                 {failedCount} failed
               </span>
             )}
@@ -366,7 +376,7 @@ export const TaskMonitor = memo(function TaskMonitor({
             className="p-1 hover:bg-white/10 rounded transition-colors"
             title="Refresh status"
           >
-            <RefreshCw className={`w-3 h-3 text-gray-400 ${isRefreshing || isOrphanScanning ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3 h-3 text-gray-400 ${isRefreshing || isOrphanScanning ? (prefersReducedMotion ? 'animate-pulse' : 'animate-spin') : ''}`} />
           </button>
           {isExpanded ? (
             <ChevronUp className="w-4 h-4 text-gray-400" />

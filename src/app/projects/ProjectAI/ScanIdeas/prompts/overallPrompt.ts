@@ -13,6 +13,8 @@ interface PromptOptions {
   codeSection: string;
   hasContext: boolean;
   behavioralSection: string;
+  goalsSection: string;
+  feedbackSection: string;
 }
 
 export function buildOverallPrompt(options: PromptOptions): string {
@@ -23,7 +25,9 @@ export function buildOverallPrompt(options: PromptOptions): string {
     existingIdeasSection,
     codeSection,
     hasContext,
-    behavioralSection
+    behavioralSection,
+    goalsSection,
+    feedbackSection
   } = options;
 
   return `You are an expert software analyst performing a comprehensive, multi-dimensional analysis of ${hasContext ? 'a specific context within' : ''} the "${projectName}" project.
@@ -118,6 +122,10 @@ ${behavioralSection}
 ${existingIdeasSection}
 
 ${codeSection}
+
+${goalsSection}
+
+${feedbackSection}
 
 ---
 

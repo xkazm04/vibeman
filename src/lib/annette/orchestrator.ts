@@ -2,13 +2,20 @@
  * Annette Orchestrator
  * Core conversation engine using claude-haiku-4-5 with native tool_use
  *
- * Flow: user message → brain context injection → Claude API → tool dispatch → response
+ * Flow: user message → memory recall → brain context injection → Claude API → tool dispatch → response
+ *
+ * History management: when conversation exceeds RECENT_MESSAGES_LIMIT, older messages
+ * are stored as memories via the unified knowledge store. Relevant memories are
+ * recalled semantically and injected into the system prompt, preserving full context
+ * without lossy truncation.
  */
 
 import { getToolDefinitions, executeTool, ToolResult } from './toolRegistry';
 import { buildSystemPrompt } from './systemPrompt';
 import { formatBrainForPrompt } from './brainInjector';
 import { buildRapportPromptContext, analyzeAndUpdateRapport } from './rapportEngine';
+import { contextualRecaller } from '@/app/features/Annette/lib/contextualRecaller';
+import { unifiedKnowledgeStore } from '@/app/features/Annette/lib/unifiedKnowledgeStore';
 import { logger } from '@/lib/logger';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
@@ -101,43 +108,70 @@ function parseQuickOptions(text: string): { cleanText: string; options: QuickOpt
 }
 
 /**
- * Summarize conversation history when it exceeds the message threshold.
- * Keeps the first 2 and last 4 messages, replacing the middle with a summary.
+ * Number of recent messages kept verbatim in the API conversation.
+ * Older messages are archived as memories and recalled semantically.
  */
-const HISTORY_SUMMARIZE_THRESHOLD = 10;
+const RECENT_MESSAGES_LIMIT = 10;
 
-function summarizeHistory(history: ConversationMessage[]): ConversationMessage[] {
-  if (history.length <= HISTORY_SUMMARIZE_THRESHOLD) {
+/**
+ * Compact conversation history by keeping only the most recent messages.
+ * Older messages are stored as memories in the knowledge store (fire-and-forget).
+ * The recalled context is injected into the system prompt, not inline.
+ */
+function compactHistory(
+  history: ConversationMessage[],
+  projectId: string,
+  sessionId?: string
+): ConversationMessage[] {
+  if (history.length <= RECENT_MESSAGES_LIMIT) {
     return history;
   }
 
-  const kept = history.slice(0, 2);
-  const middle = history.slice(2, -4);
-  const recent = history.slice(-4);
+  const older = history.slice(0, -RECENT_MESSAGES_LIMIT);
+  const recent = history.slice(-RECENT_MESSAGES_LIMIT);
 
-  // Build a condensed summary of the middle messages
-  const topics = middle
-    .filter(m => m.role === 'user')
-    .map(m => m.content.slice(0, 80))
-    .join('; ');
+  // Store older messages as memories (fire-and-forget, non-blocking).
+  // This feeds the memory pipeline so future recall can find them.
+  const olderAsMessages = older.map(m => ({
+    role: m.role,
+    content: m.content,
+  }));
 
-  const toolNames = middle
-    .filter(m => m.toolCalls && m.toolCalls.length > 0)
-    .flatMap(m => m.toolCalls!.map(t => t.name));
-  const uniqueTools = [...new Set(toolNames)];
+  unifiedKnowledgeStore
+    .extractMemoriesFromConversation(projectId, sessionId || 'default', olderAsMessages)
+    .catch(err => logger.warn('Failed to extract memories from older messages', { err }));
 
-  const summaryContent = `[Earlier conversation summary: User discussed ${middle.length} messages covering: ${topics || 'various topics'}. Tools used: ${uniqueTools.join(', ') || 'none'}]`;
+  return recent;
+}
 
-  kept.push({
-    role: 'user',
-    content: summaryContent,
-  });
-  kept.push({
-    role: 'assistant',
-    content: 'Understood, I have context from our earlier conversation. How can I help?',
-  });
+/**
+ * Recall semantically relevant memories for the current conversation.
+ * Uses the unified knowledge store's embedding search + contextual recaller
+ * to find past conversation context that's relevant to the current message.
+ */
+async function recallConversationMemories(
+  projectId: string,
+  currentMessage: string,
+  recentHistory: ConversationMessage[]
+): Promise<string> {
+  try {
+    const recalled = await contextualRecaller.recall({
+      projectId,
+      currentMessage,
+      recentMessages: recentHistory.slice(-5).map(m => ({
+        role: m.role,
+        content: m.content,
+      })),
+      maxMemories: 5,
+      maxNodes: 3,
+      minRelevanceScore: 0.3,
+    });
 
-  return [...kept, ...recent];
+    return contextualRecaller.formatForPrompt(recalled);
+  } catch (err) {
+    logger.warn('Failed to recall conversation memories', { err });
+    return '';
+  }
 }
 
 /**
@@ -150,23 +184,38 @@ export async function orchestrate(input: OrchestratorInput): Promise<Orchestrato
     throw new Error('ANTHROPIC_API_KEY is required for Annette');
   }
 
-  // Build system prompt with brain context and rapport personality
+  // Compact conversation history: keep recent messages, store older ones as memories
+  const compactedHistory = input.conversationHistory
+    ? compactHistory(input.conversationHistory, input.projectId)
+    : undefined;
+
+  // Recall semantically relevant memories from past conversations.
+  // This replaces the lossy 80-char truncation with embedding-based recall.
+  const recalledContext = await recallConversationMemories(
+    input.projectId,
+    input.message,
+    compactedHistory || []
+  );
+
+  // Merge recalled memory context with any caller-provided session summary
+  const sessionSummary = [input.sessionSummary, recalledContext]
+    .filter(Boolean)
+    .join('\n\n') || undefined;
+
+  // Build system prompt with brain context, recalled memories, and rapport personality
   const brainContext = formatBrainForPrompt(input.projectId);
   const rapportContext = buildRapportPromptContext(input.projectId);
   const systemPrompt = buildSystemPrompt({
     brainContext,
     rapportContext,
-    sessionSummary: input.sessionSummary,
+    sessionSummary,
     relevantTopics: input.relevantTopics,
     userPreferences: input.userPreferences,
     audioMode: input.audioMode,
   });
 
-  // Build conversation messages for the API (with summarization for long histories)
-  const condensedHistory = input.conversationHistory
-    ? summarizeHistory(input.conversationHistory)
-    : undefined;
-  const messages = buildApiMessages(input.message, condensedHistory);
+  // Build conversation messages for the API
+  const messages = buildApiMessages(input.message, compactedHistory);
 
   // Get tool definitions
   const tools = getToolDefinitions();
@@ -239,35 +288,6 @@ export async function orchestrate(input: OrchestratorInput): Promise<Orchestrato
           );
           toolResults.push(result);
 
-          // Publish Annette tool action to persona event bus
-          try {
-            const actionTools = new Set([
-              'accept_idea', 'reject_idea', 'generate_ideas',
-              'accept_direction', 'reject_direction', 'generate_directions',
-              'execute_now', 'execute_requirement',
-            ]);
-            if (actionTools.has(block.name)) {
-              const { personaEventBus } = require('@/lib/personas/eventBus');
-              if (personaEventBus && typeof personaEventBus.publish === 'function') {
-                personaEventBus.publish({
-                  event_type: 'custom' as const,
-                  source_type: 'system' as const,
-                  source_id: `annette_${block.id}`,
-                  target_persona_id: undefined,
-                  project_id: input.projectId,
-                  payload: {
-                    type: 'voice_command_executed',
-                    tool_name: block.name,
-                    tool_input: block.input,
-                    success: !result.is_error,
-                    timestamp: new Date().toISOString(),
-                  },
-                });
-              }
-            }
-          } catch {
-            // Event bus publishing must never break Annette
-          }
 
           toolsUsed.push({
             name: block.name,

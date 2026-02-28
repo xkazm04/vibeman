@@ -4,7 +4,9 @@
  */
 
 import { getDatabase, closeDatabase } from './connection';
+import { closeHotWritesDatabase } from './hot-writes';
 import { initializeTables } from './schema';
+import { startAggregationWorker, stopAggregationWorker } from '@/lib/db/hotWritesAggregator';
 import { goalRepository } from './repositories/goal.repository';
 import { goalCandidateRepository } from './repositories/goal-candidate.repository';
 import { backlogRepository } from './repositories/backlog.repository';
@@ -99,32 +101,8 @@ import { annetteRapportRepository } from './repositories/annette-rapport.reposit
 import { groupHealthRepository } from './repositories/group-health.repository';
 import { collectiveMemoryRepository } from './repositories/collective-memory.repository';
 import { agentGoalRepository, agentStepRepository } from './repositories/agent.repository';
-import {
-  personaRepository,
-  personaToolDefRepository,
-  personaToolRepository,
-  personaTriggerRepository,
-  personaExecutionRepository,
-  personaCredentialRepository,
-  credentialEventRepository,
-  manualReviewRepository,
-  connectorDefinitionRepository,
-  personaMessageRepository,
-  personaMessageDeliveryRepository,
-  personaToolUsageRepository,
-  personaEventRepository,
-  eventSubscriptionRepository,
-} from './repositories/persona.repository';
-import { designReviewRepository } from './repositories/designReviewRepository';
-import { personaMetricsRepository } from './repositories/personaMetricsRepository';
-import { personaPromptVersionRepository } from './repositories/personaPromptVersionRepository';
-import { designPatternRepository } from './repositories/designPatternRepository';
 import { insightEffectivenessCacheRepository } from './repositories/insight-effectiveness-cache.repository';
 import { goalSignalRepository, goalSubGoalRepository } from './repositories/goal-lifecycle.repository';
-import { personaTeamRepository, personaTeamMemberRepository, personaTeamConnectionRepository } from './repositories/personaTeamRepository';
-import { healingIssueRepository } from './repositories/healingIssueRepository';
-import { personaGroupRepository } from './repositories/personaGroupRepository';
-import { personaMemoryRepository } from './repositories/personaMemoryRepository';
 
 // Export types
 export * from './models/types';
@@ -146,10 +124,10 @@ export * from './models/cross-project-architecture.types';
 export * from './models/cross-task.types';
 export * from './models/group-health.types';
 export * from './models/collective-memory.types';
-export * from './models/persona.types';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };
+export { getHotWritesDatabase, closeHotWritesDatabase } from './hot-writes';
 
 // Initialize database on first import
 let initialized = false;
@@ -157,6 +135,8 @@ let initialized = false;
 function ensureInitialized() {
   if (!initialized) {
     initializeTables();
+    // Start hot-writes aggregation worker (rolls up obs_api_calls → obs_endpoint_stats)
+    startAggregationWorker();
     initialized = true;
   }
 }
@@ -735,38 +715,6 @@ export const collectiveMemoryDb = {
 };
 
 /**
- * Persona Agent System Database Operations
- * Manages AI persona agents, tools, triggers, executions, and credentials
- */
-export const personaDb = {
-  personas: personaRepository,
-  toolDefs: personaToolDefRepository,
-  tools: personaToolRepository,
-  triggers: personaTriggerRepository,
-  executions: personaExecutionRepository,
-  credentials: personaCredentialRepository,
-  credentialEvents: credentialEventRepository,
-  manualReviews: manualReviewRepository,
-  connectors: connectorDefinitionRepository,
-  messages: personaMessageRepository,
-  messageDeliveries: personaMessageDeliveryRepository,
-  toolUsage: personaToolUsageRepository,
-  events: personaEventRepository,
-  eventSubscriptions: eventSubscriptionRepository,
-  designReviews: designReviewRepository,
-  designPatterns: designPatternRepository,
-  metrics: personaMetricsRepository,
-  promptVersions: personaPromptVersionRepository,
-  teams: personaTeamRepository,
-  teamMembers: personaTeamMemberRepository,
-  teamConnections: personaTeamConnectionRepository,
-  healingIssues: healingIssueRepository,
-  groups: personaGroupRepository,
-  memories: personaMemoryRepository,
-  close: closeDatabase,
-};
-
-/**
  * Autonomous Agent Database Operations
  * Manages goal-driven autonomous execution with step decomposition
  */
@@ -779,15 +727,21 @@ export const agentDb = {
 // Cleanup handlers
 if (typeof process !== 'undefined') {
   process.on('exit', () => {
+    stopAggregationWorker();
+    closeHotWritesDatabase();
     closeDatabase();
   });
 
   process.on('SIGINT', () => {
+    stopAggregationWorker();
+    closeHotWritesDatabase();
     closeDatabase();
     process.exit(0);
   });
 
   process.on('SIGTERM', () => {
+    stopAggregationWorker();
+    closeHotWritesDatabase();
     closeDatabase();
     process.exit(0);
   });

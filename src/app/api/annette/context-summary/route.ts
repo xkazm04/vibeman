@@ -5,8 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { memoryStore } from '@/app/features/Annette/lib/memoryStore';
-import { knowledgeGraph } from '@/app/features/Annette/lib/knowledgeGraph';
+import { unifiedKnowledgeStore } from '@/app/features/Annette/lib/unifiedKnowledgeStore';
 
 export interface ContextSummaryResponse {
   memories: {
@@ -46,7 +45,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch memories (top 10 by importance)
-    const allMemories = memoryStore.getByProject({
+    const allMemories = unifiedKnowledgeStore.getMemories({
       projectId,
       limit: 200,
     });
@@ -67,8 +66,8 @@ export async function GET(request: NextRequest) {
       }));
 
     // Fetch knowledge graph stats + top nodes
-    const graphStats = knowledgeGraph.getStats(projectId);
-    const topNodes = knowledgeGraph.getNodes(projectId, { limit: 10 })
+    const graphStats = unifiedKnowledgeStore.getGraphStats(projectId);
+    const topNodes = unifiedKnowledgeStore.getNodes(projectId, { limit: 10 })
       .sort((a, b) => b.importanceScore - a.importanceScore)
       .map(n => ({
         id: n.id,

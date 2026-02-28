@@ -5,11 +5,10 @@ import { Play, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import BatchSelectionModal from './BatchSelectionModal';
-import { BatchId } from '@/app/features/TaskRunner/store/taskRunnerStore';
 
 interface FeatureScanBatchSelectorProps {
   description: string;
-  onStart: (batchId: BatchId) => Promise<void>;
+  onStart: (batchId: string) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -33,7 +32,7 @@ export default function FeatureScanBatchSelector({
     setShowBatchModal(true);
   };
 
-  const handleBatchSelect = async (batchId: BatchId) => {
+  const handleBatchSelect = async (batchId: string) => {
     setShowBatchModal(false);
     setIsExecuting(true);
 

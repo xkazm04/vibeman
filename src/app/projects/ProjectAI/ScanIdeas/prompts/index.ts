@@ -13,7 +13,7 @@ import { buildAmbiguityGuardianPrompt } from './ambiguityGuardianPrompt';
 import { buildBusinessVisionaryPrompt } from './businessVisionaryPrompt';
 import { buildUiPerfectionistPrompt } from './uiPerfectionistPrompt';
 import { buildFeatureScoutPrompt } from './featureScoutPrompt';
-import { buildOnboardingOptimizerPrompt } from './onboardingOptimizerPrompt';
+import { buildTechInnovatorPrompt } from './techInnovatorPrompt';
 import { buildAiIntegrationScoutPrompt } from './aiIntegrationScoutPrompt';
 import { buildDelightDesignerPrompt } from './delightDesignerPrompt';
 // People's Choice - User First Approach
@@ -40,6 +40,8 @@ export interface PromptOptions {
   codeSection: string;
   hasContext: boolean;
   behavioralSection: string;
+  goalsSection: string;
+  feedbackSection: string;
 }
 
 export type PromptBuilder = (options: PromptOptions) => string;
@@ -58,7 +60,7 @@ export const PROMPT_BUILDERS: Partial<Record<ScanType, PromptBuilder>> = {
   business_visionary: buildBusinessVisionaryPrompt,
   ui_perfectionist: buildUiPerfectionistPrompt,
   feature_scout: buildFeatureScoutPrompt,
-  onboarding_optimizer: buildOnboardingOptimizerPrompt,
+  tech_innovator: buildTechInnovatorPrompt,
   ai_integration_scout: buildAiIntegrationScoutPrompt,
   delight_designer: buildDelightDesignerPrompt,
   // People's Choice - User First Approach
@@ -108,7 +110,7 @@ export {
   buildBusinessVisionaryPrompt,
   buildUiPerfectionistPrompt,
   buildFeatureScoutPrompt,
-  buildOnboardingOptimizerPrompt,
+  buildTechInnovatorPrompt,
   buildAiIntegrationScoutPrompt,
   buildDelightDesignerPrompt,
   // People's Choice

@@ -372,7 +372,7 @@ export default function RoutingConfig({
                             {action.target && (
                               <span className="text-gray-300">→ {action.target}</span>
                             )}
-                            {action.value && (
+                            {action.value != null && (
                               <span className="text-yellow-400">
                                 = {JSON.stringify(action.value)}
                               </span>

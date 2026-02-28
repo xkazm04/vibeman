@@ -35,15 +35,15 @@ export function RecoveryBanner() {
     const result: SessionRecoveryInfo[] = [];
     for (const id of SESSION_IDS) {
       const s = sessions[id];
-      const runningTask = s.queue.find((t) => t.status === 'running');
-      const hasPendingTasks = s.queue.some((t) => t.status === 'pending');
+      const runningTask = s.queue.find((t) => t.status.type === 'running');
+      const hasPendingTasks = s.queue.some((t) => t.status.type === 'queued');
 
       if (runningTask || (hasPendingTasks && s.autoStart)) {
         result.push({
           id,
           label: SESSION_LABELS[id],
           strategy: runningTask ? 'restart' : 'reconnect',
-          taskCount: s.queue.filter((t) => t.status === 'pending' || t.status === 'running').length,
+          taskCount: s.queue.filter((t) => t.status.type === 'queued' || t.status.type === 'running').length,
           runningTask: runningTask?.requirementName ?? null,
         });
       }

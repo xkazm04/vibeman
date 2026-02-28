@@ -5,7 +5,7 @@
  */
 
 import { brainReflectionDb, directionDb } from '@/app/db';
-import type { ReflectionTriggerType, LearningInsight } from '@/app/db/models/brain.types';
+import type { ReflectionTriggerType } from '@/app/db/models/brain.types';
 import {
   gatherReflectionData,
   gatherGlobalReflectionData,
@@ -80,18 +80,8 @@ export const reflectionAgent = {
       ? new Date(lastReflection.completed_at)
       : null;
 
-    // Count decisions since last reflection
-    const allDirections = directionDb.getDirectionsByProject(projectId);
-    const decidedDirections = allDirections.filter(d =>
-      d.status === 'accepted' || d.status === 'rejected'
-    );
-
-    let decisionsSinceLastReflection = decidedDirections.length;
-    if (lastReflectionDate) {
-      decisionsSinceLastReflection = decidedDirections.filter(d =>
-        new Date(d.updated_at) > lastReflectionDate
-      ).length;
-    }
+    // Count decisions since last reflection using optimized SQL COUNT
+    const decisionsSinceLastReflection = directionDb.getDecidedCountSince(projectId, lastReflectionDate);
 
     // Check threshold
     if (decisionsSinceLastReflection >= config.triggerThreshold) {
@@ -134,19 +124,9 @@ export const reflectionAgent = {
     const lastCompleted = brainReflectionDb.getLatestCompleted(projectId);
     const stats = brainReflectionDb.getStats(projectId);
 
-    // Count decisions since last reflection
-    const allDirections = directionDb.getDirectionsByProject(projectId);
-    const decidedDirections = allDirections.filter(d =>
-      d.status === 'accepted' || d.status === 'rejected'
-    );
-
-    let decisionsSinceLastReflection = decidedDirections.length;
-    if (lastCompleted?.completed_at) {
-      const lastDate = new Date(lastCompleted.completed_at);
-      decisionsSinceLastReflection = decidedDirections.filter(d =>
-        new Date(d.updated_at) > lastDate
-      ).length;
-    }
+    // Count decisions since last reflection using optimized SQL COUNT
+    const lastDate = lastCompleted?.completed_at ? new Date(lastCompleted.completed_at) : null;
+    const decisionsSinceLastReflection = directionDb.getDecidedCountSince(projectId, lastDate);
 
     return {
       isRunning: !!running,
@@ -286,24 +266,10 @@ export const reflectionAgent = {
       }
     }
 
-    // Count total decisions across all projects since last global reflection
-    let totalDecisions = 0;
+    // Count total decisions across all projects since last global reflection using optimized SQL COUNT
     const lastGlobalDate = lastGlobal?.completed_at ? new Date(lastGlobal.completed_at) : null;
-
-    for (const project of projects) {
-      const allDirections = directionDb.getDirectionsByProject(project.id);
-      const decidedDirections = allDirections.filter(d =>
-        d.status === 'accepted' || d.status === 'rejected'
-      );
-
-      if (lastGlobalDate) {
-        totalDecisions += decidedDirections.filter(d =>
-          new Date(d.updated_at) > lastGlobalDate
-        ).length;
-      } else {
-        totalDecisions += decidedDirections.length;
-      }
-    }
+    const projectIds = projects.map(p => p.id);
+    const totalDecisions = directionDb.getDecidedCountSinceMultiple(projectIds, lastGlobalDate);
 
     if (totalDecisions >= config.triggerThreshold) {
       return {
@@ -422,7 +388,6 @@ export const reflectionAgent = {
       directionsAnalyzed: number;
       outcomesAnalyzed: number;
       signalsAnalyzed: number;
-      insights: LearningInsight[];
       guideSectionsUpdated: string[];
     }
   ): boolean => {
@@ -431,7 +396,6 @@ export const reflectionAgent = {
         directions_analyzed: data.directionsAnalyzed,
         outcomes_analyzed: data.outcomesAnalyzed,
         signals_analyzed: data.signalsAnalyzed,
-        insights_generated: data.insights,
         guide_sections_updated: data.guideSectionsUpdated,
       });
 

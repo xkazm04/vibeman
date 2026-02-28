@@ -163,23 +163,24 @@ export class ReactNativeScanStrategy extends BaseScanStrategy {
     file: FileAnalysis,
     opportunities: RefactorOpportunity[]
   ): void {
+    const lines = file.content.split('\n').length;
     // Stricter threshold: 200 lines (was 500)
-    if (file.lines <= 200) return;
+    if (lines <= 200) return;
 
     // Escalate severity based on size
     let severity: RefactorOpportunity['severity'] = 'low';
     let effort: RefactorOpportunity['effort'] = 'medium';
     let estimatedTime = '1-2 hours';
 
-    if (file.lines > 500) {
+    if (lines > 500) {
       severity = 'high';
       effort = 'high';
       estimatedTime = '3-5 hours';
-    } else if (file.lines > 350) {
+    } else if (lines > 350) {
       severity = 'medium';
       effort = 'high';
       estimatedTime = '2-4 hours';
-    } else if (file.lines > 200) {
+    } else if (lines > 200) {
       severity = 'low';
       effort = 'medium';
       estimatedTime = '1-2 hours';
@@ -189,7 +190,7 @@ export class ReactNativeScanStrategy extends BaseScanStrategy {
       this.createOpportunity(
         `long-file-${file.path}`,
         `Large file detected: ${file.path}`,
-        `This file has ${file.lines} lines. Consider splitting it into smaller components. Target: Keep files under 200 lines for better maintainability.`,
+        `This file has ${lines} lines. Consider splitting it into smaller components. Target: Keep files under 200 lines for better maintainability.`,
         'maintainability',
         severity,
         'Improves code organization, readability, and maintainability',

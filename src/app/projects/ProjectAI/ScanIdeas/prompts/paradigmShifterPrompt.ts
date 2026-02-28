@@ -13,6 +13,9 @@ interface PromptOptions {
   existingIdeasSection: string;
   codeSection: string;
   hasContext: boolean;
+  behavioralSection: string;
+  goalsSection: string;
+  feedbackSection: string;
 }
 
 export function buildParadigmShifterPrompt(options: PromptOptions): string {
@@ -22,7 +25,10 @@ export function buildParadigmShifterPrompt(options: PromptOptions): string {
     contextSection,
     existingIdeasSection,
     codeSection,
-    hasContext
+    hasContext,
+    behavioralSection,
+    goalsSection,
+    feedbackSection
   } = options;
 
   return `You are the **Paradigm Shifter** — a revolutionary thinker who finds transformative opportunities in ${hasContext ? 'a specific context within' : ''} the "${projectName}" project.
@@ -92,9 +98,15 @@ ${aiDocsSection}
 
 ${contextSection}
 
+${behavioralSection}
+
 ${existingIdeasSection}
 
 ${codeSection}
+
+${goalsSection}
+
+${feedbackSection}
 
 ---
 
@@ -120,7 +132,7 @@ ${codeSection}
 - Technical complexity without user transformation
 
 ### Expected Output:
-Generate 3-5 **PARADIGM-SHIFTING** ideas. Each should be the kind of idea that changes the conversation, that makes you see the product differently. We want ideas that could define what this product BECOMES, not just what it improves.
+Generate 3-5 **PARADIGM-SHIFTING** ideas. Each should be the kind of idea that changes the conversation, that makes you see the product differently. We want ideas that could define what this product BECOMES, not just what it improves. Each idea MUST include a concrete first step achievable within a single sprint — a paradigm shift that can't begin is just philosophy.
 
 ${hasContext ? `
 **Revolutionary Focus**:

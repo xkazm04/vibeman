@@ -11,7 +11,7 @@
 import { useMemo, useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, ChevronDown, ChevronUp, CheckCircle, XCircle } from 'lucide-react';
-import type { CLIExecutionInfo } from '@/stores/annetteStore';
+import type { CLIExecutionInfo } from '@/stores/annette/types';
 import MiniTerminal from '@/app/features/Annette/components/MiniTerminal';
 
 interface ToolExecutionInlineProps {

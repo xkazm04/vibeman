@@ -10,7 +10,7 @@ import { integrationDb } from '@/app/db';
 import { verifyWebhookSignature } from '@/lib/integrations/webhookSignature';
 import { dispatchIntegrationEvent } from '@/lib/integrations/engine';
 import { checkRateLimit } from '@/lib/api-helpers/rateLimiter';
-import { decryptFieldOrRaw } from '@/lib/personas/credentialCrypto';
+import { decryptFieldOrRaw } from '@/lib/integrations/credentialCrypto';
 import type { IntegrationProvider, IntegrationEventType } from '@/app/db/models/integration.types';
 
 const VALID_PROVIDERS = new Set<string>([

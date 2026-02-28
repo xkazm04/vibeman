@@ -188,32 +188,6 @@ async function handlePost(request: NextRequest) {
       // Signal recording must never break the main flow
     }
 
-    // Publish event for persona event bus
-    try {
-      const { personaEventBus } = require('@/lib/personas/eventBus');
-      if (personaEventBus && typeof personaEventBus.publish === 'function') {
-        personaEventBus.publish({
-          event_type: 'custom' as const,
-          source_type: 'system' as const,
-          source_id: createdDirection.id,
-          target_persona_id: null,
-          project_id: project_id,
-          payload: {
-            type: 'direction_generated',
-            direction_id: createdDirection.id,
-            summary: summary,
-            context_map_id: context_map_id,
-            context_name: context_name || context_map_title,
-            pair_id: pair_id || null,
-            pair_label: pair_label || null,
-            timestamp: new Date().toISOString(),
-          },
-        });
-      }
-    } catch {
-      // Event bus publishing must never break direction creation
-    }
-
     return NextResponse.json({
       success: true,
       direction: createdDirection

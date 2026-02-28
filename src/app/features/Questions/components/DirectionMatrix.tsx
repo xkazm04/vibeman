@@ -325,8 +325,8 @@ export default function DirectionMatrix({
                     key={d.id}
                     direction={d}
                     onView={() => handleViewDirection(d)}
-                    onAccept={d.status === 'pending' ? () => onAcceptDirection(d.id) : undefined}
-                    onReject={d.status === 'pending' ? () => onRejectDirection(d.id) : undefined}
+                    onAccept={d.status === 'pending' ? async () => { onAcceptDirection(d.id); } : undefined}
+                    onReject={d.status === 'pending' ? async () => { onRejectDirection(d.id); } : undefined}
                   />
                 ))}
               </div>

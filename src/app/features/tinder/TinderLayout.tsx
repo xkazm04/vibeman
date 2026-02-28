@@ -170,7 +170,9 @@ const TinderLayout = () => {
   };
 
   return (
-    <div className="min-h-full bg-gradient-to-br from-gray-900 via-purple-900/15 to-gray-900">
+    <div className="h-dvh flex flex-col bg-gradient-to-br from-gray-900 via-purple-900/15 to-gray-900 overflow-hidden">
+      {/* Top bar — fixed height */}
+      <div className="flex-shrink-0">
       {/* Test Mode Controls - Only visible when test mode is enabled */}
       {testMode.isTestMode && (
         <TestModeControls
@@ -301,6 +303,8 @@ const TinderLayout = () => {
           </div>
         </div>
       )}
+
+      </div>{/* end flex-shrink-0 top bar */}
 
       {/* Left Sidebar - Category + Effort/Risk filters, only visible in ideas mode on large screens */}
       <AnimatePresence>

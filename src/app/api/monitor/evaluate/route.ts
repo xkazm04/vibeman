@@ -4,8 +4,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { monitorServiceDb } from '@/lib/monitorServiceDb';
+import { monitorDb } from '@/lib/monitor_database';
 import { AnthropicClient } from '@/lib/llm/providers/anthropic-client';
+import { handleApiError } from '@/lib/api-errors';
+import { replacePlaceholders } from '@/lib/prompts/builder';
 import fs from 'fs';
 import path from 'path';
 
@@ -55,17 +57,18 @@ function generateClassId(): string {
 }
 
 async function getExistingClassesText(): Promise<string> {
-  const existingClasses = await monitorServiceDb.getAllMessageClasses();
+  const existingClasses = monitorDb.messageClasses.getAll();
   return existingClasses.length > 0
     ? existingClasses.map(c => `- ${c.className}: ${c.description || 'No description'}`).join('\n')
     : 'No existing classes yet';
 }
 
 function buildEvaluationPrompt(message: Message, existingClassesText: string): string {
-  return evaluationPromptTemplate
-    .replace('{{existingClasses}}', existingClassesText)
-    .replace('{{role}}', message.role)
-    .replace('{{content}}', message.content);
+  return replacePlaceholders(evaluationPromptTemplate, {
+    existingClasses: existingClassesText,
+    role: message.role,
+    content: message.content,
+  });
 }
 
 async function callLLMForEvaluation(prompt: string): Promise<EvaluationResult> {
@@ -93,17 +96,17 @@ async function callLLMForEvaluation(prompt: string): Promise<EvaluationResult> {
 }
 
 async function handleMessageClass(evaluation: EvaluationResult, newClasses: Set<string>): Promise<void> {
-  const existingClass = await monitorServiceDb.getMessageClassByName(evaluation.evalClass);
+  const existingClass = monitorDb.messageClasses.getByName(evaluation.evalClass);
 
   if (!existingClass && evaluation.classDescription) {
-    await monitorServiceDb.createMessageClass({
+    monitorDb.messageClasses.create({
       classId: generateClassId(),
       className: evaluation.evalClass,
-      description: evaluation.classDescription
+      description: evaluation.classDescription,
     });
     newClasses.add(evaluation.evalClass);
   } else if (existingClass) {
-    await monitorServiceDb.incrementMessageClassFrequency(evaluation.evalClass);
+    monitorDb.messageClasses.incrementFrequency(evaluation.evalClass);
   }
 }
 
@@ -136,10 +139,10 @@ async function evaluateMessage(
 
     await handleMessageClass(evaluation, newClasses);
 
-    await monitorServiceDb.updateMessageEvaluation(message.messageId, {
+    monitorDb.messages.updateEvaluation(message.messageId, {
       evalOk: evaluation.evalOk,
       reviewOk: evaluation.reviewOk,
-      evalClass: evaluation.evalClass
+      evalClass: evaluation.evalClass,
     });
 
     return {
@@ -165,7 +168,7 @@ export async function POST(request: NextRequest) {
       return createErrorResponse('callId is required', 400);
     }
 
-    const messages = await monitorServiceDb.getCallMessages(callId);
+    const messages = monitorDb.messages.getForCall(callId);
 
     if (messages.length === 0) {
       return createErrorResponse('No messages found for this call', 404);
@@ -192,9 +195,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    return createErrorResponse(
-      error instanceof Error ? error.message : 'Internal server error',
-      500
-    );
+    return handleApiError(error, 'Message evaluation');
   }
 }

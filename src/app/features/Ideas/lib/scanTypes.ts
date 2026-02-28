@@ -16,7 +16,7 @@ export type ScanType =
   | 'business_visionary'
   | 'ui_perfectionist'
   | 'feature_scout'
-  | 'onboarding_optimizer'
+  | 'tech_innovator'
   | 'ai_integration_scout'
   | 'delight_designer'
   | 'code_refactor'
@@ -62,6 +62,8 @@ export type AgentPromptBuilder = (options: {
   codeSection: string;
   hasContext: boolean;
   behavioralSection: string;
+  goalsSection: string;
+  feedbackSection: string;
 }) => string;
 
 /**
@@ -270,19 +272,19 @@ export const AGENT_REGISTRY: Record<ScanType, AgentDefinition> = {
       'Align spacing with design system',
     ],
   },
-  onboarding_optimizer: {
-    id: 'onboarding_optimizer',
-    label: 'Onboarding',
-    abbr: 'oo',
-    emoji: '👋',
-    color: 'bg-gradient-to-r from-blue-500/20 to-blue-600/20 border-blue-500/40 text-blue-300',
-    description: 'Improve user onboarding experience',
-    category: 'user',
-    agentFile: 'onboarding_optimizer.md',
+  tech_innovator: {
+    id: 'tech_innovator',
+    label: 'Tony Stark',
+    abbr: 'ts',
+    emoji: '⚙️',
+    color: 'bg-gradient-to-r from-red-500/20 to-amber-500/20 border-red-500/40 text-red-300',
+    description: 'High-risk technology bets that dissolve structural constraints',
+    category: 'technical',
+    agentFile: 'tech_innovator.md',
     examples: [
-      'Add welcome tour for new users',
-      'Simplify signup form fields',
-      'Add contextual help tooltips',
+      'Dissolve sync bottleneck with local-first data layer',
+      'Replace rendering ceiling with compute-at-edge architecture',
+      'Eliminate N+1 constraint by moving query logic to data layer',
     ],
   },
   delight_designer: {

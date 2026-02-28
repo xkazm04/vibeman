@@ -103,10 +103,12 @@ function buildClaudeIdeaRequirement(config: {
     codeSection: '', // Claude Code will analyze files directly
     hasContext: context !== null,
     behavioralSection: buildBehavioralSection(projectId),
+    goalsSection,
+    feedbackSection: '',
   };
 
   const scanPrompt = buildPrompt(scanType, promptOptions);
-  const fullPrompt = scanPrompt + '\n\n' + goalsSection + goalFocusDirective;
+  const fullPrompt = scanPrompt + goalFocusDirective;
 
   // Build the Claude Code requirement wrapper
   return `# ${scanEmoji} Claude Code Idea Generation: ${scanLabel}
@@ -368,10 +370,12 @@ function buildClaudeIdeaRequirementForGroup(config: {
     codeSection: '',
     hasContext: true,
     behavioralSection: buildBehavioralSection(projectId),
+    goalsSection,
+    feedbackSection: '',
   };
 
   const scanPrompt = buildPrompt(scanType, promptOptions);
-  const fullPrompt = scanPrompt + '\n\n' + goalsSection + goalFocusDirective;
+  const fullPrompt = scanPrompt + goalFocusDirective;
 
   return `# ${scanEmoji} Claude Code Idea Generation: ${scanLabel}
 

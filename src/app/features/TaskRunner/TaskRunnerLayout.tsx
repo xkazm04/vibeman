@@ -8,13 +8,13 @@ import TaskColumn from '@/app/features/TaskRunner/TaskColumn';
 import { loadRequirements, loadRequirementsBatch, deleteRequirement } from '@/app/Claude/lib/requirementApi';
 import type { ProjectRequirement, TaskRunnerActions } from '@/app/features/TaskRunner/lib/types';
 import {
-  taskStatusToLegacy,
-  isRequirementRunning,
-  isRequirementQueued,
+  createIdleStatus,
+  isTaskRunning,
+  isTaskQueued,
 } from '@/app/features/TaskRunner/lib/types';
 import { usePollingCleanupOnUnmount } from '@/app/features/TaskRunner/lib/pollingManager';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
-import { useTaskRunnerStore, useIsAnyBatchRunning } from '@/app/features/TaskRunner/store';
+import { useTaskRunnerStore } from '@/app/features/TaskRunner/store';
 import { useShallow } from 'zustand/react/shallow';
 
 
@@ -33,9 +33,6 @@ const TaskRunnerLayout = () => {
   // Get store tasks to sync status (useShallow prevents re-renders when unrelated task properties change)
   const storeTasks = useTaskRunnerStore(useShallow((state) => state.tasks));
 
-  // Use store state to check if any batch is running (fixes race condition with component state)
-  const isAnyBatchRunning = useIsAnyBatchRunning();
-
   const actions: TaskRunnerActions = {
     setRequirements,
     setSelectedRequirements,
@@ -53,14 +50,6 @@ const TaskRunnerLayout = () => {
   // Load requirements from all projects in a single batch request
   useEffect(() => {
     const loadAllRequirements = async () => {
-      // CRITICAL: Don't reload requirements while a batch is running
-      // This would wipe out status information for queued/running tasks
-      // Uses store state (isAnyBatchRunning) instead of component state (isRunning)
-      // to avoid race conditions where isRunning may be stale between renders
-      if (isAnyBatchRunning) {
-        return;
-      }
-
       setIsLoading(true);
 
       try {
@@ -84,7 +73,7 @@ const TaskRunnerLayout = () => {
               projectName: project.name,
               projectPath: project.path,
               requirementName: reqName,
-              status: 'idle',
+              status: createIdleStatus(),
             });
           });
         }
@@ -101,7 +90,7 @@ const TaskRunnerLayout = () => {
     if (projects.length > 0) {
       loadAllRequirements();
     }
-  }, [projects, isAnyBatchRunning]);
+  }, [projects]);
 
   // Helper to get requirement ID
   const getRequirementId = (req: ProjectRequirement) =>
@@ -113,11 +102,11 @@ const TaskRunnerLayout = () => {
       const reqId = getRequirementId(req);
       const task = storeTasks[reqId];
 
-      // If task exists in store, convert discriminated union to legacy string status
+      // If task exists in store, use its canonical TaskStatusUnion directly
       if (task) {
         return {
           ...req,
-          status: taskStatusToLegacy(task.status),
+          status: task.status,
         };
       }
 
@@ -141,7 +130,7 @@ const TaskRunnerLayout = () => {
 
   const toggleSelection = (reqId: string) => {
     const req = requirementsWithStatus.find((r) => getRequirementId(r) === reqId);
-    if (!req || isRequirementRunning(req.status) || isRequirementQueued(req.status)) return;
+    if (!req || isTaskRunning(req.status) || isTaskQueued(req.status)) return;
 
     setSelectedRequirements((prev) => {
       const newSet = new Set(prev);
@@ -157,7 +146,7 @@ const TaskRunnerLayout = () => {
   const toggleProjectSelection = (projectId: string) => {
     const projectReqs = groupedRequirements[projectId] || [];
     const selectableReqs = projectReqs.filter(
-      (req) => !isRequirementRunning(req.status) && !isRequirementQueued(req.status)
+      (req) => !isTaskRunning(req.status) && !isTaskQueued(req.status)
     );
 
     // Check if all selectable requirements are selected
@@ -205,27 +194,10 @@ const TaskRunnerLayout = () => {
 
   // Reset task status to idle (remove from store)
   const handleReset = (reqId: string) => {
-    // Remove the task from the store's tasks map
-    // This will cause requirementsWithStatus to show 'idle' for this requirement
     useTaskRunnerStore.setState((state) => {
       const newTasks = { ...state.tasks };
       delete newTasks[reqId];
       return { tasks: newTasks };
-    });
-
-    // Also clear any progress/activity/checkpoint data
-    useTaskRunnerStore.setState((state) => {
-      const newProgress = { ...state.taskProgress };
-      const newActivity = { ...state.taskActivity };
-      const newCheckpoints = { ...state.taskCheckpoints };
-      delete newProgress[reqId];
-      delete newActivity[reqId];
-      delete newCheckpoints[reqId];
-      return {
-        taskProgress: newProgress,
-        taskActivity: newActivity,
-        taskCheckpoints: newCheckpoints,
-      };
     });
   };
 
@@ -294,7 +266,7 @@ const TaskRunnerLayout = () => {
         projectName: project.name,
         projectPath: project.path,
         requirementName: reqName,
-        status: 'idle' as const,
+        status: createIdleStatus(),
       }));
 
       // Update requirements: remove old ones for this project, add new ones
@@ -323,7 +295,7 @@ const TaskRunnerLayout = () => {
     return (
       <div className="min-h-full bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-12 h-12 text-purple-400 animate-spin" />
+          <Loader2 className="w-12 h-12 text-purple-400 motion-safe:animate-spin motion-reduce:animate-pulse" />
           <p className="text-gray-400">Loading requirements...</p>
         </div>
       </div>

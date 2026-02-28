@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { Calendar, Compass, MapPin, Wifi } from 'lucide-react';
 import type { RemoteDirection } from '@/stores/remoteWorkStore';
+import { stripMarkdownListPrefix } from '@/lib/stringUtils';
 
 interface DirectionCardRemoteProps {
   direction: RemoteDirection;
@@ -81,7 +82,7 @@ function CompactMarkdown({ content }: { content: string }) {
       else if (line.match(/^[-*+]\s/) || line.match(/^\d+\.\s/)) {
         const listItems: string[] = [];
         while (i < lines.length && (lines[i].trim().match(/^[-*+]\s/) || lines[i].trim().match(/^\d+\.\s/))) {
-          const item = lines[i].trim().replace(/^[-*+]\s/, '').replace(/^\d+\.\s/, '');
+          const item = stripMarkdownListPrefix(lines[i]);
           listItems.push(item);
           i++;
         }

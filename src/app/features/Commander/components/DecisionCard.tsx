@@ -7,38 +7,46 @@
 
 import { motion } from 'framer-motion';
 import { Brain, Activity, AlertTriangle, Lightbulb, Info, Check, X, Clock, Zap } from 'lucide-react';
-import { useAnnetteStore } from '@/stores/annetteStore';
+import { useAnnetteNotificationStore } from '@/stores/annette/notificationStore';
 import type { AnnetteNotification } from '@/lib/annette/notificationEngine';
 
-const ICON_MAP = {
-  insight: Brain,
-  outcome: Activity,
-  warning: AlertTriangle,
-  suggestion: Lightbulb,
-  status: Info,
-  task_execution: Activity,
-  autonomous_agent: Zap,
-};
-
-const COLOR_MAP = {
-  insight: 'border-purple-500/30 bg-purple-500/5',
-  outcome: 'border-cyan-500/30 bg-cyan-500/5',
-  warning: 'border-amber-500/30 bg-amber-500/5',
-  suggestion: 'border-green-500/30 bg-green-500/5',
-  status: 'border-slate-500/30 bg-slate-500/5',
-  task_execution: 'border-blue-500/30 bg-blue-500/5',
-  autonomous_agent: 'border-amber-500/30 bg-amber-500/5',
-};
-
-const ICON_COLOR_MAP = {
-  insight: 'text-purple-400',
-  outcome: 'text-cyan-400',
-  warning: 'text-amber-400',
-  suggestion: 'text-green-400',
-  status: 'text-slate-400',
-  task_execution: 'text-blue-400',
-  autonomous_agent: 'text-amber-400',
-};
+const DECISION_CONFIG = {
+  insight: {
+    icon: Brain,
+    color: 'border-purple-500/30 bg-purple-500/5',
+    iconColor: 'text-purple-400',
+  },
+  outcome: {
+    icon: Activity,
+    color: 'border-cyan-500/30 bg-cyan-500/5',
+    iconColor: 'text-cyan-400',
+  },
+  warning: {
+    icon: AlertTriangle,
+    color: 'border-amber-500/30 bg-amber-500/5',
+    iconColor: 'text-amber-400',
+  },
+  suggestion: {
+    icon: Lightbulb,
+    color: 'border-green-500/30 bg-green-500/5',
+    iconColor: 'text-green-400',
+  },
+  status: {
+    icon: Info,
+    color: 'border-slate-500/30 bg-slate-500/5',
+    iconColor: 'text-slate-400',
+  },
+  task_execution: {
+    icon: Activity,
+    color: 'border-blue-500/30 bg-blue-500/5',
+    iconColor: 'text-blue-400',
+  },
+  autonomous_agent: {
+    icon: Zap,
+    color: 'border-amber-500/30 bg-amber-500/5',
+    iconColor: 'text-amber-400',
+  },
+} satisfies Record<AnnetteNotification['type'], { icon: any; color: string; iconColor: string }>;
 
 const PRIORITY_COLOR = {
   high: 'bg-red-500',
@@ -47,11 +55,12 @@ const PRIORITY_COLOR = {
 };
 
 export default function DecisionCard({ notification }: { notification: AnnetteNotification }) {
-  const executeAction = useAnnetteStore((s) => s.executeAction);
-  const dismissNotification = useAnnetteStore((s) => s.dismissNotification);
-  const snoozeNotification = useAnnetteStore((s) => s.snoozeNotification);
+  const executeAction = useAnnetteNotificationStore((s) => s.executeAction);
+  const dismissNotification = useAnnetteNotificationStore((s) => s.dismissNotification);
+  const snoozeNotification = useAnnetteNotificationStore((s) => s.snoozeNotification);
 
-  const Icon = ICON_MAP[notification.type];
+  const config = DECISION_CONFIG[notification.type];
+  const Icon = config.icon;
 
   return (
     <motion.div
@@ -59,10 +68,10 @@ export default function DecisionCard({ notification }: { notification: AnnetteNo
       initial={{ opacity: 0, x: 20, scale: 0.95 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: 20, scale: 0.95 }}
-      className={`p-3 rounded-lg border ${COLOR_MAP[notification.type]}`}
+      className={`p-3 rounded-lg border ${config.color}`}
     >
       <div className="flex items-start gap-2.5">
-        <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${ICON_COLOR_MAP[notification.type]}`} />
+        <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${config.iconColor}`} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-slate-200 truncate">{notification.title}</span>
@@ -83,7 +92,7 @@ export default function DecisionCard({ notification }: { notification: AnnetteNo
             {notification.actionable && (
               <button
                 onClick={() => executeAction(notification)}
-                className="p-1.5 rounded-md bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors"
+                className="p-1.5 rounded-md bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/30 transition-colors"
                 title="Accept"
               >
                 <Check className="w-3.5 h-3.5" />
@@ -91,14 +100,14 @@ export default function DecisionCard({ notification }: { notification: AnnetteNo
             )}
             <button
               onClick={() => dismissNotification(notification.id)}
-              className="p-1.5 rounded-md bg-slate-500/10 text-slate-400 hover:bg-slate-500/20 transition-colors"
+              className="p-1.5 rounded-md border border-slate-600/40 text-slate-400 hover:bg-slate-500/10 transition-colors"
               title="Dismiss"
             >
               <X className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => snoozeNotification(notification.id)}
-              className="p-1.5 rounded-md bg-slate-500/10 text-slate-400 hover:bg-slate-500/20 transition-colors"
+              className="p-1.5 rounded-md border border-amber-500/25 text-amber-400/70 hover:bg-amber-500/10 transition-colors"
               title="Snooze 30 min"
             >
               <Clock className="w-3.5 h-3.5" />

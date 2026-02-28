@@ -8,13 +8,13 @@
 import { useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { CheckCircle2 } from 'lucide-react';
-import { useAnnetteStore } from '@/stores/annetteStore';
+import { useAnnetteNotificationStore } from '@/stores/annette/notificationStore';
 import DecisionCard from './DecisionCard';
 
 export default function DecisionPanel() {
-  const notifications = useAnnetteStore((s) => s.notifications);
-  const snoozedIds = useAnnetteStore((s) => s.snoozedIds);
-  const snoozeExpiry = useAnnetteStore((s) => s.snoozeExpiry);
+  const notifications = useAnnetteNotificationStore((s) => s.notifications);
+  const snoozedIds = useAnnetteNotificationStore((s) => s.snoozedIds);
+  const snoozeExpiry = useAnnetteNotificationStore((s) => s.snoozeExpiry);
 
   const activeNotifications = useMemo(() => {
     const now = Date.now();

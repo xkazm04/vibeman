@@ -4,6 +4,7 @@
  */
 
 import type { DiscoveredTweet } from './types';
+import { stripCodeFences } from '@/lib/stringUtils';
 
 export const DISCOVERY_SYSTEM_PROMPT = `You are a Twitter/X content discovery assistant. Your job is to help find relevant tweets based on user queries.
 
@@ -52,13 +53,8 @@ export function parseGrokResponse(response: string): {
   tweets: DiscoveredTweet[];
   searchQuery: string;
 } {
-  // Try to extract JSON from the response
-  let jsonStr = response.trim();
-
-  // Remove markdown code blocks if present
-  if (jsonStr.startsWith('```')) {
-    jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```$/g, '').trim();
-  }
+  // Try to extract JSON from the response — strip code fences if wrapped
+  let jsonStr = stripCodeFences(response);
 
   try {
     const parsed = JSON.parse(jsonStr);

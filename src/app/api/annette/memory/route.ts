@@ -4,8 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { memoryStore } from '@/app/features/Annette/lib/memoryStore';
-import { semanticIndexer } from '@/app/features/Annette/lib/semanticIndexer';
+import { unifiedKnowledgeStore } from '@/app/features/Annette/lib/unifiedKnowledgeStore';
 import { contextualRecaller } from '@/app/features/Annette/lib/contextualRecaller';
 import type { AnnetteMemoryType } from '@/app/db/models/annette.types';
 
@@ -32,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     if (query) {
       // Semantic search
-      const results = await semanticIndexer.findSimilarMemories(
+      const results = await unifiedKnowledgeStore.findSimilarMemories(
         projectId,
         query,
         limit,
@@ -44,7 +43,7 @@ export async function GET(request: NextRequest) {
       }));
     } else {
       // Regular fetch
-      memories = memoryStore.getByProject({
+      memories = unifiedKnowledgeStore.getMemories({
         projectId,
         type: type || undefined,
         limit,
@@ -52,8 +51,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Get stats
-    const stats = memoryStore.getConsolidationStats(projectId);
-    const byType = memoryStore.getByProject({ projectId, limit: 1000 })
+    const stats = unifiedKnowledgeStore.getConsolidationStats(projectId);
+    const byType = unifiedKnowledgeStore.getMemories({ projectId, limit: 1000 })
       .reduce((acc, m) => {
         acc[m.memoryType] = (acc[m.memoryType] || 0) + 1;
         return acc;
@@ -101,7 +100,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const memory = memoryStore.create({
+        const memory = unifiedKnowledgeStore.createMemory({
           projectId,
           sessionId,
           memoryType: data.memoryType,
@@ -113,7 +112,7 @@ export async function POST(request: NextRequest) {
         });
 
         // Index the memory
-        await semanticIndexer.indexMemory(memory.id);
+        await unifiedKnowledgeStore.indexItem(memory.id, 'memory');
 
         return NextResponse.json({ memory });
       }
@@ -126,7 +125,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const memories = await memoryStore.extractFromConversation(
+        const memories = await unifiedKnowledgeStore.extractMemoriesFromConversation(
           projectId,
           sessionId || 'unknown',
           data.messages
@@ -143,7 +142,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const consolidated = await memoryStore.consolidateMemories(
+        const consolidated = await unifiedKnowledgeStore.consolidateMemories(
           projectId,
           data.memoryIds
         );
@@ -190,12 +189,11 @@ export async function POST(request: NextRequest) {
       }
 
       case 'index': {
-        const indexedMemories = await semanticIndexer.indexAllMemories(projectId);
-        const indexedNodes = await semanticIndexer.indexAllKnowledgeNodes(projectId);
+        const indexed = await unifiedKnowledgeStore.indexAllUnindexed(projectId);
         return NextResponse.json({
-          indexedMemories,
-          indexedNodes,
-          total: indexedMemories + indexedNodes,
+          indexedMemories: indexed.memories,
+          indexedNodes: indexed.nodes,
+          total: indexed.memories + indexed.nodes,
         });
       }
 
@@ -230,7 +228,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const success = memoryStore.delete(id);
+    const success = unifiedKnowledgeStore.deleteMemory(id);
 
     return NextResponse.json({ success });
   } catch (error) {
@@ -259,10 +257,10 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (importanceScore !== undefined) {
-      memoryStore.updateImportance(id, importanceScore);
+      unifiedKnowledgeStore.updateMemoryImportance(id, importanceScore);
     }
 
-    const memory = memoryStore.getById(id);
+    const memory = unifiedKnowledgeStore.getMemory(id);
 
     return NextResponse.json({ memory });
   } catch (error) {

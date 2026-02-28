@@ -200,7 +200,8 @@ export class FeatureContextsScan extends BaseScan<FeatureContextsScanConfig, Fea
         success: boolean;
         directories: Array<{ name: string }>;
         error?: string;
-      }>('/api/disk/list-directories', {
+      }>('/api/disk/search', {
+        type: 'directories',
         path: featureFoldersPath,
       });
 

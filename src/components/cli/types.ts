@@ -4,7 +4,10 @@
  * Shared types for CLI terminal components and task queue integration.
  */
 
-import type { ProjectRequirement } from '@/app/features/TaskRunner/lib/types';
+import type { ProjectRequirement, TaskStatusUnion } from '@/app/features/TaskRunner/lib/types';
+import { createQueuedStatus } from '@/app/features/TaskRunner/lib/types';
+import type { CLIProvider, CLIModel } from '@/lib/claude-terminal/types';
+import type { SkillId } from './skills';
 
 /**
  * Task queued for CLI execution
@@ -15,7 +18,7 @@ export interface QueuedTask {
   projectPath: string;
   projectName: string;
   requirementName: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: TaskStatusUnion;
   addedAt: number;
   startedAt?: number;
   completedAt?: number;
@@ -101,6 +104,9 @@ export interface CompactTerminalProps {
   currentExecutionId?: string | null;
   currentStoredTaskId?: string | null;
   onExecutionChange?: (executionId: string | null, taskId: string | null) => void;
+  // Multi-provider support
+  provider?: CLIProvider;
+  model?: CLIModel | null;
 }
 
 /**
@@ -129,7 +135,7 @@ export function requirementToQueuedTask(
     projectPath: req.projectPath,
     projectName: req.projectName,
     requirementName: req.requirementName,
-    status: 'pending',
+    status: createQueuedStatus(),
     addedAt: Date.now(),
   };
 }

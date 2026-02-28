@@ -3,15 +3,14 @@
  *
  * POST /api/brain/signals - Record a behavioral signal
  * GET /api/brain/signals - Get signals for a project
+ * DELETE /api/brain/signals - Delete a signal by ID
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { behavioralSignalDb } from '@/app/db';
-import { getDatabase } from '@/app/db/connection';
 import type { BehavioralSignalType } from '@/app/db/models/brain.types';
-import { signalCollector } from '@/lib/brain/signalCollector';
 import { withObservability } from '@/lib/observability/middleware';
-import { invalidateContextCache } from '@/app/api/brain/context/route';
+import { recordSignal, deleteSignal } from '@/lib/brain/brainService';
 
 /**
  * Validate signal data shape matches the expected type.
@@ -103,7 +102,7 @@ async function handlePost(request: NextRequest) {
       );
     }
 
-    // Validate signal data shape before passing to collector
+    // Validate signal data shape before passing to service
     const validationError = validateSignalData(signalType, data);
     if (validationError) {
       return NextResponse.json(
@@ -112,27 +111,7 @@ async function handlePost(request: NextRequest) {
       );
     }
 
-    // Route to appropriate collector method
-    switch (signalType) {
-      case 'git_activity':
-        signalCollector.recordGitActivity(projectId, data, contextId, contextName);
-        break;
-      case 'api_focus':
-        signalCollector.recordApiFocus(projectId, data, contextId, contextName);
-        break;
-      case 'context_focus':
-        signalCollector.recordContextFocus(projectId, data);
-        break;
-      case 'implementation':
-        signalCollector.recordImplementation(projectId, data);
-        break;
-      case 'cli_memory':
-        signalCollector.recordCliMemory(projectId, data, contextId, contextName);
-        break;
-    }
-
-    // Invalidate cached behavioral context so next read reflects new signal
-    invalidateContextCache(projectId);
+    recordSignal({ projectId, signalType, data, contextId, contextName });
 
     return NextResponse.json({
       success: true,
@@ -150,13 +129,6 @@ async function handlePost(request: NextRequest) {
 /**
  * GET /api/brain/signals
  * Get behavioral signals for a project
- *
- * Query params:
- * - projectId: string (required)
- * - signalType: BehavioralSignalType (optional)
- * - contextId: string (optional)
- * - limit: number (optional, default 50)
- * - since: ISO date string (optional)
  */
 async function handleGet(request: NextRequest) {
   try {
@@ -181,7 +153,6 @@ async function handleGet(request: NextRequest) {
       since: since || undefined,
     });
 
-    // Also get aggregated stats
     const counts = behavioralSignalDb.getCountByType(projectId);
     const contextActivity = behavioralSignalDb.getContextActivity(projectId);
 
@@ -190,7 +161,7 @@ async function handleGet(request: NextRequest) {
       signals,
       stats: {
         counts,
-        contextActivity: contextActivity.slice(0, 10), // Top 10 contexts
+        contextActivity: contextActivity.slice(0, 10),
         totalSignals: signals.length,
       },
     });
@@ -206,9 +177,6 @@ async function handleGet(request: NextRequest) {
 /**
  * DELETE /api/brain/signals
  * Delete a behavioral signal by ID
- *
- * Query params:
- * - id: string (required) - signal ID to delete
  */
 async function handleDelete(request: NextRequest) {
   try {
@@ -222,22 +190,13 @@ async function handleDelete(request: NextRequest) {
       );
     }
 
-    // Look up project_id before deleting so we can always invalidate cache
-    const db = getDatabase();
-    const signal = db.prepare('SELECT project_id FROM behavioral_signals WHERE id = ?').get(id) as { project_id: string } | undefined;
-
-    const deleted = behavioralSignalDb.deleteById(id);
+    const deleted = deleteSignal(id);
 
     if (!deleted) {
       return NextResponse.json(
         { success: false, error: 'Signal not found' },
         { status: 404 }
       );
-    }
-
-    // Invalidate cached behavioral context using the signal's own project_id
-    if (signal?.project_id) {
-      invalidateContextCache(signal.project_id);
     }
 
     return NextResponse.json({ success: true });

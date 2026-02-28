@@ -1,7 +1,6 @@
 /**
  * Task Runner Store - Main Export
  *
- * Batch mode removed. Store is a minimal shim preserving types and no-op actions.
  * CLI session system (src/components/cli/) is the sole execution mode.
  */
 
@@ -10,43 +9,34 @@ export * from './taskRunnerStore';
 // Re-export discriminated union types and utilities from types.ts
 export type {
   TaskStatusUnion,
+  TaskStatusIdle,
   TaskStatusQueued,
   TaskStatusRunning,
   TaskStatusCompleted,
   TaskStatusFailed,
   TaskStatusType,
-  BatchStatusUnion,
-  BatchStatusIdle,
-  BatchStatusRunning,
-  BatchStatusPaused,
-  BatchStatusCompleted,
-  BatchStatusType,
-  RequirementStatusString,
 } from '../lib/types';
 
 export {
-  // Task status helpers (for internal store TaskState)
+  // Task status factories
+  createIdleStatus,
   createQueuedStatus,
   createRunningStatus,
   createCompletedStatus,
   createFailedStatus,
-  createIdleBatchStatus,
-  createRunningBatchStatus,
-  createPausedBatchStatus,
-  createCompletedBatchStatus,
+  // Task status type guards
+  isTaskIdle,
   isTaskQueued,
   isTaskRunning,
   isTaskCompleted,
   isTaskFailed,
-  isBatchIdle,
-  isBatchRunning,
-  isBatchPaused,
-  isBatchCompleted,
+  // Boundary adapters
   legacyToTaskStatus,
-  taskStatusToLegacy,
-  legacyToBatchStatus,
-  batchStatusToLegacy,
-  // ProjectRequirement status helpers (for UI components)
+  taskStatusToDbString,
+  // Display helpers
+  getStatusLabel,
+  categorizeByStatus,
+  // Backward-compatible aliases (deprecated)
   isRequirementQueued,
   isRequirementRunning,
   isRequirementCompleted,

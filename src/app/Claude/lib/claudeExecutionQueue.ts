@@ -12,8 +12,8 @@ import {
   emitTaskSessionLimit,
 } from '@/lib/brain/taskNotificationEmitter';
 import { signalCollector } from '@/lib/brain/signalCollector';
-import { invalidateContextCache } from '@/app/api/brain/context/route';
-import { onTaskCompleted } from '@/lib/collective-memory/taskCompletionHook';
+import { invalidateContextCache } from '@/lib/brain/brainService';
+import { onTaskCompleted, resolveTaskApplications } from '@/lib/collective-memory/taskCompletionHook';
 import { emitTaskChange } from './taskChangeEmitter';
 
 export interface GitExecutionConfig {
@@ -43,6 +43,7 @@ export interface ExecutionTask {
   endTime?: Date;
   sessionLimitReached?: boolean;
   capturedClaudeSessionId?: string;  // Claude session ID captured from output
+  memoryApplicationIds?: string[];   // Collective memory application IDs for feedback loop
 }
 
 class ClaudeExecutionQueue {
@@ -75,33 +76,6 @@ class ClaudeExecutionQueue {
   /**
    * Publish task lifecycle event to persona event bus (fire-and-forget)
    */
-  private publishToEventBus(
-    eventType: 'task_created' | 'execution_completed',
-    taskId: string,
-    projectId: string,
-    payload: Record<string, unknown>
-  ): void {
-    try {
-      // Lazy require to avoid circular dependencies (same pattern as executionEngine.ts)
-      const { personaEventBus } = require('@/lib/personas/eventBus');
-      if (personaEventBus && typeof personaEventBus.publish === 'function') {
-        personaEventBus.publish({
-          event_type: eventType,
-          source_type: 'system' as const,
-          source_id: taskId,
-          project_id: projectId,
-          payload: {
-            ...payload,
-            _system: true,
-            _meta: { depth: 0, source_persona_id: null },
-          },
-        });
-      }
-    } catch {
-      // Event bus publishing must never break CLI execution
-    }
-  }
-
   /**
    * Get list of files changed by the most recent git commit
    */
@@ -228,13 +202,6 @@ class ClaudeExecutionQueue {
       const duration = task.startTime ? Date.now() - task.startTime.getTime() : undefined;
       emitTaskCompleted(task.id, task.requirementName, task.projectId, undefined, duration);
 
-      this.publishToEventBus('execution_completed', task.id, task.projectId, {
-        requirement_name: task.requirementName,
-        status: 'completed',
-        duration_ms: duration || 0,
-        timestamp: new Date().toISOString(),
-      });
-
       // Auto-record implementation signal
       try {
         const changedFiles = this.getChangedFiles(task.projectPath);
@@ -255,13 +222,20 @@ class ClaudeExecutionQueue {
       }
 
       // Record learning in collective memory
+      const changedFilesForMemory = this.getChangedFiles(task.projectPath);
       onTaskCompleted({
         projectId: task.projectId,
         taskId: task.id,
         requirementName: task.requirementName,
         success: true,
+        filesChanged: changedFilesForMemory,
         durationMs: duration,
       });
+
+      // Resolve collective memory applications as success (closes feedback loop)
+      if (task.memoryApplicationIds?.length) {
+        resolveTaskApplications(task.memoryApplicationIds, 'success');
+      }
     }
   }
 
@@ -283,12 +257,10 @@ class ClaudeExecutionQueue {
       const duration = task.startTime ? Date.now() - task.startTime.getTime() : undefined;
       emitTaskSessionLimit(task.id, task.requirementName, task.projectId, duration);
 
-      this.publishToEventBus('execution_completed', task.id, task.projectId, {
-        requirement_name: task.requirementName,
-        status: 'session_limit',
-        duration_ms: duration || 0,
-        timestamp: new Date().toISOString(),
-      });
+      // Resolve collective memory applications as partial (session limit = incomplete)
+      if (task.memoryApplicationIds?.length) {
+        resolveTaskApplications(task.memoryApplicationIds, 'partial', 'Session limit reached');
+      }
     }
   }
 
@@ -308,14 +280,6 @@ class ClaudeExecutionQueue {
     if (task.projectId) {
       const duration = task.startTime ? Date.now() - task.startTime.getTime() : undefined;
       emitTaskFailed(task.id, task.requirementName, task.projectId, error, duration);
-
-      this.publishToEventBus('execution_completed', task.id, task.projectId, {
-        requirement_name: task.requirementName,
-        status: 'failed',
-        error: error,
-        duration_ms: duration || 0,
-        timestamp: new Date().toISOString(),
-      });
 
       // Auto-record implementation signal (failure)
       try {
@@ -338,14 +302,21 @@ class ClaudeExecutionQueue {
       }
 
       // Record learning in collective memory
+      const changedFilesForMemory = this.getChangedFiles(task.projectPath);
       onTaskCompleted({
         projectId: task.projectId,
         taskId: task.id,
         requirementName: task.requirementName,
         success: false,
+        filesChanged: changedFilesForMemory,
         errorMessage: error,
         durationMs: duration,
       });
+
+      // Resolve collective memory applications as failure (closes feedback loop)
+      if (task.memoryApplicationIds?.length) {
+        resolveTaskApplications(task.memoryApplicationIds, 'failure', error);
+      }
     }
   }
 
@@ -385,12 +356,6 @@ class ClaudeExecutionQueue {
     // Emit task started notification
     if (task.projectId) {
       emitTaskStarted(task.id, task.requirementName, task.projectId);
-
-      this.publishToEventBus('task_created', task.id, task.projectId, {
-        requirement_name: task.requirementName,
-        status: 'started',
-        timestamp: new Date().toISOString(),
-      });
     }
 
     try {
@@ -429,6 +394,11 @@ class ClaudeExecutionQueue {
       if (result.capturedClaudeSessionId) {
         task.capturedClaudeSessionId = result.capturedClaudeSessionId;
         task.progress.push(this.createProgressEntry(`Session ID captured: ${result.capturedClaudeSessionId}`));
+      }
+
+      // Track collective memory application IDs for feedback loop resolution
+      if (result.memoryApplicationIds?.length) {
+        task.memoryApplicationIds = result.memoryApplicationIds;
       }
 
       // Update task with results

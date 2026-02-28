@@ -6,6 +6,7 @@ import { createFileScannerPrompt } from '../../../prompts/file-scanner-prompt';
 import { createBuildErrorFixerPrompt, BuildErrorForFix, BuildErrorFixResult } from '../../../prompts/build-error-fixer-prompt';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
+import { handleApiError } from '@/lib/api-errors';
 
 interface ScanResult {
   totalFiles: number;
@@ -700,11 +701,7 @@ async function handlePost(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
   } catch (error) {
-    logger.error('File scanner API error:', { error });
-    return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'File scanner');
   }
 }
 
@@ -728,11 +725,7 @@ async function handleGet(request: NextRequest) {
 
     return NextResponse.json(projectInfo);
   } catch (error) {
-    logger.error('File scanner GET error:', { error });
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'File scanner GET');
   }
 }
 

@@ -294,7 +294,7 @@ export class ClaudeCodeExecutor extends BaseExecutor<
    */
   private async checkApiHealth(): Promise<boolean> {
     try {
-      const response = await fetch(`/api/claude-code?projectPath=/&action=status`, {
+      const response = await fetch(`/api/claude-code/status?projectPath=/`, {
         method: 'GET',
       });
       const contentType = response.headers.get('content-type');
@@ -466,14 +466,14 @@ export class ClaudeCodeExecutor extends BaseExecutor<
     gitConfig?: { enabled: true; commands: string[]; commitMessage: string }
   ): Promise<{ success: boolean; taskId?: string; error?: string }> {
     try {
-      const response = await fetch('/api/claude-code/requirement', {
+      const response = await fetch('/api/claude-code/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectPath: this.config.projectPath,
           requirementName,
-          action: 'execute',
           projectId: this.config.projectId || undefined,
+          async: true,
           gitConfig,
         }),
       });
@@ -519,7 +519,7 @@ export class ClaudeCodeExecutor extends BaseExecutor<
           }
 
           const response = await fetch(
-            `/api/claude-code/requirement?projectPath=${encodeURIComponent(this.config.projectPath)}&requirementName=${encodeURIComponent(requirementName)}&action=status`
+            `/api/claude-code/tasks/${encodeURIComponent(requirementName)}`
           );
 
           if (!response.ok) {
@@ -527,14 +527,15 @@ export class ClaudeCodeExecutor extends BaseExecutor<
           }
 
           const data = await response.json();
-          const status = data.status as TaskStatus;
+          const task = data.task || data;
+          const status = task.status as TaskStatus;
 
           if (status === 'completed' || status === 'failed' || status === 'session-limit') {
             this.stopPolling(requirementName);
             resolve({
               status,
-              error: data.error,
-              logFilePath: data.logFilePath,
+              error: task.error,
+              logFilePath: task.logFilePath,
             });
           }
         } catch {
@@ -584,7 +585,6 @@ export class ClaudeCodeExecutor extends BaseExecutor<
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectPath: this.config.projectPath,
-          action: 'delete-requirement',
           requirementName,
         }),
       });

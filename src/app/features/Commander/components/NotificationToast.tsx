@@ -7,7 +7,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Brain, AlertTriangle, Lightbulb, Activity, Info, Zap } from 'lucide-react';
-import { useAnnetteStore } from '@/stores/annetteStore';
+import { useAnnetteNotificationStore } from '@/stores/annette/notificationStore';
 import type { AnnetteNotification } from '@/lib/annette/notificationEngine';
 
 const ICON_MAP = {
@@ -41,6 +41,7 @@ const ICON_COLOR_MAP = {
 };
 
 function ToastItem({ notification, onDismiss }: { notification: AnnetteNotification; onDismiss: () => void }) {
+  const executeAction = useAnnetteNotificationStore((s) => s.executeAction);
   const Icon = ICON_MAP[notification.type];
 
   return (
@@ -64,9 +65,12 @@ function ToastItem({ notification, onDismiss }: { notification: AnnetteNotificat
           <p className="text-sm font-medium text-slate-200">{notification.title}</p>
           <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{notification.message}</p>
           {notification.suggestedAction && (
-            <p className="text-xs text-cyan-400 mt-1 opacity-70">
-              Suggested: {notification.suggestedAction.description}
-            </p>
+            <button
+              onClick={() => executeAction(notification)}
+              className="mt-1.5 text-xs text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 rounded-md px-2 py-1 hover:bg-cyan-500/20 transition-colors cursor-pointer text-left"
+            >
+              {notification.suggestedAction.description}
+            </button>
           )}
         </div>
       </div>
@@ -75,8 +79,8 @@ function ToastItem({ notification, onDismiss }: { notification: AnnetteNotificat
 }
 
 export default function NotificationToast() {
-  const notifications = useAnnetteStore((s) => s.notifications);
-  const dismissNotification = useAnnetteStore((s) => s.dismissNotification);
+  const notifications = useAnnetteNotificationStore((s) => s.notifications);
+  const dismissNotification = useAnnetteNotificationStore((s) => s.dismissNotification);
 
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">

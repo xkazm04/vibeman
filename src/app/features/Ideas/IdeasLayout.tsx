@@ -31,8 +31,6 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
   const [filterContextIds, setFilterContextIds] = React.useState<string[]>([]);
   const [selectedScanTypes, setSelectedScanTypes] = React.useState<ScanType[]>([]);
   const [viewMode, setViewMode] = React.useState<IdeasViewMode>('buffer');
-  // Groups selected as whole units for requirement generation (via Shift+Click)
-  const [selectedGroupIdsForGeneration, setSelectedGroupIdsForGeneration] = React.useState<string[]>([]);
 
   const { projects, initializeProjects, getProject } = useProjectConfigStore();
   const { setActiveProject } = useActiveProjectStore();
@@ -74,7 +72,6 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
     // Update unified store
     setSelectedProjectId(projectId);
     setFilterContextIds([]); // Reset context filter when project changes
-    setSelectedGroupIdsForGeneration([]); // Reset group selection when project changes
 
     // Update active project in store (skip if 'all' is selected)
     if (projectId !== 'all') {
@@ -109,8 +106,6 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
             onSelectProject={handleProjectSelect}
             selectedContextIds={filterContextIds}
             onSelectContexts={setFilterContextIds}
-            selectedGroupIdsForGeneration={selectedGroupIdsForGeneration}
-            onSelectGroupsForGeneration={setSelectedGroupIdsForGeneration}
           />
         </LazyContentSection>
 
@@ -122,7 +117,6 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
               selectedScanTypes={selectedScanTypes}
               onScanTypesChange={setSelectedScanTypes}
               selectedContextIds={filterContextIds}
-              selectedGroupIds={selectedGroupIdsForGeneration}
             />
           </div>
         </LazyContentSection>

@@ -6,8 +6,29 @@
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { DbContext, DbIdea, goalDb } from '@/app/db';
 import { buildPrompt, PromptOptions as NewPromptOptions } from '../prompts';
-import { buildContextSection, buildExistingIdeasSection, buildGoalsSection, buildBehavioralSection } from './sectionBuilders';
+import { buildContextSection, buildExistingIdeasSection, buildGoalsSection, buildBehavioralSection, buildProjectStructureSection } from './sectionBuilders';
 import { buildFeedbackSection } from '@/lib/ideas/feedbackSynthesis';
+
+/**
+ * Per-scan-type temperature configuration.
+ * Precision types (bug finding, security) use lower temps.
+ * Creative/visionary types use higher temps.
+ */
+const SCAN_TYPE_TEMPERATURE: Partial<Record<ScanType, number>> = {
+  // Precision types — lower temperature for accuracy
+  bug_hunter: 0.5,
+  security_protector: 0.45,
+  ambiguity_guardian: 0.55,
+  code_refactor: 0.5,
+  // Balanced types — default 0.7
+  // Creative/visionary types — higher temperature
+  paradigm_shifter: 0.8,
+  moonshot_architect: 0.85,
+  business_visionary: 0.8,
+  insight_synth: 0.75,
+  delight_designer: 0.75,
+  tech_innovator: 0.75,
+};
 
 interface BuildPromptOptions {
   projectId: string;
@@ -39,26 +60,13 @@ export function buildIdeaGenerationPrompt(
 
   // Build sections
   // NOTE: AI documentation (CLAUDE.md/AI.md) is intentionally excluded to reduce prompt size
-  const aiDocsSection = '';
+  // Project structure is included via shared builder so all scan types get architectural conventions
+  const aiDocsSection = buildProjectStructureSection();
 
   const contextSection = buildContextSection(context);
   const existingIdeasSection = buildExistingIdeasSection(existingIdeas);
   const goalsSection = buildGoalsSection(openGoals);
   const behavioralSection = buildBehavioralSection(projectId);
-
-  // Create prompt options for new system
-  const promptOptions: NewPromptOptions = {
-    projectName,
-    aiDocsSection,
-    contextSection,
-    existingIdeasSection,
-    codeSection: '', // Removed - file paths already in context section
-    hasContext: context !== null,
-    behavioralSection,
-  };
-
-  // Use the new prompt builder
-  const fullPrompt = buildPrompt(scanType, promptOptions);
 
   // Build feedback section (lessons learned from user decisions)
   const feedbackSection = buildFeedbackSection(
@@ -67,13 +75,27 @@ export function buildIdeaGenerationPrompt(
     scanType
   );
 
-  // Append goals section and feedback section to the prompt
-  const finalPrompt = fullPrompt + '\n\n' + goalsSection + (feedbackSection ? '\n\n' + feedbackSection : '');
+  // Create prompt options for new system
+  // Goals and feedback are passed as options so they appear BEFORE the JSON output reminder
+  const promptOptions: NewPromptOptions = {
+    projectName,
+    aiDocsSection,
+    contextSection,
+    existingIdeasSection,
+    codeSection: '', // Removed - file paths already in context section
+    hasContext: context !== null,
+    behavioralSection,
+    goalsSection,
+    feedbackSection: feedbackSection || '',
+  };
 
-  // LLM configuration
+  // Use the new prompt builder (goals + feedback are now embedded inside the prompt, before JSON reminder)
+  const finalPrompt = buildPrompt(scanType, promptOptions);
+
+  // LLM configuration with per-scan-type temperature
   const llmConfig = {
     maxTokens: 30000,
-    temperature: 0.7,
+    temperature: SCAN_TYPE_TEMPERATURE[scanType] ?? 0.7,
   };
 
   return {

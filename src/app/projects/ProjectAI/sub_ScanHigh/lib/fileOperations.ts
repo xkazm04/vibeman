@@ -3,6 +3,8 @@
  * Handles saving generated markdown content with proper validation and error handling
  */
 
+import { normalizeLineEndings } from '@/lib/stringUtils';
+
 export interface SaveFileRequest {
   folderPath: string;
   fileName: string;
@@ -34,16 +36,15 @@ export async function saveGeneratedContent(request: SaveFileRequest): Promise<Sa
   const finalFileName = ensureMarkdownExtension(sanitizedFileName);
 
   try {
-    const response = await fetch('/api/disk/save-file', {
+    const response = await fetch('/api/disk/file', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        folderPath: request.folderPath,
-        fileName: finalFileName,
-        content: request.content,
-        projectPath: request.projectPath
+        action: 'write',
+        filePath: (request.projectPath ? request.projectPath + '/' : '') + request.folderPath + '/' + finalFileName,
+        content: request.content
       })
     });
 
@@ -135,7 +136,7 @@ export function validateMarkdownContent(content: string): { isValid: boolean; er
  */
 export function prepareContentForSave(content: string): string {
   // Normalize line endings
-  let cleanContent = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  let cleanContent = normalizeLineEndings(content);
   
   // Remove excessive blank lines (more than 2 consecutive)
   cleanContent = cleanContent.replace(/\n{4,}/g, '\n\n\n');

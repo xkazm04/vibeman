@@ -4,17 +4,38 @@
  */
 
 import { getDatabase } from '../connection';
-import type { DbBrainInsight, LearningInsight } from '../models/brain.types';
+import type { DbBrainInsight, LearningInsight, EvidenceRef } from '../models/brain.types';
 import { getCurrentTimestamp, selectOne, selectAll } from './repository.utils';
+
+/**
+ * Parse evidence JSON, handling both legacy string[] and typed EvidenceRef[] formats.
+ * Legacy strings are classified by prefix: sig_ → signal, ref_/br_ → reflection, else direction.
+ */
+function parseEvidence(raw: string): EvidenceRef[] {
+  let parsed: unknown[];
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed.map((item) => {
+    if (typeof item === 'object' && item !== null && 'type' in item && 'id' in item) {
+      return item as EvidenceRef;
+    }
+    // Legacy plain string → classify by prefix
+    const id = String(item);
+    if (id.startsWith('sig_')) return { type: 'signal' as const, id };
+    if (id.startsWith('ref_') || id.startsWith('br_')) return { type: 'reflection' as const, id };
+    return { type: 'direction' as const, id };
+  });
+}
 
 /**
  * Convert a DbBrainInsight row to a LearningInsight (for backward compatibility)
  */
 export function dbInsightToLearning(row: DbBrainInsight): LearningInsight {
-  let evidence: string[] = [];
-  try {
-    evidence = JSON.parse(row.evidence);
-  } catch { /* empty */ }
+  const evidence = parseEvidence(row.evidence);
 
   return {
     type: row.type,
@@ -45,7 +66,7 @@ export const brainInsightRepository = {
     title: string;
     description: string;
     confidence: number;
-    evidence: string[];
+    evidence: EvidenceRef[];
     evolves_from_id?: string | null;
     evolves_title?: string | null;
     conflict_with_id?: string | null;
@@ -186,6 +207,34 @@ export const brainInsightRepository = {
       'SELECT * FROM brain_insights WHERE reflection_id = ? ORDER BY created_at ASC',
       reflectionId
     );
+  },
+
+  /**
+   * Get all insights for multiple reflections in a single query.
+   * Returns a Map keyed by reflection_id for O(1) lookup.
+   */
+  getByReflectionIds: (reflectionIds: string[]): Map<string, DbBrainInsight[]> => {
+    const result = new Map<string, DbBrainInsight[]>();
+    if (reflectionIds.length === 0) return result;
+
+    const db = getDatabase();
+    const placeholders = reflectionIds.map(() => '?').join(',');
+    const rows = selectAll<DbBrainInsight>(
+      db,
+      `SELECT * FROM brain_insights WHERE reflection_id IN (${placeholders}) ORDER BY created_at ASC`,
+      ...reflectionIds
+    );
+
+    for (const row of rows) {
+      const list = result.get(row.reflection_id);
+      if (list) {
+        list.push(row);
+      } else {
+        result.set(row.reflection_id, [row]);
+      }
+    }
+
+    return result;
   },
 
   /**
@@ -435,19 +484,4 @@ export const brainInsightRepository = {
     return result.changes;
   },
 
-  /**
-   * Also keep the JSON blob in sync (backward compat during transition).
-   * Updates brain_reflections.insights_generated from brain_insights table.
-   */
-  syncToReflectionJson: (reflectionId: string): void => {
-    const db = getDatabase();
-    const rows = selectAll<DbBrainInsight>(
-      db,
-      'SELECT * FROM brain_insights WHERE reflection_id = ? ORDER BY created_at ASC',
-      reflectionId
-    );
-    const insights = rows.map(dbInsightToLearning);
-    db.prepare('UPDATE brain_reflections SET insights_generated = ? WHERE id = ?')
-      .run(JSON.stringify(insights), reflectionId);
-  },
 };

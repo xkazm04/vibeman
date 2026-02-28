@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 import { integrationDb, webhookDb } from '@/app/db';
 import type { IntegrationProvider, IntegrationEventType } from '@/app/db/models/integration.types';
 import { isTableMissingError } from '@/app/db/repositories/repository.utils';
-import { encryptField } from '@/lib/personas/credentialCrypto';
+import { encryptField } from '@/lib/integrations/credentialCrypto';
 
 /**
  * GET /api/integrations

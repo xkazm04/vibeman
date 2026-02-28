@@ -55,7 +55,7 @@ export default function SwipeProgress({
           <div className="p-1 bg-green-500/10 rounded transition-colors duration-200 hover:bg-green-500/20">
             <CheckCircle className="w-3 h-3 text-green-400" />
           </div>
-          <span className="text-sm font-medium text-green-400 tabular-nums">{accepted}</span>
+          <motion.span key={accepted} className="text-sm font-medium text-green-400 tabular-nums" initial={{ scale: 1.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>{accepted}</motion.span>
           <span className="text-xs text-gray-500">accepted</span>
         </div>
 
@@ -64,7 +64,7 @@ export default function SwipeProgress({
           <div className="p-1 bg-red-500/10 rounded transition-colors duration-200 hover:bg-red-500/20">
             <XCircle className="w-3 h-3 text-red-400" />
           </div>
-          <span className="text-sm font-medium text-red-400 tabular-nums">{rejected}</span>
+          <motion.span key={rejected} className="text-sm font-medium text-red-400 tabular-nums" initial={{ scale: 1.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>{rejected}</motion.span>
           <span className="text-xs text-gray-500">rejected</span>
         </div>
 
@@ -74,7 +74,7 @@ export default function SwipeProgress({
             <div className="p-1 bg-gray-500/10 rounded transition-colors duration-200 hover:bg-gray-500/20">
               <Trash2 className="w-3 h-3 text-gray-400" />
             </div>
-            <span className="text-sm font-medium text-gray-400 tabular-nums">{deleted}</span>
+            <motion.span key={deleted} className="text-sm font-medium text-gray-400 tabular-nums" initial={{ scale: 1.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>{deleted}</motion.span>
             <span className="text-xs text-gray-500">deleted</span>
           </div>
         )}
@@ -85,7 +85,7 @@ export default function SwipeProgress({
         <div className="flex items-center justify-center gap-2 text-xs text-gray-500 transition-colors duration-200">
           <TrendingUp className="w-3 h-3" />
           <span>
-            Accept rate: <span className="text-purple-400 font-medium tabular-nums">{acceptRate}%</span>
+            Accept rate: <motion.span key={acceptRate} className={`font-medium tabular-nums ${acceptRate >= 80 ? 'text-green-400' : acceptRate >= 50 ? 'text-yellow-400' : 'text-orange-400'}`} initial={{ scale: 1.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>{acceptRate}%</motion.span>
           </span>
         </div>
       )}
@@ -140,11 +140,11 @@ export function SwipeStatsBadges({
     <div className={`flex items-center gap-2 ${className}`}>
       <div className="flex items-center gap-1 px-2 py-0.5 bg-green-500/10 rounded-full transition-all duration-200 hover:bg-green-500/20 hover:scale-105">
         <CheckCircle className="w-3 h-3 text-green-400" />
-        <span className="text-xs font-medium text-green-400 tabular-nums">{accepted}</span>
+        <motion.span key={accepted} className="text-xs font-medium text-green-400 tabular-nums" initial={{ scale: 1.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>{accepted}</motion.span>
       </div>
       <div className="flex items-center gap-1 px-2 py-0.5 bg-red-500/10 rounded-full transition-all duration-200 hover:bg-red-500/20 hover:scale-105">
         <XCircle className="w-3 h-3 text-red-400" />
-        <span className="text-xs font-medium text-red-400 tabular-nums">{rejected}</span>
+        <motion.span key={rejected} className="text-xs font-medium text-red-400 tabular-nums" initial={{ scale: 1.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>{rejected}</motion.span>
       </div>
     </div>
   );

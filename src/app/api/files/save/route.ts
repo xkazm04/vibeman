@@ -4,6 +4,7 @@ import { existsSync } from 'fs';
 import { dirname } from 'path';
 import { validatePathTraversal } from '@/lib/pathSecurity';
 import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
+import { handleApiError } from '@/lib/api-errors';
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,12 +54,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to save file',
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Save file');
   }
 }

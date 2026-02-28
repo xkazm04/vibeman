@@ -131,7 +131,7 @@ export function directionToUnified(direction: DbDirection): UnifiedSuggestion {
     projectId: direction.project_id,
     title: direction.summary,
     description: direction.direction,
-    status: direction.status,
+    status: direction.status === 'processing' ? 'pending' : direction.status,
     source: direction.context_map_title,
     sourceId: direction.context_map_id,
     createdAt: direction.created_at,

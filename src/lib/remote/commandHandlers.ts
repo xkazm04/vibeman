@@ -58,7 +58,7 @@ export function registerAllCommandHandlers(): void {
 
 async function handleCreateGoal(command: RemoteCommand): Promise<CommandHandlerResult> {
   try {
-    const payload = command.payload as CreateGoalPayload;
+    const payload = command.payload as unknown as CreateGoalPayload;
 
     if (!payload.name || !payload.projectId) {
       return { success: false, error: 'Missing required fields: name, projectId' };
@@ -68,12 +68,13 @@ async function handleCreateGoal(command: RemoteCommand): Promise<CommandHandlerR
     const { goalDb } = await import('@/app/db');
 
     const goal = goalDb.createGoal({
+      id: crypto.randomUUID(),
       title: payload.name,
       project_id: payload.projectId,
       description: payload.description || '',
-      context_id: payload.contextId || null,
-      status: 'active',
-      priority: 'medium',
+      context_id: payload.contextId || undefined,
+      status: 'open',
+      order_index: 0,
     });
 
     return {
@@ -90,7 +91,7 @@ async function handleCreateGoal(command: RemoteCommand): Promise<CommandHandlerR
 
 async function handleUpdateGoal(command: RemoteCommand): Promise<CommandHandlerResult> {
   try {
-    const payload = command.payload as UpdateGoalPayload;
+    const payload = command.payload as unknown as UpdateGoalPayload;
 
     if (!payload.goalId) {
       return { success: false, error: 'Missing required field: goalId' };
@@ -119,7 +120,7 @@ async function handleUpdateGoal(command: RemoteCommand): Promise<CommandHandlerR
 
 async function handleDeleteGoal(command: RemoteCommand): Promise<CommandHandlerResult> {
   try {
-    const payload = command.payload as { goalId: string };
+    const payload = command.payload as unknown as { goalId: string };
 
     if (!payload.goalId) {
       return { success: false, error: 'Missing required field: goalId' };
@@ -146,7 +147,7 @@ async function handleDeleteGoal(command: RemoteCommand): Promise<CommandHandlerR
 
 async function handleAcceptIdea(command: RemoteCommand): Promise<CommandHandlerResult> {
   try {
-    const payload = command.payload as IdeaActionPayload;
+    const payload = command.payload as unknown as IdeaActionPayload;
 
     if (!payload.ideaId) {
       return { success: false, error: 'Missing required field: ideaId' };
@@ -169,7 +170,7 @@ async function handleAcceptIdea(command: RemoteCommand): Promise<CommandHandlerR
 
 async function handleRejectIdea(command: RemoteCommand): Promise<CommandHandlerResult> {
   try {
-    const payload = command.payload as IdeaActionPayload;
+    const payload = command.payload as unknown as IdeaActionPayload;
 
     if (!payload.ideaId) {
       return { success: false, error: 'Missing required field: ideaId' };
@@ -192,7 +193,7 @@ async function handleRejectIdea(command: RemoteCommand): Promise<CommandHandlerR
 
 async function handleSkipIdea(command: RemoteCommand): Promise<CommandHandlerResult> {
   try {
-    const payload = command.payload as IdeaActionPayload;
+    const payload = command.payload as unknown as IdeaActionPayload;
 
     if (!payload.ideaId) {
       return { success: false, error: 'Missing required field: ideaId' };
@@ -216,7 +217,7 @@ async function handleSkipIdea(command: RemoteCommand): Promise<CommandHandlerRes
 // ============================================================================
 
 async function handleStartBatch(command: RemoteCommand): Promise<CommandHandlerResult> {
-  const payload = command.payload as StartBatchPayload;
+  const payload = command.payload as unknown as StartBatchPayload;
 
   // Validate payload
   if (!payload.requirement_names || payload.requirement_names.length === 0) {
@@ -233,7 +234,7 @@ async function handleStartBatch(command: RemoteCommand): Promise<CommandHandlerR
     const { useZenNavigation, getModeFromPath } = await import('@/app/zen/lib/zenNavigationStore');
     const { useCLISessionStore } = await import('@/components/cli/store/cliSessionStore');
     const { executeNextTask } = await import('@/components/cli/store/cliExecutionManager');
-    const { projectDb } = await import('@/app/db');
+    const { projectDb } = await import('@/lib/project_database');
     const path = await import('path');
     const fs = await import('fs');
 
@@ -271,7 +272,7 @@ async function handleStartBatch(command: RemoteCommand): Promise<CommandHandlerR
     // Check preference first
     if (payload.session_preference && sessionIds.includes(payload.session_preference as CLISessionId)) {
       const prefSession = sessions[payload.session_preference as CLISessionId];
-      if (!prefSession.isRunning && prefSession.queue.filter(t => t.status === 'pending').length === 0) {
+      if (!prefSession.isRunning && prefSession.queue.filter(t => t.status.type === 'queued').length === 0) {
         targetSessionId = payload.session_preference as CLISessionId;
       }
     }
@@ -280,7 +281,7 @@ async function handleStartBatch(command: RemoteCommand): Promise<CommandHandlerR
     if (!targetSessionId) {
       for (const sessionId of sessionIds) {
         const session = sessions[sessionId];
-        if (!session.isRunning && session.queue.filter(t => t.status === 'pending').length === 0) {
+        if (!session.isRunning && session.queue.filter(t => t.status.type === 'queued').length === 0) {
           targetSessionId = sessionId;
           break;
         }
@@ -303,7 +304,7 @@ async function handleStartBatch(command: RemoteCommand): Promise<CommandHandlerR
       projectPath: string;
       projectId: string;
       projectName: string;
-      status: 'pending';
+      status: { type: 'queued' };
       addedAt: number;
     }> = [];
 
@@ -316,7 +317,7 @@ async function handleStartBatch(command: RemoteCommand): Promise<CommandHandlerR
           projectPath,
           projectId: payload.project_id,
           projectName,
-          status: 'pending',
+          status: { type: 'queued' },
           addedAt: Date.now(),
         });
       } else {
@@ -371,7 +372,7 @@ async function handleStartBatch(command: RemoteCommand): Promise<CommandHandlerR
 }
 
 async function handlePauseBatch(command: RemoteCommand): Promise<CommandHandlerResult> {
-  const payload = command.payload as BatchControlPayload;
+  const payload = command.payload as unknown as BatchControlPayload;
 
   if (!payload.batchId) {
     return { success: false, error: 'Missing required field: batchId' };
@@ -388,7 +389,7 @@ async function handlePauseBatch(command: RemoteCommand): Promise<CommandHandlerR
 }
 
 async function handleResumeBatch(command: RemoteCommand): Promise<CommandHandlerResult> {
-  const payload = command.payload as BatchControlPayload;
+  const payload = command.payload as unknown as BatchControlPayload;
 
   if (!payload.batchId) {
     return { success: false, error: 'Missing required field: batchId' };
@@ -405,7 +406,7 @@ async function handleResumeBatch(command: RemoteCommand): Promise<CommandHandler
 }
 
 async function handleStopBatch(command: RemoteCommand): Promise<CommandHandlerResult> {
-  const payload = command.payload as BatchControlPayload;
+  const payload = command.payload as unknown as BatchControlPayload;
 
   if (!payload.batchId) {
     return { success: false, error: 'Missing required field: batchId' };
@@ -426,7 +427,7 @@ async function handleStopBatch(command: RemoteCommand): Promise<CommandHandlerRe
 // ============================================================================
 
 async function handleTriggerScan(command: RemoteCommand): Promise<CommandHandlerResult> {
-  const payload = command.payload as TriggerScanPayload;
+  const payload = command.payload as unknown as TriggerScanPayload;
 
   if (!payload.projectId || !payload.scanTypes || payload.scanTypes.length === 0) {
     return { success: false, error: 'Missing required fields: projectId, scanTypes' };
@@ -481,7 +482,7 @@ interface GetBatchStatusPayload {
  */
 async function handleFetchDirections(command: RemoteCommand): Promise<CommandHandlerResult> {
   try {
-    const payload = command.payload as FetchDirectionsPayload;
+    const payload = command.payload as unknown as FetchDirectionsPayload;
     const { directionDb } = await import('@/app/db');
 
     const status = payload.status || 'pending';
@@ -542,7 +543,7 @@ interface TriageIdeaPayload {
  */
 async function handleFetchIdeas(command: RemoteCommand): Promise<CommandHandlerResult> {
   try {
-    const payload = command.payload as FetchIdeasPayload;
+    const payload = command.payload as unknown as FetchIdeasPayload;
     const { ideaDb } = await import('@/app/db');
 
     const status = payload.status || 'pending';
@@ -593,13 +594,14 @@ async function handleFetchIdeas(command: RemoteCommand): Promise<CommandHandlerR
  */
 async function handleTriageIdea(command: RemoteCommand): Promise<CommandHandlerResult> {
   try {
-    const payload = command.payload as TriageIdeaPayload;
+    const payload = command.payload as unknown as TriageIdeaPayload;
 
     if (!payload.idea_id || !payload.action) {
       return { success: false, error: 'Missing required fields: idea_id, action' };
     }
 
-    const { ideaDb, projectDb } = await import('@/app/db');
+    const { ideaDb } = await import('@/app/db');
+    const { projectDb } = await import('@/lib/project_database');
 
     const idea = ideaDb.getIdeaById(payload.idea_id);
     if (!idea) {
@@ -615,7 +617,8 @@ async function handleTriageIdea(command: RemoteCommand): Promise<CommandHandlerR
 
       const projectPath = payload.project_path || project.path;
       const { v4: uuidv4 } = await import('uuid');
-      const { createRequirement } = await import('@/app/Claude/lib/requirementApi');
+      const path = await import('path');
+      const fs = await import('fs');
 
       // Generate requirement ID
       const requirementId = `idea-${payload.idea_id.slice(0, 8)}-${uuidv4().slice(0, 8)}`;
@@ -635,7 +638,11 @@ ${idea.description}
 `;
 
       // Create requirement file
-      createRequirement(projectPath, requirementId, content, true);
+      const reqDir = path.join(projectPath, '.claude', 'requirements');
+      if (!fs.existsSync(reqDir)) {
+        fs.mkdirSync(reqDir, { recursive: true });
+      }
+      fs.writeFileSync(path.join(reqDir, `${requirementId}.md`), content, 'utf-8');
 
       // Update idea status
       ideaDb.updateIdea(payload.idea_id, {
@@ -688,7 +695,7 @@ ${idea.description}
  */
 async function handleTriageDirection(command: RemoteCommand): Promise<CommandHandlerResult> {
   try {
-    const payload = command.payload as TriageDirectionPayload;
+    const payload = command.payload as unknown as TriageDirectionPayload;
 
     if (!payload.direction_id || !payload.action) {
       return { success: false, error: 'Missing required fields: direction_id, action' };
@@ -709,7 +716,7 @@ async function handleTriageDirection(command: RemoteCommand): Promise<CommandHan
     if (payload.action === 'accept') {
       // Accept direction - create requirement
       const { createRequirement } = await import('@/app/Claude/sub_ClaudeCodeManager/folderManager');
-      const { projectDb } = await import('@/app/db');
+      const { projectDb } = await import('@/lib/project_database');
 
       const project = projectDb.getProject(direction.project_id);
       if (!project) {
@@ -779,9 +786,9 @@ async function handleTriageDirection(command: RemoteCommand): Promise<CommandHan
  */
 async function handleFetchRequirements(command: RemoteCommand): Promise<CommandHandlerResult> {
   try {
-    const payload = command.payload as FetchRequirementsPayload;
+    const payload = command.payload as unknown as FetchRequirementsPayload;
 
-    const { projectDb } = await import('@/app/db');
+    const { projectDb } = await import('@/lib/project_database');
     const fs = await import('fs');
     const path = await import('path');
 
@@ -882,7 +889,7 @@ async function handleFetchRequirements(command: RemoteCommand): Promise<CommandH
  * Start a remote batch (alias for start_batch with better naming)
  */
 async function handleStartRemoteBatch(command: RemoteCommand): Promise<CommandHandlerResult> {
-  const payload = command.payload as StartRemoteBatchPayload;
+  const payload = command.payload as unknown as StartRemoteBatchPayload;
 
   // Forward to existing handleStartBatch
   return handleStartBatch({
@@ -901,7 +908,7 @@ async function handleStartRemoteBatch(command: RemoteCommand): Promise<CommandHa
  */
 async function handleGetBatchStatus(command: RemoteCommand): Promise<CommandHandlerResult> {
   try {
-    const payload = command.payload as GetBatchStatusPayload;
+    const payload = command.payload as unknown as GetBatchStatusPayload;
     // Import directly to avoid loading React hooks
     const { useCLISessionStore } = await import('@/components/cli/store/cliSessionStore');
 
@@ -925,9 +932,9 @@ async function handleGetBatchStatus(command: RemoteCommand): Promise<CommandHand
       const session = sessions[sessionId];
       const queue = session.queue || [];
 
-      const completed = queue.filter(t => t.status === 'completed').length;
-      const failed = queue.filter(t => t.status === 'failed').length;
-      const running = queue.find(t => t.status === 'running');
+      const completed = queue.filter(t => t.status.type === 'completed').length;
+      const failed = queue.filter(t => t.status.type === 'failed').length;
+      const running = queue.find(t => t.status.type === 'running');
 
       batches.push({
         session_id: sessionId,
