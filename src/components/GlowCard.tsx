@@ -1,9 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useThemeStore } from '@/stores/themeStore';
-import { getFocusRingStyles } from '@/lib/ui/focusRing';
-import { shadows, backgrounds } from '@/lib/design-tokens';
+import { GlassCard, type GlassIntent } from '@/components/ui/GlassCard';
 
 interface GlowCardProps {
   children: React.ReactNode;
@@ -14,6 +12,17 @@ interface GlowCardProps {
   'data-testid'?: string;
 }
 
+const GLOW_TO_INTENT: Record<string, GlassIntent> = {
+  cyan: 'info',
+  blue: 'accent',
+  green: 'success',
+  red: 'danger',
+};
+
+/**
+ * Generic GlowCard — wraps the unified GlassCard primitive
+ * with theme-aware glow color presets.
+ */
 export const GlowCard: React.FC<GlowCardProps> = ({
   children,
   className = '',
@@ -22,40 +31,20 @@ export const GlowCard: React.FC<GlowCardProps> = ({
   onClick,
   'data-testid': dataTestId,
 }) => {
-  const { getThemeColors, theme } = useThemeStore();
-  const colors = getThemeColors();
-  const focusRingClasses = onClick ? getFocusRingStyles(theme) : '';
-
-  const glowColors = {
-    cyan: colors.glow,
-    blue: shadows.blue.glow,
-    green: shadows.green.glow,
-    red: shadows.red.glow,
-  };
-
-  const baseClasses = `
-    bg-gray-900/70 backdrop-blur-xl border border-gray-700/50 rounded-lg
-    ${glow ? `shadow-lg ${glowColors[glowColor]}` : ''}
-    ${onClick ? `cursor-pointer hover:bg-gray-800/70 transition-colors ${focusRingClasses}` : ''}
-    ${className}
-  `.trim();
-
-  if (onClick) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className={`${baseClasses} text-left w-full`}
-        data-testid={dataTestId}
-      >
-        {children}
-      </button>
-    );
-  }
+  const intent: GlassIntent = glow ? (GLOW_TO_INTENT[glowColor] ?? 'neutral') : 'neutral';
 
   return (
-    <div className={baseClasses} data-testid={dataTestId}>
+    <GlassCard
+      intent={intent}
+      padding="none"
+      mouseGlow={glow}
+      clickable={!!onClick}
+      onClick={onClick}
+      className={`rounded-lg ${className}`}
+      animate={false}
+      data-testid={dataTestId}
+    >
       {children}
-    </div>
+    </GlassCard>
   );
-}; 
+};

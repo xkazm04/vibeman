@@ -20,6 +20,37 @@ interface QueryRequestBody {
   resumeSessionId?: string;
   provider?: CLIProvider;
   model?: CLIModel;
+  /** Extra environment variables for the CLI process (e.g., VIBEMAN_PROJECT_ID, VIBEMAN_TASK_ID) */
+  extraEnv?: Record<string, string>;
+}
+
+/**
+ * Pre-flight check for Ollama cloud model auth.
+ * Returns null if OK, or an error object with signin_url if auth fails.
+ */
+async function checkOllamaCloudAuth(model: string): Promise<{ error: string; signinUrl?: string } | null> {
+  if (!model.includes('cloud')) return null; // Only check cloud models
+
+  const baseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+  try {
+    const res = await fetch(`${baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, messages: [{ role: 'user', content: 'ping' }], stream: false }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status === 401) {
+      const data = await res.json().catch(() => ({}));
+      return {
+        error: `Ollama cloud not authenticated. Run "ollama signin" in your terminal to sign in.`,
+        signinUrl: data.signin_url,
+      };
+    }
+    // Any other response (including success) means auth is fine — abort the actual generation
+    return null;
+  } catch {
+    return { error: 'Ollama is not running. Start it with "ollama serve".' };
+  }
 }
 
 /**
@@ -28,7 +59,7 @@ interface QueryRequestBody {
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as QueryRequestBody;
-    const { projectPath, prompt, resumeSessionId, provider, model } = body;
+    const { projectPath, prompt, resumeSessionId, provider, model, extraEnv } = body;
 
     if (!projectPath) {
       return NextResponse.json(
@@ -44,13 +75,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Pre-flight: verify Ollama cloud auth before spawning a CLI process
+    if (provider === 'ollama') {
+      const authCheck = await checkOllamaCloudAuth(model || 'qwen3.5:cloud');
+      if (authCheck) {
+        return NextResponse.json(
+          { error: authCheck.error, signinUrl: authCheck.signinUrl },
+          { status: 401 }
+        );
+      }
+    }
+
     // Start CLI execution with provider-specific configuration
     const executionId = startExecution(
       projectPath,
       prompt,
       resumeSessionId,
       undefined,
-      provider ? { provider, model: model || undefined } : undefined
+      provider ? { provider, model: model || undefined } : undefined,
+      extraEnv
     );
 
     // Return execution ID and stream URL

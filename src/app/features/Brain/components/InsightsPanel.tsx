@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Lightbulb, Filter, RefreshCw, AlertOctagon, Search, Zap, Sparkles } from 'lucide-react';
 import BrainPanelHeader from './BrainPanelHeader';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
@@ -18,7 +18,23 @@ interface Props {
 const ACCENT_COLOR = '#f59e0b'; // Amber
 const GLOW_COLOR = 'rgba(245, 158, 11, 0.15)';
 
-function BrainSvg() {
+function BrainSvg({ reducedMotion }: { reducedMotion?: boolean | null }) {
+  const leftPaths = [
+    { d: 'M28 30C32 28 36 32 40 30', peakOpacity: 0.7, delay: 0 },
+    { d: 'M22 40C28 38 34 42 40 40', peakOpacity: 0.6, delay: 0.8 },
+    { d: 'M26 52C30 48 35 52 40 50', peakOpacity: 0.5, delay: 1.6 },
+  ];
+  const rightPaths = [
+    { d: 'M52 34C48 32 44 36 40 34', peakOpacity: 0.7, delay: 0.4 },
+    { d: 'M58 44C52 42 46 46 40 44', peakOpacity: 0.6, delay: 1.2 },
+    { d: 'M54 56C50 52 44 54 40 52', peakOpacity: 0.5, delay: 2.0 },
+  ];
+  const nodes = [
+    [28, 30], [22, 40], [26, 52],
+    [52, 34], [58, 44], [54, 56],
+    [40, 30], [40, 40], [40, 50],
+  ];
+
   return (
     <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
       {/* Brain outline */}
@@ -39,78 +55,45 @@ function BrainSvg() {
         strokeDasharray="2 3"
       />
       {/* Neural pulse paths — left hemisphere */}
-      <motion.path
-        d="M28 30C32 28 36 32 40 30"
-        stroke={ACCENT_COLOR}
-        strokeWidth="1.2"
-        strokeLinecap="round"
-        initial={{ pathLength: 0, opacity: 0 }}
-        animate={{ pathLength: [0, 1, 1, 0], opacity: [0, 0.7, 0.7, 0] }}
-        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      <motion.path
-        d="M22 40C28 38 34 42 40 40"
-        stroke={ACCENT_COLOR}
-        strokeWidth="1.2"
-        strokeLinecap="round"
-        initial={{ pathLength: 0, opacity: 0 }}
-        animate={{ pathLength: [0, 1, 1, 0], opacity: [0, 0.6, 0.6, 0] }}
-        transition={{ duration: 3, delay: 0.8, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      <motion.path
-        d="M26 52C30 48 35 52 40 50"
-        stroke={ACCENT_COLOR}
-        strokeWidth="1.2"
-        strokeLinecap="round"
-        initial={{ pathLength: 0, opacity: 0 }}
-        animate={{ pathLength: [0, 1, 1, 0], opacity: [0, 0.5, 0.5, 0] }}
-        transition={{ duration: 3, delay: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-      />
+      {leftPaths.map((p, i) =>
+        reducedMotion ? (
+          <path key={i} d={p.d} stroke={ACCENT_COLOR} strokeWidth="1.2" strokeLinecap="round" opacity={p.peakOpacity} />
+        ) : (
+          <motion.path
+            key={i} d={p.d} stroke={ACCENT_COLOR} strokeWidth="1.2" strokeLinecap="round"
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={{ pathLength: [0, 1, 1, 0], opacity: [0, p.peakOpacity, p.peakOpacity, 0] }}
+            transition={{ duration: 3, delay: p.delay, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        )
+      )}
       {/* Neural pulse paths — right hemisphere */}
-      <motion.path
-        d="M52 34C48 32 44 36 40 34"
-        stroke="#a855f7"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-        initial={{ pathLength: 0, opacity: 0 }}
-        animate={{ pathLength: [0, 1, 1, 0], opacity: [0, 0.7, 0.7, 0] }}
-        transition={{ duration: 3, delay: 0.4, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      <motion.path
-        d="M58 44C52 42 46 46 40 44"
-        stroke="#a855f7"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-        initial={{ pathLength: 0, opacity: 0 }}
-        animate={{ pathLength: [0, 1, 1, 0], opacity: [0, 0.6, 0.6, 0] }}
-        transition={{ duration: 3, delay: 1.2, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      <motion.path
-        d="M54 56C50 52 44 54 40 52"
-        stroke="#a855f7"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-        initial={{ pathLength: 0, opacity: 0 }}
-        animate={{ pathLength: [0, 1, 1, 0], opacity: [0, 0.5, 0.5, 0] }}
-        transition={{ duration: 3, delay: 2.0, repeat: Infinity, ease: 'easeInOut' }}
-      />
+      {rightPaths.map((p, i) =>
+        reducedMotion ? (
+          <path key={i} d={p.d} stroke="#a855f7" strokeWidth="1.2" strokeLinecap="round" opacity={p.peakOpacity} />
+        ) : (
+          <motion.path
+            key={i} d={p.d} stroke="#a855f7" strokeWidth="1.2" strokeLinecap="round"
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={{ pathLength: [0, 1, 1, 0], opacity: [0, p.peakOpacity, p.peakOpacity, 0] }}
+            transition={{ duration: 3, delay: p.delay, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        )
+      )}
       {/* Neural nodes */}
-      {[
-        [28, 30], [22, 40], [26, 52],
-        [52, 34], [58, 44], [54, 56],
-        [40, 30], [40, 40], [40, 50],
-      ].map(([cx, cy], i) => (
-        <motion.circle
-          key={i}
-          cx={cx}
-          cy={cy}
-          r="1.5"
-          fill={i < 3 ? ACCENT_COLOR : i < 6 ? '#a855f7' : '#10b981'}
-          initial={{ opacity: 0.2 }}
-          animate={{ opacity: [0.2, 0.8, 0.2] }}
-          transition={{ duration: 2, delay: i * 0.3, repeat: Infinity }}
-        />
-      ))}
+      {nodes.map(([cx, cy], i) =>
+        reducedMotion ? (
+          <circle key={i} cx={cx} cy={cy} r="1.5" fill={i < 3 ? ACCENT_COLOR : i < 6 ? '#a855f7' : '#10b981'} opacity="0.8" />
+        ) : (
+          <motion.circle
+            key={i} cx={cx} cy={cy} r="1.5"
+            fill={i < 3 ? ACCENT_COLOR : i < 6 ? '#a855f7' : '#10b981'}
+            initial={{ opacity: 0.2 }}
+            animate={{ opacity: [0.2, 0.8, 0.2] }}
+            transition={{ duration: 2, delay: i * 0.3, repeat: Infinity }}
+          />
+        )
+      )}
     </svg>
   );
 }
@@ -119,6 +102,7 @@ function InsightsEmptyState({ scope }: { scope: 'project' | 'global' }) {
   const activeProject = useActiveProjectStore((s) => s.activeProject);
   const triggerReflection = useBrainStore((s) => s.triggerReflection);
   const [isTriggering, setIsTriggering] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   const handleTrigger = async () => {
     if (!activeProject?.id || !activeProject?.name || !activeProject?.path) return;
@@ -138,17 +122,24 @@ function InsightsEmptyState({ scope }: { scope: 'project' | 'global' }) {
           background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.06) 0%, rgba(168, 85, 247, 0.06) 100%)',
           border: '1px solid rgba(245, 158, 11, 0.15)',
         }}
-        animate={{ scale: [1, 1.02, 1] }}
-        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+        animate={prefersReducedMotion ? undefined : { scale: [1, 1.02, 1] }}
+        transition={prefersReducedMotion ? undefined : { duration: 4, repeat: Infinity, ease: 'easeInOut' }}
       >
-        <BrainSvg />
+        <BrainSvg reducedMotion={prefersReducedMotion} />
         {/* Subtle ambient ring */}
-        <motion.div
-          className="absolute inset-0 rounded-2xl"
-          style={{ border: '1px solid rgba(168, 85, 247, 0.1)' }}
-          animate={{ opacity: [0.3, 0.7, 0.3] }}
-          transition={{ duration: 3, repeat: Infinity }}
-        />
+        {prefersReducedMotion ? (
+          <div
+            className="absolute inset-0 rounded-2xl"
+            style={{ border: '1px solid rgba(168, 85, 247, 0.1)', opacity: 0.5 }}
+          />
+        ) : (
+          <motion.div
+            className="absolute inset-0 rounded-2xl"
+            style={{ border: '1px solid rgba(168, 85, 247, 0.1)' }}
+            animate={{ opacity: [0.3, 0.7, 0.3] }}
+            transition={{ duration: 3, repeat: Infinity }}
+          />
+        )}
       </motion.div>
 
       <h3 className="text-zinc-300 text-sm font-medium mb-1">No Learning Insights Yet</h3>

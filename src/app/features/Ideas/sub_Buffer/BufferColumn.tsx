@@ -101,16 +101,11 @@ const BufferColumn = React.memo(function BufferColumn({
 
   return (
     <motion.div
-      className={`flex flex-col bg-gradient-to-b from-gray-900/50 to-gray-900/30 border border-gray-700/40 border-l-2 ${accent.border} rounded-xl overflow-hidden transition-all duration-300 ease-out hover:border-gray-600/60 hover:bg-gray-900/50 hover:shadow-xl hover:shadow-black/40 backdrop-blur-sm`}
+      className={`flex flex-col bg-gradient-to-b from-gray-900/50 to-gray-900/30 border border-gray-700/40 border-l-2 ${accent.border} rounded-xl overflow-hidden transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-gray-600/60 hover:bg-gray-900/50 hover:shadow-xl hover:shadow-black/40 hover:will-change-transform backdrop-blur-sm`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.8, x: -100 }}
       transition={{ duration: 0.3 }}
-      whileHover={{
-        y: -3,
-        transition: { duration: 0.2, ease: 'easeOut' }
-      }}
-      layout
       data-testid={`buffer-column-${contextId || 'no-context'}`}
     >
       {/* Header */}

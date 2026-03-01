@@ -8,6 +8,9 @@
  * - capture_screenshot: Capture screenshots for contexts
  * - get_context: Get context details
  * - get_config: Get current configuration
+ * - get_memory: Query collective memory for relevant knowledge mid-execution
+ * - report_progress: Report structured progress with phase/percentage/files
+ * - get_related_tasks: Check status of parallel tasks for coordination
  *
  * Communicates with Claude Code via stdio transport.
  * Calls Vibeman Next.js APIs over HTTP.

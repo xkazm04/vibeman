@@ -44,6 +44,7 @@ export default function ScanInitiator({
   const [goalDropdownOpen, setGoalDropdownOpen] = React.useState(false);
 
   const { activeProject } = useActiveProjectStore();
+  const goalDropdownRef = React.useRef<HTMLDivElement>(null);
 
   // Load goals for the active project
   React.useEffect(() => {
@@ -60,6 +61,25 @@ export default function ScanInitiator({
       })
       .catch(() => {});
   }, [activeProject?.id]);
+
+  // Close goal dropdown on click-outside or Escape
+  React.useEffect(() => {
+    if (!goalDropdownOpen) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (goalDropdownRef.current && !goalDropdownRef.current.contains(e.target as Node)) {
+        setGoalDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setGoalDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [goalDropdownOpen]);
 
   // Use prop selected context IDs directly - context loading is handled by IdeasHeaderWithFilter
   const currentSelectedContextIds = propSelectedContextIds;
@@ -211,7 +231,7 @@ export default function ScanInitiator({
           {activeProject && goals.length > 0 && (
             <div className="flex items-center gap-2 relative">
               {/* Goal Selector Dropdown */}
-              <div className="relative">
+              <div ref={goalDropdownRef} className="relative">
                 <button
                   onClick={() => setGoalDropdownOpen(!goalDropdownOpen)}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-sm transition-colors"
@@ -224,7 +244,7 @@ export default function ScanInitiator({
                 </button>
 
                 {goalDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-30 max-h-48 overflow-y-auto">
+                  <div className="absolute top-full left-0 mt-1 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto">
                     {goals.map(goal => (
                       <button
                         key={goal.id}

@@ -114,18 +114,13 @@ export async function POST(request: NextRequest) {
         }
 
         if (existingRunning && existingRunning.taskId !== taskId) {
-          // Another task is running - check if it's stale
-          const isStale = (Date.now() - existingRunning.startedAt) > TASK_TIMEOUT;
-          if (isStale) {
-            // Mark stale task as failed
-            existingRunning.status = 'failed';
-            existingRunning.completedAt = Date.now();
-          } else {
-            return NextResponse.json({
-              error: 'Session already has a running task',
-              runningTask: existingRunning,
-            }, { status: 409 });
-          }
+          // Another task is registered as running for this session.
+          // The client is authoritative — if it's starting a new task, the previous
+          // one must have completed (possibly without the registry being updated due
+          // to race conditions, disconnects, or the completion path not calling back).
+          // Auto-complete the stale entry so the new task can proceed.
+          existingRunning.status = 'completed';
+          existingRunning.completedAt = Date.now();
         }
 
         const record: TaskRecord = {

@@ -367,10 +367,10 @@ export interface DbIdeaExecutionOutcome {
   id: string;
   idea_id: string;
   project_id: string;
-  predicted_effort: number | null; // 1-3 scale
-  predicted_impact: number | null; // 1-3 scale
-  actual_effort: number | null; // 1-3 scale (based on execution metrics)
-  actual_impact: number | null; // 1-3 scale (based on success/failure)
+  predicted_effort: number | null; // 1-10 scale
+  predicted_impact: number | null; // 1-10 scale
+  actual_effort: number | null; // 1-10 scale (based on execution metrics)
+  actual_impact: number | null; // 1-10 scale (based on success/failure)
   execution_time_ms: number | null; // Time to execute
   files_changed: number | null; // Number of files modified
   lines_added: number | null;
@@ -661,6 +661,10 @@ export interface DbQuestion {
   parent_id: string | null;    // NULL = root question, else references parent question id
   tree_depth: number;          // 0 = root, 1 = first follow-up, etc.
   strategic_brief: string | null; // Auto-generated synthesis at 3+ depth
+  // Gap detection fields (auto-deepening)
+  gap_score: number | null;        // 0-1 aggregate ambiguity score
+  gap_analysis: string | null;     // JSON blob with detected gaps
+  auto_deepened: number;           // 1 if auto-generated from gap detection
   created_at: string;
   updated_at: string;
 }
@@ -690,6 +694,8 @@ export interface DbDirection {
   // Impact/effort scoring (1-10 scale, AI-estimated or user-set)
   effort: number | null;            // 1-10: 1 = trivial, 10 = massive
   impact: number | null;            // 1-10: 1 = negligible, 10 = transformational
+  // Hypothesis testing - structured assertions from success criteria
+  hypothesis_assertions: string | null; // JSON: HypothesisAssertion[]
   created_at: string;
   updated_at: string;
 }

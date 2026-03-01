@@ -226,3 +226,40 @@ export async function explainDirection(directionId: string): Promise<{ success: 
   }
   return raw as { success: boolean; explanation: string };
 }
+
+/**
+ * Validate hypothesis assertions for a direction against its outcome data
+ */
+export async function validateDirectionHypothesis(directionId: string): Promise<HypothesisValidationResponse> {
+  const response = await fetch(`/api/directions/${directionId}/validate`);
+  const raw = await safeResponseJson(response, '/api/directions/validate');
+  if (!response.ok) {
+    throw new Error((raw as Record<string, unknown>).error as string || 'Failed to validate hypothesis');
+  }
+  return raw as HypothesisValidationResponse;
+}
+
+export interface HypothesisValidationResponse {
+  success: boolean;
+  hasAssertions: boolean;
+  hasOutcome?: boolean;
+  validation: {
+    directionId: string;
+    totalAssertions: number;
+    passed: number;
+    failed: number;
+    skipped: number;
+    results: Array<{
+      assertion: {
+        description: string;
+        metric: string;
+        operator: string;
+        expected: number | boolean | string;
+      };
+      passed: boolean;
+      actual: number | boolean | string | null;
+      reason: string;
+    }>;
+    score: number;
+  } | null;
+}

@@ -24,8 +24,8 @@ export interface GeneratedIdea {
   title: string; // Required - ideas without title will be skipped
   description?: string; // Optional
   reasoning?: string; // Optional
-  effort?: number; // 1 = lowest, 3 = highest
-  impact?: number; // 1 = lowest, 3 = highest
+  effort?: number; // 1-10 scale: 1 = trivial, 10 = massive
+  impact?: number; // 1-10 scale: 1 = negligible, 10 = transformational
   goal_id?: string; // Optional - related goal ID if there's a significant match
 }
 
@@ -189,13 +189,13 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
           ? idea.reasoning.trim()
           : undefined;
 
-        // Validate and sanitize effort (must be 1-3 or null, default to 1 if invalid)
+        // Validate and sanitize effort (must be 1-10 or null, default to 1 if invalid)
         const validateEffortImpact = (value: any): number | null => {
           if (value === null || value === undefined) {
             return 1; // Default to 1 if nothing provided
           }
           const num = typeof value === 'number' ? value : parseInt(value, 10);
-          if (isNaN(num) || num < 1 || num > 3) {
+          if (isNaN(num) || num < 1 || num > 10) {
             logger.warn('Invalid effort/impact value, defaulting to 1', { value });
             return 1; // Force to 1 if invalid
           }

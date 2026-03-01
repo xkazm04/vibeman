@@ -10,7 +10,6 @@ import {
   Clock,
   Ghost,
   Loader2,
-  CheckCircle2,
   Play,
   XCircle,
   RefreshCw,
@@ -19,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useSessionCleanup } from '../hooks/useSessionCleanup';
 import { OrphanedSessionItem } from './OrphanSessionShared';
+import { getTheme } from '../lib/taskStatusUtils';
 
 interface ExecutionTask {
   id: string;
@@ -67,50 +67,38 @@ async function fetchAllTasks(projectId?: string): Promise<ExecutionTask[]> {
 }
 
 /**
- * Get status icon based on task status
+ * Get status icon based on task status, using the shared STATUS_THEME.
  */
-function getStatusIcon(status: ExecutionTask['status'], progressCount: number, reducedMotion?: boolean | null) {
-  switch (status) {
-    case 'pending':
-      return <Clock className="w-3.5 h-3.5 text-amber-400" />;
-    case 'running':
-      return progressCount === 0 ? (
-        <span className="flex items-center gap-1">
-          <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-          <Loader2 className={`w-3.5 h-3.5 text-amber-400 ${reducedMotion ? 'animate-pulse' : 'animate-spin'}`} />
-        </span>
-      ) : (
-        <Loader2 className={`w-3.5 h-3.5 text-blue-400 ${reducedMotion ? 'animate-pulse' : 'animate-spin'}`} />
-      );
-    case 'completed':
-      return <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />;
-    case 'failed':
-    case 'session-limit':
-      return <XCircle className="w-3.5 h-3.5 text-red-400" />;
-    default:
-      return <Activity className="w-3.5 h-3.5 text-gray-400" />;
+function getMonitorStatusIcon(status: ExecutionTask['status'], progressCount: number, reducedMotion?: boolean | null) {
+  const isStuck = status === 'running' && progressCount === 0;
+
+  if (isStuck) {
+    return (
+      <span className="flex items-center gap-1">
+        <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+        <Loader2 className={`w-3.5 h-3.5 text-amber-400 ${reducedMotion ? 'animate-pulse' : 'animate-spin'}`} />
+      </span>
+    );
   }
+
+  const theme = getTheme(status);
+  const IconComp = theme.Icon;
+  const spin = status === 'running' ? ` ${reducedMotion ? 'animate-pulse' : 'animate-spin'}` : '';
+  return <IconComp className={`w-3.5 h-3.5 ${theme.text}${spin}`} />;
 }
 
 /**
- * Get status color class
+ * Get status color class, using the shared STATUS_THEME.
  */
-function getStatusColor(status: ExecutionTask['status'], progressCount: number, reducedMotion?: boolean | null): string {
-  switch (status) {
-    case 'pending':
-      return 'border-amber-500/30 bg-amber-500/5';
-    case 'running':
-      return progressCount === 0
-        ? `border-amber-500/40 bg-amber-500/10 ${reducedMotion ? '' : 'animate-pulse'}`
-        : 'border-blue-500/30 bg-blue-500/5';
-    case 'completed':
-      return 'border-green-500/30 bg-green-500/5';
-    case 'failed':
-    case 'session-limit':
-      return 'border-red-500/30 bg-red-500/5';
-    default:
-      return 'border-gray-500/30 bg-gray-500/5';
+function getMonitorStatusColor(status: ExecutionTask['status'], progressCount: number, reducedMotion?: boolean | null): string {
+  const isStuck = status === 'running' && progressCount === 0;
+
+  if (isStuck) {
+    return `border-amber-500/40 bg-amber-500/10${reducedMotion ? '' : ' animate-pulse'}`;
   }
+
+  const theme = getTheme(status);
+  return `${theme.border} ${theme.bg}`;
 }
 
 /**
@@ -145,14 +133,14 @@ const TaskItem = memo(function TaskItem({ task }: { task: ExecutionTask }) {
     <motion.div
       initial={prefersReducedMotion ? false : { opacity: 0, y: -5 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`border rounded-lg overflow-hidden ${getStatusColor(task.status, progressCount, prefersReducedMotion)}`}
+      className={`border rounded-lg overflow-hidden ${getMonitorStatusColor(task.status, progressCount, prefersReducedMotion)}`}
     >
       <div
         className="flex items-center justify-between p-2 cursor-pointer hover:bg-white/5 transition-colors"
         onClick={() => setShowDetails(!showDetails)}
       >
         <div className="flex items-center gap-2 min-w-0">
-          {getStatusIcon(task.status, progressCount, prefersReducedMotion)}
+          {getMonitorStatusIcon(task.status, progressCount, prefersReducedMotion)}
           <div className="min-w-0">
             <div className="text-xs font-medium text-gray-300 truncate">
               {task.requirementName}
@@ -320,36 +308,50 @@ export const TaskMonitor = memo(function TaskMonitor({
           <span className={`text-xs font-medium ${hasIssues ? 'text-orange-400' : 'text-gray-400'}`}>
             Session Health
           </span>
-          <div className="flex items-center gap-1.5 text-[10px]">
-            {orphanCount > 0 && (
-              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400" aria-label={`${orphanCount} orphaned session${orphanCount !== 1 ? 's' : ''}`}>
-                <Ghost className="w-2.5 h-2.5" />
-                {orphanCount} orphan{orphanCount !== 1 ? 's' : ''}
-              </span>
+          <div className="flex items-center gap-1.5 text-[10px] tabular-nums">
+            {/* Healthy states */}
+            {(runningCount > 0 || pendingCount > 0) && (
+              <div className="flex items-center gap-1">
+                {runningCount > 0 && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-blue-500/20 text-blue-400" aria-label={`${runningCount} task${runningCount !== 1 ? 's' : ''} running`}>
+                    <Play className="w-2.5 h-2.5" />
+                    {runningCount} running
+                  </span>
+                )}
+                {pendingCount > 0 && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400" aria-label={`${pendingCount} task${pendingCount !== 1 ? 's' : ''} pending`}>
+                    <Clock className="w-2.5 h-2.5" />
+                    {pendingCount} pending
+                  </span>
+                )}
+              </div>
             )}
-            {pendingCount > 0 && (
-              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400" aria-label={`${pendingCount} task${pendingCount !== 1 ? 's' : ''} pending`}>
-                <Clock className="w-2.5 h-2.5" />
-                {pendingCount} pending
-              </span>
+            {/* Divider between groups */}
+            {(runningCount > 0 || pendingCount > 0) && (stuckCount > 0 || failedCount > 0 || orphanCount > 0) && (
+              <div className="w-px h-4 bg-gray-600/40" />
             )}
-            {runningCount > 0 && (
-              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400" aria-label={`${runningCount} task${runningCount !== 1 ? 's' : ''} running`}>
-                <Play className="w-2.5 h-2.5" />
-                {runningCount} running
-              </span>
-            )}
-            {stuckCount > 0 && (
-              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-300 font-semibold ring-1 ring-amber-500/40" aria-label={`${stuckCount} task${stuckCount !== 1 ? 's' : ''} stuck`}>
-                <AlertTriangle className="w-2.5 h-2.5" />
-                {stuckCount} stuck
-              </span>
-            )}
-            {failedCount > 0 && (
-              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/20 text-red-400" aria-label={`${failedCount} task${failedCount !== 1 ? 's' : ''} failed`}>
-                <XCircle className="w-2.5 h-2.5" />
-                {failedCount} failed
-              </span>
+            {/* Problem states */}
+            {(stuckCount > 0 || failedCount > 0 || orphanCount > 0) && (
+              <div className="flex items-center gap-1">
+                {stuckCount > 0 && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/30 text-amber-300 font-semibold ring-1 ring-amber-500/40" aria-label={`${stuckCount} task${stuckCount !== 1 ? 's' : ''} stuck`}>
+                    <AlertTriangle className="w-2.5 h-2.5" />
+                    {stuckCount} stuck
+                  </span>
+                )}
+                {failedCount > 0 && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-red-500/20 text-red-400" aria-label={`${failedCount} task${failedCount !== 1 ? 's' : ''} failed`}>
+                    <XCircle className="w-2.5 h-2.5" />
+                    {failedCount} failed
+                  </span>
+                )}
+                {orphanCount > 0 && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/20 text-amber-400" aria-label={`${orphanCount} orphaned session${orphanCount !== 1 ? 's' : ''}`}>
+                    <Ghost className="w-2.5 h-2.5" />
+                    {orphanCount} orphan{orphanCount !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>

@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Circle, ArrowRight } from 'lucide-react';
 import { useOnboardingStore, OnboardingStep, AppModule } from '@/stores/onboardingStore';
+import LiquidStepRail from '@/components/ui/LiquidStepRail';
 
 interface ModuleProgressBarProps {
   projectId: string;
@@ -129,20 +130,35 @@ export default function ModuleProgressBar({
         <span className="text-xs text-gray-500">{progress.percentage}%</span>
       </div>
 
-      {/* Progress bar */}
-      <div className="h-1 bg-gray-800 rounded-full overflow-hidden mb-2">
+      {/* Liquid progress bar */}
+      <div className="relative h-1.5 bg-gray-800 rounded-full overflow-hidden mb-2">
         <motion.div
-          className="h-full bg-gradient-to-r from-cyan-500 to-blue-500"
+          className="h-full rounded-full"
+          style={{ background: 'linear-gradient(90deg, #06b6d4, #3b82f6)' }}
           initial={{ width: 0 }}
           animate={{ width: `${progress.percentage}%` }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
+          transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
         />
+        {/* Predictive glow shimmer at the fill edge */}
+        {!progress.isComplete && (
+          <motion.div
+            className="absolute top-0 h-full w-8 rounded-full"
+            style={{ background: 'linear-gradient(90deg, transparent, rgba(6,182,212,0.5), transparent)' }}
+            animate={{ left: [`${Math.max(0, progress.percentage - 4)}%`, `${progress.percentage + 2}%`, `${Math.max(0, progress.percentage - 4)}%`] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        )}
       </div>
 
-      {/* Current step indicator */}
+      {/* Current step indicator with predictive glow */}
       {nextStep && (
         <div className="flex items-center gap-2 text-xs">
-          <Circle className="w-3 h-3 text-cyan-400 fill-cyan-400/30" />
+          <motion.div
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Circle className="w-3 h-3 text-cyan-400 fill-cyan-400/30" />
+          </motion.div>
           <span className="text-gray-300">{STEP_LABELS[nextStep]}</span>
           {currentModuleStep === nextStep && (
             <span className="px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 rounded text-[10px]">
@@ -156,7 +172,7 @@ export default function ModuleProgressBar({
 }
 
 /**
- * ModuleProgressDots - Ultra-compact dot-based progress indicator
+ * ModuleProgressDots - Liquid step rail progress indicator (horizontal)
  */
 export function ModuleProgressDots({
   projectId,
@@ -169,29 +185,23 @@ export function ModuleProgressDots({
   const completedSteps = getCompletedStepsForProject(projectId);
   const nextStep = getNextIncompleteStep(projectId);
 
-  return (
-    <div className={`flex items-center gap-1 ${className}`}>
-      {STEP_ORDER.map((step) => {
-        const isCompleted = completedSteps.includes(step);
-        const isCurrent = step === nextStep;
+  const activeIndex = nextStep ? STEP_ORDER.indexOf(nextStep) : STEP_ORDER.length - 1;
 
-        return (
-          <motion.div
-            key={step}
-            className={`w-2 h-2 rounded-full ${
-              isCompleted
-                ? 'bg-green-400'
-                : isCurrent
-                  ? 'bg-cyan-400'
-                  : 'bg-gray-700'
-            }`}
-            animate={isCurrent ? { scale: [1, 1.2, 1] } : {}}
-            transition={{ repeat: Infinity, duration: 2 }}
-            title={`${STEP_LABELS[step]}${isCompleted ? ' (Complete)' : isCurrent ? ' (Current)' : ''}`}
-          />
-        );
-      })}
-    </div>
+  const liquidSteps = STEP_ORDER.map((step) => ({
+    id: step,
+    label: STEP_LABELS[step],
+    done: completedSteps.includes(step),
+  }));
+
+  return (
+    <LiquidStepRail
+      steps={liquidSteps}
+      activeIndex={activeIndex}
+      direction="horizontal"
+      accentFrom="#06b6d4"
+      accentTo="#3b82f6"
+      className={className}
+    />
   );
 }
 

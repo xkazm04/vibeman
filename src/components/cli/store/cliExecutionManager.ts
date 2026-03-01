@@ -2,6 +2,8 @@
  * CLI Execution Manager
  *
  * Manages CLI task execution with recovery and background processing.
+ * Supports DAG-based parallel execution: tasks with declared dependencies
+ * are scheduled via a DAG resolver, while independent tasks run concurrently.
  * Delegates actual execution, streaming, and cancellation to the
  * ExecutionStrategy pattern (TerminalStrategy by default).
  */
@@ -25,6 +27,8 @@ import {
 // Register strategies on import
 import '@/app/features/TaskRunner/lib/strategies/terminalStrategy';
 import '@/app/features/TaskRunner/lib/strategies/vscodeStrategy';
+import { registerTaskComplete } from '../taskRegistry';
+import { DAGScheduler, type DAGTask, type DAGTaskStatus } from '@/lib/dag/dagScheduler';
 
 // ============ Shared Task Completion Utilities ============
 
@@ -139,9 +143,42 @@ export async function performTaskCleanup(
 
 // Per-session strategy instances and stream unsubscribers
 const sessionStrategies = new Map<CLISessionId, ExecutionStrategy>();
-const sessionUnsubscribers = new Map<CLISessionId, () => void>();
-// Track executionId per session for cancel/cleanup
-const sessionExecutionIds = new Map<CLISessionId, string>();
+const sessionUnsubscribers = new Map<CLISessionId, Map<string, () => void>>();
+// Track executionIds per session (multiple for parallel DAG execution)
+const sessionExecutionIds = new Map<CLISessionId, Map<string, string>>();
+
+/** Default max parallel tasks per CLI session */
+const DEFAULT_MAX_PARALLEL = 3;
+
+/** Per-session DAG scheduler instances */
+const sessionSchedulers = new Map<CLISessionId, DAGScheduler>();
+
+function getSessionScheduler(sessionId: CLISessionId): DAGScheduler {
+  let scheduler = sessionSchedulers.get(sessionId);
+  if (!scheduler) {
+    scheduler = new DAGScheduler({ maxParallel: DEFAULT_MAX_PARALLEL });
+    sessionSchedulers.set(sessionId, scheduler);
+  }
+  return scheduler;
+}
+
+function queueStatusToDAG(status: QueuedTask['status']): DAGTaskStatus {
+  switch (status.type) {
+    case 'idle':
+    case 'queued': return 'pending';
+    case 'running': return 'running';
+    case 'completed': return 'completed';
+    case 'failed': return 'failed';
+  }
+}
+
+function queueToDAGTasks(queue: QueuedTask[]): DAGTask[] {
+  return queue.map(t => ({
+    id: t.id,
+    status: queueStatusToDAG(t.status),
+    dependencies: t.dependencies || [],
+  }));
+}
 
 /**
  * Get or create the execution strategy for a session.
@@ -223,7 +260,12 @@ export async function startCLIExecution(
   }
 
   const executionId = result.executionId!;
-  sessionExecutionIds.set(sessionId, executionId);
+
+  // Track execution ID per task (supports multiple concurrent tasks)
+  if (!sessionExecutionIds.has(sessionId)) {
+    sessionExecutionIds.set(sessionId, new Map());
+  }
+  sessionExecutionIds.get(sessionId)!.set(task.id, executionId);
 
   // Subscribe to execution events for monitoring if supported
   if (hasCapability(strategy, 'stream')) {
@@ -239,15 +281,18 @@ export async function startCLIExecution(
         }
 
         handleTaskComplete(sessionId, task, true);
-        cleanupSessionExecution(sessionId);
+        cleanupTaskExecution(sessionId, task.id);
       } else if (event.type === 'error') {
         handleTaskComplete(sessionId, task, false);
-        cleanupSessionExecution(sessionId);
+        cleanupTaskExecution(sessionId, task.id);
       }
     });
 
-    // Store unsubscriber for cleanup
-    sessionUnsubscribers.set(sessionId, unsubscribe);
+    // Store unsubscriber per task
+    if (!sessionUnsubscribers.has(sessionId)) {
+      sessionUnsubscribers.set(sessionId, new Map());
+    }
+    sessionUnsubscribers.get(sessionId)!.set(task.id, unsubscribe);
   } else {
     // If strategy doesn't support streaming, we need an alternative way to detect completion.
     // For now, Terminal and VSCode both support it, so this is just for type safety.
@@ -258,12 +303,35 @@ export async function startCLIExecution(
 }
 
 /**
- * Clean up execution resources for a session (unsubscribe stream, remove tracking)
+ * Clean up execution resources for a specific task within a session
+ */
+function cleanupTaskExecution(sessionId: CLISessionId, taskId: string): void {
+  const unsubs = sessionUnsubscribers.get(sessionId);
+  if (unsubs) {
+    const unsubscribe = unsubs.get(taskId);
+    if (unsubscribe) {
+      unsubscribe();
+      unsubs.delete(taskId);
+    }
+    if (unsubs.size === 0) sessionUnsubscribers.delete(sessionId);
+  }
+
+  const execIds = sessionExecutionIds.get(sessionId);
+  if (execIds) {
+    execIds.delete(taskId);
+    if (execIds.size === 0) sessionExecutionIds.delete(sessionId);
+  }
+}
+
+/**
+ * Clean up all execution resources for a session
  */
 function cleanupSessionExecution(sessionId: CLISessionId): void {
-  const unsubscribe = sessionUnsubscribers.get(sessionId);
-  if (unsubscribe) {
-    unsubscribe();
+  const unsubs = sessionUnsubscribers.get(sessionId);
+  if (unsubs) {
+    for (const unsubscribe of unsubs.values()) {
+      unsubscribe();
+    }
     sessionUnsubscribers.delete(sessionId);
   }
   sessionExecutionIds.delete(sessionId);
@@ -285,6 +353,9 @@ async function handleTaskComplete(
     task.id,
     success ? createCompletedStatus() : createFailedStatus('Task execution failed')
   );
+
+  // Mark task as complete in server registry (prevents 409 when next task starts)
+  registerTaskComplete(task.id, sessionId, success).catch(() => {});
 
   // Publish completion/failure event to Supabase for Butler
   if (task.projectId) {
@@ -314,16 +385,18 @@ async function handleTaskComplete(
     }, 2000);
   }
 
-  // Check for next task
+  // Re-evaluate DAG: launch any tasks whose dependencies are now satisfied
   setTimeout(() => {
-    executeNextTask(sessionId);
-  }, 3000);
+    executeReadyTasks(sessionId);
+  }, 1000);
 }
 
 /**
- * Execute next pending task in session queue
+ * Execute all ready tasks in session queue using DAG scheduling.
+ * Tasks with no dependencies (or all dependencies met) run in parallel,
+ * up to the session's max parallelism limit.
  */
-export function executeNextTask(sessionId: CLISessionId): void {
+export function executeReadyTasks(sessionId: CLISessionId): void {
   const store = useCLISessionStore.getState();
   const session = store.sessions[sessionId];
 
@@ -332,18 +405,36 @@ export function executeNextTask(sessionId: CLISessionId): void {
     return;
   }
 
-  // Find next queued task
-  const nextTask = session.queue.find((t) => t.status.type === 'queued');
+  const scheduler = getSessionScheduler(sessionId);
+  const dagTasks = queueToDAGTasks(session.queue);
+  const readyIds = scheduler.getNextBatch(dagTasks);
 
-  if (!nextTask) {
-    // Queue empty
-    store.setRunning(sessionId, false);
-    store.setAutoStart(sessionId, false);
+  if (readyIds.length === 0) {
+    // Check if we're truly done (no running tasks either)
+    const hasRunning = session.queue.some(t => t.status.type === 'running');
+    if (!hasRunning) {
+      store.setRunning(sessionId, false);
+      store.setAutoStart(sessionId, false);
+    }
     return;
   }
 
-  // Start execution with session resume
-  startCLIExecution(sessionId, nextTask, session.claudeSessionId);
+  // Launch all ready tasks in parallel
+  for (const taskId of readyIds) {
+    const task = session.queue.find(t => t.id === taskId);
+    if (task) {
+      startCLIExecution(sessionId, task, session.claudeSessionId);
+    }
+  }
+}
+
+/**
+ * Execute next pending task in session queue.
+ * Delegates to DAG-aware executeReadyTasks which handles both
+ * sequential (no dependencies) and parallel (with dependencies) execution.
+ */
+export function executeNextTask(sessionId: CLISessionId): void {
+  executeReadyTasks(sessionId);
 }
 
 /**
@@ -428,13 +519,24 @@ export function stopSessionPolling(sessionId: CLISessionId): void {
 export async function abortSessionExecution(sessionId: CLISessionId): Promise<boolean> {
   const store = useCLISessionStore.getState();
   const session = store.sessions[sessionId];
+  const strategy = getSessionStrategy(sessionId);
 
-  // Cancel via strategy if we have an execution ID
-  const executionId = sessionExecutionIds.get(sessionId) || session.currentExecutionId;
-  if (executionId) {
-    const strategy = getSessionStrategy(sessionId);
+  // Cancel all running executions for this session
+  const execIds = sessionExecutionIds.get(sessionId);
+  if (execIds) {
+    for (const executionId of execIds.values()) {
+      try {
+        await strategy.cancel(executionId);
+      } catch (error) {
+        console.error('[CLI] Error aborting execution:', error);
+      }
+    }
+  }
+
+  // Fall back to session-level execution ID if present
+  if (session.currentExecutionId && (!execIds || execIds.size === 0)) {
     try {
-      await strategy.cancel(executionId);
+      await strategy.cancel(session.currentExecutionId);
     } catch (error) {
       console.error('[CLI] Error aborting execution:', error);
     }
@@ -459,17 +561,23 @@ export function cleanupAllCLISessions(): void {
     cleanupSessionExecution(sessionId as CLISessionId);
   }
   // Clean up all strategy instances
-  for (const [sessionId, strategy] of sessionStrategies) {
+  for (const [, strategy] of sessionStrategies) {
     strategy.cleanup();
   }
   sessionStrategies.clear();
+  sessionSchedulers.clear();
 }
 
 /**
- * Get the count of active executions (useful for debugging connection limits).
+ * Get the count of active executions across all sessions
+ * (useful for debugging connection limits).
  */
 export function getActiveStreamCount(): number {
-  return sessionExecutionIds.size;
+  let count = 0;
+  for (const execMap of sessionExecutionIds.values()) {
+    count += execMap.size;
+  }
+  return count;
 }
 
 /**
@@ -478,14 +586,17 @@ export function getActiveStreamCount(): number {
 export function getSessionExecutionStatus(sessionId: CLISessionId): {
   isPolling: boolean;
   isStreaming: boolean;
-  executionId?: string;
+  executionIds: string[];
+  runningTaskCount: number;
 } {
-  const executionId = sessionExecutionIds.get(sessionId);
+  const execMap = sessionExecutionIds.get(sessionId);
   const hasSubscription = sessionUnsubscribers.has(sessionId);
+  const executionIds = execMap ? Array.from(execMap.values()) : [];
 
   return {
     isPolling: false, // Strategy handles polling internally
     isStreaming: hasSubscription,
-    executionId,
+    executionIds,
+    runningTaskCount: executionIds.length,
   };
 }

@@ -247,17 +247,21 @@ Each idea should be:
 - **Specific**: Target a concrete improvement
 - **Actionable**: Clear what needs to be done
 - **Impactful**: Explain the value created
-- **Scoped**: Effort estimate (1-3 scale)
+- **Scoped**: Effort estimate (1-10 scale)
 
-### Effort Scale
-- **1**: Quick fix (< 1 day) - Small changes, config updates, minor tweaks
-- **2**: Moderate effort (1-3 days) - New components, refactoring, integration work
-- **3**: Major refactoring (> 3 days) - Large features, architecture changes, complex systems
+### Effort Scale (1-10)
+- **1-2**: Quick fix (< 1 day) - Small changes, config updates, minor tweaks
+- **3-4**: Low effort (1-2 days) - Simple feature additions, minor refactoring
+- **5-6**: Moderate effort (3-5 days) - New components, integration work
+- **7-8**: Significant effort (1-2 weeks) - Major features, substantial refactoring
+- **9-10**: Major undertaking (> 2 weeks) - Architecture changes, complex systems
 
-### Impact Scale
-- **1**: Nice to have - Minor improvement, small quality boost
-- **2**: Noticeable improvement - Clear benefit, better UX or performance
-- **3**: Game changer - Significant value, competitive advantage, major enhancement
+### Impact Scale (1-10)
+- **1-2**: Nice to have - Minor improvement, small quality boost
+- **3-4**: Minor improvement - Some benefit, slight UX or perf gain
+- **5-6**: Noticeable improvement - Clear benefit, better UX or performance
+- **7-8**: Significant value - Major enhancement, competitive advantage
+- **9-10**: Game changer - Critical/transformational, major strategic value
 
 ## Output Format
 
@@ -270,8 +274,8 @@ Return a JSON array of ideas:
     "title": "Short, descriptive title",
     "description": "Detailed explanation of the improvement and how to implement it",
     "reasoning": "Why this matters and what value it creates",
-    "effort": 1 | 2 | 3,
-    "impact": 1 | 2 | 3
+    "effort": 1-10,
+    "impact": 1-10
   }
 ]
 \`\`\`
@@ -315,8 +319,8 @@ Return ONLY the JSON array, no additional text.`,
           title: { type: 'string' },
           description: { type: 'string' },
           reasoning: { type: 'string' },
-          effort: { type: 'number', enum: [1, 2, 3] },
-          impact: { type: 'number', enum: [1, 2, 3] },
+          effort: { type: 'number', minimum: 1, maximum: 10 },
+          impact: { type: 'number', minimum: 1, maximum: 10 },
         },
         required: ['category', 'title', 'description', 'reasoning', 'effort', 'impact'],
       },
@@ -404,8 +408,8 @@ Return a JSON array of ideas:
     "title": "Specific bug or issue title",
     "description": "Detailed explanation of the bug/issue, how it occurs, and how to fix it",
     "reasoning": "Why this is a problem and the risk/impact of not fixing it",
-    "effort": 1 | 2 | 3,
-    "impact": 1 | 2 | 3
+    "effort": 1-10,
+    "impact": 1-10
   }
 ]
 \`\`\`
@@ -431,8 +435,8 @@ Return ONLY the JSON array, no additional text.`,
           title: { type: 'string' },
           description: { type: 'string' },
           reasoning: { type: 'string' },
-          effort: { type: 'number', enum: [1, 2, 3] },
-          impact: { type: 'number', enum: [1, 2, 3] },
+          effort: { type: 'number', minimum: 1, maximum: 10 },
+          impact: { type: 'number', minimum: 1, maximum: 10 },
         },
         required: ['category', 'title', 'description', 'reasoning', 'effort', 'impact'],
       },
@@ -516,8 +520,8 @@ Return a JSON array of ideas:
     "title": "Strategic improvement title",
     "description": "Detailed explanation of the improvement and implementation approach",
     "reasoning": "Why this creates value, what makes it strategic, and the expected impact",
-    "effort": 1 | 2 | 3,
-    "impact": 1 | 2 | 3
+    "effort": 1-10,
+    "impact": 1-10
   }
 ]
 \`\`\`

@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { directionDb, scanDb, ideaDb, insightEffectivenessCache } from '@/app/db';
+import { directionDb, scanDb, ideaDb, insightEffectivenessCache, brainInsightDb, insightInfluenceDb } from '@/app/db';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { logger } from '@/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
@@ -225,6 +225,27 @@ async function handlePost(
 
     // Invalidate effectiveness cache since direction data changed
     try { insightEffectivenessCache.invalidate(direction.project_id); } catch { /* non-critical */ }
+
+    // Record insight influence for causal validation
+    // Captures which insights were active when this direction was accepted
+    try {
+      const activeInsights = brainInsightDb.getForEffectiveness(direction.project_id);
+      if (activeInsights.length > 0) {
+        const now = new Date().toISOString();
+        insightInfluenceDb.recordInfluenceBatch(
+          direction.project_id,
+          id,
+          'accepted',
+          activeInsights.map(i => ({
+            id: i.id,
+            title: i.title,
+            shownAt: i.completed_at || now,
+          }))
+        );
+      }
+    } catch {
+      // Influence tracking must never break the main flow
+    }
 
     return NextResponse.json({
       success: true,

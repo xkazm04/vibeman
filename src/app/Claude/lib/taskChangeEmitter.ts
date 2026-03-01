@@ -10,11 +10,21 @@
 
 import { EventEmitter } from 'events';
 
+export interface McpProgressData {
+  phase?: string;
+  message: string;
+  percentage?: number;
+  files?: string[];
+  metadata?: Record<string, unknown>;
+}
+
 export interface TaskChangeEvent {
   taskId: string;
   status: 'pending' | 'running' | 'completed' | 'failed' | 'session-limit';
   progressCount: number;
   timestamp: string;
+  /** Structured progress data from MCP bidirectional channel */
+  mcpProgress?: McpProgressData;
 }
 
 const GLOBAL_KEY = '__vibeman_taskChangeEmitter';

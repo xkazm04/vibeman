@@ -56,15 +56,16 @@ export const ProposalCard = React.memo(({
     <motion.div
       className={`fixed top-1/2 left-1/2 ${isMain ? 'z-20' : 'z-10'} ${getVisibilityClass()}`}
       style={{
-        y: '-50%'
+        y: '-50%',
+        willChange: isMain ? undefined : 'filter',
       }}
-      initial={{ 
+      initial={{
         scale: isMain ? 0.9 : 0.75,
         opacity: 0,
         x: getXPosition(),
         filter: `blur(${blur}px)`
       }}
-      animate={{ 
+      animate={{
         scale,
         opacity,
         filter: `blur(${blur}px)`,
@@ -103,21 +104,16 @@ export const ProposalCard = React.memo(({
           }}
         />
 
-        {/* Neural Particles - one-shot entrance */}
+        {/* Neural Particles - CSS one-shot entrance */}
         {isMain && Array.from({ length: 8 }).map((_, i) => (
-          <motion.div
+          <div
             key={i}
-            className={`absolute w-1 h-1 ${colors.border.replace('border-', 'bg-')} rounded-full`}
+            className={`absolute w-1 h-1 ${colors.border.replace('border-', 'bg-')} rounded-full animate-[neuralParticle_1.5s_ease-out_forwards]`}
             style={{
               left: `${10 + i * 10}%`,
               top: `${15 + (i % 3) * 25}%`,
-            }}
-            initial={{ opacity: 0, scale: 0, y: 10 }}
-            animate={{ opacity: 0.6, scale: 1, y: 0 }}
-            transition={{
-              duration: 1.5,
-              delay: i * 0.1,
-              ease: "easeOut"
+              opacity: 0,
+              animationDelay: `${i * 0.1}s`,
             }}
           />
         ))}

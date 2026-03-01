@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import type { TaskStatusUnion } from '../lib/types';
+import { getTheme } from '../lib/taskStatusUtils';
 
 interface TaskProgressProps {
   status: TaskStatusUnion;
@@ -23,46 +24,22 @@ export function TaskProgress({ status, className = '' }: TaskProgressProps) {
 
   if (status.type === 'idle') return null;
 
-  const getProgressStyles = () => {
-    switch (status.type) {
-      case 'queued':
-        return {
-          barColor: 'bg-amber-500/30',
-          animatedColor: 'bg-amber-400',
-          width: '30%',
-        };
-      case 'running':
-        return {
-          barColor: 'bg-blue-500/30',
-          animatedColor: 'bg-blue-400',
-          width: '100%',
-        };
-      case 'completed':
-        return {
-          barColor: 'bg-green-500/30',
-          animatedColor: 'bg-green-400',
-          width: '100%',
-        };
-      case 'failed':
-        return {
-          barColor: 'bg-red-500/30',
-          animatedColor: 'bg-red-400',
-          width: '100%',
-        };
-    }
+  const theme = getTheme(status.type);
+  const styles = {
+    barColor: theme.barBg,
+    animatedColor: theme.barFill,
+    width: status.type === 'queued' ? '30%' : '100%',
   };
-
-  const styles = getProgressStyles();
 
   if (status.type === 'running') {
     // Indeterminate shimmer for running state (static gradient when reduced motion preferred)
     return (
       <div className={`h-1 w-full overflow-hidden rounded-full ${styles.barColor} ${className}`}>
         <div
-          className={`h-full rounded-full ${prefersReducedMotion ? 'w-full animate-pulse' : 'w-2/5 animate-[shimmer-slide_1.5s_ease-in-out_infinite]'}`}
+          className={`h-full rounded-full ${prefersReducedMotion ? 'w-full opacity-60' : 'w-2/5 animate-[shimmer-slide_1.5s_ease-in-out_infinite]'}`}
           style={{
             background: prefersReducedMotion
-              ? 'linear-gradient(90deg, #3b82f6, #60a5fa)'
+              ? 'linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6)'
               : 'linear-gradient(90deg, transparent, #60a5fa, transparent)',
           }}
         />

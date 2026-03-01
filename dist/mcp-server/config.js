@@ -12,6 +12,7 @@ exports.parseConfig = parseConfig;
  * - VIBEMAN_BASE_URL: API base URL (default: http://localhost:3000)
  * - VIBEMAN_PROJECT_ID: Project ID (required)
  * - VIBEMAN_CONTEXT_ID: Context ID (optional)
+ * - VIBEMAN_TASK_ID: Task/requirement ID for progress reporting (optional)
  * - VIBEMAN_PROJECT_PORT: Dev server port (optional)
  * - VIBEMAN_RUN_SCRIPT: Dev server start command (optional)
  */
@@ -20,6 +21,7 @@ function parseConfig() {
         baseUrl: process.env.VIBEMAN_BASE_URL || 'http://localhost:3000',
         projectId: process.env.VIBEMAN_PROJECT_ID || '',
         contextId: process.env.VIBEMAN_CONTEXT_ID || undefined,
+        taskId: process.env.VIBEMAN_TASK_ID || undefined,
         projectPort: process.env.VIBEMAN_PROJECT_PORT
             ? parseInt(process.env.VIBEMAN_PROJECT_PORT, 10)
             : undefined,

@@ -3,8 +3,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { History, TrendingUp, Lightbulb, Clock, BarChart3 } from 'lucide-react';
 import BrainPanelHeader from './BrainPanelHeader';
+import GlowCard from './GlowCard';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import ReflectionHistoryItem, { type ReflectionHistoryEntry } from './ReflectionHistoryItem';
+
+const ACCENT_COLOR = '#a855f7'; // Purple
+const GLOW_COLOR = 'rgba(168, 85, 247, 0.15)';
 
 interface AggregateStats {
   totalReflections: number;
@@ -67,43 +71,50 @@ export default function ReflectionHistoryPanel({ scope = 'project' }: Props) {
 
   if (isLoading) {
     return (
-      <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-6">
-        <BrainPanelHeader icon={History} title="Reflection History" accentColor="#a855f7" glowColor="rgba(168, 85, 247, 0.15)" />
-        <div className="animate-pulse space-y-3">
-          <div className="h-4 bg-zinc-800 rounded w-1/2" />
-          <div className="h-12 bg-zinc-800 rounded" />
-          <div className="h-12 bg-zinc-800 rounded" />
+      <GlowCard accentColor={ACCENT_COLOR} glowColor={GLOW_COLOR} borderColorClass="border-purple-500/20" animate={false}>
+        <div className="p-6">
+          <BrainPanelHeader icon={History} title="Reflection History" accentColor={ACCENT_COLOR} glowColor={GLOW_COLOR} />
+          <div className="animate-pulse space-y-3">
+            <div className="h-4 bg-zinc-800 rounded w-1/2" />
+            <div className="h-12 bg-zinc-800 rounded" />
+            <div className="h-12 bg-zinc-800 rounded" />
+          </div>
         </div>
-      </div>
+      </GlowCard>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-6">
-        <BrainPanelHeader icon={History} title="Reflection History" accentColor="#a855f7" glowColor="rgba(168, 85, 247, 0.15)" />
-        <div className="text-sm text-red-400">{error}</div>
-      </div>
+      <GlowCard accentColor={ACCENT_COLOR} glowColor={GLOW_COLOR} borderColorClass="border-purple-500/20">
+        <div className="p-6">
+          <BrainPanelHeader icon={History} title="Reflection History" accentColor={ACCENT_COLOR} glowColor={GLOW_COLOR} />
+          <div className="text-sm text-red-400">{error}</div>
+        </div>
+      </GlowCard>
     );
   }
 
   if (history.length === 0) {
     return (
-      <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-6">
-        <BrainPanelHeader icon={History} title="Reflection History" accentColor="#a855f7" glowColor="rgba(168, 85, 247, 0.15)" />
-        <div className="text-sm text-zinc-500">No reflections recorded yet.</div>
-      </div>
+      <GlowCard accentColor={ACCENT_COLOR} glowColor={GLOW_COLOR} borderColorClass="border-purple-500/20">
+        <div className="p-6">
+          <BrainPanelHeader icon={History} title="Reflection History" accentColor={ACCENT_COLOR} glowColor={GLOW_COLOR} />
+          <div className="text-sm text-zinc-500">No reflections recorded yet.</div>
+        </div>
+      </GlowCard>
     );
   }
 
   return (
-    <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-6">
+    <GlowCard accentColor={ACCENT_COLOR} glowColor={GLOW_COLOR} borderColorClass="border-purple-500/20">
+      <div className="p-6">
       {/* Header */}
       <BrainPanelHeader
         icon={History}
         title="Reflection History"
-        accentColor="#a855f7"
-        glowColor="rgba(168, 85, 247, 0.15)"
+        accentColor={ACCENT_COLOR}
+        glowColor={GLOW_COLOR}
         trailing={scope === 'global' ? (
           <span className="px-2 py-0.5 bg-zinc-700/50 text-zinc-400 rounded text-xs font-mono">GLOBAL</span>
         ) : undefined}
@@ -149,6 +160,7 @@ export default function ReflectionHistoryPanel({ scope = 'project' }: Props) {
           <ReflectionHistoryItem key={entry.id} entry={entry} />
         ))}
       </div>
-    </div>
+      </div>
+    </GlowCard>
   );
 }

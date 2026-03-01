@@ -15,8 +15,10 @@ import {
   fetchQuestionTrees,
   generateFollowUp,
   generateStrategicBrief,
+  autoDeepen,
   QuestionsResponse,
   QuestionTreeResponse,
+  AutoDeepenResponse,
 } from '@/app/features/Questions/lib/questionsApi';
 import {
   fetchDirections,
@@ -208,6 +210,23 @@ export function useGenerateStrategicBrief() {
     mutationFn: (questionId: string) => generateStrategicBrief(questionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: questionsQueryKeys.all });
+    },
+  });
+}
+
+/**
+ * Mutation for auto-deepening a question via gap detection.
+ * Analyzes the answer for hedging/ambiguity and auto-generates targeted follow-ups.
+ */
+export function useAutoDeepen() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (questionId: string) => autoDeepen(questionId),
+    onSuccess: (data) => {
+      if (data.deepened) {
+        queryClient.invalidateQueries({ queryKey: questionsQueryKeys.all });
+      }
     },
   });
 }

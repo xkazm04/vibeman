@@ -47,10 +47,15 @@ export interface TaskKnowledgeResult {
  * Returns relevant knowledge to inject into the execution context.
  * Creates application records for each injected memory to enable
  * feedback loop resolution after the task completes.
+ *
+ * Pass `requirementContent` (the full requirement text) for richer
+ * matching — the service extracts file patterns and additional keywords
+ * from it to find more relevant memories.
  */
 export function getTaskKnowledge(params: {
   projectId: string;
   requirementName: string;
+  requirementContent?: string;
   taskId?: string;
   filePatterns?: string[];
 }): TaskKnowledgeResult {
@@ -58,6 +63,7 @@ export function getTaskKnowledge(params: {
     const memories = getRelevantKnowledge({
       projectId: params.projectId,
       requirementName: params.requirementName,
+      requirementContent: params.requirementContent,
       filePatterns: params.filePatterns,
     });
     const promptSection = formatKnowledgeForPrompt(memories);

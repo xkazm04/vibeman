@@ -1,10 +1,13 @@
 /**
  * Compact Execution Wrapper for MCP-enabled execution
  *
- * This wrapper produces minimal prompts (~115 tokens) that assume MCP tools are available:
+ * This wrapper produces minimal prompts (~150 tokens) that assume MCP tools are available:
  * - log_implementation: Log implementation details to Vibeman database
  * - check_test_scenario: Check if context has test scenario
  * - capture_screenshot: Capture UI screenshots
+ * - get_memory: Query collective memory for relevant knowledge mid-execution
+ * - report_progress: Report structured progress with phase/percentage/files
+ * - get_related_tasks: Check status of parallel tasks for coordination
  *
  * For CLI execution without MCP (Directions via CompactTerminal), use wrapRequirementForExecution instead.
  *
@@ -69,6 +72,12 @@ export function wrapRequirementForMCPWithMetadata(config: CompactWrapperConfig):
     '## REQUIREMENT',
     '',
     requirementContent,
+    '',
+    '## DURING IMPLEMENTATION',
+    '',
+    '- Use `get_memory` MCP tool when you encounter unfamiliar code or need context about patterns/files',
+    '- Use `report_progress` MCP tool at each major phase (analyzing, planning, implementing, testing, validating)',
+    '- Use `get_related_tasks` MCP tool before modifying shared files to check for parallel task conflicts',
     '',
     '## AFTER IMPLEMENTATION',
     '',

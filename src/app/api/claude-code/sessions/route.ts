@@ -46,8 +46,9 @@ export async function GET(request: NextRequest) {
       }
 
       const tasks = sessionDb.getTasksBySessionId(session.id);
+      const taskIds = tasks.map(t => t.task_id);
       return NextResponse.json({
-        session: toSessionResponse(session),
+        session: toSessionResponse(session, taskIds),
         tasks: tasks.map(toSessionTaskResponse),
       });
     }
@@ -63,8 +64,9 @@ export async function GET(request: NextRequest) {
       }
 
       const tasks = sessionDb.getTasksBySessionId(session.id);
+      const taskIds = tasks.map(t => t.task_id);
       return NextResponse.json({
-        session: toSessionResponse(session),
+        session: toSessionResponse(session, taskIds),
         tasks: tasks.map(toSessionTaskResponse),
       });
     }
@@ -75,7 +77,7 @@ export async function GET(request: NextRequest) {
       if (action === 'active') {
         const sessions = sessionDb.getActive(projectId);
         return NextResponse.json({
-          sessions: sessions.map(toSessionResponse),
+          sessions: sessions.map(s => toSessionResponse(s, sessionDb.getTaskIds(s.id))),
         });
       }
 
@@ -88,7 +90,7 @@ export async function GET(request: NextRequest) {
       // List all sessions
       const sessions = sessionDb.getByProjectId(projectId);
       return NextResponse.json({
-        sessions: sessions.map(toSessionResponse),
+        sessions: sessions.map(s => toSessionResponse(s, sessionDb.getTaskIds(s.id))),
       });
     }
 

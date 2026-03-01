@@ -94,6 +94,20 @@ export const sessionRepository = {
   },
 
   /**
+   * Get task IDs for a session from the session_tasks junction table (source of truth)
+   */
+  getTaskIds(sessionId: string): string[] {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT task_id FROM session_tasks
+      WHERE session_id = ?
+      ORDER BY order_index ASC
+    `);
+    const rows = stmt.all(sessionId) as Array<{ task_id: string }>;
+    return rows.map(r => r.task_id);
+  },
+
+  /**
    * Create a new session
    */
   create(data: {
@@ -105,20 +119,18 @@ export const sessionRepository = {
     const db = getDatabase();
     const now = new Date().toISOString();
     const sessionId = uuidv4();
-    const taskIds = JSON.stringify([data.taskId]);
 
     // Create session
     const sessionStmt = db.prepare(`
       INSERT INTO claude_code_sessions (
-        id, project_id, name, task_ids, status, context_tokens, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        id, project_id, name, status, context_tokens, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
     sessionStmt.run(
       sessionId,
       data.projectId,
       data.name,
-      taskIds,
       'pending',
       0,
       now,
@@ -148,7 +160,6 @@ export const sessionRepository = {
       project_id: data.projectId,
       name: data.name,
       claude_session_id: null,
-      task_ids: taskIds,
       status: 'pending' as const,
       context_tokens: 0,
       created_at: now,
@@ -218,7 +229,7 @@ export const sessionRepository = {
     const id = uuidv4();
 
     const run = db.transaction(() => {
-      // Get current session inside transaction to avoid TOCTOU
+      // Verify session exists
       const session = this.getById(sessionId);
       if (!session) return null;
 
@@ -227,7 +238,7 @@ export const sessionRepository = {
       const countResult = countStmt.get(sessionId) as { count: number };
       const orderIndex = countResult.count;
 
-      // Create task
+      // Create task in junction table (single write — source of truth)
       const taskStmt = db.prepare(`
         INSERT INTO session_tasks (
           id, session_id, task_id, requirement_name, order_index, status, created_at
@@ -235,17 +246,11 @@ export const sessionRepository = {
       `);
       taskStmt.run(id, sessionId, taskId, requirementName, orderIndex, 'pending', now);
 
-      // Update session task_ids — read inside transaction so concurrent calls see each other's writes
-      const freshSession = this.getById(sessionId)!;
-      const currentTaskIds = JSON.parse(freshSession.task_ids || '[]');
-      currentTaskIds.push(taskId);
-
+      // Touch session updated_at
       const updateStmt = db.prepare(`
-        UPDATE claude_code_sessions
-        SET task_ids = ?, updated_at = ?
-        WHERE id = ?
+        UPDATE claude_code_sessions SET updated_at = ? WHERE id = ?
       `);
-      updateStmt.run(JSON.stringify(currentTaskIds), now, sessionId);
+      updateStmt.run(now, sessionId);
 
       return id;
     });
@@ -264,7 +269,7 @@ export const sessionRepository = {
     const now = new Date().toISOString();
 
     const run = db.transaction(() => {
-      // Delete from session_tasks
+      // Delete from session_tasks (single write — source of truth)
       const deleteStmt = db.prepare(`
         DELETE FROM session_tasks
         WHERE session_id = ? AND task_id = ?
@@ -273,19 +278,11 @@ export const sessionRepository = {
 
       if (result.changes === 0) return false;
 
-      // Update session task_ids — read inside transaction to avoid lost-update race
-      const session = this.getById(sessionId);
-      if (session) {
-        const currentTaskIds = JSON.parse(session.task_ids || '[]');
-        const updatedTaskIds = currentTaskIds.filter((id: string) => id !== taskId);
-
-        const updateStmt = db.prepare(`
-          UPDATE claude_code_sessions
-          SET task_ids = ?, updated_at = ?
-          WHERE id = ?
-        `);
-        updateStmt.run(JSON.stringify(updatedTaskIds), now, sessionId);
-      }
+      // Touch session updated_at
+      const updateStmt = db.prepare(`
+        UPDATE claude_code_sessions SET updated_at = ? WHERE id = ?
+      `);
+      updateStmt.run(now, sessionId);
 
       return true;
     });
@@ -300,29 +297,18 @@ export const sessionRepository = {
     const db = getDatabase();
     const now = new Date().toISOString();
 
-    // Delete completed tasks
+    // Delete completed tasks from junction table (source of truth)
     const deleteStmt = db.prepare(`
       DELETE FROM session_tasks
       WHERE session_id = ? AND status = 'completed'
     `);
     deleteStmt.run(id);
 
-    // Get remaining task IDs
-    const tasksStmt = db.prepare(`
-      SELECT task_id FROM session_tasks
-      WHERE session_id = ?
-      ORDER BY order_index ASC
-    `);
-    const remainingTasks = tasksStmt.all(id) as Array<{ task_id: string }>;
-    const taskIds = remainingTasks.map(t => t.task_id);
-
-    // Update session
+    // Touch session updated_at
     const updateStmt = db.prepare(`
-      UPDATE claude_code_sessions
-      SET task_ids = ?, updated_at = ?
-      WHERE id = ?
+      UPDATE claude_code_sessions SET updated_at = ? WHERE id = ?
     `);
-    updateStmt.run(JSON.stringify(taskIds), now, id);
+    updateStmt.run(now, id);
 
     return true;
   },

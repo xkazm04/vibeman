@@ -35,6 +35,56 @@ export const brainReflectionRepository = {
   },
 
   /**
+   * Atomically create a reflection if no active (pending/running) one exists.
+   * Relies on the UNIQUE partial index idx_one_active_reflection_per_project
+   * to prevent duplicates — no TOCTOU race possible.
+   *
+   * @returns { created: true, reflection } on success,
+   *          { created: false, existing } if an active reflection already exists.
+   */
+  createIfNotActive: (input: CreateBrainReflectionInput): {
+    created: boolean;
+    reflection: DbBrainReflection;
+  } => {
+    const db = getDatabase();
+    const now = getCurrentTimestamp();
+    const scope = input.scope || 'project';
+
+    try {
+      const stmt = db.prepare(`
+        INSERT INTO brain_reflections (
+          id, project_id, status, trigger_type, scope, created_at
+        )
+        VALUES (?, ?, 'pending', ?, ?, ?)
+      `);
+      stmt.run(input.id, input.project_id, input.trigger_type, scope, now);
+
+      const created = selectOne<DbBrainReflection>(
+        db,
+        'SELECT * FROM brain_reflections WHERE id = ?',
+        input.id
+      )!;
+      return { created: true, reflection: created };
+    } catch (err: any) {
+      // UNIQUE constraint violation — an active reflection already exists
+      if (err.message?.includes('UNIQUE constraint failed')) {
+        const existing = selectOne<DbBrainReflection>(
+          db,
+          `SELECT * FROM brain_reflections
+           WHERE project_id = ? AND scope = ? AND status IN ('pending', 'running')
+           ORDER BY created_at DESC LIMIT 1`,
+          input.project_id,
+          scope
+        );
+        if (existing) {
+          return { created: false, reflection: existing };
+        }
+      }
+      throw err;
+    }
+  },
+
+  /**
    * Get reflection by ID
    */
   getById: (id: string): DbBrainReflection | null => {

@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { HelpCircle, Compass, RefreshCw, GitBranch, Table2, Grid3X3, Layers } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { HelpCircle, Compass, RefreshCw, GitBranch, Table2, Grid3X3, Layers, Sparkles, X, AlertTriangle } from 'lucide-react';
+import LiquidStepRail from '@/components/ui/LiquidStepRail';
 import { DbQuestion } from '@/app/db';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import ContextMapSelector from './components/ContextMapSelector';
@@ -27,6 +28,7 @@ import {
   useQuestionTrees,
   useGenerateFollowUp,
   useGenerateStrategicBrief,
+  useAutoDeepen,
   useDirections,
   useAnswerQuestion,
   useDeleteQuestion,
@@ -35,6 +37,7 @@ import {
   useDeleteDirection,
   useInvalidateQuestionsDirections,
 } from '@/lib/queries/questionsDirectionsQueries';
+import type { AutoDeepenResponse } from './lib/questionsApi';
 
 // Interrogative engines for programmatic access to the generate → decide → act pattern.
 // UI components continue using React Query hooks for rendering; these engines provide
@@ -82,6 +85,10 @@ export default function QuestionsLayout() {
   const { data: treeData } = useQuestionTrees(activeProject?.id);
   const generateFollowUpMutation = useGenerateFollowUp();
   const generateBriefMutation = useGenerateStrategicBrief();
+  const autoDeepenMutation = useAutoDeepen();
+
+  // Auto-deepen notification state
+  const [autoDeepenResult, setAutoDeepenResult] = useState<AutoDeepenResponse | null>(null);
 
   // Derived data
   const contexts = contextsData?.contexts ?? [];
@@ -170,7 +177,17 @@ export default function QuestionsLayout() {
 
   const handleSaveAnswer = useCallback(async (questionId: string, answer: string) => {
     await answerQuestionMutation.mutateAsync({ questionId, answer });
-  }, [answerQuestionMutation]);
+    // Trigger auto-deepening in background after answer is saved
+    autoDeepenMutation.mutate(questionId, {
+      onSuccess: (result) => {
+        if (result.deepened || result.analysis.gapCount > 0) {
+          setAutoDeepenResult(result);
+          // Auto-dismiss after 6 seconds
+          setTimeout(() => setAutoDeepenResult(null), 6000);
+        }
+      },
+    });
+  }, [answerQuestionMutation, autoDeepenMutation]);
 
   const handleDeleteQuestion = useCallback(async (questionId: string) => {
     deleteQuestionMutation.mutate(questionId);
@@ -349,70 +366,29 @@ export default function QuestionsLayout() {
             transition={{ duration: 0.2 }}
             className="flex gap-4"
           >
-            {/* Step indicator rail */}
-            <div className="flex flex-col items-center pt-4 flex-shrink-0">
-              {/* Step 1 — Select Contexts */}
-              <div className="group relative flex flex-col items-center">
-                <div
-                  role="img"
-                  aria-label="Step 1: Select Contexts"
-                  title="Select Contexts"
-                  className={`w-6 h-6 rounded-full border text-xs font-bold flex items-center justify-center flex-shrink-0 transition-colors ${
-                    selectedContextIds.length > 0
-                      ? 'bg-purple-500/20 border-purple-500/60 text-purple-400'
-                      : 'bg-gray-800 border-gray-600/40 text-gray-500'
-                  }`}
-                >
-                  1
+            {/* Step indicator rail — liquid SVG connectors with predictive glow */}
+            {(() => {
+              const step1Done = selectedContextIds.length > 0;
+              const step2Done = contexts.length > 0 && selectedContextIds.length > 0;
+              const step3Done = questions.length > 0 || directions.length > 0;
+              const activeStep = !step1Done ? 0 : !step2Done ? 1 : 2;
+
+              return (
+                <div className="pt-4 flex-shrink-0">
+                  <LiquidStepRail
+                    steps={[
+                      { id: 'select', label: 'Select', tooltip: 'Select Contexts', done: step1Done },
+                      { id: 'generate', label: 'Generate', tooltip: 'Generate Questions & Directions', done: step2Done },
+                      { id: 'review', label: 'Review', tooltip: 'Review Results', done: step3Done },
+                    ]}
+                    activeIndex={activeStep}
+                    direction="vertical"
+                    accentFrom="#a855f7"
+                    accentTo="#06b6d4"
+                  />
                 </div>
-                <span className="mt-0.5 text-[9px] leading-tight text-gray-500 font-medium whitespace-nowrap">Select</span>
-                <div className="pointer-events-none absolute left-full ml-2.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 border border-gray-700/60 text-gray-200 text-xs px-2.5 py-1 rounded-md shadow-lg whitespace-nowrap z-50">
-                  Select Contexts
-                </div>
-              </div>
-              {/* Connector line 1→2 */}
-              <div className="w-px flex-1 min-h-[24px] border-l-2 border-dashed border-gray-700/30" />
-              {/* Step 2 — Generate */}
-              <div className="group relative flex flex-col items-center">
-                <div
-                  role="img"
-                  aria-label="Step 2: Generate"
-                  title="Generate"
-                  className={`w-6 h-6 rounded-full border text-xs font-bold flex items-center justify-center flex-shrink-0 transition-colors ${
-                    contexts.length > 0 && selectedContextIds.length > 0
-                      ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-400'
-                      : 'bg-gray-800 border-gray-600/40 text-gray-500'
-                  }`}
-                >
-                  2
-                </div>
-                <span className="mt-0.5 text-[9px] leading-tight text-gray-500 font-medium whitespace-nowrap">Generate</span>
-                <div className="pointer-events-none absolute left-full ml-2.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 border border-gray-700/60 text-gray-200 text-xs px-2.5 py-1 rounded-md shadow-lg whitespace-nowrap z-50">
-                  Generate Questions & Directions
-                </div>
-              </div>
-              {/* Connector line 2→3 */}
-              <div className="w-px flex-1 min-h-[24px] border-l-2 border-dashed border-gray-700/30" />
-              {/* Step 3 — Review Results */}
-              <div className="group relative flex flex-col items-center">
-                <div
-                  role="img"
-                  aria-label="Step 3: Review Results"
-                  title="Review Results"
-                  className={`w-6 h-6 rounded-full border text-xs font-bold flex items-center justify-center flex-shrink-0 transition-colors ${
-                    questions.length > 0 || directions.length > 0
-                      ? 'bg-purple-500/20 border-purple-500/60 text-purple-400'
-                      : 'bg-gray-800 border-gray-600/40 text-gray-500'
-                  }`}
-                >
-                  3
-                </div>
-                <span className="mt-0.5 text-[9px] leading-tight text-gray-500 font-medium whitespace-nowrap">Review</span>
-                <div className="pointer-events-none absolute left-full ml-2.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 border border-gray-700/60 text-gray-200 text-xs px-2.5 py-1 rounded-md shadow-lg whitespace-nowrap z-50">
-                  Review Results
-                </div>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Content sections */}
             <div className="flex-1 min-w-0 space-y-6">
@@ -452,7 +428,7 @@ export default function QuestionsLayout() {
                       onClick={() => setViewMode('table')}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                         viewMode === 'table'
-                          ? 'bg-gray-700/80 text-white shadow-sm'
+                          ? 'bg-zinc-600/30 text-zinc-200 shadow-sm border border-zinc-500/20'
                           : 'text-gray-400 hover:text-gray-300'
                       }`}
                     >
@@ -557,6 +533,56 @@ export default function QuestionsLayout() {
         onClose={handleCloseAnswerModal}
         onSave={handleSaveAnswer}
       />
+
+      {/* Auto-Deepen Notification Toast */}
+      <AnimatePresence>
+        {autoDeepenResult && (
+          <motion.div
+            initial={{ opacity: 0, y: 40, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: 40, x: '-50%' }}
+            className="fixed bottom-6 left-1/2 z-50 max-w-md w-full"
+          >
+            <div className={`rounded-xl border px-4 py-3 shadow-2xl backdrop-blur-sm ${
+              autoDeepenResult.deepened
+                ? 'bg-cyan-950/90 border-cyan-500/30'
+                : 'bg-amber-950/90 border-amber-500/30'
+            }`}>
+              <div className="flex items-start gap-3">
+                <div className={`mt-0.5 p-1.5 rounded-lg ${
+                  autoDeepenResult.deepened
+                    ? 'bg-cyan-500/15'
+                    : 'bg-amber-500/15'
+                }`}>
+                  {autoDeepenResult.deepened ? (
+                    <Sparkles className="w-4 h-4 text-cyan-400" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-amber-400" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium ${
+                    autoDeepenResult.deepened ? 'text-cyan-300' : 'text-amber-300'
+                  }`}>
+                    {autoDeepenResult.deepened
+                      ? `Auto-deepened: ${autoDeepenResult.questions.length} follow-up${autoDeepenResult.questions.length !== 1 ? 's' : ''} generated`
+                      : 'Ambiguity detected'}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {autoDeepenResult.analysis.summary}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setAutoDeepenResult(null)}
+                  className="p-1 text-gray-500 hover:text-gray-300 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

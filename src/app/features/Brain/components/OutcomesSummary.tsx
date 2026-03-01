@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Target, CheckCircle, XCircle, RotateCcw, Clock, TrendingUp } from 'lucide-react';
 import { useBrainStore } from '@/stores/brainStore';
@@ -61,7 +61,7 @@ function KPICard({
 
           <div className="space-y-1">
             <motion.p
-              className="text-4xl font-bold font-mono tracking-tight"
+              className="text-4xl font-bold font-mono tracking-tight tabular-nums"
               style={{ color: accentColor, textShadow: `0 0 30px ${glowColor}` }}
               initial={{ opacity: 0, scale: 0.5 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -116,6 +116,7 @@ function useDailyTrend(recentOutcomes: { execution_completed_at: string | null; 
 }
 
 export default function OutcomesSummary({ isLoading }: Props) {
+  const trendGradientId = `outcomeTrendGrad-${useId()}`;
   const { outcomeStats, recentOutcomes } = useBrainStore();
   const { days: trendDays, daysWithData } = useDailyTrend(recentOutcomes);
 
@@ -221,7 +222,7 @@ export default function OutcomesSummary({ isLoading }: Props) {
                   <span className="text-sm text-zinc-300">Success Rate</span>
                 </div>
                 <span
-                  className="text-lg font-bold font-mono"
+                  className="text-lg font-bold font-mono tabular-nums"
                   style={{
                     color: successRate >= 80 ? '#10b981' : successRate >= 50 ? '#f59e0b' : '#ef4444',
                     textShadow: successRate >= 80 ? '0 0 20px rgba(16, 185, 129, 0.4)' : undefined
@@ -329,19 +330,19 @@ export default function OutcomesSummary({ isLoading }: Props) {
             return (
               <div className="mt-3 pt-3 border-t border-zinc-800/50">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs text-zinc-500 font-mono">7_DAY_TREND</span>
-                  <span className="text-xs font-mono" style={{ color: trendColor }}>
+                  <span className="text-xs text-zinc-500 font-mono tabular-nums">7_DAY_TREND</span>
+                  <span className="text-xs font-mono tabular-nums" style={{ color: trendColor }}>
                     {isImproving ? 'IMPROVING' : 'DECLINING'}
                   </span>
                 </div>
                 <svg width={sparkW} height={sparkH} className="w-full">
                   <defs>
-                    <linearGradient id="outcomeTrendGrad" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id={trendGradientId} x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor={trendColor} stopOpacity={0.25} />
                       <stop offset="100%" stopColor={trendColor} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <path d={areaD} fill="url(#outcomeTrendGrad)" />
+                  <path d={areaD} fill={`url(#${trendGradientId})`} />
                   <path
                     d={lineD}
                     fill="none"
@@ -361,8 +362,8 @@ export default function OutcomesSummary({ isLoading }: Props) {
                   ))}
                 </svg>
                 <div className="flex justify-between mt-1">
-                  <span className="text-[10px] text-zinc-600 font-mono">{trendDays[0]?.date.slice(5)}</span>
-                  <span className="text-[10px] text-zinc-600 font-mono">{trendDays[trendDays.length - 1]?.date.slice(5)}</span>
+                  <span className="text-[10px] text-zinc-600 font-mono tabular-nums">{trendDays[0]?.date.slice(5)}</span>
+                  <span className="text-[10px] text-zinc-600 font-mono tabular-nums">{trendDays[trendDays.length - 1]?.date.slice(5)}</span>
                 </div>
               </div>
             );

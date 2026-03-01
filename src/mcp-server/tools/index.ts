@@ -9,6 +9,9 @@ import { VibemanHttpClient } from '../http-client.js';
 import { registerImplementationLogTool } from './implementation-log.js';
 import { registerScreenshotTools } from './screenshot.js';
 import { registerContextTools } from './context.js';
+import { registerMemoryTool } from './memory.js';
+import { registerProgressTool } from './progress.js';
+import { registerRelatedTasksTool } from './related-tasks.js';
 
 /**
  * Register all Vibeman MCP tools
@@ -25,5 +28,10 @@ export function registerTools(server: McpServer, config: McpConfig) {
   // Context tools
   registerContextTools(server, config, client);
 
-  console.error('[vibeman-mcp] Registered tools: log_implementation, check_test_scenario, capture_screenshot, get_context, list_contexts, get_config');
+  // Bidirectional execution channel tools
+  registerMemoryTool(server, config, client);
+  registerProgressTool(server, config, client);
+  registerRelatedTasksTool(server, config, client);
+
+  console.error('[vibeman-mcp] Registered tools: log_implementation, check_test_scenario, capture_screenshot, get_context, list_contexts, get_config, get_memory, report_progress, get_related_tasks');
 }

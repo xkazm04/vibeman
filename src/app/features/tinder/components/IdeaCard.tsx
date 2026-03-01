@@ -87,6 +87,34 @@ export default function IdeaCard({
         opacity: { duration: 0.2 },
       }}
     >
+      {/* Metric badges — outside overflow-hidden so they're never clipped */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 -translate-y-1/2">
+        {idea.impact != null && (
+          <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full border text-sm font-semibold tabular-nums bg-gray-900 ${impactScale.entries[idea.impact]?.color || 'text-gray-400'} border-gray-700/60`}
+            title={`Impact: ${impactScale.entries[idea.impact]?.description || idea.impact}`}
+          >
+            <ImpactIcon className="w-3.5 h-3.5" />
+            <span>{idea.impact}</span>
+          </div>
+        )}
+        {idea.effort != null && (
+          <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full border text-sm font-semibold tabular-nums bg-gray-900 ${effortScale.entries[idea.effort]?.color || 'text-gray-400'} border-gray-700/60`}
+            title={`Effort: ${effortScale.entries[idea.effort]?.description || idea.effort}`}
+          >
+            <EffortIcon className="w-3.5 h-3.5" />
+            <span>{idea.effort}</span>
+          </div>
+        )}
+        {idea.risk != null && (
+          <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full border text-sm font-semibold tabular-nums bg-gray-900 ${riskScale.entries[idea.risk]?.color || 'text-gray-400'} border-gray-700/60`}
+            title={`Risk: ${riskScale.entries[idea.risk]?.description || idea.risk}`}
+          >
+            <RiskIcon className="w-3.5 h-3.5" />
+            <span>{idea.risk}</span>
+          </div>
+        )}
+      </div>
+
       <motion.div
         className={`relative bg-gradient-to-br from-gray-800 to-gray-900 border-2 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden cursor-grab active:cursor-grabbing flex flex-col ${className || ''}`}
         style={{ borderColor }}
@@ -103,53 +131,29 @@ export default function IdeaCard({
         {/* Swipe indicators */}
         <motion.div
           className="absolute top-8 right-8 z-10"
+          role="status"
+          aria-live="polite"
           style={{
             opacity: useTransform(x, [0, 150], [0, 1]),
           }}
         >
-          <div className="px-6 py-3 bg-green-500/20 border-4 border-green-500 rounded-xl rotate-12">
-            <span className="text-2xl font-black text-green-500">ACCEPT</span>
+          <div className="px-6 py-3 bg-green-950/80 border-2 border-green-500 rounded-xl rotate-12">
+            <span className="text-2xl font-black text-green-400">ACCEPT</span>
           </div>
         </motion.div>
 
         <motion.div
           className="absolute top-8 left-8 z-10"
+          role="status"
+          aria-live="polite"
           style={{
             opacity: useTransform(x, [-150, 0], [1, 0]),
           }}
         >
-          <div className="px-6 py-3 bg-red-500/20 border-4 border-red-500 rounded-xl -rotate-12">
-            <span className="text-2xl font-black text-red-500">REJECT</span>
+          <div className="px-6 py-3 bg-red-950/80 border-2 border-red-500 rounded-xl -rotate-12">
+            <span className="text-2xl font-black text-red-400">REJECT</span>
           </div>
         </motion.div>
-
-        {/* Metric badges — pinned to top border inside card */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 z-[5] flex items-center gap-1.5 -translate-y-1/2">
-          {idea.impact != null && (
-            <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-semibold tabular-nums bg-gray-900 ${impactScale.entries[idea.impact]?.color || 'text-gray-400'} border-gray-700/60`}
-              title={`Impact: ${impactScale.entries[idea.impact]?.description || idea.impact}`}
-            >
-              <ImpactIcon className="w-3 h-3" />
-              <span>{idea.impact}</span>
-            </div>
-          )}
-          {idea.effort != null && (
-            <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-semibold tabular-nums bg-gray-900 ${effortScale.entries[idea.effort]?.color || 'text-gray-400'} border-gray-700/60`}
-              title={`Effort: ${effortScale.entries[idea.effort]?.description || idea.effort}`}
-            >
-              <EffortIcon className="w-3 h-3" />
-              <span>{idea.effort}</span>
-            </div>
-          )}
-          {idea.risk != null && (
-            <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-semibold tabular-nums bg-gray-900 ${riskScale.entries[idea.risk]?.color || 'text-gray-400'} border-gray-700/60`}
-              title={`Risk: ${riskScale.entries[idea.risk]?.description || idea.risk}`}
-            >
-              <RiskIcon className="w-3 h-3" />
-              <span>{idea.risk}</span>
-            </div>
-          )}
-        </div>
 
         {/* Card content — scrollable when overflowing */}
         <div ref={scrollRef} className="px-7 pb-6 pt-5 overflow-y-auto flex-1 min-h-0 relative z-[1]">
@@ -185,21 +189,25 @@ export default function IdeaCard({
           )}
 
           {/* Description */}
-          <ExpandableSection
-            label="Description"
-            text={idea.description || 'No description provided'}
-            clampClass="line-clamp-6"
-            textClass="text-base text-gray-200 leading-relaxed"
-          />
+          <div className="mb-6">
+            <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">
+              Description
+            </h4>
+            <p className="text-base text-gray-200 leading-relaxed">
+              {idea.description || 'No description provided'}
+            </p>
+          </div>
 
           {/* Reasoning */}
           {idea.reasoning && (
-            <ExpandableSection
-              label="Reasoning"
-              text={idea.reasoning}
-              clampClass="line-clamp-4"
-              textClass="text-sm text-gray-300 leading-relaxed"
-            />
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                Reasoning
+              </h4>
+              <p className="text-sm text-gray-300 leading-relaxed">
+                {idea.reasoning}
+              </p>
+            </div>
           )}
 
           {/* Footer */}
@@ -226,45 +234,3 @@ export default function IdeaCard({
   );
 }
 
-// ── Expandable Section ───────────────────────────────────────────────────────
-
-function ExpandableSection({
-  label,
-  text,
-  clampClass,
-  textClass,
-}: {
-  label: string;
-  text: string;
-  clampClass: string;
-  textClass: string;
-}) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div className="mb-6">
-      <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">
-        {label}
-      </h4>
-      <div className="relative">
-        <motion.div layout="position" transition={{ duration: 0.25, ease: 'easeInOut' }}>
-          <p className={`${textClass} ${expanded ? '' : clampClass}`}>
-            {text}
-          </p>
-        </motion.div>
-        {!expanded && (
-          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-900 to-transparent pointer-events-none" />
-        )}
-      </div>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setExpanded((v) => !v);
-        }}
-        className="mt-1 text-xs text-cyan-400/80 hover:text-cyan-300 transition-colors"
-      >
-        {expanded ? 'Show less' : 'Read more'}
-      </button>
-    </div>
-  );
-}

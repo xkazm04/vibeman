@@ -1,6 +1,6 @@
 'use client';
 
-import React, { ReactNode, useState } from 'react';
+import React, { ReactNode, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 
 interface TableRowProps {
@@ -16,6 +16,10 @@ interface TableRowProps {
   isRemoving?: boolean;
   /** Custom class name */
   className?: string;
+  /** Accessible label for the row */
+  ariaLabel?: string;
+  /** Callback fired on keyboard shortcut keys when row is focused */
+  onKeyAction?: (key: string) => void;
 }
 
 const highlightStyles: Record<string, string> = {
@@ -43,12 +47,27 @@ export function TableRow({
   highlightColor = 'green',
   isRemoving = false,
   className = '',
+  ariaLabel,
+  onKeyAction,
 }: TableRowProps) {
   const [isHovered, setIsHovered] = useState(false);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick?.();
+    } else if (onKeyAction) {
+      onKeyAction(e.key);
+    }
+  }, [onClick, onKeyAction]);
 
   return (
     <motion.tr
       layout
+      tabIndex={0}
+      role="row"
+      aria-label={ariaLabel}
+      onKeyDown={handleKeyDown}
       initial={{ opacity: 0, x: -20 }}
       animate={{
         opacity: isRemoving ? 0 : 1,
@@ -73,8 +92,9 @@ export function TableRow({
         backgroundColor: { duration: 0.15 },
       }}
       className={`
-        border-b border-gray-800/50
+        group/row border-b border-gray-800/50
         transition-colors cursor-pointer
+        outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-gray-900
         ${highlighted ? highlightStyles[highlightColor] : ''}
         ${className}
       `}

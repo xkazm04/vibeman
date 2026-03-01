@@ -407,3 +407,43 @@ export async function generateStrategicBrief(questionId: string): Promise<{ succ
   }
   return raw as { success: boolean; brief: string };
 }
+
+// ============================================================================
+// Auto-Deepening API
+// ============================================================================
+
+export interface AutoDeepenResponse {
+  success: boolean;
+  deepened: boolean;
+  analysis: {
+    gapScore: number;
+    gapCount: number;
+    summary: string;
+    gaps: {
+      type: string;
+      phrase: string;
+      context: string;
+      confidence: number;
+    }[];
+  };
+  questions: DbQuestion[];
+  parentId?: string;
+  depth?: number;
+  message?: string;
+  alreadyGenerated?: boolean;
+}
+
+/**
+ * Auto-deepen a question by analyzing its answer for gaps and generating
+ * targeted follow-up questions.
+ */
+export async function autoDeepen(questionId: string): Promise<AutoDeepenResponse> {
+  const response = await fetch(`/api/questions/${questionId}/auto-deepen`, {
+    method: 'POST',
+  });
+  const raw = await safeResponseJson(response, '/api/questions/auto-deepen');
+  if (!response.ok) {
+    throw new Error((raw as Record<string, unknown>).error as string || 'Failed to auto-deepen question');
+  }
+  return raw as AutoDeepenResponse;
+}

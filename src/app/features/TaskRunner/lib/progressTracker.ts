@@ -8,6 +8,10 @@
  *   3. Checkpoint detection (rules-based)        → checkpoints view
  *   4. Store-level percentage tracking            → percentage view
  *
+ * Now also exposes structured event data from the TaskOutputSchema:
+ *   5. File change manifest (created/modified/deleted)
+ *   6. Completion status (success/failure from structured events)
+ *
  * Consumers subscribe to the derived views they need rather than
  * maintaining parallel update paths.
  */
@@ -26,6 +30,12 @@ import {
 } from './activityClassifier';
 import type { CheckpointStatus } from './checkpoint.types';
 import { CHECKPOINT_METADATA } from './checkpoint.types';
+import {
+  parseAllProgressLines,
+  buildFileManifest,
+  getCompletion,
+  type TaskOutputEvent,
+} from './taskOutputSchema';
 
 // ============================================================================
 // Unified ProgressState
@@ -38,6 +48,12 @@ export interface ProgressCheckpoint {
   status: CheckpointStatus;
 }
 
+export interface FileManifest {
+  created: string[];
+  modified: string[];
+  deleted: string[];
+}
+
 export interface ProgressState {
   /** Raw progress lines from CLI stdout */
   lines: string[];
@@ -47,6 +63,15 @@ export interface ProgressState {
   checkpoints: ProgressCheckpoint[];
   /** Normalized progress percentage (0-100) */
   percentage: number;
+  /** Structured events from TaskOutputSchema */
+  structuredEvents: TaskOutputEvent[];
+  /** File change manifest derived from structured events */
+  fileManifest: FileManifest;
+  /** Whether a structured completion event was detected */
+  completionDetected?: {
+    success: boolean;
+    message: string;
+  };
 }
 
 // ============================================================================
@@ -145,11 +170,16 @@ const EMPTY_ACTIVITY: TaskActivity = {
   phase: 'idle',
 };
 
+const EMPTY_MANIFEST: FileManifest = { created: [], modified: [], deleted: [] };
+
 /**
  * Process raw progress lines into a unified ProgressState.
  *
  * This is the single entry point replacing four parallel pipelines.
  * Components consume the views they need from the returned state.
+ *
+ * Now also runs the structured parser to produce typed events,
+ * file manifests, and completion detection alongside legacy views.
  *
  * @param lines - Raw CLI stdout progress lines
  * @returns Unified progress state with all derived views
@@ -161,19 +191,32 @@ export function processProgress(lines: string[]): ProgressState {
       activity: EMPTY_ACTIVITY,
       checkpoints: deriveCheckpoints(EMPTY_ACTIVITY),
       percentage: 0,
+      structuredEvents: [],
+      fileManifest: EMPTY_MANIFEST,
     };
   }
 
+  // Legacy pipeline (activity classification via activityClassifier)
   const events: ActivityEvent[] = parseProgressLines(lines);
   const activity = events.length > 0 ? classifyActivity(events) : EMPTY_ACTIVITY;
   const checkpoints = deriveCheckpoints(activity);
   const percentage = estimatePercentage(activity, lines.length);
+
+  // Structured pipeline (typed events via TaskOutputSchema)
+  const structuredEvents = parseAllProgressLines(lines);
+  const fileManifest = buildFileManifest(structuredEvents);
+  const completion = getCompletion(structuredEvents);
 
   return {
     lines,
     activity,
     checkpoints,
     percentage,
+    structuredEvents,
+    fileManifest,
+    completionDetected: completion
+      ? { success: completion.success, message: completion.message }
+      : undefined,
   };
 }
 

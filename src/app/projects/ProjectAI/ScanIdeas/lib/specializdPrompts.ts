@@ -269,14 +269,14 @@ You MUST respond with ONLY a valid JSON array. No markdown, no code blocks, no e
     "title": "Short title (max 60 chars)",
     "description": "Detailed explanation (2-4 sentences)",
     "reasoning": "Why valuable + impact (2-3 sentences)",
-    "effort": 1-3,
-    "impact": 1-3
+    "effort": 1-10,
+    "impact": 1-10
   }
 ]
 
-**Effort and Impact Ratings**:
-- **Effort** (1 = Low/Quick fix, 2 = Medium/1-2 days, 3 = High/Major change)
-- **Impact** (1 = Low/Nice to have, 2 = Medium/Noticeable, 3 = High/Game changer)
+**Effort and Impact Ratings** (1-10 scale):
+- **Effort** (1-2 = Quick fix, 3-4 = Low effort, 5-6 = Moderate, 7-8 = Significant, 9-10 = Major undertaking)
+- **Impact** (1-2 = Nice to have, 3-4 = Minor improvement, 5-6 = Noticeable, 7-8 = Significant value, 9-10 = Game changer)
 
 Generate 6-10 high-quality ideas focused on ${config.focusArea.toLowerCase()}.`;
 }

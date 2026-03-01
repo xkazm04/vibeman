@@ -2,11 +2,12 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileCode, Loader2, CheckCircle2, XCircle, Clock, Edit2, Trash2, RotateCcw } from 'lucide-react';
+import { Edit2, Trash2, RotateCcw } from 'lucide-react';
 
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import { TaskProgress } from './components/TaskProgress';
 import { RequirementViewer } from '@/components/RequirementViewer';
+import { getTheme } from './lib/taskStatusUtils';
 import type { ProjectRequirement } from './lib/types';
 import type { DbIdea } from '@/app/db';
 import ContextMenu from '@/components/ContextMenu';
@@ -123,35 +124,10 @@ const TaskItem = React.memo(function TaskItem({
         },
       ];
 
-  const getStatusIcon = () => {
-    switch (status.type) {
-      case 'running':
-        return <Loader2 className="w-3 h-3 text-blue-400" />;
-      case 'completed':
-        return <CheckCircle2 className="w-3 h-3 text-green-400" />;
-      case 'failed':
-        return <XCircle className="w-3 h-3 text-red-400" />;
-      case 'queued':
-        return <Clock className="w-3 h-3 text-amber-400" />;
-      default:
-        return <FileCode className="w-3 h-3 text-gray-400" />;
-    }
-  };
-
-  const getStatusColor = () => {
-    switch (status.type) {
-      case 'running':
-        return 'border-blue-500/40 bg-blue-500/5';
-      case 'completed':
-        return 'border-green-500/40 bg-green-500/5';
-      case 'failed':
-        return 'border-red-500/40 bg-red-500/5';
-      case 'queued':
-        return 'border-amber-500/40 bg-amber-500/5';
-      default:
-        return 'border-gray-700/30 bg-gray-800/20';
-    }
-  };
+  const theme = getTheme(status.type);
+  const StatusIcon = theme.Icon;
+  const statusColorClass = `${theme.border} ${theme.bg}`;
+  const statusIconSpin = status.type === 'running' ? ' animate-spin' : '';
 
   const isDisabled = status.type === 'running' || status.type === 'queued';
 
@@ -174,7 +150,7 @@ const TaskItem = React.memo(function TaskItem({
         onMouseLeave={() => setShowDeleteHint(false)}
         className={`
           relative rounded-md border transition-all cursor-pointer
-          ${getStatusColor()}
+          ${statusColorClass}
           ${isSelected && !isDisabled ? 'border-emerald-500/50 bg-emerald-500/5' : ''}
           ${isDisabled ? 'cursor-not-allowed opacity-75' : 'hover:border-gray-600/60'}
           px-2.5 py-2 flex items-center justify-between gap-2
@@ -183,7 +159,7 @@ const TaskItem = React.memo(function TaskItem({
       >
         {/* Requirement name and icon */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          {getStatusIcon()}
+          <StatusIcon className={`w-3 h-3 ${theme.text}${statusIconSpin}`} />
           <span className="text-sm text-gray-200 font-mono truncate" title={requirementName}>
             {requirementName}
           </span>

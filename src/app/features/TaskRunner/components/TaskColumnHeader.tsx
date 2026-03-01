@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { CheckSquare, Square, Trash2, XCircle, Layers, RotateCcw } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CheckSquare, Square, Trash2, XCircle, Layers, RotateCcw, MoreHorizontal } from 'lucide-react';
 import type { AggregationCheckResult } from '../lib/ideaAggregator';
 
 interface TaskColumnHeaderProps {
@@ -28,79 +29,6 @@ interface TaskColumnHeaderProps {
   canReset: boolean;
 }
 
-/**
- * Inline delete button with 3-second armed confirmation state.
- * First click arms the button, second click within 3s confirms deletion.
- */
-function InlineDeleteButton({
-  count,
-  onConfirm,
-  projectId,
-}: {
-  count: number;
-  onConfirm: () => void;
-  projectId: string;
-}) {
-  const [armed, setArmed] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const clearTimer = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
-
-  // Auto-disarm after 3 seconds
-  useEffect(() => {
-    if (armed) {
-      timerRef.current = setTimeout(() => setArmed(false), 3000);
-    }
-    return clearTimer;
-  }, [armed, clearTimer]);
-
-  // Disarm if count changes (selection changed)
-  useEffect(() => {
-    setArmed(false);
-  }, [count]);
-
-  const handleClick = useCallback(() => {
-    if (armed) {
-      clearTimer();
-      setArmed(false);
-      onConfirm();
-    } else {
-      setArmed(true);
-    }
-  }, [armed, onConfirm, clearTimer]);
-
-  if (armed) {
-    return (
-      <button
-        onClick={handleClick}
-        className="text-red-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-500/30 border border-red-500/50 transition-colors animate-pulse"
-        title="Click again to confirm deletion"
-        data-testid={`bulk-delete-confirm-btn-${projectId}`}
-      >
-        <Trash2 className="w-3 h-3" />
-        <span>Confirm {count}?</span>
-      </button>
-    );
-  }
-
-  return (
-    <button
-      onClick={handleClick}
-      className="text-red-400 hover:text-red-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-500/10 hover:bg-red-500/20 transition-colors"
-      title={`Delete ${count} selected`}
-      data-testid={`bulk-delete-selected-btn-${projectId}`}
-    >
-      <Trash2 className="w-3 h-3" />
-      <span>{count}</span>
-    </button>
-  );
-}
-
 export default function TaskColumnHeader({
   projectId,
   projectName,
@@ -124,6 +52,36 @@ export default function TaskColumnHeader({
   canBulkDelete,
   canReset,
 }: TaskColumnHeaderProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on click-outside or Escape
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [menuOpen]);
+
+  const hasConstructiveActions = Boolean(aggregationCheck?.canAggregate);
+  const hasCleanupActions =
+    (failedCount > 0 && canReset) ||
+    (queuedCount > 0 && canReset) ||
+    (clearableCount > 0 && canBulkDelete) ||
+    (selectedInColumnCount > 0 && canBulkDelete);
+  const hasMenuItems = hasConstructiveActions || hasCleanupActions;
+
   return (
     <div className="px-3 py-2 bg-gray-800/60 border-b border-gray-700/40">
       <div className="flex items-center justify-between gap-2">
@@ -149,82 +107,121 @@ export default function TaskColumnHeader({
           </h3>
         </div>
 
-        {/* Action buttons: constructive (left) | cleanup (right) */}
-        <div className="flex items-center gap-1 flex-shrink-0">
-          {/* Constructive actions group */}
-          <div className="flex items-center gap-1.5">
-            {aggregationCheck?.canAggregate && (
-              <button
-                onClick={onAggregate}
-                disabled={isAggregating}
-                className="text-violet-400 hover:text-violet-300 text-[11px] flex items-center gap-1 px-2 py-0.5 rounded border border-violet-500/30 bg-violet-500/10 hover:bg-violet-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title={`Aggregate ${aggregationCheck.aggregatableFiles} idea files`}
-                data-testid={`aggregate-btn-${projectId}`}
-              >
-                <Layers className="w-3 h-3" />
-                <span>{aggregationCheck.aggregatableFiles}</span>
-              </button>
-            )}
-
-            {selectedCount > 0 && (
-              <span className="text-[11px] text-emerald-400 font-mono">
-                {selectedCount}/{selectableCount}
-              </span>
-            )}
-            <span className="text-[11px] text-gray-500 font-mono">{requirementsCount}</span>
-          </div>
-
-          {/* Divider between groups */}
-          {(failedCount > 0 || queuedCount > 0 || clearableCount > 0 || (selectedInColumnCount > 0 && canBulkDelete)) && (
-            <div className="w-px h-4 bg-gray-600/50 mx-0.5" />
+        {/* Counts and overflow menu */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {selectedCount > 0 && (
+            <span className="text-[11px] text-emerald-400 font-mono">
+              {selectedCount}/{selectableCount}
+            </span>
           )}
+          <span className="text-[11px] text-gray-500 font-mono">{requirementsCount}</span>
 
-          {/* Cleanup / destructive actions group */}
-          <div className="flex items-center gap-1">
-            {failedCount > 0 && canReset && (
+          {/* Overflow menu trigger */}
+          {hasMenuItems && (
+            <div ref={menuRef} className="relative">
               <button
-                onClick={onResetAllFailed}
-                className="text-gray-400 hover:text-amber-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-gray-500/10 hover:bg-amber-500/15 transition-colors"
-                title={`Reset ${failedCount} failed task${failedCount > 1 ? 's' : ''}`}
-                data-testid={`reset-failed-btn-${projectId}`}
+                onClick={() => setMenuOpen(!menuOpen)}
+                className={`p-1 rounded transition-colors ${menuOpen ? 'bg-gray-700/60 text-gray-200' : 'text-gray-400 hover:text-gray-300 hover:bg-gray-700/30'}`}
+                title="Actions"
+                data-testid={`column-actions-btn-${projectId}`}
               >
-                <RotateCcw className="w-3 h-3" />
-                <span>{failedCount}</span>
+                <MoreHorizontal className="w-4 h-4" />
               </button>
-            )}
 
-            {queuedCount > 0 && canReset && (
-              <button
-                onClick={onResetAllQueued}
-                className="text-gray-400 hover:text-blue-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-gray-500/10 hover:bg-blue-500/15 transition-colors"
-                title={`Reset ${queuedCount} queued task${queuedCount > 1 ? 's' : ''} to open`}
-                data-testid={`reset-queued-btn-${projectId}`}
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>{queuedCount}q</span>
-              </button>
-            )}
+              <AnimatePresence>
+                {menuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute top-full right-0 mt-1 w-52 bg-gray-800 border border-gray-700/60 rounded-lg shadow-xl z-50 py-1 overflow-hidden"
+                  >
+                    {/* Actions section — constructive operations */}
+                    {hasConstructiveActions && (
+                      <>
+                        <div className="px-3 pt-1.5 pb-1 text-[9px] uppercase tracking-wider text-gray-500 font-semibold">
+                          Actions
+                        </div>
+                        {aggregationCheck?.canAggregate && (
+                          <button
+                            onClick={() => { onAggregate(); setMenuOpen(false); }}
+                            disabled={isAggregating}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] font-medium text-violet-400 hover:bg-violet-500/10 border-l-2 border-violet-500/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            data-testid={`aggregate-btn-${projectId}`}
+                          >
+                            <Layers className="w-3.5 h-3.5" />
+                            <span>Aggregate {aggregationCheck.aggregatableFiles} idea files</span>
+                          </button>
+                        )}
+                      </>
+                    )}
 
-            {clearableCount > 0 && canBulkDelete && (
-              <button
-                onClick={onClearCompleted}
-                className="text-gray-400 hover:text-gray-300 text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-gray-500/10 hover:bg-gray-500/20 transition-colors"
-                title="Clear completed and failed tasks"
-                data-testid={`clear-completed-btn-${projectId}`}
-              >
-                <XCircle className="w-3 h-3" />
-                <span>{clearableCount}</span>
-              </button>
-            )}
+                    {/* Divider */}
+                    {hasConstructiveActions && hasCleanupActions && (
+                      <div className="my-1 border-t border-gray-700/40" />
+                    )}
 
-            {selectedInColumnCount > 0 && canBulkDelete && (
-              <InlineDeleteButton
-                count={selectedInColumnCount}
-                onConfirm={onBulkDeleteSelected}
-                projectId={projectId}
-              />
-            )}
-          </div>
+                    {/* Cleanup section — reset & removal operations */}
+                    {hasCleanupActions && (
+                      <>
+                        <div className="px-3 pt-1.5 pb-1 text-[9px] uppercase tracking-wider text-gray-500 font-semibold">
+                          Cleanup
+                        </div>
+
+                        {failedCount > 0 && canReset && (
+                          <button
+                            onClick={() => { onResetAllFailed(); setMenuOpen(false); }}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-400 hover:bg-gray-600/20 hover:text-amber-400 transition-colors"
+                            data-testid={`reset-failed-btn-${projectId}`}
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Reset {failedCount} failed</span>
+                          </button>
+                        )}
+
+                        {queuedCount > 0 && canReset && (
+                          <button
+                            onClick={() => { onResetAllQueued(); setMenuOpen(false); }}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-400 hover:bg-gray-600/20 hover:text-blue-400 transition-colors"
+                            data-testid={`reset-queued-btn-${projectId}`}
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Reset {queuedCount} queued</span>
+                          </button>
+                        )}
+
+                        {clearableCount > 0 && canBulkDelete && (
+                          <button
+                            onClick={() => { onClearCompleted(); setMenuOpen(false); }}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-400 hover:bg-gray-600/20 hover:text-gray-300 transition-colors"
+                            data-testid={`clear-completed-btn-${projectId}`}
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            <span>Clear {clearableCount} completed</span>
+                          </button>
+                        )}
+
+                        {selectedInColumnCount > 0 && canBulkDelete && (
+                          <>
+                            <div className="my-1 border-t border-gray-700/40" />
+                            <button
+                              onClick={() => { onBulkDeleteSelected(); setMenuOpen(false); }}
+                              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-400 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                              data-testid={`bulk-delete-selected-btn-${projectId}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete {selectedInColumnCount} selected</span>
+                            </button>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
         </div>
       </div>
     </div>

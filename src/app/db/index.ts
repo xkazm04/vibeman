@@ -102,6 +102,8 @@ import { groupHealthRepository } from './repositories/group-health.repository';
 import { collectiveMemoryRepository } from './repositories/collective-memory.repository';
 import { agentGoalRepository, agentStepRepository } from './repositories/agent.repository';
 import { insightEffectivenessCacheRepository } from './repositories/insight-effectiveness-cache.repository';
+import { insightInfluenceRepository } from './repositories/insight-influence.repository';
+import { directionPreferenceRepository } from './repositories/direction-preference.repository';
 import { goalSignalRepository, goalSubGoalRepository } from './repositories/goal-lifecycle.repository';
 
 // Export types
@@ -583,6 +585,22 @@ export const brainInsightDb = {
  */
 export const insightEffectivenessCache = {
   ...insightEffectivenessCacheRepository,
+};
+
+/**
+ * Insight Influence Log
+ * Tracks which insights were shown during direction decisions for causal validation
+ */
+export const insightInfluenceDb = {
+  ...insightInfluenceRepository,
+};
+
+/**
+ * Direction Preference Profile Cache
+ * Caches learned approach preferences from historical pair decisions
+ */
+export const directionPreferenceDb = {
+  ...directionPreferenceRepository,
 };
 
 /**

@@ -40,6 +40,11 @@ class TerminalStrategy implements ExecutionStrategy {
       const prompt = task.directPrompt
         || `Execute the requirement file: ${task.requirementName}`;
 
+      // Build extra env vars for MCP bidirectional channel
+      const extraEnv: Record<string, string> = {};
+      if (task.projectId) extraEnv.VIBEMAN_PROJECT_ID = task.projectId;
+      if (task.requirementName) extraEnv.VIBEMAN_TASK_ID = task.requirementName;
+
       const response = await fetch('/api/claude-terminal/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -49,6 +54,7 @@ class TerminalStrategy implements ExecutionStrategy {
           resumeSessionId: options?.resumeSessionId || undefined,
           provider: options?.provider || undefined,
           model: options?.model || undefined,
+          extraEnv: Object.keys(extraEnv).length > 0 ? extraEnv : undefined,
         }),
       });
 

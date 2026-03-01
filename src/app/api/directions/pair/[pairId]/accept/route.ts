@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { directionDb, insightEffectivenessCache } from '@/app/db';
+import { directionDb, insightEffectivenessCache, brainInsightDb, insightInfluenceDb, directionPreferenceDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 import fs from 'fs';
 import path from 'path';
@@ -146,6 +146,26 @@ ${selectedDirection.direction}
 
     // Invalidate effectiveness cache since direction data changed
     try { insightEffectivenessCache.invalidate(selectedDirection.project_id); } catch { /* non-critical */ }
+
+    // Invalidate preference profile cache (pair decision changes preference data)
+    try { directionPreferenceDb.invalidate(selectedDirection.project_id); } catch { /* non-critical */ }
+
+    // Record insight influence for causal validation (both accepted and rejected)
+    try {
+      const activeInsights = brainInsightDb.getForEffectiveness(selectedDirection.project_id);
+      if (activeInsights.length > 0) {
+        const now = new Date().toISOString();
+        const insightBatch = activeInsights.map(i => ({
+          id: i.id,
+          title: i.title,
+          shownAt: i.completed_at || now,
+        }));
+        insightInfluenceDb.recordInfluenceBatch(selectedDirection.project_id, selectedDirection.id, 'accepted', insightBatch);
+        insightInfluenceDb.recordInfluenceBatch(rejectedDirection.project_id, rejectedDirection.id, 'rejected', insightBatch);
+      }
+    } catch {
+      // Influence tracking must never break the main flow
+    }
 
     return NextResponse.json({
       success: true,

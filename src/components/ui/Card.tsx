@@ -2,6 +2,7 @@
 
 import React, { ReactNode, forwardRef } from 'react';
 import { motion, HTMLMotionProps } from 'framer-motion';
+import { GlassCard } from './GlassCard';
 
 export type CardVariant = 'default' | 'outlined' | 'elevated' | 'glass' | 'gradient';
 export type CardPadding = 'none' | 'sm' | 'md' | 'lg';
@@ -15,11 +16,10 @@ interface CardProps extends Omit<HTMLMotionProps<'div'>, 'children'> {
   className?: string;
 }
 
-const variantClasses: Record<CardVariant, string> = {
+const variantClasses: Record<Exclude<CardVariant, 'glass'>, string> = {
   default: 'bg-white/5 border border-white/10',
   outlined: 'bg-transparent border border-white/20',
   elevated: 'bg-gray-900/80 border border-white/10 shadow-lg shadow-black/20',
-  glass: 'bg-white/5 backdrop-blur-md border border-white/10',
   gradient: 'bg-gradient-to-br from-white/10 to-white/5 border border-white/10',
 };
 
@@ -34,6 +34,7 @@ const paddingClasses: Record<CardPadding, string> = {
  * Card - Flexible container component
  *
  * A simple, composable card component with multiple variants.
+ * The `glass` variant delegates to GlassCard for unified glassmorphism styling.
  */
 export const Card = forwardRef<HTMLDivElement, CardProps>(({
   children,
@@ -45,6 +46,22 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(({
   onClick,
   ...props
 }, ref) => {
+  // Glass variant delegates to the unified GlassCard primitive
+  if (variant === 'glass') {
+    return (
+      <GlassCard
+        ref={ref}
+        padding={padding}
+        hover={hover}
+        clickable={clickable}
+        className={className}
+        onClick={onClick}
+      >
+        {children}
+      </GlassCard>
+    );
+  }
+
   const isInteractive = hover || clickable || onClick;
 
   const baseClasses = `

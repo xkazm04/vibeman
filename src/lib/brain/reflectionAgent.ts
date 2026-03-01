@@ -166,38 +166,23 @@ export const reflectionAgent = {
         }
       }
 
-      // Generate ID and attempt atomic create
+      // Atomic create: the UNIQUE partial index on (project_id, scope)
+      // WHERE status IN ('pending', 'running') prevents duplicates at the DB level.
+      // No TOCTOU race — the INSERT fails atomically if one already exists.
       const reflectionId = generateReflectionId();
+      const result = brainReflectionDb.createIfNotActive({
+        id: reflectionId,
+        project_id: projectId,
+        trigger_type: triggerType,
+        scope: 'project',
+      });
 
-      // Check-and-create atomically: if another reflection is already running,
-      // the getRunning check right before create minimizes the race window
-      const running = brainReflectionDb.getRunning(projectId);
-      if (running) {
+      if (!result.created) {
         return {
           success: false,
           error: 'Reflection already running',
-          reflectionId: running.id,
+          reflectionId: result.reflection.id,
         };
-      }
-
-      try {
-        brainReflectionDb.create({
-          id: reflectionId,
-          project_id: projectId,
-          trigger_type: triggerType,
-          scope: 'project',
-        });
-      } catch (createError) {
-        // Double-check: another reflection may have started between our check and create
-        const nowRunning = brainReflectionDb.getRunning(projectId);
-        if (nowRunning) {
-          return {
-            success: false,
-            error: 'Reflection already running (concurrent start detected)',
-            reflectionId: nowRunning.id,
-          };
-        }
-        throw createError;
       }
 
       // Gather data for analysis (async - includes git history)
@@ -312,38 +297,23 @@ export const reflectionAgent = {
     error?: string;
   }> => {
     try {
-      // Generate ID and attempt atomic create
+      // Atomic create: the UNIQUE partial index on (project_id, scope)
+      // WHERE status IN ('pending', 'running') prevents duplicates at the DB level.
+      // No TOCTOU race — the INSERT fails atomically if one already exists.
       const reflectionId = generateReflectionId();
+      const result = brainReflectionDb.createIfNotActive({
+        id: reflectionId,
+        project_id: '__global__',
+        trigger_type: 'manual',
+        scope: 'global',
+      });
 
-      // Check-and-create atomically: if another reflection is already running,
-      // the getRunning check right before create minimizes the race window
-      const running = brainReflectionDb.getRunningGlobal();
-      if (running) {
+      if (!result.created) {
         return {
           success: false,
           error: 'Global reflection already running',
-          reflectionId: running.id,
+          reflectionId: result.reflection.id,
         };
-      }
-
-      try {
-        brainReflectionDb.create({
-          id: reflectionId,
-          project_id: '__global__',
-          trigger_type: 'manual',
-          scope: 'global',
-        });
-      } catch (createError) {
-        // Double-check: another reflection may have started between our check and create
-        const nowRunning = brainReflectionDb.getRunningGlobal();
-        if (nowRunning) {
-          return {
-            success: false,
-            error: 'Global reflection already running (concurrent start detected)',
-            reflectionId: nowRunning.id,
-          };
-        }
-        throw createError;
       }
 
       // Gather cross-project data

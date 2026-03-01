@@ -7,6 +7,9 @@
 export {
   getStatusIcon,
   getStatusColor,
+  getTheme,
+  STATUS_THEME,
   type TaskStatusType,
   type RunningTheme,
+  type StatusThemeEntry,
 } from '@/components/ui/taskStatusUtils';

@@ -171,8 +171,11 @@ export async function executeRequirement(
         }
 
         // Prepare environment - remove ANTHROPIC_API_KEY to force web auth usage
+        // Inject VIBEMAN env vars for MCP bidirectional channel
         const env = { ...process.env };
         delete env.ANTHROPIC_API_KEY; // Remove API key to use web subscription auth
+        if (projectId) env.VIBEMAN_PROJECT_ID = projectId;
+        env.VIBEMAN_TASK_ID = requirementName;
 
         const spawnStartTime = Date.now();
 

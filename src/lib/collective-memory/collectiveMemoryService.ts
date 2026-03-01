@@ -98,38 +98,70 @@ export function recordTaskLearning(params: {
 }
 
 /**
+ * Minimum effectiveness score for a memory to be injected into prompts.
+ * Memories below this threshold are considered unproven or unreliable.
+ * 0.5 is the initial score — only memories with at least one success are injected.
+ */
+const MIN_INJECTION_SCORE = 0.55;
+
+/**
  * Get relevant knowledge for an upcoming task.
  * Matches based on requirement name, file patterns, and tags.
+ * Only returns memories with proven effectiveness (score >= MIN_INJECTION_SCORE).
  */
 export function getRelevantKnowledge(params: {
   projectId: string;
   requirementName: string;
+  requirementContent?: string;
   filePatterns?: string[];
   limit?: number;
 }): DbCollectiveMemoryEntry[] {
-  const { projectId, requirementName, filePatterns = [], limit = 5 } = params;
+  const { projectId, requirementName, requirementContent, limit = 5 } = params;
+  let { filePatterns = [] } = params;
+
+  // Extract file patterns from requirement content if none provided
+  if (filePatterns.length === 0 && requirementContent) {
+    filePatterns = extractFilePatternsFromContent(requirementContent);
+  }
 
   // Strategy 1: Search by requirement name keywords
   const keywords = extractKeywords(requirementName);
   const results: Map<string, DbCollectiveMemoryEntry> = new Map();
 
   for (const keyword of keywords.slice(0, 3)) {
-    const matches = collectiveMemoryDb.search(projectId, keyword, limit);
+    const matches = collectiveMemoryDb.search(projectId, keyword, limit * 2);
     for (const m of matches) {
-      if (!results.has(m.id)) results.set(m.id, m);
+      if (m.effectiveness_score >= MIN_INJECTION_SCORE && !results.has(m.id)) {
+        results.set(m.id, m);
+      }
     }
   }
 
-  // Strategy 2: Match by file patterns
+  // Strategy 2: Search by keywords extracted from requirement content
+  if (requirementContent) {
+    const contentKeywords = extractKeywords(requirementContent).filter(k => !keywords.includes(k));
+    for (const keyword of contentKeywords.slice(0, 3)) {
+      const matches = collectiveMemoryDb.search(projectId, keyword, limit);
+      for (const m of matches) {
+        if (m.effectiveness_score >= MIN_INJECTION_SCORE && !results.has(m.id)) {
+          results.set(m.id, m);
+        }
+      }
+    }
+  }
+
+  // Strategy 3: Match by file patterns
   if (filePatterns.length > 0) {
     const tags = extractKeywords(requirementName);
     const similar = collectiveMemoryDb.findSimilar(projectId, filePatterns, tags, limit);
     for (const m of similar) {
-      if (!results.has(m.id)) results.set(m.id, m);
+      if (m.effectiveness_score >= MIN_INJECTION_SCORE && !results.has(m.id)) {
+        results.set(m.id, m);
+      }
     }
   }
 
-  // Strategy 3: Add top effective patterns as fallback
+  // Strategy 4: Add top effective patterns as fallback
   if (results.size < limit) {
     const topEffective = collectiveMemoryDb.getTopEffective(projectId, limit - results.size);
     for (const m of topEffective) {
@@ -145,24 +177,52 @@ export function getRelevantKnowledge(params: {
 
 /**
  * Format relevant knowledge for injection into task execution prompts.
- * Token-conscious: aims for ~200 tokens max.
+ * Categorizes memories into warnings, patterns, and approaches for clarity.
+ * Token-conscious: aims for ~300 tokens max.
  */
 export function formatKnowledgeForPrompt(memories: DbCollectiveMemoryEntry[]): string {
   if (memories.length === 0) return '';
 
-  const items = memories.slice(0, 5).map(m => {
-    const score = Math.round(m.effectiveness_score * 100);
-    const typeEmoji = {
-      pattern: 'P',
-      error_fix: 'F',
-      approach: 'A',
-      optimization: 'O',
-      conflict_resolution: 'C',
-    }[m.memory_type] || '?';
-    return `- [${typeEmoji}|${score}%] **${m.title}**: ${m.description.slice(0, 120)}`;
-  }).join('\n');
+  // Categorize memories by type for structured injection
+  const warnings: DbCollectiveMemoryEntry[] = [];
+  const patterns: DbCollectiveMemoryEntry[] = [];
+  const approaches: DbCollectiveMemoryEntry[] = [];
 
-  return `\n## Collective Memory (Learned Patterns)\n\nPrevious sessions have learned these relevant patterns:\n\n${items}\n\nApply these learnings where relevant.\n`;
+  for (const m of memories.slice(0, 7)) {
+    if (m.memory_type === 'error_fix' || m.memory_type === 'conflict_resolution') {
+      warnings.push(m);
+    } else if (m.memory_type === 'pattern' || m.memory_type === 'optimization') {
+      patterns.push(m);
+    } else {
+      approaches.push(m);
+    }
+  }
+
+  const sections: string[] = [];
+
+  if (warnings.length > 0) {
+    const items = warnings.map(m => formatMemoryItem(m)).join('\n');
+    sections.push(`**Warnings & Known Issues** (avoid these pitfalls):\n${items}`);
+  }
+
+  if (patterns.length > 0) {
+    const items = patterns.map(m => formatMemoryItem(m)).join('\n');
+    sections.push(`**Proven Patterns** (use these approaches):\n${items}`);
+  }
+
+  if (approaches.length > 0) {
+    const items = approaches.map(m => formatMemoryItem(m)).join('\n');
+    sections.push(`**Successful Approaches**:\n${items}`);
+  }
+
+  return `\n## Lessons Learned (Active Memory)\n\nThe following insights were learned from previous task executions in this project (${memories.length} relevant memories, sorted by effectiveness):\n\n${sections.join('\n\n')}\n\nApply these learnings proactively. Avoid repeating past mistakes.\n`;
+}
+
+function formatMemoryItem(m: DbCollectiveMemoryEntry): string {
+  const score = Math.round(m.effectiveness_score * 100);
+  const applied = m.success_count + m.failure_count;
+  const desc = m.description.length > 150 ? m.description.slice(0, 147) + '...' : m.description;
+  return `- [${score}% effective, ${applied} applications] **${m.title}**: ${desc}`;
 }
 
 /**
@@ -253,6 +313,33 @@ function extractKeywords(text: string): string[] {
     .split(/\s+/)
     .filter(w => w.length > 3)
     .map(w => w.toLowerCase())
-    .filter(w => !['with', 'from', 'this', 'that', 'implementation', 'requirement'].includes(w))
-    .slice(0, 5);
+    .filter(w => !['with', 'from', 'this', 'that', 'implementation', 'requirement', 'should', 'would', 'could', 'have', 'been', 'will', 'when', 'then', 'also', 'make', 'like', 'using', 'used'].includes(w))
+    .slice(0, 8);
+}
+
+/**
+ * Extract file path patterns from requirement/content text.
+ * Scans for paths like `src/app/features/TaskRunner/lib/foo.ts` or `components/Button.tsx`
+ * and extracts directory patterns for memory matching.
+ */
+function extractFilePatternsFromContent(content: string): string[] {
+  const patterns = new Set<string>();
+
+  // Match file paths referenced in the content (backtick-quoted or plain)
+  const filePathRegex = /(?:`|'|"|^|\s)((?:src|app|lib|components|features|pages|api|hooks|stores|utils)\/[\w/.-]+\.(?:ts|tsx|js|jsx|css|json))/gm;
+  let match: RegExpExecArray | null;
+  while ((match = filePathRegex.exec(content)) !== null) {
+    const filePath = match[1].replace(/\\/g, '/');
+    // Extract directory pattern
+    const dir = filePath.split('/').slice(0, -1).join('/');
+    if (dir) patterns.add(dir);
+  }
+
+  // Match component/feature names like "TaskRunner", "BrainLayout" etc.
+  const componentRegex = /\b([A-Z][a-z]+(?:[A-Z][a-z]+)+)\b/g;
+  while ((match = componentRegex.exec(content)) !== null) {
+    patterns.add(match[1]);
+  }
+
+  return Array.from(patterns).slice(0, 10);
 }

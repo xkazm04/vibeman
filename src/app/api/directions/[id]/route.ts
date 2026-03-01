@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { directionDb } from '@/app/db';
+import { directionDb, brainInsightDb, insightInfluenceDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
 import { signalCollector } from '@/lib/brain/signalCollector';
@@ -93,6 +93,26 @@ async function handlePut(
         });
       } catch {
         // Signal recording must never break the main flow
+      }
+
+      // Record insight influence for causal validation (rejection is data too)
+      try {
+        const activeInsights = brainInsightDb.getForEffectiveness(existingDirection.project_id);
+        if (activeInsights.length > 0) {
+          const now = new Date().toISOString();
+          insightInfluenceDb.recordInfluenceBatch(
+            existingDirection.project_id,
+            id,
+            'rejected',
+            activeInsights.map(i => ({
+              id: i.id,
+              title: i.title,
+              shownAt: i.completed_at || now,
+            }))
+          );
+        }
+      } catch {
+        // Influence tracking must never break the main flow
       }
 
       return NextResponse.json({

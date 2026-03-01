@@ -1,0 +1,1 @@
+{"version":3,"file":"progress.d.ts","sourceRoot":"","sources":["../../../src/mcp-server/tools/progress.ts"],"names":[],"mappings":"AAAA;;;;;;;;GAQG;AAGH,OAAO,EAAE,SAAS,EAAE,MAAM,yCAAyC,CAAC;AACpE,OAAO,EAAE,iBAAiB,EAAE,MAAM,mBAAmB,CAAC;AACtD,OAAO,EAAE,SAAS,EAAE,MAAM,cAAc,CAAC;AAQzC,wBAAgB,oBAAoB,CAClC,MAAM,EAAE,SAAS,EACjB,MAAM,EAAE,SAAS,EACjB,MAAM,EAAE,iBAAiB,QA2F1B"}

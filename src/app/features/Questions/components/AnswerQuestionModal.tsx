@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HelpCircle, X, Loader2, Save, Pencil } from 'lucide-react';
 import { DbQuestion } from '@/app/db';
@@ -22,26 +22,34 @@ export default function AnswerQuestionModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const needsFocusRef = useRef(false);
 
-  const autoResize = useCallback(() => {
+  const autoResize = () => {
     const ta = textareaRef.current;
     if (!ta) return;
-    ta.style.height = 'auto';
-    ta.style.height = ta.scrollHeight + 'px';
-  }, []);
+    // Use scrollHeight but avoid the collapse-then-expand flicker
+    // by setting minHeight first so height never shrinks below content
+    const minHeight = 72; // ~3 rows
+    ta.style.height = minHeight + 'px';
+    ta.style.height = Math.max(minHeight, ta.scrollHeight) + 'px';
+  };
 
   // Reset state when modal opens with new question
   useEffect(() => {
     if (isOpen && question) {
       setAnswer(question.answer || '');
       setError(null);
-      // Focus textarea and auto-resize after modal animation
-      setTimeout(() => {
-        textareaRef.current?.focus();
-        autoResize();
-      }, 100);
+      needsFocusRef.current = true;
     }
-  }, [isOpen, question?.id, autoResize]);
+  }, [isOpen, question?.id]);
+
+  const handleAnimationComplete = () => {
+    if (needsFocusRef.current) {
+      needsFocusRef.current = false;
+      textareaRef.current?.focus();
+      autoResize();
+    }
+  };
 
   const handleSave = async () => {
     if (!question || !answer.trim()) return;
@@ -95,6 +103,7 @@ export default function AnswerQuestionModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2 }}
+            onAnimationComplete={handleAnimationComplete}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
           >
             <div
@@ -166,8 +175,8 @@ export default function AnswerQuestionModal({
                     onKeyDown={handleKeyDown}
                     placeholder="Enter your answer..."
                     rows={3}
-                    className="w-full bg-gray-800/50 border border-gray-700/50 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 resize-none overflow-y-auto"
-                    style={{ maxHeight: '60vh' }}
+                    className="w-full bg-gray-800/50 border border-gray-700/50 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 resize-none overflow-y-auto transition-[height] duration-150 ease-out"
+                    style={{ maxHeight: '60vh', minHeight: 72, fieldSizing: 'content' } as React.CSSProperties}
                     disabled={saving}
                   />
                   <div className="flex items-center justify-between mt-1.5">

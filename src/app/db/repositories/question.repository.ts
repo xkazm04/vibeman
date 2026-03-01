@@ -96,13 +96,14 @@ export const questionRepository = {
     goal_id?: string | null;
     parent_id?: string | null;
     tree_depth?: number;
+    auto_deepened?: number;
   }): DbQuestion => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
 
     const stmt = db.prepare(`
-      INSERT INTO questions (id, project_id, context_map_id, context_map_title, goal_id, question, answer, status, parent_id, tree_depth, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO questions (id, project_id, context_map_id, context_map_title, goal_id, question, answer, status, parent_id, tree_depth, auto_deepened, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -116,6 +117,7 @@ export const questionRepository = {
       question.status || 'pending',
       question.parent_id || null,
       question.tree_depth ?? 0,
+      question.auto_deepened ?? 0,
       now,
       now
     );
@@ -133,6 +135,8 @@ export const questionRepository = {
     question?: string;
     context_map_title?: string;
     strategic_brief?: string | null;
+    gap_score?: number | null;
+    gap_analysis?: string | null;
   }): DbQuestion | null => {
     const db = getDatabase();
     const { fields, values } = buildUpdateQuery(updates);

@@ -40,9 +40,9 @@ export interface EffortCalibration {
   avgPredictedEffort: number;
   /** Average days from acceptance to implementation */
   avgDaysToImplement: number;
-  /** Ideas where predicted effort was 1 (low on 1-3 scale) but took >3 days */
+  /** Ideas where predicted effort was low (1-3 on 1-10 scale) but took >3 days */
   underestimated: number;
-  /** Ideas where predicted effort was 3 (high on 1-3 scale) but took <=1 day */
+  /** Ideas where predicted effort was high (8-10 on 1-10 scale) but took <=1 day */
   overestimated: number;
   /** Total ideas with both effort scores and implementation timestamps */
   sampleSize: number;
@@ -261,10 +261,10 @@ function calculateEffortCalibration(
     totalEffort += row.effort;
     totalDays += daysToImplement;
 
-    // Low predicted effort (1 on 1-3 scale) but took long → underestimated
-    if (row.effort === 1 && daysToImplement > 3) underestimated++;
-    // High predicted effort (3 on 1-3 scale) but done quickly → overestimated
-    if (row.effort === 3 && daysToImplement <= 1) overestimated++;
+    // Low predicted effort (1-3 on 1-10 scale) but took long → underestimated
+    if (row.effort <= 3 && daysToImplement > 3) underestimated++;
+    // High predicted effort (8-10 on 1-10 scale) but done quickly → overestimated
+    if (row.effort >= 8 && daysToImplement <= 1) overestimated++;
   }
 
   return {

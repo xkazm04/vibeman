@@ -110,7 +110,9 @@ async function handlePost(request: NextRequest) {
       problem_statement,
       // Effort/impact scoring
       effort,
-      impact
+      impact,
+      // Hypothesis assertions
+      hypothesis_assertions
     } = body;
 
     // Validate required fields
@@ -161,6 +163,12 @@ async function handlePost(request: NextRequest) {
       // Effort/impact scoring
       effort: typeof effort === 'number' ? Math.max(1, Math.min(10, effort)) : null,
       impact: typeof impact === 'number' ? Math.max(1, Math.min(10, impact)) : null,
+      // Hypothesis assertions (stored as JSON string)
+      hypothesis_assertions: typeof hypothesis_assertions === 'string'
+        ? hypothesis_assertions
+        : Array.isArray(hypothesis_assertions)
+          ? JSON.stringify(hypothesis_assertions)
+          : null,
     });
 
     logger.info('[API] Direction created:', {

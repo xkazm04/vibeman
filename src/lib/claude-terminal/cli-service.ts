@@ -208,13 +208,14 @@ function buildSpawnConfig(
   }
 
   if (provider === 'ollama') {
-    // Ollama supports Anthropic Messages API at /v1/messages.
+    // Ollama v0.14+ supports Anthropic Messages API at /v1/messages.
     // Claude CLI sends to ANTHROPIC_BASE_URL + '/v1/messages', so we point
-    // the base URL at Ollama's root. Auth uses Ollama's SSH keypair
-    // (run `ollama login` or visit the signin URL if cloud models fail).
-    // OLLAMA_API_KEY is passed as a fallback for API key auth setups.
+    // the base URL at Ollama's root.
+    // Per Ollama docs, ANTHROPIC_API_KEY must be empty and ANTHROPIC_AUTH_TOKEN
+    // must be 'ollama' — these are required by Claude CLI but ignored by Ollama.
+    // For cloud models (e.g. qwen3.5:cloud), run `ollama signin` first so the
+    // local server can proxy requests to ollama.com.
     const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-    const ollamaApiKey = process.env.OLLAMA_API_KEY || 'ollama';
 
     const args = [
       '-p', '-', // Read from stdin
@@ -227,7 +228,8 @@ function buildSpawnConfig(
 
     const env = { ...process.env };
     env.ANTHROPIC_BASE_URL = ollamaBaseUrl;
-    env.ANTHROPIC_API_KEY = ollamaApiKey;
+    env.ANTHROPIC_API_KEY = '';
+    env.ANTHROPIC_AUTH_TOKEN = 'ollama';
     return { command: 'claude', args, env, stdinPrompt: true };
   }
 
@@ -315,7 +317,8 @@ export function startExecution(
   prompt: string,
   resumeSessionId?: string,
   onEvent?: (event: CLIExecutionEvent) => void,
-  providerConfig?: CLIProviderConfig
+  providerConfig?: CLIProviderConfig,
+  extraEnv?: Record<string, string>
 ): string {
   const provider = providerConfig?.provider || 'claude';
   const executionId = `exec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -382,6 +385,11 @@ export function startExecution(
   // On Windows, shell resolves both .exe and .cmd installs automatically
   const isWindows = process.platform === 'win32';
   const spawnConfig = buildSpawnConfig(prompt, resumeSessionId, providerConfig);
+
+  // Merge extra env vars (e.g., VIBEMAN_PROJECT_ID, VIBEMAN_TASK_ID for MCP bidirectional channel)
+  if (extraEnv) {
+    Object.assign(spawnConfig.env, extraEnv);
+  }
 
   try {
     const childProcess = spawn(spawnConfig.command, spawnConfig.args, {

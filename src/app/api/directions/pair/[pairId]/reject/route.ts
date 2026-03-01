@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { directionDb } from '@/app/db';
+import { directionDb, brainInsightDb, insightInfluenceDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 
 export async function POST(
@@ -25,6 +25,31 @@ export async function POST(
     }
 
     logger.info('[API] Direction pair rejected:', { pairId, rejectedCount });
+
+    // Record insight influence for causal validation
+    try {
+      const pair = directionDb.getDirectionPair(pairId);
+      const projectId = pair.directionA?.project_id || pair.directionB?.project_id;
+      if (projectId) {
+        const activeInsights = brainInsightDb.getForEffectiveness(projectId);
+        if (activeInsights.length > 0) {
+          const now = new Date().toISOString();
+          const insightBatch = activeInsights.map(i => ({
+            id: i.id,
+            title: i.title,
+            shownAt: i.completed_at || now,
+          }));
+          if (pair.directionA) {
+            insightInfluenceDb.recordInfluenceBatch(projectId, pair.directionA.id, 'rejected', insightBatch);
+          }
+          if (pair.directionB) {
+            insightInfluenceDb.recordInfluenceBatch(projectId, pair.directionB.id, 'rejected', insightBatch);
+          }
+        }
+      }
+    } catch {
+      // Influence tracking must never break the main flow
+    }
 
     return NextResponse.json({
       success: true,

@@ -16,9 +16,10 @@ import path from 'path';
 import { ContextMapEntry } from '../../context-map/route';
 import { getBrainContext, formatBrainForDirections, getObservabilityContext, formatObservabilityForBrain } from '@/lib/brain/brainContext';
 import { getBehavioralContext, formatBehavioralForPrompt } from '@/lib/brain/behavioralContext';
+import { computePreferenceProfile, formatPreferenceForPrompt } from '@/lib/directions/preferenceEngine';
 import { withObservability } from '@/lib/observability/middleware';
 import { aiOrchestrator } from '@/lib/ai/aiOrchestrator';
-import { contextDb, contextGroupDb } from '@/app/db';
+import { contextDb, contextGroupDb, directionPreferenceDb } from '@/app/db';
 import type { DbContext, DbContextGroup } from '@/app/db';
 
 interface AnsweredQuestion {
@@ -280,6 +281,9 @@ This allows users to compare approaches and pick the best one for their situatio
    - **Files to Create/Modify**: Specific paths
    - **Success Criteria**: How do we know when it's done?
    - **Potential Challenges**: What might be tricky?
+3. **Hypothesis assertions** (JSON array of measurable checks): Machine-verifiable assertions derived from the success criteria. After implementation, these are auto-checked against the git diff outcome.
+   Each assertion has: \`description\` (human label), \`metric\` (one of: lines_added, lines_removed, files_changed, execution_success, was_reverted, file_touched), \`operator\` (<, <=, >, >=, ==, !=, contains), \`expected\` (number, boolean, or string).
+   Example: \`[{"description":"Creates fewer than 10 new files","metric":"files_changed","operator":"<","expected":10},{"description":"Implementation succeeds","metric":"execution_success","operator":"==","expected":true},{"description":"Not reverted","metric":"was_reverted","operator":"==","expected":false}]\`
 
 ### Step 4: Save Direction Pairs to Database
 
@@ -300,6 +304,7 @@ curl -X POST ${apiUrl}/api/directions \\
     "context_map_title": "<context_title>",
     "summary": "<Variant A: approach title>",
     "direction": "<full markdown content with all sections>",
+    "hypothesis_assertions": "<JSON array of measurable assertions from success criteria>",
     "pair_id": "<unique_pair_id>",
     "pair_label": "A",
     "problem_statement": "<the problem both variants solve>"
@@ -319,6 +324,7 @@ curl -X POST ${apiUrl}/api/directions \\
     "context_map_title": "<context_title>",
     "summary": "<Variant B: alternative approach title>",
     "direction": "<full markdown content with all sections>",
+    "hypothesis_assertions": "<JSON array of measurable assertions from success criteria>",
     "pair_id": "<same_unique_pair_id>",
     "pair_label": "B",
     "problem_statement": "<the problem both variants solve>"
@@ -514,7 +520,8 @@ curl -X POST ${apiUrl}/api/directions \\
     "context_map_id": "cross-cutting",
     "context_map_title": "Cross-Cutting Initiative",
     "summary": "<compelling one-liner summary>",
-    "direction": "<full markdown content with all sections>"
+    "direction": "<full markdown content with all sections>",
+    "hypothesis_assertions": "<JSON array of measurable assertions from success criteria>"
   }'
 \`\`\`
 
@@ -530,6 +537,7 @@ Each direction should include:
    - **Approach**: High-level implementation strategy
    - **Success Criteria**: How do we know it's done?
    - **Key Risks**: What could go wrong?
+3. **Hypothesis assertions** (JSON array): Machine-verifiable assertions from the success criteria. Each has \`description\`, \`metric\` (lines_added, lines_removed, files_changed, execution_success, was_reverted, file_touched), \`operator\` (<, <=, >, >=, ==, !=, contains), \`expected\` (number/boolean/string).
 
 ## Quality Guidelines
 
@@ -657,8 +665,45 @@ async function handlePost(request: NextRequest) {
     // Load architectural context graph (full project awareness)
     const architectureSection = aiOrchestrator.getProjectArchitectureSection(projectId);
 
-    // Combine brain, observability, behavioral, and architectural context
-    const combinedContext = brainContext + obsSection + behavioralSection + architectureSection;
+    // Load user preference profile from pair decision history
+    let preferenceSection = '';
+    try {
+      const cached = directionPreferenceDb.get(projectId);
+      let profile;
+      if (cached) {
+        profile = {
+          projectId,
+          vector: JSON.parse(cached.vector_json),
+          sampleCount: cached.sample_count,
+          axisCounts: JSON.parse(cached.axis_counts_json),
+          stability: cached.stability,
+          computedAt: cached.computed_at,
+        };
+      } else {
+        profile = computePreferenceProfile(projectId);
+        if (profile.sampleCount > 0) {
+          directionPreferenceDb.set(
+            projectId,
+            JSON.stringify(profile.vector),
+            profile.sampleCount,
+            JSON.stringify(profile.axisCounts),
+            profile.stability
+          );
+        }
+      }
+      preferenceSection = formatPreferenceForPrompt(profile);
+      if (preferenceSection) {
+        logger.info('[API] Preference profile loaded for direction generation', {
+          sampleCount: profile.sampleCount,
+          stability: profile.stability,
+        });
+      }
+    } catch {
+      // Preference loading is non-critical
+    }
+
+    // Combine brain, observability, behavioral, architectural, and preference context
+    const combinedContext = brainContext + obsSection + behavioralSection + architectureSection + preferenceSection;
 
     // Build requirement content - use brainstorm builder for holistic mode
     const requirementContent = brainstormAll
@@ -732,6 +777,7 @@ async function handlePost(request: NextRequest) {
       expectedDirections: brainstormAll ? directionsPerContext : unifiedContexts.length * directionsPerContext,
       brainContextUsed: brain.exists,
       observabilityContextUsed: obsContext.hasData,
+      preferenceContextUsed: !!preferenceSection,
       brainstormAll,
       usedSqliteContexts: !!selectedContextIds && selectedContextIds.length > 0
     });

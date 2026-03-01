@@ -314,6 +314,8 @@ export const directionRepository = {
     // Effort/impact scoring
     effort?: number | null;
     impact?: number | null;
+    // Hypothesis assertions (JSON string)
+    hypothesis_assertions?: string | null;
   }): DbDirection => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
@@ -322,10 +324,10 @@ export const directionRepository = {
       INSERT INTO directions (
         id, project_id, context_map_id, context_map_title, direction, summary, status,
         requirement_id, requirement_path, context_id, context_name, context_group_id,
-        pair_id, pair_label, problem_statement, effort, impact,
+        pair_id, pair_label, problem_statement, effort, impact, hypothesis_assertions,
         created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -346,6 +348,7 @@ export const directionRepository = {
       direction.problem_statement || null,
       direction.effort ?? null,
       direction.impact ?? null,
+      direction.hypothesis_assertions || null,
       now,
       now
     );
@@ -371,6 +374,8 @@ export const directionRepository = {
     // Effort/impact scoring
     effort?: number | null;
     impact?: number | null;
+    // Hypothesis assertions (JSON string)
+    hypothesis_assertions?: string | null;
   }): DbDirection | null => {
     const db = getDatabase();
     const { fields, values } = buildUpdateQuery(updates);

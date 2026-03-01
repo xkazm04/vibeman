@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, KeyboardEvent } from 'react';
 import { Bot, Bell, BellOff, Trash2, Volume2, VolumeX, FlaskConical, Ear, Zap } from 'lucide-react';
 import { useChatStore } from '@/stores/annette/chatStore';
 import { useAnnetteNotificationStore } from '@/stores/annette/notificationStore';
@@ -33,6 +33,31 @@ export default function CommanderLayout() {
   const companionIsActive = useVoiceCompanionStore((s) => s.isActive);
   const companionEngineState = useVoiceCompanionStore((s) => s.engineState);
   const [activeTab, setActiveTab] = useState<Tab>('annette');
+  const tabListRef = useRef<HTMLDivElement>(null);
+
+  const TABS: Tab[] = ['annette', 'voicelab', 'companion', 'autonomous'];
+
+  const handleTabKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
+    const currentIndex = TABS.indexOf(activeTab);
+    let nextIndex: number | null = null;
+
+    if (e.key === 'ArrowRight') {
+      nextIndex = (currentIndex + 1) % TABS.length;
+    } else if (e.key === 'ArrowLeft') {
+      nextIndex = (currentIndex - 1 + TABS.length) % TABS.length;
+    } else if (e.key === 'Home') {
+      nextIndex = 0;
+    } else if (e.key === 'End') {
+      nextIndex = TABS.length - 1;
+    }
+
+    if (nextIndex !== null) {
+      e.preventDefault();
+      setActiveTab(TABS[nextIndex]);
+      const buttons = tabListRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+      buttons?.[nextIndex]?.focus();
+    }
+  }, [activeTab]);
 
   // Initialize session when project changes
   useEffect(() => {
@@ -104,8 +129,19 @@ export default function CommanderLayout() {
         </div>
 
         {/* Tab bar */}
-        <div className="flex items-center gap-0.5 px-4 pt-1.5 pb-0 border-b border-slate-800/50">
+        <div
+          ref={tabListRef}
+          role="tablist"
+          aria-label="Commander panels"
+          onKeyDown={handleTabKeyDown}
+          className="flex items-center gap-0.5 px-4 pt-1.5 pb-0 border-b border-slate-800/50"
+        >
           <button
+            role="tab"
+            id="tab-annette"
+            aria-selected={activeTab === 'annette'}
+            aria-controls="tabpanel-annette"
+            tabIndex={activeTab === 'annette' ? 0 : -1}
             onClick={() => setActiveTab('annette')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-medium transition-colors ${
               activeTab === 'annette'
@@ -117,6 +153,11 @@ export default function CommanderLayout() {
             Annette
           </button>
           <button
+            role="tab"
+            id="tab-voicelab"
+            aria-selected={activeTab === 'voicelab'}
+            aria-controls="tabpanel-voicelab"
+            tabIndex={activeTab === 'voicelab' ? 0 : -1}
             onClick={() => setActiveTab('voicelab')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-medium transition-colors ${
               activeTab === 'voicelab'
@@ -128,6 +169,11 @@ export default function CommanderLayout() {
             Voice Lab
           </button>
           <button
+            role="tab"
+            id="tab-companion"
+            aria-selected={activeTab === 'companion'}
+            aria-controls="tabpanel-companion"
+            tabIndex={activeTab === 'companion' ? 0 : -1}
             onClick={() => setActiveTab('companion')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-medium transition-colors ${
               activeTab === 'companion'
@@ -149,6 +195,11 @@ export default function CommanderLayout() {
             )}
           </button>
           <button
+            role="tab"
+            id="tab-autonomous"
+            aria-selected={activeTab === 'autonomous'}
+            aria-controls="tabpanel-autonomous"
+            tabIndex={activeTab === 'autonomous' ? 0 : -1}
             onClick={() => setActiveTab('autonomous')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-medium transition-colors ${
               activeTab === 'autonomous'
@@ -162,7 +213,12 @@ export default function CommanderLayout() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-hidden">
+        <div
+          role="tabpanel"
+          id={`tabpanel-${activeTab}`}
+          aria-labelledby={`tab-${activeTab}`}
+          className="flex-1 overflow-hidden"
+        >
           {activeTab === 'annette' && <ChatPanel />}
           {activeTab === 'voicelab' && <VoiceLabPanel />}
           {activeTab === 'companion' && <AmbientVoicePanel />}

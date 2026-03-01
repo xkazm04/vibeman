@@ -195,9 +195,9 @@ function generateMockIdea(index: number, rng: SeededRandom, projectId: string = 
     status: 'pending',
     user_feedback: null,
     user_pattern: 0,
-    effort: rng.nextInt(1, 3) as 1 | 2 | 3,
-    impact: rng.nextInt(1, 3) as 1 | 2 | 3,
-    risk: rng.nextInt(1, 3),
+    effort: rng.nextInt(1, 10),
+    impact: rng.nextInt(1, 10),
+    risk: rng.nextInt(1, 10),
     requirement_id: null,
     goal_id: rng.next() > 0.7 ? `test-goal-${rng.nextInt(1, 5)}` : null,
     created_at: createdAt.toISOString(),
@@ -230,7 +230,7 @@ export const TEST_SCENARIOS: Record<TestScenarioId, TestScenario> = {
       return Array.from({ length: 50 }, (_, i) => ({
         ...generateMockIdea(i, rng),
         // Low-value ideas that would typically be rejected
-        effort: 3 as const,
+        effort: 9 as const,
         impact: 1 as const,
         category: 'documentation',
       }));
@@ -312,23 +312,21 @@ export const TEST_SCENARIOS: Record<TestScenarioId, TestScenario> = {
   effort_impact_matrix: {
     id: 'effort_impact_matrix',
     name: 'Effort/Impact Matrix',
-    description: 'All 9 combinations of effort (1-3) and impact (1-3)',
-    ideaCount: 27,
+    description: 'Key combinations of effort and impact on 1-10 scale',
+    ideaCount: 25,
     generateIdeas: (seed = 999) => {
       const rng = new SeededRandom(seed);
       const ideas: MockIdea[] = [];
       let index = 0;
+      const levels = [1, 3, 5, 7, 10];
 
-      for (let effort = 1; effort <= 3; effort++) {
-        for (let impact = 1; impact <= 3; impact++) {
-          // 3 ideas for each combination
-          for (let j = 0; j < 3; j++) {
-            const idea = generateMockIdea(index++, rng);
-            idea.effort = effort as 1 | 2 | 3;
-            idea.impact = impact as 1 | 2 | 3;
-            idea.title = `[E${effort}/I${impact}] ${idea.title}`;
-            ideas.push(idea);
-          }
+      for (const effort of levels) {
+        for (const impact of levels) {
+          const idea = generateMockIdea(index++, rng);
+          idea.effort = effort;
+          idea.impact = impact;
+          idea.title = `[E${effort}/I${impact}] ${idea.title}`;
+          ideas.push(idea);
         }
       }
 

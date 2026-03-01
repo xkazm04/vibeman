@@ -187,7 +187,7 @@ export function registerContextTools(
         content: [
           {
             type: 'text' as const,
-            text: `Vibeman MCP Configuration:\n\nProject ID: ${config.projectId || '(not set)'}\nContext ID: ${config.contextId || '(not set)'}\nProject Port: ${config.projectPort || '(not set)'}\nRun Script: ${config.runScript || '(not set)'}\nBase URL: ${config.baseUrl}`,
+            text: `Vibeman MCP Configuration:\n\nProject ID: ${config.projectId || '(not set)'}\nContext ID: ${config.contextId || '(not set)'}\nTask ID: ${config.taskId || '(not set)'}\nProject Port: ${config.projectPort || '(not set)'}\nRun Script: ${config.runScript || '(not set)'}\nBase URL: ${config.baseUrl}`,
           },
         ],
       };

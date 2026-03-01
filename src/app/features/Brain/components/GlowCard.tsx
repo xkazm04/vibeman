@@ -1,7 +1,7 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import type { ReactNode, CSSProperties } from 'react';
+import { GlassCard } from '@/components/ui/GlassCard';
 
 interface GlowCardProps {
   accentColor: string;
@@ -13,12 +13,10 @@ interface GlowCardProps {
   animate?: boolean;
 }
 
-const baseBackground = 'linear-gradient(135deg, rgba(17, 24, 39, 0.9) 0%, rgba(3, 7, 18, 0.95) 100%)';
-
 /**
- * Shared card chrome for Brain module panels.
- * Renders the gradient background, corner markers, grid overlay,
- * ambient glow, and bottom accent line.
+ * Brain-specific GlowCard — wraps the unified GlassCard primitive
+ * and adds the Brain module decorative chrome (corner markers, grid overlay,
+ * ambient glow, bottom accent line).
  */
 export default function GlowCard({
   accentColor,
@@ -29,26 +27,19 @@ export default function GlowCard({
   style,
   animate = true,
 }: GlowCardProps) {
-  const cardStyle: CSSProperties = {
-    background: baseBackground,
-    boxShadow: `0 0 40px ${glowColor}, inset 0 1px 0 rgba(255,255,255,0.05)`,
-    ...style,
-  };
-
-  const Wrapper = animate ? motion.div : 'div';
-  const animateProps = animate
-    ? { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 } }
-    : {};
-
   return (
-    <Wrapper
-      {...animateProps}
-      className={`relative overflow-hidden rounded-2xl border backdrop-blur-xl ${borderColorClass} ${className}`}
-      style={cardStyle}
+    <GlassCard
+      accentColor={accentColor}
+      glowColor={glowColor}
+      className={`rounded-2xl ${borderColorClass} ${className}`}
+      style={style}
+      animate={animate}
+      mouseGlow
+      padding="none"
     >
       {/* Grid pattern overlay */}
       <div
-        className="absolute inset-0 opacity-[0.03] pointer-events-none"
+        className="absolute inset-0 opacity-[0.03] pointer-events-none z-0"
         style={{
           backgroundImage: `linear-gradient(${accentColor} 1px, transparent 1px), linear-gradient(90deg, ${accentColor} 1px, transparent 1px)`,
           backgroundSize: '20px 20px',
@@ -57,26 +48,24 @@ export default function GlowCard({
 
       {/* Ambient glow */}
       <div
-        className="absolute -top-1/2 -right-1/2 w-full h-full blur-3xl pointer-events-none opacity-20"
+        className="absolute -top-1/2 -right-1/2 w-full h-full blur-3xl pointer-events-none opacity-20 z-0"
         style={{ background: `radial-gradient(circle, ${accentColor} 0%, transparent 70%)` }}
       />
 
       {/* Corner markers */}
-      <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 rounded-tl-lg" style={{ borderColor: accentColor }} />
-      <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 rounded-tr-lg" style={{ borderColor: accentColor }} />
-      <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 rounded-bl-lg" style={{ borderColor: accentColor }} />
-      <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 rounded-br-lg" style={{ borderColor: accentColor }} />
+      <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 rounded-tl-lg z-0" style={{ borderColor: accentColor }} />
+      <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 rounded-tr-lg z-0" style={{ borderColor: accentColor }} />
+      <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 rounded-bl-lg z-0" style={{ borderColor: accentColor }} />
+      <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 rounded-br-lg z-0" style={{ borderColor: accentColor }} />
 
       {/* Content */}
-      <div className="relative z-10">
-        {children}
-      </div>
+      {children}
 
       {/* Bottom accent line */}
       <div
-        className="absolute bottom-0 left-0 right-0 h-0.5"
+        className="absolute bottom-0 left-0 right-0 h-0.5 z-0"
         style={{ background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)` }}
       />
-    </Wrapper>
+    </GlassCard>
   );
 }

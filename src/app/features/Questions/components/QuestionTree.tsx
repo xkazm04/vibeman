@@ -10,7 +10,7 @@ import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronRight, ChevronDown, HelpCircle, MessageSquare, Loader2,
-  GitBranch, FileText, Zap, Compass, Sparkles, Check, Clock, Trash2,
+  GitBranch, FileText, Zap, Compass, Sparkles, Check, Clock, Trash2, Target,
 } from 'lucide-react';
 import { DbQuestion } from '@/app/db';
 import type { QuestionTreeNode } from '@/app/db/repositories/question.repository';
@@ -131,6 +131,24 @@ function TreeNode({
                   Pending
                 </span>
               )}
+              {node.auto_deepened === 1 && (
+                <span className="text-[10px] text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                  <Target className="w-2.5 h-2.5" />
+                  Auto-deepened
+                </span>
+              )}
+              {node.gap_score != null && node.gap_score > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5 ${
+                  node.gap_score >= 0.7
+                    ? 'text-red-400 bg-red-500/10'
+                    : node.gap_score >= 0.4
+                    ? 'text-amber-400 bg-amber-500/10'
+                    : 'text-gray-400 bg-gray-500/10'
+                }`}>
+                  <Sparkles className="w-2.5 h-2.5" />
+                  Gap {Math.round(node.gap_score * 100)}%
+                </span>
+              )}
               {hasChildren && (
                 <span className="text-[10px] text-gray-500">
                   {node.children.length} follow-up{node.children.length !== 1 ? 's' : ''}
@@ -168,6 +186,34 @@ function TreeNode({
             </div>
           </div>
         )}
+
+        {/* Gap Analysis Indicator */}
+        {node.gap_analysis && (() => {
+          try {
+            const gaps = JSON.parse(node.gap_analysis) as { type: string; phrase: string }[];
+            if (gaps.length === 0) return null;
+            return (
+              <div className="mt-1.5 ml-6 pl-3 border-l-2 border-cyan-500/10">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Target className="w-2.5 h-2.5 text-cyan-500/60 flex-shrink-0" />
+                  <span className="text-[10px] text-cyan-500/60">Gaps:</span>
+                  {gaps.slice(0, 3).map((gap, i) => (
+                    <span
+                      key={i}
+                      className="text-[10px] text-cyan-400/70 bg-cyan-500/8 px-1.5 py-0.5 rounded"
+                      title={`"${gap.phrase}"`}
+                    >
+                      {gap.type.replace(/_/g, ' ')}
+                    </span>
+                  ))}
+                  {gaps.length > 3 && (
+                    <span className="text-[10px] text-gray-500">+{gaps.length - 3} more</span>
+                  )}
+                </div>
+              </div>
+            );
+          } catch { return null; }
+        })()}
 
         {/* Action buttons for answered questions */}
         {isAnswered && (

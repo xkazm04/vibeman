@@ -41,18 +41,26 @@ export function buildExecutionPrompt(config: ExecutionPromptConfig): ExecutionPr
   let enhancedContent = config.requirementContent;
   let memoryApplicationIds: string[] = [];
 
-  // Inject collective memory knowledge if we have a project ID
+  // Inject collective memory knowledge if we have a project ID.
+  // Passes the full requirement content so the service can extract file patterns
+  // and additional keywords for richer memory matching.
   if (config.projectId) {
     try {
-      const { promptSection, applicationIds } = getTaskKnowledge({
+      const { promptSection, applicationIds, memories } = getTaskKnowledge({
         projectId: config.projectId,
-        requirementName: config.requirementContent.slice(0, 200),
+        requirementName: config.taskId || config.requirementContent.slice(0, 200),
+        requirementContent: config.requirementContent,
         taskId: config.taskId,
       });
       if (promptSection) {
         enhancedContent = `${config.requirementContent}\n${promptSection}`;
+        // When MCP tools are available, add a hint that more context can be pulled on-demand
+        enhancedContent += `\n\nFor additional context about specific files, patterns, or errors during implementation, use the \`get_memory\` MCP tool to query the collective memory system on-demand.\n`;
       }
       memoryApplicationIds = applicationIds;
+      if (memories.length > 0) {
+        console.log(`[CollectiveMemory] Injected ${memories.length} memories into execution prompt (IDs: ${applicationIds.join(', ')})`);
+      }
     } catch {
       // Collective memory injection must never break execution
     }

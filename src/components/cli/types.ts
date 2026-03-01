@@ -24,6 +24,8 @@ export interface QueuedTask {
   completedAt?: number;
   /** Direct prompt content - if provided, executes this instead of a requirement file */
   directPrompt?: string;
+  /** IDs of tasks that must complete before this one starts (for DAG scheduling) */
+  dependencies?: string[];
 }
 
 // CLISessionState is defined in ./store/cliSessionStore.ts and re-exported from ./store/index.ts

@@ -380,25 +380,25 @@ export default function LifecycleDashboard({
             {/* Cycle Stats */}
             <div className="mt-3 grid grid-cols-4 gap-2">
               <div className="text-center">
-                <p className="text-lg font-semibold text-blue-400">
+                <p className="text-lg font-semibold tabular-nums text-blue-400">
                   {currentCycle.scans_completed}/{currentCycle.scans_total}
                 </p>
                 <p className="text-xs text-gray-500">Scans</p>
               </div>
               <div className="text-center">
-                <p className="text-lg font-semibold text-cyan-400">
+                <p className="text-lg font-semibold tabular-nums text-cyan-400">
                   {currentCycle.ideas_generated}
                 </p>
                 <p className="text-xs text-gray-500">Ideas</p>
               </div>
               <div className="text-center">
-                <p className="text-lg font-semibold text-amber-400">
+                <p className="text-lg font-semibold tabular-nums text-amber-400">
                   {currentCycle.ideas_resolved}
                 </p>
                 <p className="text-xs text-gray-500">Resolved</p>
               </div>
               <div className="text-center">
-                <p className="text-lg font-semibold text-green-400">
+                <p className="text-lg font-semibold tabular-nums text-green-400">
                   {currentCycle.quality_gates_passed}/{currentCycle.quality_gates_total}
                 </p>
                 <p className="text-xs text-gray-500">Gates</p>
@@ -409,26 +409,32 @@ export default function LifecycleDashboard({
 
         {/* Quick Stats (when no active cycle) */}
         {!currentCycle && status && (
-          <div className="mt-4 pt-4 border-t border-gray-700/40 grid grid-cols-3 gap-4 text-center">
+          <div className="mt-4 pt-4 border-t border-gray-700/40 grid grid-cols-4 gap-2 text-center">
             <div>
-              <p className="text-lg font-semibold text-gray-300">
+              <p className="text-lg font-semibold tabular-nums text-blue-400">
                 {status.active_cycles}
               </p>
-              <p className="text-xs text-gray-500">Active Cycles</p>
+              <p className="text-xs text-gray-500">Active</p>
             </div>
             <div>
-              <p className="text-sm text-gray-400">
+              <p className="text-lg font-semibold tabular-nums text-green-400">
+                {status.is_running ? 'On' : 'Off'}
+              </p>
+              <p className="text-xs text-gray-500">Status</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold tabular-nums text-cyan-400">
                 {status.last_cycle_at
                   ? new Date(status.last_cycle_at).toLocaleTimeString()
-                  : 'Never'}
+                  : '—'}
               </p>
               <p className="text-xs text-gray-500">Last Run</p>
             </div>
             <div>
-              <p className="text-sm text-gray-400">
+              <p className="text-lg font-semibold tabular-nums text-amber-400">
                 {status.next_scheduled_at
                   ? new Date(status.next_scheduled_at).toLocaleTimeString()
-                  : 'Not scheduled'}
+                  : '—'}
               </p>
               <p className="text-xs text-gray-500">Next Run</p>
             </div>

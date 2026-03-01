@@ -27,9 +27,11 @@ export async function POST(request: NextRequest) {
     const idea = ideaDb.getIdeaByRequirementId(requirementName);
 
     if (!idea) {
-      return createIdeasErrorResponse(IdeasErrorCode.REQUIREMENT_NOT_FOUND, {
-        details: `No idea found with requirement_id: ${requirementName}`,
-      });
+      // Not all tasks have associated ideas (e.g. direct prompts) — this is normal, not an error
+      return createIdeasSuccessResponse(
+        { updated: false, reason: 'no_matching_idea' },
+        'No idea found with this requirement ID — skipping status update'
+      );
     }
 
     // Update idea status to 'implemented'

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import { motion } from 'framer-motion';
 
 export interface AnomalyZone {
@@ -46,6 +46,7 @@ function formatDayLabel(day: number): string {
 }
 
 export default function SignalDecayCurve({ decayFactor, retentionDays, actualSignals, anomalyZones }: SignalDecayCurveProps) {
+  const gradientId = `decayCurveGradient-${useId()}`;
   const curvePoints = useMemo(() => {
     const points: string[] = [];
     const steps = 50;
@@ -171,7 +172,7 @@ export default function SignalDecayCurve({ decayFactor, retentionDays, actualSig
         <motion.polyline
           points={curvePoints}
           fill="none"
-          stroke="url(#decayCurveGradient)"
+          stroke={`url(#${gradientId})`}
           strokeWidth={2}
           strokeLinecap="round"
           initial={{ pathLength: 0 }}
@@ -181,7 +182,7 @@ export default function SignalDecayCurve({ decayFactor, retentionDays, actualSig
 
         {/* Gradient for curve */}
         <defs aria-hidden="true">
-          <linearGradient id="decayCurveGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#a855f7" />
             <stop offset="100%" stopColor="#3b82f6" />
           </linearGradient>

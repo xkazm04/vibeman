@@ -37,6 +37,13 @@ import { migrate120SchemaIntelligence } from './120_schema_intelligence';
 import { migrate121ScanProfiles } from './121_scan_profiles';
 import { migrate122IdeaDependencies } from './122_idea_dependencies';
 import { migrate123TypedEvidenceRefs } from './123_typed_evidence_refs';
+import { migrate124InsightInfluenceLog } from './124_insight_influence_log';
+import { migrate125DirectionPreferenceProfiles } from './125_direction_preference_profiles';
+import { migrate126QuestionGapDetection } from './126_question_gap_detection';
+import { migrate127DropSessionTaskIdsColumn } from './127_drop_session_task_ids_column';
+import { migrate128ReflectionUniqueActive } from './128_reflection_unique_active';
+import { migrate129DirectionHypothesisAssertions } from './129_direction_hypothesis_assertions';
+import { migrate130AlignScoringConstraints } from './130_align_scoring_constraints_1_10';
 
 /**
  * Migration logger utility
@@ -323,6 +330,27 @@ export function runMigrations() {
 
     // Migration 123: Typed Evidence Refs - classify string evidence IDs by prefix
     migrate123TypedEvidenceRefs(db as any, migrationLogger);
+
+    // Migration 124: Insight Influence Log - causal validation via counterfactual tracking
+    migrate124InsightInfluenceLog(db as any, migrationLogger);
+
+    // Migration 125: Direction Preference Profiles - adaptive pair generation
+    migrate125DirectionPreferenceProfiles(db as any, migrationLogger);
+
+    // Migration 126: Question Gap Detection - auto-deepening via answer analysis
+    migrate126QuestionGapDetection(db as any, migrationLogger);
+
+    // Migration 127: Drop task_ids JSON column - session_tasks junction table is source of truth
+    migrate127DropSessionTaskIdsColumn(db as any, migrationLogger);
+
+    // Migration 128: UNIQUE partial index for active reflections - eliminates TOCTOU race
+    migrate128ReflectionUniqueActive(db as any, migrationLogger);
+
+    // Migration 129: hypothesis_assertions column on directions
+    migrate129DirectionHypothesisAssertions(db as any, migrationLogger);
+
+    // Migration 130: Align scoring constraints to 1-10 scale across all tables
+    migrate130AlignScoringConstraints(db as any, migrationLogger);
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {

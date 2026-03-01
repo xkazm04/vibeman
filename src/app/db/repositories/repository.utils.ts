@@ -6,6 +6,162 @@
 import type { Database, Statement } from 'better-sqlite3';
 
 /**
+ * Compile-time whitelist of valid table names.
+ * Only tables listed here can be used with buildUpdateStatement.
+ * Add new table names here when creating new repositories that need dynamic updates.
+ */
+const VALID_TABLE_NAMES = [
+  'agent_goals',
+  'agent_steps',
+  'annette_audio_cache',
+  'annette_knowledge_edges',
+  'annette_knowledge_nodes',
+  'annette_memories',
+  'annette_memory_consolidations',
+  'annette_memory_topics',
+  'annette_messages',
+  'annette_rapport',
+  'annette_sessions',
+  'annette_user_preferences',
+  'architecture_drifts',
+  'architecture_edges',
+  'architecture_ideals',
+  'architecture_nodes',
+  'architecture_suggestions',
+  'architecture_snapshots',
+  'backlog_items',
+  'badges',
+  'behavioral_signals',
+  'blueprint_components',
+  'blueprint_configs',
+  'blueprint_executions',
+  'brain_insights',
+  'brain_reflections',
+  'code_change_events',
+  'code_pattern_usage',
+  'code_walkthroughs',
+  'collection_patterns',
+  'collective_memory_applications',
+  'collective_memory_entries',
+  'community_security_scores',
+  'complexity_history',
+  'consistency_rules',
+  'context_api_routes',
+  'context_group_relationships',
+  'context_groups',
+  'context_transitions',
+  'contexts',
+  'conversations',
+  'cross_project_relationships',
+  'debt_patterns',
+  'debt_predictions',
+  'debt_prevention_rules',
+  'developer_decisions',
+  'developer_profiles',
+  'direction_outcomes',
+  'direction_preference_profiles',
+  'directions',
+  'discovered_templates',
+  'events',
+  'execution_flows',
+  'feature_interactions',
+  'file_change_patterns',
+  'file_watch_config',
+  'fuzz_sessions',
+  'generation_history',
+  'goal_candidates',
+  'goal_lifecycle',
+  'goal_signals',
+  'goal_sub_goals',
+  'goals',
+  'group_health_scans',
+  'hall_of_fame_stars',
+  'health_score_config',
+  'hypotheses',
+  'idea_dependencies',
+  'idea_execution_outcomes',
+  'ideas',
+  'implementation_log',
+  'impact_predictions',
+  'insight_effectiveness_cache',
+  'insight_influence_log',
+  'integration',
+  'intent_predictions',
+  'invariants',
+  'learning_insights',
+  'learning_metrics',
+  'learning_modules',
+  'learning_paths',
+  'lifecycle_configs',
+  'lifecycle_cycles',
+  'lifecycle_events',
+  'marketplace_users',
+  'messages',
+  'onboarding_recommendations',
+  'opportunity_cards',
+  'pattern_applications',
+  'pattern_collections',
+  'pattern_favorites',
+  'pattern_ratings',
+  'pattern_versions',
+  'pending_approvals',
+  'persona_metrics_snapshots',
+  'persona_prompt_versions',
+  'prevention_actions',
+  'project_architecture_metadata',
+  'project_health',
+  'property_tests',
+  'query_patterns',
+  'questions',
+  'quiz_questions',
+  'quiz_responses',
+  'red_team_attacks',
+  'red_team_sessions',
+  'red_team_vulnerabilities',
+  'refactoring_patterns',
+  'roadmap_milestones',
+  'roadmap_simulations',
+  'scan_history',
+  'scan_notifications',
+  'scan_predictions',
+  'scan_profiles',
+  'scan_queue',
+  'scans',
+  'schema_optimization_history',
+  'schema_recommendations',
+  'scoring_thresholds',
+  'scoring_weights',
+  'security_alerts',
+  'security_intelligence',
+  'security_patches',
+  'security_prs',
+  'security_scans',
+  'sessions',
+  'skill_tracking',
+  'stale_branches',
+  'standup_summaries',
+  'strategic_initiatives',
+  'tech_debt',
+  'terminal_messages',
+  'terminal_sessions',
+  'test_case_scenarios',
+  'test_case_steps',
+  'test_executions',
+  'test_knowledge',
+  'test_scenarios',
+  'test_selectors',
+  'velocity_tracking',
+  'visual_diffs',
+  'voicebot_analytics',
+  'vulnerability_debates',
+  'workspace',
+] as const;
+
+export type TableName = (typeof VALID_TABLE_NAMES)[number];
+
+const VALID_TABLE_SET: ReadonlySet<string> = new Set(VALID_TABLE_NAMES);
+
+/**
  * Build dynamic update query
  * Reduces duplication in repository update methods
  */
@@ -51,15 +207,20 @@ export function getCurrentTimestamp(): string {
 }
 
 /**
- * Build a dynamic update statement
+ * Build a dynamic update statement.
+ * The table parameter is validated against a compile-time whitelist to prevent SQL injection.
  */
 export function buildUpdateStatement(
   db: Database,
-  table: string,
+  table: TableName,
   updates: Record<string, unknown>,
-  idField: string = 'id',
+  idField: 'id' | 'project_id' = 'id',
   excludeFields: string[] = ['id', 'created_at']
 ): { stmt: Statement; values: unknown[] } | null {
+  if (!VALID_TABLE_SET.has(table)) {
+    throw new Error(`Invalid table name: "${table}". Add it to VALID_TABLE_NAMES in repository.utils.ts.`);
+  }
+
   const { fields, values } = buildUpdateQuery(updates, excludeFields);
 
   if (fields.length === 0) {
@@ -70,13 +231,26 @@ export function buildUpdateStatement(
   fields.push('updated_at = ?');
   values.push(now);
 
-  const stmt = db.prepare(`
-    UPDATE ${table}
-    SET ${fields.join(', ')}
-    WHERE ${idField} = ?
-  `);
+  const cacheKey = `${table}:${idField}:${fields.join(',')}`;
+  let stmt = statementCache.get(cacheKey);
+  if (!stmt) {
+    stmt = db.prepare(`
+      UPDATE ${table}
+      SET ${fields.join(', ')}
+      WHERE ${idField} = ?
+    `);
+    statementCache.set(cacheKey, stmt);
+  }
 
   return { stmt, values };
+}
+
+/** Cache for prepared UPDATE statements keyed by table:idField:fieldsList */
+const statementCache = new Map<string, Statement>();
+
+/** Clear the statement cache (e.g., when the database connection is reset) */
+export function clearStatementCache(): void {
+  statementCache.clear();
 }
 
 /**

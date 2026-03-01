@@ -1,37 +1,27 @@
 /**
  * Activity Classifier
- * Parses Claude Code stream-json output to extract tool usage and classify activity
+ *
+ * Parses Claude Code stream-json output to extract tool usage and classify activity.
+ *
+ * Delegates all raw-string parsing to the TaskOutputSchema structured parser,
+ * then converts typed events into ActivityEvents for backward compatibility.
+ * The TOOL_TO_ACTIVITY mapping and target extraction logic are now centralized
+ * in taskOutputSchema.ts — this module is a thin adapter.
  */
 
-import {
-  TOOL_NAMES,
-  type ActivityType,
-  type ToolName,
+import type {
+  ActivityType,
 } from './constants';
 import type {
   ActivityEvent,
   TaskActivity,
-  StreamJsonMessage,
-  StreamJsonToolUse,
 } from './activityClassifier.types';
-
-/**
- * Map tool names to activity types
- */
-const TOOL_TO_ACTIVITY: Record<string, ActivityType> = {
-  [TOOL_NAMES.Read]: 'reading',
-  [TOOL_NAMES.Edit]: 'editing',
-  [TOOL_NAMES.Write]: 'writing',
-  [TOOL_NAMES.Grep]: 'searching',
-  [TOOL_NAMES.Glob]: 'searching',
-  [TOOL_NAMES.Bash]: 'executing',
-  [TOOL_NAMES.TodoWrite]: 'planning',
-  [TOOL_NAMES.Task]: 'thinking',
-  [TOOL_NAMES.WebSearch]: 'searching',
-  [TOOL_NAMES.WebFetch]: 'reading',
-  [TOOL_NAMES.LSP]: 'reading',
-  [TOOL_NAMES.NotebookEdit]: 'editing',
-};
+import {
+  parseProgressLine as parseStructuredLine,
+  parseAllProgressLines,
+  getToolInvocations,
+  type ToolInvocationEvent,
+} from './taskOutputSchema';
 
 /**
  * Activity icons for display
@@ -62,122 +52,46 @@ const ACTIVITY_LABELS: Record<ActivityType, string> = {
 };
 
 /**
- * Parse a single line from stream-json output
- * Returns an ActivityEvent if a tool_use is detected, null otherwise
+ * Convert a structured ToolInvocationEvent to a legacy ActivityEvent.
  */
-export function parseStreamJsonLine(line: string): ActivityEvent | null {
-  if (!line.trim()) return null;
-
-  try {
-    const parsed = JSON.parse(line) as StreamJsonMessage;
-
-    // Handle assistant messages with tool_use
-    if (parsed.type === 'assistant' && 'message' in parsed) {
-      const content = parsed.message?.content;
-      if (!Array.isArray(content)) return null;
-
-      // Find first tool_use in content
-      const toolUse = content.find(
-        (item): item is StreamJsonToolUse => item.type === 'tool_use'
-      );
-
-      if (toolUse) {
-        return createActivityEvent(toolUse);
-      }
-    }
-
-    return null;
-  } catch {
-    // Not valid JSON or unexpected format
-    return null;
-  }
-}
-
-/**
- * Create an ActivityEvent from a tool_use object
- */
-function createActivityEvent(toolUse: StreamJsonToolUse): ActivityEvent {
-  const tool = toolUse.name;
-  const type = TOOL_TO_ACTIVITY[tool] || 'thinking';
-  const target = extractTarget(toolUse);
-
+function toActivityEvent(invocation: ToolInvocationEvent): ActivityEvent {
   return {
-    type,
-    tool: tool as ToolName,
-    target,
-    timestamp: new Date(),
+    type: invocation.activityType,
+    tool: invocation.tool,
+    target: invocation.target,
+    timestamp: invocation.timestamp,
   };
 }
 
 /**
- * Extract the target (file path or command) from tool input
+ * Parse a single line from stream-json output.
+ * Returns an ActivityEvent if a tool_use is detected, null otherwise.
+ *
+ * Now delegates to the structured parser and converts the first
+ * tool_invocation event back to the legacy ActivityEvent format.
  */
-function extractTarget(toolUse: StreamJsonToolUse): string | undefined {
-  const input = toolUse.input;
-  if (!input || typeof input !== 'object') return undefined;
+export function parseStreamJsonLine(line: string): ActivityEvent | null {
+  // Wrap line in STDOUT format since parseStructuredLine expects progress line format
+  const wrappedLine = `[STDOUT] ${line}`;
+  const events = parseStructuredLine(wrappedLine);
+  const invocations = getToolInvocations(events);
 
-  // File-based tools
-  if ('file_path' in input && typeof input.file_path === 'string') {
-    return truncatePath(input.file_path);
+  if (invocations.length > 0) {
+    return toActivityEvent(invocations[0]);
   }
 
-  // Grep/Glob pattern
-  if ('pattern' in input && typeof input.pattern === 'string') {
-    return input.pattern;
-  }
-
-  // Bash command
-  if ('command' in input && typeof input.command === 'string') {
-    return truncateCommand(input.command);
-  }
-
-  // TodoWrite - use first todo content
-  if ('todos' in input && Array.isArray(input.todos) && input.todos.length > 0) {
-    const firstTodo = input.todos[0];
-    if (typeof firstTodo === 'object' && firstTodo && 'content' in firstTodo) {
-      return String(firstTodo.content).slice(0, 40);
-    }
-  }
-
-  return undefined;
+  return null;
 }
 
 /**
- * Truncate a file path for display (keep last 2 segments)
- */
-function truncatePath(path: string): string {
-  const segments = path.replace(/\\/g, '/').split('/');
-  if (segments.length <= 2) return path;
-  return '...' + segments.slice(-2).join('/');
-}
-
-/**
- * Truncate a command for display
- */
-function truncateCommand(command: string): string {
-  const firstLine = command.split('\n')[0];
-  if (firstLine.length <= 50) return firstLine;
-  return firstLine.slice(0, 47) + '...';
-}
-
-/**
- * Parse multiple progress lines and extract activity events
+ * Parse multiple progress lines and extract activity events.
+ *
+ * Now delegates to the structured parser and converts tool invocations
+ * to legacy ActivityEvents.
  */
 export function parseProgressLines(lines: string[]): ActivityEvent[] {
-  const events: ActivityEvent[] = [];
-
-  for (const line of lines) {
-    // Extract JSON content from progress line format: [timestamp] [STDOUT] {...}
-    const jsonMatch = line.match(/\[STDOUT\]\s*(.+)$/);
-    if (jsonMatch) {
-      const event = parseStreamJsonLine(jsonMatch[1]);
-      if (event) {
-        events.push(event);
-      }
-    }
-  }
-
-  return events;
+  const structuredEvents = parseAllProgressLines(lines);
+  return getToolInvocations(structuredEvents).map(toActivityEvent);
 }
 
 /**

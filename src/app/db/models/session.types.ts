@@ -20,7 +20,6 @@ export interface DbClaudeCodeSession {
   project_id: string;
   name: string;                      // User-friendly session name
   claude_session_id: string | null;  // Claude CLI session ID (captured after first execution)
-  task_ids: string;                  // JSON array of task IDs
   status: ClaudeCodeSessionStatus;
   context_tokens: number;            // Estimated token count for the session
   created_at: string;
@@ -154,15 +153,16 @@ export function canonicalToDbTaskStatus(status: TaskStatusUnion): ClaudeCodeSess
 // ============================================================================
 
 /**
- * Convert database row to API response format
+ * Convert database row to API response format.
+ * task_ids are derived from the session_tasks junction table (source of truth).
  */
-export function toSessionResponse(row: DbClaudeCodeSession): SessionResponse {
+export function toSessionResponse(row: DbClaudeCodeSession, taskIds: string[]): SessionResponse {
   return {
     id: row.id,
     projectId: row.project_id,
     name: row.name,
     claudeSessionId: row.claude_session_id,
-    taskIds: JSON.parse(row.task_ids || '[]'),
+    taskIds,
     status: row.status,
     contextTokens: row.context_tokens,
     createdAt: row.created_at,
