@@ -2,11 +2,13 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { useShallow } from 'zustand/react/shallow';
 import TaskColumnHeader from './components/TaskColumnHeader';
 import TaskGroupedList from './components/TaskGroupedList';
 import { useTaskColumnData, type ContextInfo } from './hooks/useTaskColumnData';
 import { groupRequirementsByContext, calculateSelectionStats } from './lib/taskColumnUtils';
 import type { ProjectRequirement } from './lib/types';
+import { useTaskRunnerStore } from './store/taskRunnerStore';
 import type { AggregationCheckResult } from './lib/ideaAggregator';
 import type { DbIdea } from '@/app/db';
 
@@ -47,10 +49,36 @@ const TaskColumn = React.memo(function TaskColumn({
 }: TaskColumnProps) {
   const [isAggregating, setIsAggregating] = useState(false);
 
+  // Project-scoped store subscription: only re-renders when THIS project's tasks change
+  const projectPrefix = `${projectId}:`;
+  const projectTasks = useTaskRunnerStore(
+    useShallow((state) => {
+      const filtered: Record<string, typeof state.tasks[string]> = {};
+      for (const key in state.tasks) {
+        if (key.startsWith(projectPrefix)) {
+          filtered[key] = state.tasks[key];
+        }
+      }
+      return filtered;
+    })
+  );
+
+  // Merge requirements with project-scoped task status
+  const requirementsWithStatus = useMemo((): ProjectRequirement[] => {
+    return requirements.map((req) => {
+      const reqId = getRequirementId(req);
+      const task = projectTasks[reqId];
+      if (task) {
+        return { ...req, status: task.status };
+      }
+      return req;
+    });
+  }, [requirements, projectTasks, getRequirementId]);
+
   const { aggregationCheck, ideasMap, contextsMap, checkAggregation } = useTaskColumnData({
     projectId,
     projectPath,
-    requirements,
+    requirements: requirementsWithStatus,
     aggregationData,
     ideasData,
     contextsData,
@@ -58,14 +86,14 @@ const TaskColumn = React.memo(function TaskColumn({
 
   // Group requirements by context
   const groupedRequirements = useMemo(
-    () => groupRequirementsByContext(requirements, ideasMap, contextsMap),
-    [requirements, ideasMap, contextsMap]
+    () => groupRequirementsByContext(requirementsWithStatus, ideasMap, contextsMap),
+    [requirementsWithStatus, ideasMap, contextsMap]
   );
 
   // Calculate selection statistics
   const stats = useMemo(
-    () => calculateSelectionStats(requirements, selectedRequirements, getRequirementId),
-    [requirements, selectedRequirements, getRequirementId]
+    () => calculateSelectionStats(requirementsWithStatus, selectedRequirements, getRequirementId),
+    [requirementsWithStatus, selectedRequirements, getRequirementId]
   );
 
   // Handle aggregation

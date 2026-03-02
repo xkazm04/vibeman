@@ -24,12 +24,11 @@ import {
 } from './lib/directionsApi';
 import {
   useSqliteContexts,
-  useQuestions,
+  useQuestionsAndDirections,
   useQuestionTrees,
   useGenerateFollowUp,
   useGenerateStrategicBrief,
   useAutoDeepen,
-  useDirections,
   useAnswerQuestion,
   useDeleteQuestion,
   useAcceptDirection,
@@ -64,14 +63,11 @@ export default function QuestionsLayout() {
   } = useSqliteContexts(activeProject?.id);
 
   const {
-    data: questionsData,
-    isLoading: questionsLoading,
-  } = useQuestions(activeProject?.id);
-
-  const {
-    data: directionsData,
-    isLoading: directionsLoading,
-  } = useDirections(activeProject?.id);
+    data: combinedData,
+    isLoading: combinedLoading,
+  } = useQuestionsAndDirections(activeProject?.id);
+  const questionsData = combinedData?.questions;
+  const directionsData = combinedData?.directions;
 
   // Mutations
   const answerQuestionMutation = useAnswerQuestion();
@@ -82,7 +78,7 @@ export default function QuestionsLayout() {
   const invalidateAll = useInvalidateQuestionsDirections();
 
   // Tree data & mutations
-  const { data: treeData } = useQuestionTrees(activeProject?.id);
+  const { data: treeData } = useQuestionTrees(activeProject?.id, viewMode === 'tree');
   const generateFollowUpMutation = useGenerateFollowUp();
   const generateBriefMutation = useGenerateStrategicBrief();
   const autoDeepenMutation = useAutoDeepen();
@@ -294,7 +290,7 @@ export default function QuestionsLayout() {
     invalidateAll();
   }, [invalidateAll]);
 
-  const isLoading = questionsLoading || directionsLoading;
+  const isLoading = combinedLoading;
 
   // Stats
   const totalPending = (questionsData?.counts.pending || 0) + (directionsData?.counts.pending || 0);

@@ -310,6 +310,14 @@ export function initializeTables() {
   // Run migrations for existing databases
   runMigrations();
 
+  // Reap orphaned CLI processes from previous server instances
+  try {
+    const { reapOrphanedProcesses } = require('@/lib/claude-terminal/orphanReaper');
+    reapOrphanedProcesses();
+  } catch {
+    // Orphan reaping must never block DB initialization
+  }
+
   // Create indexes for better query performance
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_goals_project_id ON goals(project_id);

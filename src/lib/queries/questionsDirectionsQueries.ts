@@ -40,6 +40,11 @@ export const directionsQueryKeys = {
   list: (projectId: string) => [...directionsQueryKeys.all, 'list', projectId] as const,
 };
 
+export const questionsDirectionsQueryKeys = {
+  all: ['questions-directions'] as const,
+  combined: (projectId: string) => [...questionsDirectionsQueryKeys.all, projectId] as const,
+};
+
 export const contextsQueryKeys = {
   all: ['sqliteContexts'] as const,
   list: (projectId: string) => [...contextsQueryKeys.all, 'list', projectId] as const,
@@ -102,6 +107,7 @@ export function useAnswerQuestion() {
       answerQuestion(questionId, answer),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: questionsQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.all });
     },
   });
 }
@@ -166,6 +172,7 @@ export function useDeleteQuestion() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: questionsQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.all });
     },
   });
 }
@@ -175,10 +182,49 @@ export function useDeleteQuestion() {
 /**
  * Hook for fetching question trees
  */
-export function useQuestionTrees(projectId: string | undefined) {
+export function useQuestionTrees(projectId: string | undefined, enabled = true) {
   return useQuery({
     queryKey: questionsQueryKeys.trees(projectId ?? ''),
     queryFn: () => fetchQuestionTrees(projectId!),
+    enabled: !!projectId && enabled,
+    staleTime: 30000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+// ============ COMBINED QUESTIONS & DIRECTIONS ============
+
+/**
+ * Combined hook: fetches questions AND directions in a single API call.
+ * Eliminates 2 HTTP roundtrips on QuestionsLayout mount.
+ *
+ * Seeds the individual questionsQueryKeys.list and directionsQueryKeys.list
+ * caches so existing mutations (which invalidate those keys) continue to work
+ * without modification.
+ */
+export function useQuestionsAndDirections(projectId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useQuery({
+    queryKey: questionsDirectionsQueryKeys.combined(projectId ?? ''),
+    queryFn: async () => {
+      const response = await fetch(`/api/questions-directions?projectId=${projectId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch questions and directions');
+      }
+      const data = await response.json();
+
+      const questions = data.questions as QuestionsResponse;
+      const directions = data.directions as DirectionsResponse;
+
+      // Seed individual caches so mutations that invalidate questionsQueryKeys.all
+      // or directionsQueryKeys.all will correctly mark these stale
+      queryClient.setQueryData(questionsQueryKeys.list(projectId!), questions);
+      queryClient.setQueryData(directionsQueryKeys.list(projectId!), directions);
+
+      return { questions, directions };
+    },
     enabled: !!projectId,
     staleTime: 30000,
     gcTime: 10 * 60 * 1000,
@@ -196,6 +242,7 @@ export function useGenerateFollowUp() {
     mutationFn: (questionId: string) => generateFollowUp(questionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: questionsQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.all });
     },
   });
 }
@@ -210,6 +257,7 @@ export function useGenerateStrategicBrief() {
     mutationFn: (questionId: string) => generateStrategicBrief(questionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: questionsQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.all });
     },
   });
 }
@@ -226,6 +274,7 @@ export function useAutoDeepen() {
     onSuccess: (data) => {
       if (data.deepened) {
         queryClient.invalidateQueries({ queryKey: questionsQueryKeys.all });
+        queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.all });
       }
     },
   });
@@ -294,6 +343,7 @@ export function useAcceptDirection() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: directionsQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.all });
     },
   });
 }
@@ -342,6 +392,7 @@ export function useRejectDirection() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: directionsQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.all });
     },
   });
 }
@@ -406,6 +457,7 @@ export function useDeleteDirection() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: directionsQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.all });
     },
   });
 }
@@ -419,5 +471,6 @@ export function useInvalidateQuestionsDirections() {
   return useCallback(() => {
     queryClient.invalidateQueries({ queryKey: questionsQueryKeys.all });
     queryClient.invalidateQueries({ queryKey: directionsQueryKeys.all });
+    queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.all });
   }, [queryClient]);
 }

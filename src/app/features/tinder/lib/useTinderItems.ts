@@ -3,7 +3,7 @@
  * Supports both local and remote modes via optional remoteDeviceId parameter
  */
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { DbDirection } from '@/app/db/models/types';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useDeviceMeshStore } from '@/stores/deviceMeshStore';
@@ -89,6 +89,7 @@ interface UseTinderItemsOptions {
   remoteDeviceId?: string | null;
   effortRange?: [number, number] | null;
   riskRange?: [number, number] | null;
+  sortOrder?: 'asc' | 'desc';
 }
 
 export function useTinderItems(
@@ -99,7 +100,7 @@ export function useTinderItems(
     ? { selectedProjectId: selectedProjectIdOrOptions, remoteDeviceId: null }
     : selectedProjectIdOrOptions;
 
-  const { selectedProjectId, remoteDeviceId, effortRange = null, riskRange = null } = options;
+  const { selectedProjectId, remoteDeviceId, effortRange = null, riskRange = null, sortOrder = 'asc' } = options;
   const isRemoteMode = !!remoteDeviceId;
 
   const [items, setItems] = useState<TinderItem[]>([]);
@@ -180,24 +181,11 @@ export function useTinderItems(
     }
   }, [isRemoteMode, selectedProjectId]);
 
-  // Derive filtered items for display (effort/risk filtering is client-side)
-  const filteredItems = useMemo(() => {
-    if (!effortRange && !riskRange) return items;
-    return items.filter(item => {
-      if (!isIdeaItem(item)) return true;
-      const idea = item.data;
-      if (effortRange) {
-        if (idea.effort === null || idea.effort < effortRange[0] || idea.effort > effortRange[1]) return false;
-      }
-      if (riskRange) {
-        if (idea.risk === null || idea.risk < riskRange[0] || idea.risk > riskRange[1]) return false;
-      }
-      return true;
-    });
-  }, [items, effortRange, riskRange]);
+  // Items are now filtered server-side by effort/risk ranges
+  const filteredItems = items;
 
   // Load items - handles both local and remote modes
-  // Category filtering is server-side, effort/risk filtering is client-side
+  // Category, effort, and risk filtering are all server-side
   const loadItems = useCallback(async (offset: number = 0) => {
     loadingRef.current = true;
     setLoading(true);
@@ -254,7 +242,10 @@ export function useTinderItems(
           filterMode,
           offset,
           TINDER_CONSTANTS.BATCH_SIZE,
-          selectedCategory
+          selectedCategory,
+          effortRange,
+          riskRange,
+          sortOrder
         );
 
         if (offset === 0) {
@@ -278,7 +269,7 @@ export function useTinderItems(
         setLoading(false);
       }
     }
-  }, [isRemoteMode, remoteDeviceId, selectedProjectId, filterMode, selectedCategory, localDeviceId, localDeviceName]);
+  }, [isRemoteMode, remoteDeviceId, selectedProjectId, filterMode, selectedCategory, effortRange, riskRange, sortOrder, localDeviceId, localDeviceName]);
 
   const loadMoreIfNeeded = useCallback(() => {
     if (!isRemoteMode && currentIndex >= filteredItems.length - TINDER_CONSTANTS.LOAD_MORE_THRESHOLD && hasMore && !loadingRef.current) {
@@ -639,7 +630,7 @@ export function useTinderItems(
     }
   }, [filterMode, isRemoteMode, loadCategories]);
 
-  // Load items when dependencies change (category is server-side, effort/risk is client-side)
+  // Load items when dependencies change (category, effort, risk are all server-side)
   useEffect(() => {
     if (isRemoteMode) {
       if (remoteDeviceId) {
@@ -651,7 +642,7 @@ export function useTinderItems(
     } else {
       loadItems(0);
     }
-  }, [isRemoteMode, remoteDeviceId, selectedProjectId, filterMode, selectedCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isRemoteMode, remoteDeviceId, selectedProjectId, filterMode, selectedCategory, effortRange, riskRange, sortOrder]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentItem = filteredItems[currentIndex];
   const remainingCount = filteredItems.length - currentIndex;

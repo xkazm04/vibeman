@@ -11,6 +11,7 @@ import type {
   DbBrainReflection,
   ReflectionStatus,
 } from '@/app/db/models/brain.types';
+import type { SignalAnomaly } from '@/lib/brain/anomalyDetector';
 import { safeResponseJson, parseApiResponse, parseApiResponseSafe, BrainDecayResponseSchema, BrainContextResponseSchema, BrainOutcomesResponseSchema, BrainReflectionStatusSchema, BrainReflectionTriggerSchema } from '@/lib/apiResponseGuard';
 
 // ============================================================================
@@ -77,6 +78,9 @@ interface BrainActions {
   fetchBehavioralContext: (projectId: string) => Promise<void>;
   fetchRecentOutcomes: (projectId: string) => Promise<void>;
   fetchReflectionStatus: (projectId: string) => Promise<void>;
+
+  /** Combined dashboard fetch — replaces 4 separate mount calls. Returns anomalies for caller. */
+  fetchDashboard: (projectId: string) => Promise<SignalAnomaly[]>;
 
   // Actions
   triggerReflection: (projectId: string, projectName: string, projectPath: string) => Promise<void>;
@@ -412,6 +416,64 @@ export const useBrainStore = create<BrainStore>()(
 
         fetchReflectionStatus: async (projectId) => {
           await _fetchReflectionStatus('project', `projectId=${projectId}`);
+        },
+
+        fetchDashboard: async (projectId) => {
+          set({ isLoadingContext: true, isLoadingOutcomes: true, isLoading: true });
+          try {
+            const response = await fetch(`/api/brain/dashboard?projectId=${encodeURIComponent(projectId)}`);
+            if (!response.ok) {
+              set({ isLoadingContext: false, isLoadingOutcomes: false, isLoading: false });
+              return [];
+            }
+
+            const data = await response.json();
+            if (!data.success) {
+              set({ isLoadingContext: false, isLoadingOutcomes: false, isLoading: false });
+              return [];
+            }
+
+            // Context
+            const behavioralContext = data.context || null;
+
+            // Outcomes
+            const recentOutcomes = data.outcomes || [];
+            const outcomeStats = data.outcomeStats || initialState.outcomeStats;
+
+            // Reflection status
+            const ref = data.reflection || {};
+            const reflectionStatus: ReflectionStatus | 'idle' = ref.isRunning ? 'running' : (ref.lastCompleted ? 'completed' : 'idle');
+
+            set({
+              behavioralContext,
+              isLoadingContext: false,
+              recentOutcomes,
+              outcomeStats,
+              isLoadingOutcomes: false,
+              reflectionStatus,
+              lastReflection: ref.lastCompleted || null,
+              runningReflectionId: ref.runningReflection?.id || null,
+              decisionsSinceReflection: ref.decisionsSinceLastReflection || 0,
+              nextThreshold: ref.nextThreshold || 20,
+              shouldTrigger: ref.shouldTrigger || false,
+              triggerReason: ref.triggerReason || null,
+              isLoading: false,
+            });
+
+            // Restore promptContent from sessionStorage if running
+            if (reflectionStatus === 'running' && !get().promptContent && ref.runningReflection?.id && typeof window !== 'undefined') {
+              try {
+                const savedPrompt = sessionStorage.getItem(`brain-prompt-${ref.runningReflection.id}`);
+                if (savedPrompt) set({ promptContent: savedPrompt });
+              } catch { /* sessionStorage unavailable */ }
+            }
+
+            return data.anomalies || [];
+          } catch (error) {
+            console.error('Failed to fetch dashboard:', error);
+            set({ isLoadingContext: false, isLoadingOutcomes: false, isLoading: false });
+            return [];
+          }
         },
 
         // ========================================

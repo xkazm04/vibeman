@@ -1,5 +1,8 @@
 /**
  * API layer for Claude Code requirements
+ *
+ * Plain fetch functions (data layer). Caching and dedup are handled by
+ * React Query hooks in @/lib/queries/requirementQueries.ts.
  */
 import { safeResponseJson, safeGet } from '@/lib/apiResponseGuard';
 
@@ -15,66 +18,19 @@ export interface Requirement {
 }
 
 /**
- * Simple cache for requirement lists to prevent rapid re-fetching.
- * Key: projectPath, Value: { data, expiry }
- */
-const requirementCache = new Map<string, { data: string[]; expiry: number }>();
-const REQUIREMENT_CACHE_TTL = 30_000; // 30 seconds
-
-// Dedup in-flight requests
-const inFlightRequests = new Map<string, Promise<string[]>>();
-
-/**
  * Load requirements from API (single project)
- * Includes 30-second cache and in-flight dedup
  */
 export async function loadRequirements(projectPath: string): Promise<string[]> {
-  // Check cache first
-  const cached = requirementCache.get(projectPath);
-  if (cached && Date.now() < cached.expiry) {
-    return cached.data;
+  const response = await fetch(
+    `/api/claude-code/requirements?projectPath=${encodeURIComponent(projectPath)}`
+  );
+
+  if (response.ok) {
+    const data = await safeResponseJson(response, 'loadRequirements');
+    return safeGet<string[]>(data, 'requirements', []);
   }
 
-  // Dedup concurrent requests for the same path
-  const existing = inFlightRequests.get(projectPath);
-  if (existing) return existing;
-
-  const promise = (async () => {
-    try {
-      const response = await fetch(
-        `/api/claude-code/requirements?projectPath=${encodeURIComponent(projectPath)}`
-      );
-
-      if (response.ok) {
-        const data = await safeResponseJson(response, 'loadRequirements');
-        const requirements = safeGet<string[]>(data, 'requirements', []);
-        requirementCache.set(projectPath, {
-          data: requirements,
-          expiry: Date.now() + REQUIREMENT_CACHE_TTL,
-        });
-        return requirements;
-      }
-
-      throw new Error('Failed to load requirements');
-    } finally {
-      inFlightRequests.delete(projectPath);
-    }
-  })();
-
-  inFlightRequests.set(projectPath, promise);
-  return promise;
-}
-
-/**
- * Invalidate the requirement cache for a specific project or all projects.
- * Call after mutations (delete, save, generate) to force fresh data on next load.
- */
-export function invalidateRequirementCache(projectPath?: string): void {
-  if (projectPath) {
-    requirementCache.delete(projectPath);
-  } else {
-    requirementCache.clear();
-  }
+  throw new Error('Failed to load requirements');
 }
 
 /**
@@ -235,11 +191,7 @@ export async function deleteRequirement(
     body: JSON.stringify({ projectPath, requirementName }),
   });
 
-  if (response.ok) {
-    requirementCache.delete(projectPath);
-    return true;
-  }
-  return false;
+  return response.ok;
 }
 
 /**
@@ -363,7 +315,6 @@ export async function saveRequirement(
     throw new Error(safeGet(data, 'error', 'Failed to save requirement') as string);
   }
 
-  requirementCache.delete(projectPath);
   return true;
 }
 

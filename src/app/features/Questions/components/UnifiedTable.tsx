@@ -88,34 +88,63 @@ export default function UnifiedTable({
     setStatusFilter('all');
   }, []);
 
-  // All items (unfiltered) for count badges
-  const allItems = useMemo<UnifiedItem[]>(() => {
-    const questionItems: UnifiedItem[] = questions.map(q => ({ type: 'question', data: q }));
-    const directionItems: UnifiedItem[] = directions.map(d => ({ type: 'direction', data: d }));
+  // Single-pass computation: allItems, statusCounts, filtered items, and stats
+  const { allItems, statusCounts, items, stats } = useMemo(() => {
+    // Count statuses in a single pass over each array
+    let pendingQ = 0, answeredQ = 0;
+    let pendingD = 0, acceptedD = 0, rejectedD = 0;
 
-    return [...questionItems, ...directionItems].sort((a, b) => {
+    const questionItems: UnifiedItem[] = questions.map(q => {
+      if (q.status === 'pending') pendingQ++;
+      else if (q.status === 'answered') answeredQ++;
+      return { type: 'question', data: q };
+    });
+
+    const directionItems: UnifiedItem[] = directions.map(d => {
+      if (d.status === 'pending') pendingD++;
+      else if (d.status === 'accepted') acceptedD++;
+      else if (d.status === 'rejected') rejectedD++;
+      return { type: 'direction', data: d };
+    });
+
+    const allItems = [...questionItems, ...directionItems].sort((a, b) => {
       const dateA = new Date(a.data.created_at).getTime();
       const dateB = new Date(b.data.created_at).getTime();
       return dateB - dateA;
     });
-  }, [questions, directions]);
 
-  // Status counts based on current type filter
-  const statusCounts = useMemo(() => {
-    const pendingQ = questions.filter(q => q.status === 'pending').length;
-    const answeredQ = questions.filter(q => q.status === 'answered').length;
-    const pendingD = directions.filter(d => d.status === 'pending').length;
-    const acceptedD = directions.filter(d => d.status === 'accepted').length;
-    const rejectedD = directions.filter(d => d.status === 'rejected').length;
-
+    // Status counts based on current type filter
+    let statusCounts: Record<StatusFilter, number>;
     if (typeFilter === 'questions') {
-      return { all: questions.length, pending: pendingQ, answered: answeredQ, accepted: 0, rejected: 0 };
+      statusCounts = { all: questions.length, pending: pendingQ, answered: answeredQ, accepted: 0, rejected: 0 };
+    } else if (typeFilter === 'directions') {
+      statusCounts = { all: directions.length, pending: pendingD, accepted: acceptedD, rejected: rejectedD, answered: 0 };
+    } else {
+      statusCounts = { all: allItems.length, pending: pendingQ + pendingD, accepted: acceptedD, rejected: rejectedD, answered: answeredQ };
     }
-    if (typeFilter === 'directions') {
-      return { all: directions.length, pending: pendingD, accepted: acceptedD, rejected: rejectedD, answered: 0 };
+
+    // Filter items by type + status in a single pass
+    let items: UnifiedItem[];
+    if (typeFilter === 'all' && statusFilter === 'all') {
+      items = allItems;
+    } else {
+      items = allItems.filter(i => {
+        if (typeFilter === 'questions' && i.type !== 'question') return false;
+        if (typeFilter === 'directions' && i.type !== 'direction') return false;
+        if (statusFilter !== 'all' && i.data.status !== statusFilter) return false;
+        return true;
+      });
     }
-    return { all: allItems.length, pending: pendingQ + pendingD, accepted: acceptedD, rejected: rejectedD, answered: answeredQ };
-  }, [questions, directions, allItems.length, typeFilter]);
+
+    // Stats for the header
+    const stats: TableStat[] = [
+      { value: pendingQ, label: 'pending questions', colorScheme: 'purple' },
+      { value: answeredQ, label: 'answered', colorScheme: 'green' },
+      { value: pendingD, label: 'pending directions', colorScheme: 'cyan' },
+    ];
+
+    return { allItems, statusCounts, items, stats };
+  }, [questions, directions, typeFilter, statusFilter]);
 
   // Get relevant status pills for current type
   const statusPills = useMemo(() => {
@@ -123,42 +152,6 @@ export default function UnifiedTable({
     if (typeFilter === 'directions') return DIRECTION_STATUSES;
     return ALL_STATUSES;
   }, [typeFilter]);
-
-  // Filtered items based on type + status
-  const items = useMemo<UnifiedItem[]>(() => {
-    let filtered = allItems;
-
-    // Type filter
-    if (typeFilter === 'questions') {
-      filtered = filtered.filter(i => i.type === 'question');
-    } else if (typeFilter === 'directions') {
-      filtered = filtered.filter(i => i.type === 'direction');
-    }
-
-    // Status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(i => {
-        if (i.type === 'question') return (i.data as DbQuestion).status === statusFilter;
-        if (i.type === 'direction') return (i.data as DbDirection).status === statusFilter;
-        return false;
-      });
-    }
-
-    return filtered;
-  }, [allItems, typeFilter, statusFilter]);
-
-  // Stats for the header
-  const stats = useMemo<TableStat[]>(() => {
-    const pendingQuestions = questions.filter(q => q.status === 'pending').length;
-    const answeredQuestions = questions.filter(q => q.status === 'answered').length;
-    const pendingDirections = directions.filter(d => d.status === 'pending').length;
-
-    return [
-      { value: pendingQuestions, label: 'pending questions', colorScheme: 'purple' },
-      { value: answeredQuestions, label: 'answered', colorScheme: 'green' },
-      { value: pendingDirections, label: 'pending directions', colorScheme: 'cyan' },
-    ];
-  }, [questions, directions]);
 
   // Row renderer
   const renderRow = useCallback((item: UnifiedItem, index: number) => {

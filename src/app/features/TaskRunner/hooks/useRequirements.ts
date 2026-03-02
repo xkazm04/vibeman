@@ -4,11 +4,15 @@
  * Encapsulates all requirement loading, batching, selection, deletion,
  * and refresh logic extracted from TaskRunnerLayout. The layout component
  * consumes this hook and focuses solely on rendering.
+ *
+ * Uses React Query for caching, dedup, and stale-while-revalidate.
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
-import { loadRequirements, loadRequirementsBatch, deleteRequirement } from '@/app/Claude/lib/requirementApi';
+import { deleteRequirement, loadRequirements } from '@/app/Claude/lib/requirementApi';
+import { useRequirementBatch, requirementKeys } from '@/lib/queries/requirementQueries';
 import type { ProjectRequirement, TaskRunnerActions } from '@/app/features/TaskRunner/lib/types';
 import {
   createIdleStatus,
@@ -16,7 +20,6 @@ import {
   isTaskQueued,
 } from '@/app/features/TaskRunner/lib/types';
 import { useTaskRunnerStore } from '@/app/features/TaskRunner/store';
-import { useShallow } from 'zustand/react/shallow';
 
 /** System requirement files that should be filtered out */
 const SYSTEM_REQUIREMENTS = new Set(['scan-contexts', 'structure-rules']);
@@ -30,8 +33,8 @@ export function getRequirementId(req: ProjectRequirement): string {
 }
 
 export interface UseRequirementsReturn {
-  /** All requirements merged with store task status */
-  requirementsWithStatus: ProjectRequirement[];
+  /** All requirements (status merging happens at column level) */
+  requirements: ProjectRequirement[];
   /** Requirements grouped by projectId */
   groupedRequirements: Record<string, ProjectRequirement[]>;
   /** Currently selected requirement IDs */
@@ -64,15 +67,12 @@ export interface UseRequirementsReturn {
 
 export function useRequirements(): UseRequirementsReturn {
   const { projects, initializeProjects } = useProjectConfigStore();
+  const queryClient = useQueryClient();
   const [requirements, setRequirements] = useState<ProjectRequirement[]>([]);
   const [selectedRequirements, setSelectedRequirements] = useState<Set<string>>(new Set());
-  const [isLoading, setIsLoading] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
   const [processedCount, setProcessedCount] = useState(0);
   const [error, setError] = useState<string | undefined>();
-
-  // Get store tasks for status sync (useShallow prevents re-renders on unrelated changes)
-  const storeTasks = useTaskRunnerStore(useShallow((state) => state.tasks));
 
   const actions: TaskRunnerActions = {
     setRequirements,
@@ -88,74 +88,55 @@ export function useRequirements(): UseRequirementsReturn {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load requirements from all projects in a single batch request
+  // Load requirements via React Query (replaces manual useEffect + cache)
+  const projectInputs = useMemo(
+    () => projects.map((p) => ({ id: p.id, path: p.path })),
+    [projects]
+  );
+  const { data: requirementsMap, isLoading: isQueryLoading } = useRequirementBatch(projectInputs);
+
+  // Sync React Query data into local state (preserves existing selection/status logic)
   useEffect(() => {
-    const loadAllRequirements = async () => {
-      setIsLoading(true);
+    if (!requirementsMap) return;
 
-      try {
-        const requirementsMap = await loadRequirementsBatch(
-          projects.map((p) => ({ id: p.id, path: p.path }))
-        );
+    const allRequirements: ProjectRequirement[] = [];
 
-        const allRequirements: ProjectRequirement[] = [];
+    for (const project of projects) {
+      const reqNames = requirementsMap[project.id] || [];
+      const filtered = reqNames.filter((name) => !SYSTEM_REQUIREMENTS.has(name));
 
-        for (const project of projects) {
-          const reqNames = requirementsMap[project.id] || [];
-          const filtered = reqNames.filter((name) => !SYSTEM_REQUIREMENTS.has(name));
-
-          filtered.forEach((reqName) => {
-            allRequirements.push({
-              projectId: project.id,
-              projectName: project.name,
-              projectPath: project.path,
-              requirementName: reqName,
-              status: createIdleStatus(),
-            });
-          });
-        }
-
-        setRequirements(allRequirements);
-      } catch (err) {
-        console.error('Failed to load requirements:', err);
-      }
-
-      setIsLoading(false);
-    };
-
-    if (projects.length > 0) {
-      loadAllRequirements();
+      filtered.forEach((reqName) => {
+        allRequirements.push({
+          projectId: project.id,
+          projectName: project.name,
+          projectPath: project.path,
+          requirementName: reqName,
+          status: createIdleStatus(),
+        });
+      });
     }
-  }, [projects]);
 
-  // Merge requirements with store task status for real-time updates
-  const requirementsWithStatus = useMemo((): ProjectRequirement[] => {
-    return requirements.map((req) => {
-      const reqId = getRequirementId(req);
-      const task = storeTasks[reqId];
-      if (task) {
-        return { ...req, status: task.status };
-      }
-      return req;
-    });
-  }, [requirements, storeTasks]);
+    setRequirements(allRequirements);
+  }, [requirementsMap, projects]);
 
-  // Group requirements by project
+  // Group requirements by project (no status merge — columns handle their own store subscriptions)
   const groupedRequirements = useMemo(() => {
     const grouped: Record<string, ProjectRequirement[]> = {};
-    requirementsWithStatus.forEach((req) => {
+    requirements.forEach((req) => {
       if (!grouped[req.projectId]) {
         grouped[req.projectId] = [];
       }
       grouped[req.projectId].push(req);
     });
     return grouped;
-  }, [requirementsWithStatus]);
+  }, [requirements]);
 
   const toggleSelection = useCallback(
     (reqId: string) => {
-      const req = requirementsWithStatus.find((r) => getRequirementId(r) === reqId);
-      if (!req || isTaskRunning(req.status) || isTaskQueued(req.status)) return;
+      // Read task status imperatively to avoid subscribing to the entire tasks object
+      const taskState = useTaskRunnerStore.getState().tasks[reqId];
+      const status = taskState?.status;
+      if (status && (isTaskRunning(status) || isTaskQueued(status))) return;
 
       setSelectedRequirements((prev) => {
         const newSet = new Set(prev);
@@ -167,15 +148,19 @@ export function useRequirements(): UseRequirementsReturn {
         return newSet;
       });
     },
-    [requirementsWithStatus]
+    []
   );
 
   const toggleProjectSelection = useCallback(
     (projectId: string) => {
       const projectReqs = groupedRequirements[projectId] || [];
-      const selectableReqs = projectReqs.filter(
-        (req) => !isTaskRunning(req.status) && !isTaskQueued(req.status)
-      );
+      const storeTasks = useTaskRunnerStore.getState().tasks;
+
+      const selectableReqs = projectReqs.filter((req) => {
+        const taskState = storeTasks[getRequirementId(req)];
+        const status = taskState?.status;
+        return !status || (!isTaskRunning(status) && !isTaskQueued(status));
+      });
 
       const allSelected = selectableReqs.every((req) =>
         selectedRequirements.has(getRequirementId(req))
@@ -208,12 +193,14 @@ export function useRequirements(): UseRequirementsReturn {
             newSet.delete(reqId);
             return newSet;
           });
+          // Invalidate React Query cache so next refetch picks up the deletion
+          queryClient.invalidateQueries({ queryKey: requirementKeys.lists() });
         }
       } catch {
         // Failed to delete requirement
       }
     },
-    [requirements]
+    [requirements, queryClient]
   );
 
   const handleReset = useCallback((reqId: string) => {
@@ -263,9 +250,10 @@ export function useRequirements(): UseRequirementsReturn {
           deletedIds.forEach((id) => newSet.delete(id));
           return newSet;
         });
+        queryClient.invalidateQueries({ queryKey: requirementKeys.lists() });
       }
     },
-    [requirements]
+    [requirements, queryClient]
   );
 
   const refreshProjectRequirements = useCallback(
@@ -299,18 +287,21 @@ export function useRequirements(): UseRequirementsReturn {
           });
           return newSet;
         });
+
+        // Also invalidate batch cache so it stays consistent
+        queryClient.invalidateQueries({ queryKey: requirementKeys.lists() });
       } catch (err) {
         console.error('Failed to refresh project requirements:', err);
       }
     },
-    [projects]
+    [projects, queryClient]
   );
 
   return {
-    requirementsWithStatus,
+    requirements,
     groupedRequirements,
     selectedRequirements,
-    isLoading,
+    isLoading: isQueryLoading,
     isRunning,
     processedCount,
     error,

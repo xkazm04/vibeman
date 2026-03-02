@@ -22,6 +22,7 @@ export interface DbClaudeCodeSession {
   claude_session_id: string | null;  // Claude CLI session ID (captured after first execution)
   status: ClaudeCodeSessionStatus;
   context_tokens: number;            // Estimated token count for the session
+  pid: number | null;                // OS process ID of the spawned CLI process
   created_at: string;
   updated_at: string;
 }

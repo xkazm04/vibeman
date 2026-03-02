@@ -55,8 +55,25 @@ async function handleGet(request: NextRequest) {
       grouped[q.context_map_id].questions.push(q);
     }
 
-    const counts = questionDb.getQuestionCounts(projectId);
-    const maxTreeDepth = questionDb.getMaxTreeDepth(projectId);
+    // When all questions are fetched (no status/contextMap filter), derive
+    // counts and max depth from the JS array to avoid 2 extra DB roundtrips.
+    const isFullFetch = !status && !contextMapId;
+    let counts: { total: number; pending: number; answered: number };
+    let maxTreeDepth: number;
+
+    if (isFullFetch) {
+      let pending = 0, answered = 0, maxDepth = 0;
+      for (const q of questions) {
+        if (q.status === 'pending') pending++;
+        else if (q.status === 'answered') answered++;
+        if ((q.tree_depth ?? 0) > maxDepth) maxDepth = q.tree_depth ?? 0;
+      }
+      counts = { total: questions.length, pending, answered };
+      maxTreeDepth = maxDepth;
+    } else {
+      counts = questionDb.getQuestionCounts(projectId);
+      maxTreeDepth = questionDb.getMaxTreeDepth(projectId);
+    }
 
     return NextResponse.json({
       success: true,

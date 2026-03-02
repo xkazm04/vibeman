@@ -17,6 +17,15 @@ export async function GET(request: NextRequest) {
     const limitParam = searchParams.get('limit') || '20';
     const ideaCategory = searchParams.get('category'); // Optional category filter for ideas
 
+    // Effort/risk range filters (server-side filtering before pagination)
+    const effortMin = searchParams.get('effortMin') ? Number(searchParams.get('effortMin')) : null;
+    const effortMax = searchParams.get('effortMax') ? Number(searchParams.get('effortMax')) : null;
+    const riskMin = searchParams.get('riskMin') ? Number(searchParams.get('riskMin')) : null;
+    const riskMax = searchParams.get('riskMax') ? Number(searchParams.get('riskMax')) : null;
+
+    // Sort order: 'asc' = lowest effort+risk first (default), 'desc' = highest first
+    const sortOrder = (searchParams.get('sortOrder') || 'asc') as 'asc' | 'desc';
+
     // Validate pagination parameters
     const offset = parseInt(offsetParam, 10);
     const limit = parseInt(limitParam, 10);
@@ -58,6 +67,24 @@ export async function GET(request: NextRequest) {
       // Apply category filter if specified (only for ideas mode or when explicitly filtering)
       if (ideaCategory && itemType === 'ideas') {
         pendingIdeas = pendingIdeas.filter(idea => idea.category === ideaCategory);
+      }
+
+      // Apply effort/risk range filters server-side (before pagination)
+      if (effortMin !== null || effortMax !== null) {
+        pendingIdeas = pendingIdeas.filter(idea => {
+          if (idea.effort === null || idea.effort === undefined) return false;
+          if (effortMin !== null && idea.effort < effortMin) return false;
+          if (effortMax !== null && idea.effort > effortMax) return false;
+          return true;
+        });
+      }
+      if (riskMin !== null || riskMax !== null) {
+        pendingIdeas = pendingIdeas.filter(idea => {
+          if (idea.risk === null || idea.risk === undefined) return false;
+          if (riskMin !== null && idea.risk < riskMin) return false;
+          if (riskMax !== null && idea.risk > riskMax) return false;
+          return true;
+        });
       }
 
       // Batch-fetch goal titles to avoid N+1 queries in IdeaCard
@@ -132,13 +159,56 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Sort all items by created_at (newest first)
-    const getCreatedAt = (item: (typeof items)[number]): number => {
-      if ('created_at' in item.data) return new Date(item.data.created_at).getTime();
-      if ('directionA' in item.data) return new Date(item.data.directionA.created_at).getTime();
-      return 0;
+    // Sort by effort+risk: categorized items first (sorted by composite score), uncategorized last
+    // 'asc' = lowest effort+risk first, 'desc' = highest effort+risk first
+    const getEffortRisk = (item: (typeof items)[number]): { effort: number | null; risk: number | null } => {
+      if (item.type === 'idea') {
+        return { effort: item.data.effort, risk: item.data.risk };
+      }
+      if (item.type === 'direction') {
+        return { effort: item.data.effort, risk: null };
+      }
+      if (item.type === 'direction_pair') {
+        return { effort: item.data.directionA.effort, risk: null };
+      }
+      return { effort: null, risk: null };
     };
-    items.sort((a, b) => getCreatedAt(b) - getCreatedAt(a));
+
+    items.sort((a, b) => {
+      const aER = getEffortRisk(a);
+      const bER = getEffortRisk(b);
+      const aHasEffort = aER.effort !== null && aER.effort !== undefined;
+      const aHasRisk = aER.risk !== null && aER.risk !== undefined;
+      const bHasEffort = bER.effort !== null && bER.effort !== undefined;
+      const bHasRisk = bER.risk !== null && bER.risk !== undefined;
+      const aCategorized = aHasEffort && aHasRisk;
+      const bCategorized = bHasEffort && bHasRisk;
+      const aPartial = aHasEffort || aHasRisk; // has at least one attribute
+      const bPartial = bHasEffort || bHasRisk;
+
+      // Fully categorized items come first, then partial, then fully uncategorized
+      if (aCategorized && !bCategorized) return -1;
+      if (!aCategorized && bCategorized) return 1;
+      if (aPartial && !bPartial) return -1;
+      if (!aPartial && bPartial) return 1;
+
+      // Both categorized: sort by effort + risk composite
+      if (aCategorized && bCategorized) {
+        const aScore = (aER.effort || 0) + (aER.risk || 0);
+        const bScore = (bER.effort || 0) + (bER.risk || 0);
+        return sortOrder === 'asc' ? aScore - bScore : bScore - aScore;
+      }
+
+      // Both partial: sort by effort (the common attribute)
+      if (aPartial && bPartial) {
+        const aScore = (aER.effort || 0) + (aER.risk || 0);
+        const bScore = (bER.effort || 0) + (bER.risk || 0);
+        return sortOrder === 'asc' ? aScore - bScore : bScore - aScore;
+      }
+
+      // Both fully uncategorized: maintain original order
+      return 0;
+    });
 
     // Paginate
     const paginatedItems = items.slice(offset, offset + limit);

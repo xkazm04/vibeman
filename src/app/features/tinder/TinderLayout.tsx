@@ -75,6 +75,9 @@ const TinderLayout = () => {
     riskRange: [number, number] | null;
   }>({ effortRange: null, riskRange: null });
 
+  // Sort order: 'asc' = easiest first (default), 'desc' = hardest first
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
   // Unified tinder items hook - handles both local and remote modes
   const {
     items,
@@ -112,6 +115,7 @@ const TinderLayout = () => {
     remoteDeviceId: isRemoteMode ? selectedDeviceId : null,
     effortRange: effortRiskFilters.effortRange,
     riskRange: effortRiskFilters.riskRange,
+    sortOrder,
   });
 
   // Show sidebar only in ideas mode with categories
@@ -321,6 +325,8 @@ const TinderLayout = () => {
             <EffortRiskFilterSidebar
               filters={effortRiskFilters}
               onFiltersChange={setEffortRiskFilters}
+              sortOrder={sortOrder}
+              onSortOrderChange={setSortOrder}
               disabled={loading || processing}
             />
           </div>

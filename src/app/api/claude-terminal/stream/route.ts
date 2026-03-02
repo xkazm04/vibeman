@@ -7,6 +7,7 @@
 import { NextRequest } from 'next/server';
 import {
   getExecution,
+  waitForExecution,
   startExecution,
   type CLIExecutionEvent,
 } from '@/lib/claude-terminal/cli-service';
@@ -43,6 +44,10 @@ export async function GET(request: NextRequest) {
   const encoder = new TextEncoder();
   let isStreamClosed = false;
   let lastEventIndex = 0;
+
+  // Hoist interval refs so cancel() can clear them
+  let pollInterval: ReturnType<typeof setInterval> | undefined;
+  let heartbeatInterval: ReturnType<typeof setInterval> | undefined;
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -147,12 +152,25 @@ export async function GET(request: NextRequest) {
         }
       };
 
-      // Track retry attempts for execution not found
-      let executionNotFoundCount = 0;
-      const maxNotFoundRetries = 30; // Wait up to 3 seconds for execution to appear
+      // Wait for execution to be registered (handles race between POST and SSE connect)
+      let resolvedExecution;
+      try {
+        resolvedExecution = await waitForExecution(activeExecutionId!, 5000);
+      } catch {
+        sendEvent({
+          type: 'error',
+          data: { error: 'Execution not found' },
+          timestamp: Date.now(),
+        });
+        controller.close();
+        return;
+      }
+
+      // Execution confirmed — start polling for events
+      void resolvedExecution; // used only to confirm existence
 
       // Poll for new events
-      const pollInterval = setInterval(() => {
+      pollInterval = setInterval(() => {
         if (isStreamClosed) {
           clearInterval(pollInterval);
           return;
@@ -160,26 +178,16 @@ export async function GET(request: NextRequest) {
 
         const execution = getExecution(activeExecutionId!);
         if (!execution) {
-          executionNotFoundCount++;
-
-          // Retry for a bit before giving up (handles race conditions and module reloads)
-          if (executionNotFoundCount < maxNotFoundRetries) {
-            // Just wait and try again
-            return;
-          }
-
+          // Execution disappeared (cleanup ran) — close stream
           clearInterval(pollInterval);
           sendEvent({
             type: 'error',
-            data: { error: 'Execution not found' },
+            data: { error: 'Execution was cleaned up' },
             timestamp: Date.now(),
           });
           controller.close();
           return;
         }
-
-        // Reset counter once execution is found
-        executionNotFoundCount = 0;
 
         // Send new events
         const newEvents = execution.events.slice(lastEventIndex);
@@ -215,7 +223,7 @@ export async function GET(request: NextRequest) {
       }, 100); // Poll every 100ms
 
       // Send heartbeat to keep connection alive (raw write — not a protocol event)
-      const heartbeatInterval = setInterval(() => {
+      heartbeatInterval = setInterval(() => {
         if (isStreamClosed) {
           clearInterval(heartbeatInterval);
           return;
@@ -233,6 +241,10 @@ export async function GET(request: NextRequest) {
 
     cancel() {
       isStreamClosed = true;
+      if (pollInterval) clearInterval(pollInterval);
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      pollInterval = undefined;
+      heartbeatInterval = undefined;
     },
   });
 

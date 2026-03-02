@@ -103,6 +103,9 @@ export class SqliteDriver implements DbDriver {
         db.pragma('journal_size_limit = 67108864');
       }
 
+      // Enforce foreign key constraints (SQLite disables them by default)
+      db.pragma('foreign_keys = ON');
+
       // Performance pragmas
       db.pragma('cache_size = -64000');
       db.pragma('busy_timeout = 5000');

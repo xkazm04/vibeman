@@ -7,6 +7,7 @@ import TaskColumn from '@/app/features/TaskRunner/TaskColumn';
 import { usePollingCleanupOnUnmount } from '@/app/features/TaskRunner/lib/pollingManager';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
 import { useRequirements } from '@/app/features/TaskRunner/hooks/useRequirements';
+import { useTaskRunnerBatchData } from '@/app/features/TaskRunner/hooks/useTaskRunnerBatchData';
 
 
 
@@ -15,7 +16,7 @@ const TaskRunnerLayout = () => {
   usePollingCleanupOnUnmount();
 
   const {
-    requirementsWithStatus,
+    requirements,
     groupedRequirements,
     selectedRequirements,
     isLoading,
@@ -31,6 +32,9 @@ const TaskRunnerLayout = () => {
     refreshProjectRequirements,
     getRequirementId,
   } = useRequirements();
+
+  // Batch-fetch aggregation, ideas, and contexts for ALL columns (3 calls instead of 3N)
+  const { aggregationByProject, ideasMap, contextsMap } = useTaskRunnerBatchData(groupedRequirements);
 
   if (isLoading) {
     return (
@@ -56,11 +60,11 @@ const TaskRunnerLayout = () => {
         <LazyContentSection delay={0}>
           <TaskRunnerHeader
             selectedCount={selectedRequirements.size}
-            totalCount={requirementsWithStatus.length}
+            totalCount={requirements.length}
             processedCount={processedCount}
             isRunning={isRunning}
             error={error}
-            requirements={requirementsWithStatus}
+            requirements={requirements}
             selectedRequirements={selectedRequirements}
             actions={actions}
             getRequirementId={getRequirementId}
@@ -69,7 +73,7 @@ const TaskRunnerLayout = () => {
 
         {/* Requirements Grid - Column Layout */}
         <LazyContentSection delay={0.2}>
-          {requirementsWithStatus.length === 0 ? (
+          {requirements.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-gray-500 text-lg">
                 No requirements found. Create requirements in your projects&apos; .claude/commands directory.
@@ -96,6 +100,9 @@ const TaskRunnerLayout = () => {
                       onToggleProjectSelection={toggleProjectSelection}
                       getRequirementId={getRequirementId}
                       onRefresh={() => refreshProjectRequirements(projectId, projectPath)}
+                      aggregationData={aggregationByProject[projectId]}
+                      ideasData={ideasMap}
+                      contextsData={contextsMap}
                     />
                   );
                 })}

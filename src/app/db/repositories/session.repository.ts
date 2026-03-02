@@ -162,6 +162,7 @@ export const sessionRepository = {
       claude_session_id: null,
       status: 'pending' as const,
       context_tokens: 0,
+      pid: null,
       created_at: now,
       updated_at: now,
     };
@@ -462,6 +463,50 @@ export const sessionRepository = {
     `);
 
     const result = stmt.run(...params);
+    return result.changes;
+  },
+
+  /**
+   * Store the OS process ID for a session
+   */
+  updatePid(id: string, pid: number | null): boolean {
+    const db = getDatabase();
+    const now = new Date().toISOString();
+
+    const stmt = db.prepare(`
+      UPDATE claude_code_sessions
+      SET pid = ?, updated_at = ?
+      WHERE id = ?
+    `);
+
+    const result = stmt.run(pid, now, id);
+    return result.changes > 0;
+  },
+
+  /**
+   * Get all sessions that still have a recorded PID (potential orphans after restart)
+   */
+  getSessionsWithPids(): DbClaudeCodeSession[] {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM claude_code_sessions
+      WHERE pid IS NOT NULL AND status IN ('running', 'pending')
+    `);
+    return stmt.all() as DbClaudeCodeSession[];
+  },
+
+  /**
+   * Clear PIDs for all sessions (used after orphan reaping on startup)
+   */
+  clearAllPids(): number {
+    const db = getDatabase();
+    const now = new Date().toISOString();
+    const stmt = db.prepare(`
+      UPDATE claude_code_sessions
+      SET pid = NULL, updated_at = ?
+      WHERE pid IS NOT NULL
+    `);
+    const result = stmt.run(now);
     return result.changes;
   },
 

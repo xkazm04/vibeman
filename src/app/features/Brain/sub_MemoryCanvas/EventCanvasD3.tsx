@@ -18,7 +18,12 @@ import { UndoToasts } from './components/UndoToasts';
 
 const ALL_TYPES: SignalType[] = ['git_activity', 'api_focus', 'context_focus', 'implementation'];
 
-export default function EventCanvasD3() {
+interface EventCanvasD3Props {
+  /** When false, signal polling is paused. Defaults to true. */
+  enabled?: boolean;
+}
+
+export default function EventCanvasD3({ enabled = true }: EventCanvasD3Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const transformRef = useRef(d3.zoomIdentity);
@@ -146,7 +151,7 @@ export default function EventCanvasD3() {
 
   // ── Data fetching (pushes into store, not React state) ───────────
   const getFocusedGroupId = useCallback(() => focusedGroupRef.current, []);
-  useCanvasData({ store, getFocusedGroupId });
+  useCanvasData({ store, getFocusedGroupId, enabled });
 
   // Fit to view
   const fitToView = useCallback(() => {

@@ -61,12 +61,16 @@ export async function fetchTinderItems(
   itemType: TinderFilterMode = 'both',
   offset: number = 0,
   limit: number = 20,
-  category?: string | null
+  category?: string | null,
+  effortRange?: [number, number] | null,
+  riskRange?: [number, number] | null,
+  sortOrder: 'asc' | 'desc' = 'asc'
 ): Promise<TinderItemsResponse> {
   const params = new URLSearchParams({
     offset: offset.toString(),
     limit: limit.toString(),
     itemType,
+    sortOrder,
   });
 
   if (projectId && projectId !== 'all') {
@@ -76,6 +80,16 @@ export async function fetchTinderItems(
   // Add category filter for ideas
   if (category && itemType === 'ideas') {
     params.append('category', category);
+  }
+
+  // Add effort/risk range filters (server-side)
+  if (effortRange) {
+    params.append('effortMin', effortRange[0].toString());
+    params.append('effortMax', effortRange[1].toString());
+  }
+  if (riskRange) {
+    params.append('riskMin', riskRange[0].toString());
+    params.append('riskMax', riskRange[1].toString());
   }
 
   const response = await fetch(`/api/tinder/items?${params.toString()}`);

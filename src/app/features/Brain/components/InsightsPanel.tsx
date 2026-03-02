@@ -281,30 +281,34 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
     }
   };
 
-  // Count manual unresolved conflicts (exclude auto-resolved)
-  const conflictCount = useMemo(() => {
-    return insights.filter(i => i.conflict_with && !i.conflict_resolved).length;
-  }, [insights]);
+  // Single-pass computation: counts + filtered/sorted list
+  const { conflictCount, autoPrunedCount, displayed } = useMemo(() => {
+    let conflictCount = 0;
+    let autoPrunedCount = 0;
+    const filtered: InsightWithMeta[] = [];
+    const searchTerm = debouncedSearch.trim().toLowerCase();
 
-  // Count auto-pruned insights
-  const autoPrunedCount = useMemo(() => {
-    return insights.filter(i => i.auto_pruned).length;
-  }, [insights]);
+    for (const i of insights) {
+      // Count in every iteration regardless of filters
+      if (i.conflict_with && !i.conflict_resolved) conflictCount++;
+      if (i.auto_pruned) autoPrunedCount++;
 
-  const displayed = useMemo(() => {
-    let list: InsightWithMeta[];
-    if (typeFilter === 'all') {
-      list = insights;
-    } else if (typeFilter === 'conflicts') {
-      list = insights.filter(i => i.conflict_with && !i.conflict_resolved);
-    } else {
-      list = insights.filter(i => i.type === typeFilter);
+      // Type filter
+      if (typeFilter === 'conflicts') {
+        if (!(i.conflict_with && !i.conflict_resolved)) continue;
+      } else if (typeFilter !== 'all') {
+        if (i.type !== typeFilter) continue;
+      }
+
+      // Search filter
+      if (searchTerm && !i.title.toLowerCase().includes(searchTerm) && !i.description.toLowerCase().includes(searchTerm)) {
+        continue;
+      }
+
+      filtered.push(i);
     }
-    if (debouncedSearch.trim()) {
-      const q = debouncedSearch.toLowerCase();
-      list = list.filter(i => i.title.toLowerCase().includes(q) || i.description.toLowerCase().includes(q));
-    }
-    list = [...list].sort((a, b) => {
+
+    filtered.sort((a, b) => {
       let cmp = 0;
       switch (sortField) {
         case 'type': cmp = a.type.localeCompare(b.type); break;
@@ -314,7 +318,8 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
       }
       return sortDir === 'asc' ? cmp : -cmp;
     });
-    return list;
+
+    return { conflictCount, autoPrunedCount, displayed: filtered };
   }, [insights, typeFilter, sortField, sortDir, debouncedSearch]);
 
   return (

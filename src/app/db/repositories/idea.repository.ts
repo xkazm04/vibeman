@@ -1,6 +1,6 @@
 import { getDatabase } from '../connection';
 import { DbIdea, IdeaCategory } from '../models/types';
-import { buildUpdateQuery, getCurrentTimestamp, selectOne } from './repository.utils';
+import { buildUpdateQuery, getCurrentTimestamp, selectOne, validateScore } from './repository.utils';
 
 /**
  * Idea Repository
@@ -297,9 +297,9 @@ export const ideaRepository = {
     const now = getCurrentTimestamp();
 
     // Validate effort, impact, and risk values (1-10 scale)
-    const validatedEffort = ideaRepository.validateScore(idea.effort);
-    const validatedImpact = ideaRepository.validateScore(idea.impact);
-    const validatedRisk = ideaRepository.validateScore(idea.risk);
+    const validatedEffort = validateScore(idea.effort);
+    const validatedImpact = validateScore(idea.impact);
+    const validatedRisk = validateScore(idea.risk);
 
     const stmt = db.prepare(`
       INSERT INTO ideas (
@@ -333,21 +333,6 @@ export const ideaRepository = {
     );
 
     return selectOne<DbIdea>(db, 'SELECT * FROM ideas WHERE id = ?', idea.id)!;
-  },
-
-  /**
-   * Validate score value (must be 1-10 or null)
-   * Used for effort, impact, and risk scoring
-   */
-  validateScore: (value: number | null | undefined): number | null => {
-    if (value === null || value === undefined) {
-      return null;
-    }
-    const num = typeof value === 'number' ? value : parseInt(String(value), 10);
-    if (isNaN(num) || num < 1 || num > 10) {
-      return null; // Return null if invalid instead of defaulting
-    }
-    return num;
   },
 
   /**
@@ -403,15 +388,15 @@ export const ideaRepository = {
     }
     if (updates.effort !== undefined) {
       updateFields.push('effort = ?');
-      values.push(ideaRepository.validateScore(updates.effort));
+      values.push(validateScore(updates.effort));
     }
     if (updates.impact !== undefined) {
       updateFields.push('impact = ?');
-      values.push(ideaRepository.validateScore(updates.impact));
+      values.push(validateScore(updates.impact));
     }
     if (updates.risk !== undefined) {
       updateFields.push('risk = ?');
-      values.push(ideaRepository.validateScore(updates.risk));
+      values.push(validateScore(updates.risk));
     }
     if (updates.requirement_id !== undefined) {
       updateFields.push('requirement_id = ?');
@@ -566,6 +551,39 @@ export const ideaRepository = {
       ORDER BY ideas.created_at DESC
     `);
     return stmt.all(projectId) as Array<DbIdea & { context_color?: string | null }>;
+  },
+
+  /**
+   * Get ideas by multiple project IDs using SQL IN clause
+   */
+  getIdeasByProjectIds: (projectIds: string[]): DbIdea[] => {
+    const db = getDatabase();
+    const placeholders = projectIds.map(() => '?').join(',');
+    const stmt = db.prepare(`
+      SELECT * FROM ideas
+      WHERE project_id IN (${placeholders})
+      ORDER BY created_at DESC
+    `);
+    return stmt.all(...projectIds) as DbIdea[];
+  },
+
+  /**
+   * Get ideas by multiple project IDs with context colors using SQL IN clause
+   */
+  getIdeasByProjectIdsWithColors: (projectIds: string[]): Array<DbIdea & { context_color?: string | null }> => {
+    const db = getDatabase();
+    const placeholders = projectIds.map(() => '?').join(',');
+    const stmt = db.prepare(`
+      SELECT
+        ideas.*,
+        context_groups.color as context_color
+      FROM ideas
+      LEFT JOIN contexts ON ideas.context_id = contexts.id
+      LEFT JOIN context_groups ON contexts.group_id = context_groups.id
+      WHERE ideas.project_id IN (${placeholders})
+      ORDER BY ideas.created_at DESC
+    `);
+    return stmt.all(...projectIds) as Array<DbIdea & { context_color?: string | null }>;
   },
 
   /**

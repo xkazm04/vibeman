@@ -49,7 +49,7 @@ async function handleGet(request: NextRequest) {
       } else if (projectFilter.mode === 'single') {
         ideas = ideaDb.getIdeasByProjectWithColors(projectFilter.projectId!);
       } else if (projectFilter.mode === 'multi') {
-        ideas = filterByProject(ideaDb.getAllIdeasWithColors(), projectFilter);
+        ideas = ideaDb.getIdeasByProjectIdsWithColors(projectFilter.projectIds!);
       } else if (status) {
         ideas = ideaDb.getIdeasByStatusWithColors(status as any);
       } else if (limit) {
@@ -69,7 +69,7 @@ async function handleGet(request: NextRequest) {
       } else if (projectFilter.mode === 'single') {
         ideas = ideaDb.getIdeasByProject(projectFilter.projectId!);
       } else if (projectFilter.mode === 'multi') {
-        ideas = filterByProject(ideaDb.getAllIdeas(), projectFilter);
+        ideas = ideaDb.getIdeasByProjectIds(projectFilter.projectIds!);
       } else if (status) {
         ideas = ideaDb.getIdeasByStatus(status as any);
       } else if (limit) {

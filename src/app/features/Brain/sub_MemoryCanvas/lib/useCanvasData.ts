@@ -23,6 +23,8 @@ const WINDOW_DAYS = 14;
 interface UseCanvasDataOptions {
   store: CanvasStore;
   getFocusedGroupId: () => string | null;
+  /** When false, polling and initial fetch are paused. Defaults to true. */
+  enabled?: boolean;
 }
 
 interface CanvasDataStatus {
@@ -30,7 +32,7 @@ interface CanvasDataStatus {
   error: string | null;
 }
 
-export function useCanvasData({ store, getFocusedGroupId }: UseCanvasDataOptions): CanvasDataStatus & { refresh: () => void } {
+export function useCanvasData({ store, getFocusedGroupId, enabled = true }: UseCanvasDataOptions): CanvasDataStatus & { refresh: () => void } {
   const activeProject = useClientProjectStore(s => s.activeProject);
   const [status, setStatus] = useState<CanvasDataStatus>({
     isLoading: true,
@@ -82,12 +84,14 @@ export function useCanvasData({ store, getFocusedGroupId }: UseCanvasDataOptions
     }
   }, [activeProject?.id, fetchSignals]);
 
-  // Fetch on mount and when project changes
+  // Fetch on mount and when project changes; pause when disabled
   useEffect(() => {
     mountedRef.current = true;
 
-    if (!activeProject?.id) {
-      store.setEvents([], null);
+    if (!enabled || !activeProject?.id) {
+      if (!activeProject?.id) {
+        store.setEvents([], null);
+      }
       setStatus({ isLoading: false, error: null });
       return;
     }
@@ -107,7 +111,7 @@ export function useCanvasData({ store, getFocusedGroupId }: UseCanvasDataOptions
         intervalRef.current = null;
       }
     };
-  }, [activeProject?.id, fetchSignals, store]);
+  }, [activeProject?.id, enabled, fetchSignals, store]);
 
   return { ...status, refresh };
 }

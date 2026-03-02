@@ -44,6 +44,9 @@ import { migrate127DropSessionTaskIdsColumn } from './127_drop_session_task_ids_
 import { migrate128ReflectionUniqueActive } from './128_reflection_unique_active';
 import { migrate129DirectionHypothesisAssertions } from './129_direction_hypothesis_assertions';
 import { migrate130AlignScoringConstraints } from './130_align_scoring_constraints_1_10';
+import { migrate131SessionPidTracking } from './131_session_pid_tracking';
+import { migrate132EnforceIdeasScanCascade } from './132_enforce_ideas_scan_cascade';
+import { migrate133BrainDirectionsQueryIndexes } from './133_brain_directions_query_indexes';
 
 /**
  * Migration logger utility
@@ -351,6 +354,15 @@ export function runMigrations() {
 
     // Migration 130: Align scoring constraints to 1-10 scale across all tables
     migrate130AlignScoringConstraints(db as any, migrationLogger);
+
+    // Migration 131: Add PID tracking to sessions for orphan reaping
+    migrate131SessionPidTracking(db as any, migrationLogger);
+
+    // Migration 132: Enforce ON DELETE CASCADE for ideas.scan_id and clean up orphans
+    migrate132EnforceIdeasScanCascade(db as any, migrationLogger);
+
+    // Migration 133: Add query performance indexes for brain insights and directions
+    migrate133BrainDirectionsQueryIndexes(db as any, migrationLogger);
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {

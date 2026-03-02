@@ -41,6 +41,7 @@ export async function executeRequirement(
   logFilePath?: string;
   capturedClaudeSessionId?: string;  // Claude session ID captured from output
   memoryApplicationIds?: string[];   // Collective memory application IDs for feedback loop
+  pid?: number;                      // OS process ID of the spawned CLI process
 }> {
   const { spawn } = require('child_process');
 
@@ -187,6 +188,19 @@ export async function executeRequirement(
           env, // Use modified environment without API key
         });
 
+        const spawnedPid = childProcess.pid;
+
+        // Record PID in session DB for orphan reaping on server restart
+        if (spawnedPid && sessionConfig?.sessionId) {
+          try {
+            const { sessionRepository } = require('@/app/db/repositories/session.repository');
+            sessionRepository.updatePid(sessionConfig.sessionId, spawnedPid);
+            logMessage(`[PID] Recorded PID ${spawnedPid} for session ${sessionConfig.sessionId}`);
+          } catch {
+            // PID recording must never break execution
+          }
+        }
+
         // Write the prompt to stdin
         childProcess.stdin.write(fullPrompt);
         childProcess.stdin.end();
@@ -243,6 +257,16 @@ export async function executeRequirement(
           logMessage('=== Claude Code Execution Finished ===');
           closeLogStream();
 
+          // Clear PID from session DB (process no longer running)
+          if (sessionConfig?.sessionId) {
+            try {
+              const { sessionRepository } = require('@/app/db/repositories/session.repository');
+              sessionRepository.updatePid(sessionConfig.sessionId, null);
+            } catch {
+              // Must never break completion flow
+            }
+          }
+
           // Audit log
           if (code === 0) {
             recordExecution(command, args, durationMs);
@@ -257,6 +281,7 @@ export async function executeRequirement(
               logFilePath,
               capturedClaudeSessionId,
               memoryApplicationIds,
+              pid: spawnedPid,
             });
           } else {
             // Check for session limit errors
@@ -276,6 +301,7 @@ export async function executeRequirement(
                 sessionLimitReached: true,
                 logFilePath,
                 memoryApplicationIds,
+                pid: spawnedPid,
               });
             } else {
               resolve({
@@ -283,6 +309,7 @@ export async function executeRequirement(
                 error: `Execution failed (code ${code}). Check log file: ${logFilePath}\n\n${stderr}`,
                 logFilePath,
                 memoryApplicationIds,
+                pid: spawnedPid,
               });
             }
           }

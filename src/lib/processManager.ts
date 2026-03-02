@@ -224,18 +224,54 @@ class ProcessManager {
       this.childProcesses.set(projectId, child);
 
       // Store process info
-      const processInfo = {
+      const processInfo: ProcessInfo = {
         pid: child.pid,
         port,
-        status: 'running' as const,
+        status: 'running',
         startTime: new Date(),
         logs
       };
       this.processes.set(projectId, processInfo);
       log('startProcess', `Started ${projectId} with PID ${child.pid}`);
 
-      // Wait a bit to ensure process is fully started
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Poll port until server is actually listening (or timeout / early exit)
+      const POLL_INTERVAL_MS = 250;
+      const MAX_WAIT_MS = 30_000;
+      let exited = false;
+      let exitCode: number | null = null;
+
+      const exitHandler = (code: number | null) => {
+        exited = true;
+        exitCode = code;
+      };
+      child.once('exit', exitHandler);
+
+      try {
+        const startWait = Date.now();
+        let ready = false;
+
+        while (!ready && !exited && Date.now() - startWait < MAX_WAIT_MS) {
+          await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+          ready = await this.isPortInUse(port);
+        }
+
+        if (exited) {
+          processInfo.status = 'error';
+          const reason = exitCode !== null ? `exit code ${exitCode}` : 'unknown reason';
+          logs.push(`[ERROR] Process exited before becoming ready (${reason})`);
+          throw new Error(`Server failed to start — process exited early (${reason}). Check logs for details.`);
+        }
+
+        if (!ready) {
+          processInfo.status = 'error';
+          logs.push(`[ERROR] Server did not bind to port ${port} within ${MAX_WAIT_MS / 1000}s`);
+          throw new Error(`Server did not become ready on port ${port} within ${MAX_WAIT_MS / 1000} seconds. The process is still running — check logs for startup errors.`);
+        }
+
+        logs.push(`[INFO] Server ready on port ${port}`);
+      } finally {
+        child.removeListener('exit', exitHandler);
+      }
 
     } catch (error) {
       logError('startProcess', `Failed to start ${projectId}`, error);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, memo, useCallback, useRef } from 'react';
+import { useState, useEffect, memo, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Activity,
@@ -238,33 +238,51 @@ export const TaskMonitor = memo(function TaskMonitor({
     }
   }, [projectId]);
 
-  // Auto-refresh effect
+  // Auto-refresh effect: fast polling when expanded, slow (30s) when collapsed
+  const COLLAPSED_INTERVAL = 30000;
   useEffect(() => {
     refresh();
 
     if (autoRefresh) {
-      const interval = setInterval(refresh, refreshInterval);
+      const activeInterval = isExpanded ? refreshInterval : COLLAPSED_INTERVAL;
+      const interval = setInterval(refresh, activeInterval);
       return () => clearInterval(interval);
     }
-  }, [autoRefresh, refreshInterval, refresh]);
+  }, [autoRefresh, refreshInterval, refresh, isExpanded]);
 
-  // Count tasks by status
-  const pendingCount = tasks.filter(t => t.status === 'pending').length;
-  const runningCount = tasks.filter(t => t.status === 'running').length;
-  const stuckCount = tasks.filter(t => t.status === 'running' && (t.progress?.length || 0) === 0).length;
-  const failedCount = tasks.filter(t => t.status === 'failed' || t.status === 'session-limit').length;
+  // Single-pass computation: status counts + sorted task list
+  const { pendingCount, runningCount, stuckCount, failedCount, sortedTasks } = useMemo(() => {
+    let pendingCount = 0;
+    let runningCount = 0;
+    let stuckCount = 0;
+    let failedCount = 0;
+
+    for (const t of tasks) {
+      switch (t.status) {
+        case 'pending': pendingCount++; break;
+        case 'running':
+          runningCount++;
+          if ((t.progress?.length || 0) === 0) stuckCount++;
+          break;
+        case 'failed':
+        case 'session-limit':
+          failedCount++; break;
+      }
+    }
+
+    const statusOrder: Record<string, number> = { pending: 0, running: 1, failed: 2, 'session-limit': 2, completed: 3 };
+    const sortedTasks = [...tasks].sort((a, b) => {
+      const aStuck = a.status === 'running' && (a.progress?.length || 0) === 0;
+      const bStuck = b.status === 'running' && (b.progress?.length || 0) === 0;
+      if (aStuck && !bStuck) return -1;
+      if (!aStuck && bStuck) return 1;
+      return (statusOrder[a.status] || 4) - (statusOrder[b.status] || 4);
+    });
+
+    return { pendingCount, runningCount, stuckCount, failedCount, sortedTasks };
+  }, [tasks]);
+
   const orphanCount = orphanedSessions.length;
-
-  // Sort: stuck first, then running, then pending, then rest
-  const sortedTasks = [...tasks].sort((a, b) => {
-    const aStuck = a.status === 'running' && (a.progress?.length || 0) === 0;
-    const bStuck = b.status === 'running' && (b.progress?.length || 0) === 0;
-    if (aStuck && !bStuck) return -1;
-    if (!aStuck && bStuck) return 1;
-
-    const statusOrder = { pending: 0, running: 1, failed: 2, 'session-limit': 2, completed: 3 };
-    return (statusOrder[a.status] || 4) - (statusOrder[b.status] || 4);
-  });
 
   const handleCleanupSingle = useCallback(async (sessionId: string) => {
     await cleanupSessions([sessionId]);

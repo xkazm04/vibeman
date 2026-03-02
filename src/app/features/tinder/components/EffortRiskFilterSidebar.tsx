@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Gauge, AlertTriangle } from 'lucide-react';
+import { Gauge, AlertTriangle, ArrowUpDown } from 'lucide-react';
 
 interface EffortRiskFilters {
   effortRange: [number, number] | null; // [min, max] or null for all
@@ -12,6 +12,8 @@ interface EffortRiskFilters {
 interface EffortRiskFilterSidebarProps {
   filters: EffortRiskFilters;
   onFiltersChange: (filters: EffortRiskFilters) => void;
+  sortOrder: 'asc' | 'desc';
+  onSortOrderChange: (order: 'asc' | 'desc') => void;
   disabled?: boolean;
 }
 
@@ -48,8 +50,12 @@ function getColorClasses(color: string, isActive: boolean) {
 export default function EffortRiskFilterSidebar({
   filters,
   onFiltersChange,
+  sortOrder,
+  onSortOrderChange,
   disabled = false,
 }: EffortRiskFilterSidebarProps) {
+  const isReversed = sortOrder === 'desc';
+
   const isEffortActive = (range: [number, number]) =>
     filters.effortRange?.[0] === range[0] && filters.effortRange?.[1] === range[1];
 
@@ -78,6 +84,33 @@ export default function EffortRiskFilterSidebar({
       transition={{ duration: 0.2 }}
       className="w-56 bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 space-y-4 mt-3"
     >
+      {/* Sort Order Toggle */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 pb-2 border-b border-gray-700/40">
+          <ArrowUpDown className="w-4 h-4 text-purple-400" />
+          <span className="text-sm font-semibold text-gray-200">Sort Order</span>
+        </div>
+
+        <motion.button
+          onClick={() => onSortOrderChange(isReversed ? 'asc' : 'desc')}
+          disabled={disabled}
+          className={`
+            w-full flex items-center justify-between px-3 py-1.5 rounded-lg
+            text-xs font-medium transition-all duration-200 border
+            ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+            ${isReversed
+              ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-md shadow-purple-500/20'
+              : 'text-gray-400 border-transparent hover:bg-purple-500/10 hover:border-purple-500/20'
+            }
+          `}
+          whileHover={disabled ? {} : { scale: 1.02 }}
+          whileTap={disabled ? {} : { scale: 0.98 }}
+        >
+          <span>{isReversed ? 'Hardest First' : 'Easiest First'}</span>
+          <span className="text-[10px] text-gray-500">{isReversed ? '10→1' : '1→10'}</span>
+        </motion.button>
+      </div>
+
       {/* Effort Filter */}
       <div className="space-y-2">
         <div className="flex items-center gap-2 pb-2 border-b border-gray-700/40">

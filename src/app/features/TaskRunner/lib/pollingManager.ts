@@ -193,10 +193,9 @@ export function startSSEPolling(
         fallbackPoller.start();
       };
 
-      // Fire initial callback to get current state
-      setTimeout(() => {
-        if (!stopped) callback();
-      }, 100);
+      // No manual initial callback needed — the SSE stream endpoint sends
+      // an initial `status` event on connection (stream/route.ts line 46-56),
+      // which triggers the onmessage handler above.
 
       // Store stop hook
       const origStop = () => { stopped = true; };

@@ -48,8 +48,27 @@ async function checkOllamaCloudAuth(model: string): Promise<{ error: string; sig
     }
     // Any other response (including success) means auth is fine — abort the actual generation
     return null;
-  } catch {
-    return { error: 'Ollama is not running. Start it with "ollama serve".' };
+  } catch (err: unknown) {
+    // Distinguish timeout from connection refused for actionable error messages
+    const isTimeout =
+      (err instanceof DOMException && err.name === 'TimeoutError') ||
+      (err instanceof Error && err.name === 'AbortError');
+
+    if (isTimeout) {
+      return {
+        error: 'Ollama auth check timed out — the server may be under heavy load. Check your connection or try again.',
+      };
+    }
+
+    const errMsg = err instanceof Error ? err.message : '';
+    const isConnectionRefused =
+      errMsg.includes('ECONNREFUSED') || errMsg.includes('fetch failed');
+
+    if (isConnectionRefused) {
+      return { error: 'Ollama is not running. Start it with "ollama serve".' };
+    }
+
+    return { error: `Ollama auth check failed: ${errMsg || 'unknown error'}` };
   }
 }
 

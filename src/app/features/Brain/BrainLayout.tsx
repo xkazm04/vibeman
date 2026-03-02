@@ -11,7 +11,7 @@
 
 'use client';
 
-import { useEffect, useState, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
+import { useEffect, useState, useMemo, useRef, lazy, Suspense } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { Brain, Activity, AlertCircle, Layers, Clock, Sparkles, AlertTriangle, TrendingDown, TrendingUp, X, Castle, ChevronRight, Focus } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
@@ -50,9 +50,7 @@ export default function BrainLayout() {
     isLoadingOutcomes,
     isLoading,
     error,
-    fetchBehavioralContext,
-    fetchRecentOutcomes,
-    fetchReflectionStatus,
+    fetchDashboard,
     fetchGlobalReflectionStatus,
     clearError,
   } = useBrainStore();
@@ -66,35 +64,23 @@ export default function BrainLayout() {
   // Secondary sidebar collapsed state
   const [secondaryCollapsed, setSecondaryCollapsed] = useState(false);
 
-  const fetchAnomalies = useCallback(async (projectId: string) => {
-    try {
-      const res = await fetch(`/api/brain/anomalies?projectId=${encodeURIComponent(projectId)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.anomalies?.length > 0) {
-          setAnomalies(data.anomalies);
-          setAnomaliesDismissed(false);
-        } else {
-          setAnomalies([]);
-        }
-      }
-    } catch {
-      // Non-critical — don't surface anomaly fetch errors
-    }
-  }, []);
-
   // Load data when project changes or mode switches
+  // Single batched call replaces 4 separate API requests
   useEffect(() => {
     if (isGlobalMode) {
       fetchGlobalReflectionStatus();
       setAnomalies([]);
     } else if (activeProject?.id) {
-      fetchBehavioralContext(activeProject.id);
-      fetchRecentOutcomes(activeProject.id);
-      fetchReflectionStatus(activeProject.id);
-      fetchAnomalies(activeProject.id);
+      fetchDashboard(activeProject.id).then((detectedAnomalies) => {
+        if (detectedAnomalies.length > 0) {
+          setAnomalies(detectedAnomalies);
+          setAnomaliesDismissed(false);
+        } else {
+          setAnomalies([]);
+        }
+      });
     }
-  }, [isGlobalMode, activeProject?.id, fetchBehavioralContext, fetchRecentOutcomes, fetchReflectionStatus, fetchGlobalReflectionStatus, fetchAnomalies]);
+  }, [isGlobalMode, activeProject?.id, fetchDashboard, fetchGlobalReflectionStatus]);
 
   if (!isGlobalMode && !activeProject) {
     return (
@@ -370,7 +356,7 @@ export default function BrainLayout() {
               </div>
             }
           >
-            {activeTab === 'canvas' && <EventCanvasD3 />}
+            {activeTab === 'canvas' && <EventCanvasD3 enabled />}
             {activeTab === 'timeline' && <EventCanvasTimeline />}
             {activeTab === 'palace' && <MemoryPalace />}
           </Suspense>

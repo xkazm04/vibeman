@@ -7,6 +7,7 @@ import { parseAIJsonResponse } from '@/lib/aiJsonParser';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/lib/logger';
 import { signalCollector } from '@/lib/brain/signalCollector';
+import { validateScore } from '@/app/db/repositories/repository.utils';
 
 
 export interface IdeaGenerationOptions {
@@ -26,6 +27,7 @@ export interface GeneratedIdea {
   reasoning?: string; // Optional
   effort?: number; // 1-10 scale: 1 = trivial, 10 = massive
   impact?: number; // 1-10 scale: 1 = negligible, 10 = transformational
+  risk?: number; // 1-10 scale: 1 = very safe, 10 = critical
   goal_id?: string; // Optional - related goal ID if there's a significant match
 }
 
@@ -189,21 +191,9 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
           ? idea.reasoning.trim()
           : undefined;
 
-        // Validate and sanitize effort (must be 1-10 or null, default to 1 if invalid)
-        const validateEffortImpact = (value: any): number | null => {
-          if (value === null || value === undefined) {
-            return 1; // Default to 1 if nothing provided
-          }
-          const num = typeof value === 'number' ? value : parseInt(value, 10);
-          if (isNaN(num) || num < 1 || num > 10) {
-            logger.warn('Invalid effort/impact value, defaulting to 1', { value });
-            return 1; // Force to 1 if invalid
-          }
-          return num;
-        };
-
-        const effort = validateEffortImpact(idea.effort);
-        const impact = validateEffortImpact(idea.impact);
+        const effort = validateScore(idea.effort);
+        const impact = validateScore(idea.impact);
+        const risk = validateScore(idea.risk);
 
         // Validate goal_id - ensure it exists in the database
         let validatedGoalId: string | null = null;
@@ -236,6 +226,7 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
           status: 'pending',
           effort,
           impact,
+          risk,
           goal_id: validatedGoalId
         });
       });

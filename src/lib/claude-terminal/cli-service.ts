@@ -6,6 +6,7 @@
  */
 
 import { spawn, ChildProcess } from 'child_process';
+import { EventEmitter } from 'events';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { CLIProvider, CLIProviderConfig } from './types';
@@ -137,6 +138,7 @@ export interface CLIExecution {
   projectPath: string;
   prompt: string;
   process: ChildProcess | null;
+  pid?: number;
   sessionId?: string;
   provider?: CLIProvider;
   status: 'running' | 'completed' | 'error' | 'aborted';
@@ -146,15 +148,21 @@ export interface CLIExecution {
   logFilePath?: string;
 }
 
-// Active executions map - use globalThis to persist across Next.js module reloads in dev mode
+// Active executions map + event bus - use globalThis to persist across Next.js module reloads in dev mode
 const globalForExecutions = globalThis as unknown as {
   cliActiveExecutions: Map<string, CLIExecution> | undefined;
+  cliExecutionBus: EventEmitter | undefined;
 };
 
 const activeExecutions = globalForExecutions.cliActiveExecutions ?? new Map<string, CLIExecution>();
+const executionBus = globalForExecutions.cliExecutionBus ?? new EventEmitter();
+executionBus.setMaxListeners(50); // Allow many concurrent stream consumers
 
 if (!globalForExecutions.cliActiveExecutions) {
   globalForExecutions.cliActiveExecutions = activeExecutions;
+}
+if (!globalForExecutions.cliExecutionBus) {
+  globalForExecutions.cliExecutionBus = executionBus;
 }
 
 /**
@@ -339,6 +347,7 @@ export function startExecution(
   };
 
   activeExecutions.set(executionId, execution);
+  executionBus.emit('registered', executionId);
   console.log(`[CLI:${provider}] Registered execution: ${executionId}. Total active: ${activeExecutions.size}`);
 
   // Create log file stream
@@ -400,6 +409,7 @@ export function startExecution(
     });
 
     execution.process = childProcess;
+    execution.pid = childProcess.pid;
 
     // Write prompt to stdin only for providers that use it (Claude)
     if (spawnConfig.stdinPrompt) {
@@ -714,6 +724,36 @@ export function getExecution(executionId: string): CLIExecution | undefined {
     console.debug(`[CLI] getExecution: ${executionId} not found. Active executions: ${activeExecutions.size}`);
   }
   return execution;
+}
+
+/**
+ * Wait for an execution to appear in the registry.
+ * Resolves immediately if already present, otherwise waits for the
+ * 'registered' event from the execution bus. This replaces the fragile
+ * retry-counter approach in stream/route.ts and correctly handles the
+ * race between POST (startExecution) and SSE connect (getExecution).
+ */
+export function waitForExecution(executionId: string, timeoutMs = 5000): Promise<CLIExecution> {
+  const existing = activeExecutions.get(executionId);
+  if (existing) return Promise.resolve(existing);
+
+  return new Promise<CLIExecution>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      executionBus.removeListener('registered', onRegistered);
+      reject(new Error(`Execution ${executionId} not found after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    const onRegistered = (id: string) => {
+      if (id !== executionId) return;
+      clearTimeout(timer);
+      executionBus.removeListener('registered', onRegistered);
+      const exec = activeExecutions.get(executionId);
+      if (exec) resolve(exec);
+      else reject(new Error(`Execution ${executionId} registered but not in map`));
+    };
+
+    executionBus.on('registered', onRegistered);
+  });
 }
 
 /**

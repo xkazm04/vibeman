@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   HelpCircle,
@@ -185,22 +185,21 @@ export function QuestionDirectionRow({
   };
   const statusConfig = statusMap[status] ?? { label: status, colorScheme: 'amber' as const, icon: Clock };
 
-  // Parse ADR from decision_record JSON if present
-  const parsedAdr: DecisionRecord | null = (() => {
+  // Parse ADR from decision_record JSON if present (memoized to avoid re-parsing on every render)
+  const parsedAdr = useMemo<DecisionRecord | null>(() => {
     if (!directionData?.decision_record) return null;
     try { return JSON.parse(directionData.decision_record) as DecisionRecord; }
     catch { return null; }
-  })();
+  }, [directionData?.decision_record]);
 
-  // Parse hypothesis assertions for this direction
-  const hypothesisAssertions = directionData?.hypothesis_assertions
-    ? (() => {
-        try {
-          const p = JSON.parse(directionData.hypothesis_assertions!);
-          return Array.isArray(p) ? p as Array<{ description: string; metric: string; operator: string; expected: unknown }> : [];
-        } catch { return []; }
-      })()
-    : [];
+  // Parse hypothesis assertions for this direction (memoized)
+  const hypothesisAssertions = useMemo(() => {
+    if (!directionData?.hypothesis_assertions) return [];
+    try {
+      const p = JSON.parse(directionData.hypothesis_assertions);
+      return Array.isArray(p) ? p as Array<{ description: string; metric: string; operator: string; expected: unknown }> : [];
+    } catch { return []; }
+  }, [directionData?.hypothesis_assertions]);
 
   const handleRowClick = () => {
     if (isDirection && directionData) {

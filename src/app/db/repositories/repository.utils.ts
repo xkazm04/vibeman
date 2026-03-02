@@ -275,6 +275,23 @@ export function safeParseJsonArray<T>(value: string | null | undefined): T[] {
 }
 
 /**
+ * Validate a score value on a 1-10 scale.
+ * Returns the clamped integer value, or null if the input is null/undefined.
+ * Out-of-range numbers are clamped to [1, 10].
+ * Non-numeric values return null.
+ */
+export function validateScore(value: number | null | undefined): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const num = typeof value === 'number' ? value : parseInt(String(value), 10);
+  if (isNaN(num)) {
+    return null;
+  }
+  return Math.max(1, Math.min(10, Math.round(num)));
+}
+
+/**
  * Error thrown when a required database table does not exist.
  * Repositories throw this so API routes can return a clear 503 message
  * instead of a generic 500 "Failed to ..." response.
