@@ -163,6 +163,14 @@ export function useTinderItems(
     );
   }, []);
 
+  // Optimistically update tab counts when an item is processed
+  const updateCountsOptimistic = useCallback((type: 'ideas' | 'directions', decrement: number = 1) => {
+    setCounts(prev => ({
+      ...prev,
+      [type]: Math.max(0, prev[type] - decrement),
+    }));
+  }, []);
+
   // Load idea categories for filtering
   const loadCategories = useCallback(async () => {
     if (isRemoteMode) return; // No category filtering in remote mode
@@ -348,6 +356,7 @@ export function useTinderItems(
 
       updateStats(currentItem, 'accepted');
       updateCategoryCountOptimistic(currentItem);
+      updateCountsOptimistic(isIdeaItem(currentItem) ? 'ideas' : 'directions');
       loadMoreIfNeeded();
     } catch (error) {
       alert('Failed to accept: ' + (error instanceof Error ? error.message : 'Unknown error'));
@@ -360,7 +369,7 @@ export function useTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, filteredItems, isRemoteMode, getProject, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic, sendRemoteTriageCommand]);
+  }, [processing, currentIndex, filteredItems, isRemoteMode, getProject, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic, updateCountsOptimistic, sendRemoteTriageCommand]);
 
   const handleReject = useCallback(async (rejectionReason?: string) => {
     if (processing || currentIndex >= filteredItems.length) return;
@@ -385,6 +394,7 @@ export function useTinderItems(
 
       updateStats(currentItem, 'rejected');
       updateCategoryCountOptimistic(currentItem);
+      updateCountsOptimistic(isIdeaItem(currentItem) ? 'ideas' : 'directions');
       loadMoreIfNeeded();
     } catch (error) {
       alert('Failed to reject');
@@ -397,7 +407,7 @@ export function useTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, filteredItems, isRemoteMode, getProject, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic, sendRemoteTriageCommand]);
+  }, [processing, currentIndex, filteredItems, isRemoteMode, getProject, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic, updateCountsOptimistic, sendRemoteTriageCommand]);
 
   const handleDelete = useCallback(async () => {
     if (processing || currentIndex >= filteredItems.length) return;
@@ -410,6 +420,7 @@ export function useTinderItems(
       setItems(prev => prev.filter(item => item !== currentItem));
       updateStats(currentItem, 'deleted');
       updateCategoryCountOptimistic(currentItem);
+      updateCountsOptimistic(isIdeaItem(currentItem) ? 'ideas' : 'directions');
       return;
     }
 
@@ -425,6 +436,7 @@ export function useTinderItems(
       await deleteTinderItem(currentItem);
       updateStats(currentItem, 'deleted');
       updateCategoryCountOptimistic(currentItem);
+      updateCountsOptimistic(isIdeaItem(currentItem) ? 'ideas' : 'directions');
       loadMoreIfNeeded();
     } catch (error) {
       alert(`Failed to delete ${itemType}`);
@@ -436,7 +448,7 @@ export function useTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, filteredItems, isRemoteMode, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic]);
+  }, [processing, currentIndex, filteredItems, isRemoteMode, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic, updateCountsOptimistic]);
 
   const resetStats = useCallback(() => {
     setStats(initialTinderItemStats);
@@ -498,6 +510,7 @@ export function useTinderItems(
 
       updateStats(currentItem, 'accepted');
       updateCategoryCountOptimistic(currentItem);
+      updateCountsOptimistic('ideas');
       loadMoreIfNeeded();
     } catch (error) {
       alert('Failed to accept variant: ' + (error instanceof Error ? error.message : 'Unknown error'));
@@ -509,7 +522,7 @@ export function useTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, filteredItems, getProject, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic]);
+  }, [processing, currentIndex, filteredItems, getProject, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic, updateCountsOptimistic]);
 
   // Handler for accepting a variant from a direction pair
   const handleAcceptPairVariant = useCallback(async (pairId: string, variant: 'A' | 'B') => {
@@ -540,6 +553,7 @@ export function useTinderItems(
           rejected: prev.directions.rejected + 1,
         },
       }));
+      updateCountsOptimistic('directions', 2);
       loadMoreIfNeeded();
     } catch (error) {
       alert('Failed to accept direction variant: ' + (error instanceof Error ? error.message : 'Unknown error'));
@@ -551,7 +565,7 @@ export function useTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, filteredItems, getProject, loadMoreIfNeeded]);
+  }, [processing, currentIndex, filteredItems, getProject, loadMoreIfNeeded, updateCountsOptimistic]);
 
   // Handler for rejecting both directions in a pair
   const handleRejectPair = useCallback(async (pairId: string) => {
@@ -573,6 +587,7 @@ export function useTinderItems(
           rejected: prev.directions.rejected + 2,
         },
       }));
+      updateCountsOptimistic('directions', 2);
       loadMoreIfNeeded();
     } catch (error) {
       alert('Failed to reject direction pair');
@@ -584,7 +599,7 @@ export function useTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, filteredItems, loadMoreIfNeeded]);
+  }, [processing, currentIndex, filteredItems, loadMoreIfNeeded, updateCountsOptimistic]);
 
   // Handler for deleting both directions in a pair
   const handleDeletePair = useCallback(async (pairId: string) => {
@@ -610,6 +625,7 @@ export function useTinderItems(
           deleted: prev.directions.deleted + 2,
         },
       }));
+      updateCountsOptimistic('directions', 2);
       loadMoreIfNeeded();
     } catch (error) {
       alert('Failed to delete direction pair');
@@ -621,7 +637,7 @@ export function useTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, filteredItems, loadMoreIfNeeded]);
+  }, [processing, currentIndex, filteredItems, loadMoreIfNeeded, updateCountsOptimistic]);
 
   // Load categories when in ideas mode
   useEffect(() => {

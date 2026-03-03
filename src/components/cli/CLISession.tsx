@@ -327,7 +327,7 @@ export function CLISession({
               >
                 <option value="claude">Claude</option>
                 <option value="gemini">Gemini</option>
-                <option value="vscode">VS Code</option>
+                <option value="copilot">Copilot</option>
                 <option value="ollama">Ollama</option>
               </select>
               <select

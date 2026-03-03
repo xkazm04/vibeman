@@ -14,6 +14,8 @@ import {
   isTaskFailed,
 } from '@/app/features/TaskRunner/lib/types';
 import { toast } from 'sonner';
+import ConductorProgress from './ConductorProgress';
+import { useConductorStore } from '@/app/features/Manager/lib/conductor/conductorStore';
 
 interface GlobalTaskBarProps {
   className?: string;
@@ -100,7 +102,11 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
 
   const hasActiveCLI = cliStats.running > 0 || cliStats.pending > 0;
 
-  const hasAnyTasks = hasRunningTasks || hasCompletedTasks || hasFailedTasks || hasActiveCLI;
+  // Check if conductor pipeline is active
+  const conductorRun = useConductorStore((s) => s.currentRun);
+  const hasConductor = !!conductorRun && (conductorRun.status === 'running' || conductorRun.status === 'paused');
+
+  const hasAnyTasks = hasRunningTasks || hasCompletedTasks || hasFailedTasks || hasActiveCLI || hasConductor;
 
   // Parse task ID to get project name and requirement name
   const parseTaskId = (taskId: string | undefined) => {
@@ -269,6 +275,9 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
           />
         </div>
 
+        {/* Conductor Pipeline Progress (survives all SPA navigation) */}
+        <ConductorProgress />
+
         {/* Collapsed State - Summary Bar */}
         {!isExpanded && (
           <motion.div
@@ -312,6 +321,15 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
                   <Terminal className="w-4 h-4 text-cyan-400" />
                   <span className="text-sm font-medium text-cyan-400">
                     {cliStats.running > 0 ? `${cliStats.running} CLI running` : `${cliStats.pending} CLI pending`}
+                  </span>
+                </div>
+              )}
+
+              {hasConductor && (
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-purple-400" />
+                  <span className="text-sm font-medium text-purple-400">
+                    Conductor {conductorRun.status === 'paused' ? 'paused' : `C${conductorRun.cycle}`}
                   </span>
                 </div>
               )}

@@ -211,8 +211,8 @@ function buildSpawnConfig(
   const provider = providerConfig?.provider || 'claude';
   const model = providerConfig?.model;
 
-  if (provider === 'vscode') {
-    throw new Error('VS Code provider uses direct HTTP communication with the vibeman-bridge extension. It cannot be executed via the CLI service.');
+  if (provider === 'copilot') {
+    throw new Error('Copilot provider uses the Copilot SDK API routes. It cannot be executed via the CLI service.');
   }
 
   if (provider === 'ollama') {

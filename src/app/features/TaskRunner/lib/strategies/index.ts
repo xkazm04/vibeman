@@ -8,4 +8,4 @@
 export { TerminalStrategy } from './terminalStrategy';
 export { QueueStrategy } from './queueStrategy';
 export { RemoteMeshStrategy } from './remoteMeshStrategy';
-export { VSCodeStrategy } from './vscodeStrategy';
+export { CopilotSdkStrategy } from './copilotSdkStrategy';

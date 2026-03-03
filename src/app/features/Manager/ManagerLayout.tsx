@@ -18,6 +18,7 @@ import ManagerCardGrid from './components/ManagerCardGrid';
 import ManagerSystemMap from './components/ManagerSystemMap';
 import DevelopmentFlowMap from './components/DevelopmentFlowMap';
 import TabEmptyState from './components/TabEmptyStates';
+import ConductorView from './components/conductor/ConductorView';
 import { acceptImplementation } from '@/lib/tools';
 import type { ContextGroupRelationship } from '@/lib/queries/contextQueries';
 
@@ -137,8 +138,22 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
         hasActiveProject={!!activeProject}
       />
 
+      {/* Conductor Pipeline View */}
+      {viewMode === 'conductor' && (
+        <motion.div
+          key="conductor-view"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.2 }}
+          data-testid="manager-conductor-view"
+        >
+          <ConductorView projectId={effectiveProjectId} />
+        </motion.div>
+      )}
+
       {/* Loading State */}
-      {loading && (
+      {viewMode !== 'conductor' && loading && (
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className={`w-12 h-12 border-4 ${colors.border} border-t-current ${colors.textDark} rounded-full animate-spin mx-auto mb-4`} />
@@ -148,14 +163,14 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
       )}
 
       {/* Empty State */}
-      {!loading && implementationLogs.length === 0 && (
+      {viewMode !== 'conductor' && !loading && implementationLogs.length === 0 && (
         <div data-testid="manager-empty-state">
           <TabEmptyState tab="review" />
         </div>
       )}
 
       {/* Content Views */}
-      {!loading && implementationLogs.length > 0 && (
+      {viewMode !== 'conductor' && !loading && implementationLogs.length > 0 && (
         <AnimatePresence mode="wait">
           {viewMode === 'flow' ? (
             <motion.div

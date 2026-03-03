@@ -419,7 +419,7 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
     }),
     {
       name: 'cli-session-storage',
-      version: 6, // v6: added provider + model for multi-provider support
+      version: 7, // v7: renamed vscode provider to copilot (Copilot SDK migration)
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         // Only persist session data, not ephemeral state
@@ -475,6 +475,17 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
                   provider: existingSession.provider ?? 'claude',
                   model: existingSession.model ?? null,
                 };
+              }
+              // v6 -> v7: Rename 'vscode' provider to 'copilot' (Copilot SDK migration)
+              if (version < 7) {
+                const session = migratedSessions[id];
+                if ((session as { provider?: string }).provider === 'vscode') {
+                  migratedSessions[id] = {
+                    ...session,
+                    provider: 'copilot' as CLIProvider,
+                    model: null, // Reset model since IDs may differ
+                  };
+                }
               }
             }
           }

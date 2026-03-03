@@ -8,7 +8,13 @@ const nextConfig: NextConfig = {
     ],
   },
   // Externalize server-only packages that shouldn't be bundled
-  serverExternalPackages: ['ts-morph', '@ts-morph/common'],
+  serverExternalPackages: [
+    'ts-morph',
+    '@ts-morph/common',
+    // Copilot SDK uses import.meta.resolve which Turbopack cannot transform
+    '@github/copilot-sdk',
+    '@github/copilot',
+  ],
   async headers() {
     return [
       {

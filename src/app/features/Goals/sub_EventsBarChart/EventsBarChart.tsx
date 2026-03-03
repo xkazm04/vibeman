@@ -15,41 +15,39 @@ interface EventsBarChartProps {
   limit?: number;
 }
 
-// Helper function to map event title to short label
-const getEventLabel = (eventTitle: string): string => {
-  for (const column of BLUEPRINT_COLUMNS) {
-    for (const button of column.buttons) {
-      if (button.eventTitle === eventTitle) {
-        return button.label;
-      }
+// Pre-built O(1) lookup map from BLUEPRINT_COLUMNS (static constant)
+const COLOR_CLASS_MAP: Record<string, string> = {
+  cyan: 'bg-cyan-500/80',
+  blue: 'bg-blue-500/80',
+  purple: 'bg-purple-500/80',
+  green: 'bg-green-500/80',
+  amber: 'bg-amber-500/80',
+  red: 'bg-red-500/80',
+  pink: 'bg-pink-500/80',
+  indigo: 'bg-indigo-500/80',
+};
+
+const EVENT_LOOKUP = new Map<string, { label: string; color: string }>();
+for (const column of BLUEPRINT_COLUMNS) {
+  for (const button of column.buttons) {
+    if (button.eventTitle) {
+      EVENT_LOOKUP.set(button.eventTitle, {
+        label: button.label,
+        color: COLOR_CLASS_MAP[button.color] || 'bg-blue-500/80',
+      });
     }
   }
-  // If not found in config, try to extract a short name
-  // e.g., "Vision Scan Completed" -> "Vision"
+}
+
+const getEventLabel = (eventTitle: string): string => {
+  const entry = EVENT_LOOKUP.get(eventTitle);
+  if (entry) return entry.label;
   const match = eventTitle.match(/^(\w+)/);
   return match ? match[1] : eventTitle;
 };
 
-// Helper function to get color for event
 const getEventColor = (eventTitle: string): string => {
-  for (const column of BLUEPRINT_COLUMNS) {
-    for (const button of column.buttons) {
-      if (button.eventTitle === eventTitle) {
-        switch (button.color) {
-          case 'cyan': return 'bg-cyan-500/80';
-          case 'blue': return 'bg-blue-500/80';
-          case 'purple': return 'bg-purple-500/80';
-          case 'green': return 'bg-green-500/80';
-          case 'amber': return 'bg-amber-500/80';
-          case 'red': return 'bg-red-500/80';
-          case 'pink': return 'bg-pink-500/80';
-          case 'indigo': return 'bg-indigo-500/80';
-          default: return 'bg-blue-500/80';
-        }
-      }
-    }
-  }
-  return 'bg-blue-500/80';
+  return EVENT_LOOKUP.get(eventTitle)?.color || 'bg-blue-500/80';
 };
 
 export default function EventsBarChart({

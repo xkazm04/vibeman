@@ -43,7 +43,9 @@ export default function ImplementationLogItem({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -20 }}
-      className="relative rounded-lg border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden hover:border-white/15 transition-colors"
+      className={`relative rounded-lg border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden hover:border-white/15 transition-colors ${
+        isTested ? 'border-l-2 border-l-green-500/40' : ''
+      }`}
     >
       {/* Header - Always visible */}
       <div
@@ -63,9 +65,17 @@ export default function ImplementationLogItem({
           <FileCode className="w-4 h-4 text-purple-400 flex-shrink-0" />
 
           {/* Title */}
-          <h3 className="text-sm font-semibold text-gray-200 truncate flex-1" title={log.title}>
-            {log.title}
-          </h3>
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <h3 className="text-sm font-semibold text-gray-200 truncate flex-1" title={log.title}>
+              {log.title}
+            </h3>
+            {!isTested && (
+              <span
+                className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0"
+                aria-label="Pending verification"
+              />
+            )}
+          </div>
         </div>
 
         {/* Action buttons */}
@@ -91,9 +101,13 @@ export default function ImplementationLogItem({
             }}
             data-testid={`mark-tested-${log.id}`}
             className="p-1.5 hover:bg-green-500/10 rounded-lg transition-all duration-300 cursor-pointer group"
-            title="Mark as tested"
+            title={isTested ? 'Tested' : 'Mark as tested'}
           >
-            <CheckCircle2 className="w-4 h-4 text-gray-600 group-hover:text-green-400 transition-colors duration-300" />
+            <CheckCircle2
+              className={`w-4 h-4 transition-colors duration-300 ${
+                isTested ? 'text-green-400' : 'text-gray-600 group-hover:text-green-400'
+              }`}
+            />
           </button>
         </div>
       </div>

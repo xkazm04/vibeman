@@ -329,6 +329,9 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
                     sg.id,
                     sg.status === 'done' ? 'open' : 'done'
                   )}
+                  role="checkbox"
+                  aria-checked={sg.status === 'done'}
+                  aria-label={sg.title}
                   className="flex-shrink-0"
                 >
                   {sg.status === 'done' ? (

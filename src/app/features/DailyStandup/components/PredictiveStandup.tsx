@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Radar, AlertTriangle, TrendingUp, TrendingDown,
@@ -90,6 +90,11 @@ export default function PredictiveStandup({ projectId }: PredictiveStandupProps)
     setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const riskyGoals = useMemo(
+    () => data?.goalsAtRisk.filter(g => g.riskLevel !== 'low') ?? [],
+    [data?.goalsAtRisk],
+  );
+
   if (loading) {
     return (
       <div className="flex items-center gap-3 py-8 justify-center text-slate-400">
@@ -101,7 +106,7 @@ export default function PredictiveStandup({ projectId }: PredictiveStandupProps)
 
   if (!data) return null;
 
-  const hasContent = data.goalsAtRisk.length > 0 ||
+  const hasContent = riskyGoals.length > 0 ||
     data.contextDecayAlerts.length > 0 ||
     data.recommendedTaskOrder.length > 0 ||
     data.predictedBlockers.length > 0;
@@ -173,25 +178,25 @@ export default function PredictiveStandup({ projectId }: PredictiveStandupProps)
         >
           <div className="space-y-2">
             {data.predictedBlockers.map((blocker, idx) => (
-              <BlockerCard key={idx} blocker={blocker} />
+              <BlockerCard key={idx} blocker={blocker} index={idx} />
             ))}
           </div>
         </CollapsibleSection>
       )}
 
       {/* Goals at Risk */}
-      {data.goalsAtRisk.filter(g => g.riskLevel !== 'low').length > 0 && (
+      {riskyGoals.length > 0 && (
         <CollapsibleSection
           title="Goals at Risk"
           icon={<AlertTriangle className="w-4 h-4 text-amber-400" />}
-          badge={`${data.goalsAtRisk.filter(g => g.riskLevel !== 'low').length}`}
+          badge={`${riskyGoals.length}`}
           badgeColor="bg-amber-500/20 text-amber-300 border-amber-500/30"
           expanded={expandedSections.risks}
           onToggle={() => toggleSection('risks')}
         >
           <div className="space-y-2">
-            {data.goalsAtRisk.filter(g => g.riskLevel !== 'low').map(goal => (
-              <GoalRiskCard key={goal.goalId} goal={goal} />
+            {riskyGoals.map((goal, idx) => (
+              <GoalRiskCard key={goal.goalId} goal={goal} index={idx} />
             ))}
           </div>
         </CollapsibleSection>
@@ -208,8 +213,8 @@ export default function PredictiveStandup({ projectId }: PredictiveStandupProps)
           onToggle={() => toggleSection('contexts')}
         >
           <div className="space-y-2">
-            {data.contextDecayAlerts.map(alert => (
-              <ContextAlertCard key={alert.contextId} alert={alert} />
+            {data.contextDecayAlerts.map((alert, idx) => (
+              <ContextAlertCard key={alert.contextId} alert={alert} index={idx} />
             ))}
           </div>
         </CollapsibleSection>
@@ -232,7 +237,7 @@ function VelocityBar({ velocity }: { velocity: VelocityComparison }) {
         </div>
         <div className="flex items-center gap-2">
           {trendIcon(trend)}
-          <span className={'text-sm font-bold ' + (
+          <span className={'text-sm font-bold tabular-nums ' + (
             trend === 'accelerating' ? 'text-emerald-400' :
             trend === 'decelerating' ? 'text-red-400' : 'text-slate-300'
           )}>
@@ -264,7 +269,7 @@ function VelocityBar({ velocity }: { velocity: VelocityComparison }) {
 function MetricPill({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-white/5 rounded-lg px-3 py-2 text-center">
-      <div className="text-sm font-bold text-white">{value}</div>
+      <div className="text-sm font-bold text-white tabular-nums">{value}</div>
       <div className="text-[10px] text-slate-500 uppercase tracking-wider">{label}</div>
     </div>
   );
@@ -311,6 +316,10 @@ function CollapsibleSection({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
+            transition={{
+              height: { type: 'spring', stiffness: 300, damping: 30 },
+              opacity: { duration: 0.2 },
+            }}
             className="overflow-hidden"
           >
             <div className="px-4 pb-4">{children}</div>
@@ -326,7 +335,7 @@ function TaskCard({ task, index }: { task: TaskRecommendation; index: number }) 
     <motion.div
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.05 }}
+      transition={{ delay: index * 0.02, type: 'spring', stiffness: 300, damping: 30 }}
       className="flex items-start gap-3 p-3 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors"
     >
       <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center">
@@ -349,9 +358,14 @@ function TaskCard({ task, index }: { task: TaskRecommendation; index: number }) 
   );
 }
 
-function BlockerCard({ blocker }: { blocker: PredictedBlocker }) {
+function BlockerCard({ blocker, index }: { blocker: PredictedBlocker; index: number }) {
   return (
-    <div className={`p-3 rounded-lg border ${riskBg(blocker.severity)}`}>
+    <motion.div
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.02, type: 'spring', stiffness: 300, damping: 30 }}
+      className={`p-3 rounded-lg border ${riskBg(blocker.severity)}`}
+    >
       <div className="flex items-start gap-2">
         <Shield className={`w-4 h-4 mt-0.5 flex-shrink-0 ${riskColor(blocker.severity)}`} />
         <div className="flex-1">
@@ -360,18 +374,23 @@ function BlockerCard({ blocker }: { blocker: PredictedBlocker }) {
           <p className="text-xs text-cyan-400/80 mt-1">
             Action: {blocker.preventiveAction}
           </p>
-          <span className="text-[10px] text-slate-500 mt-1 inline-block">
+          <span className="text-[10px] text-slate-500 tabular-nums mt-1 inline-block">
             {blocker.confidence}% confidence
           </span>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-function GoalRiskCard({ goal }: { goal: GoalRiskAssessment }) {
+function GoalRiskCard({ goal, index }: { goal: GoalRiskAssessment; index: number }) {
   return (
-    <div className={`p-3 rounded-lg border ${riskBg(goal.riskLevel)}`}>
+    <motion.div
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.02, type: 'spring', stiffness: 300, damping: 30 }}
+      className={`p-3 rounded-lg border ${riskBg(goal.riskLevel)}`}
+    >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -382,21 +401,26 @@ function GoalRiskCard({ goal }: { goal: GoalRiskAssessment }) {
           <p className="text-xs text-cyan-400/80 mt-1">{goal.suggestedAction}</p>
         </div>
         <div className="flex flex-col items-end gap-1 flex-shrink-0 ml-3">
-          <span className={`text-sm font-bold ${riskColor(goal.riskLevel)}`}>
+          <span className={`text-sm font-bold tabular-nums ${riskColor(goal.riskLevel)}`}>
             {goal.progress}%
           </span>
-          <span className="text-[10px] text-slate-500">
+          <span className="text-[10px] text-slate-500 tabular-nums">
             {goal.daysSinceActivity}d ago
           </span>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-function ContextAlertCard({ alert }: { alert: ContextDecayAlert }) {
+function ContextAlertCard({ alert, index }: { alert: ContextDecayAlert; index: number }) {
   return (
-    <div className={`p-3 rounded-lg border ${riskBg(alert.urgency)}`}>
+    <motion.div
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.02, type: 'spring', stiffness: 300, damping: 30 }}
+      className={`p-3 rounded-lg border ${riskBg(alert.urgency)}`}
+    >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-white/90">{alert.contextName}</p>
@@ -425,12 +449,12 @@ function ContextAlertCard({ alert }: { alert: ContextDecayAlert }) {
                 strokeLinecap="round"
               />
             </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white">
+            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white tabular-nums">
               {alert.decayPercent}%
             </span>
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

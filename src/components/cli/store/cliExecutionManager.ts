@@ -26,7 +26,7 @@ import {
 } from '@/app/features/TaskRunner/lib/types';
 // Register strategies on import
 import '@/app/features/TaskRunner/lib/strategies/terminalStrategy';
-import '@/app/features/TaskRunner/lib/strategies/vscodeStrategy';
+import '@/app/features/TaskRunner/lib/strategies/copilotSdkStrategy';
 import { registerTaskComplete } from '../taskRegistry';
 import { DAGScheduler, type DAGTask, type DAGTaskStatus } from '@/lib/dag/dagScheduler';
 
@@ -182,7 +182,7 @@ function queueToDAGTasks(queue: QueuedTask[]): DAGTask[] {
 
 /**
  * Get or create the execution strategy for a session.
- * Routes to 'vscode' strategy when session provider is 'vscode',
+ * Routes to 'copilot' strategy when session provider is 'copilot',
  * otherwise uses 'terminal' strategy (for claude/gemini).
  */
 function getSessionStrategy(sessionId: CLISessionId): ExecutionStrategy {
@@ -190,7 +190,7 @@ function getSessionStrategy(sessionId: CLISessionId): ExecutionStrategy {
   if (!strategy) {
     const store = useCLISessionStore.getState();
     const session = store.sessions[sessionId];
-    const strategyType = session?.provider === 'vscode' ? 'vscode' : 'terminal';
+    const strategyType = session?.provider === 'copilot' ? 'copilot' : 'terminal';
     strategy = createStrategy(strategyType);
     sessionStrategies.set(sessionId, strategy);
   }

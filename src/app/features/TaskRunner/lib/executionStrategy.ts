@@ -168,7 +168,7 @@ export function hasCapability<C extends StrategyCapability>(
 // Strategy Registry
 // ============================================================================
 
-export type StrategyType = 'terminal' | 'queue' | 'remote-mesh' | 'vscode';
+export type StrategyType = 'terminal' | 'queue' | 'remote-mesh' | 'copilot';
 
 const strategyFactories = new Map<StrategyType, () => ExecutionStrategy>();
 

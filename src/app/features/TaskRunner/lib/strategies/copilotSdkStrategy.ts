@@ -1,21 +1,14 @@
 /**
- * VS Code Strategy
+ * Copilot SDK Strategy
  *
- * Executes tasks via the vibeman-bridge VS Code extension.
- * The extension runs a local HTTP server on localhost:9876 that uses
- * Copilot-provided language models via the vscode.lm API.
+ * Executes tasks via the Copilot SDK API routes.
+ * Replaces the old VS Code bridge strategy with direct SDK integration.
  *
  * Flow:
- * 1. POST http://localhost:9876/execute-task → starts execution, returns executionId + streamUrl
- * 2. GET  http://localhost:9876/stream?executionId=... → SSE stream for real-time events
- * 3. DELETE http://localhost:9876/execute-task?executionId=... → abort execution
- * 4. GET  http://localhost:9876/health → check extension availability
- *
- * Key differences from TerminalStrategy:
- * - Talks directly to extension HTTP server (cross-origin with CORS)
- * - No session resume support (no --resume equivalent)
- * - No cli-service involvement (extension handles everything)
- * - Model parameter maps to Copilot model IDs (gpt-4o, gpt-4.1, claude-sonnet-4)
+ * 1. POST /api/copilot-sdk/execute → starts execution, returns executionId + streamUrl
+ * 2. GET  /api/copilot-sdk/stream?executionId=... → SSE stream for real-time events
+ * 3. DELETE /api/copilot-sdk/execute?executionId=... → abort execution
+ * 4. GET  /api/copilot-sdk/execute?executionId=... → poll status
  */
 
 import type {
@@ -29,35 +22,25 @@ import type {
 } from '../executionStrategy';
 import { registerStrategy } from '../executionStrategy';
 
-const VSCODE_BRIDGE_URL = 'http://localhost:9876';
-
 interface ActiveExecution {
   executionId: string;
   eventSource?: EventSource;
+  pollingInterval?: ReturnType<typeof setInterval>;
   handlers: Set<ExecutionEventHandler>;
 }
 
-class VSCodeStrategy implements ExecutionStrategy {
-  readonly name = 'VS Code (Copilot)';
+class CopilotSdkStrategy implements ExecutionStrategy {
+  readonly name = 'Copilot SDK';
   readonly capabilities = ['stream', 'status'] as const;
 
   private executions = new Map<string, ActiveExecution>();
 
   async execute(task: ExecutionTask, options?: ExecuteOptions): Promise<ExecutionResult> {
     try {
-      // Check extension health first
-      const healthy = await this.checkHealth();
-      if (!healthy) {
-        return {
-          success: false,
-          error: 'VS Code extension (vibeman-bridge) is not running. Open VS Code and ensure the extension is installed.',
-        };
-      }
-
       const prompt = task.directPrompt
         || `Execute the requirement file: ${task.requirementName}`;
 
-      const response = await fetch(`${VSCODE_BRIDGE_URL}/execute-task`, {
+      const response = await fetch('/api/copilot-sdk/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -81,21 +64,16 @@ class VSCodeStrategy implements ExecutionStrategy {
       };
       this.executions.set(executionId, execution);
 
+      // If caller wants events, start streaming immediately
       if (options?.onEvent) {
         this.stream(executionId, options.onEvent);
       }
 
       return { success: true, executionId, streamUrl };
     } catch (error) {
-      if (error instanceof TypeError && (error.message.includes('fetch') || error.message.includes('Failed'))) {
-        return {
-          success: false,
-          error: 'Cannot reach VS Code extension (vibeman-bridge). Make sure VS Code is open and the extension is running.',
-        };
-      }
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error starting VS Code execution',
+        error: error instanceof Error ? error.message : 'Unknown error starting Copilot SDK execution',
       };
     }
   }
@@ -105,7 +83,7 @@ class VSCodeStrategy implements ExecutionStrategy {
 
     try {
       const response = await fetch(
-        `${VSCODE_BRIDGE_URL}/execute-task?executionId=${encodeURIComponent(executionId)}`,
+        `/api/copilot-sdk/execute?executionId=${encodeURIComponent(executionId)}`,
         { method: 'DELETE' }
       );
       return response.ok;
@@ -115,13 +93,29 @@ class VSCodeStrategy implements ExecutionStrategy {
   }
 
   async getStatus(executionId: string): Promise<ExecutionStatus | undefined> {
-    // Extension doesn't have a dedicated status endpoint.
-    // Status is communicated via the SSE stream events.
-    const execution = this.executions.get(executionId);
-    if (execution) {
-      return { state: 'running' };
+    try {
+      const response = await fetch(
+        `/api/copilot-sdk/execute?executionId=${encodeURIComponent(executionId)}`
+      );
+
+      if (!response.ok) return undefined;
+
+      const data = await response.json();
+      if (!data.success || !data.execution) return undefined;
+
+      const exec = data.execution;
+      return {
+        state: exec.status === 'running' ? 'running'
+          : exec.status === 'completed' ? 'completed'
+          : exec.status === 'error' ? 'failed'
+          : exec.status === 'aborted' ? 'failed'
+          : 'pending',
+        claudeSessionId: exec.sessionId,
+        error: exec.status === 'error' ? 'Execution failed' : undefined,
+      };
+    } catch {
+      return undefined;
     }
-    return undefined;
   }
 
   stream(executionId: string, onEvent: ExecutionEventHandler): () => void {
@@ -135,7 +129,7 @@ class VSCodeStrategy implements ExecutionStrategy {
 
     // Start SSE if not already connected
     if (!execution.eventSource && typeof EventSource !== 'undefined') {
-      const streamUrl = `${VSCODE_BRIDGE_URL}/stream?executionId=${encodeURIComponent(executionId)}`;
+      const streamUrl = `/api/copilot-sdk/stream?executionId=${encodeURIComponent(executionId)}`;
       const es = new EventSource(streamUrl);
       execution.eventSource = es;
 
@@ -163,7 +157,8 @@ class VSCodeStrategy implements ExecutionStrategy {
       es.onerror = () => {
         es.close();
         execution!.eventSource = undefined;
-        // No polling fallback — extension is either running or not
+        // Start polling fallback
+        this.startPollingFallback(executionId);
       };
     }
 
@@ -192,25 +187,53 @@ class VSCodeStrategy implements ExecutionStrategy {
       execution.eventSource.close();
       execution.eventSource = undefined;
     }
+    if (execution.pollingInterval) {
+      clearInterval(execution.pollingInterval);
+      execution.pollingInterval = undefined;
+    }
     execution.handlers.clear();
     this.executions.delete(executionId);
   }
 
-  private async checkHealth(): Promise<boolean> {
-    try {
-      const response = await fetch(`${VSCODE_BRIDGE_URL}/health`, {
-        signal: AbortSignal.timeout(2000),
-      });
-      if (!response.ok) return false;
-      const data = await response.json();
-      return data.running === true;
-    } catch {
-      return false;
-    }
+  private startPollingFallback(executionId: string): void {
+    const execution = this.executions.get(executionId);
+    if (!execution || execution.pollingInterval) return;
+
+    let isPolling = false;
+    execution.pollingInterval = setInterval(async () => {
+      if (isPolling) return;
+      isPolling = true;
+      try {
+        const status = await this.getStatus(executionId);
+        if (!status) return;
+
+        const event: ExecutionEvent = {
+          type: 'status',
+          data: status,
+          timestamp: Date.now(),
+        };
+        for (const handler of execution.handlers) {
+          try { handler(event); } catch { /* handler error */ }
+        }
+
+        if (status.state === 'completed' || status.state === 'failed') {
+          const resultEvent: ExecutionEvent = {
+            type: status.state === 'completed' ? 'result' : 'error',
+            data: status,
+            timestamp: Date.now(),
+          };
+          for (const handler of execution.handlers) {
+            try { handler(resultEvent); } catch { /* handler error */ }
+          }
+          this.cleanupExecution(executionId);
+        }
+      } catch { /* poll error */ }
+      finally { isPolling = false; }
+    }, 10_000);
   }
 }
 
 // Register on import
-registerStrategy('vscode', () => new VSCodeStrategy());
+registerStrategy('copilot', () => new CopilotSdkStrategy());
 
-export { VSCodeStrategy };
+export { CopilotSdkStrategy };

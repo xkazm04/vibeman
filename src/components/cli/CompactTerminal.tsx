@@ -70,8 +70,8 @@ const LOG_ITEM_HEIGHT = 24; // px - matches py-0.5 + text-xs line height
 const ANIMATED_LOG_COUNT = 5; // Number of recent logs to animate
 const VIRTUALIZATION_THRESHOLD = 50; // Start virtualizing after this many logs
 
-// VS Code extension bridge URL (direct cross-origin communication)
-const VSCODE_BRIDGE_URL = 'http://localhost:9876';
+// Copilot SDK API routes (server-side execution)
+const COPILOT_SDK_BASE = '/api/copilot-sdk';
 
 // Get icon for log type - uses static maps for O(1) lookup
 const getLogIcon = (type: LogEntry['type'], toolName?: string) => {
@@ -378,8 +378,7 @@ export function CompactTerminal({
     // Only attempt reconnection once per mount
     if (hasAttemptedReconnectRef.current) return;
     if (!currentExecutionId || isStreaming) return;
-    // VS Code extension has no server-side execution state to reconnect to
-    if (provider === 'vscode') return;
+    // Copilot SDK has server-side state; reconnection is supported
 
     hasAttemptedReconnectRef.current = true;
 
@@ -523,12 +522,12 @@ export function CompactTerminal({
     });
 
     try {
-      // Route to VS Code extension or cli-service based on provider
-      const isVSCode = provider === 'vscode';
-      const executeUrl = isVSCode
-        ? `${VSCODE_BRIDGE_URL}/execute-task`
+      // Route to Copilot SDK or cli-service based on provider
+      const isCopilot = provider === 'copilot';
+      const executeUrl = isCopilot
+        ? `${COPILOT_SDK_BASE}/execute`
         : '/api/claude-terminal/query';
-      const executeBody = isVSCode
+      const executeBody = isCopilot
         ? { projectPath: task.projectPath, prompt: taskPrompt, model: model || undefined }
         : { projectPath: task.projectPath, prompt: taskPrompt, resumeSessionId: resumeSession ? sessionId : undefined, provider, model: model || undefined };
 
@@ -564,8 +563,8 @@ export function CompactTerminal({
 
       connectToStream(streamUrl);
     } catch (e) {
-      const errorMsg = provider === 'vscode'
-        ? 'VS Code extension (vibeman-bridge) is not running. Open VS Code and ensure the extension is active.'
+      const errorMsg = provider === 'copilot'
+        ? 'Copilot SDK execution failed. Check that GitHub authentication is configured (GITHUB_TOKEN or GH_TOKEN environment variable).'
         : e instanceof Error ? e.message : 'Failed to start task';
       setError(errorMsg);
       setIsStreaming(false);
@@ -723,12 +722,12 @@ export function CompactTerminal({
     });
 
     try {
-      // Route to VS Code extension or cli-service based on provider
-      const isVSCode = provider === 'vscode';
-      const executeUrl = isVSCode
-        ? `${VSCODE_BRIDGE_URL}/execute-task`
+      // Route to Copilot SDK or cli-service based on provider
+      const isCopilot = provider === 'copilot';
+      const executeUrl = isCopilot
+        ? `${COPILOT_SDK_BASE}/execute`
         : '/api/claude-terminal/query';
-      const executeBody = isVSCode
+      const executeBody = isCopilot
         ? { projectPath, prompt, model: model || undefined }
         : { projectPath, prompt, resumeSessionId: resumeSession ? sessionId : undefined, provider, model: model || undefined };
 
@@ -748,8 +747,8 @@ export function CompactTerminal({
       const { streamUrl } = await response.json();
       connectToStream(streamUrl);
     } catch (e) {
-      const errorMsg = provider === 'vscode'
-        ? 'VS Code extension (vibeman-bridge) is not running. Open VS Code and ensure the extension is active.'
+      const errorMsg = provider === 'copilot'
+        ? 'Copilot SDK execution failed. Check that GitHub authentication is configured (GITHUB_TOKEN or GH_TOKEN environment variable).'
         : e instanceof Error ? e.message : 'Failed to start';
       setError(errorMsg);
       setIsStreaming(false);

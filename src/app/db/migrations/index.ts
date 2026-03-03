@@ -47,6 +47,7 @@ import { migrate130AlignScoringConstraints } from './130_align_scoring_constrain
 import { migrate131SessionPidTracking } from './131_session_pid_tracking';
 import { migrate132EnforceIdeasScanCascade } from './132_enforce_ideas_scan_cascade';
 import { migrate133BrainDirectionsQueryIndexes } from './133_brain_directions_query_indexes';
+import { migrate134ConductorPipeline } from './134_conductor_pipeline';
 
 /**
  * Migration logger utility
@@ -363,6 +364,9 @@ export function runMigrations() {
 
     // Migration 133: Add query performance indexes for brain insights and directions
     migrate133BrainDirectionsQueryIndexes(db as any, migrationLogger);
+
+    // Migration 134: Conductor pipeline tables
+    migrate134ConductorPipeline(db as any, migrationLogger);
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {

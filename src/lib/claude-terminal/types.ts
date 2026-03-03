@@ -269,14 +269,15 @@ export interface DbPendingApproval {
 // ─── Multi-Provider Support ──────────────────────────────────────────
 
 /** CLI Provider - which CLI tool to use for execution */
-export type CLIProvider = 'claude' | 'gemini' | 'vscode' | 'ollama';
+export type CLIProvider = 'claude' | 'gemini' | 'copilot' | 'ollama';
 
 /** Model options per provider */
 export type ClaudeModel = 'opus' | 'sonnet';
 export type GeminiModel = 'gemini-3.1-pro-preview';
-export type VSCodeModel = 'gpt-5.3-codex' | 'claude-opus-4.6' | 'gpt-4.1';
+/** Copilot models are dynamic (queried from SDK at runtime); string type allows any model ID */
+export type CopilotModel = string;
 export type OllamaModel = 'qwen3.5:cloud';
-export type CLIModel = ClaudeModel | GeminiModel | VSCodeModel | OllamaModel;
+export type CLIModel = ClaudeModel | GeminiModel | CopilotModel | OllamaModel;
 
 /** Provider configuration for process spawning */
 export interface CLIProviderConfig {
@@ -295,10 +296,10 @@ export const PROVIDER_MODELS: Record<CLIProvider, { id: CLIModel; label: string 
   gemini: [
     { id: 'gemini-3.1-pro-preview', label: 'Pro Preview' },
   ],
-  vscode: [
-    { id: 'gpt-5.3-codex', label: 'GPT 5.3 Codex (1x)' },
-    { id: 'claude-opus-4.6', label: 'Claude Opus 4.6 (3x)' },
-    { id: 'gpt-4.1', label: 'GPT 4.1 (0x)' },
+  copilot: [
+    { id: 'gpt-5.3-codex', label: 'GPT 5.3 Codex' },
+    { id: 'claude-opus-4.6', label: 'Claude Opus 4.6' },
+    { id: 'gemini-3.1-pro', label: 'Gemini 3.1 Pro' },
   ],
   ollama: [
     { id: 'qwen3.5:cloud', label: 'Qwen 3.5 Cloud' },

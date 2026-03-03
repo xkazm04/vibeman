@@ -81,18 +81,21 @@ export default function BufferView({
     return ideas.filter((idea) => idea.project_id === filterProject);
   }, [ideas, filterProject]);
 
-  // Load dependency counts for visible ideas
+  // Load dependency counts for visible ideas (debounced to avoid rapid-fire during filtering)
   React.useEffect(() => {
     if (filteredIdeas.length === 0) return;
     const ids = filteredIdeas.map(i => i.id);
-    fetch(`/api/ideas/dependencies?ideaIds=${ids.join(',')}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.counts) {
-          setDependencyCounts(data.counts);
-        }
-      })
-      .catch(() => {});
+    const timer = setTimeout(() => {
+      fetch(`/api/ideas/dependencies?ideaIds=${ids.join(',')}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.counts) {
+            setDependencyCounts(data.counts);
+          }
+        })
+        .catch(() => {});
+    }, 300);
+    return () => clearTimeout(timer);
   }, [filteredIdeas]);
 
   // Group and sort ideas using the staging buffer abstraction

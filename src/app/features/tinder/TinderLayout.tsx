@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { RotateCw, Loader2 } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 import { useProjectConfigStore } from '@/stores/projectConfigStore';
 import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
 import TinderItemsContent from '@/app/features/tinder/components/TinderItemsContent';
@@ -65,10 +64,6 @@ const TinderLayout = () => {
     loadContexts();
   }, [projects]);
 
-  // Re-evaluation state
-  const [isReEvaluating, setIsReEvaluating] = useState(false);
-  const [reEvalCount, setReEvalCount] = useState<number | null>(null);
-
   // Effort/Risk filter state (must be declared before useTinderItems)
   const [effortRiskFilters, setEffortRiskFilters] = useState<{
     effortRange: [number, number] | null;
@@ -121,50 +116,6 @@ const TinderLayout = () => {
   // Show sidebar only in ideas mode with categories
   const showCategorySidebar = filterMode === 'ideas' && !isRemoteMode;
 
-  // Check how many ideas need re-evaluation
-  useEffect(() => {
-    const checkReEvalCount = async () => {
-      try {
-        const projectParam = selectedProjectId && selectedProjectId !== 'all' ? `?projectId=${selectedProjectId}` : '';
-        const res = await fetch(`/api/ideas/re-evaluate${projectParam}`);
-        if (res.ok) {
-          const data = await res.json();
-          setReEvalCount(data.count || 0);
-        }
-      } catch {
-        // Non-critical
-      }
-    };
-    checkReEvalCount();
-  }, [selectedProjectId, items]);
-
-  // Handle re-evaluation
-  const handleReEvaluate = useCallback(async () => {
-    if (isReEvaluating) return;
-    setIsReEvaluating(true);
-    try {
-      const body: Record<string, string> = {};
-      if (selectedProjectId && selectedProjectId !== 'all') {
-        body.projectId = selectedProjectId;
-      }
-      const res = await fetch('/api/ideas/re-evaluate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setReEvalCount(0);
-        // Reload items to reflect updated estimations
-        loadItems();
-      }
-    } catch {
-      // Error handling
-    } finally {
-      setIsReEvaluating(false);
-    }
-  }, [isReEvaluating, selectedProjectId, loadItems]);
-
   // Setup keyboard shortcuts
   useTinderItemsKeyboardShortcuts(handleAccept, handleReject, !processing);
 
@@ -187,7 +138,7 @@ const TinderLayout = () => {
         />
       )}
 
-      {/* Filter Tabs + Re-evaluate Button */}
+      {/* Filter Tabs */}
       <div className="max-w-3xl mx-auto px-4 pt-2">
         <div className="flex items-center justify-center gap-2">
           <TinderFilterTabs
@@ -200,41 +151,6 @@ const TinderLayout = () => {
             remoteDeviceName={selectedDevice?.device_name}
             onRemoteModeToggle={handleRemoteModeToggle}
           />
-
-          {/* Re-evaluate Button */}
-          {reEvalCount !== null && reEvalCount > 0 && (
-            <>
-              <div className="w-px h-6 bg-gray-700" />
-              <motion.button
-                onClick={handleReEvaluate}
-                disabled={isReEvaluating || loading || processing}
-                className={`
-                  flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm
-                  transition-all duration-300 ease-out cursor-pointer
-                  ${isReEvaluating
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                    : 'text-gray-400 hover:text-amber-300 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/30'
-                  }
-                  ${(isReEvaluating || loading || processing) ? 'opacity-60 cursor-not-allowed' : ''}
-                `}
-                whileHover={(isReEvaluating || loading || processing) ? {} : { scale: 1.02 }}
-                whileTap={(isReEvaluating || loading || processing) ? {} : { scale: 0.98 }}
-                title={isReEvaluating ? 'Evaluating ideas...' : `Re-evaluate ${reEvalCount} ideas without estimations`}
-              >
-                {isReEvaluating ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <RotateCw className="w-4 h-4" />
-                )}
-                <span className="hidden sm:inline">
-                  {isReEvaluating ? 'Evaluating...' : 'Evaluate'}
-                </span>
-                <span className="px-1.5 py-0.5 text-xs font-semibold rounded-full bg-amber-500/20 text-amber-300">
-                  {reEvalCount}
-                </span>
-              </motion.button>
-            </>
-          )}
         </div>
       </div>
 

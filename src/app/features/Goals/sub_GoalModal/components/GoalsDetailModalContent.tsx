@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {  Save, Edit3, Trash2 } from 'lucide-react';
 import { Goal } from '../../../../../types';
 import { useGoals } from '../../../../../hooks/useGoals';
@@ -22,6 +23,8 @@ export default function GoalsDetailModalContent({
   const [isEditing, setIsEditing] = useState(false);
   const [editedGoal, setEditedGoal] = useState<Goal>(goal);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const { deleteGoal } = useGoals(projectId);
@@ -30,6 +33,7 @@ export default function GoalsDetailModalContent({
   useEffect(() => {
     setEditedGoal(goal);
     setIsEditing(false);
+    setIsDeleteConfirming(false);
     setSaveError(null);
   }, [goal]);
 
@@ -59,10 +63,14 @@ export default function GoalsDetailModalContent({
     }
   };
 
-  const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete this goal? This action cannot be undone.')) {
+  const handleConfirmDelete = async () => {
+    setIsDeleting(true);
+    try {
       const success = await deleteGoal(editedGoal.id);
       if (success) onClose();
+      setIsDeleteConfirming(false);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -76,9 +84,9 @@ export default function GoalsDetailModalContent({
     <div className="space-y-6">
       {/* Main Content Grid */}
         {/* Right Column - Title & Description */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-6">
           {/* Description */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-5 shadow-lg">
+          <div className="bg-white/5 rounded-xl border border-white/10 p-5 shadow-lg">
             <h3 className="text-sm font-semibold text-white/90 mb-4 flex items-center space-x-2 tracking-wide uppercase">
               <div className="w-2 h-2 bg-amber-400 rounded-full"></div>
               <span>Description</span>
@@ -88,7 +96,7 @@ export default function GoalsDetailModalContent({
                 value={editedGoal.description || ''}
                 onChange={(e) => setEditedGoal(prev => ({ ...prev, description: e.target.value }))}
                 rows={5}
-                className="w-full p-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-lg text-white/90 placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 transition-all resize-none text-sm"
+                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white/90 placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 transition-all resize-none text-sm"
                 placeholder="Describe your goal in detail..."
               />
             ) : (
@@ -147,13 +155,45 @@ export default function GoalsDetailModalContent({
           )}
         </div>
         
-        <button
-          onClick={handleDelete}
-          className="px-6 py-2.5 bg-gradient-to-r from-red-500/20 to-rose-600/20 hover:from-red-500/30 hover:to-rose-600/30 backdrop-blur-xl border border-red-400/30 rounded-lg text-red-300 font-medium transition-all duration-300 hover:scale-105 flex items-center space-x-2 shadow-lg shadow-red-500/10"
-        >
-          <Trash2 className="w-4 h-4" />
-          <span>Delete</span>
-        </button>
+        <AnimatePresence mode="wait">
+          {isDeleteConfirming ? (
+            <motion.div
+              key="delete-confirm"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="flex items-center gap-2"
+            >
+              <span className="text-xs text-red-200/90">Are you sure?</span>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="px-3 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-400/30 rounded-lg text-red-300 text-sm font-medium transition-all duration-300 disabled:opacity-50"
+              >
+                Confirm
+              </button>
+              <button
+                onClick={() => setIsDeleteConfirming(false)}
+                disabled={isDeleting}
+                className="px-3 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white/70 hover:text-white/90 text-sm font-medium transition-all duration-300 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </motion.div>
+          ) : (
+            <motion.button
+              key="delete-action"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              onClick={() => setIsDeleteConfirming(true)}
+              className="px-6 py-2.5 bg-gradient-to-r from-red-500/20 to-rose-600/20 hover:from-red-500/30 hover:to-rose-600/30 backdrop-blur-xl border border-red-400/30 rounded-lg text-red-300 font-medium transition-all duration-300 hover:scale-105 flex items-center space-x-2 shadow-lg shadow-red-500/10"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Delete</span>
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

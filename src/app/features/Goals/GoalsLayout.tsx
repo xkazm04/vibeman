@@ -2,9 +2,9 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LayoutDashboard, Plus, ChevronRight } from 'lucide-react';
-import { Caveat } from 'next/font/google';
 
 import ProjectsLayout from '@/app/projects/ProjectsLayout';
+import DashboardSectionHeader from './components/DashboardSectionHeader';
 import GoalModal from './sub_GoalModal/GoalModal';
 import { Goal } from '../../../types';
 import { GoalProvider, useGoalContext } from '@/contexts/GoalContext';
@@ -21,12 +21,6 @@ import GoalEmptyState from './components/GoalEmptyState';
 import { GoalProgressMini } from './components/GoalProgressRing';
 import GlassCard from '@/components/cards/GlassCard';
 
-const caveat = Caveat({
-  weight: ['400', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-});
-
 interface GoalsLayoutProps {
   projectId: string | null;
 }
@@ -34,22 +28,35 @@ interface GoalsLayoutProps {
 interface GoalListItemProps {
   goal: Goal;
   isSelected: boolean;
+  isFocused: boolean;
   onClick: (goal: Goal) => void;
+  tabIndex: number;
 }
 
-const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, onClick }: GoalListItemProps) {
+const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, isFocused, onClick, tabIndex }: GoalListItemProps) {
+  const ref = React.useRef<HTMLButtonElement>(null);
   const statusConfig = getStatusConfig(goal.status);
   const StatusIcon = statusConfig.icon;
   const statusColor = statusConfig.color;
   const progress = goal.progress || 0;
 
+  React.useEffect(() => {
+    if (isFocused && ref.current && document.activeElement?.closest('[role="listbox"]')) {
+      ref.current.focus();
+    }
+  }, [isFocused]);
+
   return (
     <motion.button
+      ref={ref}
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       onClick={() => onClick(goal)}
+      role="option"
+      aria-selected={isSelected}
+      tabIndex={tabIndex}
       className={
-        'w-full text-left px-4 py-3 rounded-xl border transition-all group relative overflow-hidden ' +
+        'w-full text-left px-4 py-3 rounded-xl border transition-all group relative overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ' +
         (isSelected
           ? 'bg-primary/10 border-primary/30'
           : 'bg-transparent border-transparent hover:bg-primary/5 hover:border-primary/10')
@@ -98,6 +105,7 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
 
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(0);
 
   // Goals are already filtered by projectId in the GoalProvider
   const projectGoals = goals;
@@ -109,6 +117,23 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
     setSelectedGoal(goal);
     setShowDetailModal(true);
   }, []);
+
+  const handleListKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const count = projectGoals.length;
+    if (count === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocusedIndex(i => (i + 1) % count);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusedIndex(i => (i - 1 + count) % count);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const goal = projectGoals[focusedIndex];
+      if (goal) handleGoalClick(goal);
+    }
+  }, [projectGoals, focusedIndex, handleGoalClick]);
 
   const handleAddNewGoal = async (newGoal: Omit<Goal, 'id' | 'order' | 'projectId'>) => {
     if (!activeProject) return;
@@ -145,48 +170,56 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
           
           {/* Left Column: Goals List (3 cols) */}
           <div className="col-span-3 flex flex-col gap-4 h-full">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <LayoutDashboard className="w-5 h-5 text-primary" />
-                <h2 className={caveat.className + ' text-2xl font-bold text-primary tracking-wide'} style={{ textShadow: '0 0 15px rgba(59, 130, 246, 0.3)' }}>
-                  MISSION CONTROL
-                </h2>
-              </div>
-              <div className="flex items-center gap-3">
-                {projectGoals.length > 0 && (
-                  <GoalProgressMini
-                    completed={completedGoals}
-                    total={projectGoals.length}
-                  />
-                )}
-                <span className="px-2 py-1 rounded bg-primary/10 text-xs font-mono text-primary/70 border border-primary/20">
-                  {projectGoals.length} OBJECTIVES
-                </span>
-              </div>
-            </div>
+            <DashboardSectionHeader
+              title="MISSION CONTROL"
+              icon={<LayoutDashboard className="w-5 h-5 text-primary" />}
+              action={
+                <div className="flex items-center gap-3">
+                  {projectGoals.length > 0 && (
+                    <GoalProgressMini
+                      completed={completedGoals}
+                      total={projectGoals.length}
+                    />
+                  )}
+                  <span className="px-2 py-1 rounded bg-primary/10 text-xs font-mono text-primary/70 border border-primary/20">
+                    {projectGoals.length} OBJECTIVES
+                  </span>
+                </div>
+              }
+            />
 
             <GlassCard variant="panel" className="flex-1 overflow-hidden flex flex-col">
               <div className="p-4 border-b border-white/5 bg-white/[0.03]">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono text-white/40 uppercase tracking-wider">Active Goals</span>
-                  <button
-                    onClick={() => setShowAddGoal(true)}
-                    className="p-1.5 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
-                    data-testid="add-goal-btn"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
+                <DashboardSectionHeader
+                  title="Active Goals"
+                  variant="secondary"
+                  action={
+                    <button
+                      onClick={() => setShowAddGoal(true)}
+                      className="p-1.5 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
+                      data-testid="add-goal-btn"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  }
+                />
               </div>
 
-              <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+              <div
+                className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar"
+                role="listbox"
+                aria-label="Goals"
+                onKeyDown={handleListKeyDown}
+              >
                 <AnimatePresence>
-                  {projectGoals.map((goal) => (
+                  {projectGoals.map((goal, idx) => (
                     <GoalListItem
                       key={goal.id}
                       goal={goal}
                       isSelected={selectedGoal?.id === goal.id}
+                      isFocused={focusedIndex === idx}
                       onClick={handleGoalClick}
+                      tabIndex={focusedIndex === idx ? 0 : -1}
                     />
                   ))}
                 </AnimatePresence>
@@ -215,9 +248,7 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
 
           {/* Middle Column: Implementation Logs (5 cols) */}
           <div className="col-span-5 flex flex-col gap-4 h-full">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className={caveat.className + ' text-xl font-bold text-primary/80 tracking-wide'}>System Logs</h2>
-            </div>
+            <DashboardSectionHeader title="System Logs" />
             
             <GlassCard variant="panel" className="flex-1 overflow-hidden relative">
               <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] pointer-events-none" />
@@ -238,7 +269,7 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
             {/* Top: Events Chart */}
             <GlassCard variant="panel" className="shrink-0 overflow-hidden flex flex-col">
               <div className="p-4 border-b border-white/5 bg-white/[0.03]">
-                <h3 className="text-xs font-mono text-white/40 uppercase tracking-wider">Activity Velocity</h3>
+                <DashboardSectionHeader title="Activity Velocity" variant="secondary" />
               </div>
               <div className="p-4 relative">
                 {projectId && <EventsBarChart projectId={projectId} limit={10} />}
@@ -248,7 +279,7 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
             {/* Middle: Standup History Timeline */}
             <GlassCard variant="panel" className="flex-1 overflow-hidden flex flex-col min-h-0">
               <div className="p-4 border-b border-white/5 bg-white/[0.03]">
-                <h3 className="text-xs font-mono text-white/40 uppercase tracking-wider">Standup History</h3>
+                <DashboardSectionHeader title="Standup History" variant="secondary" />
               </div>
               <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                 {projectId ? (
@@ -264,7 +295,7 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
             {/* Bottom: Screen Catalog */}
             <GlassCard variant="panel" className="shrink-0 h-[200px] overflow-hidden flex flex-col">
               <div className="p-4 border-b border-white/5 bg-white/[0.03]">
-                <h3 className="text-xs font-mono text-white/40 uppercase tracking-wider">Visual Assets</h3>
+                <DashboardSectionHeader title="Visual Assets" variant="secondary" />
               </div>
               <div className="flex-1 overflow-hidden">
                 <ScreenCatalog projectId={projectId} />

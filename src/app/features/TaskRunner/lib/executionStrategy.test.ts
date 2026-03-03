@@ -3,7 +3,7 @@ import { hasCapability, createStrategy } from './executionStrategy';
 import './strategies/terminalStrategy';
 import './strategies/queueStrategy';
 import './strategies/remoteMeshStrategy';
-import './strategies/vscodeStrategy';
+import './strategies/copilotSdkStrategy';
 
 describe('ExecutionStrategy Capabilities', () => {
   it('TerminalStrategy should have stream and status capabilities', () => {
@@ -30,8 +30,8 @@ describe('ExecutionStrategy Capabilities', () => {
     expect(hasCapability(strategy, 'status')).toBe(true);
   });
 
-  it('VSCodeStrategy should have stream and status capabilities', () => {
-    const strategy = createStrategy('vscode');
+  it('CopilotSdkStrategy should have stream and status capabilities', () => {
+    const strategy = createStrategy('copilot');
     expect(strategy.capabilities).toContain('stream');
     expect(strategy.capabilities).toContain('status');
     expect(hasCapability(strategy, 'stream')).toBe(true);

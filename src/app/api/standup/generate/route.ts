@@ -8,6 +8,25 @@ import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
 import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
 
+// 5-minute in-memory cache for predictive standup results
+const PREDICTION_CACHE_TTL = 5 * 60 * 1000;
+const predictionCache = new Map<string, { data: unknown; expiry: number }>();
+
+function getCachedPredictions(projectId: string): unknown {
+  const cached = predictionCache.get(projectId);
+  if (cached && cached.expiry > Date.now()) {
+    return cached.data;
+  }
+  predictionCache.delete(projectId);
+  try {
+    const data = generatePredictiveStandup(projectId);
+    predictionCache.set(projectId, { data, expiry: Date.now() + PREDICTION_CACHE_TTL });
+    return data;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * POST /api/standup/generate
  * Generate a new standup summary for a project and period
@@ -78,10 +97,7 @@ async function handlePost(request: NextRequest) {
         generatedAt: existing.generated_at,
       };
 
-      // Attach predictive intelligence (always fresh, not cached)
-      let predictions = null;
-      try { predictions = generatePredictiveStandup(projectId); } catch { /* supplementary */ }
-
+      const predictions = getCachedPredictions(projectId);
       return NextResponse.json({ success: true, summary, predictions, cached: true });
     }
 
@@ -139,9 +155,7 @@ async function handlePost(request: NextRequest) {
           generatedAt: existing.generated_at,
         };
 
-        let predictions = null;
-        try { predictions = generatePredictiveStandup(projectId); } catch { /* supplementary */ }
-
+        const predictions = getCachedPredictions(projectId);
         return NextResponse.json({ success: true, summary, predictions, cached: true });
       }
     }
@@ -234,9 +248,9 @@ async function handlePost(request: NextRequest) {
       ideas: saved.ideas_generated,
     });
 
-    // Attach predictive intelligence
-    let predictions = null;
-    try { predictions = generatePredictiveStandup(projectId); } catch { /* supplementary */ }
+    // Attach predictive intelligence (invalidate cache after fresh generation)
+    predictionCache.delete(projectId);
+    const predictions = getCachedPredictions(projectId);
 
     return NextResponse.json({ success: true, summary, predictions, cached: false });
   } catch (error) {
