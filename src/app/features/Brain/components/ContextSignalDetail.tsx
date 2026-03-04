@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { FileCode, GitCommit, Globe, Clock, TrendingUp, TrendingDown, Minus, AlertCircle } from 'lucide-react';
+import { useAbortableFetch } from '@/hooks/useAbortableFetch';
 import type { DbBehavioralSignal, GitActivitySignalData, ApiFocusSignalData } from '@/app/db/models/brain.types';
 import type { DrillDownTarget } from './SignalDetailDrawer';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
@@ -27,6 +28,7 @@ export default function ContextSignalDetail({ target }: ContextSignalDetailProps
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const activeProject = useClientProjectStore(s => s.activeProject);
+  const abortableFetch = useAbortableFetch();
 
   useEffect(() => {
     if (!activeProject?.id) return;
@@ -47,7 +49,7 @@ export default function ContextSignalDetail({ target }: ContextSignalDetailProps
           params.set('signalType', 'api_focus');
         }
 
-        const res = await fetch(`/api/brain/signals?${params.toString()}`);
+        const res = await abortableFetch(`/api/brain/signals?${params.toString()}`);
         const data = await res.json();
 
         if (!data.success) {
@@ -76,6 +78,7 @@ export default function ContextSignalDetail({ target }: ContextSignalDetailProps
 
         setSignals(filtered);
       } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
         setError(err instanceof Error ? err.message : 'Network error');
       } finally {
         setLoading(false);

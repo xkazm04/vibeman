@@ -9,6 +9,7 @@ import {
   Radio,
   RotateCcw,
 } from 'lucide-react';
+import { useAbortableFetch } from '@/hooks/useAbortableFetch';
 import type { EvidenceRef } from '@/app/db/models/brain.types';
 
 export interface ResolvedEvidence {
@@ -113,6 +114,7 @@ export default function InsightEvidenceLinks({ evidence }: Props) {
   const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const abortableFetch = useAbortableFetch();
 
   // IntersectionObserver: track visibility
   useEffect(() => {
@@ -135,7 +137,7 @@ export default function InsightEvidenceLinks({ evidence }: Props) {
     if (evidence.length === 0) return;
     setIsLoading(true);
     try {
-      const res = await fetch('/api/brain/insights', {
+      const res = await abortableFetch('/api/brain/insights', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ evidenceRefs: evidence }),
@@ -144,13 +146,14 @@ export default function InsightEvidenceLinks({ evidence }: Props) {
       if (data.success) {
         setResolved(data.evidence);
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
       // Silent failure — evidence links are non-critical
     } finally {
       setIsLoading(false);
       setHasFetchedOnce(true);
     }
-  }, [evidence]);
+  }, [evidence, abortableFetch]);
 
   useEffect(() => {
     if (!isVisible) {

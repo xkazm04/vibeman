@@ -61,7 +61,7 @@ export function usePalaceData(): PalaceData {
         const raw = await safeResponseJson(signalRes.value, '/api/brain/signals');
         const data = parseApiResponse(raw, BrainSignalsResponseSchema, '/api/brain/signals');
         if (data.success) {
-          setRawSignals(data.signals as unknown as DbBehavioralSignal[]);
+          setRawSignals((data.data?.signals || []) as unknown as DbBehavioralSignal[]);
         }
       }
 
@@ -69,8 +69,9 @@ export function usePalaceData(): PalaceData {
       if (insightRes.status === 'fulfilled' && insightRes.value.ok) {
         try {
           const data = await insightRes.value.json();
-          if (data.success && Array.isArray(data.insights)) {
-            setRawInsights(data.insights);
+          const insights = data.data?.insights || data.insights; // Support both envelope and legacy
+          if (data.success && Array.isArray(insights)) {
+            setRawInsights(insights);
           }
         } catch { /* ignore */ }
       }

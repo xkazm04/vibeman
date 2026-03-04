@@ -1,6 +1,7 @@
 import type { Group, FilterState } from './types';
-import { COLORS, LABELS, LANE_TYPES, RECENCY_GLOW_HOURS, LABEL_MIN_ZOOM } from './constants';
-import { hexToRgba, colorAt, getEventAlpha, getEventRadius, computeLabelRects, relTime } from './helpers';
+import { COLORS, LABELS, LANE_TYPES } from './constants';
+import { colorAt } from './helpers';
+import { executeRenderPipeline, type RenderContext } from './canvasRenderPipeline';
 
 // --- Cached lane background OffscreenCanvas ---
 let _laneCache: OffscreenCanvas | null = null;
@@ -89,54 +90,54 @@ export function renderFocused({ ctx, group, width, height, transform, dpr, filte
   // Time axis
   renderTimeAxis(ctx, group, width, height, yTop, yBottom, xPad, xRange, laneHeight, transform);
 
-  // Connection lines — use pre-sorted events instead of re-sorting per frame
-  const sorted = group.sortedEvents;
-  ctx.strokeStyle = colorAt(group.dominantColor, 0.08);
-  ctx.lineWidth = 1;
-  for (let i = 1; i < sorted.length; i++) {
-    const prev = sorted[i - 1];
-    const curr = sorted[i];
-    if (prev.type === curr.type) {
-      const px = prev.x * k + transform.x;
-      const cx2 = curr.x * k + transform.x;
-      ctx.beginPath();
-      ctx.moveTo(px, prev.y);
-      ctx.lineTo(cx2, curr.y);
-      ctx.stroke();
-    }
-  }
+  // Build render context
+  const renderContext: RenderContext = {
+    ctx,
+    width,
+    height,
+    dpr,
+    transform,
+    now: Date.now(),
+    filterState,
+  };
 
-  // Events
-  renderFocusedEvents(ctx, group, width, transform, filterState);
-
-  // Frosted header
-  const headerGrad = ctx.createLinearGradient(0, 0, 0, 48);
-  headerGrad.addColorStop(0, 'rgba(10,10,12,0.9)');
-  headerGrad.addColorStop(1, 'rgba(10,10,12,0)');
-  ctx.fillStyle = headerGrad;
-  ctx.fillRect(0, 0, width, 48);
-
-  ctx.fillStyle = group.dominantColor;
-  ctx.font = 'bold 14px Inter, system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.fillText(group.name, width / 2, 12);
-  ctx.fillStyle = '#a1a1aa';
-  ctx.font = '10px Inter, system-ui, sans-serif';
-  ctx.fillText(`${group.events.length} events  ·  Timeline  ·  Scroll to navigate`, width / 2, 32);
-
-  // Vignette edges
-  const vigLeft = ctx.createLinearGradient(0, 0, 60, 0);
-  vigLeft.addColorStop(0, 'rgba(10,10,12,0.7)');
-  vigLeft.addColorStop(1, 'rgba(10,10,12,0)');
-  ctx.fillStyle = vigLeft;
-  ctx.fillRect(0, yTop, 60, LANE_TYPES.length * laneHeight);
-
-  const vigRight = ctx.createLinearGradient(width - 60, 0, width, 0);
-  vigRight.addColorStop(0, 'rgba(10,10,12,0)');
-  vigRight.addColorStop(1, 'rgba(10,10,12,0.7)');
-  ctx.fillStyle = vigRight;
-  ctx.fillRect(width - 60, yTop, 60, LANE_TYPES.length * laneHeight);
+  // Execute render pipeline
+  executeRenderPipeline(renderContext, {
+    connectionLines: {
+      events: group.sortedEvents,
+      mode: 'sequential',
+      coordinateMode: 'screen',
+      color: colorAt(group.dominantColor, 0.08),
+    },
+    eventDots: k < 1.5 ? {
+      events: group.events,
+      coordinateMode: 'screen',
+      dotScale: 1.0,
+      enablePulse: true,
+      enableGlow: true,
+    } : undefined,
+    eventCards: k >= 1.5 ? {
+      events: group.events,
+      coordinateMode: 'screen',
+      cardSize: { width: 180, height: 64 },
+    } : undefined,
+    smartLabels: k < 1.5 ? {
+      events: group.events,
+      coordinateMode: 'screen',
+      maxLabels: Math.min(12, Math.ceil(group.events.length * 0.4)),
+    } : undefined,
+    overlay: {
+      header: {
+        title: group.name,
+        subtitle: `${group.events.length} events  ·  Timeline  ·  Scroll to navigate`,
+        color: group.dominantColor,
+      },
+      vignette: {
+        left: 60,
+        right: 60,
+      },
+    },
+  });
 }
 
 function renderTimeAxis(
@@ -210,132 +211,5 @@ function renderTimeAxis(
       ctx.font = '9px Inter, system-ui, sans-serif';
     }
     weekStart += WEEK_MS;
-  }
-}
-
-function renderFocusedEvents(
-  ctx: CanvasRenderingContext2D, group: Group,
-  width: number, transform: { x: number; y: number; k: number },
-  filterState?: FilterState,
-): void {
-  const k = transform.k;
-  const now = Date.now();
-  const labelCandidates: Array<{ x: number; y: number; radius: number; label: string; priority: number }> = [];
-
-  // Pre-compute frame-level pulse phase (shared across all events this frame)
-  const pulsePhase = (now % 2000) / 2000;
-  const pulseAlphaBase = 0.3 * (1 - pulsePhase);
-
-  for (const evt of group.events) {
-    // Skip filtered-out events
-    if (filterState && !filterState.visibleTypes.has(evt.type)) continue;
-
-    const alpha = getEventAlpha(evt.timestamp);
-    const evtColor = COLORS[evt.type];
-    const screenX = evt.x * k + transform.x;
-    const screenY = evt.y;
-
-    if (screenX < -80 || screenX > width + 80) continue;
-
-    if (k < 1.5) {
-      const dotRadius = getEventRadius(evt.weight, evt.timestamp) * Math.min(k, 1.3);
-      const isRecent = (now - evt.timestamp) < 86400000;
-
-      // Solid fill with globalAlpha — replaces per-event hexToRgba calls
-      if (isRecent || evt.weight > 1.5) {
-        ctx.save();
-        ctx.shadowBlur = 10 + evt.weight * 5;
-        ctx.shadowColor = colorAt(evtColor, 0.5);
-        ctx.globalAlpha = 0.9;
-        ctx.fillStyle = evtColor;
-        ctx.beginPath();
-        ctx.arc(screenX, screenY, dotRadius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      } else {
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = evtColor;
-        ctx.beginPath();
-        ctx.arc(screenX, screenY, dotRadius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-
-      // Animated pulse ring for recent events (using frame-level cached phase)
-      const ageHours = (now - evt.timestamp) / 3600000;
-      if (ageHours < RECENCY_GLOW_HOURS) {
-        const pulseRadius = dotRadius * (1.5 + pulsePhase * 0.8);
-        ctx.beginPath();
-        ctx.arc(screenX, screenY, pulseRadius, 0, Math.PI * 2);
-        ctx.strokeStyle = colorAt(evtColor, pulseAlphaBase);
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-      }
-
-      // Collect label candidates for collision-aware placement
-      labelCandidates.push({
-        x: screenX,
-        y: screenY,
-        radius: dotRadius,
-        label: evt.summary,
-        priority: evt.weight * alpha,
-      });
-    } else {
-      const cardScale = Math.min(k * 0.7, 1.4);
-      const cardW = 180 * cardScale;
-      const cardH = 64 * cardScale;
-      const cx = screenX - cardW / 2;
-      const cy = screenY - cardH / 2;
-
-      ctx.fillStyle = 'rgba(24,24,27,0.92)';
-      ctx.strokeStyle = colorAt(evtColor, alpha * 0.7);
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.roundRect(cx, cy, cardW, cardH, 6 * cardScale);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = evtColor;
-      ctx.fillRect(cx + 5 * cardScale, cy + 7 * cardScale, 3 * cardScale, cardH - 14 * cardScale);
-
-      ctx.fillStyle = '#f4f4f5';
-      ctx.font = `600 ${Math.round(13 * cardScale)}px Inter, system-ui, sans-serif`;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      const summaryText = evt.summary.length > 28 ? evt.summary.slice(0, 27) + '..' : evt.summary;
-      ctx.fillText(summaryText, cx + 14 * cardScale, cy + 9 * cardScale);
-
-      ctx.fillStyle = '#a1a1aa';
-      ctx.font = `${Math.round(10 * cardScale)}px Inter, system-ui, sans-serif`;
-      ctx.fillText(`${LABELS[evt.type]}  ·  ${relTime(evt.timestamp)}`, cx + 14 * cardScale, cy + 28 * cardScale);
-
-      const barY = cy + cardH - 11 * cardScale;
-      ctx.fillStyle = 'rgba(63,63,70,0.5)';
-      ctx.fillRect(cx + 14 * cardScale, barY, 80 * cardScale, 3 * cardScale);
-      ctx.fillStyle = evtColor;
-      ctx.fillRect(cx + 14 * cardScale, barY, (evt.weight / 2) * 80 * cardScale, 3 * cardScale);
-    }
-  }
-
-  // Collision-aware labels at sufficient zoom (dot view only, k < 1.5)
-  if (k < 1.5 && k >= LABEL_MIN_ZOOM && labelCandidates.length > 0) {
-    const labelFont = `500 ${Math.max(9, Math.round(11 * Math.min(k, 1.2)))}px Inter, system-ui, sans-serif`;
-    const maxLabels = Math.min(12, Math.ceil(group.events.length * 0.4));
-    const rects = computeLabelRects(labelCandidates, ctx, labelFont, maxLabels);
-
-    for (const rect of rects) {
-      // Frosted background pill
-      ctx.fillStyle = 'rgba(15,15,17,0.75)';
-      ctx.beginPath();
-      ctx.roundRect(rect.x - 3, rect.y - 1, rect.width + 6, rect.height + 2, 3);
-      ctx.fill();
-      // Label text
-      ctx.fillStyle = 'rgba(228,228,231,0.85)';
-      ctx.font = labelFont;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      ctx.fillText(rect.label, rect.x, rect.y);
-    }
   }
 }

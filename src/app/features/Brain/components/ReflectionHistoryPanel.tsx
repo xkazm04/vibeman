@@ -5,6 +5,7 @@ import { History, TrendingUp, Lightbulb, Clock, BarChart3 } from 'lucide-react';
 import BrainPanelHeader from './BrainPanelHeader';
 import GlowCard from './GlowCard';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useAbortableFetch } from '@/hooks/useAbortableFetch';
 import ReflectionHistoryItem, { type ReflectionHistoryEntry } from './ReflectionHistoryItem';
 
 const ACCENT_COLOR = '#a855f7'; // Purple
@@ -39,6 +40,7 @@ export default function ReflectionHistoryPanel({ scope = 'project' }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const activeProject = useActiveProjectStore((state) => state.activeProject);
+  const abortableFetch = useAbortableFetch();
 
   const fetchHistory = useCallback(async () => {
     if (!activeProject?.id) return;
@@ -47,7 +49,7 @@ export default function ReflectionHistoryPanel({ scope = 'project' }: Props) {
     setError(null);
 
     try {
-      const res = await fetch(
+      const res = await abortableFetch(
         `/api/brain/reflection?mode=history&projectId=${activeProject.id}&limit=20`
       );
       const data = await res.json();
@@ -58,12 +60,13 @@ export default function ReflectionHistoryPanel({ scope = 'project' }: Props) {
       } else {
         setError(data.error || 'Failed to load history');
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
       setError('Failed to fetch reflection history');
     } finally {
       setIsLoading(false);
     }
-  }, [activeProject?.id]);
+  }, [activeProject?.id, abortableFetch]);
 
   useEffect(() => {
     fetchHistory();

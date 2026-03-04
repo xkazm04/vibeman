@@ -11,9 +11,11 @@ import type {
   ApiFocusSignalData,
   ContextFocusSignalData,
   ImplementationSignalData,
+  CrossTaskAnalysisSignalData,
+  CrossTaskSelectionSignalData,
+  CliMemorySignalData,
 } from '@/app/db/models/brain.types';
-
-const VALID_TYPES: SignalType[] = ['git_activity', 'api_focus', 'context_focus', 'implementation'];
+import { canVisualizeSignal } from '@/types/signals';
 
 /**
  * Extract a human-readable summary from the signal data payload
@@ -43,16 +45,35 @@ function extractSummary(type: SignalType, data: Record<string, unknown>): string
       if (fileCount) return `${fileCount} files ${impl.success ? 'implemented' : 'attempted'}`;
       return impl.success ? 'Implementation success' : 'Implementation failed';
     }
+    case 'cross_task_analysis': {
+      const analysis = data as unknown as CrossTaskAnalysisSignalData;
+      if (analysis.requirementSummary) return analysis.requirementSummary.substring(0, 60);
+      return `${analysis.plansGenerated || 0} plans generated`;
+    }
+    case 'cross_task_selection': {
+      const selection = data as unknown as CrossTaskSelectionSignalData;
+      if (selection.planTitle) return selection.planTitle.substring(0, 60);
+      return `Selected plan ${selection.selectedPlan}`;
+    }
+    case 'cli_memory': {
+      const memory = data as unknown as CliMemorySignalData;
+      if (memory.message) return memory.message.substring(0, 60);
+      return `CLI ${memory.category || 'memory'}`;
+    }
+    default:
+      return 'Unknown signal';
   }
 }
 
 /**
- * Map a single DbBehavioralSignal to a BrainEvent for the canvas
+ * Map a single DbBehavioralSignal to a BrainEvent for the canvas.
+ * Filters out non-visualizable signal types using canonical metadata.
  */
 export function mapSignalToEvent(signal: DbBehavioralSignal): BrainEvent | null {
-  // Validate signal type
   const type = signal.signal_type as SignalType;
-  if (!VALID_TYPES.includes(type)) return null;
+
+  // Only map signals that can be visualized (determined by canonical metadata)
+  if (!canVisualizeSignal(type)) return null;
 
   // Parse data payload
   let data: Record<string, unknown> = {};

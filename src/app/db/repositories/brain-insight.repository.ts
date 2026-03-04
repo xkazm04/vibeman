@@ -81,37 +81,76 @@ export const brainInsightRepository = {
     const db = getDatabase();
     const now = getCurrentTimestamp();
 
-    db.prepare(`
-      INSERT INTO brain_insights (
-        id, reflection_id, project_id, type, title, description,
-        confidence, evidence, evolves_from_id, evolves_title,
-        conflict_with_id, conflict_with_title, conflict_type,
-        conflict_resolved, conflict_resolution,
-        auto_pruned, auto_prune_reason, original_confidence,
-        created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      input.id,
-      input.reflection_id,
-      input.project_id,
-      input.type,
-      input.title,
-      input.description,
-      input.confidence,
-      JSON.stringify(input.evidence),
-      input.evolves_from_id ?? null,
-      input.evolves_title ?? null,
-      input.conflict_with_id ?? null,
-      input.conflict_with_title ?? null,
-      input.conflict_type ?? null,
-      input.conflict_resolved ? 1 : 0,
-      input.conflict_resolution ?? null,
-      input.auto_pruned ? 1 : 0,
-      input.auto_prune_reason ?? null,
-      input.original_confidence ?? null,
-      now,
-      now
-    );
+    // Wrap in transaction for atomicity
+    const transaction = db.transaction(() => {
+      db.prepare(`
+        INSERT INTO brain_insights (
+          id, reflection_id, project_id, type, title, description,
+          confidence, evidence, evolves_from_id, evolves_title,
+          conflict_with_id, conflict_with_title, conflict_type,
+          conflict_resolved, conflict_resolution,
+          auto_pruned, auto_prune_reason, original_confidence,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        input.id,
+        input.reflection_id,
+        input.project_id,
+        input.type,
+        input.title,
+        input.description,
+        input.confidence,
+        JSON.stringify(input.evidence),
+        input.evolves_from_id ?? null,
+        input.evolves_title ?? null,
+        input.conflict_with_id ?? null,
+        input.conflict_with_title ?? null,
+        input.conflict_type ?? null,
+        input.conflict_resolved ? 1 : 0,
+        input.conflict_resolution ?? null,
+        input.auto_pruned ? 1 : 0,
+        input.auto_prune_reason ?? null,
+        input.original_confidence ?? null,
+        now,
+        now
+      );
+
+      // Insert evidence into junction table with FK validation
+      if (input.evidence.length > 0) {
+        const evidenceStmt = db.prepare(`
+          INSERT INTO brain_insight_evidence (insight_id, evidence_type, evidence_id, created_at)
+          VALUES (?, ?, ?, ?)
+        `);
+
+        // Prepare FK validation queries for each evidence type
+        const directionExistsStmt = db.prepare('SELECT 1 FROM directions WHERE id = ? LIMIT 1');
+        const reflectionExistsStmt = db.prepare('SELECT 1 FROM brain_reflections WHERE id = ? LIMIT 1');
+
+        for (const ref of input.evidence) {
+          // Validate evidence reference exists before inserting
+          let exists = false;
+          if (ref.type === 'direction') {
+            exists = !!directionExistsStmt.get(ref.id);
+          } else if (ref.type === 'reflection') {
+            exists = !!reflectionExistsStmt.get(ref.id);
+          } else if (ref.type === 'signal') {
+            // Signals don't have a persistent table yet, skip validation
+            exists = true;
+          }
+
+          if (!exists) {
+            throw new Error(
+              `Evidence reference ${ref.type}:${ref.id} does not exist for insight "${input.title}"`
+            );
+          }
+
+          evidenceStmt.run(input.id, ref.type, ref.id, now);
+        }
+      }
+    });
+
+    // Execute transaction - will rollback on any error
+    transaction();
 
     return selectOne<DbBrainInsight>(
       db,
@@ -132,46 +171,85 @@ export const brainInsightRepository = {
     const now = getCurrentTimestamp();
     const results: DbBrainInsight[] = [];
 
-    const stmt = db.prepare(`
-      INSERT INTO brain_insights (
-        id, reflection_id, project_id, type, title, description,
-        confidence, evidence, evolves_from_id, evolves_title,
-        conflict_with_id, conflict_with_title, conflict_type,
-        conflict_resolved, conflict_resolution,
-        auto_pruned, auto_prune_reason, original_confidence,
-        created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    // Wrap entire batch in transaction for atomicity
+    const transaction = db.transaction(() => {
+      const stmt = db.prepare(`
+        INSERT INTO brain_insights (
+          id, reflection_id, project_id, type, title, description,
+          confidence, evidence, evolves_from_id, evolves_title,
+          conflict_with_id, conflict_with_title, conflict_type,
+          conflict_resolved, conflict_resolution,
+          auto_pruned, auto_prune_reason, original_confidence,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
 
-    for (const insight of insights) {
-      const id = `bi_${crypto.randomUUID()}`;
+      const evidenceStmt = db.prepare(`
+        INSERT INTO brain_insight_evidence (insight_id, evidence_type, evidence_id, created_at)
+        VALUES (?, ?, ?, ?)
+      `);
 
-      stmt.run(
-        id,
-        reflectionId,
-        projectId,
-        insight.type,
-        insight.title,
-        insight.description,
-        insight.confidence,
-        JSON.stringify(insight.evidence || []),
-        null, // evolves_from_id resolved later
-        insight.evolves || null,
-        null, // conflict_with_id resolved later
-        insight.conflict_with || null,
-        insight.conflict_type || null,
-        insight.conflict_resolved ? 1 : 0,
-        insight.conflict_resolution || null,
-        insight.auto_pruned ? 1 : 0,
-        insight.auto_prune_reason || null,
-        insight.original_confidence ?? null,
-        now,
-        now
-      );
+      // Prepare FK validation queries for each evidence type
+      const directionExistsStmt = db.prepare('SELECT 1 FROM directions WHERE id = ? LIMIT 1');
+      const reflectionExistsStmt = db.prepare('SELECT 1 FROM brain_reflections WHERE id = ? LIMIT 1');
 
-      const created = selectOne<DbBrainInsight>(db, 'SELECT * FROM brain_insights WHERE id = ?', id);
-      if (created) results.push(created);
-    }
+      for (const insight of insights) {
+        const id = `bi_${crypto.randomUUID()}`;
+
+        stmt.run(
+          id,
+          reflectionId,
+          projectId,
+          insight.type,
+          insight.title,
+          insight.description,
+          insight.confidence,
+          JSON.stringify(insight.evidence || []),
+          null, // evolves_from_id resolved later
+          insight.evolves || null,
+          null, // conflict_with_id resolved later
+          insight.conflict_with || null,
+          insight.conflict_type || null,
+          insight.conflict_resolved ? 1 : 0,
+          insight.conflict_resolution || null,
+          insight.auto_pruned ? 1 : 0,
+          insight.auto_prune_reason || null,
+          insight.original_confidence ?? null,
+          now,
+          now
+        );
+
+        // Insert evidence into junction table with FK validation
+        if (insight.evidence && insight.evidence.length > 0) {
+          for (const ref of insight.evidence) {
+            // Validate evidence reference exists before inserting
+            let exists = false;
+            if (ref.type === 'direction') {
+              exists = !!directionExistsStmt.get(ref.id);
+            } else if (ref.type === 'reflection') {
+              exists = !!reflectionExistsStmt.get(ref.id);
+            } else if (ref.type === 'signal') {
+              // Signals don't have a persistent table yet, skip validation
+              exists = true;
+            }
+
+            if (!exists) {
+              throw new Error(
+                `Evidence reference ${ref.type}:${ref.id} does not exist for insight "${insight.title}"`
+              );
+            }
+
+            evidenceStmt.run(id, ref.type, ref.id, now);
+          }
+        }
+
+        const created = selectOne<DbBrainInsight>(db, 'SELECT * FROM brain_insights WHERE id = ?', id);
+        if (created) results.push(created);
+      }
+    });
+
+    // Execute transaction - will rollback on any error
+    transaction();
 
     return results;
   },
@@ -482,6 +560,69 @@ export const brainInsightRepository = {
     const db = getDatabase();
     const result = db.prepare('DELETE FROM brain_insights WHERE reflection_id = ?').run(reflectionId);
     return result.changes;
+  },
+
+  /**
+   * Get all insights that cite a specific piece of evidence.
+   * Uses junction table for O(1) indexed lookup instead of full-table JSON parsing.
+   *
+   * @param evidenceType - 'direction' | 'signal' | 'reflection'
+   * @param evidenceId - ID of the evidence entity
+   * @returns Insights that cite this evidence
+   */
+  getByEvidence: (evidenceType: EvidenceRef['type'], evidenceId: string): DbBrainInsight[] => {
+    const db = getDatabase();
+    return selectAll<DbBrainInsight>(
+      db,
+      `SELECT bi.*
+       FROM brain_insights bi
+       JOIN brain_insight_evidence bie ON bie.insight_id = bi.id
+       WHERE bie.evidence_type = ? AND bie.evidence_id = ?
+       ORDER BY bi.created_at DESC`,
+      evidenceType,
+      evidenceId
+    );
+  },
+
+  /**
+   * Get evidence references for a specific insight from the junction table.
+   * Returns typed EvidenceRef[] instead of parsing JSON.
+   *
+   * @param insightId - Insight ID
+   * @returns Array of evidence references
+   */
+  getEvidenceForInsight: (insightId: string): EvidenceRef[] => {
+    const db = getDatabase();
+    const rows = selectAll<{ evidence_type: EvidenceRef['type']; evidence_id: string }>(
+      db,
+      `SELECT evidence_type, evidence_id
+       FROM brain_insight_evidence
+       WHERE insight_id = ?
+       ORDER BY id ASC`,
+      insightId
+    );
+    return rows.map(row => ({ type: row.evidence_type, id: row.evidence_id }));
+  },
+
+  /**
+   * Count insights that cite a specific piece of evidence.
+   * Useful for cache invalidation decisions.
+   *
+   * @param evidenceType - 'direction' | 'signal' | 'reflection'
+   * @param evidenceId - ID of the evidence entity
+   * @returns Count of insights citing this evidence
+   */
+  countByEvidence: (evidenceType: EvidenceRef['type'], evidenceId: string): number => {
+    const db = getDatabase();
+    const row = selectOne<{ count: number }>(
+      db,
+      `SELECT COUNT(DISTINCT insight_id) as count
+       FROM brain_insight_evidence
+       WHERE evidence_type = ? AND evidence_id = ?`,
+      evidenceType,
+      evidenceId
+    );
+    return row?.count ?? 0;
   },
 
 };

@@ -5,9 +5,12 @@ import * as d3 from 'd3';
 import { Maximize2 } from 'lucide-react';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 
-import { hexToRgba, relTime, getEventAlpha, getEventRadius, computeLabelRects } from '../sub_MemoryCanvas/lib/helpers';
-import { COLORS, RECENCY_GLOW_HOURS, DOT_RADIUS_MIN, DOT_RADIUS_MAX } from '../sub_MemoryCanvas/lib/constants';
-import type { SignalType, FilterState, LabelRect } from '../sub_MemoryCanvas/lib/types';
+import { hexToRgba, relTime, getEventRadius } from '../sub_MemoryCanvas/lib/helpers';
+import { COLORS, RECENCY_GLOW_HOURS, LANE_TYPES } from '../sub_MemoryCanvas/lib/constants';
+import type { SignalType, FilterState } from '../sub_MemoryCanvas/lib/types';
+import type { RenderContext } from '../sub_MemoryCanvas/lib/canvasRenderPipeline';
+import { executeTimelineRenderPipeline, TIMELINE_MARGIN } from './timelineRenderPipeline';
+import { SIGNAL_METADATA } from '@/types/signals';
 
 // ─── Local Types ────────────────────────────────────────────────────────────
 
@@ -30,19 +33,17 @@ interface TooltipData {
 
 // ─── Local Constants ────────────────────────────────────────────────────────
 
-const SIGNAL_TYPES: SignalType[] = ['git_activity', 'api_focus', 'context_focus', 'implementation'];
+const SIGNAL_TYPES = LANE_TYPES;
 
-/** Full labels for timeline lanes and tooltips (shared LABELS are abbreviated) */
-const LANE_LABELS: Record<SignalType, string> = {
-  git_activity: 'Git Activity',
-  api_focus: 'API Focus',
-  context_focus: 'Context Focus',
-  implementation: 'Implementation',
-};
+/** Full labels for timeline lanes and tooltips (derived from canonical metadata) */
+const LANE_LABELS: Record<string, string> = {};
+for (const type of LANE_TYPES) {
+  LANE_LABELS[type] = SIGNAL_METADATA[type].displayName;
+}
 
 const BG = '#18181b';
 const GRID = '#27272a';
-const MARGIN = { top: 50, right: 30, bottom: 30, left: 130 };
+const MARGIN = TIMELINE_MARGIN;
 
 // ─── Data Helpers ───────────────────────────────────────────────────────────
 
@@ -187,231 +188,78 @@ export default function EventCanvasTimeline() {
     const events = eventsRef.current;
     const visible = visibleTypesRef.current;
 
+    // Clear background
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, width, height);
 
-    const plotW = width - MARGIN.left - MARGIN.right;
-    const plotH = height - MARGIN.top - MARGIN.bottom;
-    const laneH = plotH / 4;
     const isEmptyState = events.length === 0;
-
-    // ── Empty state: canvas-rendered ───────────────────────────────────
-    if (isEmptyState) {
-      // Ghost lane labels
-      ctx.font = 'bold 11px Inter, system-ui, sans-serif';
-      SIGNAL_TYPES.forEach((type, i) => {
-        const y = MARGIN.top + i * laneH + laneH / 2;
-        ctx.fillStyle = hexToRgba(COLORS[type], 0.10);
-        ctx.fillRect(8, y - 6, 8, 12);
-        ctx.fillStyle = hexToRgba('#d4d4d8', 0.10);
-        ctx.textBaseline = 'middle';
-        ctx.textAlign = 'left';
-        ctx.fillText(LANE_LABELS[type], 24, y);
-
-        // Dotted center line
-        ctx.strokeStyle = hexToRgba('#71717a', 0.04);
-        ctx.lineWidth = 1;
-        ctx.setLineDash([6, 8]);
-        ctx.beginPath();
-        ctx.moveTo(MARGIN.left, y);
-        ctx.lineTo(MARGIN.left + plotW, y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      });
-
-      // Central empty message
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const cx = width / 2;
-      const cy = height / 2;
-      ctx.fillStyle = 'rgba(161,161,170,0.6)';
-      ctx.font = '500 14px Inter, system-ui, sans-serif';
-      ctx.fillText('No timeline data', cx, cy - 10);
-      ctx.fillStyle = 'rgba(113,113,122,0.5)';
-      ctx.font = '12px Inter, system-ui, sans-serif';
-      ctx.fillText('Brain collects data from task executions,', cx, cy + 12);
-      ctx.fillText('idea reviews, and direction decisions.', cx, cy + 28);
-      return;
-    }
-
-    // ── Lane labels (fixed, not zoomed) ───────────────────────────────
-    ctx.font = 'bold 11px Inter, system-ui, sans-serif';
-    SIGNAL_TYPES.forEach((type, i) => {
-      const y = MARGIN.top + i * laneH + laneH / 2;
-      const typeVisible = visible.has(type);
-      const labelAlpha = typeVisible ? 1.0 : 0.25;
-      ctx.fillStyle = hexToRgba(COLORS[type], labelAlpha);
-      ctx.fillRect(8, y - 6, 8, 12);
-      ctx.fillStyle = hexToRgba('#d4d4d8', labelAlpha);
-      ctx.textBaseline = 'middle';
-      ctx.textAlign = 'left';
-      ctx.fillText(LANE_LABELS[type], 24, y);
-    });
-
-    // ── Time axis (fixed) ─────────────────────────────────────────────
-    ctx.font = '10px Inter, system-ui, sans-serif';
-    ctx.fillStyle = '#71717a';
-    ctx.textAlign = 'center';
     const now = Date.now();
-    for (let d = 0; d <= 7; d++) {
-      const x = MARGIN.left + (d / 7) * plotW;
-      const date = new Date(now - (7 - d) * 86400000);
-      ctx.fillText(date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }), x, MARGIN.top - 12);
-    }
 
-    // ── Zoom transform for content ────────────────────────────────────
-    ctx.save();
-    ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * transform.x, dpr * transform.y);
-
-    // Grid
-    ctx.strokeStyle = GRID;
-    ctx.lineWidth = 1 / k;
-    for (let i = 0; i <= 4; i++) {
-      const y = MARGIN.top + i * laneH;
-      ctx.beginPath();
-      ctx.moveTo(MARGIN.left, y);
-      ctx.lineTo(MARGIN.left + plotW, y);
-      ctx.stroke();
-    }
-    for (let d = 0; d <= 7; d++) {
-      const x = MARGIN.left + (d / 7) * plotW;
-      ctx.beginPath();
-      ctx.moveTo(x, MARGIN.top);
-      ctx.lineTo(x, MARGIN.top + plotH);
-      ctx.stroke();
-    }
+    // Build render context
+    const renderContext: RenderContext = {
+      ctx,
+      width,
+      height,
+      dpr,
+      transform,
+      now,
+      filterState: { visibleTypes: visible },
+    };
 
     // Filter events by visibleTypes
     const visibleEvents = events.filter(e => visible.has(e.type));
 
-    // ── Events ────────────────────────────────────────────────────────
-    if (k < 3) {
-      visibleEvents.forEach((evt) => {
-        const color = COLORS[evt.type];
-        const alpha = getEventAlpha(evt.timestamp);
-        const radius = getEventRadius(evt.weight, evt.timestamp) / Math.max(1, k * 0.3);
-
-        // Recency pulse for events < RECENCY_GLOW_HOURS old
-        const ageHours = (Date.now() - evt.timestamp) / 3600000;
-        if (ageHours < RECENCY_GLOW_HOURS) {
-          const pulsePhase = (Date.now() % 2000) / 2000;
-          const pulseR = radius * (1.5 + pulsePhase * 0.8);
-          ctx.beginPath();
-          ctx.arc(evt.x, evt.y, pulseR, 0, Math.PI * 2);
-          ctx.strokeStyle = hexToRgba(color, 0.3 * (1 - pulsePhase));
-          ctx.lineWidth = 1.5 / k;
-          ctx.stroke();
-        }
-
-        // Radial gradient dot
-        const dotGrad = ctx.createRadialGradient(evt.x, evt.y, 0, evt.x, evt.y, radius);
-        dotGrad.addColorStop(0, hexToRgba(color, Math.min(1, alpha + 0.3)));
-        dotGrad.addColorStop(1, hexToRgba(color, alpha * 0.6));
-        ctx.beginPath();
-        ctx.arc(evt.x, evt.y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = dotGrad;
-        ctx.fill();
-
-        // High-weight glow + white center
-        if (evt.weight > 1.5) {
-          ctx.shadowBlur = 10 / k;
-          ctx.shadowColor = hexToRgba(color, 0.5);
-          ctx.beginPath();
-          ctx.arc(evt.x, evt.y, radius * 0.35, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(255,255,255,0.7)';
-          ctx.fill();
-          ctx.shadowBlur = 0;
-        } else if (evt.weight > 1.2) {
-          ctx.shadowBlur = 8 / k;
-          ctx.shadowColor = hexToRgba(color, 0.5);
-          ctx.beginPath();
-          ctx.arc(evt.x, evt.y, radius * 0.8, 0, Math.PI * 2);
-          ctx.fillStyle = dotGrad;
-          ctx.fill();
-          ctx.shadowBlur = 0;
-        }
-      });
-
-      // ── Smart labels via computeLabelRects ────────────────────────
-      const maxLabels = Math.round(30 / k);
-      const labelFont = `500 ${Math.max(8, Math.round(10 / Math.max(1, k * 0.7)))}px Inter, system-ui, sans-serif`;
-
-      const labelCandidates = visibleEvents.map(evt => {
-        const radius = getEventRadius(evt.weight, evt.timestamp) / Math.max(1, k * 0.3);
-        const alpha = getEventAlpha(evt.timestamp);
-        return {
-          x: evt.x,
-          y: evt.y,
-          radius,
-          label: evt.summary,
-          priority: evt.weight * alpha,
-        };
-      });
-
-      const labelRects = computeLabelRects(labelCandidates, ctx, labelFont, maxLabels);
-      ctx.font = labelFont;
-      ctx.textBaseline = 'top';
-      ctx.textAlign = 'left';
-
-      for (const rect of labelRects) {
-        // Frosted background pill
-        ctx.fillStyle = 'rgba(15,15,17,0.75)';
-        ctx.beginPath();
-        ctx.roundRect(rect.x - 3 / k, rect.y - 1 / k, rect.width + 6 / k, rect.height + 2 / k, 3 / k);
-        ctx.fill();
-        // Label text
-        ctx.fillStyle = 'rgba(228,228,231,0.85)';
-        ctx.fillText(rect.label, rect.x, rect.y);
-      }
-
-      // ── Connection lines (same type, same context) ────────────────
-      const groups = new Map<string, BrainEvent[]>();
-      visibleEvents.forEach(e => {
-        const key = `${e.type}::${e.context_name}`;
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key)!.push(e);
-      });
-      groups.forEach((evts) => {
-        if (evts.length < 2) return;
-        ctx.strokeStyle = hexToRgba(COLORS[evts[0].type], 0.15);
-        ctx.lineWidth = 0.5 / k;
-        ctx.setLineDash([4 / k, 4 / k]);
-        ctx.beginPath();
-        evts.forEach((e, i) => { if (i === 0) ctx.moveTo(e.x, e.y); else ctx.lineTo(e.x, e.y); });
-        ctx.stroke();
-        ctx.setLineDash([]);
-      });
-    } else {
-      // Card mode
-      visibleEvents.forEach((evt) => {
-        const color = COLORS[evt.type];
-        const cardW = 150 / k;
-        const cardH = 50 / k;
-        const x = evt.x - cardW / 2;
-        const y = evt.y - cardH / 2;
-        ctx.fillStyle = '#27272a';
-        ctx.strokeStyle = hexToRgba(color, 0.6);
-        ctx.lineWidth = 1.5 / k;
-        ctx.beginPath();
-        ctx.roundRect(x, y, cardW, cardH, 4 / k);
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = color;
-        ctx.fillRect(x + 4 / k, y + 4 / k, 3 / k, cardH - 8 / k);
-        ctx.fillStyle = '#e4e4e7';
-        ctx.font = `${9 / k}px Inter, system-ui, sans-serif`;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        ctx.fillText(evt.context_name.slice(0, 18), x + 12 / k, y + 6 / k);
-        ctx.fillStyle = '#a1a1aa';
-        ctx.font = `${7.5 / k}px Inter, system-ui, sans-serif`;
-        ctx.fillText(evt.summary.slice(0, 22), x + 12 / k, y + 20 / k);
-        ctx.fillText(relTime(evt.timestamp), x + 12 / k, y + 32 / k);
-      });
-    }
-
-    ctx.restore();
+    // Execute timeline render pipeline
+    executeTimelineRenderPipeline(renderContext, {
+      emptyState: isEmptyState ? {
+        laneTypes: SIGNAL_TYPES,
+        laneLabels: LANE_LABELS,
+        margin: MARGIN,
+      } : undefined,
+      laneBackground: !isEmptyState ? {
+        laneTypes: SIGNAL_TYPES,
+        laneLabels: LANE_LABELS,
+        visibleTypes: visible,
+        margin: MARGIN,
+      } : undefined,
+      timeAxis: !isEmptyState ? {
+        margin: MARGIN,
+        dayCount: 7,
+      } : undefined,
+      timelineGrid: !isEmptyState ? {
+        laneCount: 4,
+        dayCount: 7,
+        margin: MARGIN,
+        gridColor: GRID,
+      } : undefined,
+      connectionLines: !isEmptyState && k < 3 ? {
+        events: visibleEvents,
+        mode: 'grouped',
+        coordinateMode: 'world',
+        opacity: 0.15,
+      } : undefined,
+      eventDots: !isEmptyState && k < 3 ? {
+        events: visibleEvents,
+        coordinateMode: 'world',
+        dotScale: 1.0 / Math.max(1, k * 0.3),
+        enablePulse: true,
+        enableGlow: true,
+        useGradients: true,
+      } : undefined,
+      eventCards: !isEmptyState && k >= 3 ? {
+        events: visibleEvents,
+        coordinateMode: 'world',
+        cardSize: { width: 150, height: 50 },
+        showContext: true,
+      } : undefined,
+      smartLabels: !isEmptyState && k < 3 ? {
+        events: visibleEvents,
+        coordinateMode: 'world',
+        maxLabels: Math.round(30 / k),
+        fontSize: Math.max(8, Math.round(10 / Math.max(1, k * 0.7))),
+      } : undefined,
+    });
   }, []);
 
   const requestRender = useCallback(() => {

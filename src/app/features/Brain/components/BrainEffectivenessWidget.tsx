@@ -7,9 +7,11 @@ import BrainPanelHeader from './BrainPanelHeader';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import InsightEffectivenessScore from './InsightEffectivenessScore';
 import GlowCard from './GlowCard';
+import { useAbortableFetch } from '@/hooks/useAbortableFetch';
 import type { InsightEffectiveness } from '@/app/api/brain/insights/effectiveness/route';
 import type { EffectivenessSummary } from '@/app/api/brain/insights/effectiveness/route';
 import type { CausalValidationReport } from '@/lib/brain/insightCausalValidator';
+import { subscribeToReflectionCompletion } from '@/stores/reflectionCompletionEmitter';
 
 interface Props {
   scope?: 'project' | 'global';
@@ -25,6 +27,7 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
   const [showCausal, setShowCausal] = useState(false);
 
   const activeProject = useActiveProjectStore((state) => state.activeProject);
+  const abortableFetch = useAbortableFetch();
 
   const fetchEffectiveness = useCallback(async () => {
     if (!activeProject?.id) return;
@@ -34,8 +37,8 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
 
     try {
       const [proxyRes, causalRes] = await Promise.all([
-        fetch(`/api/brain/insights/effectiveness?projectId=${activeProject.id}`),
-        fetch(`/api/brain/insights/influence?projectId=${activeProject.id}`).catch(() => null),
+        abortableFetch(`/api/brain/insights/effectiveness?projectId=${activeProject.id}`),
+        abortableFetch(`/api/brain/insights/influence?projectId=${activeProject.id}`).catch(() => null),
       ]);
 
       const proxyData = await proxyRes.json();
@@ -53,16 +56,31 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
           setCausal(causalData as CausalValidationReport);
         }
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
       setError('Failed to fetch effectiveness data');
     } finally {
       setIsLoading(false);
     }
-  }, [activeProject?.id]);
+  }, [activeProject?.id, abortableFetch]);
 
   useEffect(() => {
     fetchEffectiveness();
   }, [fetchEffectiveness]);
+
+  // Subscribe to reflection completion events for auto-refresh
+  useEffect(() => {
+    const unsubscribe = subscribeToReflectionCompletion((reflectionId, projectId, completionScope) => {
+      // Refresh effectiveness when a reflection completes for this project
+      if (scope === 'global' && completionScope === 'global') {
+        fetchEffectiveness();
+      } else if (scope === 'project' && completionScope === 'project' && projectId === activeProject?.id) {
+        fetchEffectiveness();
+      }
+    });
+
+    return unsubscribe;
+  }, [scope, activeProject?.id, fetchEffectiveness]);
 
   // Determine accent color based on verdict
   const getVerdictConfig = (overallScore: number) => {

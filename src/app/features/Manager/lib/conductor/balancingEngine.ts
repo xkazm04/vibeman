@@ -210,15 +210,14 @@ export function routeModel(
 }
 
 function matchesRoutingRule(rule: ModelRoutingRule, idea: IdeaForRouting): boolean {
+  const effort = idea.effort ?? 5;
   switch (rule.condition) {
-    case 'effort_high':
-      return (idea.effort ?? 5) >= 7;
-    case 'effort_low':
-      return (idea.effort ?? 5) <= 3;
-    case 'category_ui':
-      return idea.category === 'ui' || idea.category === 'user_benefit';
-    case 'category_refactor':
-      return idea.category === 'maintenance' || idea.category === 'code_quality';
+    case 'complexity_1':
+      return effort <= 3;
+    case 'complexity_2':
+      return effort >= 4 && effort <= 6;
+    case 'complexity_3':
+      return effort >= 7;
     case 'default':
       return true;
     default:

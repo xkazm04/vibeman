@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { directionDb, directionOutcomeDb } from '@/app/db';
+import { directionDb, directionOutcomeDb, insightEffectivenessCache } from '@/app/db';
 import { outcomeTracker } from '@/lib/brain/outcomeTracker';
 import { withObservability } from '@/lib/observability/middleware';
 
@@ -201,6 +201,9 @@ async function handlePut(
       }
 
       const outcome = directionOutcomeDb.getByDirectionId(id);
+
+      // Invalidate effectiveness cache since revert affects direction outcome data
+      try { insightEffectivenessCache.invalidate(direction.project_id); } catch { /* non-critical */ }
 
       return NextResponse.json({
         success: true,

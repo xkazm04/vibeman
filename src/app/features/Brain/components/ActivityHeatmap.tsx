@@ -21,6 +21,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useAbortableFetch } from '@/hooks/useAbortableFetch';
 import GlowCard from './GlowCard';
 import BrainPanelHeader from './BrainPanelHeader';
 
@@ -96,6 +97,7 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
   const [signalTypes, setSignalTypes] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const abortableFetch = useAbortableFetch();
 
   // Drill-down state
   const [selectedDay, setSelectedDay] = useState<HeatmapDayData | null>(null);
@@ -110,7 +112,7 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch(
+      const res = await abortableFetch(
         `/api/brain/signals/heatmap?projectId=${encodeURIComponent(activeProject.id)}&days=90`
       );
       const json: HeatmapResponse = await res.json();
@@ -121,12 +123,13 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
       } else {
         setError('Failed to load heatmap data');
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
       setError('Failed to load heatmap data');
     } finally {
       setIsLoading(false);
     }
-  }, [activeProject?.id]);
+  }, [activeProject?.id, abortableFetch]);
 
   useEffect(() => {
     fetchHeatmap();

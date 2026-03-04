@@ -6,10 +6,12 @@
 
 'use client';
 
-import { useId, useMemo } from 'react';
+import { useId, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Target, CheckCircle, XCircle, RotateCcw, Clock, TrendingUp } from 'lucide-react';
 import { useBrainStore } from '@/stores/brainStore';
+import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { subscribeToReflectionCompletion } from '@/stores/reflectionCompletionEmitter';
 import GlowCard from './GlowCard';
 
 interface Props {
@@ -117,8 +119,21 @@ function useDailyTrend(recentOutcomes: { execution_completed_at: string | null; 
 
 export default function OutcomesSummary({ isLoading }: Props) {
   const trendGradientId = `outcomeTrendGrad-${useId()}`;
-  const { outcomeStats, recentOutcomes } = useBrainStore();
+  const { outcomeStats, recentOutcomes, fetchRecentOutcomes } = useBrainStore();
+  const activeProject = useActiveProjectStore(state => state.activeProject);
   const { days: trendDays, daysWithData } = useDailyTrend(recentOutcomes);
+
+  // Subscribe to reflection completion events for auto-refresh
+  useEffect(() => {
+    const unsubscribe = subscribeToReflectionCompletion((reflectionId, projectId) => {
+      // Refresh outcomes when a reflection completes for this project
+      if (projectId === activeProject?.id) {
+        fetchRecentOutcomes(projectId);
+      }
+    });
+
+    return unsubscribe;
+  }, [activeProject?.id, fetchRecentOutcomes]);
 
   if (isLoading) {
     return (

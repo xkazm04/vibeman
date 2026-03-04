@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { directionDb, brainInsightDb, insightInfluenceDb } from '@/app/db';
+import { directionDb, brainInsightDb, insightInfluenceDb, insightEffectivenessCache } from '@/app/db';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
 import { signalCollector } from '@/lib/brain/signalCollector';
@@ -115,6 +115,9 @@ async function handlePut(
         // Influence tracking must never break the main flow
       }
 
+      // Invalidate effectiveness cache since rejection affects acceptance rate
+      try { insightEffectivenessCache.invalidate(existingDirection.project_id); } catch { /* non-critical */ }
+
       return NextResponse.json({
         success: true,
         direction: rejectedDirection
@@ -158,6 +161,15 @@ async function handleDelete(
   try {
     const { id } = await params;
 
+    // Get direction before deletion to access project_id
+    const direction = directionDb.getDirectionById(id);
+    if (!direction) {
+      return NextResponse.json(
+        { error: 'Direction not found' },
+        { status: 404 }
+      );
+    }
+
     const deleted = directionDb.deleteDirection(id);
 
     if (!deleted) {
@@ -168,6 +180,9 @@ async function handleDelete(
     }
 
     logger.info('[API] Direction deleted:', { id });
+
+    // Invalidate effectiveness cache since deletion affects direction counts
+    try { insightEffectivenessCache.invalidate(direction.project_id); } catch { /* non-critical */ }
 
     return NextResponse.json({
       success: true,

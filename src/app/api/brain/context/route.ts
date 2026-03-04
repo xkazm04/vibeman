@@ -7,6 +7,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withObservability } from '@/lib/observability/middleware';
 import { getContext } from '@/lib/brain/brainService';
+import { parseQueryInt } from '@/lib/api-helpers/parseQueryInt';
+import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,28 +16,29 @@ async function handleGET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
-    const windowDays = parseInt(searchParams.get('windowDays') || '7', 10);
     const noCache = searchParams.get('noCache') === 'true';
 
     if (!projectId) {
-      return NextResponse.json(
-        { error: 'projectId is required' },
-        { status: 400 }
-      );
+      return buildErrorResponse('projectId is required', { status: 400 });
     }
+
+    const windowDays = parseQueryInt(searchParams.get('windowDays'), {
+      default: 7,
+      min: 1,
+      max: 90,
+      paramName: 'windowDays',
+    });
 
     const result = getContext({ projectId, windowDays, noCache });
 
-    return NextResponse.json({
-      success: true,
-      context: result.context,
-      ...(result.cached ? { cached: true } : {}),
-    });
+    return buildSuccessResponse(
+      { context: result.context },
+      { meta: result.cached ? { cached: true } : undefined }
+    );
   } catch (error) {
     console.error('Failed to get behavioral context:', error);
-    return NextResponse.json(
-      { error: 'Failed to get behavioral context' },
-      { status: 500 }
+    return buildErrorResponse(
+      error instanceof Error ? error.message : 'Failed to get behavioral context'
     );
   }
 }

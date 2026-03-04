@@ -19,6 +19,8 @@ export {
   parseApiResponse,
   parseApiResponseSafe,
   SuccessResponseSchema,
+  unwrapEnvelope,
+  extractMeta,
 } from './api/schemas/common';
 
 // Brain API schemas
@@ -29,6 +31,9 @@ export {
   BrainReflectionStatusSchema,
   BrainReflectionTriggerSchema,
   BrainSignalsResponseSchema,
+  BrainInsightsResponseSchema,
+  BrainHeatmapResponseSchema,
+  BrainEffectivenessResponseSchema,
 } from './api/schemas/brain';
 
 // Goals API schemas

@@ -8,9 +8,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { behavioralSignalDb } from '@/app/db';
-import type { BehavioralSignalType } from '@/app/db/models/brain.types';
+import type { BehavioralSignalType } from '@/types/signals';
+import { getAllSignalTypes, isValidSignalType } from '@/types/signals';
 import { withObservability } from '@/lib/observability/middleware';
 import { recordSignal, deleteSignal } from '@/lib/brain/brainService';
+import { parseQueryInt } from '@/lib/api-helpers/parseQueryInt';
+import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
 
 /**
  * Validate signal data shape matches the expected type.
@@ -80,24 +83,14 @@ async function handlePost(request: NextRequest) {
     const { projectId, signalType, data, contextId, contextName } = body;
 
     if (!projectId || !signalType || !data) {
-      return NextResponse.json(
-        { success: false, error: 'projectId, signalType, and data are required' },
-        { status: 400 }
-      );
+      return buildErrorResponse('projectId, signalType, and data are required', { status: 400 });
     }
 
-    // Validate signal type
-    const validTypes: BehavioralSignalType[] = [
-      'git_activity',
-      'api_focus',
-      'context_focus',
-      'implementation',
-      'cli_memory',
-    ];
-
-    if (!validTypes.includes(signalType)) {
-      return NextResponse.json(
-        { success: false, error: `Invalid signalType. Must be one of: ${validTypes.join(', ')}` },
+    // Validate signal type using canonical enum
+    if (!isValidSignalType(signalType)) {
+      const validTypes = getAllSignalTypes();
+      return buildErrorResponse(
+        `Invalid signalType. Must be one of: ${validTypes.join(', ')}`,
         { status: 400 }
       );
     }
@@ -105,24 +98,15 @@ async function handlePost(request: NextRequest) {
     // Validate signal data shape before passing to service
     const validationError = validateSignalData(signalType, data);
     if (validationError) {
-      return NextResponse.json(
-        { success: false, error: `Invalid signal data: ${validationError}` },
-        { status: 400 }
-      );
+      return buildErrorResponse(`Invalid signal data: ${validationError}`, { status: 400 });
     }
 
     recordSignal({ projectId, signalType, data, contextId, contextName });
 
-    return NextResponse.json({
-      success: true,
-      message: `Signal recorded: ${signalType}`,
-    });
+    return buildSuccessResponse({ message: `Signal recorded: ${signalType}` });
   } catch (error) {
     console.error('[API] Brain signals POST error:', error);
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return buildErrorResponse(error instanceof Error ? error.message : 'Unknown error');
   }
 }
 
@@ -136,15 +120,18 @@ async function handleGet(request: NextRequest) {
     const projectId = searchParams.get('projectId');
     const signalType = searchParams.get('signalType') as BehavioralSignalType | null;
     const contextId = searchParams.get('contextId');
-    const limit = parseInt(searchParams.get('limit') || '50', 10);
     const since = searchParams.get('since');
 
     if (!projectId) {
-      return NextResponse.json(
-        { success: false, error: 'projectId is required' },
-        { status: 400 }
-      );
+      return buildErrorResponse('projectId is required', { status: 400 });
     }
+
+    const limit = parseQueryInt(searchParams.get('limit'), {
+      default: 50,
+      min: 1,
+      max: 1000,
+      paramName: 'limit',
+    });
 
     const signals = behavioralSignalDb.getByProject(projectId, {
       signalType: signalType || undefined,
@@ -156,8 +143,7 @@ async function handleGet(request: NextRequest) {
     const counts = behavioralSignalDb.getCountByType(projectId);
     const contextActivity = behavioralSignalDb.getContextActivity(projectId);
 
-    return NextResponse.json({
-      success: true,
+    return buildSuccessResponse({
       signals,
       stats: {
         counts,
@@ -167,10 +153,7 @@ async function handleGet(request: NextRequest) {
     });
   } catch (error) {
     console.error('[API] Brain signals GET error:', error);
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return buildErrorResponse(error instanceof Error ? error.message : 'Unknown error');
   }
 }
 
@@ -184,28 +167,19 @@ async function handleDelete(request: NextRequest) {
     const id = searchParams.get('id');
 
     if (!id) {
-      return NextResponse.json(
-        { success: false, error: 'id is required' },
-        { status: 400 }
-      );
+      return buildErrorResponse('id is required', { status: 400 });
     }
 
     const deleted = deleteSignal(id);
 
     if (!deleted) {
-      return NextResponse.json(
-        { success: false, error: 'Signal not found' },
-        { status: 404 }
-      );
+      return buildErrorResponse('Signal not found', { status: 404 });
     }
 
-    return NextResponse.json({ success: true });
+    return buildSuccessResponse({});
   } catch (error) {
     console.error('[API] Brain signals DELETE error:', error);
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return buildErrorResponse(error instanceof Error ? error.message : 'Unknown error');
   }
 }
 

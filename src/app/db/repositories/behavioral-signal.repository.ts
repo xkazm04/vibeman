@@ -10,9 +10,10 @@
 import { getHotWritesDatabase } from '../hot-writes';
 import type {
   DbBehavioralSignal,
-  BehavioralSignalType,
   CreateBehavioralSignalInput,
 } from '../models/brain.types';
+import type { BehavioralSignalType } from '@/types/signals';
+import { getAllSignalTypes } from '@/types/signals';
 import { getCurrentTimestamp, selectOne, selectAll } from './repository.utils';
 
 /**
@@ -175,6 +176,7 @@ export const behavioralSignalRepository = {
 
   /**
    * Get signal count by type for a project
+   * Derives the complete type list from the canonical SignalType enum
    */
   getCountByType: (
     projectId: string,
@@ -193,21 +195,18 @@ export const behavioralSignalRepository = {
       since
     );
 
-    const result: Record<BehavioralSignalType, number> = {
-      git_activity: 0,
-      api_focus: 0,
-      context_focus: 0,
-      implementation: 0,
-      cross_task_analysis: 0,
-      cross_task_selection: 0,
-      cli_memory: 0,
-    };
+    // Initialize all signal types to 0 using canonical enum
+    const result: Record<string, number> = {};
+    for (const type of getAllSignalTypes()) {
+      result[type] = 0;
+    }
 
+    // Fill in actual counts
     for (const row of rows) {
       result[row.signal_type] = row.count;
     }
 
-    return result;
+    return result as Record<BehavioralSignalType, number>;
   },
 
   /**

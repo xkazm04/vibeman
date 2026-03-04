@@ -11,7 +11,7 @@
  */
 
 import type { BrainEvent, Group, FilterState, SignalType } from './types';
-import { formGroups, runForceLayout, packEventsInGroup, layoutFocusedGroup } from './canvasLayout';
+import { formGroups, runForceLayout, runForceLayoutAsync, packEventsInGroup, layoutFocusedGroup } from './canvasLayout';
 
 type RenderCallback = () => void;
 
@@ -30,6 +30,9 @@ export class CanvasStore {
 
   // ── Render trigger ───────────────────────────────────────────────
   private renderCb: RenderCallback | null = null;
+
+  // ── Worker cleanup ───────────────────────────────────────────────
+  private workerCleanup: (() => void) | null = null;
 
   onRender(cb: RenderCallback) {
     this.renderCb = cb;
@@ -96,6 +99,13 @@ export class CanvasStore {
 
   recalculateLayout(focusedGroupId: string | null) {
     const { width, height } = this;
+
+    // Cancel any running worker
+    if (this.workerCleanup) {
+      this.workerCleanup();
+      this.workerCleanup = null;
+    }
+
     this.groups = formGroups(this.events);
 
     if (width > 0 && height > 0) {
@@ -104,9 +114,40 @@ export class CanvasStore {
         const fg = this.groups.find(g => g.id === focusedGroupId);
         if (fg) layoutFocusedGroup(fg, width, height);
       } else {
-        runForceLayout(this.groups, width, height);
-        this.groups.forEach(packEventsInGroup);
+        // Use worker-based async layout for overview mode
+        this.workerCleanup = runForceLayoutAsync(
+          this.groups,
+          width,
+          height,
+          {
+            onProgress: (groups, tick, totalTicks) => {
+              // Progressive rendering: update groups and request redraw
+              this.groups = groups;
+              this.requestRender();
+            },
+            onComplete: (groups) => {
+              // Final pass: pack events within groups
+              this.groups = groups;
+              this.groups.forEach(packEventsInGroup);
+              this.requestRender();
+              this.workerCleanup = null;
+            },
+            totalTicks: 120,
+            progressInterval: 10, // Update every 10 ticks
+          }
+        );
+        return; // Don't request render here; worker will trigger it
       }
+    }
+  }
+
+  /**
+   * Cleanup method to be called when store is destroyed
+   */
+  destroy() {
+    if (this.workerCleanup) {
+      this.workerCleanup();
+      this.workerCleanup = null;
     }
   }
 

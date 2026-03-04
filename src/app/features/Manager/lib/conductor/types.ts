@@ -73,7 +73,7 @@ export type ContextStrategy = 'all' | 'brain-driven' | 'selected';
 export type BatchStrategy = 'sequential' | 'parallel' | 'dag';
 
 export interface ModelRoutingRule {
-  condition: 'effort_high' | 'effort_low' | 'category_ui' | 'category_refactor' | 'default';
+  condition: 'complexity_1' | 'complexity_2' | 'complexity_3' | 'default';
   provider: CLIProvider;
   model: string;
 }
@@ -110,6 +110,7 @@ export interface BalancingConfig {
   // Execute
   executionProvider: CLIProvider;
   executionModel: string | null;
+  executionTimeoutMs: number;
   modelRouting: ModelRoutingRule[];
 
   // Budget
@@ -147,11 +148,12 @@ export const DEFAULT_BALANCING_CONFIG: BalancingConfig = {
   // Execute defaults
   executionProvider: 'claude',
   executionModel: null,
+  executionTimeoutMs: 6000 * 1000, // 6000s = 100min per task
   modelRouting: [
-    { condition: 'effort_high', provider: 'claude', model: 'opus' },
-    { condition: 'effort_low', provider: 'claude', model: 'sonnet' },
-    { condition: 'category_ui', provider: 'claude', model: 'opus' },
-    { condition: 'default', provider: 'claude', model: 'opus' },
+    { condition: 'complexity_1', provider: 'claude', model: 'sonnet' },
+    { condition: 'complexity_2', provider: 'claude', model: 'opus' },
+    { condition: 'complexity_3', provider: 'claude', model: 'opus' },
+    { condition: 'default', provider: 'claude', model: 'sonnet' },
   ],
 
   // Budget defaults
@@ -235,6 +237,17 @@ export interface BatchDescriptor {
   requirementNames: string[];
   modelAssignments: Record<string, { provider: CLIProvider; model: string }>;
   dagDependencies: Record<string, string[]>;
+}
+
+export interface ExecutionTaskState {
+  requirementName: string;
+  provider: CLIProvider;
+  model: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'aborted';
+  executionId?: string;
+  startedAt?: string;
+  durationMs?: number;
+  error?: string;
 }
 
 export interface ExecutionResult {

@@ -12,7 +12,8 @@ import type {
   ReflectionStatus,
 } from '@/app/db/models/brain.types';
 import type { SignalAnomaly } from '@/lib/brain/anomalyDetector';
-import { safeResponseJson, parseApiResponse, parseApiResponseSafe, BrainDecayResponseSchema, BrainContextResponseSchema, BrainOutcomesResponseSchema, BrainReflectionStatusSchema, BrainReflectionTriggerSchema } from '@/lib/apiResponseGuard';
+import { safeResponseJson, parseApiResponse, parseApiResponseSafe, unwrapEnvelope, extractMeta, BrainDecayResponseSchema, BrainContextResponseSchema, BrainOutcomesResponseSchema, BrainReflectionStatusSchema, BrainReflectionTriggerSchema } from '@/lib/apiResponseGuard';
+import { reflectionCompletionEmitter } from './reflectionCompletionEmitter';
 
 // ============================================================================
 // TYPES
@@ -226,6 +227,19 @@ export const useBrainStore = create<BrainStore>()(
             : parseApiResponseSafe(raw, BrainReflectionStatusSchema, fallback, label);
           const status = data.isRunning ? 'running' : (data.lastCompleted ? 'completed' : 'idle');
 
+          // Detect reflection completion: compare new completed_at with previous
+          const prevReflection = scope === 'project' ? get().lastReflection : get().lastGlobalReflection;
+          const newReflection = data.lastCompleted;
+          const hasJustCompleted =
+            newReflection &&
+            newReflection.status === 'completed' &&
+            newReflection.completed_at &&
+            (
+              !prevReflection ||
+              prevReflection.completed_at !== newReflection.completed_at ||
+              prevReflection.id !== newReflection.id
+            );
+
           setScopeState(scope, {
             status,
             last: data.lastCompleted || null,
@@ -235,6 +249,15 @@ export const useBrainStore = create<BrainStore>()(
             shouldTrigger: data.shouldTrigger,
             triggerReason: data.triggerReason,
           });
+
+          // Emit completion event for UI cascade refresh
+          if (hasJustCompleted && newReflection) {
+            reflectionCompletionEmitter.emit(
+              newReflection.id,
+              newReflection.project_id,
+              scope
+            );
+          }
 
           // Restore promptContent from sessionStorage if running but no prompt in memory
           const currentPrompt = scope === 'project' ? get().promptContent : get().globalPromptContent;
@@ -378,9 +401,10 @@ export const useBrainStore = create<BrainStore>()(
             }
 
             const raw = await safeResponseJson(response, '/api/brain/context');
-            const data = parseApiResponseSafe(raw, BrainContextResponseSchema, { context: null }, '/api/brain/context');
+            const validated = parseApiResponseSafe(raw, BrainContextResponseSchema, { success: true, data: { context: null } }, '/api/brain/context');
+            const context = unwrapEnvelope(validated, 'context', null);
             set({
-              behavioralContext: data.context || null,
+              behavioralContext: context,
               isLoadingContext: false,
             });
           } catch (error) {
@@ -444,6 +468,19 @@ export const useBrainStore = create<BrainStore>()(
             const ref = data.reflection || {};
             const reflectionStatus: ReflectionStatus | 'idle' = ref.isRunning ? 'running' : (ref.lastCompleted ? 'completed' : 'idle');
 
+            // Detect reflection completion: compare new completed_at with previous
+            const prevReflection = get().lastReflection;
+            const newReflection = ref.lastCompleted;
+            const hasJustCompleted =
+              newReflection &&
+              newReflection.status === 'completed' &&
+              newReflection.completed_at &&
+              (
+                !prevReflection ||
+                prevReflection.completed_at !== newReflection.completed_at ||
+                prevReflection.id !== newReflection.id
+              );
+
             set({
               behavioralContext,
               isLoadingContext: false,
@@ -459,6 +496,15 @@ export const useBrainStore = create<BrainStore>()(
               triggerReason: ref.triggerReason || null,
               isLoading: false,
             });
+
+            // Emit completion event for UI cascade refresh
+            if (hasJustCompleted && newReflection) {
+              reflectionCompletionEmitter.emit(
+                newReflection.id,
+                newReflection.project_id,
+                'project'
+              );
+            }
 
             // Restore promptContent from sessionStorage if running
             if (reflectionStatus === 'running' && !get().promptContent && ref.runningReflection?.id && typeof window !== 'undefined') {

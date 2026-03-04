@@ -15,6 +15,7 @@ export interface CachedEffectivenessResult {
   insightsJson: string;
   summaryJson: string;
   cachedAt: string;
+  version: number;
 }
 
 export const insightEffectivenessCacheRepository = {
@@ -25,13 +26,14 @@ export const insightEffectivenessCacheRepository = {
   get(projectId: string, minDirections: number): CachedEffectivenessResult | null {
     const db = getDatabase();
     const row = db.prepare(`
-      SELECT insights_json, summary_json, cached_at
+      SELECT insights_json, summary_json, cached_at, version
       FROM insight_effectiveness_cache
       WHERE project_id = ? AND min_directions = ?
     `).get(projectId, minDirections) as {
       insights_json: string;
       summary_json: string;
       cached_at: string;
+      version: number;
     } | undefined;
 
     if (!row) return null;
@@ -46,25 +48,37 @@ export const insightEffectivenessCacheRepository = {
       insightsJson: row.insights_json,
       summaryJson: row.summary_json,
       cachedAt: row.cached_at,
+      version: row.version || 1,
     };
   },
 
   /**
    * Store computed effectiveness results in cache.
    * Uses INSERT OR REPLACE to upsert.
+   * Increments version on every write to enable client-side staleness detection.
    */
   set(projectId: string, minDirections: number, insightsJson: string, summaryJson: string): void {
     const db = getDatabase();
+
+    // Get current version or default to 0
+    const current = db.prepare(`
+      SELECT version FROM insight_effectiveness_cache
+      WHERE project_id = ? AND min_directions = ?
+    `).get(projectId, minDirections) as { version: number } | undefined;
+
+    const newVersion = (current?.version || 0) + 1;
+
     db.prepare(`
       INSERT OR REPLACE INTO insight_effectiveness_cache
-        (project_id, min_directions, insights_json, summary_json, cached_at)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(projectId, minDirections, insightsJson, summaryJson, new Date().toISOString());
+        (project_id, min_directions, insights_json, summary_json, cached_at, version)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(projectId, minDirections, insightsJson, summaryJson, new Date().toISOString(), newVersion);
   },
 
   /**
    * Invalidate cache for a specific project.
-   * Called when directions are accepted (data changes).
+   * Called when direction status changes (accepted, rejected, reverted, deleted).
+   * Deletes cached entries to force recalculation on next request.
    */
   invalidate(projectId: string): void {
     const db = getDatabase();

@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { directionDb, brainInsightDb, insightInfluenceDb } from '@/app/db';
+import { directionDb, brainInsightDb, insightInfluenceDb, insightEffectivenessCache } from '@/app/db';
 import { logger } from '@/lib/logger';
 
 export async function POST(
@@ -46,6 +46,8 @@ export async function POST(
             insightInfluenceDb.recordInfluenceBatch(projectId, pair.directionB.id, 'rejected', insightBatch);
           }
         }
+        // Invalidate effectiveness cache since both directions were rejected
+        try { insightEffectivenessCache.invalidate(projectId); } catch { /* non-critical */ }
       }
     } catch {
       // Influence tracking must never break the main flow

@@ -1,4 +1,6 @@
-export type SignalType = 'git_activity' | 'api_focus' | 'context_focus' | 'implementation';
+import type { BehavioralSignalType } from '@/types/signals';
+
+export type SignalType = BehavioralSignalType;
 
 export interface BrainEvent {
   id: string;
@@ -47,4 +49,33 @@ export interface LabelRect {
   height: number;
   priority: number;
   label: string;
+}
+
+// ── Force Layout Worker Types ────────────────────────────────────
+
+export interface WorkerGroup {
+  id: string;
+  radius: number;
+  x: number;
+  y: number;
+}
+
+export interface ForceLayoutConfig {
+  width: number;
+  height: number;
+  totalTicks: number;
+  progressInterval: number;
+}
+
+export interface WorkerInputMessage {
+  type: 'run';
+  groups: WorkerGroup[];
+  config: ForceLayoutConfig;
+}
+
+export interface WorkerOutputMessage {
+  type: 'progress' | 'complete';
+  groups: WorkerGroup[];
+  tick: number;
+  totalTicks: number;
 }

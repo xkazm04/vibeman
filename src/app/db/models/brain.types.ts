@@ -3,15 +3,9 @@
  * Types for behavioral learning and autonomous reflection system
  */
 
-// Signal types for behavioral tracking
-export type BehavioralSignalType =
-  | 'git_activity'
-  | 'api_focus'
-  | 'context_focus'
-  | 'implementation'
-  | 'cross_task_analysis'
-  | 'cross_task_selection'
-  | 'cli_memory';
+// Import and re-export canonical signal type from centralized source
+import type { BehavioralSignalType } from '@/types/signals';
+export type { BehavioralSignalType };
 
 // Reflection trigger types
 export type ReflectionTriggerType = 'threshold' | 'scheduled' | 'manual';

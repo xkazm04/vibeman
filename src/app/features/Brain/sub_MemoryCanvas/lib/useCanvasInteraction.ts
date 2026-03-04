@@ -1,71 +1,60 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, Dispatch } from 'react';
 import * as d3 from 'd3';
 import type { BrainEvent, Group } from './types';
+import type { CanvasAction, CanvasState } from './canvasStateReducer';
 import { FOCUS_ZOOM_THRESHOLD } from './constants';
 import { layoutFocusedGroup, runForceLayout, packEventsInGroup, queryNearest } from './canvasLayout';
 
 interface UseCanvasInteractionParams {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   containerRef: React.RefObject<HTMLDivElement | null>;
-  transformRef: React.MutableRefObject<d3.ZoomTransform>;
+  canvasState: CanvasState;
+  dispatch: Dispatch<CanvasAction>;
   dimRef: React.MutableRefObject<{ width: number; height: number }>;
   groupsRef: React.MutableRefObject<Group[]>;
-  focusedGroupRef: React.MutableRefObject<string | null>;
-  selectedGroupRef: React.MutableRefObject<string | null>;
-  cursorRef: React.MutableRefObject<{ x: number; y: number }>;
   zoomBehaviorRef: React.MutableRefObject<d3.ZoomBehavior<HTMLCanvasElement, unknown> | null>;
-  momentumRef: React.MutableRefObject<number>;
   momentumAnimRef: React.MutableRefObject<number>;
-  zoomCenterRef: React.MutableRefObject<{ x: number; y: number }>;
-  setZoomLevel: (level: number) => void;
-  setFocusedGroupId: (id: string | null) => void;
-  setSelectedGroupId: (id: string | null) => void;
-  setSelectedEvent: (event: BrainEvent | null) => void;
   requestRender: () => void;
   fitToView: () => void;
 }
 
 export function useCanvasInteraction({
-  canvasRef, containerRef, transformRef, dimRef, groupsRef,
-  focusedGroupRef, selectedGroupRef, cursorRef,
-  zoomBehaviorRef, momentumRef, momentumAnimRef, zoomCenterRef,
-  setZoomLevel, setFocusedGroupId, setSelectedGroupId, setSelectedEvent,
+  canvasRef, containerRef, canvasState, dispatch,
+  dimRef, groupsRef, zoomBehaviorRef, momentumAnimRef,
   requestRender, fitToView,
 }: UseCanvasInteractionParams) {
 
   const findGroupAtCursor = useCallback((): Group | null => {
-    const t = transformRef.current;
-    const { x: sx, y: sy } = cursorRef.current;
-    const dataX = (sx - t.x) / t.k;
-    const dataY = (sy - t.y) / t.k;
+    const { transform, cursor } = canvasState;
+    const dataX = (cursor.x - transform.x) / transform.k;
+    const dataY = (cursor.y - transform.y) / transform.k;
     for (const group of groupsRef.current) {
       const dx = dataX - group.x;
       const dy = dataY - group.y;
       if (dx * dx + dy * dy <= group.radius * group.radius) return group;
     }
     return null;
-  }, [transformRef, cursorRef, groupsRef]);
+  }, [canvasState, groupsRef]);
 
   const findEventAt = useCallback((screenX: number, screenY: number): BrainEvent | null => {
-    const t = transformRef.current;
-    const focusId = focusedGroupRef.current;
+    const { transform, focusedGroupId } = canvasState;
 
-    if (focusId) {
+    if (focusedGroupId) {
       // Focused mode: layout uses screen coords directly.
       // evt.x is in layout space (transformed via t.k + t.x to screen).
       // evt.y is in screen space directly.
       // We query using layout-space coords for consistency with the spatial index.
-      const group = groupsRef.current.find(g => g.id === focusId);
+      const group = groupsRef.current.find(g => g.id === focusedGroupId);
       if (!group) return null;
 
-      const queryX = (screenX - t.x) / t.k;
+      const queryX = (screenX - transform.x) / transform.k;
       const queryY = screenY;
 
       if (group.spatialIndex) {
         const candidate = queryNearest(group.spatialIndex, queryX, queryY, Infinity);
         if (!candidate) return null;
         // Verify in screen space for accuracy
-        const ex = candidate.x * t.k + t.x - screenX;
+        const ex = candidate.x * transform.k + transform.x - screenX;
         const ey = candidate.y - screenY;
         return (ex * ex + ey * ey <= 20 ** 2) ? candidate : null;
       }
@@ -73,7 +62,7 @@ export function useCanvasInteraction({
       let closest: BrainEvent | null = null;
       let closestDist = 20 ** 2;
       for (const evt of group.events) {
-        const ex = evt.x * t.k + t.x - screenX;
+        const ex = evt.x * transform.k + transform.x - screenX;
         const ey = evt.y - screenY;
         const dist = ex * ex + ey * ey;
         if (dist < closestDist) { closestDist = dist; closest = evt; }
@@ -82,9 +71,9 @@ export function useCanvasInteraction({
     }
 
     // Overview mode: convert screen to data coords
-    const dataX = (screenX - t.x) / t.k;
-    const dataY = (screenY - t.y) / t.k;
-    const threshold = (15 / t.k) ** 2;
+    const dataX = (screenX - transform.x) / transform.k;
+    const dataY = (screenY - transform.y) / transform.k;
+    const threshold = (15 / transform.k) ** 2;
 
     // Use spatial index per group
     let best: BrainEvent | null = null;
@@ -109,14 +98,12 @@ export function useCanvasInteraction({
       }
     }
     return best;
-  }, [transformRef, focusedGroupRef, groupsRef]);
+  }, [canvasState, groupsRef]);
 
   const enterFocus = useCallback((group: Group) => {
-    momentumRef.current = 0;
     if (momentumAnimRef.current) { cancelAnimationFrame(momentumAnimRef.current); momentumAnimRef.current = 0; }
     const { width, height } = dimRef.current;
-    focusedGroupRef.current = group.id;
-    setFocusedGroupId(group.id);
+    dispatch({ type: 'FocusEntered', groupId: group.id });
     layoutFocusedGroup(group, width, height);
     const canvas = canvasRef.current;
     if (canvas && zoomBehaviorRef.current) {
@@ -129,14 +116,11 @@ export function useCanvasInteraction({
         d3.zoomIdentity.translate(tx, ty).scale(initK)
       );
     }
-  }, [momentumRef, momentumAnimRef, dimRef, focusedGroupRef, setFocusedGroupId, canvasRef, zoomBehaviorRef]);
+  }, [dispatch, momentumAnimRef, dimRef, canvasRef, zoomBehaviorRef]);
 
   const exitFocus = useCallback(() => {
-    momentumRef.current = 0;
     if (momentumAnimRef.current) { cancelAnimationFrame(momentumAnimRef.current); momentumAnimRef.current = 0; }
-    focusedGroupRef.current = null;
-    setFocusedGroupId(null);
-    setSelectedEvent(null);
+    dispatch({ type: 'FocusExited' });
     const currentGroups = groupsRef.current;
     currentGroups.forEach(packEventsInGroup);
     const canvas = canvasRef.current;
@@ -158,7 +142,7 @@ export function useCanvasInteraction({
         );
       }
     }
-  }, [momentumRef, momentumAnimRef, focusedGroupRef, setFocusedGroupId, setSelectedEvent, groupsRef, canvasRef, zoomBehaviorRef, dimRef]);
+  }, [dispatch, momentumAnimRef, groupsRef, canvasRef, zoomBehaviorRef, dimRef]);
 
   // Main setup effect
   useEffect(() => {
@@ -179,8 +163,8 @@ export function useCanvasInteraction({
       cachedRect = canvas.getBoundingClientRect();
       const currentGroups = groupsRef.current;
       if (currentGroups.length > 0) {
-        if (focusedGroupRef.current) {
-          const fg = currentGroups.find(g => g.id === focusedGroupRef.current);
+        if (canvasState.focusedGroupId) {
+          const fg = currentGroups.find(g => g.id === canvasState.focusedGroupId);
           if (fg) layoutFocusedGroup(fg, w, h);
         } else {
           runForceLayout(currentGroups, w, h);
@@ -197,15 +181,14 @@ export function useCanvasInteraction({
       .scaleExtent([0.2, 8])
       .filter((event: any) => { if (event.type === 'wheel') return false; return !event.ctrlKey && !event.button; })
       .on('zoom', (event) => {
-        const prevK = transformRef.current.k;
-        transformRef.current = event.transform;
+        const prevK = canvasState.transform.k;
         const k = event.transform.k;
-        setZoomLevel(k);
-        if (!focusedGroupRef.current && prevK < FOCUS_ZOOM_THRESHOLD && k >= FOCUS_ZOOM_THRESHOLD) {
+        dispatch({ type: 'ZoomChanged', transform: event.transform, zoomLevel: k });
+        if (!canvasState.focusedGroupId && prevK < FOCUS_ZOOM_THRESHOLD && k >= FOCUS_ZOOM_THRESHOLD) {
           const group = findGroupAtCursor();
           if (group) { enterFocus(group); return; }
         }
-        if (focusedGroupRef.current && k < 0.6) { exitFocus(); return; }
+        if (canvasState.focusedGroupId && k < 0.6) { exitFocus(); return; }
         requestRender();
       });
 
@@ -217,20 +200,30 @@ export function useCanvasInteraction({
     const MOMENTUM_DRAIN = 0.25;
     const MOMENTUM_THRESHOLD = 0.00008;
 
+    // Store momentum in a ref for the animation loop (avoid dispatch on every frame)
+    const momentumRef = useRef(0);
+
     const applyZoomDelta = (delta: number) => {
       if (!zoomBehaviorRef.current) return;
-      const t = transformRef.current;
-      const { x: px, y: py } = zoomCenterRef.current;
-      const newK = Math.max(0.2, Math.min(8, t.k * Math.pow(2, delta)));
-      if (newK === t.k) return;
-      const ratio = newK / t.k;
-      const newTransform = d3.zoomIdentity.translate(px - (px - t.x) * ratio, py - (py - t.y) * ratio).scale(newK);
+      const { transform, zoomCenter } = canvasState;
+      const newK = Math.max(0.2, Math.min(8, transform.k * Math.pow(2, delta)));
+      if (newK === transform.k) return;
+      const ratio = newK / transform.k;
+      const newTransform = d3.zoomIdentity.translate(
+        zoomCenter.x - (zoomCenter.x - transform.x) * ratio,
+        zoomCenter.y - (zoomCenter.y - transform.y) * ratio
+      ).scale(newK);
       zoomBehaviorRef.current.transform(d3.select(canvas) as any, newTransform);
     };
 
     const momentumLoop = () => {
       const m = momentumRef.current;
-      if (Math.abs(m) < MOMENTUM_THRESHOLD) { momentumRef.current = 0; momentumAnimRef.current = 0; return; }
+      if (Math.abs(m) < MOMENTUM_THRESHOLD) {
+        momentumRef.current = 0;
+        momentumAnimRef.current = 0;
+        dispatch({ type: 'MomentumReset' });
+        return;
+      }
       const frameDelta = m * MOMENTUM_DRAIN;
       momentumRef.current -= frameDelta;
       applyZoomDelta(frameDelta);
@@ -239,9 +232,12 @@ export function useCanvasInteraction({
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      zoomCenterRef.current = { x: e.clientX - cachedRect.left, y: e.clientY - cachedRect.top };
+      const zoomCenter = { x: e.clientX - cachedRect.left, y: e.clientY - cachedRect.top };
+      dispatch({ type: 'ZoomCenterSet', x: zoomCenter.x, y: zoomCenter.y });
       const rawDelta = -e.deltaY * (e.deltaMode === 1 ? 0.05 : e.deltaMode ? 1.0 : 0.002);
-      if (momentumRef.current !== 0 && Math.sign(rawDelta) !== Math.sign(momentumRef.current)) momentumRef.current = 0;
+      if (momentumRef.current !== 0 && Math.sign(rawDelta) !== Math.sign(momentumRef.current)) {
+        momentumRef.current = 0;
+      }
       applyZoomDelta(rawDelta * IMMEDIATE_FRACTION);
       momentumRef.current += rawDelta * (1 - IMMEDIATE_FRACTION);
       if (!momentumAnimRef.current) momentumAnimRef.current = requestAnimationFrame(momentumLoop);
@@ -251,36 +247,37 @@ export function useCanvasInteraction({
 
     const handleClick = (e: MouseEvent) => {
       const mx = e.clientX - cachedRect.left; const my = e.clientY - cachedRect.top;
-      if (!focusedGroupRef.current) {
-        const t = transformRef.current;
-        const dataX = (mx - t.x) / t.k; const dataY = (my - t.y) / t.k;
+      if (!canvasState.focusedGroupId) {
+        const { transform } = canvasState;
+        const dataX = (mx - transform.x) / transform.k; const dataY = (my - transform.y) / transform.k;
         for (const group of groupsRef.current) {
           const dx = dataX - group.x; const dy = dataY - group.y;
           if (dx * dx + dy * dy <= group.radius * group.radius) {
             if (!findEventAt(mx, my)) {
-              selectedGroupRef.current = group.id;
-              setSelectedGroupId(group.id);
+              dispatch({ type: 'GroupSelected', groupId: group.id });
               requestRender();
               return;
             }
           }
         }
       }
-      setSelectedEvent(findEventAt(mx, my));
+      dispatch({ type: 'EventSelected', event: findEventAt(mx, my) });
     };
 
     canvas.addEventListener('click', handleClick);
 
     let mouseMoveRafPending = false;
     const handleMouseMove = (e: MouseEvent) => {
-      cursorRef.current = { x: e.clientX - cachedRect.left, y: e.clientY - cachedRect.top };
+      const x = e.clientX - cachedRect.left;
+      const y = e.clientY - cachedRect.top;
+      dispatch({ type: 'CursorMoved', x, y });
       if (mouseMoveRafPending) return;
       mouseMoveRafPending = true;
       requestAnimationFrame(() => {
         mouseMoveRafPending = false;
-        const found = findEventAt(cursorRef.current.x, cursorRef.current.y);
+        const found = findEventAt(x, y);
         if (found) canvas.style.cursor = 'pointer';
-        else if (!focusedGroupRef.current) canvas.style.cursor = findGroupAtCursor() ? 'pointer' : 'grab';
+        else if (!canvasState.focusedGroupId) canvas.style.cursor = findGroupAtCursor() ? 'pointer' : 'grab';
         else canvas.style.cursor = 'grab';
       });
     };
@@ -298,14 +295,13 @@ export function useCanvasInteraction({
       if (momentumAnimRef.current) cancelAnimationFrame(momentumAnimRef.current);
     };
   }, [requestRender, fitToView, findEventAt, findGroupAtCursor, enterFocus, exitFocus,
-      canvasRef, containerRef, transformRef, dimRef, groupsRef, focusedGroupRef,
-      selectedGroupRef, cursorRef, zoomBehaviorRef, momentumRef, momentumAnimRef,
-      zoomCenterRef, setZoomLevel, setSelectedGroupId, setSelectedEvent]);
+      canvasRef, containerRef, canvasState, dispatch, dimRef, groupsRef,
+      zoomBehaviorRef, momentumAnimRef]);
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (focusedGroupRef.current) {
+      if (canvasState.focusedGroupId) {
         if (e.key === 'Escape') { e.preventDefault(); exitFocus(); }
         return;
       }
@@ -314,28 +310,30 @@ export function useCanvasInteraction({
 
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault();
-        const idx = groups.findIndex(g => g.id === selectedGroupRef.current);
+        const idx = groups.findIndex(g => g.id === canvasState.selectedGroupId);
         const next = idx < 0 ? 0 : (idx + 1) % groups.length;
-        selectedGroupRef.current = groups[next].id;
-        setSelectedGroupId(groups[next].id);
+        dispatch({ type: 'GroupSelected', groupId: groups[next].id });
         requestRender();
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         e.preventDefault();
-        const idx = groups.findIndex(g => g.id === selectedGroupRef.current);
+        const idx = groups.findIndex(g => g.id === canvasState.selectedGroupId);
         const next = idx <= 0 ? groups.length - 1 : idx - 1;
-        selectedGroupRef.current = groups[next].id;
-        setSelectedGroupId(groups[next].id);
+        dispatch({ type: 'GroupSelected', groupId: groups[next].id });
         requestRender();
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        const group = groups.find(g => g.id === selectedGroupRef.current);
-        if (group) { selectedGroupRef.current = null; setSelectedGroupId(null); enterFocus(group); }
-      } else if (e.key === 'Escape' && selectedGroupRef.current) {
+        const group = groups.find(g => g.id === canvasState.selectedGroupId);
+        if (group) {
+          dispatch({ type: 'GroupSelected', groupId: null });
+          enterFocus(group);
+        }
+      } else if (e.key === 'Escape' && canvasState.selectedGroupId) {
         e.preventDefault();
-        selectedGroupRef.current = null; setSelectedGroupId(null); requestRender();
+        dispatch({ type: 'GroupSelected', groupId: null });
+        requestRender();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [requestRender, enterFocus, exitFocus, focusedGroupRef, groupsRef, selectedGroupRef, setSelectedGroupId]);
+  }, [requestRender, enterFocus, exitFocus, canvasState, dispatch, groupsRef]);
 }

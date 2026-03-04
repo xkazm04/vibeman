@@ -1,9 +1,9 @@
-import { COLORS } from './constants';
+import { COLORS, LABELS, LANE_TYPES } from './constants';
 import { hexToRgba } from './helpers';
 import type { SignalType } from './types';
 
 const PARTICLE_COUNT = 24;
-const SIGNAL_KEYS: SignalType[] = ['git_activity', 'api_focus', 'context_focus', 'implementation'];
+const SIGNAL_KEYS = LANE_TYPES;
 
 interface Particle {
   x: number;
@@ -108,8 +108,7 @@ export function renderEmptyState(
     ctx.fillStyle = 'rgba(161,161,170,0.4)';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    const labels: Record<SignalType, string> = { git_activity: 'Git', api_focus: 'API', context_focus: 'Context', implementation: 'Impl' };
-    ctx.fillText(labels[SIGNAL_KEYS[i]], dx - 6, dotY);
+    ctx.fillText(LABELS[SIGNAL_KEYS[i]], dx - 6, dotY);
   }
 }
 

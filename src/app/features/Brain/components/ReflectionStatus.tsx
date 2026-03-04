@@ -17,6 +17,8 @@ import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { ReflectionTerminal } from './ReflectionTerminal';
 import GlowCard from './GlowCard';
 import BrainPanelHeader from './BrainPanelHeader';
+import { usePolling } from '@/hooks/usePolling';
+import { useReflectionTrigger } from '@/hooks/useReflectionTrigger';
 
 interface Props {
   isLoading: boolean;
@@ -97,10 +99,8 @@ function StatusBadge({ status, elapsedSec }: { status: string; elapsedSec?: numb
 }
 
 export default function ReflectionStatus({ isLoading, scope = 'project' }: Props) {
-  const [isTriggering, setIsTriggering] = useState(false);
   const [completionMessage, setCompletionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [elapsedSec, setElapsedSec] = useState(0);
-  const pollRef = useRef<NodeJS.Timeout | null>(null);
   const prevStatusRef = useRef<string | null>(null);
   const runStartRef = useRef<number>(Date.now());
 
@@ -119,8 +119,6 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
     lastGlobalReflection,
     globalRunningReflectionId,
     globalPromptContent,
-    triggerReflection,
-    triggerGlobalReflection,
     cancelReflection,
     fetchReflectionStatus,
     fetchGlobalReflectionStatus,
@@ -131,10 +129,86 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
   const promptContent = scope === 'global' ? globalPromptContent : projectPromptContent;
   const lastReflectionForDisplay = scope === 'global' ? lastGlobalReflection : lastReflection;
 
+  // Unified reflection trigger hook
+  const {
+    trigger,
+    status: triggerStatus,
+    isActive: isTriggering,
+  } = useReflectionTrigger({
+    scope,
+    project:
+      scope === 'project' && activeProject
+        ? {
+            projectId: activeProject.id,
+            projectName: activeProject.name,
+            projectPath: activeProject.path,
+          }
+        : undefined,
+    global:
+      scope === 'global'
+        ? {
+            projects: allProjects.map(p => ({ id: p.id, name: p.name, path: p.path })),
+            workspacePath: allProjects[0]?.path?.replace(/[/\\][^/\\]+$/, '') || '.',
+          }
+        : undefined,
+    onSuccess: () => {
+      // Success feedback is handled by the completion message effect below
+    },
+    onError: (error) => {
+      setCompletionMessage({
+        type: 'error',
+        text: error,
+      });
+      const timeout = setTimeout(() => setCompletionMessage(null), 8000);
+      return () => clearTimeout(timeout);
+    },
+  });
+
   const refreshStatus = () => {
     if (scope === 'global') fetchGlobalReflectionStatus();
     else if (activeProject?.id) fetchReflectionStatus(activeProject.id);
   };
+
+  // Fetch on mount
+  useEffect(() => {
+    refreshStatus();
+  }, [scope, activeProject?.id]);
+
+  // Unified polling with exponential backoff when running
+  const isRunning = reflectionStatus === 'running';
+  const attemptCountRef = useRef(0);
+
+  useEffect(() => {
+    if (!isRunning) {
+      attemptCountRef.current = 0;
+      return;
+    }
+
+    // Exponential backoff: 4s, 8s, 16s, 30s (max)
+    const getNextInterval = () => {
+      const baseInterval = POLL_INITIAL_MS;
+      const interval = baseInterval * Math.pow(2, attemptCountRef.current);
+      return Math.min(interval, POLL_MAX_MS);
+    };
+
+    let timeoutId: NodeJS.Timeout | null = null;
+
+    const schedulePoll = () => {
+      const interval = getNextInterval();
+      timeoutId = setTimeout(() => {
+        refreshStatus();
+        attemptCountRef.current++;
+        schedulePoll();
+      }, interval);
+    };
+
+    schedulePoll();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      attemptCountRef.current = 0;
+    };
+  }, [isRunning, scope, activeProject?.id]);
 
   // Detect completion transitions
   useEffect(() => {
@@ -147,20 +221,6 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
     }
     prevStatusRef.current = reflectionStatus;
   }, [reflectionStatus]);
-
-  // Fetch on mount + poll while running
-  useEffect(() => { refreshStatus(); }, [scope, activeProject?.id]);
-  useEffect(() => {
-    if (reflectionStatus !== 'running') return;
-    let currentInterval = POLL_INITIAL_MS;
-    const tick = () => {
-      refreshStatus();
-      currentInterval = Math.min(currentInterval * 2, POLL_MAX_MS);
-      pollRef.current = setTimeout(tick, currentInterval);
-    };
-    pollRef.current = setTimeout(tick, currentInterval);
-    return () => { if (pollRef.current) { clearTimeout(pollRef.current); pollRef.current = null; } };
-  }, [reflectionStatus, scope, activeProject?.id]);
 
   // Elapsed timer while running
   useEffect(() => {
@@ -177,20 +237,8 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
   }, [reflectionStatus]);
 
   const handleTrigger = async () => {
-    setIsTriggering(true);
     setCompletionMessage(null);
-    try {
-      if (scope === 'global') {
-        const projects = allProjects.map(p => ({ id: p.id, name: p.name, path: p.path }));
-        const workspacePath = projects[0]?.path?.replace(/[/\\][^/\\]+$/, '') || '.';
-        await triggerGlobalReflection(projects, workspacePath);
-      } else {
-        if (!activeProject) return;
-        await triggerReflection(activeProject.id, activeProject.name, activeProject.path);
-      }
-    } finally {
-      setIsTriggering(false);
-    }
+    await trigger();
   };
 
   const handleCancel = async () => {
@@ -213,7 +261,6 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
   }
 
   const progress = nextThreshold > 0 ? Math.min((decisionsSinceReflection / nextThreshold) * 100, 100) : 0;
-  const isRunning = reflectionStatus === 'running';
   const lastDate = lastReflectionForDisplay?.completed_at || null;
   const formattedDate = !lastDate ? 'Never' : (() => {
     const diffDays = Math.floor((Date.now() - new Date(lastDate).getTime()) / 86400000);

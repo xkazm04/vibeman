@@ -129,3 +129,63 @@ export const dbObject = <T>() => z.custom<T>(
   (val) => val !== null && typeof val === 'object',
   { message: 'Expected a non-null object' }
 );
+
+// ============================================================================
+// ENVELOPE UNWRAPPING
+// ============================================================================
+
+/**
+ * Unwrap data from unified ApiResponse envelope.
+ * Handles both new envelope format { success, data } and legacy flat responses.
+ *
+ * @example
+ * const response = await fetch('/api/brain/signals');
+ * const json = await response.json();
+ * const signals = unwrapEnvelope(json, 'signals', []);
+ * // If json = { success: true, data: { signals: [...] } } → returns [...]
+ * // If json = { signals: [...] } (legacy) → returns [...]
+ */
+export function unwrapEnvelope<T>(
+  response: unknown,
+  dataKey: string,
+  fallback: T
+): T {
+  // Handle null/undefined
+  if (!response || typeof response !== 'object') {
+    return fallback;
+  }
+
+  const obj = response as Record<string, unknown>;
+
+  // New envelope format: { success, data: { [dataKey]: value } }
+  if ('success' in obj && 'data' in obj && obj.data && typeof obj.data === 'object') {
+    const data = obj.data as Record<string, unknown>;
+    return (data[dataKey] !== undefined ? data[dataKey] : fallback) as T;
+  }
+
+  // Legacy flat format: { [dataKey]: value }
+  if (dataKey in obj) {
+    return (obj[dataKey] !== undefined ? obj[dataKey] : fallback) as T;
+  }
+
+  return fallback;
+}
+
+/**
+ * Extract metadata from unified ApiResponse envelope.
+ * Returns undefined if no meta field exists.
+ *
+ * @example
+ * const meta = extractMeta(json);
+ * if (meta?.cached) { ... }
+ */
+export function extractMeta(response: unknown): Record<string, unknown> | undefined {
+  if (!response || typeof response !== 'object') {
+    return undefined;
+  }
+
+  const obj = response as Record<string, unknown>;
+  return obj.meta && typeof obj.meta === 'object'
+    ? (obj.meta as Record<string, unknown>)
+    : undefined;
+}

@@ -12,7 +12,7 @@ import {
   Search, Filter, Layers, Zap, CheckCircle,
   Loader2, AlertCircle, Pause, Clock,
 } from 'lucide-react';
-import type { PipelineStage, StageState } from '../../lib/conductor/types';
+import type { PipelineStage, StageState, ExecutionTaskState } from '../../lib/conductor/types';
 
 const STAGE_ICONS: Record<PipelineStage, typeof Search> = {
   scout: Search,
@@ -55,6 +55,12 @@ export default function StageCard({ stage, state, isCurrentStage, onClick }: Sta
   const isFailed = state.status === 'failed';
   const isSkipped = state.status === 'skipped';
   const isPending = state.status === 'pending';
+
+  // Extract per-task execution data for execute stage
+  const executionTasks: ExecutionTaskState[] =
+    stage === 'execute' && Array.isArray(state.details?.executionTasks)
+      ? (state.details.executionTasks as ExecutionTaskState[])
+      : [];
 
   return (
     <motion.button
@@ -114,6 +120,33 @@ export default function StageCard({ stage, state, isCurrentStage, onClick }: Sta
           <span className={isCompleted ? 'text-emerald-400' : colors.active}>
             {state.itemsOut}
           </span>
+        </div>
+      )}
+
+      {/* Per-task execution details (execute stage only) */}
+      {stage === 'execute' && executionTasks.length > 0 && (
+        <div className="w-full space-y-0.5 mt-1">
+          {executionTasks.slice(0, 4).map((task) => (
+            <div key={task.requirementName} className="flex items-center gap-1 text-[9px] font-mono">
+              <span className={
+                task.status === 'running' ? 'text-cyan-400' :
+                task.status === 'completed' ? 'text-emerald-400' :
+                task.status === 'failed' || task.status === 'aborted' ? 'text-red-400' :
+                'text-gray-600'
+              }>
+                {task.status === 'running' ? '\u25CF' :
+                 task.status === 'completed' ? '\u2713' :
+                 task.status === 'failed' || task.status === 'aborted' ? '\u2717' : '\u25CB'}
+              </span>
+              <span className="text-gray-400 truncate max-w-[60px]">
+                {task.requirementName.replace(/^conductor-/, '').slice(0, 12)}
+              </span>
+              <span className="text-gray-600 ml-auto">{task.provider.slice(0, 3)}</span>
+            </div>
+          ))}
+          {executionTasks.length > 4 && (
+            <span className="text-[8px] text-gray-600">+{executionTasks.length - 4} more</span>
+          )}
         </div>
       )}
 

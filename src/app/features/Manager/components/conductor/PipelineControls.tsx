@@ -26,20 +26,50 @@ const STATUS_BADGES: Record<PipelineStatus, { label: string; className: string }
 };
 
 export default function PipelineControls({ projectId, onStart, onOpenSettings }: PipelineControlsProps) {
-  const { currentRun, isRunning, isPaused, pauseRun, resumeRun, stopRun, nerdMode, toggleNerdMode } = useConductorStore();
+  const { currentRun, isRunning, isPaused, nerdMode, toggleNerdMode } = useConductorStore();
 
   const status: PipelineStatus = currentRun?.status ?? 'idle';
   const cycle = currentRun?.cycle ?? 0;
   const maxCycles = currentRun?.config.maxCyclesPerRun ?? 0;
   const badge = STATUS_BADGES[status];
 
+  const handlePause = async () => {
+    if (!currentRun) return;
+    await fetch('/api/conductor/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'pause', runId: currentRun.id, projectId }),
+    });
+    useConductorStore.getState().pauseRun();
+  };
+
+  const handleResume = async () => {
+    if (!currentRun) return;
+    await fetch('/api/conductor/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'resume', runId: currentRun.id, projectId }),
+    });
+    useConductorStore.getState().resumeRun();
+  };
+
+  const handleStop = async () => {
+    if (!currentRun) return;
+    await fetch('/api/conductor/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'stop', runId: currentRun.id, projectId }),
+    });
+    useConductorStore.getState().stopRun();
+  };
+
   const handlePlayPause = () => {
     if (!isRunning && !isPaused) {
       onStart();
     } else if (isPaused) {
-      resumeRun();
+      handleResume();
     } else {
-      pauseRun();
+      handlePause();
     }
   };
 
@@ -82,7 +112,7 @@ export default function PipelineControls({ projectId, onStart, onOpenSettings }:
 
       {/* Stop Button */}
       <motion.button
-        onClick={stopRun}
+        onClick={handleStop}
         disabled={!isRunning && !isPaused}
         className="p-2.5 rounded-lg bg-red-600/10 text-red-400 hover:bg-red-600/20
           border border-red-600/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed"

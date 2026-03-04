@@ -92,7 +92,58 @@ function deduplicateInsights(
 // Concurrency lock for reflection completion
 // ---------------------------------------------------------------------------
 
-const activeCompletions = new Set<string>();
+interface LockEntry {
+  timestamp: number;
+  reflectionId: string;
+}
+
+const activeCompletions = new Map<string, LockEntry>();
+const LOCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Generate a scope-aware lock key for reflection completion.
+ * Format: "project:<projectId>" or "global"
+ */
+function getLockKey(projectId: string, scope: string): string {
+  return scope === 'global' ? 'global' : `project:${projectId}`;
+}
+
+/**
+ * Check and clean expired locks before acquiring a new one.
+ */
+function cleanExpiredLocks(): void {
+  const now = Date.now();
+  for (const [key, entry] of activeCompletions.entries()) {
+    if (now - entry.timestamp > LOCK_TIMEOUT_MS) {
+      activeCompletions.delete(key);
+    }
+  }
+}
+
+/**
+ * Atomically acquire a lock for reflection completion.
+ * @returns true if lock was acquired, false if another completion is in progress
+ */
+function tryAcquireLock(lockKey: string, reflectionId: string): boolean {
+  cleanExpiredLocks();
+
+  if (activeCompletions.has(lockKey)) {
+    return false;
+  }
+
+  activeCompletions.set(lockKey, {
+    timestamp: Date.now(),
+    reflectionId,
+  });
+  return true;
+}
+
+/**
+ * Release a lock for reflection completion.
+ */
+function releaseLock(lockKey: string): void {
+  activeCompletions.delete(lockKey);
+}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -251,13 +302,20 @@ export function completeReflection(input: CompleteReflectionInput): CompleteRefl
     }
   }
 
-  // Prevent concurrent completions for the same project
+  // Prevent concurrent completions for the same project/scope
   const projectId = reflection.project_id;
-  if (activeCompletions.has(projectId)) {
-    return { success: false, error: 'Another reflection completion is already in progress for this project', status: 409 };
+  const scope = reflection.scope || 'project';
+  const lockKey = getLockKey(projectId, scope);
+
+  if (!tryAcquireLock(lockKey, reflectionId)) {
+    const existing = activeCompletions.get(lockKey);
+    return {
+      success: false,
+      error: `Another reflection completion is already in progress for this ${scope} (reflection: ${existing?.reflectionId})`,
+      status: 409,
+    };
   }
 
-  activeCompletions.add(projectId);
   let dedupedInsights: LearningInsight[] = [];
   let conflictsDetected = 0;
   let autoPruneResult: AutoPruneResult | null = null;
@@ -310,7 +368,7 @@ export function completeReflection(input: CompleteReflectionInput): CompleteRefl
     }
     throw txError;
   } finally {
-    activeCompletions.delete(projectId);
+    releaseLock(lockKey);
   }
 
   // Refresh predictive intent model after reflection cycle (non-critical)

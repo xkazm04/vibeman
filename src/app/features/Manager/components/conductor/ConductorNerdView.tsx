@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useConductorStore } from '../../lib/conductor/conductorStore';
 import { PIPELINE_STAGES } from '../../lib/conductor/types';
-import type { StageState, ProcessLogEntry, PipelineMetrics } from '../../lib/conductor/types';
+import type { StageState, ProcessLogEntry, PipelineMetrics, ExecutionTaskState } from '../../lib/conductor/types';
 
 function stageLabel(state: StageState): string {
   switch (state.status) {
@@ -83,6 +83,13 @@ export default function ConductorNerdView({ projectId }: ConductorNerdViewProps)
   const cycle = currentRun?.cycle ?? 0;
   const maxCycles = currentRun?.config?.maxCyclesPerRun ?? 0;
 
+  // Extract per-task execution data
+  const executionTasks: ExecutionTaskState[] =
+    currentRun?.stages?.execute?.details?.executionTasks &&
+    Array.isArray(currentRun.stages.execute.details.executionTasks)
+      ? (currentRun.stages.execute.details.executionTasks as ExecutionTaskState[])
+      : [];
+
   // Auto-scroll log
   useEffect(() => {
     if (autoScroll && scrollRef.current) {
@@ -128,6 +135,32 @@ export default function ConductorNerdView({ projectId }: ConductorNerdViewProps)
       {currentRun?.metrics && (
         <div className="text-gray-400 border-t border-gray-800 pt-2">
           {formatMetrics(currentRun.metrics)}
+        </div>
+      )}
+
+      {/* Execution tasks (when execute stage has task data) */}
+      {executionTasks.length > 0 && (
+        <div className="border-t border-gray-800 pt-2">
+          <div className="text-gray-500 mb-1">EXECUTE TASKS:</div>
+          {executionTasks.map((task) => (
+            <div key={task.requirementName} className="leading-5">
+              <span className="text-gray-600">  </span>
+              <span className={
+                task.status === 'running' ? 'text-cyan-400' :
+                task.status === 'completed' ? 'text-emerald-400' :
+                task.status === 'failed' || task.status === 'aborted' ? 'text-red-400' :
+                'text-gray-500'
+              }>
+                {task.status.toUpperCase().padEnd(9)}
+              </span>
+              <span className="text-gray-300">{task.requirementName.padEnd(20).slice(0, 20)}</span>
+              {' '}
+              <span className="text-gray-500">{task.provider}/{task.model}</span>
+              {task.durationMs !== undefined && (
+                <span className="text-gray-600"> ({Math.round(task.durationMs / 1000)}s)</span>
+              )}
+            </div>
+          ))}
         </div>
       )}
 

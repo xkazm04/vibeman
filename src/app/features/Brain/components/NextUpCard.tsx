@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import GlowCard from './GlowCard';
 import BrainPanelHeader from './BrainPanelHeader';
+import { useAbortableFetch } from '@/hooks/useAbortableFetch';
 import type { IntentPrediction } from '@/lib/brain/predictiveIntentEngine';
 
 const ACCENT_COLOR = '#10b981'; // Emerald
@@ -50,12 +51,13 @@ export default function NextUpCard({ projectId, scope = 'project' }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [resolvedIds, setResolvedIds] = useState<Set<string>>(new Set());
+  const abortableFetch = useAbortableFetch();
 
   const fetchPredictions = useCallback(async () => {
     if (!projectId) return;
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/brain/predictions?projectId=${encodeURIComponent(projectId)}`);
+      const res = await abortableFetch(`/api/brain/predictions?projectId=${encodeURIComponent(projectId)}`);
       if (res.ok) {
         const json = await res.json();
         if (json.success) {
@@ -63,18 +65,19 @@ export default function NextUpCard({ projectId, scope = 'project' }: Props) {
           setResolvedIds(new Set());
         }
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
       // Non-critical
     } finally {
       setIsLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, abortableFetch]);
 
   const handleRefresh = useCallback(async () => {
     if (!projectId || isRefreshing) return;
     setIsRefreshing(true);
     try {
-      const res = await fetch('/api/brain/predictions', {
+      const res = await abortableFetch('/api/brain/predictions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId }),
@@ -86,25 +89,27 @@ export default function NextUpCard({ projectId, scope = 'project' }: Props) {
           setResolvedIds(new Set());
         }
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
       // Non-critical
     } finally {
       setIsRefreshing(false);
     }
-  }, [projectId, isRefreshing]);
+  }, [projectId, isRefreshing, abortableFetch]);
 
   const handleResolve = useCallback(async (predictionId: string, action: 'accepted' | 'dismissed') => {
     try {
-      await fetch('/api/brain/predictions', {
+      await abortableFetch('/api/brain/predictions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ predictionId, action }),
       });
       setResolvedIds(prev => new Set(prev).add(predictionId));
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
       // Non-critical
     }
-  }, []);
+  }, [abortableFetch]);
 
   useEffect(() => {
     fetchPredictions();

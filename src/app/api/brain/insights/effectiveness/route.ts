@@ -23,6 +23,8 @@ import { getDatabase, insightEffectivenessCache } from '@/app/db';
 import { withObservability } from '@/lib/observability/middleware';
 import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
 import { logger } from '@/lib/logger';
+import { parseQueryInt } from '@/lib/api-helpers/parseQueryInt';
+import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
 
 export interface InsightEffectiveness {
   insightTitle: string;
@@ -53,13 +55,32 @@ export interface EffectivenessSummary {
 async function handleGet(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const projectId = searchParams.get('projectId');
-  const minDirections = parseInt(searchParams.get('minDirections') || '3', 10);
   const noCache = searchParams.get('noCache') === 'true';
-  const windowDays = parseInt(searchParams.get('windowDays') || '90', 10);
 
   if (!projectId) {
-    return NextResponse.json(
-      { error: 'projectId is required' },
+    return buildErrorResponse('projectId is required', { status: 400 });
+  }
+
+  let minDirections: number;
+  let windowDays: number;
+
+  try {
+    minDirections = parseQueryInt(searchParams.get('minDirections'), {
+      default: 3,
+      min: 1,
+      max: 100,
+      paramName: 'minDirections',
+    });
+
+    windowDays = parseQueryInt(searchParams.get('windowDays'), {
+      default: 90,
+      min: 1,
+      max: 365,
+      paramName: 'windowDays',
+    });
+  } catch (error) {
+    return buildErrorResponse(
+      error instanceof Error ? error.message : 'Invalid query parameter',
       { status: 400 }
     );
   }
@@ -70,14 +91,20 @@ async function handleGet(request: NextRequest) {
       try {
         const cached = insightEffectivenessCache.get(projectId, minDirections);
         if (cached) {
-          logger.debug('[Effectiveness] Cache hit', { projectId, cachedAt: cached.cachedAt });
-          return NextResponse.json({
-            success: true,
-            insights: JSON.parse(cached.insightsJson),
-            summary: JSON.parse(cached.summaryJson),
-            cached: true,
-            cachedAt: cached.cachedAt,
-          });
+          logger.debug('[Effectiveness] Cache hit', { projectId, cachedAt: cached.cachedAt, version: cached.version });
+          return buildSuccessResponse(
+            {
+              insights: JSON.parse(cached.insightsJson),
+              summary: JSON.parse(cached.summaryJson),
+            },
+            {
+              meta: {
+                cached: true,
+                cachedAt: cached.cachedAt,
+                version: cached.version,
+              },
+            }
+          );
         }
       } catch {
         // Cache table might not exist yet (migration pending), fall through to compute
@@ -205,6 +232,7 @@ async function handleGet(request: NextRequest) {
     };
 
     // 7. Store in cache for future requests
+    let cacheVersion = 1;
     try {
       insightEffectivenessCache.set(
         projectId,
@@ -212,23 +240,29 @@ async function handleGet(request: NextRequest) {
         JSON.stringify(results),
         JSON.stringify(summary)
       );
-      logger.debug('[Effectiveness] Cached results', { projectId, insightCount: results.length });
+      // Retrieve the version that was just written
+      const freshCache = insightEffectivenessCache.get(projectId, minDirections);
+      cacheVersion = freshCache?.version || 1;
+      logger.debug('[Effectiveness] Cached results', { projectId, insightCount: results.length, version: cacheVersion });
     } catch {
       // Cache write failure is non-critical - just skip caching
     }
 
-    return NextResponse.json({
-      success: true,
-      insights: results,
-      summary,
-      cached: false,
-    });
+    return buildSuccessResponse(
+      {
+        insights: results,
+        summary,
+      },
+      {
+        meta: {
+          cached: false,
+          version: cacheVersion,
+        },
+      }
+    );
   } catch (error) {
     logger.error('[Brain Insights Effectiveness] Error:', { error });
-    return NextResponse.json(
-      { error: 'Failed to compute insight effectiveness' },
-      { status: 500 }
-    );
+    return buildErrorResponse('Failed to compute insight effectiveness');
   }
 }
 

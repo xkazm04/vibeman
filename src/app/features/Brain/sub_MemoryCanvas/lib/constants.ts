@@ -1,18 +1,21 @@
 import type { SignalType } from './types';
+import { SIGNAL_METADATA, getVisualizableSignalTypes } from '@/types/signals';
 
-export const COLORS: Record<SignalType, string> = {
-  git_activity: '#10b981',
-  api_focus: '#3b82f6',
-  context_focus: '#a855f7',
-  implementation: '#f59e0b',
-};
+/**
+ * Color map for visualizable signal types (derived from canonical metadata)
+ */
+export const COLORS: Record<string, string> = {};
+for (const type of getVisualizableSignalTypes()) {
+  COLORS[type] = SIGNAL_METADATA[type].color;
+}
 
-export const LABELS: Record<SignalType, string> = {
-  git_activity: 'Git',
-  api_focus: 'API',
-  context_focus: 'Context',
-  implementation: 'Impl',
-};
+/**
+ * Short label map for visualizable signal types (derived from canonical metadata)
+ */
+export const LABELS: Record<string, string> = {};
+for (const type of getVisualizableSignalTypes()) {
+  LABELS[type] = SIGNAL_METADATA[type].shortLabel;
+}
 
 export const BG = '#0f0f11';
 
@@ -26,4 +29,7 @@ export const BUBBLE_SCALE = 28;
 export const BUBBLE_PADDING = 20;
 export const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 export const FOCUS_ZOOM_THRESHOLD = 1.8;
-export const LANE_TYPES: SignalType[] = ['git_activity', 'api_focus', 'context_focus', 'implementation'];
+/**
+ * Lane types for timeline visualization (only visualizable types)
+ */
+export const LANE_TYPES: SignalType[] = getVisualizableSignalTypes();

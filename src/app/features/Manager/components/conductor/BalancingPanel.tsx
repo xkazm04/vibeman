@@ -143,10 +143,9 @@ function ToggleGroup<T extends string>({
 const PROVIDERS: CLIProvider[] = ['claude', 'gemini', 'copilot', 'ollama'];
 
 const CONDITION_LABELS: Record<ModelRoutingRule['condition'], string> = {
-  effort_high: 'High Effort',
-  effort_low: 'Low Effort',
-  category_ui: 'UI',
-  category_refactor: 'Refactor',
+  complexity_1: 'Low (1-3)',
+  complexity_2: 'Medium (4-6)',
+  complexity_3: 'High (7-10)',
   default: 'Default',
 };
 

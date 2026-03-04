@@ -48,6 +48,9 @@ import { migrate131SessionPidTracking } from './131_session_pid_tracking';
 import { migrate132EnforceIdeasScanCascade } from './132_enforce_ideas_scan_cascade';
 import { migrate133BrainDirectionsQueryIndexes } from './133_brain_directions_query_indexes';
 import { migrate134ConductorPipeline } from './134_conductor_pipeline';
+import { migrate135BrainInsightEvidenceJunction } from './135_brain_insight_evidence_junction';
+import { migrate136EffectivenessCacheVersion } from './136_effectiveness_cache_version';
+import { migrate137CascadeDeleteEvidenceJunction } from './137_cascade_delete_evidence_junction';
 
 /**
  * Migration logger utility
@@ -358,6 +361,15 @@ export function runMigrations() {
 
     // Migration 134: Conductor pipeline tables
     migrate134ConductorPipeline(db as any, migrationLogger);
+
+    // Migration 135: Brain insight evidence junction table
+    migrate135BrainInsightEvidenceJunction(db as any, migrationLogger);
+
+    // Migration 136: Add version column to effectiveness cache
+    migrate136EffectivenessCacheVersion(migrationLogger);
+
+    // Migration 137: Cascade delete evidence junction on source removal
+    migrate137CascadeDeleteEvidenceJunction(db as any, migrationLogger);
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {

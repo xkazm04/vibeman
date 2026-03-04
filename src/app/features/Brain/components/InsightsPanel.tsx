@@ -10,6 +10,9 @@ import { useBrainStore } from '@/stores/brainStore';
 import { InsightsTable } from './InsightsTable';
 import type { InsightWithMeta, InsightType, SortField, SortDir } from './InsightsTable';
 import GlowCard from './GlowCard';
+import { useReflectionTrigger } from '@/hooks/useReflectionTrigger';
+import { useAbortableFetch } from '@/hooks/useAbortableFetch';
+import { subscribeToReflectionCompletion } from '@/stores/reflectionCompletionEmitter';
 
 interface Props {
   scope?: 'project' | 'global';
@@ -100,19 +103,19 @@ function BrainSvg({ reducedMotion }: { reducedMotion?: boolean | null }) {
 
 function InsightsEmptyState({ scope }: { scope: 'project' | 'global' }) {
   const activeProject = useActiveProjectStore((s) => s.activeProject);
-  const triggerReflection = useBrainStore((s) => s.triggerReflection);
-  const [isTriggering, setIsTriggering] = useState(false);
   const prefersReducedMotion = useReducedMotion();
 
-  const handleTrigger = async () => {
-    if (!activeProject?.id || !activeProject?.name || !activeProject?.path) return;
-    setIsTriggering(true);
-    try {
-      await triggerReflection(activeProject.id, activeProject.name, activeProject.path);
-    } finally {
-      setIsTriggering(false);
-    }
-  };
+  // Unified reflection trigger hook
+  const { trigger, isActive: isTriggering } = useReflectionTrigger({
+    scope: 'project',
+    project: activeProject
+      ? {
+          projectId: activeProject.id,
+          projectName: activeProject.name,
+          projectPath: activeProject.path,
+        }
+      : undefined,
+  });
 
   return (
     <div className="text-center py-10">
@@ -150,7 +153,7 @@ function InsightsEmptyState({ scope }: { scope: 'project' | 'global' }) {
 
       {scope === 'project' && activeProject?.id && (
         <motion.button
-          onClick={handleTrigger}
+          onClick={trigger}
           disabled={isTriggering}
           aria-label={isTriggering ? 'Reflecting in progress' : 'Trigger reflection'}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-mono transition-all disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none"
@@ -197,6 +200,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
 
   const activeProject = useActiveProjectStore((state) => state.activeProject);
   const projects = useServerProjectStore((state) => state.projects);
+  const abortableFetch = useAbortableFetch();
 
   const projectNameMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -210,17 +214,18 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
       const params = scope === 'global'
         ? 'scope=global'
         : `projectId=${activeProject?.id}`;
-      const response = await fetch(`/api/brain/insights?${params}`);
+      const response = await abortableFetch(`/api/brain/insights?${params}`);
       if (response.ok) {
         const data = await response.json();
         setInsights(data.insights || []);
       }
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
       console.error('Failed to fetch insights:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [scope, activeProject?.id]);
+  }, [scope, activeProject?.id, abortableFetch]);
 
   useEffect(() => {
     if (scope === 'global' || activeProject?.id) {
@@ -228,9 +233,23 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
     }
   }, [scope, activeProject?.id, fetchInsights]);
 
+  // Subscribe to reflection completion events for auto-refresh
+  useEffect(() => {
+    const unsubscribe = subscribeToReflectionCompletion((reflectionId, projectId, completionScope) => {
+      // Refresh insights when a reflection completes for this project/scope
+      if (scope === 'global' && completionScope === 'global') {
+        fetchInsights();
+      } else if (scope === 'project' && completionScope === 'project' && projectId === activeProject?.id) {
+        fetchInsights();
+      }
+    });
+
+    return unsubscribe;
+  }, [scope, activeProject?.id, fetchInsights]);
+
   const handleDelete = async (insight: InsightWithMeta) => {
     try {
-      const response = await fetch('/api/brain/insights', {
+      const response = await abortableFetch('/api/brain/insights', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -244,6 +263,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
         ));
       }
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
       console.error('Failed to delete insight:', err);
     }
   };
@@ -253,7 +273,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
     resolution: 'keep_both' | 'keep_this' | 'keep_other'
   ) => {
     try {
-      const response = await fetch('/api/brain/insights', {
+      const response = await abortableFetch('/api/brain/insights', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -268,6 +288,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
         fetchInsights();
       }
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
       console.error('Failed to resolve conflict:', err);
     }
   };

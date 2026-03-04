@@ -11,19 +11,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { behavioralSignalDb } from '@/app/db';
 import { withObservability } from '@/lib/observability/middleware';
+import { parseQueryInt } from '@/lib/api-helpers/parseQueryInt';
+import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
 
 async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
-    const days = Math.min(parseInt(searchParams.get('days') || '90', 10), 365);
 
     if (!projectId) {
-      return NextResponse.json(
-        { success: false, error: 'projectId is required' },
-        { status: 400 }
-      );
+      return buildErrorResponse('projectId is required', { status: 400 });
     }
+
+    const days = parseQueryInt(searchParams.get('days'), {
+      default: 90,
+      min: 1,
+      max: 365,
+      paramName: 'days',
+    });
 
     const rawData = behavioralSignalDb.getDailyHeatmap(projectId, days);
 
@@ -83,8 +88,7 @@ async function handleGet(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      success: true,
+    return buildSuccessResponse({
       heatmap: {
         days: days_data,
         contexts: Array.from(contextSet.entries()).map(([id, name]) => ({ id, name })),
@@ -94,10 +98,7 @@ async function handleGet(request: NextRequest) {
     });
   } catch (error) {
     console.error('[API] Brain heatmap GET error:', error);
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return buildErrorResponse(error instanceof Error ? error.message : 'Unknown error');
   }
 }
 

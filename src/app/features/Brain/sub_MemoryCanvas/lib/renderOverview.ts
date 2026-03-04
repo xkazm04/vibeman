@@ -1,6 +1,7 @@
 import type { Group, FilterState } from './types';
-import { COLORS, FOCUS_ZOOM_THRESHOLD, RECENCY_GLOW_HOURS, LABEL_MIN_ZOOM } from './constants';
-import { hexToRgba, colorAt, getEventAlpha, getEventRadius, computeLabelRects } from './helpers';
+import { FOCUS_ZOOM_THRESHOLD } from './constants';
+import { colorAt } from './helpers';
+import { executeRenderPipeline, type RenderContext } from './canvasRenderPipeline';
 
 interface RenderOverviewParams {
   ctx: CanvasRenderingContext2D;
@@ -46,40 +47,30 @@ export function renderOverview({ ctx, groups, width, height, transform, dpr, sel
 
   ctx.restore();
 
-  // Focus hint near threshold
-  if (k >= 1.2 && k < FOCUS_ZOOM_THRESHOLD) {
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const hintText = 'Zoom in to focus · ←→ Navigate · Enter to select';
-    ctx.font = '10px Inter, system-ui, sans-serif';
-    const hintWidth = ctx.measureText(hintText).width + 24;
-    const hintX = (width - hintWidth) / 2;
-    const hintY = height - 54;
-    ctx.fillStyle = 'rgba(24,24,27,0.8)';
-    ctx.beginPath();
-    ctx.roundRect(hintX, hintY, hintWidth, 24, 12);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(63,63,70,0.4)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(212,212,216,0.8)';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(hintText, width / 2, hintY + 12);
-  }
+  // Build render context for overlay
+  const renderContext: RenderContext = {
+    ctx,
+    width,
+    height,
+    dpr,
+    transform,
+    now: Date.now(),
+    filterState,
+  };
 
-  // Vignette edges
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const vig1 = ctx.createLinearGradient(0, 0, 0, 50);
-  vig1.addColorStop(0, 'rgba(10,10,12,0.5)');
-  vig1.addColorStop(1, 'rgba(10,10,12,0)');
-  ctx.fillStyle = vig1;
-  ctx.fillRect(0, 0, width, 50);
-
-  const vig2 = ctx.createLinearGradient(0, height - 50, 0, height);
-  vig2.addColorStop(0, 'rgba(10,10,12,0)');
-  vig2.addColorStop(1, 'rgba(10,10,12,0.5)');
-  ctx.fillStyle = vig2;
-  ctx.fillRect(0, height - 50, width, 50);
+  // Execute overlay pipeline
+  executeRenderPipeline(renderContext, {
+    overlay: {
+      hint: k >= 1.2 && k < FOCUS_ZOOM_THRESHOLD ? {
+        text: 'Zoom in to focus · ←→ Navigate · Enter to select',
+        yPosition: height - 54,
+      } : undefined,
+      vignette: {
+        top: 50,
+        bottom: 50,
+      },
+    },
+  });
 }
 
 function renderGroupBubble(ctx: CanvasRenderingContext2D, group: Group, k: number, isSelected: boolean, filterState?: FilterState): void {
@@ -168,94 +159,36 @@ function renderGroupBubble(ctx: CanvasRenderingContext2D, group: Group, k: numbe
   ctx.textBaseline = 'top';
   ctx.fillText(`${group.events.length} events`, gx, gy + radius + 3 / k);
 
-  // Pre-compute frame-level pulse phase (shared across all events this frame)
-  const now = Date.now();
-  const pulsePhase = (now % 2000) / 2000;
-  const pulseAlphaBase = 0.3 * (1 - pulsePhase);
+  // Use pipeline for event dots and labels (world coordinate mode)
+  // Note: We're already in world transform from parent renderOverview call
+  // Create a pseudo-context that wraps the current state
+  const dummyDpr = 1; // Already applied in parent
+  const dummyWidth = 0; // Not used for world coords
+  const dummyHeight = 0;
+  const dummyTransform = { x: 0, y: 0, k: 1 }; // Identity since we're in world space
 
-  // Event dots
-  const labelCandidates: Array<{ x: number; y: number; radius: number; label: string; priority: number }> = [];
+  const pseudoContext: RenderContext = {
+    ctx,
+    width: dummyWidth,
+    height: dummyHeight,
+    dpr: dummyDpr,
+    transform: dummyTransform,
+    now: Date.now(),
+    filterState,
+  };
 
-  for (const evt of group.events) {
-    // Skip filtered-out events
-    if (filterState && !filterState.visibleTypes.has(evt.type)) continue;
-
-    const alpha = getEventAlpha(evt.timestamp);
-    const evtColor = COLORS[evt.type];
-    const dotRadius = getEventRadius(evt.weight, evt.timestamp) / Math.max(0.7, k * 0.5);
-
-    // Glow halo for high-weight/recent events
-    if ((evt.weight > 1.0 && alpha > 0.5) || alpha > 0.8) {
-      ctx.save();
-      ctx.shadowBlur = (8 + evt.weight * 4) / k;
-      ctx.shadowColor = colorAt(evtColor, 0.5 * alpha);
-      ctx.globalAlpha = 0.15 * alpha;
-      ctx.fillStyle = evtColor;
-      ctx.beginPath();
-      ctx.arc(evt.x, evt.y, dotRadius * 1.2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-
-    // Solid dot fill with globalAlpha — replaces per-event radial gradient
-    ctx.save();
-    ctx.globalAlpha = Math.min(1, alpha + 0.15);
-    ctx.fillStyle = evtColor;
-    ctx.beginPath();
-    ctx.arc(evt.x, evt.y, dotRadius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    // White core highlight for high-weight events
-    if (evt.weight > 1.5) {
-      ctx.save();
-      ctx.globalAlpha = 0.5 * alpha;
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(evt.x, evt.y, dotRadius * 0.35, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-
-    // Animated pulse ring for recent events (using frame-level cached phase)
-    const ageHours = (now - evt.timestamp) / 3600000;
-    if (ageHours < RECENCY_GLOW_HOURS) {
-      const pulseRadius = dotRadius * (1.5 + pulsePhase * 0.8);
-      ctx.beginPath();
-      ctx.arc(evt.x, evt.y, pulseRadius, 0, Math.PI * 2);
-      ctx.strokeStyle = colorAt(evtColor, pulseAlphaBase);
-      ctx.lineWidth = 1.5 / k;
-      ctx.stroke();
-    }
-
-    // Collect label candidates
-    labelCandidates.push({
-      x: evt.x,
-      y: evt.y,
-      radius: dotRadius,
-      label: evt.summary,
-      priority: evt.weight * alpha,
-    });
-  }
-
-  // Collision-aware labels at sufficient zoom
-  if (k >= LABEL_MIN_ZOOM && labelCandidates.length > 0) {
-    const labelFont = `500 ${Math.max(8, Math.round(9 / k))}px Inter, system-ui, sans-serif`;
-    const maxLabels = Math.min(5, Math.ceil(group.events.length * 0.4));
-    const rects = computeLabelRects(labelCandidates, ctx, labelFont, maxLabels);
-
-    for (const rect of rects) {
-      // Frosted background pill
-      ctx.fillStyle = 'rgba(15,15,17,0.75)';
-      ctx.beginPath();
-      ctx.roundRect(rect.x - 3 / k, rect.y - 1 / k, rect.width + 6 / k, rect.height + 2 / k, 3 / k);
-      ctx.fill();
-      // Label text
-      ctx.fillStyle = 'rgba(228,228,231,0.85)';
-      ctx.font = labelFont;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      ctx.fillText(rect.label, rect.x, rect.y);
-    }
-  }
+  executeRenderPipeline(pseudoContext, {
+    eventDots: {
+      events: group.events,
+      coordinateMode: 'world',
+      dotScale: 1.0,
+      enablePulse: true,
+      enableGlow: true,
+    },
+    smartLabels: {
+      events: group.events,
+      coordinateMode: 'world',
+      maxLabels: Math.min(5, Math.ceil(group.events.length * 0.4)),
+    },
+  });
 }

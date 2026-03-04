@@ -15,6 +15,7 @@ import type { DbBehavioralSignal } from '@/app/db/models/brain.types';
 import { mapSignalsToEvents } from './signalMapper';
 import { safeResponseJson, parseApiResponse, BrainSignalsResponseSchema } from '@/lib/apiResponseGuard';
 import type { CanvasStore } from './canvasStore';
+import { usePolling } from '@/hooks/usePolling';
 
 const REFRESH_INTERVAL_MS = 30_000;
 const MAX_SIGNALS = 200;
@@ -38,7 +39,6 @@ export function useCanvasData({ store, getFocusedGroupId, enabled = true }: UseC
     isLoading: true,
     error: null,
   });
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
 
   const fetchSignals = useCallback(async (projectId: string) => {
@@ -61,7 +61,7 @@ export function useCanvasData({ store, getFocusedGroupId, enabled = true }: UseC
         throw new Error('API returned failure');
       }
 
-      const signals = data.signals as unknown as DbBehavioralSignal[];
+      const signals = (data.data?.signals || []) as unknown as DbBehavioralSignal[];
       const events = mapSignalsToEvents(signals, MAX_SIGNALS);
 
       if (!mountedRef.current) return;
@@ -84,7 +84,7 @@ export function useCanvasData({ store, getFocusedGroupId, enabled = true }: UseC
     }
   }, [activeProject?.id, fetchSignals]);
 
-  // Fetch on mount and when project changes; pause when disabled
+  // Initial fetch on mount and when project changes
   useEffect(() => {
     mountedRef.current = true;
 
@@ -99,19 +99,17 @@ export function useCanvasData({ store, getFocusedGroupId, enabled = true }: UseC
     setStatus(prev => ({ ...prev, isLoading: true }));
     fetchSignals(activeProject.id);
 
-    // Auto-refresh every 30s
-    intervalRef.current = setInterval(() => {
-      fetchSignals(activeProject.id);
-    }, REFRESH_INTERVAL_MS);
-
     return () => {
       mountedRef.current = false;
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
     };
   }, [activeProject?.id, enabled, fetchSignals, store]);
+
+  // Unified polling with pause/resume support
+  usePolling(refresh, {
+    enabled: enabled && !!activeProject?.id,
+    intervalMs: REFRESH_INTERVAL_MS,
+    immediate: false, // Don't run immediately; initial fetch handled above
+  });
 
   return { ...status, refresh };
 }

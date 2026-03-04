@@ -1,5 +1,5 @@
 import * as d3 from 'd3';
-import type { SignalType, BrainEvent, Group, SpatialIndex } from './types';
+import type { SignalType, BrainEvent, Group, SpatialIndex, WorkerGroup, ForceLayoutConfig, WorkerOutputMessage } from './types';
 import { COLORS, BUBBLE_SCALE, BUBBLE_PADDING, GOLDEN_ANGLE, LANE_TYPES } from './constants';
 import { getEventRadius } from './helpers';
 
@@ -76,6 +76,10 @@ export function formGroups(events: BrainEvent[]): Group[] {
   });
 }
 
+/**
+ * Synchronous force layout (legacy fallback).
+ * Use runForceLayoutAsync() for non-blocking worker-based layout.
+ */
 export function runForceLayout(groups: Group[], width: number, height: number): void {
   const angleStep = (2 * Math.PI) / groups.length;
   const initRadius = Math.min(width, height) * 0.25;
@@ -100,6 +104,79 @@ export function runForceLayout(groups: Group[], width: number, height: number): 
     g.x = g.x ?? width / 2;
     g.y = g.y ?? height / 2;
   });
+}
+
+/**
+ * Worker-based async force layout.
+ * Posts incremental updates via onProgress callback for smooth rendering.
+ */
+export function runForceLayoutAsync(
+  groups: Group[],
+  width: number,
+  height: number,
+  options: {
+    onProgress?: (groups: Group[], tick: number, totalTicks: number) => void;
+    onComplete?: (groups: Group[]) => void;
+    totalTicks?: number;
+    progressInterval?: number;
+  } = {}
+): () => void {
+  const { onProgress, onComplete, totalTicks = 120, progressInterval = 10 } = options;
+
+  // Create worker from module
+  const worker = new Worker(
+    new URL('./forceLayout.worker.ts', import.meta.url),
+    { type: 'module' }
+  );
+
+  // Prepare minimal data for worker
+  const workerGroups: WorkerGroup[] = groups.map(g => ({
+    id: g.id,
+    radius: g.radius,
+    x: g.x,
+    y: g.y,
+  }));
+
+  const config: ForceLayoutConfig = {
+    width,
+    height,
+    totalTicks,
+    progressInterval,
+  };
+
+  worker.onmessage = (e: MessageEvent<WorkerOutputMessage>) => {
+    const { type, groups: layoutGroups, tick, totalTicks: total } = e.data;
+
+    // Apply positions back to original groups
+    layoutGroups.forEach(wg => {
+      const group = groups.find(g => g.id === wg.id);
+      if (group) {
+        group.x = wg.x;
+        group.y = wg.y;
+      }
+    });
+
+    if (type === 'progress' && onProgress) {
+      onProgress(groups, tick, total);
+    } else if (type === 'complete') {
+      onComplete?.(groups);
+      worker.terminate();
+    }
+  };
+
+  worker.onerror = (err) => {
+    console.error('Force layout worker error:', err);
+    // Fallback to sync layout on worker failure
+    runForceLayout(groups, width, height);
+    onComplete?.(groups);
+    worker.terminate();
+  };
+
+  // Start the worker
+  worker.postMessage({ type: 'run', groups: workerGroups, config });
+
+  // Return cleanup function
+  return () => worker.terminate();
 }
 
 export function packEventsInGroup(group: Group): void {

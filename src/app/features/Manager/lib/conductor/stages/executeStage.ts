@@ -6,11 +6,12 @@
  * Reads requirement file content, sends as prompt to CLI, polls for completion.
  */
 
-import type { BalancingConfig, BatchDescriptor, ExecutionResult } from '../types';
+import type { BalancingConfig, BatchDescriptor, ExecutionResult, ExecutionTaskState } from '../types';
 import { readRequirement } from '@/app/Claude/sub_ClaudeCodeManager/folderManager';
 import {
   startExecution,
   getExecution,
+  abortExecution,
 } from '@/lib/claude-terminal/cli-service';
 import type { CLIProviderConfig, CLIModel, CLIProvider } from '@/lib/claude-terminal/types';
 
@@ -21,6 +22,7 @@ interface ExecuteInput {
   projectPath: string;
   projectName: string;
   abortSignal?: AbortSignal;
+  onTaskUpdate?: (tasks: ExecutionTaskState[]) => void;
 }
 
 interface ExecuteStageResult {
@@ -37,11 +39,27 @@ interface ExecuteStageResult {
  * 3. Poll for completion via getExecution
  */
 export async function executeExecuteStage(input: ExecuteInput): Promise<ExecuteStageResult> {
-  const { batch, config, projectId, projectPath } = input;
+  const { batch, config, projectId, projectPath, onTaskUpdate } = input;
   const results: ExecutionResult[] = [];
 
-  for (const reqName of batch.requirementNames) {
+  // Build initial task state array
+  const taskStates: ExecutionTaskState[] = batch.requirementNames.map((reqName) => {
+    const assignment = batch.modelAssignments[reqName];
+    return {
+      requirementName: reqName,
+      provider: (assignment?.provider || config.executionProvider) as CLIProvider,
+      model: assignment?.model || config.executionModel || 'sonnet',
+      status: 'pending' as const,
+    };
+  });
+  onTaskUpdate?.(taskStates);
+
+  for (let i = 0; i < batch.requirementNames.length; i++) {
+    const reqName = batch.requirementNames[i];
+
     if (input.abortSignal?.aborted) {
+      taskStates[i].status = 'aborted';
+      onTaskUpdate?.(taskStates);
       results.push({
         taskId: reqName,
         requirementName: reqName,
@@ -51,20 +69,36 @@ export async function executeExecuteStage(input: ExecuteInput): Promise<ExecuteS
       continue;
     }
 
-    const assignment = batch.modelAssignments[reqName];
+    // Mark task as running
+    taskStates[i].status = 'running';
+    taskStates[i].startedAt = new Date().toISOString();
+    onTaskUpdate?.(taskStates);
 
     try {
       const result = await executeRequirement(
         projectId,
         projectPath,
         reqName,
-        assignment?.provider || config.executionProvider,
-        assignment?.model || config.executionModel || 'sonnet',
+        taskStates[i].provider,
+        taskStates[i].model,
+        config.executionTimeoutMs || 6000 * 1000,
         input.abortSignal
       );
+
+      // Update task state from result
+      taskStates[i].status = result.success ? 'completed' : 'failed';
+      taskStates[i].executionId = result.taskId;
+      taskStates[i].durationMs = result.durationMs;
+      if (result.error) taskStates[i].error = result.error;
+      onTaskUpdate?.(taskStates);
+
       results.push(result);
     } catch (error) {
       console.error(`[execute] Failed task ${reqName}:`, error);
+      taskStates[i].status = 'failed';
+      taskStates[i].error = error instanceof Error ? error.message : String(error);
+      onTaskUpdate?.(taskStates);
+
       results.push({
         taskId: reqName,
         requirementName: reqName,
@@ -85,6 +119,7 @@ async function executeRequirement(
   requirementName: string,
   provider: string,
   model: string,
+  timeoutMs: number,
   abortSignal?: AbortSignal
 ): Promise<ExecutionResult> {
   const startTime = Date.now();
@@ -115,12 +150,13 @@ async function executeRequirement(
 
   console.log(`[execute] Started CLI execution ${executionId} for ${requirementName} (${provider}/${model})`);
 
-  // Step 3: Poll for completion (every 5s, max 10min)
-  const maxWaitMs = 10 * 60 * 1000;
+  // Step 3: Poll for completion
+  const maxWaitMs = timeoutMs;
   const pollIntervalMs = 5000;
 
   while (Date.now() - startTime < maxWaitMs) {
     if (abortSignal?.aborted) {
+      abortExecution(executionId);
       return {
         taskId: executionId,
         requirementName,
@@ -157,7 +193,8 @@ async function executeRequirement(
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
 
-  // Timed out
+  // Timed out — kill the CLI process
+  abortExecution(executionId);
   return {
     taskId: executionId,
     requirementName,

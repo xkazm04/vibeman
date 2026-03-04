@@ -18,6 +18,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useAbortableFetch } from '@/hooks/useAbortableFetch';
 import GlowCard from './GlowCard';
 import BrainPanelHeader from './BrainPanelHeader';
 import type { BehavioralSignalType } from '@/app/db/models/brain.types';
@@ -89,11 +90,12 @@ export default function CorrelationMatrix({ scope = 'project' }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<{ src: string; tgt: string } | null>(null);
+  const abortableFetch = useAbortableFetch();
 
   const fetchCorrelations = useCallback(async (projectId: string) => {
     setIsLoading(true);
     try {
-      const res = await fetch(
+      const res = await abortableFetch(
         `/api/brain/correlations?projectId=${encodeURIComponent(projectId)}&windowDays=14&topN=5`
       );
       if (res.ok) {
@@ -102,12 +104,13 @@ export default function CorrelationMatrix({ scope = 'project' }: Props) {
           setData(json);
         }
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
       // Non-critical
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [abortableFetch]);
 
   useEffect(() => {
     if (scope === 'global' || !activeProject?.id) return;
