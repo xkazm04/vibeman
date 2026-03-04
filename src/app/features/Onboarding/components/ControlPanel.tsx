@@ -4,7 +4,6 @@ import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useActiveProjectStore } from '@/stores/activeProjectStore';
 import Drawer from '@/components/ui/Drawer';
 import StarterTasks from '../sub_GettingStarted/components/StarterTasks';
-import StarterBlueprint from '../sub_GettingStarted/components/StarterBlueprint';
 import { buildTasks } from '../sub_GettingStarted/lib/config';
 import type { OnboardingTask } from '../sub_GettingStarted/lib/types';
 
@@ -47,10 +46,6 @@ export default function ControlPanel({ isOpen, onClose, onOpenBlueprint }: Contr
       <StarterTasks
         tasks={tasks}
         onTaskClick={handleTaskClick}
-      />
-
-      <StarterBlueprint
-        onOpenBlueprint={onOpenBlueprint}
       />
     </Drawer>
   );

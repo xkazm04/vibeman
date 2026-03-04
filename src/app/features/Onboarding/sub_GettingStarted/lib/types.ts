@@ -20,10 +20,6 @@ export interface OnboardingTask {
   location: ModuleLocation;
 }
 
-export interface StarterBlueprintProps {
-  onOpenBlueprint: () => void;
-}
-
 export interface StarterTasksProps {
   tasks: OnboardingTask[];
   onTaskClick: (task: OnboardingTask) => void;

@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const row = db.prepare(`
       SELECT id, project_id, status, current_stage, cycle,
              config_snapshot, stages_state, metrics,
-             started_at, completed_at, process_log
+             started_at, completed_at
       FROM conductor_runs
       WHERE project_id = ?
       ORDER BY created_at DESC
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       metrics: JSON.parse(row.metrics || '{}'),
       startedAt: row.started_at,
       completedAt: row.completed_at,
-      processLog: JSON.parse(row.process_log || '[]'),
+      processLog: [],
     };
 
     return NextResponse.json({

@@ -12,7 +12,6 @@ export { rulesLoader, RulesLoader } from './loader';
 // Import all rule definitions
 import { coreGuidelinesRule } from './definitions/core-guidelines';
 import { fileStructureRule } from './definitions/file-structure';
-import { testSelectorsRule } from './definitions/test-selectors';
 import { themingRule } from './definitions/theming';
 import { documentationPolicyRule } from './definitions/documentation-policy';
 import { implementationLoggingRule } from './definitions/implementation-logging';
@@ -25,7 +24,7 @@ import { finalChecklistRule, buildFinalChecklistContent } from './definitions/fi
 export {
   coreGuidelinesRule,
   fileStructureRule,
-  testSelectorsRule,
+
   themingRule,
   documentationPolicyRule,
   implementationLoggingRule,
@@ -45,7 +44,7 @@ import { rulesLoader } from './loader';
 export const defaultRules = [
   coreGuidelinesRule,
   fileStructureRule,
-  testSelectorsRule,
+
   themingRule,
   documentationPolicyRule,
   implementationLoggingRule,

@@ -120,26 +120,6 @@ export function initializeTables() {
     );
   `);
 
-  // Create backlog_items table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS backlog_items (
-      id TEXT PRIMARY KEY,
-      project_id TEXT NOT NULL,
-      goal_id TEXT,
-      agent TEXT NOT NULL CHECK (agent IN ('developer', 'mastermind', 'tester', 'artist', 'custom')),
-      title TEXT NOT NULL,
-      description TEXT NOT NULL,
-      status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected', 'in_progress')),
-      type TEXT NOT NULL CHECK (type IN ('proposal', 'custom')),
-      impacted_files TEXT, -- JSON string of ImpactedFile[]
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      accepted_at TEXT,
-      rejected_at TEXT,
-      FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE SET NULL
-    );
-  `);
-
   // Create implementation_log table
   db.exec(`
     CREATE TABLE IF NOT EXISTS implementation_log (
@@ -154,31 +134,6 @@ export function initializeTables() {
       screenshot TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE SET NULL
-    );
-  `);
-
-  // Create conversations table for Annette's memory
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS conversations (
-      id TEXT PRIMARY KEY,
-      project_id TEXT NOT NULL,
-      title TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-  `);
-
-  // Create messages table for conversation history
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS messages (
-      id TEXT PRIMARY KEY,
-      conversation_id TEXT NOT NULL,
-      role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
-      content TEXT NOT NULL,
-      memory_type TEXT, -- Free string for future categorization (e.g., 'user_preference', 'project_fact', 'action')
-      metadata TEXT, -- JSON string for additional data
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
     );
   `);
 
@@ -216,7 +171,6 @@ export function initializeTables() {
       estimated_completion_date TEXT,
 
       -- Integration
-      backlog_item_id TEXT,
       goal_id TEXT,
 
       -- Timestamps
@@ -227,7 +181,6 @@ export function initializeTables() {
       dismissal_reason TEXT,
 
       FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE SET NULL,
-      FOREIGN KEY (backlog_item_id) REFERENCES backlog_items(id) ON DELETE SET NULL,
       FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE SET NULL
     );
   `);
@@ -293,20 +246,6 @@ export function initializeTables() {
     );
   `);
 
-  // Create test_selectors table for testing automation
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS test_selectors (
-      id TEXT PRIMARY KEY,
-      context_id TEXT NOT NULL,
-      data_testid TEXT NOT NULL,
-      title TEXT NOT NULL, -- 1-4 words describing the interaction
-      filepath TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE CASCADE
-    );
-  `);
-
   // Run migrations for existing databases
   runMigrations();
 
@@ -322,9 +261,6 @@ export function initializeTables() {
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_goals_project_id ON goals(project_id);
     CREATE INDEX IF NOT EXISTS idx_goals_order_index ON goals(project_id, order_index);
-    CREATE INDEX IF NOT EXISTS idx_backlog_items_project_id ON backlog_items(project_id);
-    CREATE INDEX IF NOT EXISTS idx_backlog_items_goal_id ON backlog_items(goal_id);
-    CREATE INDEX IF NOT EXISTS idx_backlog_items_status ON backlog_items(project_id, status);
     CREATE INDEX IF NOT EXISTS idx_context_groups_project_id ON context_groups(project_id);
     CREATE INDEX IF NOT EXISTS idx_context_groups_position ON context_groups(project_id, position);
     CREATE INDEX IF NOT EXISTS idx_contexts_project_id ON contexts(project_id);
@@ -347,7 +283,6 @@ export function initializeTables() {
     CREATE INDEX IF NOT EXISTS idx_tech_debt_severity ON tech_debt(project_id, severity);
     CREATE INDEX IF NOT EXISTS idx_tech_debt_category ON tech_debt(category);
     CREATE INDEX IF NOT EXISTS idx_tech_debt_risk_score ON tech_debt(project_id, risk_score);
-    CREATE INDEX IF NOT EXISTS idx_tech_debt_backlog_item ON tech_debt(backlog_item_id);
     CREATE INDEX IF NOT EXISTS idx_scan_queue_project_id ON scan_queue(project_id);
     CREATE INDEX IF NOT EXISTS idx_scan_queue_status ON scan_queue(project_id, status);
     CREATE INDEX IF NOT EXISTS idx_scan_queue_priority ON scan_queue(status, priority DESC);
@@ -355,44 +290,5 @@ export function initializeTables() {
     CREATE INDEX IF NOT EXISTS idx_scan_notifications_queue_item ON scan_notifications(queue_item_id);
     CREATE INDEX IF NOT EXISTS idx_scan_notifications_project ON scan_notifications(project_id, read);
     CREATE INDEX IF NOT EXISTS idx_file_watch_config_project_id ON file_watch_config(project_id);
-    CREATE INDEX IF NOT EXISTS idx_test_selectors_context_id ON test_selectors(context_id);
-    CREATE INDEX IF NOT EXISTS idx_test_selectors_filepath ON test_selectors(filepath);
-  `);
-
-  // Create test case management tables
-  // Test scenarios table - stores test scenario names for contexts
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS test_case_scenarios (
-      id TEXT PRIMARY KEY,
-      context_id TEXT NOT NULL,
-      name TEXT NOT NULL,
-      description TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (context_id) REFERENCES contexts(id) ON DELETE CASCADE
-    );
-  `);
-
-  // Test steps table - stores non-technical test steps for scenarios
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS test_case_steps (
-      id TEXT PRIMARY KEY,
-      scenario_id TEXT NOT NULL,
-      step_order INTEGER NOT NULL,
-      step_name TEXT NOT NULL,
-      expected_result TEXT NOT NULL,
-      test_selector_id TEXT, -- Optional reference to test_selectors
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (scenario_id) REFERENCES test_case_scenarios(id) ON DELETE CASCADE,
-      FOREIGN KEY (test_selector_id) REFERENCES test_selectors(id) ON DELETE SET NULL
-    );
-  `);
-
-  // Create indexes for test case tables
-  db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_test_case_scenarios_context_id ON test_case_scenarios(context_id);
-    CREATE INDEX IF NOT EXISTS idx_test_case_steps_scenario_id ON test_case_steps(scenario_id);
-    CREATE INDEX IF NOT EXISTS idx_test_case_steps_order ON test_case_steps(scenario_id, step_order);
   `);
 }

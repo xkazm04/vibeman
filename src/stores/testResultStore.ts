@@ -1,7 +1,5 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import type { TestExecution } from '@/app/db';
-
 /**
  * Test Result Summary for a specific scan/column
  */
@@ -12,7 +10,7 @@ export interface TestResultSummary {
   failedTests: number;
   runningTests: number;
   lastRunAt: string | null;
-  executions: TestExecution[];
+  executions: Record<string, unknown>[];
   screenshots: string[]; // Array of screenshot paths
 }
 

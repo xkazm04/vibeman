@@ -3,7 +3,23 @@
  */
 
 import { Browser, Page } from 'playwright-core';
-import { TestScenario, ScenarioAction } from '../scenarios';
+// Types inlined after scenarios module removal
+interface ScenarioAction {
+  type: 'navigate' | 'click' | 'wait' | 'scroll' | 'type';
+  selector?: string;
+  url?: string;
+  delay?: number;
+  scrollY?: number;
+  text?: string;
+}
+
+interface TestScenario {
+  id: string;
+  name: string;
+  baseUrl: string;
+  actions: ScenarioAction[];
+  screenshotName?: string;
+}
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { logger } from '@/lib/logger';

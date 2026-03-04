@@ -71,29 +71,6 @@ export interface DbGoalSubGoal {
   updated_at: string;
 }
 
-// Backlog types
-export interface ImpactedFile {
-  path: string;
-  changeType: 'create' | 'modify' | 'delete';
-  description?: string;
-}
-
-export interface DbBacklogItem {
-  id: string;
-  project_id: string;
-  goal_id: string | null;
-  agent: 'developer' | 'mastermind' | 'tester' | 'artist' | 'custom';
-  title: string;
-  description: string;
-  status: 'pending' | 'accepted' | 'rejected' | 'in_progress';
-  type: 'proposal' | 'custom';
-  impacted_files: string | null; // JSON string
-  created_at: string;
-  updated_at: string;
-  accepted_at: string | null;
-  rejected_at: string | null;
-}
-
 // Context group types
 export interface DbContextGroup {
   id: string;
@@ -303,17 +280,6 @@ export interface DbFileWatchConfig {
   updated_at: string;
 }
 
-// Test Selectors types
-export interface DbTestSelector {
-  id: string;
-  context_id: string;
-  data_testid: string;
-  title: string;
-  filepath: string;
-  created_at: string;
-  updated_at: string;
-}
-
 // Goal Candidates types
 export interface DbGoalCandidate {
   id: string;
@@ -339,27 +305,6 @@ export interface GoalCandidateSourceMetadata {
   filePaths?: string[];
   techDebtId?: string;
   [key: string]: string | string[] | number | boolean | undefined;
-}
-
-// Test Case Management types
-export interface DbTestCaseScenario {
-  id: string;
-  context_id: string;
-  name: string;
-  description: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface DbTestCaseStep {
-  id: string;
-  scenario_id: string;
-  step_order: number;
-  step_name: string;
-  expected_result: string;
-  test_selector_id: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 // Idea Execution Outcome types (for Self-Optimizing Development Cycle)
@@ -409,85 +354,6 @@ export interface DbScoringThreshold {
   max_score: number | null; // Maximum score threshold
   min_confidence: number | null; // Minimum confidence level
   enabled: number; // Boolean flag (0 or 1)
-  created_at: string;
-  updated_at: string;
-}
-
-// Blueprint Configuration types
-export interface DbBlueprintConfig {
-  id: string;
-  project_id: string | null; // null = template available to all projects
-  name: string;
-  description: string | null;
-  is_template: number; // Boolean flag (0 or 1)
-  config: string; // JSON string containing nodes and edges configuration
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BlueprintNodeConfig {
-  id: string;
-  componentId: string;
-  config: Record<string, unknown>;
-  position?: { x: number; y: number };
-}
-
-export interface BlueprintEdgeConfig {
-  id: string;
-  source: string;
-  target: string;
-  sourceOutput?: string;
-  targetInput?: string;
-}
-
-export interface BlueprintConfigData {
-  nodes: BlueprintNodeConfig[];
-  edges: BlueprintEdgeConfig[];
-}
-
-// Blueprint Execution types
-export interface DbBlueprintExecution {
-  id: string;
-  blueprint_id: string;
-  project_id: string;
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
-  progress: number; // 0-100
-  current_node_id: string | null;
-  node_results: string | null; // JSON string of node execution results
-  error_message: string | null;
-  started_at: string | null;
-  completed_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface NodeExecutionResult {
-  nodeId: string;
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
-  output?: unknown;
-  error?: string;
-  startedAt?: string;
-  completedAt?: string;
-  duration?: number;
-}
-
-// Blueprint Component Registry types
-export interface DbBlueprintComponent {
-  id: string;
-  component_id: string; // e.g., 'analyzer.console'
-  type: 'analyzer' | 'processor' | 'executor' | 'tester';
-  name: string;
-  description: string;
-  category: string | null;
-  tags: string | null; // JSON array of tags
-  icon: string | null;
-  color: string | null;
-  config_schema: string; // JSON schema
-  default_config: string; // JSON default config
-  input_types: string; // JSON array of input type names
-  output_types: string; // JSON array of output type names
-  supported_project_types: string; // JSON array of project types
-  is_custom: number; // Boolean flag (0 or 1), true for user-defined
   created_at: string;
   updated_at: string;
 }

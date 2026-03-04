@@ -121,28 +121,6 @@ export async function GET() {
     diagnostics.summary.warnings++;
   }
 
-  // Check 5: Available scenarios
-  try {
-    const { getAllScenarios } = await import('../scenarios');
-    const scenarios = getAllScenarios();
-
-    diagnostics.checks.push({
-      name: 'Test Scenarios',
-      status: 'PASS',
-      message: `✅ ${scenarios.length} scenarios available: ${scenarios.map((s) => s.id).join(', ')}`,
-      severity: 'info',
-    });
-  } catch (error) {
-    diagnostics.checks.push({
-      name: 'Test Scenarios',
-      status: 'FAIL',
-      message: '❌ Failed to load scenarios',
-      severity: 'critical',
-    });
-    diagnostics.summary.allPassed = false;
-    diagnostics.summary.criticalIssues++;
-  }
-
   // Generate recommendations
   const recommendations = [];
 

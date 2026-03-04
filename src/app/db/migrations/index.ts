@@ -107,11 +107,8 @@ export function runMigrations() {
     // Migration 9: Add test_scenario and test_updated columns to contexts table
     migrateContextsTestingColumns();
 
-    // Migration 10: Create test_selectors table
-    migrateTestSelectorsTable();
+    // Migration 10-11: test_selectors + security pipeline removed (deprecated)
 
-    // Migration 11: Create security pipeline tables
-    migrateSecurityPipelineTables();
 
     // Migration 12: Create goal_candidates table
     migrateGoalCandidatesTable();
@@ -119,18 +116,12 @@ export function runMigrations() {
     migrateVoicebotAnalyticsTable();
     // Migration 14: Add context_id column to events table
     migrateEventsContextId();
-    // Migration 15: Create test_scenarios table
-    migrateTestScenariosTable();
-    // Migration 16: Create test_executions table
-    migrateTestExecutionsTable();
-    // Migration 17: Create visual_diffs table
-    migrateVisualDiffsTable();
-    // Migration 18: Create scan predictions tables
-    migrateScanPredictionsTables();
+    // Migration 15-18: test_scenarios, test_executions, visual_diffs, scan_predictions removed (deprecated)
+
     // Migration 19: Add target fields to contexts table
     migrateContextsTargetFields();
-    // Migration 20: Create test case management tables
-    migrateTestCaseManagementTables();
+    // Migration 20: test_case_management removed (deprecated)
+
     // Migration 21: Add implemented_tasks column to contexts table
     migrateContextsImplementedTasks();
     // Migration 22: Add context_id column to implementation_log table
@@ -143,8 +134,8 @@ export function runMigrations() {
     migrateMarketplaceTables();
     // Migration 26: Create adaptive learning tables for self-optimizing development cycle
     migrateAdaptiveLearningTables();
-    // Migration 27: Create debt prediction and prevention tables
-    migrateDebtPredictionTables();
+    // Migration 27: debt_prediction removed (deprecated)
+
     // Migration 28: Create lifecycle automation tables
     migrateLifecycleTables();
     // Migration 29: Add target_rating column to contexts table
@@ -155,8 +146,8 @@ export function runMigrations() {
     migrateContextGroupRelationshipsTable();
     // Migration 32: Create security intelligence dashboard tables
     migrateSecurityIntelligenceTables();
-    // Migration 33: Create blueprint composable architecture tables
-    migrateBlueprintTables();
+    // Migration 33: blueprint removed (deprecated)
+
     // Migration 34: Create developer mind-meld tables
     migrateDeveloperMindMeldTables();
     // Migration 35: Update ideas table to support 1-10 scoring and add risk column

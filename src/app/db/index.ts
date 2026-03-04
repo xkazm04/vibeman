@@ -9,7 +9,7 @@ import { initializeTables } from './schema';
 import { startAggregationWorker, stopAggregationWorker } from '@/lib/db/hotWritesAggregator';
 import { goalRepository } from './repositories/goal.repository';
 import { goalCandidateRepository } from './repositories/goal-candidate.repository';
-import { backlogRepository } from './repositories/backlog.repository';
+// Removed - feature deprecated (backlog)
 import { contextGroupRepository } from './repositories/context-group.repository';
 import { contextGroupRelationshipRepository } from './repositories/context-group-relationship.repository';
 import { contextRepository } from './repositories/context.repository';
@@ -17,33 +17,14 @@ import { eventRepository } from './repositories/event.repository';
 import { scanRepository } from './repositories/scan.repository';
 import { ideaRepository } from './repositories/idea.repository';
 import { implementationLogRepository } from './repositories/implementation-log.repository';
-import { conversationRepository } from './repositories/conversation.repository';
+// Removed - feature deprecated (conversation)
 import { scanQueueRepository } from './repositories/scanQueue.repository';
-import { testSelectorRepository } from './repositories/test-selector.repository';
-import {
-  testScenarioRepository,
-  testExecutionRepository,
-  visualDiffRepository
-} from './repositories/test-scenario.repository';
-import {
-  securityScanRepository,
-  securityPatchRepository,
-  securityPrRepository
-} from './repositories/security-patch.repository';
-import {
-  scanHistoryRepository,
-  scanPredictionRepository,
-  fileChangePatternRepository,
-} from './repositories/scan-prediction.repository';
+// Removed - feature deprecated (test-selector)
+// Removed - feature deprecated (test-scenario)
+// Removed - feature deprecated (security-patch)
+// Removed - feature deprecated (scan-prediction)
 // Adaptive learning repositories removed - feature deprecated
-import {
-  debtPatternRepository,
-  debtPredictionRepository,
-  complexityHistoryRepository,
-  opportunityCardRepository,
-  preventionActionRepository,
-  codeChangeEventRepository,
-} from './repositories/debt-prediction.repository';
+// Removed - feature deprecated (debt-prediction)
 // Security Intelligence repositories removed - feature deprecated
 // Developer Mind-Meld repositories removed - feature deprecated
 // Hypothesis Testing repositories removed - feature deprecated
@@ -108,11 +89,7 @@ import { goalSignalRepository, goalSubGoalRepository } from './repositories/goal
 
 // Export types
 export * from './models/types';
-export * from './models/conversation.types';
-export * from './models/security-patch.types';
-export * from './models/test-scenario.types';
-export * from './models/scan-prediction.types';
-export * from './models/debt-prediction.types';
+// Removed - feature deprecated (conversation, security-patch, test-scenario, scan-prediction, debt-prediction types)
 // Security Intelligence types removed - feature deprecated
 export * from './models/standup.types';
 // Offload types removed - migrated to Supabase
@@ -182,14 +159,7 @@ export const goalSubGoalDb = {
   close: closeDatabase
 };
 
-/**
- * Backlog Database Operations
- * Handles backlog items and proposals
- */
-export const backlogDb = {
-  ...backlogRepository,
-  close: closeDatabase
-};
+// Removed - feature deprecated (backlogDb)
 
 /**
  * Context Group Database Operations
@@ -254,14 +224,7 @@ export const implementationLogDb = {
   close: closeDatabase
 };
 
-/**
- * Conversation Database Operations
- * Handles Annette's conversation memory
- */
-export const conversationDb = {
-  ...conversationRepository,
-  close: closeDatabase
-};
+// Removed - feature deprecated (conversationDb)
 
 /**
  * Scan Queue Database Operations
@@ -272,149 +235,15 @@ export const scanQueueDb = {
   close: closeDatabase
 };
 
-/**
- * Test Selector Database Operations
- * Handles test selectors for automated testing
- */
-export const testSelectorDb = {
-  ...testSelectorRepository,
-  close: closeDatabase
-};
+// Removed - feature deprecated (testSelectorDb)
 
-/**
- * Security Scan Database Operations
- * Handles security vulnerability scans
- */
-export const securityScanDb = {
-  ...securityScanRepository,
-  close: closeDatabase
-};
+// Removed - feature deprecated (securityScanDb, securityPatchDb, securityPrDb)
 
-/**
- * Security Patch Database Operations
- * Handles security patches and vulnerability fixes
- */
-export const securityPatchDb = {
-  ...securityPatchRepository,
-  close: closeDatabase
-};
+// Removed - feature deprecated (testScenarioDb, testExecutionDb, visualDiffDb)
 
-/**
- * Security PR Database Operations
- * Handles pull requests for security patches
- */
-export const securityPrDb = {
-  ...securityPrRepository,
-  close: closeDatabase
-};
+// Removed - feature deprecated (scanHistoryDb, scanPredictionDb, fileChangePatternDb)
 
-/**
- * Test Scenario Database Operations
- * Handles AI-generated test scenarios
- */
-export const testScenarioDb = {
-  ...testScenarioRepository,
-  close: closeDatabase
-};
-
-/**
- * Test Execution Database Operations
- * Handles test run results and execution history
- */
-export const testExecutionDb = {
-  ...testExecutionRepository,
-  close: closeDatabase
-};
-
-/**
- * Visual Diff Database Operations
- * Handles screenshot comparison and visual regression
- */
-export const visualDiffDb = {
-  ...visualDiffRepository,
-  close: closeDatabase
-};
-
-/**
- * Scan History Database Operations
- * Handles scan execution history tracking
- */
-export const scanHistoryDb = {
-  ...scanHistoryRepository,
-  close: closeDatabase
-};
-
-/**
- * Scan Prediction Database Operations
- * Handles AI-generated scan recommendations
- */
-export const scanPredictionDb = {
-  ...scanPredictionRepository,
-  close: closeDatabase
-};
-
-/**
- * File Change Pattern Database Operations
- * Handles file change pattern tracking for predictive scheduling
- */
-export const fileChangePatternDb = {
-  ...fileChangePatternRepository,
-  close: closeDatabase
-};
-
-/**
- * Debt Pattern Database Operations
- * Manages learned patterns that predict technical debt
- */
-export const debtPatternDb = {
-  ...debtPatternRepository,
-  close: closeDatabase
-};
-
-/**
- * Debt Prediction Database Operations
- * Manages real-time debt predictions for code
- */
-export const debtPredictionDb = {
-  ...debtPredictionRepository,
-  close: closeDatabase
-};
-
-/**
- * Complexity History Database Operations
- * Tracks file complexity metrics over time
- */
-export const complexityHistoryDb = {
-  ...complexityHistoryRepository,
-  close: closeDatabase
-};
-
-/**
- * Opportunity Card Database Operations
- * Manages real-time refactoring opportunity cards
- */
-export const opportunityCardDb = {
-  ...opportunityCardRepository,
-  close: closeDatabase
-};
-
-/**
- * Prevention Action Database Operations
- * Tracks actions taken to prevent debt
- */
-export const preventionActionDb = {
-  ...preventionActionRepository,
-  close: closeDatabase
-};
-
-/**
- * Code Change Event Database Operations
- * Tracks code changes for pattern detection
- */
-export const codeChangeEventDb = {
-  ...codeChangeEventRepository,
-  close: closeDatabase
-};
+// Removed - feature deprecated (debtPatternDb, debtPredictionDb, complexityHistoryDb, opportunityCardDb, preventionActionDb, codeChangeEventDb)
 
 // Security Intelligence DB exports removed - feature deprecated
 // Developer Mind-Meld DB exports removed - feature deprecated

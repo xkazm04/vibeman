@@ -334,4 +334,3 @@ export { useShallow };
 
 // Re-export specialized stores for gradual migration
 export { useSelectionStore } from './selectionStore';
-export { useBacklogStore } from './backlogStore';

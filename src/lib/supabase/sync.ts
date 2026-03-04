@@ -52,7 +52,6 @@ const SYNC_ORDER = [
   'events',
   'scans',
   'ideas',
-  'backlog_items',
   'implementation_log'
 ] as const;
 

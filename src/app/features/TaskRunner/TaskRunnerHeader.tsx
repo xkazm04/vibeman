@@ -1,11 +1,9 @@
 'use client';
-import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Wifi, WifiOff } from 'lucide-react';
 import type { ProjectRequirement, TaskRunnerActions } from './lib/types';
 import { CLIBatchPanel } from '@/components/cli';
 import TaskMonitor from './components/TaskMonitor';
-import { useBlueprintStore } from '@/app/features/Onboarding/sub_Blueprint/store/blueprintStore';
 import { useRemoteTaskRunner } from './hooks/useRemoteTaskRunner';
 
 interface TaskRunnerHeaderProps {
@@ -33,9 +31,6 @@ export default function TaskRunnerHeader({
 }: TaskRunnerHeaderProps) {
   const { setRequirements, setIsRunning, setProcessedCount, setError } = actions;
 
-  // Blueprint store for syncing tasker progress
-  const { resetTaskerProgress } = useBlueprintStore();
-
   // Remote TaskRunner hook
   const {
     isRemoteAvailable,
@@ -43,11 +38,6 @@ export default function TaskRunnerHeader({
     targetDeviceName,
     toggleRemoteMode,
   } = useRemoteTaskRunner();
-
-  // Reset tasker progress on mount (no batch progress tracking)
-  useEffect(() => {
-    resetTaskerProgress();
-  }, [resetTaskerProgress]);
 
   const clearError = () => {
     setError(undefined);

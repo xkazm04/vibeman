@@ -10,7 +10,6 @@
  */
 
 import { ScanType, SCAN_TYPE_CONFIGS } from '../../lib/scanTypes';
-import { createRequirementOnly, PipelineConfig } from '@/app/features/Onboarding/sub_Blueprint/lib/pipeline';
 
 export interface ClaudeIdeasExecutorConfig {
   projectId: string;
@@ -120,34 +119,24 @@ export async function executeClaudeIdeasWithContexts(config: ClaudeIdeasExecutor
         console.log(`[ClaudeIdeasExecutor] Requirement name: ${apiResult.requirementName}`);
         console.log(`[ClaudeIdeasExecutor] Requirement content length: ${apiResult.requirementContent.length} chars`);
 
-        // Step 2: Create the requirement file only (user will manage execution via TaskRunner)
-        const pipelineConfig: PipelineConfig = {
-          projectPath: config.projectPath,
-          projectId: config.projectId,
-          requirementName: apiResult.requirementName,
-          requirementContent: apiResult.requirementContent,
-          onProgress: (progress, message) => {
-            console.log(`[ClaudeIdeasExecutor] ${scanLabel}/${itemLabel}: ${progress}% - ${message}`);
-          },
-          onComplete: (pipelineResult) => {
-            console.log(`[ClaudeIdeasExecutor] ${scanLabel}/${itemLabel}: Requirement file created`, pipelineResult.requirementPath);
-          },
-          onError: (error) => {
-            console.error(`[ClaudeIdeasExecutor] ${scanLabel}/${itemLabel}: Pipeline error`, error.message);
-          }
-        };
+        // Step 2: Create the requirement file via API
+        const writeResponse = await fetch('/api/structure-scan/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectPath: config.projectPath,
+            requirementName: apiResult.requirementName,
+            requirementContent: apiResult.requirementContent,
+          })
+        });
 
-        // Create requirement file only (no auto-execution)
-        const pipelineResult = await createRequirementOnly(pipelineConfig);
-
-        console.log(`[ClaudeIdeasExecutor] Pipeline result:`, JSON.stringify(pipelineResult, null, 2));
-
-        if (pipelineResult.success && pipelineResult.requirementPath) {
+        if (writeResponse.ok) {
+          const writeResult = await writeResponse.json();
           result.filesCreated++;
-          result.requirementPaths.push(pipelineResult.requirementPath);
-          console.log(`[ClaudeIdeasExecutor] SUCCESS: Requirement file created at ${pipelineResult.requirementPath}`);
+          result.requirementPaths.push(writeResult.requirementPath || apiResult.requirementName);
+          console.log(`[ClaudeIdeasExecutor] SUCCESS: Requirement file created`);
         } else {
-          const errorMsg = `${scanLabel}/${itemLabel}: ${pipelineResult.error || 'Unknown error (no requirementPath)'}`;
+          const errorMsg = `${scanLabel}/${itemLabel}: Failed to write requirement file`;
           result.errors.push(errorMsg);
           console.error(`[ClaudeIdeasExecutor] FAILED:`, errorMsg);
         }

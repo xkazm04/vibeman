@@ -162,8 +162,6 @@ export function clearSessionState(): void {
   const sessionStores = [
     'refactor-wizard-storage',
     'state-machine-storage',
-    'debt-prediction-storage',
-    'blueprint-execution-store',
   ];
 
   sessionStores.forEach(storeName => {
