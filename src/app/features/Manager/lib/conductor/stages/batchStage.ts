@@ -18,6 +18,11 @@ interface AcceptedIdea {
   impact: number;
   risk: number;
   category: string;
+  reasoning?: string | null;
+  scan_type?: string | null;
+  context_id?: string | null;
+  context_name?: string | null;
+  context_file_paths?: string | null; // JSON array of related file paths
   requirementName?: string;
 }
 
@@ -122,22 +127,82 @@ async function createRequirementFile(
 }
 
 function buildRequirementContent(idea: AcceptedIdea): string {
-  return [
+  const sections: string[] = [
+    `Execute this requirement immediately without asking questions.`,
+    '',
+    `## REQUIREMENT`,
+    '',
     `# ${idea.title}`,
     '',
-    `## Description`,
-    idea.description,
-    '',
     `## Metadata`,
-    `- Effort: ${idea.effort}/10`,
-    `- Impact: ${idea.impact}/10`,
-    `- Risk: ${idea.risk}/10`,
-    `- Category: ${idea.category}`,
+    `- **Category**: ${idea.category}`,
+    `- **Effort**: ${idea.effort}/10`,
+    `- **Impact**: ${idea.impact}/10`,
+    `- **Risk**: ${idea.risk != null ? `${idea.risk}/10` : 'n/a'}`,
+  ];
+
+  if (idea.scan_type) {
+    sections.push(`- **Scan Type**: ${idea.scan_type}`);
+  }
+  sections.push(`- **Generated**: ${new Date().toLocaleString()}`);
+
+  sections.push('', `## Description`, idea.description || 'No description provided.');
+
+  // Include reasoning when available — this is critical context for the implementing agent
+  if (idea.reasoning) {
+    sections.push('', `## Reasoning`, idea.reasoning);
+  }
+
+  // Include context section with related files when available
+  if (idea.context_name || idea.context_file_paths) {
+    sections.push('', `## Context`, '');
+    sections.push(`**Note**: This section provides supporting architectural documentation and is NOT a hard requirement. Use it as guidance to understand existing code structure and maintain consistency.`);
+
+    if (idea.context_name) {
+      sections.push('', `### Context: ${idea.context_name}`);
+    }
+
+    if (idea.context_file_paths) {
+      try {
+        const filePaths = JSON.parse(idea.context_file_paths);
+        if (Array.isArray(filePaths) && filePaths.length > 0) {
+          sections.push('', '**Related Files**:');
+          for (const fp of filePaths) {
+            sections.push(`- \`${fp}\``);
+          }
+        }
+      } catch {
+        // Invalid JSON, skip file paths
+      }
+    }
+  }
+
+  // Implementation guidance
+  sections.push(
     '',
-    `## Instructions`,
-    `Implement the changes described above. Follow existing code patterns and conventions.`,
-    `Create or modify tests if applicable. Document any significant changes.`,
-  ].join('\n');
+    `## DURING IMPLEMENTATION`,
+    '',
+    `- Use \`get_memory\` MCP tool when you encounter unfamiliar code or need context about patterns/files`,
+    `- Use \`report_progress\` MCP tool at each major phase (analyzing, planning, implementing, testing, validating)`,
+    `- Use \`get_related_tasks\` MCP tool before modifying shared files to check for parallel task conflicts`,
+    '',
+    `## AFTER IMPLEMENTATION`,
+    '',
+    `1. Log your implementation using the \`log_implementation\` MCP tool with:`,
+    `   - requirementName: the requirement filename (without .md)`,
+    `   - title: 2-6 word summary`,
+    `   - overview: 1-2 paragraphs describing what was done`,
+    '',
+    `2. Check for test scenario using \`check_test_scenario\` MCP tool`,
+    `   - If hasScenario is true, call \`capture_screenshot\` tool`,
+    `   - If hasScenario is false, skip screenshot`,
+    '',
+    `3. Verify: \`npx tsc --noEmit\` (fix any type errors)`,
+    '',
+    `Begin implementation now.`,
+  );
+
+  return sections.join('\n');
 }
 
 function getBaseUrl(): string {

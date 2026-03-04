@@ -405,9 +405,10 @@ async function runPipelineLoop(
 
       try {
         const acceptedIdeas = await fetchIdeas(triageResult.acceptedIds, projectId);
+        const enrichedIdeas = await enrichIdeasWithContext(acceptedIdeas, projectId);
 
         batchDescriptor = await executeBatchStage({
-          acceptedIdeas: acceptedIdeas.map((idea) => ({
+          acceptedIdeas: enrichedIdeas.map((idea) => ({
             ...idea,
             requirementName: undefined,
           })),
@@ -469,6 +470,11 @@ async function runPipelineLoop(
           projectPath,
           projectName,
           abortSignal: context.abortController.signal,
+          onTaskUpdate: (tasks) => {
+            updateStageInDb(runId, 'execute', {
+              details: { executionTasks: tasks },
+            });
+          },
         });
 
         executionResults = executeResult.results;
@@ -488,12 +494,15 @@ async function runPipelineLoop(
           durationMs: executeDuration,
         });
 
-        // Log individual failures
+        // Log individual failures and clean up successful conductor requirement files
         for (const result of executeResult.results) {
           if (!result.success && result.error) {
             log('execute', 'failed', `Task ${result.requirementName} failed: ${result.error}`, {
               error: result.error,
             });
+          } else if (result.success) {
+            // Clean up conductor-generated requirement files after successful execution
+            await cleanupRequirementFile(projectPath, result.requirementName);
           }
         }
       } catch (error) {
@@ -616,6 +625,67 @@ async function fetchIdeas(ideaIds: string[], projectId: string): Promise<any[]> 
     return allIdeas.filter((i: any) => ideaIds.includes(i.id));
   } catch {
     return [];
+  }
+}
+
+/**
+ * Enrich ideas with context metadata (name, file_paths) from the contexts API.
+ * This bridges the gap between thin idea objects and the rich context data
+ * needed for high-quality requirement generation.
+ */
+async function enrichIdeasWithContext(ideas: any[], projectId: string): Promise<any[]> {
+  // Collect unique context IDs
+  const contextIds = [...new Set(
+    ideas.map((i: any) => i.context_id).filter(Boolean)
+  )] as string[];
+
+  if (contextIds.length === 0) return ideas;
+
+  // Fetch all project contexts in one call
+  try {
+    const response = await fetch(
+      `${getBaseUrl()}/api/contexts?projectId=${projectId}`
+    );
+    if (!response.ok) return ideas;
+    const data = await response.json();
+    const contexts = data?.data?.contexts || data?.contexts || [];
+
+    // Build lookup map
+    const contextMap = new Map<string, any>();
+    for (const ctx of contexts) {
+      contextMap.set(ctx.id, ctx);
+    }
+
+    // Enrich each idea with context metadata
+    return ideas.map((idea: any) => {
+      if (!idea.context_id) return idea;
+      const ctx = contextMap.get(idea.context_id);
+      if (!ctx) return idea;
+      return {
+        ...idea,
+        context_name: ctx.name || idea.context_name,
+        context_file_paths: ctx.file_paths || null,
+      };
+    });
+  } catch {
+    return ideas;
+  }
+}
+
+/**
+ * Delete a conductor-generated requirement file after successful execution.
+ * Only deletes files with the conductor- prefix to avoid touching user files.
+ */
+async function cleanupRequirementFile(projectPath: string, requirementName: string): Promise<void> {
+  if (!requirementName.startsWith('conductor-')) return;
+  try {
+    await fetch(`${getBaseUrl()}/api/claude-code/requirement`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectPath, requirementName }),
+    });
+  } catch {
+    // Non-fatal — requirement file cleanup is best-effort
   }
 }
 

@@ -37,14 +37,12 @@ const EVENT_ICONS: Record<ProcessLogEntry['event'], { icon: typeof Play; classNa
   info: { icon: Info, className: 'text-blue-400' },
 };
 
-function formatTimeAgo(timestamp: string): string {
-  const diff = Date.now() - new Date(timestamp).getTime();
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 5) return 'just now';
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  return `${Math.floor(minutes / 60)}h ago`;
+function formatTime(timestamp: string): string {
+  return new Date(timestamp).toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function formatDuration(ms: number): string {
@@ -73,7 +71,7 @@ function LogEntry({ entry }: { entry: ProcessLogEntry }) {
     >
       {/* Timestamp */}
       <span className="text-[10px] text-gray-600 font-mono w-14 shrink-0 pt-0.5 text-right">
-        {formatTimeAgo(entry.timestamp)}
+        {formatTime(entry.timestamp)}
       </span>
 
       {/* Event Icon */}

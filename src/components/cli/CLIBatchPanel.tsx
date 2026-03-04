@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo } from 'react';
-import { Terminal } from 'lucide-react';
+import { Terminal, TerminalSquare } from 'lucide-react';
 import { CLISession } from './CLISession';
 import type { CLIBatchPanelProps } from './types';
 import { requirementToQueuedTask } from './types';
@@ -52,6 +52,8 @@ export function CLIBatchPanel({
 }: CLIBatchPanelProps) {
   // Use persistent store for sessions
   const sessions = useCLISessionStore((state) => state.sessions);
+  const nerdMode = useCLISessionStore((state) => state.nerdMode);
+  const toggleNerdMode = useCLISessionStore((state) => state.toggleNerdMode);
   const addTasksToSession = useCLISessionStore((state) => state.addTasksToSession);
   const setAutoStart = useCLISessionStore((state) => state.setAutoStart);
   const setRunning = useCLISessionStore((state) => state.setRunning);
@@ -240,21 +242,35 @@ export function CLIBatchPanel({
       {/* Header */}
       <div className="flex items-center justify-between pb-2 border-b border-gray-700/30">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-purple-500/10 rounded-md">
-            <Terminal className="w-4 h-4 text-purple-400" />
+          <div className={`p-1.5 rounded-md ${nerdMode ? 'bg-emerald-500/10' : 'bg-purple-500/10'}`}>
+            <Terminal className={`w-4 h-4 ${nerdMode ? 'text-emerald-400' : 'text-purple-400'}`} />
           </div>
-          <span className="text-sm font-medium text-gray-200 tracking-tight">CLI Sessions</span>
-          <span className="text-xs text-gray-500 tabular-nums">
+          <span className={`text-sm font-medium tracking-tight ${nerdMode ? 'font-mono text-gray-100' : 'text-gray-200'}`}>
+            {nerdMode ? 'CLI :: SESSIONS' : 'CLI Sessions'}
+          </span>
+          <span className={`text-xs tabular-nums ${nerdMode ? 'font-mono text-gray-500' : 'text-gray-500'}`}>
             ({selectedTaskIds.length} selected)
           </span>
         </div>
+        {/* Nerd Mode Toggle */}
+        <button
+          onClick={toggleNerdMode}
+          className={`p-2 rounded-lg transition-colors border ${
+            nerdMode
+              ? 'bg-emerald-600/20 text-emerald-400 border-emerald-600/40'
+              : 'bg-gray-700/30 text-gray-400 hover:bg-gray-700/50 hover:text-gray-300 border-gray-700'
+          }`}
+          title={nerdMode ? 'Switch to rich UI' : 'Nerd mode (minimal UI)'}
+        >
+          <TerminalSquare className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Recovery Banner */}
       <RecoveryBanner />
 
-      {/* Session Grid - 2x2 */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Session Grid - 1 col on tablet/smaller, 2x2 on desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {SESSIONS.map((sessionId, index) => (
           <CLISession
             key={sessionId}
@@ -274,6 +290,7 @@ export function CLIBatchPanel({
             onExecutionChange={handleExecutionChange}
             onProviderChange={handleProviderChange}
             onModelChange={handleModelChange}
+            nerdMode={nerdMode}
           />
         ))}
       </div>

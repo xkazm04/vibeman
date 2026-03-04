@@ -19,22 +19,22 @@ interface MetricsBarProps {
 
 interface MetricItemProps {
   icon: typeof Lightbulb;
-  label: string;
   value: number | string;
   color: string;
   delay: number;
+  title: string;
 }
 
-function MetricItem({ icon: Icon, label, value, color, delay }: MetricItemProps) {
+function MetricItem({ icon: Icon, value, color, delay, title }: MetricItemProps) {
   return (
     <motion.div
-      className="flex items-center gap-2"
+      className="flex items-center gap-1.5"
       initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: delay * 0.05 }}
+      title={title}
     >
       <Icon className={`w-3.5 h-3.5 text-${color}-400`} />
-      <span className="text-[11px] text-gray-500 whitespace-nowrap">{label}</span>
       <span className={`text-sm font-bold font-mono text-${color}-400`}>{value}</span>
     </motion.div>
   );
@@ -68,22 +68,21 @@ export default function MetricsBar({ metrics, isRunning }: MetricsBarProps) {
       data-testid="metrics-bar"
     >
       {/* Ideas */}
-      <MetricItem icon={Lightbulb} label="Generated" value={m.ideasGenerated} color="cyan" delay={0} />
-      <MetricItem icon={ThumbsUp} label="Accepted" value={m.ideasAccepted} color="emerald" delay={1} />
-      <MetricItem icon={ThumbsDown} label="Rejected" value={m.ideasRejected} color="gray" delay={2} />
+      <MetricItem icon={Lightbulb} value={m.ideasGenerated} color="cyan" delay={0} title="Ideas generated" />
+      <MetricItem icon={ThumbsUp} value={m.ideasAccepted} color="emerald" delay={1} title="Ideas accepted" />
+      <MetricItem icon={ThumbsDown} value={m.ideasRejected} color="gray" delay={2} title="Ideas rejected" />
 
       <div className="w-px h-5 bg-gray-800 flex-shrink-0" />
 
       {/* Tasks */}
-      <MetricItem icon={ListChecks} label="Tasks" value={m.tasksCreated} color="purple" delay={3} />
-      <MetricItem icon={CheckCircle2} label="Done" value={m.tasksCompleted} color="emerald" delay={4} />
-      <MetricItem icon={XCircle} label="Failed" value={m.tasksFailed} color="red" delay={5} />
+      <MetricItem icon={ListChecks} value={m.tasksCreated} color="purple" delay={3} title="Tasks created" />
+      <MetricItem icon={CheckCircle2} value={m.tasksCompleted} color="emerald" delay={4} title="Tasks done" />
+      <MetricItem icon={XCircle} value={m.tasksFailed} color="red" delay={5} title="Tasks failed" />
 
       <div className="w-px h-5 bg-gray-800 flex-shrink-0" />
 
       {/* Success Rate */}
-      <div className="flex items-center gap-2">
-        <span className="text-[11px] text-gray-500">Success</span>
+      <div className="flex items-center gap-1.5" title="Success rate">
         <span className={`text-sm font-bold font-mono ${
           successRate >= 80 ? 'text-emerald-400' :
           successRate >= 50 ? 'text-amber-400' :
@@ -96,13 +95,13 @@ export default function MetricsBar({ metrics, isRunning }: MetricsBarProps) {
       <div className="w-px h-5 bg-gray-800 flex-shrink-0" />
 
       {/* Healing */}
-      <MetricItem icon={Wrench} label="Healed" value={m.healingPatchesApplied} color="pink" delay={6} />
+      <MetricItem icon={Wrench} value={m.healingPatchesApplied} color="pink" delay={6} title="Healing patches applied" />
 
       {/* Duration */}
-      <MetricItem icon={Clock} label="Time" value={formatDuration(m.totalDurationMs)} color="gray" delay={7} />
+      <MetricItem icon={Clock} value={formatDuration(m.totalDurationMs)} color="gray" delay={7} title="Total duration" />
 
       {/* Cost */}
-      <MetricItem icon={DollarSign} label="Cost" value={formatCost(m.estimatedCost)} color="amber" delay={8} />
+      <MetricItem icon={DollarSign} value={formatCost(m.estimatedCost)} color="amber" delay={8} title="Estimated cost" />
 
       {/* Running indicator */}
       {isRunning && (

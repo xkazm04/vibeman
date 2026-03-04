@@ -51,6 +51,7 @@ export interface CLISessionState {
 interface CLISessionStoreState {
   sessions: Record<CLISessionId, CLISessionState>;
   recoveryState: RecoveryState;
+  nerdMode: boolean;
 
   // Actions
   initSession: (sessionId: CLISessionId, projectPath: string) => void;
@@ -70,6 +71,7 @@ interface CLISessionStoreState {
   setGitConfig: (sessionId: CLISessionId, config: CLIGitConfig | null) => void;
   setProvider: (sessionId: CLISessionId, provider: CLIProvider) => void;
   setModel: (sessionId: CLISessionId, model: CLIModel | null) => void;
+  toggleNerdMode: () => void;
 
   // Recovery
   startRecovery: (durationMs?: number) => void;
@@ -116,6 +118,7 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
         inProgress: false,
         endTime: 0,
       },
+      nerdMode: false,
 
       initSession: (sessionId, projectPath) => {
         set((state) => ({
@@ -379,6 +382,10 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
         }));
       },
 
+      toggleNerdMode: () => {
+        set({ nerdMode: !get().nerdMode });
+      },
+
       startRecovery: (durationMs = 10000) => {
         set({
           recoveryState: {
@@ -419,15 +426,16 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
     }),
     {
       name: 'cli-session-storage',
-      version: 7, // v7: renamed vscode provider to copilot (Copilot SDK migration)
+      version: 8, // v8: added nerdMode UI preference
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         // Only persist session data, not ephemeral state
         sessions: state.sessions,
+        nerdMode: state.nerdMode,
       }),
       // Handle migration from older versions
       migrate: (persistedState: unknown, version: number) => {
-        const state = persistedState as { sessions?: Record<string, CLISessionState> };
+        const state = persistedState as { sessions?: Record<string, CLISessionState>; nerdMode?: boolean };
         if (state?.sessions) {
           const migratedSessions = { ...state.sessions };
           for (const id of Object.keys(migratedSessions)) {
@@ -489,7 +497,11 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
               }
             }
           }
-          return { sessions: migratedSessions };
+          // v7 -> v8: Add nerdMode UI preference
+          return {
+            sessions: migratedSessions,
+            nerdMode: (state as { nerdMode?: boolean }).nerdMode ?? false,
+          };
         }
         return state;
       },

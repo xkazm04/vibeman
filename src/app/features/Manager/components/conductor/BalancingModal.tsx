@@ -15,6 +15,7 @@ import {
   Search, Filter, Layers, Zap, Brain, Activity,
   Shield, DollarSign, CheckSquare, Square,
 } from 'lucide-react';
+import StyledCheckbox from '@/components/ui/StyledCheckbox';
 import { UniversalModal } from '@/components/UniversalModal';
 import { useConductorStore } from '../../lib/conductor/conductorStore';
 import type { BalancingConfig, ScanStrategy, ContextStrategy, BatchStrategy, ModelRoutingRule } from '../../lib/conductor/types';
@@ -168,54 +169,92 @@ function SectionHeader({
 
 const PROVIDERS: CLIProvider[] = ['claude', 'gemini', 'copilot', 'ollama'];
 
-const CONDITION_LABELS: Record<ModelRoutingRule['condition'], string> = {
-  effort_high: 'High Effort',
-  effort_low: 'Low Effort',
-  category_ui: 'UI',
-  category_refactor: 'Refactor',
-  default: 'Default',
-};
+const TIER_META: { condition: ModelRoutingRule['condition']; label: string; effort: string; color: string }[] = [
+  { condition: 'complexity_1', label: 'Effort 1-3', effort: 'Low', color: 'text-emerald-400' },
+  { condition: 'complexity_2', label: 'Effort 4-6', effort: 'Med', color: 'text-amber-400' },
+  { condition: 'complexity_3', label: 'Effort 7+', effort: 'High', color: 'text-red-400' },
+];
 
-function ModelRoutingTable({
+const selectClass = "bg-gray-800 text-gray-200 text-[11px] rounded-md px-1.5 py-1 border border-gray-700 outline-none focus:border-cyan-600 transition-colors cursor-pointer w-full";
+
+function ProviderModelSelect({
+  provider,
+  model,
+  onProviderChange,
+  onModelChange,
+}: {
+  provider: CLIProvider;
+  model: string | null;
+  onProviderChange: (p: CLIProvider) => void;
+  onModelChange: (m: string | null) => void;
+}) {
+  const models = PROVIDER_MODELS[provider] || [];
+  return (
+    <div className="grid grid-cols-2 gap-1.5">
+      <select
+        value={provider}
+        onChange={(e) => {
+          const newP = e.target.value as CLIProvider;
+          onProviderChange(newP);
+          const firstModel = PROVIDER_MODELS[newP]?.[0]?.id || '';
+          onModelChange(firstModel);
+        }}
+        className={selectClass}
+      >
+        {PROVIDERS.map((p) => (
+          <option key={p} value={p}>{p}</option>
+        ))}
+      </select>
+      <select
+        value={model || ''}
+        onChange={(e) => onModelChange(e.target.value || null)}
+        className={selectClass}
+      >
+        {models.map((m) => (
+          <option key={m.id} value={m.id}>{m.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function ComplexityRoutingTable({
   routing,
   onChange,
 }: {
   routing: ModelRoutingRule[];
   onChange: (routing: ModelRoutingRule[]) => void;
 }) {
-  const handleRuleChange = (idx: number, provider: CLIProvider, model: string) => {
-    const newRouting = [...routing];
-    newRouting[idx] = { ...newRouting[idx], provider, model };
+  const handleRuleChange = (condition: ModelRoutingRule['condition'], provider: CLIProvider, model: string) => {
+    const newRouting = routing.map((r) =>
+      r.condition === condition ? { ...r, provider, model } : r
+    );
     onChange(newRouting);
   };
 
   return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-[100px_1fr_1fr] gap-2 text-[10px] text-gray-500 uppercase font-semibold px-1">
-        <span>Condition</span>
-        <span>Provider</span>
-        <span>Model</span>
-      </div>
-      {routing.map((rule, idx) => {
+    <div className="space-y-1.5">
+      {TIER_META.map((tier) => {
+        const rule = routing.find((r) => r.condition === tier.condition);
+        if (!rule) return null;
         const models = PROVIDER_MODELS[rule.provider] || [];
         return (
           <div
-            key={rule.condition}
-            className="grid grid-cols-[100px_1fr_1fr] gap-2 items-center px-1 py-1.5 rounded-lg hover:bg-gray-800/30 transition-colors"
-            data-testid={`routing-row-${rule.condition}`}
+            key={tier.condition}
+            className="flex items-center gap-2 px-1 py-1 rounded-lg hover:bg-gray-800/30 transition-colors"
+            data-testid={`routing-row-${tier.condition}`}
           >
-            <span className="text-xs text-gray-400 font-medium">
-              {CONDITION_LABELS[rule.condition]}
+            <span className={`text-[11px] font-mono font-bold w-[52px] flex-shrink-0 ${tier.color}`}>
+              {tier.label}
             </span>
             <select
               value={rule.provider}
               onChange={(e) => {
                 const newProvider = e.target.value as CLIProvider;
                 const firstModel = PROVIDER_MODELS[newProvider]?.[0]?.id || '';
-                handleRuleChange(idx, newProvider, firstModel);
+                handleRuleChange(tier.condition, newProvider, firstModel);
               }}
-              className="bg-gray-800 text-gray-200 text-xs rounded-md px-2 py-1.5 border border-gray-700
-                outline-none focus:border-cyan-600 transition-colors cursor-pointer"
+              className={selectClass}
             >
               {PROVIDERS.map((p) => (
                 <option key={p} value={p}>{p}</option>
@@ -223,9 +262,8 @@ function ModelRoutingTable({
             </select>
             <select
               value={rule.model}
-              onChange={(e) => handleRuleChange(idx, rule.provider, e.target.value)}
-              className="bg-gray-800 text-gray-200 text-xs rounded-md px-2 py-1.5 border border-gray-700
-                outline-none focus:border-cyan-600 transition-colors cursor-pointer"
+              onChange={(e) => handleRuleChange(tier.condition, rule.provider, e.target.value)}
+              className={selectClass}
             >
               {models.map((m) => (
                 <option key={m.id} value={m.id}>{m.label}</option>
@@ -384,19 +422,19 @@ function ScanTypeSelector({
             </button>
             <div className="grid grid-cols-2 gap-x-1">
               {agents.map((agent) => (
-                <label
+                <div
                   key={agent.id}
                   className="flex items-center gap-1.5 px-1.5 py-0.5 rounded hover:bg-gray-800/40 cursor-pointer transition-colors"
                 >
-                  <input
-                    type="checkbox"
+                  <StyledCheckbox
                     checked={safe.includes(agent.id)}
                     onChange={() => toggle(agent.id)}
-                    className="w-3 h-3 rounded border-gray-600 bg-gray-800 text-cyan-500 focus:ring-0 focus:ring-offset-0"
+                    size="sm"
+                    colorScheme="cyan"
                   />
                   <span className="text-[11px]">{agent.emoji}</span>
                   <span className="text-[11px] text-gray-300 truncate">{agent.label}</span>
-                </label>
+                </div>
               ))}
             </div>
           </div>
@@ -533,18 +571,18 @@ function ContextSelector({
             </button>
             <div className="grid grid-cols-2 gap-x-1">
               {ctxs.map((ctx) => (
-                <label
+                <div
                   key={ctx.id}
                   className="flex items-center gap-1.5 px-1.5 py-0.5 rounded hover:bg-gray-800/40 cursor-pointer transition-colors"
                 >
-                  <input
-                    type="checkbox"
+                  <StyledCheckbox
                     checked={safe.includes(ctx.id)}
                     onChange={() => toggle(ctx.id)}
-                    className="w-3 h-3 rounded border-gray-600 bg-gray-800 text-cyan-500 focus:ring-0 focus:ring-offset-0"
+                    size="sm"
+                    colorScheme="cyan"
                   />
                   <span className="text-[11px] text-gray-300 truncate">{ctx.name}</span>
-                </label>
+                </div>
               ))}
             </div>
           </div>
@@ -624,6 +662,15 @@ export default function BalancingModal({ isOpen, onClose }: BalancingModalProps)
                 max={30}
                 onChange={(v) => update({ maxIdeasPerCycle: v })}
               />
+              <div className="space-y-1.5">
+                <span className="text-xs text-gray-400">Provider / Model</span>
+                <ProviderModelSelect
+                  provider={config.scanProvider}
+                  model={config.scanModel}
+                  onProviderChange={(p) => update({ scanProvider: p })}
+                  onModelChange={(m) => update({ scanModel: m })}
+                />
+              </div>
             </div>
 
             {/* Column 2: Scan Types by Category */}
@@ -698,6 +745,15 @@ export default function BalancingModal({ isOpen, onClose }: BalancingModalProps)
               step={0.1}
               onChange={(v) => update({ autoTriageThreshold: v })}
             />
+            <div className="space-y-1.5">
+              <span className="text-xs text-gray-400">Provider / Model</span>
+              <ProviderModelSelect
+                provider={config.triageProvider}
+                model={config.triageModel}
+                onProviderChange={(p) => update({ triageProvider: p })}
+                onModelChange={(m) => update({ triageModel: m })}
+              />
+            </div>
           </div>
 
           {/* Batch */}
@@ -735,10 +791,23 @@ export default function BalancingModal({ isOpen, onClose }: BalancingModalProps)
             Row 3: Model Routing | Budget + Healing + Usage
             ================================================================ */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* Model Routing */}
+          {/* Execution Routing */}
           <div className="space-y-3 p-4 rounded-xl bg-gray-800/20 border border-gray-800/50">
-            <SectionHeader icon={Zap} label="Model Routing" colorClass="text-orange-400" />
-            <ModelRoutingTable
+            <SectionHeader icon={Zap} label="Execution Routing" colorClass="text-orange-400" />
+            <SliderControl
+              label="Task Timeout"
+              value={Math.round((config.executionTimeoutMs || 6000000) / 60000)}
+              min={5}
+              max={120}
+              step={5}
+              suffix=" min"
+              onChange={(v) => update({ executionTimeoutMs: v * 60000 })}
+              valueColor="text-orange-400"
+            />
+            <div className="space-y-1.5">
+              <span className="text-[10px] text-gray-500 uppercase font-semibold tracking-wide">By Effort Score</span>
+            </div>
+            <ComplexityRoutingTable
               routing={config.modelRouting}
               onChange={(routing) => update({ modelRouting: routing })}
             />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useRef, useEffect } from 'react';
+import { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Play, CheckCircle, XCircle, Clock, Copy, Check, Github, Settings, X, AlertTriangle } from 'lucide-react';
 import { CompactTerminal } from './CompactTerminal';
@@ -9,6 +9,7 @@ import type { QueuedTask } from './types';
 import type { CLISessionId, CLISessionState, CLIGitConfig } from './store';
 import { getAllSkills, type SkillId } from './skills';
 import { PROVIDER_MODELS, type CLIProvider, type CLIModel } from '@/lib/claude-terminal/types';
+import { UniversalSelect, type SelectOption } from '@/components/ui/UniversalSelect';
 
 interface CLISessionProps {
   sessionId: CLISessionId;
@@ -27,6 +28,7 @@ interface CLISessionProps {
   onExecutionChange: (sessionId: CLISessionId, executionId: string | null, taskId: string | null) => void;
   onProviderChange: (sessionId: CLISessionId, provider: CLIProvider) => void;
   onModelChange: (sessionId: CLISessionId, model: CLIModel | null) => void;
+  nerdMode?: boolean;
 }
 
 /**
@@ -63,6 +65,7 @@ export function CLISession({
   onExecutionChange,
   onProviderChange,
   onModelChange,
+  nerdMode = false,
 }: CLISessionProps) {
   const [copiedTaskId, setCopiedTaskId] = useState<string | null>(null);
   const [showGitConfig, setShowGitConfig] = useState(false);
@@ -70,6 +73,21 @@ export function CLISession({
   const gitConfigRef = useRef<HTMLDivElement>(null);
   const deleteConfirmRef = useRef<HTMLDivElement>(null);
   const allSkills = getAllSkills();
+
+  const providerOptions: SelectOption[] = useMemo(() => [
+    { value: 'claude', label: 'Claude' },
+    { value: 'gemini', label: 'Gemini' },
+    { value: 'copilot', label: 'Copilot' },
+    { value: 'ollama', label: 'Ollama' },
+  ], []);
+
+  const modelOptions: SelectOption[] = useMemo(() => [
+    { value: '', label: 'Default' },
+    ...(PROVIDER_MODELS[session.provider || 'claude'] || PROVIDER_MODELS.claude).map(m => ({
+      value: m.id,
+      label: m.label,
+    })),
+  ], [session.provider]);
 
   // Close git config panel on outside click
   useEffect(() => {
@@ -132,6 +150,136 @@ export function CLISession({
   const handleQueueEmpty = useCallback(() => onQueueEmpty(sessionId), [sessionId, onQueueEmpty]);
   const handleExecutionChange = useCallback((executionId: string | null, taskId: string | null) => onExecutionChange(sessionId, executionId, taskId), [sessionId, onExecutionChange]);
 
+  // ---- Nerd Mode: stripped-down, animation-free, monospace ----
+  if (nerdMode) {
+    const statusText = isRunning ? 'RUN' : hasQueue ? 'IDLE' : '---';
+    const statusClass = isRunning ? 'text-cyan-400' : hasQueue ? 'text-gray-300' : 'text-gray-600';
+
+    return (
+      <div className="flex flex-col font-mono border border-gray-800 bg-gray-950 overflow-hidden">
+        {/* Nerd Header */}
+        <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-800 text-[11px]">
+          <div className="flex items-center gap-2">
+            <span className="text-gray-500">S{index + 1}</span>
+            <span className={statusClass}>[{statusText}]</span>
+            <span className="text-gray-500">{session.provider || 'claude'}/{session.model || 'default'}</span>
+            {session.claudeSessionId && (
+              <span className="text-gray-600">{session.claudeSessionId.slice(0, 6)}</span>
+            )}
+            {session.completedCount > 0 && (
+              <span className="text-emerald-400">{session.completedCount}ok</span>
+            )}
+            {hasQueue && (
+              <span className="text-gray-500">
+                q={stats.pending}
+                {stats.running > 0 && <span className="text-cyan-400"> run={stats.running}</span>}
+                {stats.completed > 0 && <span className="text-emerald-400"> done={stats.completed}</span>}
+                {stats.failed > 0 && <span className="text-red-400"> fail={stats.failed}</span>}
+              </span>
+            )}
+            {session.gitEnabled && <span className="text-yellow-400/60">git</span>}
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleAddTasks}
+              disabled={selectedCount === 0}
+              className="px-1.5 py-0.5 text-[10px] text-cyan-400 hover:bg-cyan-500/10 disabled:opacity-30 disabled:cursor-not-allowed"
+              title={`Add ${selectedCount} selected tasks`}
+            >
+              +{selectedCount}
+            </button>
+            {canStart && (
+              <button
+                onClick={handleStart}
+                className="px-1.5 py-0.5 text-[10px] text-emerald-400 hover:bg-emerald-500/10"
+                title="Start queue"
+              >
+                [START]
+              </button>
+            )}
+            {hasSessionState && (
+              <button
+                onClick={() => {
+                  if (isRunning) {
+                    setShowDeleteConfirm(true);
+                  } else {
+                    handleDelete();
+                  }
+                }}
+                className="px-1 py-0.5 text-[10px] text-red-400/60 hover:text-red-400 hover:bg-red-500/10"
+                title={isRunning ? 'Stop & reset' : 'Reset'}
+              >
+                [X]
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Nerd Delete Confirm */}
+        {showDeleteConfirm && (
+          <div ref={deleteConfirmRef} className="px-2 py-1.5 border-b border-red-800/50 bg-red-950/20 text-[10px] flex items-center justify-between">
+            <span className="text-red-400">Abort running task and reset?</span>
+            <div className="flex gap-2">
+              <button onClick={() => setShowDeleteConfirm(false)} className="text-gray-500 hover:text-gray-300">[cancel]</button>
+              <button onClick={handleDelete} className="text-red-400 hover:text-red-300">[confirm]</button>
+            </div>
+          </div>
+        )}
+
+        {/* Nerd Queue */}
+        {hasQueue && (
+          <div className="px-2 py-1 border-b border-gray-800 text-[10px] text-gray-500 max-h-[40px] overflow-y-auto">
+            {session.queue.slice(0, 8).map(task => (
+              <span
+                key={task.id}
+                className={`mr-2 cursor-pointer hover:text-gray-300 ${
+                  task.status.type === 'running' ? 'text-cyan-400' :
+                  task.status.type === 'completed' ? 'text-emerald-400' :
+                  task.status.type === 'failed' ? 'text-red-400' :
+                  'text-gray-500'
+                }`}
+                onClick={() => handleCopyFilename(task.id, task.requirementName)}
+                title={task.requirementName}
+              >
+                {task.requirementName.slice(0, 15)}
+                {copiedTaskId === task.id && <span className="text-emerald-400 ml-0.5">&check;</span>}
+              </span>
+            ))}
+            {session.queue.length > 8 && <span className="text-gray-600">+{session.queue.length - 8}</span>}
+          </div>
+        )}
+
+        {/* Terminal (same in both modes) */}
+        <div className="flex-1 min-h-[200px]">
+          {session.projectPath ? (
+            <CompactTerminal
+              instanceId={sessionId}
+              projectPath={session.projectPath}
+              title=""
+              className="h-full border-0 rounded-none"
+              taskQueue={session.queue}
+              autoStart={session.autoStart}
+              enabledSkills={session.enabledSkills}
+              currentExecutionId={session.currentExecutionId}
+              currentStoredTaskId={session.currentTaskId}
+              onTaskStart={handleTaskStart}
+              onTaskComplete={handleTaskComplete}
+              onQueueEmpty={handleQueueEmpty}
+              onExecutionChange={handleExecutionChange}
+              provider={session.provider}
+              model={session.model}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-600 text-[10px] font-mono">
+              awaiting tasks...
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ---- Rich Mode (default) ----
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -319,28 +467,26 @@ export function CLISession({
           {/* Provider & Model selectors - only when not running */}
           {!session.isRunning && (
             <div className="flex items-center gap-1 px-1 border-l border-gray-700/50 ml-1">
-              <select
+              <UniversalSelect
                 value={session.provider || 'claude'}
-                onChange={(e) => onProviderChange(sessionId, e.target.value as CLIProvider)}
-                className="text-[10px] bg-gray-800/80 text-gray-300 border border-gray-700/50 rounded px-1 py-0.5 outline-none focus:border-purple-500/50 cursor-pointer hover:bg-gray-700/50 transition-colors appearance-none"
-                title="CLI Provider"
-              >
-                <option value="claude">Claude</option>
-                <option value="gemini">Gemini</option>
-                <option value="copilot">Copilot</option>
-                <option value="ollama">Ollama</option>
-              </select>
-              <select
+                onChange={(v) => onProviderChange(sessionId, v as CLIProvider)}
+                options={providerOptions}
+                variant="compact"
+                size="sm"
+                searchable={false}
+                required
+                className="w-[90px]"
+              />
+              <UniversalSelect
                 value={session.model || ''}
-                onChange={(e) => onModelChange(sessionId, (e.target.value || null) as CLIModel | null)}
-                className="text-[10px] bg-gray-800/80 text-gray-300 border border-gray-700/50 rounded px-1 py-0.5 outline-none focus:border-purple-500/50 cursor-pointer hover:bg-gray-700/50 transition-colors appearance-none"
-                title="Model"
-              >
-                <option value="">Default</option>
-                {(PROVIDER_MODELS[session.provider || 'claude'] || PROVIDER_MODELS.claude).map(m => (
-                  <option key={m.id} value={m.id}>{m.label}</option>
-                ))}
-              </select>
+                onChange={(v) => onModelChange(sessionId, (v || null) as CLIModel | null)}
+                options={modelOptions}
+                variant="compact"
+                size="sm"
+                searchable={false}
+                placeholder="Default"
+                className="w-[110px]"
+              />
             </div>
           )}
 

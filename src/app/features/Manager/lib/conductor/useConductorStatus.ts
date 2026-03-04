@@ -1,10 +1,9 @@
 /**
  * useConductorStatus — Shared polling hook for conductor pipeline status
  *
- * Always fetches on mount (regardless of isRunning) to discover active runs
- * that may have been running while the component was unmounted. Then polls
- * every 3s while a run is active. Used by both GlobalTaskBar's ConductorProgress
- * and ConductorView.
+ * Fetches once on mount to discover active runs. Then polls every 3s ONLY
+ * while a run is active (running/paused). Stops polling when idle to avoid
+ * unnecessary network traffic.
  */
 
 'use client';
@@ -18,6 +17,15 @@ export function useConductorStatus(enabled = true) {
   const projectId = activeProject?.id || null;
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
+  const isRunning = useConductorStore((s) => s.isRunning);
+  const isPaused = useConductorStore((s) => s.isPaused);
+  const currentRun = useConductorStore((s) => s.currentRun);
+  const processLog = useConductorStore((s) => s.processLog);
+
+  // Pipeline is active if running, paused, or has a non-terminal run status
+  const isActive = isRunning || isPaused || (
+    currentRun?.status === 'running' || currentRun?.status === 'paused' || currentRun?.status === 'stopping'
+  );
 
   const fetchStatus = useCallback(async () => {
     if (!projectId || !mountedRef.current) return;
@@ -34,30 +42,35 @@ export function useConductorStatus(enabled = true) {
     }
   }, [projectId]);
 
+  // Fetch once on mount to discover active runs
   useEffect(() => {
     mountedRef.current = true;
     if (!enabled || !projectId) return;
-
-    // Always fetch once immediately on mount — discovers active runs
-    // even when isRunning is false (stale after navigation)
     fetchStatus();
+    return () => { mountedRef.current = false; };
+  }, [enabled, projectId, fetchStatus]);
 
-    // Continue polling every 3 seconds
+  // Poll every 3s only while pipeline is active
+  useEffect(() => {
+    if (!enabled || !projectId || !isActive) {
+      // Clear any existing interval when pipeline goes idle
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+      return;
+    }
+
+    // Start polling
     pollRef.current = setInterval(fetchStatus, 3000);
 
     return () => {
-      mountedRef.current = false;
       if (pollRef.current) {
         clearInterval(pollRef.current);
         pollRef.current = null;
       }
     };
-  }, [enabled, projectId, fetchStatus]);
-
-  const currentRun = useConductorStore((s) => s.currentRun);
-  const isRunning = useConductorStore((s) => s.isRunning);
-  const isPaused = useConductorStore((s) => s.isPaused);
-  const processLog = useConductorStore((s) => s.processLog);
+  }, [enabled, projectId, isActive, fetchStatus]);
 
   return { currentRun, isRunning, isPaused, processLog, projectId };
 }
