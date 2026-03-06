@@ -10,12 +10,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Network, RefreshCw, Loader2, GitBranch } from 'lucide-react';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import CrossContextGraph from './CrossContextGraph';
 import type { ContextGraph, CascadeAnalysis } from '@/lib/ideas/crossContextGraph';
 
 export default function CrossContextDashboard() {
-  const activeProject = useActiveProjectStore((s) => s.activeProject);
+  const activeProject = useClientProjectStore((s) => s.activeProject);
   const [graph, setGraph] = useState<ContextGraph | null>(null);
   const [cascade, setCascade] = useState<CascadeAnalysis | null>(null);
   const [selectedContextId, setSelectedContextId] = useState<string | null>(null);

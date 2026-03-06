@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { Project } from '@/types';
 
 interface RunnerRightPanelProps {
@@ -13,7 +13,7 @@ interface RunnerRightPanelProps {
  * Allows users to select a project for AI interaction
  */
 export default function RunnerRightPanel({ onAnnetteInteraction }: RunnerRightPanelProps) {
-  const { projects } = useProjectConfigStore();
+  const { projects } = useServerProjectStore();
 
   const handleProjectSelect = (project: Project) => {
     if (onAnnetteInteraction) {

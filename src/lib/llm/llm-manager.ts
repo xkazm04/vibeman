@@ -1,13 +1,15 @@
 // Main LLM Manager - Unified interface for all LLM providers
 
 import { LLMRequest, LLMResponse, LLMProgress, LLMProvider, SupportedProvider } from './types';
-import { APIKeyStorage, ProviderConfigStorage, DefaultProviderStorage } from './llm-storage';
+import { APIKeyStorage, ProviderConfigStorage, DefaultProviderStorage, DEFAULT_FALLBACK_CHAIN } from './llm-storage';
+import { getCircuitBreakerManager, initializeCircuitBreakerManager } from './circuitBreaker';
 import { OpenAIClient } from './providers/openai-client';
 import { AnthropicClient } from './providers/anthropic-client';
 import { GeminiClient } from './providers/gemini-client';
 import { OllamaClient } from './providers/ollama-client';
 import { InternalClient } from './providers/internal-client';
 import { GroqClient } from './providers/groq-client';
+import { logger } from '@/lib/logger';
 
 export class LLMManager {
   private providers: Map<SupportedProvider, LLMProvider> = new Map();
@@ -114,7 +116,13 @@ export class LLMManager {
   }
 
   /**
-   * Generate text using specified provider or default provider
+   * Generate text using specified provider or default provider.
+   *
+   * Integrates with the circuit breaker:
+   * 1. If preferred provider's circuit is open, auto-fallback through the chain.
+   * 2. On success → record success with the breaker.
+   * 3. On failure → record failure (ErrorClassifier inside breaker decides
+   *    whether it's transient and counts toward tripping the circuit).
    */
   async generate(
     request: LLMRequest & { provider?: SupportedProvider },
@@ -122,36 +130,79 @@ export class LLMManager {
   ): Promise<LLMResponse> {
     this.initializeProviders();
 
-    const provider = request.provider || DefaultProviderStorage.getDefaultProvider();
-    const client = this.providers.get(provider);
+    const preferred = request.provider || DefaultProviderStorage.getDefaultProvider();
+    const cbManager = getCircuitBreakerManager();
 
-    if (!client) {
-      return {
-        success: false,
-        error: `Provider '${provider}' is not available`,
-        provider
-      };
+    // Build ordered attempt list: preferred first, then fallback chain
+    const attemptOrder = this.buildAttemptOrder(preferred);
+
+    for (const provider of attemptOrder) {
+      // Skip providers whose circuit is open
+      if (!cbManager.canHandle(provider)) continue;
+
+      // Skip disabled providers
+      if (!ProviderConfigStorage.isProviderEnabled(provider)) continue;
+
+      const client = this.providers.get(provider);
+      if (!client) continue;
+
+      try {
+        const response = await client.generate(request, progress);
+
+        if (response.success) {
+          cbManager.recordSuccess(provider);
+          return { ...response, provider };
+        }
+
+        // Provider returned { success: false } — record as failure
+        const errorMsg = response.error || `${provider} returned unsuccessful response`;
+
+        // Detect rate limiting from error code or message
+        if (response.errorCode === 429 || /rate.?limit/i.test(errorMsg)) {
+          cbManager.recordRateLimit(provider);
+        } else {
+          cbManager.recordFailure(provider, new Error(errorMsg));
+        }
+
+        // If preferred provider failed, log and continue to next in chain
+        if (provider === preferred && attemptOrder.length > 1) {
+          logger.warn('Preferred LLM provider failed, trying fallback', {
+            preferred: provider,
+            error: errorMsg
+          });
+        }
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        cbManager.recordFailure(provider, err);
+
+        if (provider === preferred && attemptOrder.length > 1) {
+          logger.warn('Preferred LLM provider threw, trying fallback', {
+            preferred: provider,
+            error: err.message
+          });
+        }
+      }
     }
 
-    // Check if provider is enabled
-    if (!ProviderConfigStorage.isProviderEnabled(provider)) {
-      return {
-        success: false,
-        error: `Provider '${provider}' is disabled`,
-        provider
-      };
-    }
+    // All providers exhausted
+    return {
+      success: false,
+      error: `All LLM providers failed (tried: ${attemptOrder.join(', ')})`,
+      provider: preferred
+    };
+  }
 
-    try {
-      const response = await client.generate(request, progress);
-      return { ...response, provider };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        provider
-      };
+  /**
+   * Build ordered list of providers to attempt:
+   * preferred first, then remaining chain members in order.
+   */
+  private buildAttemptOrder(preferred: SupportedProvider): SupportedProvider[] {
+    const chain = DEFAULT_FALLBACK_CHAIN;
+    const order: SupportedProvider[] = [preferred];
+    for (const p of chain) {
+      if (p !== preferred) order.push(p);
     }
+    return order;
   }
 
   /**

@@ -9,7 +9,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plug, FileText, Activity } from 'lucide-react';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { IntegrationsDashboard } from './IntegrationsDashboard';
 import { TemplateDiscoveryPanel } from './sub_TemplateDiscovery/TemplateDiscoveryPanel';
 import { EventsLog } from './components/EventsLog';
@@ -42,7 +42,7 @@ function EmptyProjectState() {
 
 export default function IntegrationsLayout({ projectId: propProjectId }: IntegrationsLayoutProps) {
   const [activeTab, setActiveTab] = useState<TabType>('connectors');
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
 
   const projectId = propProjectId || activeProject?.id || null;
   const projectName = activeProject?.name;

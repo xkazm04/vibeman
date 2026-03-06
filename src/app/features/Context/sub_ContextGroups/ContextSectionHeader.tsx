@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Code, Database, Layers, Grid, Activity, Cpu } from 'lucide-react';
 import { ContextGroup, Context } from '../../../../stores/contextStore';
-import { useActiveProjectStore } from '../../../../stores/activeProjectStore';
+import { useClientProjectStore } from '../../../../stores/clientProjectStore';
 import { isFrontendType } from '../../../../lib/projectTypeHelpers';
 import { SYNTHETIC_GROUP_ID } from '../lib/constants';
 import { GroupHealthScanButton } from './components/GroupHealthScanButton';
@@ -18,7 +18,7 @@ interface ContextSectionHeaderProps {
 }
 
 const ContextSectionHeader = React.memo(({ group, contexts, projectId, openGroupDetail }: ContextSectionHeaderProps) => {
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
   const isSyntheticGroup = group?.id === SYNTHETIC_GROUP_ID;
   const showBeautifyButton = activeProject?.type ? isFrontendType(activeProject.type) : false;
 

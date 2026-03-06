@@ -9,7 +9,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Context } from '../../../../stores/contextStore';
 import SaveContextFileDialog from '../../../../components/SaveContextFileDialog';
-import { useActiveProjectStore } from '../../../../stores/activeProjectStore';
+import { useClientProjectStore } from '../../../../stores/clientProjectStore';
 import { generatePlaceholderContent } from './ContextPlaceholder';
 import ContextModalHeader from './ContextModalHeader';
 import ContextModalContent from './ContextModalContent';
@@ -28,7 +28,7 @@ interface ContextFileModalProps {
 }
 
 export default function ContextFileModal({ isOpen, onClose, context: propContext }: ContextFileModalProps) {
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
 
   // Get cached context with real-time updates
   const { context: cachedContext } = useContextWithCache(propContext.id);

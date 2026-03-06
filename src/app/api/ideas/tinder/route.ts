@@ -24,12 +24,13 @@ async function handleGet(request: NextRequest) {
 
     // Validate pagination parameters
     const offset = parseInt(offsetParam, 10);
-    const limit = parseInt(limitParam, 10);
-    if (isNaN(offset) || isNaN(limit) || offset < 0 || limit < 1) {
+    const rawLimit = parseInt(limitParam, 10);
+    if (isNaN(offset) || isNaN(rawLimit) || offset < 0 || rawLimit < 1) {
       return createIdeasErrorResponse(IdeasErrorCode.INVALID_PAGINATION, {
         details: `Invalid offset (${offsetParam}) or limit (${limitParam})`,
       });
     }
+    const limit = Math.min(rawLimit, 100);
 
     // Validate status parameter
     if (!isValidIdeaStatus(status)) {
@@ -65,6 +66,7 @@ async function handleGet(request: NextRequest) {
       ideas,
       hasMore,
       total,
+      pagination: { appliedLimit: limit, offset },
     });
   } catch (error) {
     return handleIdeasApiError(error, IdeasErrorCode.DATABASE_ERROR);

@@ -13,8 +13,8 @@ import AsyncVoiceSolution from './components/AsyncVoiceSolution';
 import WebSocketVoiceSolution from './components/WebSocketVoiceSolution';
 import ConversationSolution from './components/ConversationSolution';
 import PromptManager from './components/PromptManager';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 
 // Context type (matching the API response)
 interface Context {
@@ -36,11 +36,11 @@ export default function VoicebotPage() {
   const colors = getThemeColors();
   
   // Project and Context state
-  const projects = useProjectConfigStore((state) => state.getAllProjects());
-  const activeProject = useActiveProjectStore((state) => state.activeProject);
-  const activeContext = useActiveProjectStore((state) => state.activeContext);
-  const setActiveProject = useActiveProjectStore((state) => state.setActiveProject);
-  const setActiveContext = useActiveProjectStore((state) => state.setActiveContext);
+  const projects = useServerProjectStore((state) => state.getAllProjects());
+  const activeProject = useClientProjectStore((state) => state.activeProject);
+  const activeContext = useClientProjectStore((state) => state.activeContext);
+  const setActiveProject = useClientProjectStore((state) => state.setActiveProject);
+  const setActiveContext = useClientProjectStore((state) => state.setActiveContext);
   
   const [availableContexts, setAvailableContexts] = useState<Context[]>([]);
   const [loadingContexts, setLoadingContexts] = useState(false);

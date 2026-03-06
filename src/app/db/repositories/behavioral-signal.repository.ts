@@ -8,6 +8,7 @@
  */
 
 import { getHotWritesDatabase } from '../hot-writes';
+import { getDatabase } from '../connection';
 import type {
   DbBehavioralSignal,
   CreateBehavioralSignalInput,
@@ -15,6 +16,25 @@ import type {
 import type { BehavioralSignalType } from '@/types/signals';
 import { getAllSignalTypes } from '@/types/signals';
 import { getCurrentTimestamp, selectOne, selectAll } from './repository.utils';
+
+/**
+ * Clean up evidence junction rows in the main DB for deleted signal IDs.
+ * Required because signals live in hot-writes.db (separate SQLite file)
+ * so the trigger_delete_signal_evidence trigger on the main DB never fires.
+ */
+function cleanupSignalEvidence(signalIds: string[]): void {
+  if (signalIds.length === 0) return;
+  try {
+    const mainDb = getDatabase();
+    const placeholders = signalIds.map(() => '?').join(',');
+    mainDb.prepare(
+      `DELETE FROM brain_insight_evidence
+       WHERE evidence_type = 'signal' AND evidence_id IN (${placeholders})`
+    ).run(...signalIds);
+  } catch {
+    // Best-effort cleanup — don't break signal deletion if main DB is unavailable
+  }
+}
 
 /**
  * Get the start of the current week (Monday 00:00 UTC) as ISO string.
@@ -263,12 +283,22 @@ export const behavioralSignalRepository = {
     const db = getHotWritesDatabase();
     const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
 
+    // Collect IDs before deletion for cross-DB evidence cleanup
+    const ids = selectAll<{ id: string }>(
+      db,
+      'SELECT id FROM behavioral_signals WHERE project_id = ? AND timestamp < ?',
+      projectId, cutoff
+    ).map(r => r.id);
+
     const stmt = db.prepare(`
       DELETE FROM behavioral_signals
       WHERE project_id = ? AND timestamp < ?
     `);
 
     const result = stmt.run(projectId, cutoff);
+    if (ids.length > 0) {
+      cleanupSignalEvidence(ids);
+    }
     return result.changes;
   },
 
@@ -279,6 +309,9 @@ export const behavioralSignalRepository = {
     const db = getHotWritesDatabase();
     const stmt = db.prepare('DELETE FROM behavioral_signals WHERE id = ?');
     const result = stmt.run(id);
+    if (result.changes > 0) {
+      cleanupSignalEvidence([id]);
+    }
     return result.changes > 0;
   },
 
@@ -287,8 +320,15 @@ export const behavioralSignalRepository = {
    */
   deleteByProject: (projectId: string): number => {
     const db = getHotWritesDatabase();
+    // Collect IDs before deletion for cross-DB evidence cleanup
+    const ids = selectAll<{ id: string }>(
+      db, 'SELECT id FROM behavioral_signals WHERE project_id = ?', projectId
+    ).map(r => r.id);
     const stmt = db.prepare('DELETE FROM behavioral_signals WHERE project_id = ?');
     const result = stmt.run(projectId);
+    if (ids.length > 0) {
+      cleanupSignalEvidence(ids);
+    }
     return result.changes;
   },
 
@@ -329,6 +369,43 @@ export const behavioralSignalRepository = {
   },
 
   /**
+   * Get temporal aggregation: signal counts grouped by hour-of-day and day-of-week.
+   * Used for developer rhythm heatmap showing activity patterns by time slot.
+   *
+   * day_of_week: 0=Sunday, 1=Monday, ..., 6=Saturday (SQLite %w convention)
+   * hour: 0-23 (local time from timestamp)
+   */
+  getTemporalAggregation: (
+    projectId: string,
+    windowDays: number = 30
+  ): Array<{
+    hour: number;
+    day_of_week: number;
+    signal_type: string;
+    signal_count: number;
+    total_weight: number;
+  }> => {
+    const db = getHotWritesDatabase();
+    const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString();
+
+    return selectAll(
+      db,
+      `SELECT
+        CAST(strftime('%H', timestamp) AS INTEGER) as hour,
+        CAST(strftime('%w', timestamp) AS INTEGER) as day_of_week,
+        signal_type,
+        COUNT(*) as signal_count,
+        SUM(weight) as total_weight
+       FROM behavioral_signals
+       WHERE project_id = ? AND timestamp >= ?
+       GROUP BY hour, day_of_week, signal_type
+       ORDER BY day_of_week ASC, hour ASC`,
+      projectId,
+      since
+    );
+  },
+
+  /**
    * Check if any signals exist for a project
    */
   hasSignals: (projectId: string): boolean => {
@@ -339,5 +416,61 @@ export const behavioralSignalRepository = {
       projectId
     );
     return (result?.count ?? 0) > 0;
+  },
+
+  /**
+   * Get child signals that belong to a specific cluster
+   */
+  getByClusterId: (clusterId: string): DbBehavioralSignal[] => {
+    const db = getHotWritesDatabase();
+    return selectAll<DbBehavioralSignal>(
+      db,
+      `SELECT * FROM behavioral_signals
+       WHERE cluster_id = ?
+       ORDER BY timestamp ASC`,
+      clusterId
+    );
+  },
+
+  /**
+   * Get signals excluding those already absorbed into clusters.
+   * Useful for canvas/timeline views where clusters replace their children.
+   */
+  getUnclusteredByProject: (
+    projectId: string,
+    options?: {
+      signalType?: BehavioralSignalType;
+      contextId?: string;
+      limit?: number;
+      since?: string;
+    }
+  ): DbBehavioralSignal[] => {
+    const db = getHotWritesDatabase();
+    let query = 'SELECT * FROM behavioral_signals WHERE project_id = ? AND cluster_id IS NULL';
+    const params: unknown[] = [projectId];
+
+    if (options?.signalType) {
+      query += ' AND signal_type = ?';
+      params.push(options.signalType);
+    }
+
+    if (options?.contextId) {
+      query += ' AND context_id = ?';
+      params.push(options.contextId);
+    }
+
+    if (options?.since) {
+      query += ' AND timestamp >= ?';
+      params.push(options.since);
+    }
+
+    query += ' ORDER BY timestamp DESC';
+
+    if (options?.limit) {
+      query += ' LIMIT ?';
+      params.push(options.limit);
+    }
+
+    return selectAll<DbBehavioralSignal>(db, query, ...params);
   },
 };

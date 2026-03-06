@@ -23,6 +23,24 @@ export interface CategoryConfig {
   emoji: string;
   icon: LucideIcon;
   color: string;
+  label: string;
+  accent: CategoryAccent;
+}
+
+/** Tailwind class sets for category-themed UI elements */
+export interface CategoryAccent {
+  /** Left-border accent for buffer columns: e.g. 'border-l-blue-500/60' */
+  border: string;
+  /** Header gradient background: e.g. 'from-blue-500/10 to-transparent' */
+  headerBg: string;
+  /** Dot indicator: e.g. 'bg-blue-400' */
+  dot: string;
+  /** Active state classes (selected filter/tab) */
+  active: string;
+  /** Hover state classes (inactive filter/tab) */
+  inactive: string;
+  /** Badge background when active */
+  badgeBg: string;
 }
 
 export interface StatusConfig {
@@ -101,17 +119,85 @@ export function createScaleConfig(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Color accent presets — maps color names to Tailwind class sets
+// ---------------------------------------------------------------------------
+
+const COLOR_ACCENTS: Record<string, CategoryAccent> = {
+  blue: {
+    border: 'border-l-blue-500/60',
+    headerBg: 'from-blue-500/10 to-transparent',
+    dot: 'bg-blue-400',
+    active: 'bg-blue-500/20 text-blue-300 border-blue-500/40 shadow-blue-500/20',
+    inactive: 'hover:bg-blue-500/10 hover:border-blue-500/20',
+    badgeBg: 'bg-blue-500/30',
+  },
+  green: {
+    border: 'border-l-emerald-500/60',
+    headerBg: 'from-emerald-500/10 to-transparent',
+    dot: 'bg-emerald-400',
+    active: 'bg-green-500/20 text-green-300 border-green-500/40 shadow-green-500/20',
+    inactive: 'hover:bg-green-500/10 hover:border-green-500/20',
+    badgeBg: 'bg-green-500/30',
+  },
+  amber: {
+    border: 'border-l-amber-500/60',
+    headerBg: 'from-amber-500/10 to-transparent',
+    dot: 'bg-amber-400',
+    active: 'bg-orange-500/20 text-orange-300 border-orange-500/40 shadow-orange-500/20',
+    inactive: 'hover:bg-orange-500/10 hover:border-orange-500/20',
+    badgeBg: 'bg-orange-500/30',
+  },
+  pink: {
+    border: 'border-l-pink-500/60',
+    headerBg: 'from-pink-500/10 to-transparent',
+    dot: 'bg-pink-400',
+    active: 'bg-pink-500/20 text-pink-300 border-pink-500/40 shadow-pink-500/20',
+    inactive: 'hover:bg-pink-500/10 hover:border-pink-500/20',
+    badgeBg: 'bg-pink-500/30',
+  },
+  purple: {
+    border: 'border-l-purple-500/60',
+    headerBg: 'from-purple-500/10 to-transparent',
+    dot: 'bg-purple-400',
+    active: 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-purple-500/20',
+    inactive: 'hover:bg-purple-500/10 hover:border-purple-500/20',
+    badgeBg: 'bg-purple-500/30',
+  },
+  red: {
+    border: 'border-l-red-500/60',
+    headerBg: 'from-red-500/10 to-transparent',
+    dot: 'bg-red-400',
+    active: 'bg-red-500/20 text-red-300 border-red-500/40 shadow-red-500/20',
+    inactive: 'hover:bg-red-500/10 hover:border-red-500/20',
+    badgeBg: 'bg-red-500/30',
+  },
+  gray: {
+    border: 'border-l-zinc-500/40',
+    headerBg: 'from-zinc-500/8 to-transparent',
+    dot: 'bg-zinc-400',
+    active: 'bg-gray-500/20 text-gray-300 border-gray-500/40 shadow-gray-500/20',
+    inactive: 'hover:bg-gray-500/10 hover:border-gray-500/20',
+    badgeBg: 'bg-gray-500/30',
+  },
+};
+
 /**
- * Category configuration
- * Maps standard idea categories to their visual representation
+ * Category configuration — single source of truth
+ * Maps standard idea categories to their visual representation including accent classes.
  */
 export const categoryConfig: Record<IdeaCategory, CategoryConfig> = {
-  functionality: { emoji: '⚡', icon: Zap, color: 'blue' },
-  performance: { emoji: '📊', icon: Gauge, color: 'green' },
-  maintenance: { emoji: '🔧', icon: Wrench, color: 'amber' },
-  ui: { emoji: '🎨', icon: Palette, color: 'pink' },
-  code_quality: { emoji: '💻', icon: Code2, color: 'purple' },
-  user_benefit: { emoji: '❤️', icon: Heart, color: 'red' },
+  functionality: { emoji: '⚡', icon: Zap, color: 'blue', label: 'Functionality', accent: COLOR_ACCENTS.blue },
+  performance: { emoji: '📊', icon: Gauge, color: 'green', label: 'Performance', accent: COLOR_ACCENTS.green },
+  maintenance: { emoji: '🔧', icon: Wrench, color: 'amber', label: 'Maintenance', accent: COLOR_ACCENTS.amber },
+  ui: { emoji: '🎨', icon: Palette, color: 'pink', label: 'UI/UX', accent: COLOR_ACCENTS.pink },
+  code_quality: { emoji: '💻', icon: Code2, color: 'purple', label: 'Code Quality', accent: COLOR_ACCENTS.purple },
+  user_benefit: { emoji: '❤️', icon: Heart, color: 'red', label: 'User Benefit', accent: COLOR_ACCENTS.red },
+};
+
+const FALLBACK_CONFIG: CategoryConfig = {
+  emoji: '💡', icon: Sparkles, color: 'gray', label: 'Other',
+  accent: COLOR_ACCENTS.gray,
 };
 
 /**
@@ -123,8 +209,15 @@ export function getCategoryConfig(category: string): CategoryConfig {
   if (isStandardCategory(category)) {
     return categoryConfig[category];
   }
-  // Fallback for custom/non-standard categories
-  return { emoji: '💡', icon: Sparkles, color: 'gray' };
+  return FALLBACK_CONFIG;
+}
+
+/**
+ * Get accent classes for a color name.
+ * Used by components that receive a color string rather than a category.
+ */
+export function getColorAccent(color: string): CategoryAccent {
+  return COLOR_ACCENTS[color] || COLOR_ACCENTS.gray;
 }
 
 /**

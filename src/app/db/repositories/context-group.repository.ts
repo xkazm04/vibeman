@@ -1,17 +1,14 @@
 import { getDatabase } from '../connection';
 import { DbContextGroup } from '../models/types';
+import { createGenericRepository } from './generic.repository';
 
 // Valid layer types for architecture explorer
 export type ContextGroupLayerType = 'pages' | 'client' | 'server' | 'external';
 
-/**
- * Helper function to get a context group by ID
- */
-function getGroupById(id: string): DbContextGroup | null {
-  const db = getDatabase();
-  const stmt = db.prepare('SELECT * FROM context_groups WHERE id = ?');
-  return stmt.get(id) as DbContextGroup | null;
-}
+const base = createGenericRepository<DbContextGroup>({
+  tableName: 'context_groups',
+  defaultOrder: 'position ASC',
+});
 
 /**
  * Context Group Repository
@@ -21,22 +18,12 @@ export const contextGroupRepository = {
   /**
    * Get a single context group by ID
    */
-  getGroupById: (id: string): DbContextGroup | null => {
-    return getGroupById(id);
-  },
+  getGroupById: (id: string): DbContextGroup | null => base.getById(id),
 
   /**
    * Get all context groups for a project
    */
-  getGroupsByProject: (projectId: string): DbContextGroup[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM context_groups
-      WHERE project_id = ?
-      ORDER BY position ASC
-    `);
-    return stmt.all(projectId) as DbContextGroup[];
-  },
+  getGroupsByProject: (projectId: string): DbContextGroup[] => base.getByProject(projectId),
 
   /**
    * Get context groups by layer type for Architecture Explorer
@@ -96,8 +83,7 @@ export const contextGroupRepository = {
       now
     );
 
-    // Return the created group
-    return getGroupById(group.id)!;
+    return base.getById(group.id)!;
   },
 
   /**
@@ -109,59 +95,7 @@ export const contextGroupRepository = {
     position?: number;
     icon?: string | null;
     type?: ContextGroupLayerType | null;
-  }): DbContextGroup | null => {
-    const db = getDatabase();
-    const now = new Date().toISOString();
-
-    // Build dynamic update query
-    const updateFields: string[] = [];
-    const values: Array<string | number | null> = [];
-
-    if (updates.name !== undefined) {
-      updateFields.push('name = ?');
-      values.push(updates.name);
-    }
-    if (updates.color !== undefined) {
-      updateFields.push('color = ?');
-      values.push(updates.color);
-    }
-    if (updates.position !== undefined) {
-      updateFields.push('position = ?');
-      values.push(updates.position);
-    }
-    if (updates.icon !== undefined) {
-      updateFields.push('icon = ?');
-      values.push(updates.icon);
-    }
-    if (updates.type !== undefined) {
-      updateFields.push('type = ?');
-      values.push(updates.type);
-    }
-
-    if (updateFields.length === 0) {
-      // No updates to make
-      return getGroupById(id);
-    }
-
-    updateFields.push('updated_at = ?');
-    values.push(now);
-    values.push(id);
-
-    const stmt = db.prepare(`
-      UPDATE context_groups
-      SET ${updateFields.join(', ')}
-      WHERE id = ?
-    `);
-
-    const result = stmt.run(...values);
-
-    if (result.changes === 0) {
-      return null; // Group not found
-    }
-
-    // Return the updated group
-    return getGroupById(id);
-  },
+  }): DbContextGroup | null => base.update(id, updates as Record<string, unknown>),
 
   /**
    * Delete a context group (will set group_id to NULL for associated contexts)
@@ -180,12 +114,7 @@ export const contextGroupRepository = {
    * Delete all context groups for a project
    * Returns the number of deleted groups
    */
-  deleteAllByProject: (projectId: string): number => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM context_groups WHERE project_id = ?');
-    const result = stmt.run(projectId);
-    return result.changes;
-  },
+  deleteAllByProject: (projectId: string): number => base.deleteByProject(projectId),
 
   /**
    * Get the maximum position for a project
@@ -204,16 +133,7 @@ export const contextGroupRepository = {
   /**
    * Get group count for a project
    */
-  getGroupCount: (projectId: string): number => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT COUNT(*) as count
-      FROM context_groups
-      WHERE project_id = ?
-    `);
-    const result = stmt.get(projectId) as { count: number };
-    return result.count;
-  },
+  getGroupCount: (projectId: string): number => base.countByProject(projectId),
 
   /**
    * Get all context groups across all projects
@@ -231,16 +151,5 @@ export const contextGroupRepository = {
    * Get all context groups for multiple projects in a single query
    * Uses SQL IN clause for efficient batching
    */
-  getGroupsByProjects: (projectIds: string[]): DbContextGroup[] => {
-    if (projectIds.length === 0) return [];
-
-    const db = getDatabase();
-    const placeholders = projectIds.map(() => '?').join(', ');
-    const stmt = db.prepare(`
-      SELECT * FROM context_groups
-      WHERE project_id IN (${placeholders})
-      ORDER BY project_id, position ASC
-    `);
-    return stmt.all(...projectIds) as DbContextGroup[];
-  }
+  getGroupsByProjects: (projectIds: string[]): DbContextGroup[] => base.getByProjects(projectIds)
 };

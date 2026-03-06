@@ -1,6 +1,11 @@
 import { getDatabase } from '../connection';
 import { DbQuestion } from '../models/types';
-import { buildUpdateQuery, getCurrentTimestamp, selectOne } from './repository.utils';
+import { getCurrentTimestamp, selectOne } from './repository.utils';
+import { createGenericRepository } from './generic.repository';
+
+const base = createGenericRepository<DbQuestion>({
+  tableName: 'questions',
+});
 
 /**
  * Question Repository
@@ -12,15 +17,7 @@ export const questionRepository = {
   /**
    * Get all questions for a project
    */
-  getQuestionsByProject: (projectId: string): DbQuestion[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM questions
-      WHERE project_id = ?
-      ORDER BY created_at DESC
-    `);
-    return stmt.all(projectId) as DbQuestion[];
-  },
+  getQuestionsByProject: (projectId: string): DbQuestion[] => base.getByProject(projectId),
 
   /**
    * Get questions by context_map_id
@@ -77,10 +74,7 @@ export const questionRepository = {
   /**
    * Get a single question by ID
    */
-  getQuestionById: (questionId: string): DbQuestion | null => {
-    const db = getDatabase();
-    return selectOne<DbQuestion>(db, 'SELECT * FROM questions WHERE id = ?', questionId);
-  },
+  getQuestionById: (questionId: string): DbQuestion | null => base.getById(questionId),
 
   /**
    * Create a new question
@@ -122,7 +116,7 @@ export const questionRepository = {
       now
     );
 
-    return selectOne<DbQuestion>(db, 'SELECT * FROM questions WHERE id = ?', question.id)!;
+    return base.getById(question.id)!;
   },
 
   /**
@@ -137,33 +131,7 @@ export const questionRepository = {
     strategic_brief?: string | null;
     gap_score?: number | null;
     gap_analysis?: string | null;
-  }): DbQuestion | null => {
-    const db = getDatabase();
-    const { fields, values } = buildUpdateQuery(updates);
-
-    if (fields.length === 0) {
-      return selectOne<DbQuestion>(db, 'SELECT * FROM questions WHERE id = ?', id);
-    }
-
-    const now = getCurrentTimestamp();
-    fields.push('updated_at = ?');
-    values.push(now);
-    values.push(id);
-
-    const stmt = db.prepare(`
-      UPDATE questions
-      SET ${fields.join(', ')}
-      WHERE id = ?
-    `);
-
-    const result = stmt.run(...values);
-
-    if (result.changes === 0) {
-      return null;
-    }
-
-    return selectOne<DbQuestion>(db, 'SELECT * FROM questions WHERE id = ?', id);
-  },
+  }): DbQuestion | null => base.update(id, updates as Record<string, unknown>),
 
   /**
    * Answer a question (updates answer and status)
@@ -189,22 +157,12 @@ export const questionRepository = {
   /**
    * Delete a question
    */
-  deleteQuestion: (id: string): boolean => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM questions WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
-  },
+  deleteQuestion: (id: string): boolean => base.deleteById(id),
 
   /**
    * Delete all questions for a project
    */
-  deleteQuestionsByProject: (projectId: string): number => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM questions WHERE project_id = ?');
-    const result = stmt.run(projectId);
-    return result.changes;
-  },
+  deleteQuestionsByProject: (projectId: string): number => base.deleteByProject(projectId),
 
   /**
    * Delete questions by context_map_id

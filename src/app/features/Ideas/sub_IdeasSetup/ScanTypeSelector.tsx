@@ -64,7 +64,7 @@ export default function ScanTypeSelector({ selectedTypes, onChange }: ScanTypeSe
         </button>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {SCAN_TYPES.map((type) => {
           const isSelected = selectedTypes.includes(type.value);
           const isShaking = shakingType === type.value;
@@ -73,7 +73,7 @@ export default function ScanTypeSelector({ selectedTypes, onChange }: ScanTypeSe
               key={type.value}
               onClick={() => handleToggle(type.value)}
               onContextMenu={(e) => handleRightClick(e, type.value, type.label)}
-              className={`relative px-4 py-3 rounded-lg border-2 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 focus-visible:ring-cyan-400 ${
+              className={`relative px-4 py-3 min-h-[44px] rounded-lg border-2 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 focus-visible:ring-cyan-400 ${
                 isSelected
                   ? type.color
                   : 'bg-gray-800/40 border-gray-700/40 text-gray-400 hover:bg-gray-800/60 hover:border-gray-600/40'

@@ -1,5 +1,11 @@
 import { getDatabase } from '../connection';
 import { DbScan } from '../models/types';
+import { createGenericRepository } from './generic.repository';
+
+const base = createGenericRepository<DbScan>({
+  tableName: 'scans',
+  defaultOrder: 'timestamp DESC',
+});
 
 /**
  * Scan Repository
@@ -9,15 +15,7 @@ export const scanRepository = {
   /**
    * Get all scans for a project
    */
-  getScansByProject: (projectId: string): DbScan[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM scans
-      WHERE project_id = ?
-      ORDER BY timestamp DESC
-    `);
-    return stmt.all(projectId) as DbScan[];
-  },
+  getScansByProject: (projectId: string): DbScan[] => base.getByProject(projectId),
 
   /**
    * Get scans for a project within a date range (SQL-level filtering)
@@ -70,12 +68,7 @@ export const scanRepository = {
   /**
    * Get a single scan by ID
    */
-  getScanById: (scanId: string): DbScan | null => {
-    const db = getDatabase();
-    const stmt = db.prepare('SELECT * FROM scans WHERE id = ?');
-    const scan = stmt.get(scanId) as DbScan | undefined;
-    return scan || null;
-  },
+  getScanById: (scanId: string): DbScan | null => base.getById(scanId),
 
   /**
    * Create a new scan with optional token tracking
@@ -144,12 +137,7 @@ export const scanRepository = {
   /**
    * Delete a scan (will cascade delete associated ideas)
    */
-  deleteScan: (id: string): boolean => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM scans WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
-  },
+  deleteScan: (id: string): boolean => base.deleteById(id),
 
   /**
    * Get total token usage statistics for a project

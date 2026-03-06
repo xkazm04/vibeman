@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { executeContextScan } from '@/app/features/Ideas/sub_IdeasSetup/lib/scanHandlers';
+import { executeLlmScan as executeContextScan } from '@/app/features/Ideas/sub_IdeasSetup/lib/ideaExecutor';
 import { ScanType, isValidScanType, ALL_SCAN_TYPES } from '@/app/features/Ideas/lib/scanTypes';
 import { SupportedProvider } from '@/lib/llm/types';
 import { logger } from '@/lib/logger';

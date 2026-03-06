@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
 import TinderHeader from '@/app/features/tinder/components/TinderHeader';
 import TinderContent from '@/app/features/tinder/components/TinderContent';
 import { useTinderIdeas, useTinderKeyboardShortcuts } from '@/app/features/tinder/lib/tinderHooks';
 
 export default function TinderPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
-  const { initializeProjects } = useProjectConfigStore();
+  const { initializeProjects } = useServerProjectStore();
 
   // Initialize projects on mount
   useEffect(() => {

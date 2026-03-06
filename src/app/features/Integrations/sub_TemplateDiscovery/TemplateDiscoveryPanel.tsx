@@ -16,7 +16,7 @@ import { PromptPreviewModal } from './PromptPreviewModal';
 import { GenerationHistoryPanel, type GenerationHistoryPanelRef } from './GenerationHistoryPanel';
 import TemplateColumn from './TemplateColumn';
 import { toast } from '@/stores/messageStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import type { DbDiscoveredTemplate } from '../../../db/models/types';
 
 // UI Components
@@ -29,7 +29,7 @@ type ScanStatus = 'idle' | 'scanning' | 'complete' | 'error';
 
 export function TemplateDiscoveryPanel() {
   // Get active project from store
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
   const projectPath = activeProject?.path || '';
 
   // Scan state

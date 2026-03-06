@@ -8,10 +8,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { signalCollector } from './signalCollector';
 import { logger } from '@/lib/logger';
 
-type SignalType = 'direction_decision' | 'task_execution' | 'api_focus';
+type MiddlewareSignalAction = 'direction_decision' | 'task_execution' | 'api_focus';
 
 interface SignalMiddlewareConfig {
-  signalType: SignalType;
+  signalType: MiddlewareSignalAction;
   /** Extract project ID from request/response */
   getProjectId: (req: NextRequest, body?: Record<string, unknown>) => string | null;
   /** Extract context information for signal recording */
@@ -71,7 +71,7 @@ export function withSignalCapture<T extends (...args: unknown[]) => Promise<Next
  * Record a signal based on the action type
  */
 function recordSignal(
-  signalType: SignalType,
+  signalType: MiddlewareSignalAction,
   projectId: string,
   contextInfo: {
     contextId?: string;

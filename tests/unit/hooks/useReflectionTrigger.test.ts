@@ -250,16 +250,15 @@ describe('useReflectionTrigger implementation patterns', () => {
 describe('Hook integration points', () => {
   it('should integrate with useBrainStore', () => {
     // Hook reads from useBrainStore:
-    // - reflectionStatus / globalReflectionStatus
+    // - reflections[scope].status (polymorphic, keyed by scope)
     // - triggerReflection / triggerGlobalReflection
     const storeFields = [
-      'reflectionStatus',
-      'globalReflectionStatus',
+      'reflections',
       'triggerReflection',
       'triggerGlobalReflection',
     ];
 
-    expect(storeFields).toHaveLength(4);
+    expect(storeFields).toHaveLength(3);
   });
 
   it('should be usable in both ReflectionStatus and InsightsPanel', () => {

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb } from '@/app/db';
 import { deleteRequirement } from '@/app/Claude/lib/claudeCodeManager';
-import { createErrorResponse, createSuccessResponse } from '../utils';
+import {
+  IdeasErrorCode,
+  createIdeasErrorResponse,
+  handleIdeasApiError,
+} from '@/app/features/Ideas/lib/ideasHandlers';
 import { withObservability } from '@/lib/observability/middleware';
 import { signalCollector } from '@/lib/brain/signalCollector';
 import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
@@ -44,7 +48,10 @@ async function handlePost(request: NextRequest) {
     const body = await request.json();
 
     if (!validateRequest(body)) {
-      return createErrorResponse('ideaId is required', undefined, 400);
+      return createIdeasErrorResponse(IdeasErrorCode.MISSING_REQUIRED_FIELD, {
+        field: 'ideaId',
+        message: 'ideaId is required',
+      });
     }
 
     const { ideaId, projectPath, rejectionReason } = body;
@@ -52,7 +59,7 @@ async function handlePost(request: NextRequest) {
     // Get the idea to verify it exists
     const idea = ideaDb.getIdeaById(ideaId);
     if (!idea) {
-      return createErrorResponse('Idea not found', undefined, 404);
+      return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND);
     }
 
     // Verify project access
@@ -88,9 +95,9 @@ async function handlePost(request: NextRequest) {
       // Signal recording must never break the main flow
     }
 
-    return createSuccessResponse({ message: 'Idea rejected' });
+    return NextResponse.json({ success: true, message: 'Idea rejected' });
   } catch (error) {
-    return createErrorResponse('Failed to reject idea', error);
+    return handleIdeasApiError(error, IdeasErrorCode.UPDATE_FAILED);
   }
 }
 

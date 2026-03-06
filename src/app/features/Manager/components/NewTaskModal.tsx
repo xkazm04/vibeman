@@ -8,7 +8,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, FolderGit2, FolderTree } from 'lucide-react';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useContextStore } from '@/stores/contextStore';
 import NewTaskInputPanel from './NewTaskInputPanel';
 
@@ -21,7 +21,7 @@ export default function NewTaskModal({
     onClose,
     onRequirementCreated,
 }: NewTaskModalProps) {
-    const { projects, initializeProjects } = useProjectConfigStore();
+    const { projects, initializeProjects } = useServerProjectStore();
     const { contexts, loadProjectData } = useContextStore();
 
     const [selectedProjectId, setSelectedProjectId] = useState<string>('');

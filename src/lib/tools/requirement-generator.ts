@@ -151,7 +151,8 @@ async function generatePlanWithLLM(
 
   if (!response.ok) {
     const errorData = await response.json();
-    throw new Error(errorData.error || 'LLM API call failed');
+    const userMsg = errorData.userMessage || errorData.error || 'LLM API call failed';
+    throw new Error(userMsg);
   }
 
   const data = await response.json();

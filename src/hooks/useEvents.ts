@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { buildQueryParams, postJSON, deleteJSON, getJSON } from './utils/apiHelpers';
 
 // Client-side event interface (matches the database structure)
@@ -47,7 +47,7 @@ const eventKeys = {
 
 export function useEvents(options: UseEventsOptions = {}) {
   const queryClient = useQueryClient();
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
   
   const {
     projectId = activeProject?.id || 'default',

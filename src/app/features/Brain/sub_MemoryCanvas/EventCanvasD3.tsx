@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useRef, useEffect, useState, useCallback, useReducer } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useReducer, useSyncExternalStore } from 'react';
 import * as d3 from 'd3';
 import { ArrowLeft } from 'lucide-react';
 import type { BrainEvent, Group, UndoEntry, SignalType, FilterState } from './lib/types';
 import { BG } from './lib/constants';
+import { renderBackground, type RenderContext } from './lib/canvasRenderPipeline';
 import { packEventsInGroup } from './lib/canvasLayout';
 import { CanvasStore } from './lib/canvasStore';
 import { useCanvasData } from './lib/useCanvasData';
@@ -39,18 +40,21 @@ export default function EventCanvasD3({ enabled = true }: EventCanvasD3Props) {
   // ── Canvas state machine (replaces scattered refs) ──
   const [canvasState, dispatch] = useReducer(canvasReducer, undefined, createInitialCanvasState);
 
-  // ── Imperative store (events/groups live here, not React state) ──
+  // ── External store (events/groups live here, subscribed via useSyncExternalStore) ──
   const storeRef = useRef<CanvasStore>(null!);
   if (!storeRef.current) {
     storeRef.current = new CanvasStore();
   }
   const store = storeRef.current;
 
+  // Subscribe to store snapshot declaratively — replaces the imperative
+  // onRender callback + toolbarVersion hack. When store data changes
+  // (events, groups, layout progress), React re-renders this component.
+  const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot);
+
   // ── React state: UI-only concerns ────────────────────────────────
   const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
   const [visibleTypes, setVisibleTypes] = useState<Set<SignalType>>(new Set(ALL_TYPES));
-  // Toolbar needs groups/eventCount — we track a render version to trigger re-reads
-  const [toolbarVersion, setToolbarVersion] = useState(0);
 
   const toggleType = useCallback((type: SignalType) => {
     setVisibleTypes(prev => {
@@ -90,28 +94,11 @@ export default function EventCanvasD3({ enabled = true }: EventCanvasD3Props) {
       return;
     }
 
-    // Background
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const bgGrad = ctx.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, Math.max(width, height) * 0.7);
-    bgGrad.addColorStop(0, '#141418');
-    bgGrad.addColorStop(1, '#0a0a0c');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, width, height);
-
-    // Grid (overview only)
-    if (!focusedGroupId && transform.k > 0.4) {
-      ctx.strokeStyle = 'rgba(63,63,70,0.06)';
-      ctx.lineWidth = 1;
-      const gridSize = 60;
-      const ox = transform.x % (gridSize * transform.k);
-      const oy = transform.y % (gridSize * transform.k);
-      for (let gx = ox; gx < width; gx += gridSize * transform.k) {
-        ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, height); ctx.stroke();
-      }
-      for (let gy = oy; gy < height; gy += gridSize * transform.k) {
-        ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(width, gy); ctx.stroke();
-      }
-    }
+    // Background + grid via shared pipeline pass
+    const bgContext: RenderContext = { ctx, width, height, dpr, transform, now: Date.now(), filterState };
+    renderBackground(bgContext, {
+      gridOpacity: !focusedGroupId ? 0.06 : 0,
+    });
 
     if (focusedGroupId) {
       const fg = currentGroups.find(g => g.id === focusedGroupId);
@@ -126,28 +113,21 @@ export default function EventCanvasD3({ enabled = true }: EventCanvasD3Props) {
     animRef.current = requestAnimationFrame(render);
   }, [render]);
 
-  // Wire store render callback
+  // Cleanup worker on unmount
   useEffect(() => {
-    store.onRender(() => {
-      requestRender();
-      // Bump toolbar version so it re-reads groups/eventCount from store
-      setToolbarVersion(v => v + 1);
-    });
+    return () => { store.destroy(); };
+  }, [store]);
 
-    // Cleanup worker on unmount
-    return () => {
-      store.destroy();
-    };
-  }, [store, requestRender]);
+  // Re-render canvas when snapshot changes (store data updated)
+  useEffect(() => { requestRender(); }, [snapshot, requestRender]);
 
-  // Re-render on filter changes (filter state is in a ref, but the
-  // React state change is our signal to redraw)
+  // Re-render on filter changes
   useEffect(() => { requestRender(); }, [visibleTypes, requestRender]);
 
   // Re-render when canvas state changes
   useEffect(() => { requestRender(); }, [canvasState, requestRender]);
 
-  // ── Data fetching (pushes into store, not React state) ───────────
+  // ── Data fetching (pushes into store, subscribers are notified) ───
   const getFocusedGroupId = useCallback(() => canvasState.focusedGroupId, [canvasState.focusedGroupId]);
   useCanvasData({ store, getFocusedGroupId, enabled });
 
@@ -171,7 +151,7 @@ export default function EventCanvasD3({ enabled = true }: EventCanvasD3Props) {
     );
   }, [store]);
 
-  // ── Delete / Undo (mutate store directly) ────────────────────────
+  // ── Delete / Undo (mutate store directly → subscribers notified) ──
   const handleDelete = useCallback((evt: BrainEvent) => {
     store.removeEvent(evt.id, canvasState.focusedGroupId);
     dispatch({ type: 'EventSelected', event: null });
@@ -205,7 +185,7 @@ export default function EventCanvasD3({ enabled = true }: EventCanvasD3Props) {
 
   // Empty state animation loop
   useEffect(() => {
-    if (store.isEmpty && store.events.length === 0) {
+    if (snapshot.isEmpty && snapshot.events.length === 0) {
       resetEmptyState();
       let running = true;
       const loop = () => {
@@ -219,11 +199,9 @@ export default function EventCanvasD3({ enabled = true }: EventCanvasD3Props) {
         cancelAnimationFrame(emptyAnimRef.current);
       };
     }
-  }, [store.isEmpty, render]);
+  }, [snapshot.isEmpty, snapshot.events.length, render]);
 
-  // Read from store for toolbar (triggered by toolbarVersion bumps)
-  const toolbarGroups = store.groups;
-  const toolbarEventCount = store.events.length;
+  // Read from snapshot for toolbar (no more toolbarVersion hack)
   const focusedGroup = store.getFocusedGroup(canvasState.focusedGroupId);
 
   const handleExitFocus = useCallback(() => {
@@ -258,8 +236,8 @@ export default function EventCanvasD3({ enabled = true }: EventCanvasD3Props) {
 
       <CanvasToolbar
         zoomLevel={canvasState.zoomLevel}
-        groups={toolbarGroups}
-        eventCount={toolbarEventCount}
+        groups={snapshot.groups}
+        eventCount={snapshot.events.length}
         focusedGroup={focusedGroup}
         selectedGroupId={canvasState.selectedGroupId}
         onFitToView={fitToView}

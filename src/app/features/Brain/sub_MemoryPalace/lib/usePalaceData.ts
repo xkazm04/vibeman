@@ -41,20 +41,20 @@ export function usePalaceData(): PalaceData {
   const [rawInsights, setRawInsights] = useState<Array<{ id: string; content: string; context_id: string | null; effectiveness_score: number | null; created_at: string }>>([]);
   const [rawReflections, setRawReflections] = useState<Array<{ id: string; created_at: string; scope: string; insight_count: number; signal_count: number }>>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const mountedRef = useRef(true);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const fetchData = useCallback(async (projectId: string) => {
+  const fetchData = useCallback(async (projectId: string, signal: AbortSignal) => {
     try {
       const since = new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
       const params = new URLSearchParams({ projectId, limit: String(MAX_SIGNALS), since });
 
       const [signalRes, insightRes, reflectionRes] = await Promise.allSettled([
-        fetch(`/api/brain/signals?${params.toString()}`),
-        fetch(`/api/brain/insights?projectId=${encodeURIComponent(projectId)}&limit=100`),
-        fetch(`/api/brain/reflection?projectId=${encodeURIComponent(projectId)}&limit=50`),
+        fetch(`/api/brain/signals?${params.toString()}`, { signal }),
+        fetch(`/api/brain/insights?projectId=${encodeURIComponent(projectId)}&limit=100`, { signal }),
+        fetch(`/api/brain/reflection?projectId=${encodeURIComponent(projectId)}&limit=50`, { signal }),
       ]);
 
-      if (!mountedRef.current) return;
+      if (signal.aborted) return;
 
       // Signals
       if (signalRes.status === 'fulfilled' && signalRes.value.ok) {
@@ -87,21 +87,29 @@ export function usePalaceData(): PalaceData {
       }
 
       setIsLoading(false);
-    } catch {
-      if (mountedRef.current) setIsLoading(false);
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      if (!signal.aborted) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    mountedRef.current = true;
+    // Abort previous fetch if still in flight
+    abortRef.current?.abort();
+
     if (!activeProject?.id) {
       setRawSignals([]);
       setIsLoading(false);
       return;
     }
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setIsLoading(true);
-    fetchData(activeProject.id);
-    return () => { mountedRef.current = false; };
+    fetchData(activeProject.id, controller.signal);
+
+    return () => { controller.abort(); };
   }, [activeProject?.id, fetchData]);
 
   // Transform raw data into palace structures

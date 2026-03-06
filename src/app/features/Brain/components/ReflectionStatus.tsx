@@ -12,7 +12,7 @@ import {
   Square,
 } from 'lucide-react';
 import { useBrainStore } from '@/stores/brainStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { ReflectionTerminal } from './ReflectionTerminal';
 import GlowCard from './GlowCard';
@@ -25,8 +25,9 @@ interface Props {
   scope?: 'project' | 'global';
 }
 
-const POLL_INITIAL_MS = 4000;
-const POLL_MAX_MS = 30000;
+// SSE handles the fast path for completion detection — polling is a fallback only
+const POLL_INITIAL_MS = 8000;
+const POLL_MAX_MS = 60000;
 
 const ACCENT_COLOR = '#a855f7'; // Purple
 const GLOW_COLOR = 'rgba(168, 85, 247, 0.15)';
@@ -104,30 +105,25 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
   const prevStatusRef = useRef<string | null>(null);
   const runStartRef = useRef<number>(Date.now());
 
-  const activeProject = useActiveProjectStore((state) => state.activeProject);
+  const activeProject = useClientProjectStore((state) => state.activeProject);
   const allProjects = useServerProjectStore((state) => state.projects);
   const {
-    reflectionStatus: projectStatus,
-    lastReflection,
-    decisionsSinceReflection,
-    nextThreshold,
-    shouldTrigger,
-    triggerReason,
-    runningReflectionId: projectRunningId,
-    promptContent: projectPromptContent,
-    globalReflectionStatus,
-    lastGlobalReflection,
-    globalRunningReflectionId,
-    globalPromptContent,
     cancelReflection,
     fetchReflectionStatus,
     fetchGlobalReflectionStatus,
   } = useBrainStore();
+  const scopeState = useBrainStore((s) => s.reflections[scope]);
 
-  const reflectionStatus = scope === 'global' ? globalReflectionStatus : projectStatus;
-  const runningReflectionId = scope === 'global' ? globalRunningReflectionId : projectRunningId;
-  const promptContent = scope === 'global' ? globalPromptContent : projectPromptContent;
-  const lastReflectionForDisplay = scope === 'global' ? lastGlobalReflection : lastReflection;
+  const {
+    status: reflectionStatus,
+    lastReflection: lastReflectionForDisplay,
+    runningReflectionId,
+    promptContent,
+    decisionsSinceReflection,
+    nextThreshold,
+    shouldTrigger,
+    triggerReason,
+  } = scopeState;
 
   // Unified reflection trigger hook
   const {
@@ -176,39 +172,13 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
 
   // Unified polling with exponential backoff when running
   const isRunning = reflectionStatus === 'running';
-  const attemptCountRef = useRef(0);
 
-  useEffect(() => {
-    if (!isRunning) {
-      attemptCountRef.current = 0;
-      return;
-    }
-
-    // Exponential backoff: 4s, 8s, 16s, 30s (max)
-    const getNextInterval = () => {
-      const baseInterval = POLL_INITIAL_MS;
-      const interval = baseInterval * Math.pow(2, attemptCountRef.current);
-      return Math.min(interval, POLL_MAX_MS);
-    };
-
-    let timeoutId: NodeJS.Timeout | null = null;
-
-    const schedulePoll = () => {
-      const interval = getNextInterval();
-      timeoutId = setTimeout(() => {
-        refreshStatus();
-        attemptCountRef.current++;
-        schedulePoll();
-      }, interval);
-    };
-
-    schedulePoll();
-
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      attemptCountRef.current = 0;
-    };
-  }, [isRunning, scope, activeProject?.id]);
+  usePolling(refreshStatus, {
+    enabled: isRunning,
+    intervalMs: POLL_INITIAL_MS,
+    immediate: false,
+    backoff: { strategy: 'exponential', maxIntervalMs: POLL_MAX_MS },
+  });
 
   // Detect completion transitions
   useEffect(() => {

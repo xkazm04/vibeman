@@ -442,3 +442,31 @@ export function isTerminalPhase(phase: LifecyclePhase): boolean {
 export function getPhaseConfig(phase: LifecyclePhase): PhaseUIConfig {
   return LIFECYCLE_PHASE_CONFIGS[phase];
 }
+
+/**
+ * Context passed to phase executors — provides shared helpers without
+ * coupling executors to the orchestrator class.
+ */
+export interface PhaseContext {
+  config: LifecycleConfig;
+  cycle: LifecycleCycle;
+  isRunning: () => boolean;
+  updatePhase: (phase: LifecyclePhase, step: string, progress: number) => void;
+  updateProgress: (progress: number, step: string) => void;
+  logEvent: (
+    type: LifecycleEvent['event_type'],
+    phase: LifecyclePhase,
+    message: string,
+    details?: Record<string, unknown>,
+  ) => void;
+}
+
+/**
+ * Interface for lifecycle phase executors.
+ * Each phase (detecting, scanning, resolving, validating, deploying)
+ * is implemented as a standalone executor conforming to this contract.
+ */
+export interface PhaseExecutor {
+  readonly phase: LifecyclePhase;
+  execute(ctx: PhaseContext): Promise<void>;
+}

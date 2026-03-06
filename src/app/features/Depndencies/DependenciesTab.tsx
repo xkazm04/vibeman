@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { Network } from 'lucide-react';
 import { ScanData, fetchScans, fetchScanData, ScanProvider } from './lib';
 import {
@@ -16,7 +16,7 @@ export default function DependenciesTab() {
   const [scanData, setScanData] = useState<ScanData | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const { projects, initializeProjects } = useProjectConfigStore();
+  const { projects, initializeProjects } = useServerProjectStore();
 
   useEffect(() => {
     initializeProjects();

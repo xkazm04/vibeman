@@ -24,7 +24,7 @@ import {
   Clock,
   AlertTriangle,
 } from 'lucide-react';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 
 interface AgentStep {
   id: string;
@@ -72,7 +72,7 @@ interface AgentData {
 }
 
 export default function AutonomousAgentPanel() {
-  const activeProject = useActiveProjectStore((s) => s.activeProject);
+  const activeProject = useClientProjectStore((s) => s.activeProject);
   const [data, setData] = useState<AgentData | null>(null);
   const [objective, setObjective] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);

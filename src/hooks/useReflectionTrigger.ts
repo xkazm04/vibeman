@@ -72,18 +72,14 @@ export function useReflectionTrigger(
   const { scope, project, global, onSuccess, onError } = options;
 
   const {
-    reflectionStatus: projectStatus,
-    globalReflectionStatus,
     triggerReflection,
     triggerGlobalReflection,
   } = useBrainStore();
+  const reflectionStatus = useBrainStore((s) => s.reflections[scope].status);
 
   const [isTriggering, setIsTriggering] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const triggerLockRef = useRef(false);
-
-  // Select status based on scope
-  const reflectionStatus = scope === 'global' ? globalReflectionStatus : projectStatus;
 
   // Compute derived status
   const status = isTriggering

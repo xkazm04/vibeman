@@ -2,7 +2,8 @@
  * Shared types for BaseAnalysisAgent / BaseAnalysisRepository
  */
 
-export type AnalysisSessionStatus = 'pending' | 'running' | 'completed' | 'failed';
+import type { BaseLifecycleStatus } from '@/lib/status';
+export type AnalysisSessionStatus = BaseLifecycleStatus;
 
 /**
  * Minimum shape every analysis DB record must satisfy.

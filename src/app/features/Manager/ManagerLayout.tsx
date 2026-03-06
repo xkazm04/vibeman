@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useContextStore } from '@/stores/contextStore';
 import { useThemeStore } from '@/stores/themeStore';
 
@@ -36,7 +36,7 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [relationships, setRelationships] = useState<ContextGroupRelationship[]>([]);
 
-  const activeProject = useActiveProjectStore((state) => state.activeProject);
+  const activeProject = useClientProjectStore((state) => state.activeProject);
   const { groups: contextGroups, loadProjectData } = useContextStore();
   const { getThemeColors } = useThemeStore();
   const colors = getThemeColors();

@@ -110,11 +110,15 @@ async function handlePost(request: NextRequest) {
     // Collect all file paths from contexts
     const filePaths: string[] = [];
     for (const ctx of contexts) {
-      const paths = typeof ctx.file_paths === 'string'
-        ? JSON.parse(ctx.file_paths)
-        : ctx.file_paths;
-      if (Array.isArray(paths)) {
-        filePaths.push(...paths);
+      try {
+        const paths = typeof ctx.file_paths === 'string'
+          ? JSON.parse(ctx.file_paths)
+          : ctx.file_paths;
+        if (Array.isArray(paths)) {
+          filePaths.push(...paths);
+        }
+      } catch (e) {
+        console.warn(`[group-health-scan] Malformed file_paths JSON in context ${ctx.id}, skipping:`, e);
       }
     }
 

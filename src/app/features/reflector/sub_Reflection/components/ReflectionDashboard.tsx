@@ -13,7 +13,7 @@ import ComparisonView from './ComparisonView';
 import ExecutiveSummary from './ExecutiveSummary';
 import { ComparisonFilterState, ReflectionStats, ComparisonStats } from '../lib/types';
 import { fetchReflectionStats, fetchComparisonStats } from '../lib/statsApi';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { getEmptyFilterState } from '@/app/features/reflector/lib/filterIdeas';
 import { buildURLFromFilters } from '@/app/features/reflector/lib/urlFilterSync';
@@ -47,7 +47,7 @@ export default function ReflectionDashboard() {
   });
 
   const router = useRouter();
-  const { projects, initializeProjects } = useProjectConfigStore();
+  const { projects, initializeProjects } = useServerProjectStore();
 
   /**
    * Navigate to the Total View with specific filters applied

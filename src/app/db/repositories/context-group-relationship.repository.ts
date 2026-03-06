@@ -1,5 +1,11 @@
 import { getDatabase } from '../connection';
 import { DbContextGroupRelationship } from '../models/types';
+import { createGenericRepository } from './generic.repository';
+
+const base = createGenericRepository<DbContextGroupRelationship>({
+  tableName: 'context_group_relationships',
+  defaultOrder: 'created_at ASC',
+});
 
 /**
  * Context Group Relationship Repository
@@ -9,15 +15,7 @@ export const contextGroupRelationshipRepository = {
   /**
    * Get all relationships for a project
    */
-  getByProject: (projectId: string): DbContextGroupRelationship[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM context_group_relationships
-      WHERE project_id = ?
-      ORDER BY created_at ASC
-    `);
-    return stmt.all(projectId) as DbContextGroupRelationship[];
-  },
+  getByProject: (projectId: string): DbContextGroupRelationship[] => base.getByProject(projectId),
 
   /**
    * Get relationships for a specific context group (as source or target)
@@ -86,9 +84,7 @@ export const contextGroupRelationshipRepository = {
         now
       );
 
-      // Return the created relationship
-      const getStmt = db.prepare('SELECT * FROM context_group_relationships WHERE id = ?');
-      return getStmt.get(relationship.id) as DbContextGroupRelationship;
+      return base.getById(relationship.id)!;
     } catch {
       return null;
     }
@@ -97,34 +93,15 @@ export const contextGroupRelationshipRepository = {
   /**
    * Delete a relationship by ID
    */
-  delete: (id: string): boolean => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM context_group_relationships WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
-  },
+  delete: (id: string): boolean => base.deleteById(id),
 
   /**
    * Delete all relationships for a project
    */
-  deleteByProject: (projectId: string): number => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM context_group_relationships WHERE project_id = ?');
-    const result = stmt.run(projectId);
-    return result.changes;
-  },
+  deleteByProject: (projectId: string): number => base.deleteByProject(projectId),
 
   /**
    * Get relationship count for a project
    */
-  getCount: (projectId: string): number => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT COUNT(*) as count
-      FROM context_group_relationships
-      WHERE project_id = ?
-    `);
-    const result = stmt.get(projectId) as { count: number };
-    return result.count;
-  }
+  getCount: (projectId: string): number => base.countByProject(projectId)
 };

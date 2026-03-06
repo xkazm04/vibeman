@@ -8,82 +8,78 @@ import { ideaRepository } from '@/app/db/repositories/idea.repository';
 import { directionRepository } from '@/app/db/repositories/direction.repository';
 import { TinderFilterMode } from '@/app/features/tinder/lib/tinderTypes';
 import { logger } from '@/lib/logger';
+import {
+  IdeasErrorCode,
+  createIdeasErrorResponse,
+  withIdeasErrorHandler,
+} from '@/app/features/Ideas/lib/ideasHandlers';
 
-export async function DELETE(request: Request) {
-  try {
-    const body = await request.json();
-    const { projectId, itemType = 'both' } = body as {
-      projectId: string;
-      itemType?: TinderFilterMode;
-    };
+async function handleDelete(request: Request) {
+  const body = await request.json();
+  const { projectId, itemType = 'both' } = body as {
+    projectId: string;
+    itemType?: TinderFilterMode;
+  };
 
-    // Validate input
-    if (!projectId) {
-      return NextResponse.json(
-        { error: 'projectId is required' },
-        { status: 400 }
-      );
-    }
-
-    // Validate itemType
-    if (!['ideas', 'directions', 'both'].includes(itemType)) {
-      return NextResponse.json(
-        { error: 'Invalid itemType', details: `Must be 'ideas', 'directions', or 'both'` },
-        { status: 400 }
-      );
-    }
-
-    let ideasDeleted = 0;
-    let directionsDeleted = 0;
-
-    // Delete Ideas if needed
-    if (itemType === 'ideas' || itemType === 'both') {
-      if (projectId === 'all') {
-        ideasDeleted = ideaRepository.deleteAllPendingIdeas();
-      } else {
-        ideasDeleted = ideaRepository.deletePendingIdeasByProject(projectId);
-      }
-    }
-
-    // Delete Directions if needed
-    if (itemType === 'directions' || itemType === 'both') {
-      if (projectId === 'all') {
-        directionsDeleted = directionRepository.deleteAllPendingDirections();
-      } else {
-        directionsDeleted = directionRepository.deletePendingDirectionsByProject(projectId);
-      }
-    }
-
-    const totalDeleted = ideasDeleted + directionsDeleted;
-
-    logger.info('Tinder flush completed:', {
-      projectId,
-      itemType,
-      ideasDeleted,
-      directionsDeleted,
-      totalDeleted
+  // Validate input
+  if (!projectId) {
+    return createIdeasErrorResponse(IdeasErrorCode.MISSING_REQUIRED_FIELD, {
+      field: 'projectId',
+      message: 'projectId is required',
     });
-
-    return NextResponse.json({
-      success: true,
-      deletedCount: totalDeleted,
-      details: {
-        ideas: ideasDeleted,
-        directions: directionsDeleted
-      },
-      message: buildFlushMessage(projectId, itemType, ideasDeleted, directionsDeleted)
-    });
-  } catch (error) {
-    logger.error('Error flushing tinder items:', { error });
-    return NextResponse.json(
-      {
-        error: 'Failed to flush items',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
   }
+
+  // Validate itemType
+  if (!['ideas', 'directions', 'both'].includes(itemType)) {
+    return createIdeasErrorResponse(IdeasErrorCode.INVALID_FILTER, {
+      field: 'itemType',
+      message: `Invalid itemType: must be 'ideas', 'directions', or 'both'`,
+    });
+  }
+
+  let ideasDeleted = 0;
+  let directionsDeleted = 0;
+
+  // Delete Ideas if needed
+  if (itemType === 'ideas' || itemType === 'both') {
+    if (projectId === 'all') {
+      ideasDeleted = ideaRepository.deleteAllPendingIdeas();
+    } else {
+      ideasDeleted = ideaRepository.deletePendingIdeasByProject(projectId);
+    }
+  }
+
+  // Delete Directions if needed
+  if (itemType === 'directions' || itemType === 'both') {
+    if (projectId === 'all') {
+      directionsDeleted = directionRepository.deleteAllPendingDirections();
+    } else {
+      directionsDeleted = directionRepository.deletePendingDirectionsByProject(projectId);
+    }
+  }
+
+  const totalDeleted = ideasDeleted + directionsDeleted;
+
+  logger.info('Tinder flush completed:', {
+    projectId,
+    itemType,
+    ideasDeleted,
+    directionsDeleted,
+    totalDeleted
+  });
+
+  return NextResponse.json({
+    success: true,
+    deletedCount: totalDeleted,
+    details: {
+      ideas: ideasDeleted,
+      directions: directionsDeleted
+    },
+    message: buildFlushMessage(projectId, itemType, ideasDeleted, directionsDeleted)
+  });
 }
+
+export const DELETE = withIdeasErrorHandler(handleDelete, IdeasErrorCode.DELETE_FAILED);
 
 function buildFlushMessage(
   projectId: string,

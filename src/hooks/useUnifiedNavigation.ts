@@ -3,7 +3,7 @@
 import { useCallback, useEffect } from 'react';
 import { useOnboardingStore, type AppModule } from '@/stores/onboardingStore';
 import { useWorkflowStore, getModuleLabel } from '@/stores/workflowStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 
 // Entity types that can be navigated to
 export type NavigableEntity = {
@@ -34,7 +34,7 @@ export function useUnifiedNavigation() {
     addRecentEntity,
     generateSuggestions,
   } = useWorkflowStore();
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
 
   // Generate suggestions when module changes
   useEffect(() => {

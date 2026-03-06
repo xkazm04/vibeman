@@ -15,10 +15,20 @@ import {
   RefreshCw,
   Eye,
   X,
+  Zap,
 } from 'lucide-react';
 import { useSessionCleanup } from '../hooks/useSessionCleanup';
 import { OrphanedSessionItem } from './OrphanSessionShared';
+import { LiveActivityPanel } from './LiveActivityPanel';
 import { getTheme } from '../lib/taskStatusUtils';
+
+interface TaskHealingInfo {
+  errorType: string;
+  errorDescription: string;
+  healingAttempt: number;
+  maxHealingAttempts: number;
+  healed: boolean;
+}
 
 interface ExecutionTask {
   id: string;
@@ -30,6 +40,7 @@ interface ExecutionTask {
   startTime?: string;
   endTime?: string;
   error?: string;
+  healing?: TaskHealingInfo;
 }
 
 interface TaskMonitorProps {
@@ -128,6 +139,8 @@ const TaskItem = memo(function TaskItem({ task }: { task: ExecutionTask }) {
   const [showDetails, setShowDetails] = useState(false);
   const progressCount = task.progress?.length || 0;
   const isStuck = task.status === 'running' && progressCount === 0;
+  const isHealing = task.healing && task.healing.healingAttempt > 0 && task.status === 'running';
+  const wasHealed = task.healing?.healed;
 
   return (
     <motion.div
@@ -142,8 +155,20 @@ const TaskItem = memo(function TaskItem({ task }: { task: ExecutionTask }) {
         <div className="flex items-center gap-2 min-w-0">
           {getMonitorStatusIcon(task.status, progressCount, prefersReducedMotion)}
           <div className="min-w-0">
-            <div className="text-xs font-medium text-gray-300 truncate">
+            <div className="text-xs font-medium text-gray-300 truncate flex items-center gap-1.5">
               {task.requirementName}
+              {isHealing && (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium bg-violet-500/20 text-violet-400 border border-violet-500/30">
+                  <Zap className="w-2.5 h-2.5" />
+                  Healing {task.healing!.healingAttempt}/{task.healing!.maxHealingAttempts}
+                </span>
+              )}
+              {wasHealed && (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  <Zap className="w-2.5 h-2.5" />
+                  Self-healed
+                </span>
+              )}
             </div>
             <div className={`text-[10px] flex items-center gap-2 ${isStuck ? 'text-amber-400/80' : 'text-gray-500'}`}>
               <span>{isStuck ? 'stuck' : task.status}</span>
@@ -178,7 +203,30 @@ const TaskItem = memo(function TaskItem({ task }: { task: ExecutionTask }) {
             transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-2 pb-2 text-[10px] font-mono text-gray-500 max-h-32 overflow-y-auto bg-gray-900/50">
+            <div className="px-2 pb-2 text-[10px] font-mono text-gray-500 max-h-40 overflow-y-auto bg-gray-900/50">
+              {/* Self-healing classification panel */}
+              {task.healing && (
+                <div className="mb-2 p-1.5 rounded border border-violet-500/20 bg-violet-500/5">
+                  <div className="flex items-center gap-1.5 text-violet-400 font-medium mb-1">
+                    <Zap className="w-3 h-3" />
+                    <span>Error Classification</span>
+                  </div>
+                  <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[9px]">
+                    <span className="text-gray-500">Type:</span>
+                    <span className="text-violet-300">{task.healing.errorType}</span>
+                    <span className="text-gray-500">Cause:</span>
+                    <span className="text-gray-400">{task.healing.errorDescription}</span>
+                    <span className="text-gray-500">Attempts:</span>
+                    <span className="text-gray-400">{task.healing.healingAttempt}/{task.healing.maxHealingAttempts}</span>
+                    {task.healing.healed && (
+                      <>
+                        <span className="text-gray-500">Result:</span>
+                        <span className="text-emerald-400 font-medium">Auto-healed successfully</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
               {task.progress?.slice(-10).map((line, i) => (
                 <div key={i} className="truncate py-0.5">
                   {line}
@@ -251,11 +299,13 @@ export const TaskMonitor = memo(function TaskMonitor({
   }, [autoRefresh, refreshInterval, refresh, isExpanded]);
 
   // Single-pass computation: status counts + sorted task list
-  const { pendingCount, runningCount, stuckCount, failedCount, sortedTasks } = useMemo(() => {
+  const { pendingCount, runningCount, stuckCount, failedCount, healingCount, healedCount, sortedTasks } = useMemo(() => {
     let pendingCount = 0;
     let runningCount = 0;
     let stuckCount = 0;
     let failedCount = 0;
+    let healingCount = 0;
+    let healedCount = 0;
 
     for (const t of tasks) {
       switch (t.status) {
@@ -263,11 +313,13 @@ export const TaskMonitor = memo(function TaskMonitor({
         case 'running':
           runningCount++;
           if ((t.progress?.length || 0) === 0) stuckCount++;
+          if (t.healing && t.healing.healingAttempt > 0) healingCount++;
           break;
         case 'failed':
         case 'session-limit':
           failedCount++; break;
       }
+      if (t.healing?.healed) healedCount++;
     }
 
     const statusOrder: Record<string, number> = { pending: 0, running: 1, failed: 2, 'session-limit': 2, completed: 3 };
@@ -279,7 +331,7 @@ export const TaskMonitor = memo(function TaskMonitor({
       return (statusOrder[a.status] || 4) - (statusOrder[b.status] || 4);
     });
 
-    return { pendingCount, runningCount, stuckCount, failedCount, sortedTasks };
+    return { pendingCount, runningCount, stuckCount, failedCount, healingCount, healedCount, sortedTasks };
   }, [tasks]);
 
   const orphanCount = orphanedSessions.length;
@@ -299,36 +351,49 @@ export const TaskMonitor = memo(function TaskMonitor({
     }
   }, [refresh, showOrphanCleanup, scanForOrphans]);
 
-  // Don't render if no tasks AND no orphans
-  if (tasks.length === 0 && orphanCount === 0 && !isOrphanScanning) {
-    return null;
-  }
-
+  const isIdle = tasks.length === 0 && orphanCount === 0 && !isOrphanScanning;
   const hasIssues = stuckCount > 0 || pendingCount > 0 || orphanCount > 0;
+
+  // Border/bg style based on state
+  const containerStyle = hasIssues
+    ? 'border-orange-500/30 bg-orange-500/5'
+    : isIdle
+      ? 'border-emerald-500/20 bg-emerald-500/5'
+      : 'border-gray-700/50 bg-gray-800/30';
+
+  // Label color
+  const labelColor = hasIssues
+    ? 'text-orange-400'
+    : isIdle
+      ? 'text-emerald-500/70'
+      : 'text-gray-400';
 
   return (
     <motion.div
       initial={prefersReducedMotion ? false : { opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`border rounded-lg overflow-hidden ${
-        hasIssues
-          ? 'border-orange-500/30 bg-orange-500/5'
-          : 'border-gray-700/50 bg-gray-800/30'
-      }`}
+      className={`border rounded-lg overflow-hidden ${containerStyle}`}
     >
-      {/* Header */}
+      {/* Header — always visible collapsed badge */}
       <div
-        className="flex items-center justify-between p-2.5 cursor-pointer hover:bg-white/5 transition-colors"
-        onClick={() => setIsExpanded(!isExpanded)}
+        className={`flex items-center justify-between p-2.5 ${isIdle ? 'cursor-default' : 'cursor-pointer hover:bg-white/5'} transition-colors`}
+        onClick={() => { if (!isIdle) setIsExpanded(!isExpanded); }}
       >
         <div className="flex items-center gap-2">
-          <Eye className={`w-4 h-4 ${hasIssues ? 'text-orange-400' : 'text-gray-400'}`} />
-          <span className={`text-xs font-medium ${hasIssues ? 'text-orange-400' : 'text-gray-400'}`}>
+          <Eye className={`w-4 h-4 ${labelColor}`} />
+          <span className={`text-xs font-medium ${labelColor}`}>
             Session Health
           </span>
           <div className="flex items-center gap-1.5 text-[10px] tabular-nums">
+            {/* Idle / all-clear state */}
+            {isIdle && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500/70">
+                <Activity className="w-2.5 h-2.5" />
+                All clear
+              </span>
+            )}
             {/* Healthy states */}
-            {(runningCount > 0 || pendingCount > 0) && (
+            {!isIdle && (runningCount > 0 || pendingCount > 0) && (
               <div className="flex items-center gap-1">
                 {runningCount > 0 && (
                   <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-blue-500/20 text-blue-400" aria-label={`${runningCount} task${runningCount !== 1 ? 's' : ''} running`}>
@@ -345,7 +410,7 @@ export const TaskMonitor = memo(function TaskMonitor({
               </div>
             )}
             {/* Divider between groups */}
-            {(runningCount > 0 || pendingCount > 0) && (stuckCount > 0 || failedCount > 0 || orphanCount > 0) && (
+            {!isIdle && (runningCount > 0 || pendingCount > 0) && (stuckCount > 0 || failedCount > 0 || orphanCount > 0) && (
               <div className="w-px h-4 bg-gray-600/40" />
             )}
             {/* Problem states */}
@@ -361,6 +426,18 @@ export const TaskMonitor = memo(function TaskMonitor({
                   <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-red-500/20 text-red-400" aria-label={`${failedCount} task${failedCount !== 1 ? 's' : ''} failed`}>
                     <XCircle className="w-2.5 h-2.5" />
                     {failedCount} failed
+                  </span>
+                )}
+                {healingCount > 0 && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-violet-500/20 text-violet-400" aria-label={`${healingCount} task${healingCount !== 1 ? 's' : ''} self-healing`}>
+                    <Zap className="w-2.5 h-2.5" />
+                    {healingCount} healing
+                  </span>
+                )}
+                {healedCount > 0 && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400" aria-label={`${healedCount} task${healedCount !== 1 ? 's' : ''} self-healed`}>
+                    <Zap className="w-2.5 h-2.5" />
+                    {healedCount} healed
                   </span>
                 )}
                 {orphanCount > 0 && (
@@ -387,21 +464,25 @@ export const TaskMonitor = memo(function TaskMonitor({
               {isCleaning ? 'Cleaning...' : 'Clean All'}
             </button>
           )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleRefreshAll();
-            }}
-            disabled={isRefreshing || isOrphanScanning}
-            className="p-1 hover:bg-white/10 rounded transition-colors"
-            title="Refresh status"
-          >
-            <RefreshCw className={`w-3 h-3 text-gray-400 ${isRefreshing || isOrphanScanning ? (prefersReducedMotion ? 'animate-pulse' : 'animate-spin') : ''}`} />
-          </button>
-          {isExpanded ? (
-            <ChevronUp className="w-4 h-4 text-gray-400" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-gray-400" />
+          {!isIdle && (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRefreshAll();
+                }}
+                disabled={isRefreshing || isOrphanScanning}
+                className="p-1 hover:bg-white/10 rounded transition-colors"
+                title="Refresh status"
+              >
+                <RefreshCw className={`w-3 h-3 text-gray-400 ${isRefreshing || isOrphanScanning ? (prefersReducedMotion ? 'animate-pulse' : 'animate-spin') : ''}`} />
+              </button>
+              {isExpanded ? (
+                <ChevronUp className="w-4 h-4 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-gray-400" />
+              )}
+            </>
           )}
         </div>
       </div>
@@ -416,9 +497,9 @@ export const TaskMonitor = memo(function TaskMonitor({
         </div>
       )}
 
-      {/* Expanded content */}
+      {/* Expanded content — hidden when idle */}
       <AnimatePresence>
-        {isExpanded && (
+        {isExpanded && !isIdle && (
           <motion.div
             initial={prefersReducedMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
             animate={prefersReducedMotion ? { opacity: 1 } : { height: 'auto', opacity: 1 }}
@@ -457,6 +538,25 @@ export const TaskMonitor = memo(function TaskMonitor({
                   {sortedTasks.map((task) => (
                     <TaskItem key={task.id} task={task} />
                   ))}
+                </div>
+              )}
+
+              {/* Live Activity Theater — shows real-time tool invocations for running tasks */}
+              {runningCount > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-[10px] text-gray-400 font-medium">
+                    <Play className="w-3 h-3" />
+                    <span>Live Activity</span>
+                  </div>
+                  {sortedTasks
+                    .filter((t) => t.status === 'running')
+                    .map((task) => (
+                      <LiveActivityPanel
+                        key={`live-${task.id}`}
+                        taskId={task.id}
+                        requirementName={task.requirementName}
+                      />
+                    ))}
                 </div>
               )}
             </div>

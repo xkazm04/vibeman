@@ -11,17 +11,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scanQueueWorker } from '@/lib/scanQueueWorker';
 import { withObservability } from '@/lib/observability/middleware';
+import { withIdeasErrorHandler, IdeasErrorCode } from '@/app/features/Ideas/lib/ideasHandlers';
 
 async function handleGet(request: NextRequest) {
-  try {
-    const status = scanQueueWorker.getStatus();
-    return NextResponse.json({ status });
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to get worker status', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
+  const status = scanQueueWorker.getStatus();
+  return NextResponse.json({ status });
 }
 
-export const GET = withObservability(handleGet, '/api/scan-queue/worker');
+export const GET = withObservability(
+  withIdeasErrorHandler(handleGet, IdeasErrorCode.INTERNAL_ERROR),
+  '/api/scan-queue/worker'
+);

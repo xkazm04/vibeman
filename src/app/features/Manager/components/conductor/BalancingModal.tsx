@@ -21,7 +21,7 @@ import { useConductorStore } from '../../lib/conductor/conductorStore';
 import type { BalancingConfig, ScanStrategy, ContextStrategy, BatchStrategy, ModelRoutingRule } from '../../lib/conductor/types';
 import type { CLIProvider } from '@/lib/claude-terminal/types';
 import { PROVIDER_MODELS } from '@/lib/claude-terminal/types';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { AGENT_REGISTRY, getAgentsByCategory } from '@/app/features/Ideas/lib/scanTypes';
 import type { ScanType, AgentCategory } from '@/app/features/Ideas/lib/scanTypes';
 
@@ -598,7 +598,7 @@ function ContextSelector({
 
 export default function BalancingModal({ isOpen, onClose }: BalancingModalProps) {
   const { config, updateConfig, resetConfig } = useConductorStore();
-  const activeProject = useActiveProjectStore((s) => s.activeProject);
+  const activeProject = useClientProjectStore((s) => s.activeProject);
 
   const update = (partial: Partial<BalancingConfig>) => {
     updateConfig(partial);

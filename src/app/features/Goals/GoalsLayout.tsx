@@ -1,14 +1,14 @@
 'use client';
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Plus, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Plus, ChevronRight, ChevronUp, X } from 'lucide-react';
 
 import ProjectsLayout from '@/app/projects/ProjectsLayout';
 import DashboardSectionHeader from './components/DashboardSectionHeader';
 import GoalModal from './sub_GoalModal/GoalModal';
 import { Goal } from '../../../types';
 import { GoalProvider, useGoalContext } from '@/contexts/GoalContext';
-import { useActiveProjectStore } from '../../../stores/activeProjectStore';
+import { useClientProjectStore } from '../../../stores/clientProjectStore';
 import { useProjectsToolbarStore } from '../../../stores/projectsToolbarStore';
 import { getNextOrder } from './sub_GoalModal/lib';
 import { getStatusConfig } from './sub_GoalModal/lib/goalConstants';
@@ -98,14 +98,70 @@ const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, isFocu
   );
 });
 
+function AnalyticsPanels({ projectId }: { projectId: string | null }) {
+  return (
+    <>
+      {/* Events Chart */}
+      <GlassCard variant="panel" className="shrink-0 overflow-hidden flex flex-col">
+        <div className="p-4 border-b border-white/5 bg-white/[0.03]">
+          <DashboardSectionHeader title="Activity Velocity" variant="secondary" />
+        </div>
+        <div className="p-4 relative">
+          {projectId && <EventsBarChart projectId={projectId} limit={10} />}
+        </div>
+      </GlassCard>
+
+      {/* Standup History Timeline */}
+      <GlassCard variant="panel" className="lg:flex-1 overflow-hidden flex flex-col min-h-0">
+        <div className="p-4 border-b border-white/5 bg-white/[0.03]">
+          <DashboardSectionHeader title="Standup History" variant="secondary" />
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar max-h-[300px] lg:max-h-none">
+          {projectId ? (
+            <StandupHistoryTimeline projectId={projectId} limit={30} />
+          ) : (
+            <div className="flex items-center justify-center h-full text-white/30 text-xs">
+              Select a project
+            </div>
+          )}
+        </div>
+      </GlassCard>
+
+      {/* Screen Catalog */}
+      <GlassCard variant="panel" className="shrink-0 h-[200px] overflow-hidden flex flex-col">
+        <div className="p-4 border-b border-white/5 bg-white/[0.03]">
+          <DashboardSectionHeader title="Visual Assets" variant="secondary" />
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <ScreenCatalog projectId={projectId} />
+        </div>
+      </GlassCard>
+    </>
+  );
+}
+
 function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
   const { goals, createGoal, updateGoal } = useGoalContext();
   const { showAddGoal, setShowAddGoal } = useProjectsToolbarStore();
 
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(0);
+  const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
+
+  // Track if we're below lg breakpoint for bottom sheet behavior
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)');
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => {
+      setIsMobile(e.matches);
+      if (!e.matches) setBottomSheetOpen(false);
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   // Goals are already filtered by projectId in the GoalProvider
   const projectGoals = goals;
@@ -157,19 +213,25 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
         <ProjectsLayout />
       </div>
 
-      {/* Main Content - Dashboard Grid */}
-      <div className="flex-1 p-6 overflow-hidden relative">
+      {/* Main Content - Responsive Dashboard Grid */}
+      <div className="flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto lg:overflow-hidden relative">
         {/* Background Grid */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.03)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
         <div className="absolute inset-0 bg-gradient-to-b from-background/0 via-background/0 to-background/80 pointer-events-none" />
-        
+
         {/* Ambient Glow */}
         <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-primary/5 blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 grid grid-cols-12 gap-6 h-full max-w-[1920px] mx-auto">
-          
-          {/* Left Column: Goals List (3 cols) */}
-          <div className="col-span-3 flex flex-col gap-4 h-full">
+        {/*
+          Responsive grid:
+          - default: single column, stacked
+          - md: two columns — goal list + implementation logs
+          - lg+: three columns — goals | logs | analytics
+        */}
+        <div className="relative z-10 grid grid-cols-1 md:grid-cols-[minmax(240px,1fr)_minmax(280px,2fr)] lg:grid-cols-[minmax(240px,3fr)_minmax(320px,5fr)_minmax(260px,4fr)] gap-4 lg:gap-6 lg:h-full max-w-[1920px] mx-auto">
+
+          {/* Left Column: Goals List */}
+          <div className="flex flex-col gap-4 min-h-[200px] sm:min-h-[280px] lg:h-full">
             <DashboardSectionHeader
               title="MISSION CONTROL"
               icon={<LayoutDashboard className="w-5 h-5 text-primary" />}
@@ -246,8 +308,8 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
             </GlassCard>
           </div>
 
-          {/* Middle Column: Implementation Logs (5 cols) */}
-          <div className="col-span-5 flex flex-col gap-4 h-full">
+          {/* Middle Column: Implementation Logs */}
+          <div className="flex flex-col gap-4 min-h-[200px] sm:min-h-[280px] lg:h-full">
             <DashboardSectionHeader title="System Logs" />
             
             <GlassCard variant="panel" className="flex-1 overflow-hidden relative">
@@ -264,47 +326,66 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
             </GlassCard>
           </div>
 
-          {/* Right Column: Analytics & Catalog (4 cols) */}
-          <div className="col-span-4 flex flex-col gap-4 h-full">
-            {/* Top: Events Chart */}
-            <GlassCard variant="panel" className="shrink-0 overflow-hidden flex flex-col">
-              <div className="p-4 border-b border-white/5 bg-white/[0.03]">
-                <DashboardSectionHeader title="Activity Velocity" variant="secondary" />
-              </div>
-              <div className="p-4 relative">
-                {projectId && <EventsBarChart projectId={projectId} limit={10} />}
-              </div>
-            </GlassCard>
-
-            {/* Middle: Standup History Timeline */}
-            <GlassCard variant="panel" className="flex-1 overflow-hidden flex flex-col min-h-0">
-              <div className="p-4 border-b border-white/5 bg-white/[0.03]">
-                <DashboardSectionHeader title="Standup History" variant="secondary" />
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                {projectId ? (
-                  <StandupHistoryTimeline projectId={projectId} limit={30} />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-white/30 text-xs">
-                    Select a project
-                  </div>
-                )}
-              </div>
-            </GlassCard>
-
-            {/* Bottom: Screen Catalog */}
-            <GlassCard variant="panel" className="shrink-0 h-[200px] overflow-hidden flex flex-col">
-              <div className="p-4 border-b border-white/5 bg-white/[0.03]">
-                <DashboardSectionHeader title="Visual Assets" variant="secondary" />
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <ScreenCatalog projectId={projectId} />
-              </div>
-            </GlassCard>
+          {/* Right Column: Analytics & Catalog — only visible on lg+ as inline column */}
+          <div className="hidden lg:flex flex-col gap-4 lg:h-full">
+            <AnalyticsPanels projectId={projectId} />
           </div>
 
         </div>
       </div>
+
+      {/* Mobile/Tablet: floating button to open analytics bottom sheet */}
+      {isMobile && !bottomSheetOpen && (
+        <button
+          onClick={() => setBottomSheetOpen(true)}
+          className="lg:hidden fixed bottom-4 right-4 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full bg-primary/90 text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary transition-colors backdrop-blur-sm"
+        >
+          <ChevronUp className="w-4 h-4" />
+          Analytics
+        </button>
+      )}
+
+      {/* Mobile/Tablet: Bottom Sheet overlay for analytics */}
+      <AnimatePresence>
+        {isMobile && bottomSheetOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+              onClick={() => setBottomSheetOpen(false)}
+            />
+            {/* Sheet */}
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] flex flex-col bg-background/95 backdrop-blur-xl border-t border-white/10 rounded-t-2xl shadow-2xl"
+            >
+              {/* Drag handle + close */}
+              <div className="flex items-center justify-between p-4 border-b border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-1 rounded-full bg-white/20 mx-auto" />
+                  <span className="text-sm font-medium text-muted-foreground">Analytics & Catalog</span>
+                </div>
+                <button
+                  onClick={() => setBottomSheetOpen(false)}
+                  className="p-1.5 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                <AnalyticsPanels projectId={projectId} />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Add Goal Modal */}
       <GoalModal

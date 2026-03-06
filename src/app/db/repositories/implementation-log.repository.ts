@@ -1,5 +1,10 @@
 import { getDatabase } from '../connection';
 import { DbImplementationLog } from '../models/types';
+import { createGenericRepository } from './generic.repository';
+
+const base = createGenericRepository<DbImplementationLog>({
+  tableName: 'implementation_log',
+});
 
 /**
  * Implementation Log Repository
@@ -9,29 +14,13 @@ export const implementationLogRepository = {
   /**
    * Get recent implementation logs for a project (last N logs)
    */
-  getRecentLogsByProject: (projectId: string, limit: number = 5): DbImplementationLog[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM implementation_log
-      WHERE project_id = ?
-      ORDER BY created_at DESC
-      LIMIT ?
-    `);
-    return stmt.all(projectId, limit) as DbImplementationLog[];
-  },
+  getRecentLogsByProject: (projectId: string, limit: number = 5): DbImplementationLog[] =>
+    base.getByProject(projectId, limit),
 
   /**
    * Get all implementation logs for a project
    */
-  getLogsByProject: (projectId: string): DbImplementationLog[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM implementation_log
-      WHERE project_id = ?
-      ORDER BY created_at DESC
-    `);
-    return stmt.all(projectId) as DbImplementationLog[];
-  },
+  getLogsByProject: (projectId: string): DbImplementationLog[] => base.getByProject(projectId),
 
   /**
    * Get implementation logs for a project within a date range (SQL-level filtering)
@@ -49,15 +38,7 @@ export const implementationLogRepository = {
   /**
    * Get a single implementation log by ID
    */
-  getLogById: (logId: string): DbImplementationLog | null => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM implementation_log
-      WHERE id = ?
-    `);
-    const log = stmt.get(logId) as DbImplementationLog | undefined;
-    return log || null;
-  },
+  getLogById: (logId: string): DbImplementationLog | null => base.getById(logId),
 
   /**
    * Get untested implementation logs for a project
@@ -177,53 +158,11 @@ export const implementationLogRepository = {
     context_id?: string | null;
     screenshot?: string | null;
   }): DbImplementationLog | null => {
-    const db = getDatabase();
-
-    // Build dynamic update query
-    const updateFields: string[] = [];
-    const values: (string | number | null)[] = [];
-
+    const dbUpdates: Record<string, unknown> = { ...updates };
     if (updates.tested !== undefined) {
-      updateFields.push('tested = ?');
-      values.push(updates.tested ? 1 : 0);
+      dbUpdates.tested = updates.tested ? 1 : 0;
     }
-    if (updates.overview !== undefined) {
-      updateFields.push('overview = ?');
-      values.push(updates.overview);
-    }
-    if (updates.overview_bullets !== undefined) {
-      updateFields.push('overview_bullets = ?');
-      values.push(updates.overview_bullets);
-    }
-    if (updates.screenshot !== undefined) {
-      updateFields.push('screenshot = ?');
-      values.push(updates.screenshot);
-    }
-    if (updates.context_id !== undefined) {
-      updateFields.push('context_id = ?');
-      values.push(updates.context_id);
-    }
-
-    if (updateFields.length === 0) {
-      // No updates to apply
-      const selectStmt = db.prepare('SELECT * FROM implementation_log WHERE id = ?');
-      return selectStmt.get(id) as DbImplementationLog | null;
-    }
-
-    const updateQuery = `
-      UPDATE implementation_log
-      SET ${updateFields.join(', ')}
-      WHERE id = ?
-    `;
-
-    values.push(id);
-
-    const stmt = db.prepare(updateQuery);
-    stmt.run(...values);
-
-    // Return updated log
-    const selectStmt = db.prepare('SELECT * FROM implementation_log WHERE id = ?');
-    return selectStmt.get(id) as DbImplementationLog | null;
+    return base.update(id, dbUpdates);
   },
 
   /**
@@ -256,8 +195,6 @@ export const implementationLogRepository = {
    * Delete an implementation log
    */
   deleteLog: (id: string): void => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM implementation_log WHERE id = ?');
-    stmt.run(id);
+    base.deleteById(id);
   }
 };

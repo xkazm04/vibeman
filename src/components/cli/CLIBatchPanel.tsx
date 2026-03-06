@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo } from 'react';
-import { Terminal, TerminalSquare } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Terminal, TerminalSquare, Settings } from 'lucide-react';
+import { AutoAssignSettingsModal } from './AutoAssignSettingsModal';
 import { CLISession } from './CLISession';
 import type { CLIBatchPanelProps } from './types';
 import { requirementToQueuedTask } from './types';
@@ -14,7 +15,6 @@ import {
   type CLISessionId,
 } from './store';
 import { useCLIRecovery } from './store/useCLIRecovery';
-import { RecoveryBanner } from './RecoveryBanner';
 import type { SkillId } from './skills';
 import type { CLIProvider, CLIModel } from '@/lib/claude-terminal/types';
 import {
@@ -76,6 +76,9 @@ export function CLIBatchPanel({
 
   // Recovery hook - recovers sessions on mount
   useCLIRecovery();
+
+  // Auto-assign settings modal
+  const [showSettings, setShowSettings] = useState(false);
 
   // Get selected requirements
   const selectedRequirements = useMemo(() => {
@@ -252,22 +255,29 @@ export function CLIBatchPanel({
             ({selectedTaskIds.length} selected)
           </span>
         </div>
-        {/* Nerd Mode Toggle */}
-        <button
-          onClick={toggleNerdMode}
-          className={`p-2 rounded-lg transition-colors border ${
-            nerdMode
-              ? 'bg-emerald-600/20 text-emerald-400 border-emerald-600/40'
-              : 'bg-gray-700/30 text-gray-400 hover:bg-gray-700/50 hover:text-gray-300 border-gray-700'
-          }`}
-          title={nerdMode ? 'Switch to rich UI' : 'Nerd mode (minimal UI)'}
-        >
-          <TerminalSquare className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          {/* Auto-Assign Settings */}
+          <button
+            onClick={() => setShowSettings(true)}
+            className="p-2 rounded-lg transition-colors border bg-gray-700/30 text-gray-400 hover:bg-gray-700/50 hover:text-gray-300 border-gray-700"
+            title="Auto-assign settings"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+          {/* Nerd Mode Toggle */}
+          <button
+            onClick={toggleNerdMode}
+            className={`p-2 rounded-lg transition-colors border ${
+              nerdMode
+                ? 'bg-emerald-600/20 text-emerald-400 border-emerald-600/40'
+                : 'bg-gray-700/30 text-gray-400 hover:bg-gray-700/50 hover:text-gray-300 border-gray-700'
+            }`}
+            title={nerdMode ? 'Switch to rich UI' : 'Nerd mode (minimal UI)'}
+          >
+            <TerminalSquare className="w-4 h-4" />
+          </button>
+        </div>
       </div>
-
-      {/* Recovery Banner */}
-      <RecoveryBanner />
 
       {/* Session Grid - 1 col on tablet/smaller, 2x2 on desktop */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -295,6 +305,8 @@ export function CLIBatchPanel({
         ))}
       </div>
 
+      {/* Auto-Assign Settings Modal */}
+      <AutoAssignSettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useOnboardingStore, type OnboardingStep } from '@/stores/onboardingStore';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 
 interface Idea {
   status: string;
@@ -39,8 +39,8 @@ function completeStepIfNeeded(
  */
 export function useOnboardingAutoComplete() {
   const { completeStep, isStepCompleted, refreshTrigger, setActiveProjectId } = useOnboardingStore();
-  const { projects } = useProjectConfigStore();
-  const { activeProject } = useActiveProjectStore();
+  const { projects } = useServerProjectStore();
+  const { activeProject } = useClientProjectStore();
 
   const [hasContexts, setHasContexts] = useState(false);
   const [hasIdeas, setHasIdeas] = useState(false);

@@ -1,7 +1,8 @@
 'use client';
 
-import { useId, useMemo } from 'react';
+import { useCallback, useId, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
+import ChartTooltip from './ChartTooltip';
 
 export interface AnomalyZone {
   /** Start day (0 = today) */
@@ -18,7 +19,7 @@ interface SignalDecayCurveProps {
   decayFactor: number;
   retentionDays: number;
   /** Actual signal data points: [daysAgo, weight] */
-  actualSignals?: Array<{ daysAgo: number; weight: number }>;
+  actualSignals?: Array<{ daysAgo: number; weight: number; signalType?: string }>;
   /** Highlighted anomaly zones on the chart */
   anomalyZones?: AnomalyZone[];
 }
@@ -45,8 +46,29 @@ function formatDayLabel(day: number): string {
   return `${day}d`;
 }
 
+function formatTimeAgo(daysAgo: number): string {
+  if (daysAgo === 0) return 'today';
+  if (daysAgo < 1) return `${Math.round(daysAgo * 24)}h ago`;
+  if (daysAgo === 1) return '1d ago';
+  if (daysAgo < 7) return `${Math.round(daysAgo)}d ago`;
+  if (daysAgo < 14) return '1w ago';
+  return `${Math.round(daysAgo / 7)}w ago`;
+}
+
 export default function SignalDecayCurve({ decayFactor, retentionDays, actualSignals, anomalyZones }: SignalDecayCurveProps) {
   const gradientId = `decayCurveGradient-${useId()}`;
+  const [tooltip, setTooltip] = useState<{ label: string; rect: DOMRect } | null>(null);
+
+  const handleDotHover = useCallback((e: React.MouseEvent<SVGCircleElement> | React.FocusEvent<SVGCircleElement>, signal: { daysAgo: number; weight: number; signalType?: string }) => {
+    const rect = (e.target as SVGCircleElement).getBoundingClientRect();
+    const typePart = signal.signalType ? ` (${signal.signalType.replace(/_/g, ' ')})` : '';
+    setTooltip({
+      label: `Weight: ${signal.weight.toFixed(2)} -- ${formatTimeAgo(signal.daysAgo)}${typePart}`,
+      rect,
+    });
+  }, []);
+
+  const handleDotLeave = useCallback(() => setTooltip(null), []);
   const curvePoints = useMemo(() => {
     const points: string[] = [];
     const steps = 50;
@@ -188,7 +210,7 @@ export default function SignalDecayCurve({ decayFactor, retentionDays, actualSig
           </linearGradient>
         </defs>
 
-        {/* Actual signal dots */}
+        {/* Actual signal dots (interactive) */}
         {actualSignals?.map((signal, i) => {
           if (signal.daysAgo > retentionDays) return null;
           const x = PADDING.left + (signal.daysAgo / retentionDays) * INNER_WIDTH;
@@ -200,9 +222,18 @@ export default function SignalDecayCurve({ decayFactor, retentionDays, actualSig
               cy={y}
               r={2.5}
               fill="#10b981"
+              className="cursor-pointer outline-none"
+              tabIndex={0}
+              role="graphics-symbol"
+              aria-label={`Weight: ${signal.weight.toFixed(2)}, ${formatTimeAgo(signal.daysAgo)}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.7 }}
+              whileHover={{ opacity: 1, scale: 1.6 }}
               transition={{ duration: 0.3, delay: 0.4 + i * 0.05, ease: 'easeOut' }}
+              onMouseEnter={(e) => handleDotHover(e, signal)}
+              onFocus={(e) => handleDotHover(e, signal)}
+              onMouseLeave={handleDotLeave}
+              onBlur={handleDotLeave}
             />
           );
         })}
@@ -230,6 +261,11 @@ export default function SignalDecayCurve({ decayFactor, retentionDays, actualSig
           strokeWidth={1}
         />
       </svg>
+      <ChartTooltip
+        label={tooltip?.label ?? ''}
+        anchorRect={tooltip?.rect ?? null}
+        visible={tooltip !== null}
+      />
     </div>
   );
 }

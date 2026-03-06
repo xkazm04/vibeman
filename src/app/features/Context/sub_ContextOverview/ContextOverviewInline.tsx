@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import ContextOverviewHeader, { TabType } from './components/ContextOverviewHeader';
 import ContextDescription from './components/ContextDescription';
 import ContextPreviewManager from '@/app/features/Context/sub_ContextPreview/ContextPreviewManager';
@@ -19,7 +19,7 @@ interface ContextOverviewInlineProps {
  * Does not render as modal portal, but as inline component
  */
 const ContextOverviewInline = ({ context, groupColor, onClose }: ContextOverviewInlineProps) => {
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
   const activeProjectId = activeProject?.id;
   const [activeTab, setActiveTab] = useState<TabType>('manager');
   const [currentPreview, setCurrentPreview] = useState<string | null>(null);

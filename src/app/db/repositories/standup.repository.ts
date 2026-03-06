@@ -1,6 +1,12 @@
 import { getDatabase } from '../connection';
 import { DbStandupSummary } from '../models/standup.types';
-import { buildUpdateStatement } from './repository.utils';
+import { createGenericRepository } from './generic.repository';
+
+const base = createGenericRepository<DbStandupSummary>({
+  tableName: 'standup_summaries',
+  defaultOrder: 'period_start DESC',
+  excludeUpdateFields: ['id', 'project_id', 'period_type', 'period_start', 'created_at'],
+});
 
 /**
  * Standup Summary Repository
@@ -10,26 +16,13 @@ export const standupRepository = {
   /**
    * Get all standup summaries for a project
    */
-  getSummariesByProject: (projectId: string, limit: number = 30): DbStandupSummary[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM standup_summaries
-      WHERE project_id = ?
-      ORDER BY period_start DESC
-      LIMIT ?
-    `);
-    return stmt.all(projectId, limit) as DbStandupSummary[];
-  },
+  getSummariesByProject: (projectId: string, limit: number = 30): DbStandupSummary[] =>
+    base.getByProject(projectId, limit),
 
   /**
    * Get standup summary by ID
    */
-  getSummaryById: (id: string): DbStandupSummary | null => {
-    const db = getDatabase();
-    const stmt = db.prepare('SELECT * FROM standup_summaries WHERE id = ?');
-    const summary = stmt.get(id) as DbStandupSummary | undefined;
-    return summary || null;
-  },
+  getSummaryById: (id: string): DbStandupSummary | null => base.getById(id),
 
   /**
    * Get standup summary for a specific period
@@ -82,24 +75,7 @@ export const standupRepository = {
   updateSummary: (
     id: string,
     updates: Partial<Omit<DbStandupSummary, 'id' | 'project_id' | 'period_type' | 'period_start' | 'created_at'>>
-  ): DbStandupSummary | null => {
-    const db = getDatabase();
-
-    const result = buildUpdateStatement(
-      db,
-      'standup_summaries',
-      updates as Record<string, unknown>,
-      'id',
-      ['id', 'project_id', 'period_type', 'period_start', 'created_at', 'updated_at'],
-    );
-
-    if (result) {
-      result.stmt.run(...result.values, id);
-    }
-
-    const selectStmt = db.prepare('SELECT * FROM standup_summaries WHERE id = ?');
-    return selectStmt.get(id) as DbStandupSummary | null;
-  },
+  ): DbStandupSummary | null => base.update(id, updates as Record<string, unknown>),
 
   /**
    * Upsert a standup summary (create or update)
@@ -173,17 +149,12 @@ export const standupRepository = {
       now
     );
 
-    return db.prepare('SELECT * FROM standup_summaries WHERE id = ?').get(summary.id) as DbStandupSummary;
+    return base.getById(summary.id)!;
   },
 
   /**
    * Delete a standup summary
    */
-  deleteSummary: (id: string): boolean => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM standup_summaries WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
-  },
+  deleteSummary: (id: string): boolean => base.deleteById(id),
 
 };

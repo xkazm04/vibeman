@@ -5,7 +5,7 @@
  */
 
 import { DbIdea, ideaDb } from '@/app/db';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { Context } from '@/stores/contextStore';
 
 /**
@@ -123,7 +123,7 @@ export function getAllIdeasWithMetadata(
     const ideas = ideaDb.getAllIdeas();
 
     // Get project store for project names
-    const projectStore = useProjectConfigStore.getState();
+    const projectStore = useServerProjectStore.getState();
 
     // Create context lookup map for O(1) access
     const contextMap = createContextMap(contexts);
@@ -206,7 +206,7 @@ export function getProjectStats(): ProjectStats[] {
     const ideas = ideaDb.getAllIdeas();
 
     // Get project store
-    const projectStore = useProjectConfigStore.getState();
+    const projectStore = useServerProjectStore.getState();
     const projects = projectStore.getAllProjects();
 
     // Group ideas by project
@@ -258,7 +258,7 @@ export function getContextStats(contexts: Context[]): ContextStats[] {
     const ideas = ideaDb.getAllIdeas();
 
     // Get project store
-    const projectStore = useProjectConfigStore.getState();
+    const projectStore = useServerProjectStore.getState();
 
     // Create context map for O(1) lookup
     const contextMap = createContextMap(contexts);
@@ -317,7 +317,7 @@ export function getIdeasGroupedByProjectAndContext(
     const ideasWithMetadata = getAllIdeasWithMetadata(contexts);
 
     // Get project store
-    const projectStore = useProjectConfigStore.getState();
+    const projectStore = useServerProjectStore.getState();
     const projects = projectStore.getAllProjects();
 
     // Create context map for O(1) lookup

@@ -3,7 +3,8 @@
  * Types for tracking code health scans per context group
  */
 
-export type HealthScanStatus = 'pending' | 'running' | 'completed' | 'failed';
+import type { BaseLifecycleStatus } from '@/lib/status';
+export type HealthScanStatus = BaseLifecycleStatus;
 
 /**
  * Database record for a group health scan

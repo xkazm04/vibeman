@@ -31,111 +31,26 @@ import { registerTaskComplete } from '../taskRegistry';
 import { DAGScheduler, type DAGTask, type DAGTaskStatus } from '@/lib/dag/dagScheduler';
 
 // ============ Shared Task Completion Utilities ============
+// Re-exported from unified execution layer for backward compatibility.
+// Canonical implementation lives in @/lib/execution/taskCleanup.ts.
 
-/**
- * Delete a requirement file after successful completion
- * Shared by cliExecutionManager and CLIBatchPanel
- */
-export async function deleteRequirementFile(
-  projectPath: string,
-  requirementName: string
-): Promise<boolean> {
-  try {
-    const response = await fetch('/api/claude-code/requirement', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ projectPath, requirementName }),
-    });
-    return response.ok;
-  } catch (error) {
-    console.error('[CLI] Failed to delete requirement:', error);
-    return false;
-  }
-}
+import {
+  performTaskCleanup as sharedPerformTaskCleanup,
+  deleteRequirementFile as sharedDeleteRequirementFile,
+  updateIdeaImplementationStatus as sharedUpdateIdeaImplementationStatus,
+} from '@/lib/execution/taskCleanup';
 
-/**
- * Update idea status to implemented
- * Shared by cliExecutionManager and CLIBatchPanel
- */
-export async function updateIdeaImplementationStatus(
-  requirementName: string
-): Promise<void> {
-  try {
-    await fetch('/api/ideas/update-implementation-status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requirementName }),
-    });
-  } catch {
-    // Non-critical - silently ignore
-  }
-}
+/** @deprecated Import from '@/lib/execution/taskCleanup' instead */
+export const deleteRequirementFile = (projectPath: string, requirementName: string) =>
+  sharedDeleteRequirementFile(projectPath, requirementName);
 
-/**
- * Ensure an implementation log exists for a completed task.
- * Checks existing logs and creates a fallback if none found.
- * This guarantees a log is always created after CLI execution,
- * even if Claude didn't call the log_implementation MCP tool.
- */
-async function ensureImplementationLog(
-  projectId: string,
-  requirementName: string,
-  contextId?: string | null
-): Promise<void> {
-  try {
-    // Check if a log already exists for this requirement
-    const resp = await fetch(
-      `/api/implementation-logs?projectId=${encodeURIComponent(projectId)}&limit=50`
-    );
-    if (resp.ok) {
-      const { logs } = await resp.json();
-      const exists = Array.isArray(logs) && logs.some(
-        (log: { requirement_name?: string }) => log.requirement_name === requirementName
-      );
-      if (exists) return; // Log already created by MCP tool — nothing to do
-    }
+/** @deprecated Import from '@/lib/execution/taskCleanup' instead */
+export const updateIdeaImplementationStatus = (requirementName: string) =>
+  sharedUpdateIdeaImplementationStatus(requirementName);
 
-    // No log found — create a fallback via the simplified endpoint (which also emits brain signal + updates idea)
-    await fetch('/api/implementation-log', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        projectId,
-        requirementName,
-        title: `Implementation: ${requirementName}`,
-        overview: 'Auto-generated after successful CLI execution (no MCP log_implementation call detected).',
-        contextId: contextId || undefined,
-      }),
-    });
-  } catch {
-    // Non-critical — best-effort fallback
-  }
-}
-
-/**
- * Perform post-completion cleanup for a successful task.
- * Sequential cascade: update status → ensure log → delete file.
- * The requirement file must stay on disk until status/log updates
- * finish, since downstream endpoints may reference the idea by name.
- *
- * @returns true if requirement was deleted successfully
- */
-export async function performTaskCleanup(
-  projectPath: string,
-  requirementName: string,
-  projectId?: string
-): Promise<boolean> {
-  // 1. Update idea status (await so it completes before file deletion)
-  await updateIdeaImplementationStatus(requirementName);
-
-  // 2. Ensure implementation log exists — creates fallback if MCP tool was skipped
-  if (projectId) {
-    await ensureImplementationLog(projectId, requirementName).catch(() => {});
-  }
-
-  // 3. Delete requirement file last — after all lookups are done
-  return deleteRequirementFile(projectPath, requirementName);
-}
+/** @deprecated Import from '@/lib/execution/taskCleanup' instead */
+export const performTaskCleanup = (projectPath: string, requirementName: string, projectId?: string) =>
+  sharedPerformTaskCleanup({ projectPath, requirementName, projectId });
 
 // ============================================================================
 // Strategy-backed execution
@@ -470,6 +385,9 @@ export async function recoverCLISessions(): Promise<void> {
   }
 
   for (const session of sessionsToRecover) {
+    // Mark this session as recovering (only sessions with interrupted work get this flag)
+    store.setSessionRecovering(session.id, true);
+
     // Check if we have a running task that needs monitoring
     const runningTask = session.queue.find((t) => t.status.type === 'running');
 
@@ -502,6 +420,11 @@ export async function recoverCLISessions(): Promise<void> {
       store.setAutoStart(session.id, false);
       store.setRunning(session.id, false);
     }
+
+    // Clear recovery flag after a short delay to allow UI to show recovery completed
+    setTimeout(() => {
+      useCLISessionStore.getState().setSessionRecovering(session.id, false);
+    }, 3000);
   }
 }
 

@@ -32,7 +32,8 @@ export async function executeRequirement(
   projectId?: string,
   onProgress?: (data: string) => void,
   gitConfig?: GitExecutionConfig,
-  sessionConfig?: SessionConfig
+  sessionConfig?: SessionConfig,
+  healingContext?: string
 ): Promise<{
   success: boolean;
   output?: string;
@@ -127,6 +128,7 @@ export async function executeRequirement(
           gitEnabled: gitConfig?.enabled,
           gitCommands: gitConfig?.commands,
           gitCommitMessage: gitConfig?.commitMessage,
+          healingContext,
         });
         memoryApplicationIds = appIds;
 

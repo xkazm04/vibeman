@@ -63,11 +63,15 @@ function buildDescriptionSection(idea: DbIdea): string {
  * Parse file paths from context
  */
 function parseContextFilePaths(context: DbContext): string[] {
-  const filePaths = typeof context.file_paths === 'string'
-    ? JSON.parse(context.file_paths)
-    : context.file_paths;
-
-  return Array.isArray(filePaths) ? filePaths : [];
+  try {
+    const filePaths = typeof context.file_paths === 'string'
+      ? JSON.parse(context.file_paths)
+      : context.file_paths;
+    return Array.isArray(filePaths) ? filePaths : [];
+  } catch (e) {
+    console.warn(`[reqFileBuilder] Malformed file_paths JSON in context ${context.id}, skipping:`, e);
+    return [];
+  }
 }
 
 /**

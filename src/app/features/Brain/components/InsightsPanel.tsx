@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Lightbulb, Filter, RefreshCw, AlertOctagon, Search, Zap, Sparkles } from 'lucide-react';
 import BrainPanelHeader from './BrainPanelHeader';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useBrainStore } from '@/stores/brainStore';
 import { InsightsTable } from './InsightsTable';
@@ -102,7 +102,7 @@ function BrainSvg({ reducedMotion }: { reducedMotion?: boolean | null }) {
 }
 
 function InsightsEmptyState({ scope }: { scope: 'project' | 'global' }) {
-  const activeProject = useActiveProjectStore((s) => s.activeProject);
+  const activeProject = useClientProjectStore((s) => s.activeProject);
   const prefersReducedMotion = useReducedMotion();
 
   // Unified reflection trigger hook
@@ -198,7 +198,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
     return () => clearTimeout(searchTimerRef.current);
   }, []);
 
-  const activeProject = useActiveProjectStore((state) => state.activeProject);
+  const activeProject = useClientProjectStore((state) => state.activeProject);
   const projects = useServerProjectStore((state) => state.projects);
   const abortableFetch = useAbortableFetch();
 

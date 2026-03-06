@@ -9,6 +9,11 @@ import type {
   CreateBrainReflectionInput,
 } from '../models/brain.types';
 import { getCurrentTimestamp, selectOne, selectAll } from './repository.utils';
+import { createGenericRepository } from './generic.repository';
+
+const base = createGenericRepository<DbBrainReflection>({
+  tableName: 'brain_reflections',
+});
 
 export const brainReflectionRepository = {
   /**
@@ -87,14 +92,7 @@ export const brainReflectionRepository = {
   /**
    * Get reflection by ID
    */
-  getById: (id: string): DbBrainReflection | null => {
-    const db = getDatabase();
-    return selectOne<DbBrainReflection>(
-      db,
-      'SELECT * FROM brain_reflections WHERE id = ?',
-      id
-    );
-  },
+  getById: (id: string): DbBrainReflection | null => base.getById(id),
 
   /**
    * Get latest reflection for a project
@@ -129,18 +127,8 @@ export const brainReflectionRepository = {
   /**
    * Get reflections by project
    */
-  getByProject: (projectId: string, limit: number = 10): DbBrainReflection[] => {
-    const db = getDatabase();
-    return selectAll<DbBrainReflection>(
-      db,
-      `SELECT * FROM brain_reflections
-       WHERE project_id = ?
-       ORDER BY created_at DESC
-       LIMIT ?`,
-      projectId,
-      limit
-    );
-  },
+  getByProject: (projectId: string, limit: number = 10): DbBrainReflection[] =>
+    base.getByProject(projectId, limit),
 
   /**
    * Get running reflections (should normally be 0 or 1)
@@ -317,22 +305,12 @@ export const brainReflectionRepository = {
   /**
    * Delete reflection by ID
    */
-  delete: (id: string): boolean => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM brain_reflections WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
-  },
+  delete: (id: string): boolean => base.deleteById(id),
 
   /**
    * Delete reflections by project
    */
-  deleteByProject: (projectId: string): number => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM brain_reflections WHERE project_id = ?');
-    const result = stmt.run(projectId);
-    return result.changes;
-  },
+  deleteByProject: (projectId: string): number => base.deleteByProject(projectId),
 
   /**
    * Clean up old failed/pending reflections

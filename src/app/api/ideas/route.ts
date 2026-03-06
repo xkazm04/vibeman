@@ -31,7 +31,8 @@ async function handleGet(request: NextRequest) {
     const goalId = searchParams.get('goalId');
     const status = searchParams.get('status');
     const contextId = searchParams.get('contextId');
-    const limit = searchParams.get('limit');
+    const limitParam = searchParams.get('limit');
+    const limit = limitParam ? Math.min(Math.max(1, parseInt(limitParam, 10) || 50), 100) : null;
     const withColors = searchParams.get('withColors') !== 'false'; // Default to true
 
     let ideas: DbIdea[] | DbIdeaWithColor[];
@@ -53,7 +54,7 @@ async function handleGet(request: NextRequest) {
       } else if (status) {
         ideas = ideaDb.getIdeasByStatusWithColors(status as any);
       } else if (limit) {
-        ideas = ideaDb.getRecentIdeas(parseInt(limit, 10));
+        ideas = ideaDb.getRecentIdeas(limit!);
       } else {
         ideas = ideaDb.getAllIdeasWithColors();
       }
@@ -73,13 +74,16 @@ async function handleGet(request: NextRequest) {
       } else if (status) {
         ideas = ideaDb.getIdeasByStatus(status as any);
       } else if (limit) {
-        ideas = ideaDb.getRecentIdeas(parseInt(limit, 10));
+        ideas = ideaDb.getRecentIdeas(limit!);
       } else {
         ideas = ideaDb.getAllIdeas();
       }
     }
 
-    return NextResponse.json({ ideas });
+    return NextResponse.json({
+      ideas,
+      ...(limit !== null && { pagination: { appliedLimit: limit } }),
+    });
   } catch (error) {
     return handleIdeasApiError(error, IdeasErrorCode.DATABASE_ERROR);
   }

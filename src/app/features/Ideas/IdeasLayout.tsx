@@ -3,9 +3,8 @@ import React from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { LayoutGrid, Columns3 } from 'lucide-react';
 import { DbIdea } from '@/app/db';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useProjectContexts } from '@/lib/queries/contextsQueries';
 
 // Components
@@ -29,12 +28,13 @@ interface IdeasLayoutProps {
 const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutProps) => {
   const [selectedIdea, setSelectedIdea] = React.useState<DbIdea | null>(null);
   const [filterContextIds, setFilterContextIds] = React.useState<string[]>([]);
+  const [filterGroupIds, setFilterGroupIds] = React.useState<string[]>([]);
   const [selectedScanTypes, setSelectedScanTypes] = React.useState<ScanType[]>([]);
   const [viewMode, setViewMode] = React.useState<IdeasViewMode>('buffer');
 
-  const { projects, initializeProjects, getProject } = useProjectConfigStore();
-  const { setActiveProject } = useActiveProjectStore();
-  const { selectedProjectId: storeSelectedProjectId, setSelectedProjectId } = useUnifiedProjectStore();
+  const { projects, initializeProjects, getProject } = useServerProjectStore();
+  const { setActiveProject } = useClientProjectStore();
+  const { selectedProjectId: storeSelectedProjectId, setSelectedProjectId } = useClientProjectStore();
   const invalidateIdeas = useInvalidateIdeas();
 
   // Use prop if provided, otherwise fall back to store
@@ -72,6 +72,7 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
     // Update unified store
     setSelectedProjectId(projectId);
     setFilterContextIds([]); // Reset context filter when project changes
+    setFilterGroupIds([]);
 
     // Update active project in store (skip if 'all' is selected)
     if (projectId !== 'all') {
@@ -106,6 +107,8 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
             onSelectProject={handleProjectSelect}
             selectedContextIds={filterContextIds}
             onSelectContexts={setFilterContextIds}
+            selectedGroupIds={filterGroupIds}
+            onSelectGroups={setFilterGroupIds}
           />
         </LazyContentSection>
 
@@ -117,6 +120,7 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
               selectedScanTypes={selectedScanTypes}
               onScanTypesChange={setSelectedScanTypes}
               selectedContextIds={filterContextIds}
+              selectedGroupIds={filterGroupIds}
             />
           </div>
         </LazyContentSection>

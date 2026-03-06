@@ -8,7 +8,12 @@ import type {
   DbDirectionOutcome,
   CreateDirectionOutcomeInput,
 } from '../models/brain.types';
-import { getCurrentTimestamp, selectOne, selectAll, buildUpdateQuery } from './repository.utils';
+import { getCurrentTimestamp, selectOne, selectAll } from './repository.utils';
+import { createGenericRepository } from './generic.repository';
+
+const base = createGenericRepository<DbDirectionOutcome>({
+  tableName: 'direction_outcomes',
+});
 
 export const directionOutcomeRepository = {
   /**
@@ -34,24 +39,13 @@ export const directionOutcomeRepository = {
       now
     );
 
-    return selectOne<DbDirectionOutcome>(
-      db,
-      'SELECT * FROM direction_outcomes WHERE id = ?',
-      input.id
-    )!;
+    return base.getById(input.id)!;
   },
 
   /**
    * Get outcome by ID
    */
-  getById: (id: string): DbDirectionOutcome | null => {
-    const db = getDatabase();
-    return selectOne<DbDirectionOutcome>(
-      db,
-      'SELECT * FROM direction_outcomes WHERE id = ?',
-      id
-    );
-  },
+  getById: (id: string): DbDirectionOutcome | null => base.getById(id),
 
   /**
    * Get outcome by direction ID
@@ -161,11 +155,7 @@ export const directionOutcomeRepository = {
       id
     );
 
-    return selectOne<DbDirectionOutcome>(
-      db,
-      'SELECT * FROM direction_outcomes WHERE id = ?',
-      id
-    );
+    return base.getById(id);
   },
 
   /**
@@ -189,11 +179,7 @@ export const directionOutcomeRepository = {
 
     stmt.run(now, revertCommitSha || null, now, id);
 
-    return selectOne<DbDirectionOutcome>(
-      db,
-      'SELECT * FROM direction_outcomes WHERE id = ?',
-      id
-    );
+    return base.getById(id);
   },
 
   /**
@@ -217,11 +203,7 @@ export const directionOutcomeRepository = {
 
     stmt.run(satisfaction, feedback || null, now, id);
 
-    return selectOne<DbDirectionOutcome>(
-      db,
-      'SELECT * FROM direction_outcomes WHERE id = ?',
-      id
-    );
+    return base.getById(id);
   },
 
   /**
@@ -277,20 +259,10 @@ export const directionOutcomeRepository = {
   /**
    * Delete outcome by ID
    */
-  delete: (id: string): boolean => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM direction_outcomes WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
-  },
+  delete: (id: string): boolean => base.deleteById(id),
 
   /**
    * Delete outcomes by project
    */
-  deleteByProject: (projectId: string): number => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM direction_outcomes WHERE project_id = ?');
-    const result = stmt.run(projectId);
-    return result.changes;
-  },
+  deleteByProject: (projectId: string): number => base.deleteByProject(projectId),
 };

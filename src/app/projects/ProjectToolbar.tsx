@@ -3,12 +3,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { FolderOpen, Plus, Pencil, Target, Zap, Trash2, FileCode, Layers } from 'lucide-react';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useProjectsToolbarStore } from '@/stores/projectsToolbarStore';
 import { useProjectUpdatesStore } from '@/stores/projectUpdatesStore';
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import { useThemeStore } from '@/stores/themeStore';
+import { useApplicationSession, useSessionActions } from '@/lib/session/hooks';
 import { deleteProject } from './sub_ProjectSetting/lib/projectApi';
 import ProjectSelectionModal from './sub_ProjectSetting/components/ProjectSelectionModal';
 import { useActiveOnboardingStep } from '@/app/features/Onboarding/lib/useOnboardingConditions';
@@ -27,8 +28,13 @@ interface ToolbarAction {
 }
 
 export default function ProjectToolbar() {
-  const { activeProject, setActiveProject } = useActiveProjectStore();
-  const { syncWithServer, getAllProjects } = useProjectConfigStore();
+  // Use session coordinator for cascading project changes
+  const { activeProject } = useApplicationSession();
+  const { switchProject } = useSessionActions();
+  
+  // Fallback to old store for now (will be fully replaced once coordinator is integrated everywhere)
+  const { setActiveProject } = useClientProjectStore();
+  const { syncWithServer, getAllProjects } = useServerProjectStore();
   const {
     setShowAddProject,
     setShowEditProject,
@@ -76,8 +82,9 @@ export default function ProjectToolbar() {
         <ProjectSelectionModal
           projects={projects}
           activeProject={activeProject}
-          onProjectSelect={(project) => {
-            setActiveProject(project);
+          onProjectSelect={async (project) => {
+            // Use coordinator to cascade project switch to all dependent stores
+            await switchProject(project);
             hideModal();
           }}
           onAddProject={() => {

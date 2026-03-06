@@ -20,6 +20,7 @@ export enum SignalType {
   CROSS_TASK_ANALYSIS = 'cross_task_analysis',
   CROSS_TASK_SELECTION = 'cross_task_selection',
   CLI_MEMORY = 'cli_memory',
+  SESSION_CLUSTER = 'session_cluster',
 }
 
 /**
@@ -90,6 +91,13 @@ export const SIGNAL_METADATA: Record<SignalType, SignalTypeMetadata> = {
     color: '#14b8a6', // teal
     canVisualize: false,
     description: 'Tracks insights and decisions from CLI sessions',
+  },
+  [SignalType.SESSION_CLUSTER]: {
+    displayName: 'Session Cluster',
+    shortLabel: 'Cluster',
+    color: '#f97316', // orange
+    canVisualize: true,
+    description: 'Compressed burst of related signals within a session window',
   },
 };
 

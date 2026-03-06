@@ -659,7 +659,8 @@ export interface DbWorkspaceProject {
 // === Autonomous Agent Types ===
 
 export type AgentGoalStatus = 'pending' | 'decomposing' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
-export type AgentStepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+import type { StepLifecycleStatus } from '@/lib/status';
+export type AgentStepStatus = StepLifecycleStatus;
 
 export interface DbAgentGoal {
   id: string;

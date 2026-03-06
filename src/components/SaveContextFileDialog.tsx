@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Folder, FileText, AlertCircle } from 'lucide-react';
 import FolderSelector from './FolderSelector';
-import { useActiveProjectStore } from '../stores/activeProjectStore';
+import { useClientProjectStore } from '../stores/clientProjectStore';
 import { useThemeStore } from '@/stores/themeStore';
 
 interface SaveContextFileDialogProps {
@@ -28,7 +28,7 @@ export default function SaveContextFileDialog({
   contextName,
   defaultFileName
 }: SaveContextFileDialogProps) {
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
   const { getThemeColors } = useThemeStore();
   const colors = getThemeColors();
   const [selectedFolder, setSelectedFolder] = useState<string>('context');

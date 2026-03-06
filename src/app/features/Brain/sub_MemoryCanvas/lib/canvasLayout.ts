@@ -267,6 +267,77 @@ export function packEventsInGroup(group: Group): void {
   group.spatialIndex = buildSpatialIndex(events);
 }
 
+/**
+ * Shared lane-based collision resolution.
+ * Used by both layoutFocusedGroup and EventCanvasTimeline's positionEvents.
+ */
+export interface LaneCollisionParams {
+  /** All events to resolve (already positioned with initial x/y) */
+  events: BrainEvent[];
+  /** Lane types in order */
+  laneTypes: SignalType[];
+  /** Per-lane bounds: callback from lane index to { top, bottom } */
+  laneBounds: (laneIdx: number) => { top: number; bottom: number };
+  /** Number of collision passes (default: 6) */
+  passes?: number;
+  /** Sliding window size for neighbor checks (default: 8) */
+  windowSize?: number;
+  /** X nudge ratio (default: 0.2) */
+  xRatio?: number;
+  /** Y nudge ratio (default: 0.8) */
+  yRatio?: number;
+}
+
+export function resolveLaneCollisions(params: LaneCollisionParams): void {
+  const {
+    events,
+    laneTypes,
+    laneBounds,
+    passes = 6,
+    windowSize = 8,
+    xRatio = 0.2,
+    yRatio = 0.8,
+  } = params;
+
+  for (let li = 0; li < laneTypes.length; li++) {
+    const laneType = laneTypes[li];
+    const laneEvents = events.filter(e => e.type === laneType);
+    if (laneEvents.length < 2) continue;
+
+    laneEvents.sort((a, b) => a.x - b.x);
+
+    const { top: laneTop, bottom: laneBot } = laneBounds(li);
+
+    for (let pass = 0; pass < passes; pass++) {
+      for (let i = 0; i < laneEvents.length; i++) {
+        const curr = laneEvents[i];
+        const windowEnd = Math.min(laneEvents.length, i + windowSize);
+        for (let j = i + 1; j < windowEnd; j++) {
+          const other = laneEvents[j];
+          const minDist = getEventRadius(curr.weight, curr.timestamp) + getEventRadius(other.weight, other.timestamp) + 2;
+          const dx = other.x - curr.x;
+          const dy = other.y - curr.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < minDist && dist > 0.001) {
+            const overlap = (minDist - dist) / 2;
+            const nx = dx / dist;
+            const ny = dy === 0 ? 1 : dy / Math.abs(dy);
+
+            curr.x -= overlap * nx * xRatio;
+            curr.y -= overlap * ny * yRatio;
+            other.x += overlap * nx * xRatio;
+            other.y += overlap * ny * yRatio;
+
+            curr.y = Math.max(laneTop, Math.min(laneBot, curr.y));
+            other.y = Math.max(laneTop, Math.min(laneBot, other.y));
+          }
+        }
+      }
+    }
+  }
+}
+
 export function layoutFocusedGroup(group: Group, width: number, height: number): void {
   const events = group.events;
   if (events.length === 0) return;
@@ -299,49 +370,14 @@ export function layoutFocusedGroup(group: Group, width: number, height: number):
     evt.y = laneCenterY + jitter;
   }
 
-  // Multi-pass 2D collision resolution with radius-aware distances
-  for (let li = 0; li < LANE_TYPES.length; li++) {
-    const laneType = LANE_TYPES[li];
-    const laneEvents = events.filter(e => e.type === laneType);
-    if (laneEvents.length < 2) continue;
-
-    laneEvents.sort((a, b) => a.x - b.x);
-
-    const laneTop = yTop + li * laneHeight + laneHeight * 0.15;
-    const laneBot = yTop + (li + 1) * laneHeight - laneHeight * 0.15;
-
-    for (let pass = 0; pass < 6; pass++) {
-      for (let i = 0; i < laneEvents.length; i++) {
-        const curr = laneEvents[i];
-        const windowEnd = Math.min(laneEvents.length, i + 8);
-        for (let j = i + 1; j < windowEnd; j++) {
-          const other = laneEvents[j];
-          const minDist = getEventRadius(curr.weight, curr.timestamp) + getEventRadius(other.weight, other.timestamp) + 2;
-          const dx = other.x - curr.x;
-          const dy = other.y - curr.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-
-          if (dist < minDist && dist > 0) {
-            const overlap = minDist - dist;
-            // 80% Y nudge, 20% X nudge
-            const nx = dx / dist;
-            const ny = dy / dist;
-            const yNudge = overlap * 0.8 / 2;
-            const xNudge = overlap * 0.2 / 2;
-
-            curr.y -= ny * yNudge;
-            other.y += ny * yNudge;
-            curr.x -= nx * xNudge;
-            other.x += nx * xNudge;
-
-            // Clamp Y to lane bounds
-            curr.y = Math.max(laneTop, Math.min(laneBot, curr.y));
-            other.y = Math.max(laneTop, Math.min(laneBot, other.y));
-          }
-        }
-      }
-    }
-  }
+  resolveLaneCollisions({
+    events,
+    laneTypes: LANE_TYPES,
+    laneBounds: (li) => ({
+      top: yTop + li * laneHeight + laneHeight * 0.15,
+      bottom: yTop + (li + 1) * laneHeight - laneHeight * 0.15,
+    }),
+  });
 
   group.spatialIndex = buildSpatialIndex(events);
 }

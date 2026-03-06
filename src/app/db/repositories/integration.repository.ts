@@ -13,6 +13,11 @@ import {
   IntegrationEventType,
 } from '../models/integration.types';
 import { generateId, getCurrentTimestamp, withTableCheck } from './repository.utils';
+import { createGenericRepository } from './generic.repository';
+
+const integrationBase = createGenericRepository<DbIntegration>({
+  tableName: 'integrations',
+});
 
 /**
  * Integration Repository
@@ -61,12 +66,9 @@ export const integrationRepository = {
   /**
    * Get integration by ID
    */
-  getById: (id: string): DbIntegration | null => withTableCheck('integrations', () => {
-    const db = getDatabase();
-    const stmt = db.prepare('SELECT * FROM integrations WHERE id = ?');
-    const result = stmt.get(id) as DbIntegration | undefined;
-    return result || null;
-  }),
+  getById: (id: string): DbIntegration | null => withTableCheck('integrations', () =>
+    integrationBase.getById(id)
+  ),
 
   /**
    * Get integrations subscribed to a specific event type
@@ -118,7 +120,7 @@ export const integrationRepository = {
       now
     );
 
-    return integrationRepository.getById(id)!;
+    return integrationBase.getById(id)!;
   }),
 
   /**
@@ -127,65 +129,9 @@ export const integrationRepository = {
   update: (
     id: string,
     updates: Partial<Omit<DbIntegration, 'id' | 'project_id' | 'created_at'>>
-  ): DbIntegration | null => withTableCheck('integrations', () => {
-    const db = getDatabase();
-    const now = getCurrentTimestamp();
-
-    const updateFields: string[] = ['updated_at = ?'];
-    const values: (string | number | null)[] = [now];
-
-    if (updates.provider !== undefined) {
-      updateFields.push('provider = ?');
-      values.push(updates.provider);
-    }
-    if (updates.name !== undefined) {
-      updateFields.push('name = ?');
-      values.push(updates.name);
-    }
-    if (updates.description !== undefined) {
-      updateFields.push('description = ?');
-      values.push(updates.description);
-    }
-    if (updates.status !== undefined) {
-      updateFields.push('status = ?');
-      values.push(updates.status);
-    }
-    if (updates.config !== undefined) {
-      updateFields.push('config = ?');
-      values.push(updates.config);
-    }
-    if (updates.credentials !== undefined) {
-      updateFields.push('credentials = ?');
-      values.push(updates.credentials);
-    }
-    if (updates.enabled_events !== undefined) {
-      updateFields.push('enabled_events = ?');
-      values.push(updates.enabled_events);
-    }
-    if (updates.last_sync_at !== undefined) {
-      updateFields.push('last_sync_at = ?');
-      values.push(updates.last_sync_at);
-    }
-    if (updates.last_error !== undefined) {
-      updateFields.push('last_error = ?');
-      values.push(updates.last_error);
-    }
-    if (updates.error_count !== undefined) {
-      updateFields.push('error_count = ?');
-      values.push(updates.error_count);
-    }
-
-    values.push(id);
-
-    const stmt = db.prepare(`
-      UPDATE integrations
-      SET ${updateFields.join(', ')}
-      WHERE id = ?
-    `);
-    stmt.run(...values);
-
-    return integrationRepository.getById(id);
-  }),
+  ): DbIntegration | null => withTableCheck('integrations', () =>
+    integrationBase.update(id, updates as Record<string, unknown>)
+  ),
 
   /**
    * Update integration status
@@ -229,22 +175,16 @@ export const integrationRepository = {
   /**
    * Delete an integration
    */
-  delete: (id: string): boolean => withTableCheck('integrations', () => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM integrations WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
-  }),
+  delete: (id: string): boolean => withTableCheck('integrations', () =>
+    integrationBase.deleteById(id)
+  ),
 
   /**
    * Delete all integrations for a project
    */
-  deleteByProject: (projectId: string): number => withTableCheck('integrations', () => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM integrations WHERE project_id = ?');
-    const result = stmt.run(projectId);
-    return result.changes;
-  }),
+  deleteByProject: (projectId: string): number => withTableCheck('integrations', () =>
+    integrationBase.deleteByProject(projectId)
+  ),
 };
 
 /**

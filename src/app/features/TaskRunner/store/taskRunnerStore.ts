@@ -12,6 +12,7 @@
 import { create } from 'zustand';
 import type { ProjectRequirement } from '../lib/types';
 import type { TaskStatusUnion, TaskStatusType } from '../lib/types';
+import type { ExternalProcessingState } from '@/lib/supabase/external-types';
 
 // ============================================================================
 // Types
@@ -48,6 +49,9 @@ export interface TaskRunnerState {
     error: string;
   }>;
 
+  // External requirements processing state
+  externalProcessing: Record<string, ExternalProcessingState>;
+
   // Task actions (used by CLI)
   updateTaskStatus: (taskId: string, status: TaskStatusUnion) => void;
 
@@ -60,6 +64,10 @@ export interface TaskRunnerState {
   addOrphanedRequirement: (projectPath: string, requirementName: string, error: string) => void;
   removeOrphanedRequirement: (requirementName: string) => void;
   clearOrphanedRequirements: () => void;
+
+  // External processing
+  setExternalProcessingStatus: (reqId: string, state: ExternalProcessingState) => void;
+  clearExternalProcessing: (reqId: string) => void;
 
   // Helpers
   clearAll: () => void;
@@ -80,6 +88,7 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
     requirementsCache: [],
     gitConfig: null,
     orphanedRequirements: [],
+    externalProcessing: {},
 
     updateTaskStatus: (taskId, status) => {
       set((state) => ({
@@ -119,10 +128,24 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
     },
     clearOrphanedRequirements: () => set({ orphanedRequirements: [] }),
 
+    setExternalProcessingStatus: (reqId, state) => {
+      set((prev) => ({
+        externalProcessing: { ...prev.externalProcessing, [reqId]: state },
+      }));
+    },
+    clearExternalProcessing: (reqId) => {
+      set((prev) => {
+        const next = { ...prev.externalProcessing };
+        delete next[reqId];
+        return { externalProcessing: next };
+      });
+    },
+
     clearAll: () => {
       set({
         tasks: {},
         executingTasks: new Set(),
+        externalProcessing: {},
       });
     },
   })

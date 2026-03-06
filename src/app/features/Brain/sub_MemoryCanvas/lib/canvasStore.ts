@@ -1,55 +1,82 @@
 /**
- * CanvasStore — Imperative render-state manager for the D3 memory canvas.
+ * CanvasStore — External store for the D3 memory canvas.
  *
- * Holds events, groups, and layout data outside of React state so canvas
- * redraws never trigger React reconciliation. The component reads from
- * this store via refs; React state is reserved for UI-only concerns
- * (drawer, toolbar, undo toasts).
+ * Uses the useSyncExternalStore pattern so React components can subscribe
+ * to store changes declaratively. Events, groups, and layout data live
+ * outside React state to avoid reconciliation on every frame, while still
+ * triggering targeted re-renders via snapshot identity changes.
  *
  * Data flow:
- *   fetch → setEvents() → diff → layout (only if changed) → requestRender()
+ *   fetch → setEvents() → diff → layout (only if changed) → notify subscribers
  */
 
-import type { BrainEvent, Group, FilterState, SignalType } from './types';
+import type { BrainEvent, Group } from './types';
 import { formGroups, runForceLayout, runForceLayoutAsync, packEventsInGroup, layoutFocusedGroup } from './canvasLayout';
 
-type RenderCallback = () => void;
+// ── Snapshot type ────────────────────────────────────────────────────────
+
+export interface CanvasSnapshot {
+  events: BrainEvent[];
+  groups: Group[];
+  isEmpty: boolean;
+  /** Monotonically increasing version — changes on every mutation */
+  version: number;
+}
+
+// ── Store instance ───────────────────────────────────────────────────────
 
 export class CanvasStore {
-  // ── Render data (read by canvas draw calls) ──────────────────────
-  events: BrainEvent[] = [];
-  groups: Group[] = [];
-  isEmpty = true;
+  // ── Internal data ──────────────────────────────────────────────────
+  private _events: BrainEvent[] = [];
+  private _groups: Group[] = [];
+  private _isEmpty = true;
+  private _version = 0;
 
-  // ── Layout dimensions ────────────────────────────────────────────
+  // ── Layout dimensions ──────────────────────────────────────────────
   width = 800;
   height = 500;
 
-  // ── Tracking for diff-aware updates ──────────────────────────────
+  // ── Diff tracking ──────────────────────────────────────────────────
   private eventIdSet = new Set<string>();
 
-  // ── Render trigger ───────────────────────────────────────────────
-  private renderCb: RenderCallback | null = null;
-
-  // ── Worker cleanup ───────────────────────────────────────────────
+  // ── Worker cleanup ─────────────────────────────────────────────────
   private workerCleanup: (() => void) | null = null;
 
-  onRender(cb: RenderCallback) {
-    this.renderCb = cb;
+  // ── useSyncExternalStore plumbing ──────────────────────────────────
+  private listeners = new Set<() => void>();
+  private snapshot: CanvasSnapshot;
+
+  constructor() {
+    this.snapshot = this.buildSnapshot();
   }
 
-  requestRender() {
-    this.renderCb?.();
-  }
+  // ── Public accessors (for imperative reads in render callbacks) ────
 
-  // ── Dimensions ───────────────────────────────────────────────────
+  get events(): BrainEvent[] { return this._events; }
+  get groups(): Group[] { return this._groups; }
+  get isEmpty(): boolean { return this._isEmpty; }
+
+  // ── useSyncExternalStore API ───────────────────────────────────────
+
+  /** Subscribe to store changes. Returns unsubscribe function. */
+  subscribe = (listener: () => void): (() => void) => {
+    this.listeners.add(listener);
+    return () => { this.listeners.delete(listener); };
+  };
+
+  /** Return the current immutable snapshot. Identity changes on mutation. */
+  getSnapshot = (): CanvasSnapshot => {
+    return this.snapshot;
+  };
+
+  // ── Dimensions ─────────────────────────────────────────────────────
 
   setDimensions(width: number, height: number) {
     this.width = width;
     this.height = height;
   }
 
-  // ── Event data management ────────────────────────────────────────
+  // ── Event data management ──────────────────────────────────────────
 
   /**
    * Update events with diff detection.
@@ -58,11 +85,11 @@ export class CanvasStore {
   setEvents(newEvents: BrainEvent[], focusedGroupId: string | null): boolean {
     if (this.eventsUnchanged(newEvents)) return false;
 
-    this.events = newEvents;
-    this.isEmpty = newEvents.length === 0;
+    this._events = newEvents;
+    this._isEmpty = newEvents.length === 0;
     this.eventIdSet = new Set(newEvents.map(e => e.id));
     this.recalculateLayout(focusedGroupId);
-    this.requestRender();
+    this.emitChange();
     return true;
   }
 
@@ -71,15 +98,15 @@ export class CanvasStore {
    * Returns the removed event or null if not found.
    */
   removeEvent(eventId: string, focusedGroupId: string | null): BrainEvent | null {
-    const idx = this.events.findIndex(e => e.id === eventId);
+    const idx = this._events.findIndex(e => e.id === eventId);
     if (idx === -1) return null;
 
-    const removed = this.events[idx];
-    this.events = this.events.filter(e => e.id !== eventId);
+    const removed = this._events[idx];
+    this._events = this._events.filter(e => e.id !== eventId);
     this.eventIdSet.delete(eventId);
-    this.isEmpty = this.events.length === 0;
+    this._isEmpty = this._events.length === 0;
     this.recalculateLayout(focusedGroupId);
-    this.requestRender();
+    this.emitChange();
     return removed;
   }
 
@@ -88,14 +115,14 @@ export class CanvasStore {
    */
   restoreEvent(event: BrainEvent, focusedGroupId: string | null): void {
     if (this.eventIdSet.has(event.id)) return;
-    this.events = [...this.events, event];
+    this._events = [...this._events, event];
     this.eventIdSet.add(event.id);
-    this.isEmpty = false;
+    this._isEmpty = false;
     this.recalculateLayout(focusedGroupId);
-    this.requestRender();
+    this.emitChange();
   }
 
-  // ── Layout ───────────────────────────────────────────────────────
+  // ── Layout ─────────────────────────────────────────────────────────
 
   recalculateLayout(focusedGroupId: string | null) {
     const { width, height } = this;
@@ -106,71 +133,90 @@ export class CanvasStore {
       this.workerCleanup = null;
     }
 
-    this.groups = formGroups(this.events);
+    this._groups = formGroups(this._events);
 
     if (width > 0 && height > 0) {
       if (focusedGroupId) {
         // In focus mode, only layout the focused group
-        const fg = this.groups.find(g => g.id === focusedGroupId);
+        const fg = this._groups.find(g => g.id === focusedGroupId);
         if (fg) layoutFocusedGroup(fg, width, height);
       } else {
         // Use worker-based async layout for overview mode
         this.workerCleanup = runForceLayoutAsync(
-          this.groups,
+          this._groups,
           width,
           height,
           {
-            onProgress: (groups, tick, totalTicks) => {
-              // Progressive rendering: update groups and request redraw
-              this.groups = groups;
-              this.requestRender();
+            onProgress: (groups) => {
+              // Progressive rendering: update groups and notify subscribers
+              this._groups = groups;
+              this.emitChange();
             },
             onComplete: (groups) => {
               // Final pass: pack events within groups
-              this.groups = groups;
-              this.groups.forEach(packEventsInGroup);
-              this.requestRender();
+              this._groups = groups;
+              this._groups.forEach(packEventsInGroup);
+              this.emitChange();
               this.workerCleanup = null;
             },
             totalTicks: 120,
-            progressInterval: 10, // Update every 10 ticks
+            progressInterval: 10,
           }
         );
-        return; // Don't request render here; worker will trigger it
+        return; // Don't emit here; worker will trigger it
       }
     }
   }
 
   /**
-   * Cleanup method to be called when store is destroyed
+   * Cleanup method to be called when store is destroyed.
    */
   destroy() {
     if (this.workerCleanup) {
       this.workerCleanup();
       this.workerCleanup = null;
     }
+    this.listeners.clear();
   }
 
   getFocusedGroup(focusedGroupId: string | null): Group | null {
     if (!focusedGroupId) return null;
-    return this.groups.find(g => g.id === focusedGroupId) || null;
+    return this._groups.find(g => g.id === focusedGroupId) || null;
   }
 
-  // ── Private helpers ──────────────────────────────────────────────
+  // ── Private helpers ────────────────────────────────────────────────
+
+  private buildSnapshot(): CanvasSnapshot {
+    return {
+      events: this._events,
+      groups: this._groups,
+      isEmpty: this._isEmpty,
+      version: this._version,
+    };
+  }
+
+  /** Bump version, create new snapshot, notify all subscribers. */
+  private emitChange() {
+    this._version++;
+    this.snapshot = this.buildSnapshot();
+    for (const listener of this.listeners) {
+      listener();
+    }
+  }
 
   private eventsUnchanged(newEvents: BrainEvent[]): boolean {
-    if (newEvents.length !== this.events.length) return false;
+    if (newEvents.length !== this._events.length) return false;
 
     // Use a lightweight hash sum to detect mutations (like weight decay)
-    // and set changes without deep comparison. Summing makes it 
-    // order-independent, improving layout stability if the API response 
+    // and set changes without deep comparison. Summing makes it
+    // order-independent, improving layout stability if the API response
     // order fluctuates.
     let newHashSum = 0;
     let oldHashSum = 0;
 
     for (let i = 0; i < newEvents.length; i++) {
       newHashSum += this.getEventHash(newEvents[i]);
-      oldHashSum += this.getEventHash(this.events[i]);
+      oldHashSum += this.getEventHash(this._events[i]);
     }
 
     return newHashSum === oldHashSum;
@@ -187,3 +233,6 @@ export class CanvasStore {
     return h + Math.round(e.weight * 1000);
   }
 }
+
+// ── React hook (import in component files) ──────────────────────────────
+// Usage: useSyncExternalStore(store.subscribe, store.getSnapshot)

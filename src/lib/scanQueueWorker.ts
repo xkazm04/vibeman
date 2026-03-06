@@ -4,8 +4,9 @@
  */
 
 import { scanQueueDb, ideaDb } from '@/app/db';
+import { getDatabase } from '@/app/db/connection';
 import { DbScanQueueItem } from '@/app/db/models/types';
-import { executeContextScan } from '@/app/features/Ideas/sub_IdeasSetup/lib/scanHandlers';
+import { executeLlmScan as executeContextScan } from '@/app/features/Ideas/sub_IdeasSetup/lib/ideaExecutor';
 import { ScanType, getScanTypeName } from '@/app/features/Ideas/lib/scanTypes';
 import { SupportedProvider } from '@/lib/llm/types';
 import { contextRepository } from '@/app/db/repositories/context.repository';
@@ -88,6 +89,19 @@ class ScanQueueWorker {
     // Update config
     if (config) {
       this.config = { ...this.config, ...config };
+    }
+
+    // Clear phantom IDs from a previous crash — prevents permanent blocking
+    this.currentlyProcessing.clear();
+
+    // Reset orphaned DB items stuck in 'running' from a previous crash back to 'queued'
+    try {
+      const recovered = scanQueueDb.resetOrphanedRunning();
+      if (recovered > 0) {
+        console.log(`[ScanQueueWorker] Recovered ${recovered} orphaned running item(s) on startup`);
+      }
+    } catch {
+      // Best effort — don't block startup if DB isn't ready yet
     }
 
     this.isRunning = true;
@@ -331,7 +345,12 @@ class ScanQueueWorker {
       if (queueItem.context_id) {
         const context = contextRepository.getContextById(queueItem.context_id);
         if (context) {
-          contextFilePaths = JSON.parse(context.file_paths);
+          try {
+            contextFilePaths = JSON.parse(context.file_paths);
+          } catch (e) {
+            console.warn(`[ScanQueueWorker] Malformed file_paths JSON in context ${context.id}, skipping:`, e);
+            contextFilePaths = [];
+          }
         }
       }
 
@@ -405,7 +424,8 @@ class ScanQueueWorker {
 
   /**
    * Handle auto-merge functionality
-   * Implements transaction-like behavior: tracks successful updates and rolls back on failure
+   * Wraps all idea status updates in a SQLite transaction for atomicity —
+   * either all eligible ideas are accepted or none are.
    */
   private async handleAutoMerge(queueItem: DbScanQueueItem): Promise<void> {
     try {
@@ -421,87 +441,36 @@ class ScanQueueWorker {
       // Filter ideas that qualify for auto-accept (high-impact, low-effort)
       const eligibleIdeas = ideas.filter(idea => idea.impact === 3 && idea.effort === 1);
 
-      // Track successful updates for potential rollback
-      const successfullyUpdatedIds: string[] = [];
-      const failedUpdates: { id: string; title: string; error: string }[] = [];
-
-      // Auto-accept high-impact, low-effort ideas with error checking
-      for (const idea of eligibleIdeas) {
-        try {
-          const result = ideaDb.updateIdea(idea.id, { status: 'accepted' });
-
-          if (result === null) {
-            // Update failed - idea may not exist or database lock occurred
-            failedUpdates.push({
-              id: idea.id,
-              title: idea.title,
-              error: 'Update returned null - row not affected'
-            });
-          } else {
-            successfullyUpdatedIds.push(idea.id);
-          }
-        } catch (updateError) {
-          // Catch any database errors during individual update
-          const errorMsg = updateError instanceof Error ? updateError.message : 'Unknown error';
-          failedUpdates.push({
-            id: idea.id,
-            title: idea.title,
-            error: errorMsg
-          });
-        }
-      }
-
-      // Determine final status based on update results
-      const totalEligible = eligibleIdeas.length;
-      const successCount = successfullyUpdatedIds.length;
-      const failCount = failedUpdates.length;
-
-      if (totalEligible === 0) {
-        // No eligible ideas - complete with informative status
+      if (eligibleIdeas.length === 0) {
         scanQueueDb.updateAutoMergeStatus(queueItem.id, 'completed: no eligible ideas');
-      } else if (failCount === 0) {
-        // All updates succeeded
-        scanQueueDb.updateAutoMergeStatus(queueItem.id, 'completed');
+        return;
+      }
 
-        if (successCount > 0) {
-          this.createNotification(
-            queueItem,
-            'auto_merge_completed',
-            'Auto-merge completed',
-            `Auto-accepted ${successCount} high-impact, low-effort ideas`,
-            {
-              autoAcceptedCount: successCount,
-              scanId: queueItem.scan_id
-            }
-          );
-        }
-      } else if (successCount === 0) {
-        // All updates failed - rollback not needed, mark as failed
-        const errorDetails = failedUpdates.map(f => `${f.title}: ${f.error}`).join('; ');
-        throw new Error(`All ${failCount} auto-merge updates failed: ${errorDetails}`);
-      } else {
-        // Partial failure - rollback successful updates to maintain consistency
-        let rollbackSuccessCount = 0;
-        for (const ideaId of successfullyUpdatedIds) {
-          try {
-            const rollbackResult = ideaDb.updateIdea(ideaId, { status: 'pending' });
-            if (rollbackResult !== null) {
-              rollbackSuccessCount++;
-            }
-          } catch {
-            // Best effort rollback - log but continue
+      // Wrap all updates in a single transaction — all succeed or all roll back
+      const db = getDatabase();
+      const acceptBatch = db.transaction(() => {
+        for (const idea of eligibleIdeas) {
+          const result = ideaDb.updateIdea(idea.id, { status: 'accepted' });
+          if (result === null) {
+            throw new Error(`Failed to update idea "${idea.title}" (${idea.id}) - row not affected`);
           }
         }
+      });
 
-        const errorDetails = failedUpdates.slice(0, 3).map(f => f.title).join(', ');
-        const rollbackInfo = rollbackSuccessCount > 0
-          ? ` (rolled back ${rollbackSuccessCount} successful updates)`
-          : '';
-        throw new Error(
-          `Partial failure: ${successCount}/${totalEligible} succeeded, ` +
-          `${failCount} failed (${errorDetails})${rollbackInfo}`
-        );
-      }
+      acceptBatch();
+
+      scanQueueDb.updateAutoMergeStatus(queueItem.id, 'completed');
+
+      this.createNotification(
+        queueItem,
+        'auto_merge_completed',
+        'Auto-merge completed',
+        `Auto-accepted ${eligibleIdeas.length} high-impact, low-effort ideas`,
+        {
+          autoAcceptedCount: eligibleIdeas.length,
+          scanId: queueItem.scan_id
+        }
+      );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       scanQueueDb.updateAutoMergeStatus(queueItem.id, `failed: ${errorMessage}`);

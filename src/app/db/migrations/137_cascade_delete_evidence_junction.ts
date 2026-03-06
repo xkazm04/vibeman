@@ -20,6 +20,7 @@
 
 import { safeMigration, type MigrationLogger } from './migration.utils';
 import { DbConnection } from '../drivers/types';
+import { getHotWritesDatabase } from '../hot-writes';
 
 export function migrate137CascadeDeleteEvidenceJunction(
   db: DbConnection,
@@ -91,12 +92,16 @@ export function migrate137CascadeDeleteEvidenceJunction(
 /**
  * Remove any existing orphaned junction rows where evidence_id
  * points to a deleted direction, reflection, or signal.
+ *
+ * Note: Signals live in hot-writes.db (separate SQLite file), so we must
+ * query the hot-writes DB for signal existence checks. Directions and
+ * reflections live in the main DB alongside the junction table.
  */
 function cleanupOrphanedEvidence(db: DbConnection, logger?: MigrationLogger): number {
   let totalCleaned = 0;
 
   try {
-    // Find orphaned direction references
+    // Find orphaned direction references (same DB)
     const orphanedDirections = db
       .prepare(
         `DELETE FROM brain_insight_evidence
@@ -106,7 +111,7 @@ function cleanupOrphanedEvidence(db: DbConnection, logger?: MigrationLogger): nu
       .run();
     totalCleaned += orphanedDirections.changes;
 
-    // Find orphaned reflection references
+    // Find orphaned reflection references (same DB)
     const orphanedReflections = db
       .prepare(
         `DELETE FROM brain_insight_evidence
@@ -116,15 +121,40 @@ function cleanupOrphanedEvidence(db: DbConnection, logger?: MigrationLogger): nu
       .run();
     totalCleaned += orphanedReflections.changes;
 
-    // Find orphaned signal references
-    const orphanedSignals = db
-      .prepare(
-        `DELETE FROM brain_insight_evidence
-         WHERE evidence_type = 'signal'
-         AND evidence_id NOT IN (SELECT id FROM behavioral_signals)`
-      )
-      .run();
-    totalCleaned += orphanedSignals.changes;
+    // Find orphaned signal references (cross-DB: signals live in hot-writes.db)
+    try {
+      const hotDb = getHotWritesDatabase();
+      const signalEvidenceRows = db
+        .prepare(
+          `SELECT evidence_id FROM brain_insight_evidence WHERE evidence_type = 'signal'`
+        )
+        .all() as Array<{ evidence_id: string }>;
+
+      if (signalEvidenceRows.length > 0) {
+        const orphanedSignalIds: string[] = [];
+        const existsStmt = hotDb.prepare(
+          'SELECT 1 FROM behavioral_signals WHERE id = ? LIMIT 1'
+        );
+        for (const row of signalEvidenceRows) {
+          if (!existsStmt.get(row.evidence_id)) {
+            orphanedSignalIds.push(row.evidence_id);
+          }
+        }
+
+        if (orphanedSignalIds.length > 0) {
+          const placeholders = orphanedSignalIds.map(() => '?').join(',');
+          const result = db
+            .prepare(
+              `DELETE FROM brain_insight_evidence
+               WHERE evidence_type = 'signal' AND evidence_id IN (${placeholders})`
+            )
+            .run(...orphanedSignalIds);
+          totalCleaned += result.changes;
+        }
+      }
+    } catch (signalErr) {
+      logger?.error?.(`Failed to clean up orphaned signal evidence: ${signalErr}`);
+    }
 
     return totalCleaned;
   } catch (err) {

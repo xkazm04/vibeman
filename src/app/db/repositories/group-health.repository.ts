@@ -12,6 +12,11 @@ import type {
   UpdateHealthScanInput,
 } from '../models/group-health.types';
 import { getCurrentTimestamp, selectOne, selectAll } from './repository.utils';
+import { createGenericRepository } from './generic.repository';
+
+const base = createGenericRepository<DbGroupHealthScan>({
+  tableName: 'group_health_scans',
+});
 
 export const groupHealthRepository = {
   /**
@@ -31,24 +36,13 @@ export const groupHealthRepository = {
 
     stmt.run(id, input.group_id, input.project_id, input.execution_id || null, now, now);
 
-    return selectOne<DbGroupHealthScan>(
-      db,
-      'SELECT * FROM group_health_scans WHERE id = ?',
-      id
-    )!;
+    return base.getById(id)!;
   },
 
   /**
    * Get scan by ID
    */
-  getById: (id: string): DbGroupHealthScan | null => {
-    const db = getDatabase();
-    return selectOne<DbGroupHealthScan>(
-      db,
-      'SELECT * FROM group_health_scans WHERE id = ?',
-      id
-    );
-  },
+  getById: (id: string): DbGroupHealthScan | null => base.getById(id),
 
   /**
    * Get latest scan for a group
@@ -114,103 +108,27 @@ export const groupHealthRepository = {
   /**
    * Get all scans for a project
    */
-  getByProject: (projectId: string, limit: number = 50): DbGroupHealthScan[] => {
-    const db = getDatabase();
-    return selectAll<DbGroupHealthScan>(
-      db,
-      `SELECT * FROM group_health_scans
-       WHERE project_id = ?
-       ORDER BY created_at DESC
-       LIMIT ?`,
-      projectId,
-      limit
-    );
-  },
+  getByProject: (projectId: string, limit: number = 50): DbGroupHealthScan[] =>
+    base.getByProject(projectId, limit),
 
   /**
    * Start a scan (update status to running)
    */
-  startScan: (id: string): DbGroupHealthScan | null => {
-    const db = getDatabase();
-    const now = getCurrentTimestamp();
-
-    const stmt = db.prepare(`
-      UPDATE group_health_scans
-      SET status = 'running', started_at = ?, updated_at = ?
-      WHERE id = ?
-    `);
-
-    stmt.run(now, now, id);
-
-    return selectOne<DbGroupHealthScan>(
-      db,
-      'SELECT * FROM group_health_scans WHERE id = ?',
-      id
-    );
-  },
+  startScan: (id: string): DbGroupHealthScan | null =>
+    base.update(id, { status: 'running', started_at: getCurrentTimestamp() }),
 
   /**
    * Update scan with results
    */
   update: (id: string, updates: UpdateHealthScanInput): DbGroupHealthScan | null => {
-    const db = getDatabase();
-    const now = getCurrentTimestamp();
-
-    const setClauses: string[] = ['updated_at = ?'];
-    const values: unknown[] = [now];
-
-    if (updates.status !== undefined) {
-      setClauses.push('status = ?');
-      values.push(updates.status);
-    }
-    if (updates.health_score !== undefined) {
-      setClauses.push('health_score = ?');
-      values.push(updates.health_score);
-    }
-    if (updates.issues_found !== undefined) {
-      setClauses.push('issues_found = ?');
-      values.push(updates.issues_found);
-    }
-    if (updates.issues_fixed !== undefined) {
-      setClauses.push('issues_fixed = ?');
-      values.push(updates.issues_fixed);
-    }
+    const dbUpdates: Record<string, unknown> = { ...updates };
     if (updates.scan_summary !== undefined) {
-      setClauses.push('scan_summary = ?');
-      values.push(JSON.stringify(updates.scan_summary));
-    }
-    if (updates.git_commit_hash !== undefined) {
-      setClauses.push('git_commit_hash = ?');
-      values.push(updates.git_commit_hash);
+      dbUpdates.scan_summary = JSON.stringify(updates.scan_summary);
     }
     if (updates.git_pushed !== undefined) {
-      setClauses.push('git_pushed = ?');
-      values.push(updates.git_pushed ? 1 : 0);
+      dbUpdates.git_pushed = updates.git_pushed ? 1 : 0;
     }
-    if (updates.started_at !== undefined) {
-      setClauses.push('started_at = ?');
-      values.push(updates.started_at);
-    }
-    if (updates.completed_at !== undefined) {
-      setClauses.push('completed_at = ?');
-      values.push(updates.completed_at);
-    }
-
-    values.push(id);
-
-    const stmt = db.prepare(`
-      UPDATE group_health_scans
-      SET ${setClauses.join(', ')}
-      WHERE id = ?
-    `);
-
-    stmt.run(...values);
-
-    return selectOne<DbGroupHealthScan>(
-      db,
-      'SELECT * FROM group_health_scans WHERE id = ?',
-      id
-    );
+    return base.update(id, dbUpdates);
   },
 
   /**
@@ -257,11 +175,7 @@ export const groupHealthRepository = {
     );
 
     // Also update the context_groups table with the health score
-    const scan = selectOne<DbGroupHealthScan>(
-      db,
-      'SELECT * FROM group_health_scans WHERE id = ?',
-      id
-    );
+    const scan = base.getById(id);
 
     if (scan) {
       db.prepare(`
@@ -277,34 +191,13 @@ export const groupHealthRepository = {
   /**
    * Mark scan as failed
    */
-  failScan: (id: string): DbGroupHealthScan | null => {
-    const db = getDatabase();
-    const now = getCurrentTimestamp();
-
-    const stmt = db.prepare(`
-      UPDATE group_health_scans
-      SET status = 'failed', completed_at = ?, updated_at = ?
-      WHERE id = ?
-    `);
-
-    stmt.run(now, now, id);
-
-    return selectOne<DbGroupHealthScan>(
-      db,
-      'SELECT * FROM group_health_scans WHERE id = ?',
-      id
-    );
-  },
+  failScan: (id: string): DbGroupHealthScan | null =>
+    base.update(id, { status: 'failed', completed_at: getCurrentTimestamp() }),
 
   /**
    * Delete scan by ID
    */
-  delete: (id: string): boolean => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM group_health_scans WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
-  },
+  delete: (id: string): boolean => base.deleteById(id),
 
   /**
    * Delete all scans for a group
@@ -319,12 +212,7 @@ export const groupHealthRepository = {
   /**
    * Delete all scans for a project
    */
-  deleteByProject: (projectId: string): number => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM group_health_scans WHERE project_id = ?');
-    const result = stmt.run(projectId);
-    return result.changes;
-  },
+  deleteByProject: (projectId: string): number => base.deleteByProject(projectId),
 
   /**
    * Clean up old failed/pending scans

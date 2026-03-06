@@ -32,6 +32,33 @@ export interface DecaySettings {
   retentionDays: number;    // 7 - 90
 }
 
+export type ReflectionScope = 'project' | 'global';
+
+/** Per-scope reflection state — replaces the former duplicated project/global fields. */
+export interface ReflectionScopeState {
+  status: ReflectionStatus | 'idle';
+  lastReflection: DbBrainReflection | null;
+  runningReflectionId: string | null;
+  /** Direct prompt content for CLI execution (no file) */
+  promptContent: string | null;
+  // Project-specific trigger metadata (only meaningful for project scope, defaults for global)
+  decisionsSinceReflection: number;
+  nextThreshold: number;
+  shouldTrigger: boolean;
+  triggerReason: string | null;
+}
+
+const INITIAL_SCOPE_STATE: ReflectionScopeState = {
+  status: 'idle',
+  lastReflection: null,
+  runningReflectionId: null,
+  promptContent: null,
+  decisionsSinceReflection: 0,
+  nextThreshold: 20,
+  shouldTrigger: false,
+  triggerReason: null,
+};
+
 interface BrainState {
   // Decay settings
   decaySettings: DecaySettings;
@@ -45,25 +72,8 @@ interface BrainState {
   outcomeStats: OutcomeStats;
   isLoadingOutcomes: boolean;
 
-  // Reflection
-  reflectionStatus: ReflectionStatus | 'idle';
-  lastReflection: DbBrainReflection | null;
-  decisionsSinceReflection: number;
-  nextThreshold: number;
-  shouldTrigger: boolean;
-  triggerReason: string | null;
-
-  // Running reflection CLI state
-  runningReflectionId: string | null;
-  /** Direct prompt content for CLI execution (no file) */
-  promptContent: string | null;
-
-  // Global reflection
-  globalReflectionStatus: ReflectionStatus | 'idle';
-  lastGlobalReflection: DbBrainReflection | null;
-  globalRunningReflectionId: string | null;
-  /** Direct prompt content for global reflection CLI execution */
-  globalPromptContent: string | null;
+  // Reflection — single polymorphic record keyed by scope
+  reflections: Record<ReflectionScope, ReflectionScopeState>;
 
   // Loading states
   isLoading: boolean;
@@ -81,7 +91,7 @@ interface BrainActions {
   fetchReflectionStatus: (projectId: string) => Promise<void>;
 
   /** Combined dashboard fetch — replaces 4 separate mount calls. Returns anomalies for caller. */
-  fetchDashboard: (projectId: string) => Promise<SignalAnomaly[]>;
+  fetchDashboard: (projectId: string, signal?: AbortSignal) => Promise<SignalAnomaly[]>;
 
   // Actions
   triggerReflection: (projectId: string, projectName: string, projectPath: string) => Promise<void>;
@@ -96,6 +106,9 @@ interface BrainActions {
 
   // Utilities
   clearError: () => void;
+
+  /** Scope-parameterized selector — returns a snapshot of reflection state for the given scope. */
+  getReflectionState: (scope: ReflectionScope) => ReflectionScopeState;
 }
 
 type BrainStore = BrainState & BrainActions;
@@ -120,18 +133,10 @@ const initialState: BrainState = {
     pending: 0,
   },
   isLoadingOutcomes: false,
-  reflectionStatus: 'idle',
-  lastReflection: null,
-  decisionsSinceReflection: 0,
-  nextThreshold: 20,
-  shouldTrigger: false,
-  triggerReason: null,
-  runningReflectionId: null,
-  promptContent: null,
-  globalReflectionStatus: 'idle',
-  lastGlobalReflection: null,
-  globalRunningReflectionId: null,
-  globalPromptContent: null,
+  reflections: {
+    project: { ...INITIAL_SCOPE_STATE },
+    global: { ...INITIAL_SCOPE_STATE },
+  },
   isLoading: false,
   error: null,
 };
@@ -139,8 +144,6 @@ const initialState: BrainState = {
 // ============================================================================
 // SCOPE HELPERS (shared logic for project vs global reflection)
 // ============================================================================
-
-type ReflectionScope = 'project' | 'global';
 
 interface ScopeConfig {
   storagePrefix: string;
@@ -160,7 +163,6 @@ interface ReflectionUpdate {
   last?: DbBrainReflection | null;
   runId?: string | null;
   prompt?: string | null;
-  // Project specific
   decisionsSinceReflection?: number;
   nextThreshold?: number;
   shouldTrigger?: boolean;
@@ -176,30 +178,24 @@ export const useBrainStore = create<BrainStore>()(
     (set, get) => {
       // ---- Internal helpers (not exposed on the store) ----
 
-      const setProjectState = (update: ReflectionUpdate): Partial<BrainStore> => ({
-        ...(update.status !== undefined && { reflectionStatus: update.status }),
-        ...(update.last !== undefined && { lastReflection: update.last }),
-        ...(update.runId !== undefined && { runningReflectionId: update.runId }),
-        ...(update.prompt !== undefined && { promptContent: update.prompt }),
-        ...(update.decisionsSinceReflection !== undefined && { decisionsSinceReflection: update.decisionsSinceReflection }),
-        ...(update.nextThreshold !== undefined && { nextThreshold: update.nextThreshold }),
-        ...(update.shouldTrigger !== undefined && { shouldTrigger: update.shouldTrigger }),
-        ...(update.triggerReason !== undefined && { triggerReason: update.triggerReason }),
-      });
-
-      const setGlobalState = (update: Pick<ReflectionUpdate, 'status' | 'last' | 'runId' | 'prompt'>): Partial<BrainStore> => ({
-        ...(update.status !== undefined && { globalReflectionStatus: update.status }),
-        ...(update.last !== undefined && { lastGlobalReflection: update.last }),
-        ...(update.runId !== undefined && { globalRunningReflectionId: update.runId }),
-        ...(update.prompt !== undefined && { globalPromptContent: update.prompt }),
-      });
-
+      /** Merge a partial update into reflections[scope]. */
       const setScopeState = (scope: ReflectionScope, update: ReflectionUpdate) => {
-        if (scope === 'project') {
-          set(setProjectState(update));
-        } else {
-          set(setGlobalState(update));
-        }
+        set((state) => ({
+          reflections: {
+            ...state.reflections,
+            [scope]: {
+              ...state.reflections[scope],
+              ...(update.status !== undefined && { status: update.status }),
+              ...(update.last !== undefined && { lastReflection: update.last }),
+              ...(update.runId !== undefined && { runningReflectionId: update.runId }),
+              ...(update.prompt !== undefined && { promptContent: update.prompt }),
+              ...(update.decisionsSinceReflection !== undefined && { decisionsSinceReflection: update.decisionsSinceReflection }),
+              ...(update.nextThreshold !== undefined && { nextThreshold: update.nextThreshold }),
+              ...(update.shouldTrigger !== undefined && { shouldTrigger: update.shouldTrigger }),
+              ...(update.triggerReason !== undefined && { triggerReason: update.triggerReason }),
+            },
+          },
+        }));
       };
 
       const _fetchReflectionStatus = async (scope: ReflectionScope, query: string) => {
@@ -228,7 +224,7 @@ export const useBrainStore = create<BrainStore>()(
           const status = data.isRunning ? 'running' : (data.lastCompleted ? 'completed' : 'idle');
 
           // Detect reflection completion: compare new completed_at with previous
-          const prevReflection = scope === 'project' ? get().lastReflection : get().lastGlobalReflection;
+          const prevReflection = get().reflections[scope].lastReflection;
           const newReflection = data.lastCompleted;
           const hasJustCompleted =
             newReflection &&
@@ -260,7 +256,7 @@ export const useBrainStore = create<BrainStore>()(
           }
 
           // Restore promptContent from sessionStorage if running but no prompt in memory
-          const currentPrompt = scope === 'project' ? get().promptContent : get().globalPromptContent;
+          const currentPrompt = get().reflections[scope].promptContent;
           const runId = data.runningReflection?.id;
           if (status === 'running' && !currentPrompt && runId && typeof window !== 'undefined') {
             try {
@@ -442,14 +438,16 @@ export const useBrainStore = create<BrainStore>()(
           await _fetchReflectionStatus('project', `projectId=${projectId}`);
         },
 
-        fetchDashboard: async (projectId) => {
+        fetchDashboard: async (projectId, signal?) => {
           set({ isLoadingContext: true, isLoadingOutcomes: true, isLoading: true });
           try {
-            const response = await fetch(`/api/brain/dashboard?projectId=${encodeURIComponent(projectId)}`);
+            const response = await fetch(`/api/brain/dashboard?projectId=${encodeURIComponent(projectId)}`, { signal });
             if (!response.ok) {
               set({ isLoadingContext: false, isLoadingOutcomes: false, isLoading: false });
               return [];
             }
+
+            if (signal?.aborted) return [];
 
             const data = await response.json();
             if (!data.success) {
@@ -466,10 +464,10 @@ export const useBrainStore = create<BrainStore>()(
 
             // Reflection status
             const ref = data.reflection || {};
-            const reflectionStatus: ReflectionStatus | 'idle' = ref.isRunning ? 'running' : (ref.lastCompleted ? 'completed' : 'idle');
+            const refStatus: ReflectionStatus | 'idle' = ref.isRunning ? 'running' : (ref.lastCompleted ? 'completed' : 'idle');
 
             // Detect reflection completion: compare new completed_at with previous
-            const prevReflection = get().lastReflection;
+            const prevReflection = get().reflections.project.lastReflection;
             const newReflection = ref.lastCompleted;
             const hasJustCompleted =
               newReflection &&
@@ -481,21 +479,30 @@ export const useBrainStore = create<BrainStore>()(
                 prevReflection.id !== newReflection.id
               );
 
-            set({
+            // Bail out if request was aborted during parsing (stale project switch)
+            if (signal?.aborted) return [];
+
+            set((state) => ({
               behavioralContext,
               isLoadingContext: false,
               recentOutcomes,
               outcomeStats,
               isLoadingOutcomes: false,
-              reflectionStatus,
-              lastReflection: ref.lastCompleted || null,
-              runningReflectionId: ref.runningReflection?.id || null,
-              decisionsSinceReflection: ref.decisionsSinceLastReflection || 0,
-              nextThreshold: ref.nextThreshold || 20,
-              shouldTrigger: ref.shouldTrigger || false,
-              triggerReason: ref.triggerReason || null,
+              reflections: {
+                ...state.reflections,
+                project: {
+                  ...state.reflections.project,
+                  status: refStatus,
+                  lastReflection: ref.lastCompleted || null,
+                  runningReflectionId: ref.runningReflection?.id || null,
+                  decisionsSinceReflection: ref.decisionsSinceLastReflection || 0,
+                  nextThreshold: ref.nextThreshold || 20,
+                  shouldTrigger: ref.shouldTrigger || false,
+                  triggerReason: ref.triggerReason || null,
+                },
+              },
               isLoading: false,
-            });
+            }));
 
             // Emit completion event for UI cascade refresh
             if (hasJustCompleted && newReflection) {
@@ -507,15 +514,16 @@ export const useBrainStore = create<BrainStore>()(
             }
 
             // Restore promptContent from sessionStorage if running
-            if (reflectionStatus === 'running' && !get().promptContent && ref.runningReflection?.id && typeof window !== 'undefined') {
+            if (refStatus === 'running' && !get().reflections.project.promptContent && ref.runningReflection?.id && typeof window !== 'undefined') {
               try {
                 const savedPrompt = sessionStorage.getItem(`brain-prompt-${ref.runningReflection.id}`);
-                if (savedPrompt) set({ promptContent: savedPrompt });
+                if (savedPrompt) setScopeState('project', { prompt: savedPrompt });
               } catch { /* sessionStorage unavailable */ }
             }
 
             return data.anomalies || [];
           } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') return [];
             console.error('Failed to fetch dashboard:', error);
             set({ isLoadingContext: false, isLoadingOutcomes: false, isLoading: false });
             return [];
@@ -548,12 +556,12 @@ export const useBrainStore = create<BrainStore>()(
               throw new Error(errorData.error || 'Failed to cancel reflection');
             }
 
-            set({
-              reflectionStatus: 'idle',
-              runningReflectionId: null,
-              promptContent: null,
-              error: null,
+            setScopeState('project', {
+              status: 'idle',
+              runId: null,
+              prompt: null,
             });
+            set({ error: null });
           } catch (error) {
             set({
               error: error instanceof Error ? error.message : 'Failed to cancel reflection',
@@ -580,6 +588,8 @@ export const useBrainStore = create<BrainStore>()(
         // ========================================
         // UTILITIES
         // ========================================
+
+        getReflectionState: (scope: ReflectionScope) => get().reflections[scope],
 
         clearError: () => set({ error: null }),
       };

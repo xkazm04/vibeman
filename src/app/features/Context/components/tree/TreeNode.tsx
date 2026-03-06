@@ -5,7 +5,7 @@ import { TreeNode as TreeNodeType } from '@/types';
 import { useStore } from '@/stores/nodeStore';
 import { getFileTypeColor } from '@/helpers/typeStyles';
 import { pathsMatch, joinPath, isAbsolutePath } from '@/utils/pathUtils';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import CodePreviewModal from './CodePreviewModal';
 
 interface TreeNodeProps {
@@ -26,7 +26,7 @@ const TreeNode = React.memo(function TreeNode({
   projectPath
 }: TreeNodeProps) {
   const { selectedNodes, highlightedNodes } = useStore();
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
   const [isExpanded, setIsExpanded] = useState(level < 2);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const nodePath = node.path;

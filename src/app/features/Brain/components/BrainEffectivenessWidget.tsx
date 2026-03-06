@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Brain, TrendingUp, TrendingDown, Minus, AlertTriangle, Zap, ChevronDown, ChevronRight, Lightbulb, FlaskConical } from 'lucide-react';
 import BrainPanelHeader from './BrainPanelHeader';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import InsightEffectivenessScore from './InsightEffectivenessScore';
 import GlowCard from './GlowCard';
 import { useAbortableFetch } from '@/hooks/useAbortableFetch';
@@ -26,7 +26,7 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
   const [showDetails, setShowDetails] = useState(false);
   const [showCausal, setShowCausal] = useState(false);
 
-  const activeProject = useActiveProjectStore((state) => state.activeProject);
+  const activeProject = useClientProjectStore((state) => state.activeProject);
   const abortableFetch = useAbortableFetch();
 
   const fetchEffectiveness = useCallback(async () => {

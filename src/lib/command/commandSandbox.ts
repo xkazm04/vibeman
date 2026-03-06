@@ -47,6 +47,10 @@ const ALLOWED_COMMANDS: Record<string, CommandPolicy> = {
   'claude': { timeoutMs: 0, maxBuffer: 50 * 1024 * 1024, allowShell: true, argValidator: validateClaudeArg },
   'claude.cmd': { timeoutMs: 0, maxBuffer: 50 * 1024 * 1024, allowShell: true, argValidator: validateClaudeArg },
 
+  // Gemini CLI — long-running, same profile as Claude
+  'gemini': { timeoutMs: 0, maxBuffer: 50 * 1024 * 1024, allowShell: true, argValidator: null },
+  'gemini.cmd': { timeoutMs: 0, maxBuffer: 50 * 1024 * 1024, allowShell: true, argValidator: null },
+
   // Git — moderate timeouts, no shell needed
   'git': { timeoutMs: 60_000, maxBuffer: 10 * 1024 * 1024, allowShell: false, argValidator: null },
 

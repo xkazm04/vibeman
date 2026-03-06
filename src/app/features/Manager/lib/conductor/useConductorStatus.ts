@@ -9,11 +9,11 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useConductorStore } from './conductorStore';
 
 export function useConductorStatus(enabled = true) {
-  const activeProject = useActiveProjectStore((s) => s.activeProject);
+  const activeProject = useClientProjectStore((s) => s.activeProject);
   const projectId = activeProject?.id || null;
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);

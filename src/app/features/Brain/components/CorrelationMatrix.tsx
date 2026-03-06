@@ -17,7 +17,7 @@ import {
   ChevronUp,
   RefreshCw,
 } from 'lucide-react';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useAbortableFetch } from '@/hooks/useAbortableFetch';
 import GlowCard from './GlowCard';
 import BrainPanelHeader from './BrainPanelHeader';
@@ -85,7 +85,7 @@ interface Props {
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function CorrelationMatrix({ scope = 'project' }: Props) {
-  const activeProject = useActiveProjectStore((s) => s.activeProject);
+  const activeProject = useClientProjectStore((s) => s.activeProject);
   const [data, setData] = useState<CorrelationResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);

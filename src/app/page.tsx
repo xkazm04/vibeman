@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOnboardingStore } from '@/stores/onboardingStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
-import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
+import { useSessionInitialize } from '@/lib/session/hooks';
 import FrozenComponent from '../components/FrozenComponent';
 import LazyContentSection from '../components/Navigation/LazyContentSection';
 import GlobalTaskBar from '@/components/GlobalTaskBar';
@@ -31,8 +31,11 @@ import { OverviewLayout } from './features/Overview';
 export default function Home() {
   const [shouldFreezeComponents] = useState(false);
   const { activeModule } = useOnboardingStore();
-  const { activeProject } = useActiveProjectStore();
-  const { selectedProjectId } = useUnifiedProjectStore();
+  const { activeProject } = useClientProjectStore();
+  const { selectedProjectId } = useClientProjectStore();
+  
+  // Initialize application session coordinator on app load
+  useSessionInitialize();
 
   // Smooth transition variants for module and project switching
   const moduleVariants = {

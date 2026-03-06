@@ -5,7 +5,7 @@
 import type { StateCreator } from 'zustand';
 import type { DSLSlice, RefactorState, DSLExecutionStatus } from './types';
 import type { RefactorSpec, ExecutionResult } from '@/app/features/RefactorWizard/lib/dslTypes';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 
 export const createDSLSlice: StateCreator<
   RefactorState,
@@ -89,7 +89,7 @@ export const createDSLSlice: StateCreator<
   },
 
   executeDSLSpec: async (spec: RefactorSpec) => {
-    const activeProject = useActiveProjectStore.getState().activeProject;
+    const activeProject = useClientProjectStore.getState().activeProject;
 
     if (!activeProject?.path) {
       set({ dslExecutionStatus: 'failed' });

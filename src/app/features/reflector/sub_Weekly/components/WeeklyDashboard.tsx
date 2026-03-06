@@ -8,7 +8,7 @@ import WeeklyKPICards from './WeeklyKPICards';
 import DailyActivityChart, { DailyBarClickData } from './DailyActivityChart';
 import SpecialistBreakdown from './SpecialistBreakdown';
 import ProjectImplementationRanking from './ProjectImplementationRanking';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
 import FilterBar from '../../components/FilterBar';
 import SuggestionTypeToggle from '../../components/SuggestionTypeToggle';
 import DrillDownDrawer, { DrillDownContext, dbIdeaToDrillDown } from '../../components/DrillDownDrawer';
@@ -35,7 +35,7 @@ export default function WeeklyDashboard() {
   const [unifiedFilters, setUnifiedFilters] = useState<FilterState>(getEmptyFilterState());
   const [drillDown, setDrillDown] = useState<DrillDownContext | null>(null);
 
-  const { projects, initializeProjects } = useProjectConfigStore();
+  const { projects, initializeProjects } = useServerProjectStore();
 
   // Convert unified filters to WeeklyFilters for API calls
   const filters: WeeklyFilters = useMemo(() => ({

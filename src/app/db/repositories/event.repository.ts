@@ -1,6 +1,11 @@
 import { getDatabase } from '../connection';
 import { DbEvent } from '../models/types';
 import { getCurrentTimestamp, selectOne } from './repository.utils';
+import { createGenericRepository } from './generic.repository';
+
+const base = createGenericRepository<DbEvent>({
+  tableName: 'events',
+});
 
 /**
  * Event Repository
@@ -10,16 +15,8 @@ export const eventRepository = {
   /**
    * Get all events for a project
    */
-  getEventsByProject: (projectId: string, limit: number = 50): DbEvent[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM events
-      WHERE project_id = ?
-      ORDER BY created_at DESC
-      LIMIT ?
-    `);
-    return stmt.all(projectId, limit) as DbEvent[];
-  },
+  getEventsByProject: (projectId: string, limit: number = 50): DbEvent[] =>
+    base.getByProject(projectId, limit),
 
   /**
    * Create a new event

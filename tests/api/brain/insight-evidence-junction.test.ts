@@ -48,6 +48,7 @@ function createBrainTables(db: Database.Database) {
       description TEXT NOT NULL,
       confidence INTEGER NOT NULL DEFAULT 50,
       evidence TEXT NOT NULL DEFAULT '[]',
+      canonical_id TEXT,
       evolves_from_id TEXT,
       evolves_title TEXT,
       conflict_with_id TEXT,
@@ -61,6 +62,20 @@ function createBrainTables(db: Database.Database) {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       FOREIGN KEY (reflection_id) REFERENCES brain_reflections(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS insight_lineage (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      parent_insight_id TEXT NOT NULL,
+      child_insight_id TEXT NOT NULL,
+      relationship_type TEXT NOT NULL,
+      reason TEXT,
+      resolved INTEGER DEFAULT 0,
+      resolution_method TEXT,
+      created_at TEXT NOT NULL,
+      resolved_at TEXT,
+      FOREIGN KEY (parent_insight_id) REFERENCES brain_insights(id) ON DELETE CASCADE,
+      FOREIGN KEY (child_insight_id) REFERENCES brain_insights(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS brain_insight_evidence (
@@ -84,6 +99,19 @@ function createBrainTables(db: Database.Database) {
       context_name TEXT,
       context_map_title TEXT,
       created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS behavioral_signals (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      signal_type TEXT NOT NULL,
+      context_id TEXT,
+      context_name TEXT,
+      data TEXT,
+      weight REAL DEFAULT 1.0,
+      timestamp TEXT NOT NULL,
+      decay_applied_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
 }
@@ -137,6 +165,15 @@ describe('Brain Insight Evidence Junction Table', () => {
       INSERT INTO directions (id, project_id, summary, status, created_at)
       VALUES (?, ?, ?, ?, ?)
     `).run('dir_002', 'proj_1', 'Direction 2 summary', 'accepted', now);
+
+    // Seed behavioral signals for FK validation
+    const signalStmt = testDb.prepare(`
+      INSERT INTO behavioral_signals (id, project_id, signal_type, timestamp, created_at)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    for (const sigId of ['sig_123', 'sig_456', 'sig_789', 'sig_abc', 'sig_any_id']) {
+      signalStmt.run(sigId, 'proj_1', 'git_activity', now, now);
+    }
   });
 
   afterEach(() => {
@@ -476,8 +513,8 @@ describe('Brain Insight Evidence Junction Table', () => {
     }).toThrow('Evidence reference reflection:ref_invalid does not exist');
   });
 
-  it('should allow signal evidence without FK validation', () => {
-    // Signals don't have a persistent table yet, so they should pass validation
+  it('should validate signal evidence against hot-writes DB', () => {
+    // Signals are now validated against the behavioral_signals table in hot-writes DB
     const insight = brainInsightRepository.create({
       id: 'bi_signal',
       reflection_id: 'ref_test',
@@ -498,5 +535,20 @@ describe('Brain Insight Evidence Junction Table', () => {
       'SELECT COUNT(*) as count FROM brain_insight_evidence WHERE insight_id = ?'
     ).get('bi_signal') as { count: number };
     expect(junctionRows.count).toBe(2);
+  });
+
+  it('should reject signal evidence with non-existent signal ID', () => {
+    expect(() => {
+      brainInsightRepository.create({
+        id: 'bi_bad_signal',
+        reflection_id: 'ref_test',
+        project_id: 'proj_1',
+        type: 'pattern_detected',
+        title: 'Bad Signal',
+        description: 'Should fail',
+        confidence: 80,
+        evidence: [{ type: 'signal', id: 'sig_nonexistent' }],
+      });
+    }).toThrow('Evidence reference signal:sig_nonexistent does not exist');
   });
 });

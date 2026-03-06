@@ -1,7 +1,8 @@
 /**
  * useCanvasData
- * Hook that fetches real behavioral signals from the API and pushes
- * them into the CanvasStore for imperative rendering.
+ * Hook that fetches behavioral signals from the API and pushes
+ * them into the CanvasStore. React components subscribe to store
+ * changes via useSyncExternalStore for declarative re-renders.
  *
  * Only `isLoading` and `error` are React state (for UI indicators).
  * Event data lives in the store — polling updates that don't change
@@ -16,6 +17,7 @@ import { mapSignalsToEvents } from './signalMapper';
 import { safeResponseJson, parseApiResponse, BrainSignalsResponseSchema } from '@/lib/apiResponseGuard';
 import type { CanvasStore } from './canvasStore';
 import { usePolling } from '@/hooks/usePolling';
+import { useAbortableFetch } from '@/hooks/useAbortableFetch';
 
 const REFRESH_INTERVAL_MS = 30_000;
 const MAX_SIGNALS = 200;
@@ -39,7 +41,7 @@ export function useCanvasData({ store, getFocusedGroupId, enabled = true }: UseC
     isLoading: true,
     error: null,
   });
-  const mountedRef = useRef(true);
+  const abortableFetch = useAbortableFetch();
 
   const fetchSignals = useCallback(async (projectId: string) => {
     try {
@@ -50,7 +52,7 @@ export function useCanvasData({ store, getFocusedGroupId, enabled = true }: UseC
         since,
       });
 
-      const res = await fetch(`/api/brain/signals?${params.toString()}`);
+      const res = await abortableFetch(`/api/brain/signals?${params.toString()}`);
       if (!res.ok) {
         throw new Error(`API responded with status ${res.status}`);
       }
@@ -64,19 +66,17 @@ export function useCanvasData({ store, getFocusedGroupId, enabled = true }: UseC
       const signals = (data.data?.signals || []) as unknown as DbBehavioralSignal[];
       const events = mapSignalsToEvents(signals, MAX_SIGNALS);
 
-      if (!mountedRef.current) return;
-
       // Push into store — diff check inside skips layout if unchanged
       store.setEvents(events, getFocusedGroupId());
       setStatus({ isLoading: false, error: null });
     } catch (err) {
-      if (!mountedRef.current) return;
+      if (err instanceof Error && err.name === 'AbortError') return;
       setStatus({
         isLoading: false,
         error: err instanceof Error ? err.message : 'Unknown error',
       });
     }
-  }, [store, getFocusedGroupId]);
+  }, [store, getFocusedGroupId, abortableFetch]);
 
   const refresh = useCallback(() => {
     if (activeProject?.id) {
@@ -86,8 +86,6 @@ export function useCanvasData({ store, getFocusedGroupId, enabled = true }: UseC
 
   // Initial fetch on mount and when project changes
   useEffect(() => {
-    mountedRef.current = true;
-
     if (!enabled || !activeProject?.id) {
       if (!activeProject?.id) {
         store.setEvents([], null);
@@ -98,10 +96,6 @@ export function useCanvasData({ store, getFocusedGroupId, enabled = true }: UseC
 
     setStatus(prev => ({ ...prev, isLoading: true }));
     fetchSignals(activeProject.id);
-
-    return () => {
-      mountedRef.current = false;
-    };
   }, [activeProject?.id, enabled, fetchSignals, store]);
 
   // Unified polling with pause/resume support

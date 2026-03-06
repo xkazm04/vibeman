@@ -5,25 +5,16 @@ import * as d3 from 'd3';
 import { Maximize2 } from 'lucide-react';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 
-import { hexToRgba, relTime, getEventRadius } from '../sub_MemoryCanvas/lib/helpers';
+import { relTime } from '../sub_MemoryCanvas/lib/helpers';
 import { COLORS, RECENCY_GLOW_HOURS, LANE_TYPES } from '../sub_MemoryCanvas/lib/constants';
-import type { SignalType, FilterState } from '../sub_MemoryCanvas/lib/types';
+import type { SignalType, BrainEvent } from '../sub_MemoryCanvas/lib/types';
 import type { RenderContext } from '../sub_MemoryCanvas/lib/canvasRenderPipeline';
+import { mapSignalsToEvents } from '../sub_MemoryCanvas/lib/signalMapper';
+import { resolveLaneCollisions } from '../sub_MemoryCanvas/lib/canvasLayout';
 import { executeTimelineRenderPipeline, TIMELINE_MARGIN } from './timelineRenderPipeline';
 import { SIGNAL_METADATA } from '@/types/signals';
 
 // ─── Local Types ────────────────────────────────────────────────────────────
-
-interface BrainEvent {
-  id: string;
-  type: SignalType;
-  context_name: string;
-  timestamp: number;
-  weight: number;
-  summary: string;
-  x: number;
-  y: number;
-}
 
 interface TooltipData {
   event: BrainEvent;
@@ -45,35 +36,6 @@ const BG = '#18181b';
 const GRID = '#27272a';
 const MARGIN = TIMELINE_MARGIN;
 
-// ─── Data Helpers ───────────────────────────────────────────────────────────
-
-function deriveSummary(signalType: string, data: Record<string, unknown>): string {
-  switch (signalType) {
-    case 'git_activity': {
-      const msg = data.commitMessage as string;
-      const files = data.filesChanged as string[] | undefined;
-      return msg || `${files?.length || 0} files changed`;
-    }
-    case 'implementation': {
-      const name = data.requirementName as string;
-      const success = data.success as boolean;
-      return name ? `${success ? '\u2713' : '\u2717'} ${name}` : (success ? 'Success' : 'Failed');
-    }
-    case 'context_focus': {
-      const title = data.ideaTitle as string | undefined;
-      const accepted = data.accepted as boolean | undefined;
-      if (title) return accepted ? `Accepted: ${title}` : `Rejected: ${title}`;
-      return data.contextName as string || 'Context activity';
-    }
-    case 'api_focus': {
-      const endpoint = data.endpoint as string;
-      return endpoint ? `${data.method || 'GET'} ${endpoint}` : 'API activity';
-    }
-    default:
-      return signalType;
-  }
-}
-
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function EventCanvasTimeline() {
@@ -92,6 +54,12 @@ export default function EventCanvasTimeline() {
   const [isEmpty, setIsEmpty] = useState(false);
   const [visibleTypes, setVisibleTypes] = useState<Set<SignalType>>(new Set(SIGNAL_TYPES));
   const visibleTypesRef = useRef<Set<SignalType>>(new Set(SIGNAL_TYPES));
+
+  // Zoom hint: show "Zoom in for card view" until user first zooms past 3x
+  const [hasZoomedIn, setHasZoomedIn] = useState(false);
+  const hasZoomedInRef = useRef(false);
+  const prevZoomRef = useRef(1);
+  const cardEntryTimeRef = useRef<number>(0);
 
   // Keep ref in sync with state for render loop access
   useEffect(() => {
@@ -119,7 +87,7 @@ export default function EventCanvasTimeline() {
     const now = Date.now();
     const span = 7 * 24 * 60 * 60 * 1000;
     const start = now - span;
-    const laneH = plotH / 4;
+    const laneH = plotH / SIGNAL_TYPES.length;
     const inset = laneH * 0.15;
 
     // 1. Initial positioning: time-based X, lane-center Y
@@ -130,47 +98,15 @@ export default function EventCanvasTimeline() {
       evt.y = MARGIN.top + laneIdx * laneH + laneH / 2;
     });
 
-    // 2. Per-lane multi-pass collision resolution (6 passes)
-    for (const laneType of SIGNAL_TYPES) {
-      const laneIdx = SIGNAL_TYPES.indexOf(laneType);
-      const laneTop = MARGIN.top + laneIdx * laneH + inset;
-      const laneBottom = MARGIN.top + (laneIdx + 1) * laneH - inset;
-      const laneEvents = events.filter(e => e.type === laneType);
-      laneEvents.sort((a, b) => a.x - b.x);
-
-      for (let pass = 0; pass < 6; pass++) {
-        for (let i = 0; i < laneEvents.length; i++) {
-          const a = laneEvents[i];
-          const windowEnd = Math.min(laneEvents.length, i + 8);
-
-          for (let j = i + 1; j < windowEnd; j++) {
-            const b = laneEvents[j];
-            const minDist = getEventRadius(a.weight, a.timestamp) + getEventRadius(b.weight, b.timestamp) + 2;
-            const dx = b.x - a.x;
-            const dy = b.y - a.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist < minDist && dist > 0.001) {
-              const overlap = (minDist - dist) / 2;
-              const nx = dx / dist;
-              const ny = dy / dist;
-              // 20% X nudge, 80% Y nudge
-              const xPush = overlap * nx * 0.2;
-              const yPush = overlap * (ny === 0 ? 1 : ny / Math.abs(ny)) * 0.8;
-
-              a.x -= xPush;
-              a.y -= yPush;
-              b.x += xPush;
-              b.y += yPush;
-
-              // Clamp Y to lane bounds
-              a.y = Math.max(laneTop, Math.min(laneBottom, a.y));
-              b.y = Math.max(laneTop, Math.min(laneBottom, b.y));
-            }
-          }
-        }
-      }
-    }
+    // 2. Per-lane multi-pass collision resolution via shared resolver
+    resolveLaneCollisions({
+      events,
+      laneTypes: SIGNAL_TYPES,
+      laneBounds: (laneIdx) => ({
+        top: MARGIN.top + laneIdx * laneH + inset,
+        bottom: MARGIN.top + (laneIdx + 1) * laneH - inset,
+      }),
+    });
   }, []);
 
   // ─── Render ─────────────────────────────────────────────────────────────
@@ -247,12 +183,21 @@ export default function EventCanvasTimeline() {
         enableGlow: true,
         useGradients: true,
       } : undefined,
-      eventCards: !isEmptyState && k >= 3 ? {
-        events: visibleEvents,
-        coordinateMode: 'world',
-        cardSize: { width: 150, height: 50 },
-        showContext: true,
-      } : undefined,
+      eventCards: !isEmptyState && k >= 3 ? (() => {
+        // Card entry animation: scale 0.85 → 1.0 over 200ms after crossing 3x threshold
+        const entryElapsed = cardEntryTimeRef.current ? now - cardEntryTimeRef.current : Infinity;
+        const entryScale = entryElapsed < 200
+          ? 0.85 + 0.15 * Math.min(1, entryElapsed / 200)
+          : 1.0;
+        // Keep re-rendering during the 200ms animation window
+        if (entryElapsed < 200) requestAnimationFrame(() => requestRender());
+        return {
+          events: visibleEvents,
+          coordinateMode: 'world',
+          cardSize: { width: 150 * entryScale, height: 50 * entryScale },
+          showContext: true,
+        };
+      })() : undefined,
       smartLabels: !isEmptyState && k < 3 ? {
         events: visibleEvents,
         coordinateMode: 'world',
@@ -318,7 +263,7 @@ export default function EventCanvasTimeline() {
     const canvas = canvasRef.current;
     if (!container || !canvas) return;
 
-    let cancelled = false;
+    const abortController = new AbortController();
 
     const loadEvents = async () => {
       let events: BrainEvent[] = [];
@@ -331,32 +276,17 @@ export default function EventCanvasTimeline() {
             limit: '200',
             since,
           });
-          const res = await fetch(`/api/brain/signals?${params.toString()}`);
+          const res = await fetch(`/api/brain/signals?${params.toString()}`, {
+            signal: abortController.signal,
+          });
           const data = await res.json();
 
           if (data.success && data.signals?.length > 0) {
-            events = data.signals.map((signal: any, i: number) => {
-              let summary = signal.signal_type;
-              try {
-                const parsed = JSON.parse(signal.data);
-                summary = deriveSummary(signal.signal_type, parsed);
-              } catch { /* use raw type as summary */ }
-
-              return {
-                id: `tl-${signal.id || i}`,
-                type: signal.signal_type as SignalType,
-                context_name: signal.context_name || 'General',
-                timestamp: new Date(signal.timestamp).getTime(),
-                weight: Math.max(0.2, Math.min(2.0, signal.weight || 1.0)),
-                summary,
-                x: 0,
-                y: 0,
-              };
-            }).filter((e: BrainEvent) => SIGNAL_TYPES.includes(e.type));
-
+            events = mapSignalsToEvents(data.signals, 200);
             setIsEmpty(false);
           }
-        } catch {
+        } catch (err) {
+          if (err instanceof Error && err.name === 'AbortError') return;
           // API error - fall back to empty
         }
       }
@@ -365,7 +295,7 @@ export default function EventCanvasTimeline() {
         setIsEmpty(true);
       }
 
-      if (cancelled) return;
+      if (abortController.signal.aborted) return;
       eventsRef.current = events;
 
       // Start pulse animation if recent events exist
@@ -393,8 +323,21 @@ export default function EventCanvasTimeline() {
       const zoomBehavior = d3.zoom<HTMLCanvasElement, unknown>()
         .scaleExtent([0.4, 15])
         .on('zoom', (event) => {
+          const prevK = prevZoomRef.current;
+          const newK = event.transform.k;
           transformRef.current = event.transform;
-          setZoomLevel(event.transform.k);
+          prevZoomRef.current = newK;
+          setZoomLevel(newK);
+
+          // Detect crossing 3x threshold upward → trigger card entry animation
+          if (prevK < 3 && newK >= 3) {
+            cardEntryTimeRef.current = Date.now();
+            if (!hasZoomedInRef.current) {
+              hasZoomedInRef.current = true;
+              setHasZoomedIn(true);
+            }
+          }
+
           requestRender();
         });
 
@@ -435,7 +378,6 @@ export default function EventCanvasTimeline() {
       resizeObs.observe(container);
 
       return () => {
-        cancelled = true;
         resizeObs.disconnect();
         canvas.removeEventListener('mousemove', handleMouseMove);
       };
@@ -443,7 +385,7 @@ export default function EventCanvasTimeline() {
 
     const cleanup = loadEvents();
     return () => {
-      cancelled = true;
+      abortController.abort();
       stopPulseAnimation();
       cleanup.then(fn => fn?.());
     };
@@ -453,6 +395,24 @@ export default function EventCanvasTimeline() {
     <div className="flex flex-col h-full w-full bg-zinc-900 overflow-hidden">
       <div ref={containerRef} className="relative flex-1" style={{ minHeight: 300 }}>
         <canvas ref={canvasRef} className="absolute inset-0 cursor-grab active:cursor-grabbing" />
+
+        {/* Zoom hint overlay — appears below 3x zoom until first zoom-in */}
+        {!hasZoomedIn && !isEmpty && zoomLevel < 3 && (
+          <div className="absolute bottom-3 right-3 z-40 pointer-events-none">
+            <div className="bg-zinc-800/90 backdrop-blur-sm border border-zinc-600/50 rounded-lg px-3 py-2 flex items-center gap-3 shadow-lg transition-opacity duration-500">
+              {/* Mini card preview */}
+              <div className="flex flex-col gap-0.5">
+                <div className="w-16 h-3 rounded-sm bg-cyan-500/20 border border-cyan-500/30" />
+                <div className="w-12 h-1.5 rounded-sm bg-zinc-600/40" />
+                <div className="w-14 h-1.5 rounded-sm bg-zinc-600/30" />
+              </div>
+              <div>
+                <div className="text-zinc-300 text-[11px] font-medium">Zoom in for card view</div>
+                <div className="text-zinc-500 text-[9px]">Scroll to 3x for event details</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {tooltip && (
           <div className="absolute z-50 pointer-events-none" style={{ left: tooltip.screenX + 14, top: tooltip.screenY - 10 }}>

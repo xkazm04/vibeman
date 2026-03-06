@@ -65,7 +65,7 @@ export default function ContextGroupSelector({
             data-testid={`context-group-select-${group.id}`}
             onClick={(e) => onToggleGroup(group.id, e.shiftKey)}
             title="Click to expand/collapse. Shift+Click to select all child contexts."
-            className={`relative shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 ${
+            className={`relative shrink-0 px-3 py-1.5 min-h-[44px] rounded-lg text-xs font-medium transition-all flex items-center gap-2 ${
               isSelected
                 ? 'text-white border-2'
                 : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300'

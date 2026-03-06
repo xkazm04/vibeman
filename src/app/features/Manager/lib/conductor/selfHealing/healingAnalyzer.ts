@@ -221,7 +221,9 @@ async function llmBasedHealing(
   });
 
   if (!response.ok) {
-    throw new Error(`LLM analysis failed: ${response.status}`);
+    const errorData = await response.json().catch(() => ({}));
+    const msg = errorData.userMessage || errorData.error || `LLM analysis failed: ${response.status}`;
+    throw new Error(msg);
   }
 
   const data = await response.json();

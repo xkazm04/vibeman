@@ -143,15 +143,20 @@ export function autoPruneInsights(projectId: string, minDirections: number = 3):
     }
 
     // --- Step B: Auto-resolve conflicts based on effectiveness ---
-    if (row.conflict_with_title && row.conflict_resolved === 0) {
+    if ((row.conflict_with_id || row.conflict_with_title) && row.conflict_resolved === 0) {
       const thisEffectiveness = effectiveness;
 
-      // Find the conflicting insight's effectiveness by title
+      // Find the conflicting insight's effectiveness — prefer ID lookup, fall back to title
       let otherEffectiveness: { score: number; verdict: string; reliable: boolean; row: DbBrainInsight & { completed_at: string } } | undefined;
-      for (const [, mapVal] of scoreMap.entries()) {
-        if (mapVal.row.title === row.conflict_with_title) {
-          otherEffectiveness = mapVal;
-          break;
+      if (row.conflict_with_id) {
+        otherEffectiveness = scoreMap.get(row.conflict_with_id);
+      }
+      if (!otherEffectiveness && row.conflict_with_title) {
+        for (const [, mapVal] of scoreMap.entries()) {
+          if (mapVal.row.title === row.conflict_with_title) {
+            otherEffectiveness = mapVal;
+            break;
+          }
         }
       }
 

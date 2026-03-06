@@ -5,8 +5,14 @@ import { APIKeyConfig, ProviderConfig, SupportedProvider } from './types';
 const STORAGE_KEYS = {
   API_KEYS: 'llm_api_keys',
   PROVIDER_CONFIGS: 'llm_provider_configs',
-  DEFAULT_PROVIDER: 'llm_default_provider'
+  DEFAULT_PROVIDER: 'llm_default_provider',
+  FALLBACK_CHAIN: 'llm_fallback_chain'
 } as const;
+
+/** Server-side default fallback chain used by CircuitBreakerManager */
+export const DEFAULT_FALLBACK_CHAIN: SupportedProvider[] = [
+  'gemini', 'openai', 'anthropic', 'groq', 'ollama', 'internal'
+];
 
 /**
  * API Key Management
@@ -244,6 +250,45 @@ export class DefaultProviderStorage {
 }
 
 /**
+ * Fallback Chain Management
+ */
+export class FallbackChainStorage {
+  /**
+   * Set custom fallback chain order
+   */
+  static setFallbackChain(chain: SupportedProvider[]): void {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(STORAGE_KEYS.FALLBACK_CHAIN, JSON.stringify(chain));
+  }
+
+  /**
+   * Get configured fallback chain (or default)
+   */
+  static getFallbackChain(): SupportedProvider[] {
+    if (typeof window === 'undefined') return DEFAULT_FALLBACK_CHAIN;
+
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.FALLBACK_CHAIN);
+      if (stored) {
+        const parsed = JSON.parse(stored) as SupportedProvider[];
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return DEFAULT_FALLBACK_CHAIN;
+  }
+
+  /**
+   * Reset to default fallback chain
+   */
+  static clearFallbackChain(): void {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(STORAGE_KEYS.FALLBACK_CHAIN);
+  }
+}
+
+/**
  * Utility functions
  */
 export const StorageUtils = {
@@ -254,7 +299,8 @@ export const StorageUtils = {
     return JSON.stringify({
       apiKeys: APIKeyStorage.getAllAPIKeys(),
       providerConfigs: ProviderConfigStorage.getAllProviderConfigs(),
-      defaultProvider: DefaultProviderStorage.getDefaultProvider()
+      defaultProvider: DefaultProviderStorage.getDefaultProvider(),
+      fallbackChain: FallbackChainStorage.getFallbackChain()
     }, null, 2);
   },
 
@@ -276,7 +322,11 @@ export const StorageUtils = {
       if (settings.defaultProvider) {
         DefaultProviderStorage.setDefaultProvider(settings.defaultProvider);
       }
-      
+
+      if (settings.fallbackChain) {
+        FallbackChainStorage.setFallbackChain(settings.fallbackChain);
+      }
+
       return true;
     } catch (error) {
       console.error('Failed to import settings:', error);
@@ -291,5 +341,6 @@ export const StorageUtils = {
     APIKeyStorage.clearAllAPIKeys();
     ProviderConfigStorage.clearAllConfigs();
     DefaultProviderStorage.clearDefaultProvider();
+    FallbackChainStorage.clearFallbackChain();
   }
 };

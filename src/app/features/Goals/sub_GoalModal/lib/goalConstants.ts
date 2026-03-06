@@ -16,54 +16,64 @@ export interface StatusConfig {
 }
 
 /**
- * Helper to create status configuration object
- */
-function createStatusConfig(
-  text: string,
-  baseColor: string,
-  icon: typeof CheckCircle,
-  options?: { gradient?: string; textColor?: string; glow?: string }
-): StatusConfig {
-  return {
-    text,
-    color: `text-${baseColor}-400`,
-    bgColor: `bg-${baseColor}-500/20`,
-    borderColor: `border-${baseColor}-500/30`,
-    icon,
-    ...options,
-  };
-}
-
-/**
- * Status configurations for goal statuses
- * Provides consistent styling across the application
+ * Status configurations for goal statuses.
+ * Provides consistent styling across the application.
+ *
+ * IMPORTANT: All Tailwind classes are written as full static strings
+ * so the JIT compiler can detect them at build time. Never construct
+ * class names with template literals (e.g. `text-${color}-400`).
  */
 export const STATUS_CONFIGS: Record<Goal['status'], StatusConfig> = {
-  done: createStatusConfig('Completed', 'green', CheckCircle, {
+  done: {
+    text: 'Completed',
+    color: 'text-green-400',
+    bgColor: 'bg-green-500/20',
+    borderColor: 'border-green-500/30',
     gradient: 'from-emerald-400/20 to-green-500/20',
     textColor: 'text-emerald-300',
     glow: 'shadow-emerald-500/20',
-  }),
-  in_progress: createStatusConfig('In Progress', 'yellow', Clock, {
+    icon: CheckCircle,
+  },
+  in_progress: {
+    text: 'In Progress',
+    color: 'text-yellow-400',
+    bgColor: 'bg-yellow-500/20',
+    borderColor: 'border-yellow-500/30',
     gradient: 'from-amber-400/20 to-yellow-500/20',
     textColor: 'text-amber-300',
     glow: 'shadow-amber-500/20',
-  }),
-  open: createStatusConfig('Open', 'blue', Circle, {
+    icon: Clock,
+  },
+  open: {
+    text: 'Open',
+    color: 'text-blue-400',
+    bgColor: 'bg-blue-500/20',
+    borderColor: 'border-blue-500/30',
     gradient: 'from-blue-400/20 to-cyan-500/20',
     textColor: 'text-blue-300',
     glow: 'shadow-blue-500/20',
-  }),
-  undecided: createStatusConfig('Under Review', 'blue', AlertCircle, {
+    icon: Circle,
+  },
+  undecided: {
+    text: 'Under Review',
+    color: 'text-blue-400',
+    bgColor: 'bg-blue-500/20',
+    borderColor: 'border-blue-500/30',
     gradient: 'from-blue-400/20 to-violet-500/20',
     textColor: 'text-blue-300',
     glow: 'shadow-blue-500/20',
-  }),
-  rejected: createStatusConfig('Archived', 'red', XCircle, {
+    icon: AlertCircle,
+  },
+  rejected: {
+    text: 'Archived',
+    color: 'text-red-400',
+    bgColor: 'bg-red-500/20',
+    borderColor: 'border-red-500/30',
     gradient: 'from-red-400/20 to-rose-500/20',
     textColor: 'text-red-300',
     glow: 'shadow-red-500/20',
-  }),
+    icon: XCircle,
+  },
 };
 
 /**
@@ -73,7 +83,13 @@ export const STATUS_CONFIGS: Record<Goal['status'], StatusConfig> = {
 export const getStatusInfo = (status: Goal['status']) => {
   const config = STATUS_CONFIGS[status];
   if (!config) {
-    return createStatusConfig('Unknown', 'gray', Circle);
+    return {
+      text: 'Unknown',
+      color: 'text-gray-400',
+      bgColor: 'bg-gray-500/20',
+      borderColor: 'border-gray-500/30',
+      icon: Circle,
+    };
   }
 
   return {

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckSquare, Square, Trash2, XCircle, Layers, RotateCcw, MoreHorizontal } from 'lucide-react';
+import { CheckSquare, Square, Trash2, XCircle, Layers, RotateCcw, MoreHorizontal, Zap } from 'lucide-react';
 import type { AggregationCheckResult } from '../lib/ideaAggregator';
 
 interface TaskColumnHeaderProps {
@@ -27,6 +27,8 @@ interface TaskColumnHeaderProps {
   onResetAllQueued: () => void;
   canBulkDelete: boolean;
   canReset: boolean;
+  onAutoAssign?: () => void;
+  autoAssignCount?: number; // Number of selected idle tasks to auto-assign
 }
 
 export default function TaskColumnHeader({
@@ -51,6 +53,8 @@ export default function TaskColumnHeader({
   onResetAllQueued,
   canBulkDelete,
   canReset,
+  onAutoAssign,
+  autoAssignCount = 0,
 }: TaskColumnHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -74,7 +78,8 @@ export default function TaskColumnHeader({
     };
   }, [menuOpen]);
 
-  const hasConstructiveActions = Boolean(aggregationCheck?.canAggregate);
+  const hasAutoAssign = autoAssignCount > 0 && !!onAutoAssign;
+  const hasConstructiveActions = Boolean(aggregationCheck?.canAggregate) || hasAutoAssign;
   const hasCleanupActions =
     (failedCount > 0 && canReset) ||
     (queuedCount > 0 && canReset) ||
@@ -143,6 +148,16 @@ export default function TaskColumnHeader({
                         <div className="px-3 pt-1.5 pb-1 text-[9px] uppercase tracking-wider text-gray-500 font-semibold">
                           Actions
                         </div>
+                        {hasAutoAssign && (
+                          <button
+                            onClick={() => { onAutoAssign!(); setMenuOpen(false); }}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] font-medium text-purple-400 hover:bg-purple-500/10 border-l-2 border-purple-500/60 transition-colors"
+                            data-testid={`auto-assign-btn-${projectId}`}
+                          >
+                            <Zap className="w-3.5 h-3.5" />
+                            <span>Auto-assign {autoAssignCount} selected</span>
+                          </button>
+                        )}
                         {aggregationCheck?.canAggregate && (
                           <button
                             onClick={() => { onAggregate(); setMenuOpen(false); }}

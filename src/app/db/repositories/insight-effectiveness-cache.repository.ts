@@ -3,8 +3,8 @@
  *
  * Manages cached insight effectiveness scores to avoid expensive
  * O(insights × directions) recalculation on every API request.
- * Cache entries have a 24-hour TTL and are invalidated when
- * directions are accepted (changing the underlying data).
+ * Cache entries have a 24-hour TTL and are invalidated on any
+ * direction status change (accepted, rejected, reverted, deleted).
  */
 
 import { getDatabase } from '../connection';

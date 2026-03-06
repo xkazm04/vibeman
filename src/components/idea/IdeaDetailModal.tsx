@@ -5,7 +5,7 @@ import FocusTrap from 'focus-trap-react';
 import { AlertCircle, X } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import { generateRequirementForGoal } from '@/app/Claude/lib/requirementApi';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useAIOperation } from '@/hooks/useAIOperation';
 import { useInvalidateIdeas } from '@/lib/queries/ideaQueries';
 import { getStatusTextClass } from '@/lib/design-tokens/useEntityStyling';
@@ -34,7 +34,7 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
   const [error, setError] = useState<string | null>(null);
   const [showVariants, setShowVariants] = useState(false);
 
-  const { projects, initializeProjects } = useProjectConfigStore();
+  const { projects, initializeProjects } = useServerProjectStore();
   const invalidateIdeas = useInvalidateIdeas();
 
   // Generate unique IDs for ARIA attributes
@@ -145,12 +145,14 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
       const project = projects.find(p => p.id === idea.project_id);
 
       if (project) {
-        // Use the tinder reject endpoint which handles requirement deletion
-        const response = await fetch('/api/ideas/tinder/reject', {
+        // Use the unified tinder actions endpoint which handles requirement deletion
+        const response = await fetch('/api/tinder/actions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ideaId: idea.id,
+            itemType: 'idea',
+            itemId: idea.id,
+            action: 'reject',
             projectPath: project.path,
           }),
         });
@@ -268,15 +270,17 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
         }
       }
 
-      // 2. Generate new requirement using /api/ideas/tinder/accept
+      // 2. Generate new requirement using unified tinder actions endpoint
       //    This uses the unified builder and handles goal/context lookups
       const project = projects.find(p => p.id === idea.project_id);
       if (project) {
-        const acceptResponse = await fetch('/api/ideas/tinder/accept', {
+        const acceptResponse = await fetch('/api/tinder/actions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ideaId: idea.id,
+            itemType: 'idea',
+            itemId: idea.id,
+            action: 'accept',
             projectPath: project.path,
           }),
         });

@@ -35,7 +35,7 @@ import { XRayModeToggle, XRaySystemMap, XRayHotPathsPanel } from '../sub_XRay';
 // Hooks and types
 import { useArchitectureNavigation } from './lib/useArchitectureNavigation';
 import { useContextStore } from '@/stores/contextStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useXRayStore, useXRayIsConnected } from '@/stores/xrayStore';
 import { startXRaySimulation, stopXRaySimulation } from '@/lib/xrayInstrumentation';
 import {
@@ -75,7 +75,7 @@ export default function DocsAnalysisLayout() {
   const { events: xrayEvents } = useXRayStore();
   const isXRayConnected = useXRayIsConnected();
 
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
   const projectId = activeProject?.id;
 
   // Context store for move operations

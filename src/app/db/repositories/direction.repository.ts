@@ -1,6 +1,11 @@
 import { getDatabase } from '../connection';
 import { DbDirection } from '../models/types';
-import { buildUpdateQuery, getCurrentTimestamp, selectOne, selectAll } from './repository.utils';
+import { getCurrentTimestamp, selectOne, selectAll } from './repository.utils';
+import { createGenericRepository } from './generic.repository';
+
+const base = createGenericRepository<DbDirection>({
+  tableName: 'directions',
+});
 
 /**
  * Direction Repository
@@ -11,15 +16,7 @@ export const directionRepository = {
   /**
    * Get all directions for a project
    */
-  getDirectionsByProject: (projectId: string): DbDirection[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM directions
-      WHERE project_id = ?
-      ORDER BY created_at DESC
-    `);
-    return stmt.all(projectId) as DbDirection[];
-  },
+  getDirectionsByProject: (projectId: string): DbDirection[] => base.getByProject(projectId),
 
   /**
    * Get all directions for multiple projects (batch query)
@@ -200,10 +197,7 @@ export const directionRepository = {
   /**
    * Get a single direction by ID
    */
-  getDirectionById: (directionId: string): DbDirection | null => {
-    const db = getDatabase();
-    return selectOne<DbDirection>(db, 'SELECT * FROM directions WHERE id = ?', directionId);
-  },
+  getDirectionById: (directionId: string): DbDirection | null => base.getById(directionId),
 
   /**
    * Get multiple directions by IDs in a single query.
@@ -353,7 +347,7 @@ export const directionRepository = {
       now
     );
 
-    return selectOne<DbDirection>(db, 'SELECT * FROM directions WHERE id = ?', direction.id)!;
+    return base.getById(direction.id)!;
   },
 
   /**
@@ -367,42 +361,13 @@ export const directionRepository = {
     requirement_path?: string | null;
     context_map_title?: string;
     decision_record?: string | null;
-    // NEW: SQLite context fields
     context_id?: string | null;
     context_name?: string | null;
     context_group_id?: string | null;
-    // Effort/impact scoring
     effort?: number | null;
     impact?: number | null;
-    // Hypothesis assertions (JSON string)
     hypothesis_assertions?: string | null;
-  }): DbDirection | null => {
-    const db = getDatabase();
-    const { fields, values } = buildUpdateQuery(updates);
-
-    if (fields.length === 0) {
-      return selectOne<DbDirection>(db, 'SELECT * FROM directions WHERE id = ?', id);
-    }
-
-    const now = getCurrentTimestamp();
-    fields.push('updated_at = ?');
-    values.push(now);
-    values.push(id);
-
-    const stmt = db.prepare(`
-      UPDATE directions
-      SET ${fields.join(', ')}
-      WHERE id = ?
-    `);
-
-    const result = stmt.run(...values);
-
-    if (result.changes === 0) {
-      return null;
-    }
-
-    return selectOne<DbDirection>(db, 'SELECT * FROM directions WHERE id = ?', id);
-  },
+  }): DbDirection | null => base.update(id, updates as Record<string, unknown>),
 
   /**
    * Atomically claim a direction for processing (idempotency protection)
@@ -456,22 +421,12 @@ export const directionRepository = {
   /**
    * Delete a direction
    */
-  deleteDirection: (id: string): boolean => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM directions WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
-  },
+  deleteDirection: (id: string): boolean => base.deleteById(id),
 
   /**
    * Delete all directions for a project
    */
-  deleteDirectionsByProject: (projectId: string): number => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM directions WHERE project_id = ?');
-    const result = stmt.run(projectId);
-    return result.changes;
-  },
+  deleteDirectionsByProject: (projectId: string): number => base.deleteByProject(projectId),
 
   /**
    * Delete directions by context_map_id

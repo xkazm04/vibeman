@@ -10,6 +10,7 @@ import { RequirementViewer } from '@/components/RequirementViewer';
 import { getTheme } from './lib/taskStatusUtils';
 import type { ProjectRequirement } from './lib/types';
 import type { DbIdea } from '@/app/db';
+import { TruncateTooltip } from '@/components/ui/TruncateTooltip';
 import ContextMenu from '@/components/ContextMenu';
 import {
   effortScale,
@@ -159,10 +160,12 @@ const TaskItem = React.memo(function TaskItem({
       >
         {/* Requirement name and icon */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <StatusIcon className={`w-3 h-3 ${theme.text}${statusIconSpin}`} />
-          <span className="text-sm text-gray-200 font-mono truncate" title={requirementName}>
-            {requirementName}
-          </span>
+          <StatusIcon className={`w-3 h-3 flex-shrink-0 ${theme.text}${statusIconSpin}`} />
+          <TruncateTooltip text={requirementName}>
+            <span className="text-sm text-gray-200 font-mono truncate block">
+              {requirementName}
+            </span>
+          </TruncateTooltip>
         </div>
 
         {/* Metric indicators */}

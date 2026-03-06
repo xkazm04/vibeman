@@ -16,6 +16,8 @@ interface ContextRowSelectionProps {
   contextGroups: ContextGroup[];
   selectedContextIds: string[];
   onSelectContexts: (contextIds: string[]) => void;
+  selectedGroupIds: string[];
+  onSelectGroups: (groupIds: string[]) => void;
 }
 
 export default function ContextRowSelection({
@@ -23,11 +25,10 @@ export default function ContextRowSelection({
   contextGroups,
   selectedContextIds,
   onSelectContexts,
+  selectedGroupIds,
+  onSelectGroups: setSelectedGroupIds,
 }: ContextRowSelectionProps) {
   const { getThemeColors } = useThemeStore();
-
-  // Internal state: which groups are expanded (to show individual contexts)
-  const [selectedGroupIds, setSelectedGroupIds] = React.useState<string[]>([]);
 
   const isFullProjectSelected = selectedContextIds.length === 0 && selectedGroupIds.length === 0;
 
@@ -105,7 +106,7 @@ export default function ContextRowSelection({
               }
               // Also expand the group so user can see the children
               if (!selectedGroupIds.includes(group.id)) {
-                setSelectedGroupIds((prev) => [...prev, group.id]);
+                setSelectedGroupIds([...selectedGroupIds, group.id]);
               }
             } else {
               onToggle();

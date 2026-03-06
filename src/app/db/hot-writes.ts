@@ -42,6 +42,7 @@ export function getHotWritesDatabase(): Database.Database {
   hotDb.pragma('busy_timeout = 2000'); // shorter timeout since contention is lower
 
   initializeHotWritesTables(hotDb);
+  migrateHotWritesTables(hotDb);
 
   return hotDb;
 }
@@ -63,6 +64,7 @@ function initializeHotWritesTables(db: Database.Database): void {
       weight REAL DEFAULT 1.0,
       timestamp TEXT NOT NULL,
       decay_applied_at TEXT,
+      cluster_id TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -70,6 +72,7 @@ function initializeHotWritesTables(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_hot_bs_type ON behavioral_signals(project_id, signal_type);
     CREATE INDEX IF NOT EXISTS idx_hot_bs_timestamp ON behavioral_signals(project_id, timestamp);
     CREATE INDEX IF NOT EXISTS idx_hot_bs_decay ON behavioral_signals(project_id, weight, decay_applied_at);
+    CREATE INDEX IF NOT EXISTS idx_hot_bs_cluster ON behavioral_signals(cluster_id);
 
     CREATE TABLE IF NOT EXISTS obs_api_calls (
       id TEXT PRIMARY KEY,
@@ -90,6 +93,22 @@ function initializeHotWritesTables(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_hot_obs_endpoint ON obs_api_calls(project_id, endpoint);
     CREATE INDEX IF NOT EXISTS idx_hot_obs_called_at ON obs_api_calls(project_id, called_at);
   `);
+}
+
+/**
+ * Migrate existing hot-writes databases that were created before
+ * the cluster_id column was added to the CREATE TABLE statement.
+ */
+function migrateHotWritesTables(db: Database.Database): void {
+  try {
+    const columns = db.prepare("PRAGMA table_info('behavioral_signals')").all() as Array<{ name: string }>;
+    if (!columns.some((c) => c.name === 'cluster_id')) {
+      db.exec(`ALTER TABLE behavioral_signals ADD COLUMN cluster_id TEXT`);
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_hot_bs_cluster ON behavioral_signals(cluster_id)`);
+    }
+  } catch {
+    // Best-effort migration — table may not exist yet or column may already exist
+  }
 }
 
 /**

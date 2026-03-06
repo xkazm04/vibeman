@@ -5,6 +5,11 @@ import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
 import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
 import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
+import {
+  IdeasErrorCode,
+  createIdeasErrorResponse,
+  handleIdeasApiError,
+} from '@/app/features/Ideas/lib/ideasHandlers';
 
 export interface IdeaVariant {
   scope: 'mvp' | 'standard' | 'ambitious';
@@ -100,12 +105,15 @@ async function handlePost(request: NextRequest) {
     const body: GenerateVariantsRequest = await request.json();
 
     if (!body.ideaId || typeof body.ideaId !== 'string') {
-      return NextResponse.json({ error: 'ideaId is required' }, { status: 400 });
+      return createIdeasErrorResponse(IdeasErrorCode.MISSING_REQUIRED_FIELD, {
+        field: 'ideaId',
+        message: 'ideaId is required',
+      });
     }
 
     const idea = ideaDb.getIdeaById(body.ideaId);
     if (!idea) {
-      return NextResponse.json({ error: 'Idea not found' }, { status: 404 });
+      return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND);
     }
 
     // Verify project access
@@ -127,10 +135,11 @@ async function handlePost(request: NextRequest) {
 
     if (!result.success || !result.response) {
       logger.error('[API /ideas/variants] LLM call failed:', { error: result.error });
-      return NextResponse.json(
-        { error: 'Failed to generate variants', details: result.error },
-        { status: 502 }
-      );
+      return createIdeasErrorResponse(IdeasErrorCode.INTERNAL_ERROR, {
+        status: 502,
+        message: 'Failed to generate variants',
+        details: result.error,
+      });
     }
 
     const variants = parseVariantsResponse(result.response);
@@ -146,10 +155,7 @@ async function handlePost(request: NextRequest) {
       error,
       message: error instanceof Error ? error.message : 'Unknown error',
     });
-    return NextResponse.json(
-      { error: 'Failed to generate variants' },
-      { status: 500 }
-    );
+    return handleIdeasApiError(error);
   }
 }
 

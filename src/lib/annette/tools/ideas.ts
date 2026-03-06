@@ -57,10 +57,10 @@ export async function executeIdeaTools(
       }
 
       try {
-        const response = await fetch('http://localhost:3000/api/ideas/tinder/accept', {
+        const response = await fetch('http://localhost:3000/api/tinder/actions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ideaId, projectPath }),
+          body: JSON.stringify({ itemType: 'idea', itemId: ideaId, action: 'accept', projectPath }),
         });
 
         if (!response.ok) {
@@ -86,10 +86,10 @@ export async function executeIdeaTools(
       }
 
       try {
-        const response = await fetch('http://localhost:3000/api/ideas/tinder/reject', {
+        const response = await fetch('http://localhost:3000/api/tinder/actions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ideaId, projectPath }),
+          body: JSON.stringify({ itemType: 'idea', itemId: ideaId, action: 'reject', projectPath }),
         });
 
         if (!response.ok) {

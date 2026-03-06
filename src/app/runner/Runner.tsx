@@ -6,7 +6,6 @@ import EmergencyKillModal from './components/EmergencyKillModal';
 import CompactSystemLogs from './components/CompactSystemLogs';
 
 import { useServerProjectStore } from '@/stores/serverProjectStore';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
 
 import { RefreshCcw, Skull } from 'lucide-react';
 import VoicebotPillar from '@/app/voicebot/VoicebotPillar';
@@ -26,7 +25,7 @@ export default function Runner() {
   const {
     projects,
     initializeProjects
-  } = useProjectConfigStore();
+  } = useServerProjectStore();
 
   const chargingLevel = useChargingLevel();
 

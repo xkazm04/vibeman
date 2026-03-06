@@ -20,4 +20,4 @@ export {
 } from './store';
 
 // Client-only hooks (not in store index to avoid SSR issues)
-export { useCLIRecovery, useCLIRecoveryStatus } from './store/useCLIRecovery';
+export { useCLIRecovery } from './store/useCLIRecovery';

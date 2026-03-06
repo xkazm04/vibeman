@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Target, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 
 interface GoalProgressRingProps {
@@ -55,6 +55,12 @@ export default function GoalProgressRing({
 }: GoalProgressRingProps) {
   const config = SIZE_CONFIG[size];
   const circumference = 2 * Math.PI * config.radius;
+  const prefersReducedMotion = useReducedMotion();
+
+  // Animation config: instant transitions when user prefers reduced motion
+  const segmentTransition = (delay: number) =>
+    prefersReducedMotion ? { duration: 0 } : { duration: 0.8, delay, ease: 'easeOut' as const };
+  const centerTransition = prefersReducedMotion ? { duration: 0 } : { delay: 0.5 };
 
   // Calculate percentages
   const completedPercent = total > 0 ? (completed / total) * 100 : 0;
@@ -71,6 +77,19 @@ export default function GoalProgressRing({
   const inProgressOffset = -completedDash;
   const blockedOffset = -(completedDash + inProgressDash);
 
+  // Build descriptive aria-label
+  const buildAriaLabel = () => {
+    if (total === 0) return 'Goal progress: no goals set';
+    const parts = [`${Math.round(completedPercent)}% complete`];
+    if (completed > 0) parts.push(`${completed} done`);
+    if (inProgress > 0) parts.push(`${inProgress} active`);
+    if (blocked > 0) parts.push(`${blocked} blocked`);
+    parts.push(`${total} total`);
+    return `Goal progress: ${parts.join(', ')}`;
+  };
+
+  const ariaLabel = buildAriaLabel();
+
   if (total === 0) {
     return (
       <div className={`flex flex-col items-center ${className}`}>
@@ -82,7 +101,10 @@ export default function GoalProgressRing({
             className="transform -rotate-90"
             width={config.containerSize}
             height={config.containerSize}
+            role="img"
+            aria-label={ariaLabel}
           >
+            <title>{ariaLabel}</title>
             <circle
               cx={config.containerSize / 2}
               cy={config.containerSize / 2}
@@ -114,7 +136,10 @@ export default function GoalProgressRing({
           className="transform -rotate-90"
           width={config.containerSize}
           height={config.containerSize}
+          role="img"
+          aria-label={ariaLabel}
         >
+          <title>{ariaLabel}</title>
           {/* Background circle */}
           <circle
             cx={config.containerSize / 2}
@@ -139,9 +164,9 @@ export default function GoalProgressRing({
               className="text-red-500"
               strokeDasharray={`${blockedDash} ${circumference}`}
               strokeDashoffset={blockedOffset}
-              initial={{ strokeDasharray: `0 ${circumference}` }}
+              initial={prefersReducedMotion ? false : { strokeDasharray: `0 ${circumference}` }}
               animate={{ strokeDasharray: `${blockedDash} ${circumference}` }}
-              transition={{ duration: 0.8, delay: 0.4, ease: 'easeOut' }}
+              transition={segmentTransition(0.4)}
             />
           )}
 
@@ -158,9 +183,9 @@ export default function GoalProgressRing({
               className="text-blue-500"
               strokeDasharray={`${inProgressDash} ${circumference}`}
               strokeDashoffset={inProgressOffset}
-              initial={{ strokeDasharray: `0 ${circumference}` }}
+              initial={prefersReducedMotion ? false : { strokeDasharray: `0 ${circumference}` }}
               animate={{ strokeDasharray: `${inProgressDash} ${circumference}` }}
-              transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
+              transition={segmentTransition(0.2)}
             />
           )}
 
@@ -177,9 +202,9 @@ export default function GoalProgressRing({
               className="text-green-500"
               strokeDasharray={`${completedDash} ${circumference}`}
               strokeDashoffset={completedOffset}
-              initial={{ strokeDasharray: `0 ${circumference}` }}
+              initial={prefersReducedMotion ? false : { strokeDasharray: `0 ${circumference}` }}
               animate={{ strokeDasharray: `${completedDash} ${circumference}` }}
-              transition={{ duration: 0.8, ease: 'easeOut' }}
+              transition={segmentTransition(0)}
             />
           )}
         </svg>
@@ -188,9 +213,9 @@ export default function GoalProgressRing({
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <motion.span
             className={`font-bold text-gray-100 ${config.textSize}`}
-            initial={{ opacity: 0, scale: 0.5 }}
+            initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.5 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.5 }}
+            transition={centerTransition}
           >
             {Math.round(completedPercent)}%
           </motion.span>
@@ -239,11 +264,22 @@ export function GoalProgressMini({
   className?: string;
 }) {
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const prefersReducedMotion = useReducedMotion();
+  const ariaLabel = total > 0
+    ? `Goal progress: ${percent}% complete, ${completed} of ${total}`
+    : 'Goal progress: no goals set';
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <div className="relative w-8 h-8">
-        <svg className="transform -rotate-90" width={32} height={32}>
+        <svg
+          className="transform -rotate-90"
+          width={32}
+          height={32}
+          role="img"
+          aria-label={ariaLabel}
+        >
+          <title>{ariaLabel}</title>
           <circle
             cx={16}
             cy={16}
@@ -263,9 +299,9 @@ export function GoalProgressMini({
             strokeLinecap="round"
             className="text-green-500"
             strokeDasharray={`${(percent / 100) * 75.4} 75.4`}
-            initial={{ strokeDasharray: '0 75.4' }}
+            initial={prefersReducedMotion ? false : { strokeDasharray: '0 75.4' }}
             animate={{ strokeDasharray: `${(percent / 100) * 75.4} 75.4` }}
-            transition={{ duration: 0.5 }}
+            transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.5 }}
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">

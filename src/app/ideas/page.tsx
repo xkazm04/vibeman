@@ -4,8 +4,8 @@ import React from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { DbIdea } from '@/app/db';
 import { Context } from '@/lib/queries/contextQueries';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 
 // Components
 import IdeasHeaderWithFilter from '@/app/features/Ideas/components/IdeasHeaderWithFilter';
@@ -26,12 +26,13 @@ export default function IdeasPage() {
   const [selectedIdea, setSelectedIdea] = React.useState<DbIdea | null>(null);
   const [filterProject, setFilterProject] = React.useState<string>('all');
   const [filterContextIds, setFilterContextIds] = React.useState<string[]>([]);
+  const [filterGroupIds, setFilterGroupIds] = React.useState<string[]>([]);
   const [selectedScanTypes, setSelectedScanTypes] = React.useState<ScanType[]>([]);
   const [contextsMap, setContextsMap] = React.useState<Record<string, Context[]>>({});
   const [loadedProjectIds, setLoadedProjectIds] = React.useState<string[]>([]);
 
-  const { projects, initializeProjects, getProject } = useProjectConfigStore();
-  const { setActiveProject } = useActiveProjectStore();
+  const { projects, initializeProjects, getProject } = useServerProjectStore();
+  const { setActiveProject } = useClientProjectStore();
   const invalidateIdeas = useInvalidateIdeas();
 
   // Initialize projects on mount
@@ -84,6 +85,7 @@ export default function IdeasPage() {
     // Update local filter state
     setFilterProject(projectId);
     setFilterContextIds([]); // Reset context filter when project changes
+    setFilterGroupIds([]);
 
     // Update active project in store (skip if 'all' is selected)
     if (projectId !== 'all') {
@@ -120,6 +122,8 @@ export default function IdeasPage() {
             onSelectProject={handleProjectSelect}
             selectedContextIds={filterContextIds}
             onSelectContexts={setFilterContextIds}
+            selectedGroupIds={filterGroupIds}
+            onSelectGroups={setFilterGroupIds}
           />
         </LazyContentSection>
 
@@ -131,6 +135,7 @@ export default function IdeasPage() {
               selectedScanTypes={selectedScanTypes}
               onScanTypesChange={setSelectedScanTypes}
               selectedContextIds={filterContextIds}
+              selectedGroupIds={filterGroupIds}
             />
           </div>
         </LazyContentSection>

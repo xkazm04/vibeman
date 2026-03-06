@@ -24,6 +24,8 @@ interface ComposePromptResponse {
   success: boolean
   prompt: string
   truncated: boolean
+  compositionMethod: 'llm' | 'fallback'
+  fallbackReason?: string
   originalLength?: number
   error?: string
 }
@@ -183,8 +185,10 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
         success: true,
         prompt: finalPrompt,
         truncated,
+        compositionMethod: 'fallback',
+        fallbackReason: llmResponse.error || 'LLM composition unavailable',
         originalLength: truncated ? fallbackPrompt.length : undefined,
-      })
+      } satisfies ComposePromptResponse)
     }
 
     // Clean up the response (remove any extra whitespace/newlines)
@@ -209,8 +213,9 @@ async function handlePost(request: NextRequest): Promise<NextResponse> {
       success: true,
       prompt: composedPrompt,
       truncated,
+      compositionMethod: 'llm',
       originalLength: truncated ? llmResponse.response.length : undefined,
-    })
+    } satisfies ComposePromptResponse)
 
   } catch (error) {
     return handleApiError(error, 'Compose prompt')

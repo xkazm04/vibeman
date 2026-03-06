@@ -6,22 +6,9 @@ import { Trash2, AlertTriangle } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import BufferItem from './BufferItem';
 import { createIdeaStagingBuffer } from '@/lib/staging-buffer';
+import { getColorAccent } from '../lib/ideaConfig';
 
 const ideaStagingBuffer = createIdeaStagingBuffer<DbIdea>();
-
-// ── Category accent colors ──────────────────────────────────────────────────
-// Maps category color names (from ideaConfig) to Tailwind-compatible border/bg values.
-const CATEGORY_ACCENTS: Record<string, { border: string; headerBg: string; dot: string }> = {
-  blue:   { border: 'border-l-blue-500/60',   headerBg: 'from-blue-500/10 to-transparent',   dot: 'bg-blue-400' },
-  pink:   { border: 'border-l-pink-500/60',   headerBg: 'from-pink-500/10 to-transparent',   dot: 'bg-pink-400' },
-  green:  { border: 'border-l-emerald-500/60', headerBg: 'from-emerald-500/10 to-transparent', dot: 'bg-emerald-400' },
-  amber:  { border: 'border-l-amber-500/60',  headerBg: 'from-amber-500/10 to-transparent',  dot: 'bg-amber-400' },
-  purple: { border: 'border-l-purple-500/60', headerBg: 'from-purple-500/10 to-transparent', dot: 'bg-purple-400' },
-  red:    { border: 'border-l-red-500/60',    headerBg: 'from-red-500/10 to-transparent',    dot: 'bg-red-400' },
-  gray:   { border: 'border-l-zinc-500/40',   headerBg: 'from-zinc-500/8 to-transparent',    dot: 'bg-zinc-400' },
-};
-
-const DEFAULT_ACCENT = CATEGORY_ACCENTS.gray;
 
 interface BufferColumnProps {
   contextName: string;
@@ -51,7 +38,7 @@ const BufferColumn = React.memo(function BufferColumn({
   onIdeaConvert,
   onIdeaQueueForExecution,
 }: BufferColumnProps) {
-  const accent = (accentColor && CATEGORY_ACCENTS[accentColor]) || DEFAULT_ACCENT;
+  const accent = getColorAccent(accentColor || 'gray');
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);

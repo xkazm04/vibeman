@@ -21,6 +21,7 @@ export interface ExecutionPromptConfig {
   gitCommands?: string[]; // List of git commands to execute
   gitCommitMessage?: string; // Commit message template
   taskId?: string; // Task ID for collective memory application tracking
+  healingContext?: string; // Self-healing context injected from previous failure analysis
 }
 
 export interface ExecutionPromptResult {
@@ -64,6 +65,11 @@ export function buildExecutionPrompt(config: ExecutionPromptConfig): ExecutionPr
     } catch {
       // Collective memory injection must never break execution
     }
+  }
+
+  // Inject self-healing context from previous failure analysis
+  if (config.healingContext) {
+    enhancedContent = `${enhancedContent}\n${config.healingContext}`;
   }
 
   // Map to wrapper config (omit deprecated dbPath)

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { DefaultProviderStorage } from '@/lib/llm';
 import { HighLevelDocsModal } from './ProjectAI/sub_ScanHigh';
 
@@ -17,7 +17,7 @@ export default function HighLevelDocsModalWrapper({
   isOpen,
   onClose
 }: HighLevelDocsModalWrapperProps) {
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
   const provider = DefaultProviderStorage.getDefaultProvider();
 
   if (!activeProject) {

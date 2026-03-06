@@ -1,6 +1,12 @@
 import { getDatabase } from '../connection';
 import { DbIdea, IdeaCategory } from '../models/types';
-import { buildUpdateQuery, getCurrentTimestamp, selectOne, validateScore } from './repository.utils';
+import { getCurrentTimestamp, selectOne, validateScore } from './repository.utils';
+import { createGenericRepository } from './generic.repository';
+import { IdeaStateMachine } from '@/lib/ideas/ideaStateMachine';
+
+const base = createGenericRepository<DbIdea>({
+  tableName: 'ideas',
+});
 
 /**
  * Idea Repository
@@ -22,15 +28,7 @@ export const ideaRepository = {
   /**
    * Get ideas by project
    */
-  getIdeasByProject: (projectId: string): DbIdea[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM ideas
-      WHERE project_id = ?
-      ORDER BY created_at DESC
-    `);
-    return stmt.all(projectId) as DbIdea[];
-  },
+  getIdeasByProject: (projectId: string): DbIdea[] => base.getByProject(projectId),
 
   /**
    * Get ideas for a project within a date range (SQL-level filtering)
@@ -265,10 +263,7 @@ export const ideaRepository = {
   /**
    * Get a single idea by ID
    */
-  getIdeaById: (ideaId: string): DbIdea | null => {
-    const db = getDatabase();
-    return selectOne<DbIdea>(db, 'SELECT * FROM ideas WHERE id = ?', ideaId);
-  },
+  getIdeaById: (ideaId: string): DbIdea | null => base.getById(ideaId),
 
   /**
    * Create a new idea
@@ -332,7 +327,7 @@ export const ideaRepository = {
       now
     );
 
-    return selectOne<DbIdea>(db, 'SELECT * FROM ideas WHERE id = ?', idea.id)!;
+    return base.getById(idea.id)!;
   },
 
   /**
@@ -351,96 +346,38 @@ export const ideaRepository = {
     requirement_id?: string | null;
     goal_id?: string | null;
   }): DbIdea | null => {
-    const db = getDatabase();
-    const now = new Date().toISOString();
-
-    const updateFields: string[] = [];
-    const values: (string | number | null)[] = [];
-
-    if (updates.status !== undefined) {
-      updateFields.push('status = ?');
-      values.push(updates.status);
-      // Update implemented_at when status changes to 'implemented'
-      if (updates.status === 'implemented') {
-        updateFields.push('implemented_at = ?');
-        values.push(now);
-      }
-    }
-    if (updates.user_feedback !== undefined) {
-      updateFields.push('user_feedback = ?');
-      values.push(updates.user_feedback || null);
-    }
+    // Transform fields that need special handling
+    const dbUpdates: Record<string, unknown> = { ...updates };
     if (updates.user_pattern !== undefined) {
-      updateFields.push('user_pattern = ?');
-      values.push(updates.user_pattern ? 1 : 0);
-    }
-    if (updates.title !== undefined) {
-      updateFields.push('title = ?');
-      values.push(updates.title);
-    }
-    if (updates.description !== undefined) {
-      updateFields.push('description = ?');
-      values.push(updates.description || null);
-    }
-    if (updates.reasoning !== undefined) {
-      updateFields.push('reasoning = ?');
-      values.push(updates.reasoning || null);
+      dbUpdates.user_pattern = updates.user_pattern ? 1 : 0;
     }
     if (updates.effort !== undefined) {
-      updateFields.push('effort = ?');
-      values.push(validateScore(updates.effort));
+      dbUpdates.effort = validateScore(updates.effort);
     }
     if (updates.impact !== undefined) {
-      updateFields.push('impact = ?');
-      values.push(validateScore(updates.impact));
+      dbUpdates.impact = validateScore(updates.impact);
     }
     if (updates.risk !== undefined) {
-      updateFields.push('risk = ?');
-      values.push(validateScore(updates.risk));
+      dbUpdates.risk = validateScore(updates.risk);
     }
-    if (updates.requirement_id !== undefined) {
-      updateFields.push('requirement_id = ?');
-      values.push(updates.requirement_id || null);
+    // Validate status transition and apply side-effects via state machine
+    if (updates.status) {
+      const current = base.getById(id);
+      if (current) {
+        const transition = IdeaStateMachine.authorize(current.status, updates.status);
+        if (!transition.allowed) {
+          throw new Error(transition.reason);
+        }
+        Object.assign(dbUpdates, transition.sideEffects);
+      }
     }
-    if (updates.goal_id !== undefined) {
-      updateFields.push('goal_id = ?');
-      values.push(updates.goal_id || null);
-    }
-
-    if (updateFields.length === 0) {
-      const selectStmt = db.prepare('SELECT * FROM ideas WHERE id = ?');
-      return selectStmt.get(id) as DbIdea | null;
-    }
-
-    updateFields.push('updated_at = ?');
-    values.push(now);
-    values.push(id);
-
-    const stmt = db.prepare(`
-      UPDATE ideas
-      SET ${updateFields.join(', ')}
-      WHERE id = ?
-    `);
-
-    const result = stmt.run(...values);
-
-    if (result.changes === 0) {
-      return null;
-    }
-
-    const selectStmt = db.prepare('SELECT * FROM ideas WHERE id = ?');
-    return selectStmt.get(id) as DbIdea;
+    return base.update(id, dbUpdates);
   },
 
   /**
    * Delete an idea
    */
-  deleteIdea: (id: string): boolean => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM ideas WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
-  },
+  deleteIdea: (id: string): boolean => base.deleteById(id),
 
   /**
    * Delete all ideas associated with a context
@@ -478,12 +415,7 @@ export const ideaRepository = {
   /**
    * Delete all ideas for a specific project
    */
-  deleteIdeasByProject: (projectId: string): number => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM ideas WHERE project_id = ?');
-    const result = stmt.run(projectId);
-    return result.changes;
-  },
+  deleteIdeasByProject: (projectId: string): number => base.deleteByProject(projectId),
 
   /**
    * Get recent ideas (last N)

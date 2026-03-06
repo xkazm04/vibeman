@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, CloudDownload, RefreshCw, Trash2 } from 'lucide-react';
 import { UniversalSelect } from '@/components/ui/UniversalSelect';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { TinderStats } from '../lib/tinderHooks';
 import { TINDER_ANIMATIONS } from '../lib/tinderUtils';
 
@@ -28,7 +28,7 @@ export default function TinderHeader({
   onSyncComplete,
   onFlushComplete,
 }: TinderHeaderProps) {
-  const { projects } = useProjectConfigStore();
+  const { projects } = useServerProjectStore();
   const [isSupabaseConfigured, setIsSupabaseConfigured] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);

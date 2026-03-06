@@ -14,8 +14,7 @@ export { default as TinderItemsContent } from './components/TinderItemsContent';
 export { default as TinderFilterTabs } from './components/TinderFilterTabs';
 export { default as TestModeControls } from './components/TestModeControls';
 
-// Original Ideas-only API and hooks (for backward compatibility)
-export * from './lib/tinderApi';
+// Hooks
 export * from './lib/tinderHooks';
 
 // Unified Items API and hooks (Ideas + Directions)

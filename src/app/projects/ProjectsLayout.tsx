@@ -1,21 +1,21 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { useActiveProjectStore } from '../../stores/activeProjectStore';
+import { useClientProjectStore } from '../../stores/clientProjectStore';
 import { useProjectsToolbarStore } from '../../stores/projectsToolbarStore';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
 import HighLevelDocsModalWrapper from './HighLevelDocsModalWrapper';
 import ProjectAdd from './sub_ProjectSetting/components/ProjectAdd';
 import ProjectEdit from './sub_ProjectSetting/components/ProjectEdit';
 import ProjectToolbar from './ProjectToolbar';
-import { useProjectConfigStore } from '../../stores/projectConfigStore';
+import { useServerProjectStore } from '../../stores/serverProjectStore';
 import { useProjectUpdatesStore } from '../../stores/projectUpdatesStore';
 import StructureTemplateEditor from '../Claude/sub_ClaudeStructureScan/components/StructureTemplateEditor';
 import WorkspaceManager from './sub_Workspaces/WorkspaceManager';
 
 export default function ProjectsLayout() {
-  const { activeProject } = useActiveProjectStore();
-  const { syncWithServer } = useProjectConfigStore();
+  const { activeProject } = useClientProjectStore();
+  const { syncWithServer } = useServerProjectStore();
   const { notifyProjectAdded, notifyProjectUpdated } = useProjectUpdatesStore();
   const { activeWorkspaceId, workspaces } = useWorkspaceStore();
 

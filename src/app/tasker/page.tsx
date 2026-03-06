@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, History, ChevronDown } from 'lucide-react';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
 import TaskRunnerHeader from '@/app/features/TaskRunner/TaskRunnerHeader';
 import TaskColumn from '@/app/features/TaskRunner/TaskColumn';
 import ImplementationLogList from '@/app/features/Goals/sub_ImplementationLog/ImplementationLogList';
@@ -14,7 +14,7 @@ import LazyContentSection from '@/components/Navigation/LazyContentSection';
 
 
 export default function TaskRunnerPage() {
-  const { projects, initializeProjects } = useProjectConfigStore();
+  const { projects, initializeProjects } = useServerProjectStore();
   const [requirements, setRequirements] = useState<ProjectRequirement[]>([]);
   const [selectedRequirements, setSelectedRequirements] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);

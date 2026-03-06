@@ -8,8 +8,10 @@
 // ============================================================================
 
 // Note: Prefixed with ClaudeCode to avoid conflict with red-team.types.ts SessionStatus
-export type ClaudeCodeSessionStatus = 'pending' | 'running' | 'paused' | 'completed' | 'failed';
-export type ClaudeCodeSessionTaskStatus = 'pending' | 'running' | 'completed' | 'failed';
+// Narrowed from unified StatusAlgebra
+import type { SessionLifecycleStatus, BaseLifecycleStatus } from '@/lib/status';
+export type ClaudeCodeSessionStatus = SessionLifecycleStatus;
+export type ClaudeCodeSessionTaskStatus = BaseLifecycleStatus;
 
 // ============================================================================
 // DATABASE TYPES (snake_case, map directly to columns)

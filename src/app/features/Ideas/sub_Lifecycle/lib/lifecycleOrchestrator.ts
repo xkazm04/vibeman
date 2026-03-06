@@ -1,6 +1,6 @@
 /**
  * AI-Driven Code Quality Lifecycle Orchestrator
- * Central service that manages the automated quality lifecycle pipeline
+ * Pure state machine that delegates phase execution to PhaseExecutor implementations.
  */
 
 import {
@@ -10,13 +10,17 @@ import {
   LifecyclePhase,
   LifecycleTrigger,
   LifecycleOrchestratorStatus,
-  QualityGateResult,
-  QualityGateType,
-  DetectionResult,
-  SimulationPreview,
+  PhaseExecutor,
+  PhaseContext,
   DEFAULT_LIFECYCLE_CONFIG,
 } from './lifecycleTypes';
-import { ScanType } from '../../lib/scanTypes';
+import {
+  DetectionExecutor,
+  ScanningExecutor,
+  ResolvingExecutor,
+  ValidationExecutor,
+  DeploymentExecutor,
+} from './executors';
 
 // Generate unique IDs
 function generateId(prefix: string): string {
@@ -35,10 +39,10 @@ interface LifecycleCallbacks {
 
 /**
  * Lifecycle Orchestrator class
- * Singleton pattern for managing lifecycle automation
+ * Singleton state machine that delegates phase work to executor instances.
  */
 class LifecycleOrchestrator {
-  private isRunning: boolean = false;
+  private _isRunning: boolean = false;
   private currentCycle: LifecycleCycle | null = null;
   private cycleHistory: LifecycleCycle[] = [];
   private eventHistory: LifecycleEvent[] = [];
@@ -47,6 +51,22 @@ class LifecycleOrchestrator {
   private pollTimer: NodeJS.Timeout | null = null;
   private lastCycleAt: string | null = null;
   private nextScheduledAt: string | null = null;
+  private cycleLock: boolean = false;
+
+  // Phase executors — instantiated once, reused across cycles
+  private readonly executors: {
+    detection: PhaseExecutor;
+    scanning: PhaseExecutor;
+    resolving: PhaseExecutor;
+    validation: PhaseExecutor;
+    deployment: PhaseExecutor;
+  } = {
+    detection: new DetectionExecutor(),
+    scanning: new ScanningExecutor(),
+    resolving: new ResolvingExecutor(),
+    validation: new ValidationExecutor(),
+    deployment: new DeploymentExecutor(),
+  };
 
   /**
    * Initialize the orchestrator with a project configuration
@@ -70,7 +90,7 @@ class LifecycleOrchestrator {
    * Start the lifecycle orchestrator
    */
   start(callbacks?: LifecycleCallbacks): void {
-    if (this.isRunning) {
+    if (this._isRunning) {
       return;
     }
 
@@ -78,7 +98,7 @@ class LifecycleOrchestrator {
       throw new Error('Orchestrator not initialized. Call initialize() first.');
     }
 
-    this.isRunning = true;
+    this._isRunning = true;
     this.callbacks = callbacks || {};
 
     this.logEvent('info', 'idle', 'Lifecycle orchestrator started');
@@ -93,11 +113,12 @@ class LifecycleOrchestrator {
    * Stop the lifecycle orchestrator
    */
   stop(): void {
-    if (!this.isRunning) {
+    if (!this._isRunning) {
       return;
     }
 
-    this.isRunning = false;
+    this._isRunning = false;
+    this.cycleLock = false;
     this.stopPolling();
 
     this.logEvent('info', 'idle', 'Lifecycle orchestrator stopped');
@@ -114,15 +135,24 @@ class LifecycleOrchestrator {
       throw new Error('Orchestrator not initialized');
     }
 
+    // Atomic lock check — prevents concurrent calls from both passing the guard
+    if (this.cycleLock) {
+      throw new Error('A cycle is already in progress');
+    }
+
     // Check if already running a cycle
     if (this.currentCycle && this.currentCycle.phase !== 'completed' && this.currentCycle.phase !== 'failed') {
       throw new Error('A cycle is already in progress');
     }
 
+    // Acquire lock before any async work
+    this.cycleLock = true;
+
     // Check rate limiting
     if (this.lastCycleAt) {
       const timeSinceLastCycle = Date.now() - new Date(this.lastCycleAt).getTime();
       if (timeSinceLastCycle < this.config.min_cycle_interval_ms) {
+        this.cycleLock = false;
         throw new Error(`Rate limited. Wait ${Math.ceil((this.config.min_cycle_interval_ms - timeSinceLastCycle) / 1000)} seconds`);
       }
     }
@@ -163,430 +193,57 @@ class LifecycleOrchestrator {
       await this.runCycle(cycle);
     } catch (error) {
       await this.handleCycleError(cycle, error as Error);
+    } finally {
+      this.cycleLock = false;
     }
 
     return cycle;
   }
 
   /**
-   * Run the lifecycle cycle through all phases
+   * Build a PhaseContext that bridges the orchestrator's state to executor calls.
    */
-  private async runCycle(cycle: LifecycleCycle): Promise<void> {
-    try {
-      // Phase 1: Detecting
-      await this.runDetectionPhase(cycle);
-
-      // Phase 2: Scanning
-      await this.runScanningPhase(cycle);
-
-      // Phase 3: Resolving
-      await this.runResolvingPhase(cycle);
-
-      // Phase 4: Testing/Validating
-      await this.runValidationPhase(cycle);
-
-      // Phase 5: Deploying (if enabled or simulation mode)
-      if (this.config?.auto_deploy || cycle.is_simulation) {
-        await this.runDeploymentPhase(cycle);
-      }
-
-      // Complete the cycle
-      await this.completeCycle(cycle);
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  /**
-   * Detection phase - analyze git diff for real code changes
-   */
-  private async runDetectionPhase(cycle: LifecycleCycle): Promise<void> {
-    this.updateCyclePhase(cycle, 'detecting', 'Analyzing code changes', 5);
-
-    try {
-      const response = await fetch('/api/lifecycle/detect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectPath: cycle.trigger_metadata?.projectPath,
-        }),
-      });
-
-      if (response.ok) {
-        const detection: DetectionResult = await response.json();
-
-        cycle.trigger_metadata = {
-          ...cycle.trigger_metadata,
-          detection,
-        };
-
-        if (detection.has_changes) {
-          this.logEvent('info', 'detecting', `Detected ${detection.files_changed.length} changed files (+${detection.insertions}/-${detection.deletions})`, {
-            files_changed: detection.files_changed.length,
-            untracked: detection.untracked_files.length,
-            insertions: detection.insertions,
-            deletions: detection.deletions,
-            branch: detection.current_branch,
-          });
-        } else {
-          this.logEvent('info', 'detecting', 'No code changes detected, proceeding with scan-based detection');
-        }
-      } else {
-        this.logEvent('warning', 'detecting', 'Detection API unavailable, proceeding with trigger-based detection');
-      }
-    } catch {
-      this.logEvent('warning', 'detecting', 'Detection failed, proceeding with trigger-based detection');
-    }
-
-    this.updateCycleProgress(cycle, 15, 'Detection complete');
-  }
-
-  /**
-   * Scanning phase - run AI scans
-   */
-  private async runScanningPhase(cycle: LifecycleCycle): Promise<void> {
-    this.updateCyclePhase(cycle, 'scanning', 'Running AI scans', 20);
-
-    if (!this.config) return;
-
-    const scanTypes = this.config.scan_types;
-    let scansCompleted = 0;
-    let totalIdeas = 0;
-
-    for (const scanType of scanTypes) {
-      if (!this.isRunning) {
-        throw new Error('Cycle cancelled');
-      }
-
-      this.logEvent('scan_start', 'scanning', `Starting ${scanType} scan`);
-      this.updateCycleProgress(cycle, 20 + (scansCompleted / scanTypes.length) * 25, `Running ${scanType} scan`);
-
-      try {
-        // Call the scan API
-        const result = await this.executeScan(cycle.project_id, scanType);
-        totalIdeas += result.ideaCount;
-        scansCompleted++;
-
-        cycle.scans_completed = scansCompleted;
-        cycle.ideas_generated = totalIdeas;
-
-        this.logEvent('scan_complete', 'scanning', `${scanType} scan complete: ${result.ideaCount} ideas`, {
-          scanType,
-          ideaCount: result.ideaCount,
-        });
-      } catch (error) {
-        this.logEvent('error', 'scanning', `Scan ${scanType} failed: ${(error as Error).message}`);
-        // Continue with other scans unless fail_fast is enabled
-        if (this.config.fail_fast) {
-          throw error;
-        }
-      }
-    }
-
-    this.updateCycleProgress(cycle, 45, `Scans complete: ${totalIdeas} ideas found`);
-  }
-
-  /**
-   * Resolution phase - AI resolves identified issues
-   */
-  private async runResolvingPhase(cycle: LifecycleCycle): Promise<void> {
-    this.updateCyclePhase(cycle, 'resolving', 'Resolving issues', 50);
-
-    if (!this.config) return;
-
-    if (!this.config.auto_resolve) {
-      this.logEvent('info', 'resolving', 'Auto-resolve disabled, skipping resolution phase');
-      this.updateCycleProgress(cycle, 60, 'Resolution phase skipped');
-      return;
-    }
-
-    // Get ideas to resolve
-    const ideas = await this.getIdeasToResolve(cycle.project_id);
-    const ideasToResolve = ideas.slice(0, this.config.max_auto_implementations);
-
-    let resolved = 0;
-    for (const idea of ideasToResolve) {
-      if (!this.isRunning) {
-        throw new Error('Cycle cancelled');
-      }
-
-      this.logEvent('idea_resolved', 'resolving', `Resolving idea: ${idea.title}`, { ideaId: idea.id });
-
-      try {
-        await this.resolveIdea(idea.id, cycle.project_id);
-        resolved++;
-        cycle.ideas_resolved = resolved;
-
-        this.updateCycleProgress(
-          cycle,
-          50 + (resolved / ideasToResolve.length) * 15,
-          `Resolved ${resolved}/${ideasToResolve.length} ideas`
-        );
-      } catch (error) {
-        this.logEvent('error', 'resolving', `Failed to resolve idea: ${(error as Error).message}`);
-      }
-    }
-
-    this.updateCycleProgress(cycle, 65, `Resolution complete: ${resolved} ideas resolved`);
-  }
-
-  /**
-   * Validation phase - run quality gates
-   */
-  private async runValidationPhase(cycle: LifecycleCycle): Promise<void> {
-    this.updateCyclePhase(cycle, 'validating', 'Running quality gates', 70);
-
-    if (!this.config) return;
-
-    const gates = this.config.quality_gates;
-    const results: QualityGateResult[] = [];
-    let passed = 0;
-
-    for (const gate of gates) {
-      if (!this.isRunning) {
-        throw new Error('Cycle cancelled');
-      }
-
-      this.logEvent('gate_start', 'validating', `Running ${gate} gate`);
-      this.updateCycleProgress(cycle, 70 + (results.length / gates.length) * 20, `Running ${gate}`);
-
-      const result = await this.runQualityGate(gate);
-      results.push(result);
-
-      if (result.passed) {
-        passed++;
-        this.logEvent('gate_complete', 'validating', `${gate} gate passed`, result as unknown as Record<string, unknown>);
-      } else {
-        this.logEvent('warning', 'validating', `${gate} gate failed: ${result.message}`, result as unknown as Record<string, unknown>);
-
-        if (this.config.fail_fast) {
-          cycle.gate_results = results;
-          cycle.quality_gates_passed = passed;
-          throw new Error(`Quality gate ${gate} failed: ${result.message}`);
-        }
-      }
-    }
-
-    cycle.gate_results = results;
-    cycle.quality_gates_passed = passed;
-
-    if (passed < gates.length) {
-      this.updateCycleProgress(cycle, 90, `Validation complete: ${passed}/${gates.length} gates passed`);
-    } else {
-      this.updateCycleProgress(cycle, 90, 'All quality gates passed');
-    }
-  }
-
-  /**
-   * Deployment phase - deploy changes (or build simulation preview)
-   */
-  private async runDeploymentPhase(cycle: LifecycleCycle): Promise<void> {
-    if (!this.config) return;
-
-    // In simulation mode, build a preview instead of deploying
-    if (cycle.is_simulation) {
-      this.updateCyclePhase(cycle, 'deploying', 'Building simulation preview', 92);
-
-      const preview = await this.buildSimulationPreview(cycle);
-      cycle.simulation_preview = preview;
-      cycle.deployment_status = 'skipped';
-
-      this.logEvent('info', 'deploying', 'Simulation complete — preview ready', {
-        would_create_branch: preview.would_create_branch,
-        would_create_pr: preview.would_create_pr,
-        ideas_count: preview.ideas_implemented.length,
-        gates_passed: preview.gate_summary.filter(g => g.passed).length,
-        gates_total: preview.gate_summary.length,
-      });
-      this.updateCycleProgress(cycle, 98, 'Simulation preview ready');
-      return;
-    }
-
-    this.updateCyclePhase(cycle, 'deploying', 'Deploying changes', 92);
-
-    // Check if all gates passed
-    if (cycle.quality_gates_passed < cycle.quality_gates_total) {
-      this.logEvent('info', 'deploying', 'Skipping deployment: not all quality gates passed');
-      cycle.deployment_status = 'skipped';
-      return;
-    }
-
-    // Check deployment restrictions
-    const now = new Date();
-    const isWeekend = now.getDay() === 0 || now.getDay() === 6;
-    const hour = now.getHours();
-    const isBusinessHours = hour >= 9 && hour < 17;
-
-    if (isWeekend && !this.config.deploy_on_weekend) {
-      this.logEvent('info', 'deploying', 'Skipping deployment: weekend deployment disabled');
-      cycle.deployment_status = 'skipped';
-      return;
-    }
-
-    if (!isBusinessHours && this.config.deploy_during_business_hours) {
-      this.logEvent('info', 'deploying', 'Skipping deployment: outside business hours');
-      cycle.deployment_status = 'skipped';
-      return;
-    }
-
-    cycle.deployment_status = 'in_progress';
-    this.logEvent('deploy_start', 'deploying', 'Starting deployment');
-
-    try {
-      for (const target of this.config.deployment_targets) {
-        await this.deployToTarget(target, cycle);
-      }
-
-      cycle.deployment_status = 'completed';
-      this.logEvent('deploy_complete', 'deploying', 'Deployment completed successfully');
-      this.updateCycleProgress(cycle, 98, 'Deployment complete');
-    } catch (error) {
-      cycle.deployment_status = 'failed';
-      throw error;
-    }
-  }
-
-  /**
-   * Build a simulation preview showing what WOULD have been deployed
-   */
-  private async buildSimulationPreview(cycle: LifecycleCycle): Promise<SimulationPreview> {
-    const detection = cycle.trigger_metadata?.detection as DetectionResult | undefined;
-    const branchName = `lifecycle/sim-${cycle.id.split('_').pop()}`;
-    const allGatesPassed = cycle.quality_gates_passed === cycle.quality_gates_total;
-    const wouldCreatePr = allGatesPassed && (this.config?.deployment_targets.includes('pull_request') ?? false);
-
-    // Get implemented ideas info
-    const ideas = await this.getResolvedIdeasInfo(cycle.project_id);
-
-    // Build PR body that would be used
-    const prBody = this.buildPRBody(cycle, ideas, detection);
-
-    // Determine blocking reasons
-    let blockedReason: string | undefined;
-    if (!allGatesPassed) {
-      const failedGates = cycle.gate_results.filter(g => !g.passed).map(g => g.type);
-      blockedReason = `Quality gates failed: ${failedGates.join(', ')}`;
-    } else if (!this.config?.auto_deploy) {
-      blockedReason = 'Auto-deploy is disabled';
-    }
-
+  private buildContext(cycle: LifecycleCycle): PhaseContext {
+    const config = this.config!;
     return {
-      would_create_branch: branchName,
-      would_create_pr: wouldCreatePr,
-      pr_title: `[Lifecycle] ${ideas.length > 0 ? ideas.map(i => i.title).join(', ') : 'Automated improvements'} (#${cycle.id.split('_').pop()})`,
-      pr_body: prBody,
-      files_changed: detection?.files_changed ?? [],
-      ideas_implemented: ideas,
-      gate_summary: cycle.gate_results.map(r => ({
-        gate: r.type,
-        passed: r.passed,
-        message: r.message ?? (r.passed ? 'Passed' : 'Failed'),
-      })),
-      estimated_impact: this.estimateImpact(cycle),
-      blocked_reason: blockedReason,
+      config,
+      cycle,
+      isRunning: () => this._isRunning,
+      updatePhase: (phase, step, progress) => this.updateCyclePhase(cycle, phase, step, progress),
+      updateProgress: (progress, step) => this.updateCycleProgress(cycle, progress, step),
+      logEvent: (type, phase, message, details) => this.logEvent(type, phase, message, details),
     };
   }
 
   /**
-   * Build a descriptive PR body from cycle data
+   * Run the lifecycle cycle through all phases by delegating to executors
    */
-  private buildPRBody(
-    cycle: LifecycleCycle,
-    ideas: Array<{ id: string; title: string; category: string }>,
-    detection?: DetectionResult,
-  ): string {
-    const lines: string[] = [
-      '## Automated Lifecycle Changes',
-      '',
-      `> Cycle \`${cycle.id}\` triggered by **${cycle.trigger}**`,
-      '',
-    ];
+  private async runCycle(cycle: LifecycleCycle): Promise<void> {
+    const ctx = this.buildContext(cycle);
 
-    if (ideas.length > 0) {
-      lines.push('### Ideas Implemented');
-      for (const idea of ideas) {
-        lines.push(`- **${idea.title}** _(${idea.category})_`);
-      }
-      lines.push('');
+    // Phase 1: Detecting
+    await this.executors.detection.execute(ctx);
+
+    // Phase 2: Scanning
+    await this.executors.scanning.execute(ctx);
+
+    // Phase 3: Resolving
+    await this.executors.resolving.execute(ctx);
+
+    // Phase 4: Validating
+    await this.executors.validation.execute(ctx);
+
+    // Phase 5: Deploying (if enabled or simulation mode)
+    if (this.config?.auto_deploy || cycle.is_simulation) {
+      await this.executors.deployment.execute(ctx);
     }
 
-    if (detection && detection.files_changed.length > 0) {
-      lines.push('### Changes');
-      lines.push(`- **${detection.files_changed.length}** files modified (+${detection.insertions}/-${detection.deletions})`);
-      if (detection.files_changed.length <= 10) {
-        for (const f of detection.files_changed) {
-          lines.push(`  - \`${f}\``);
-        }
-      } else {
-        for (const f of detection.files_changed.slice(0, 8)) {
-          lines.push(`  - \`${f}\``);
-        }
-        lines.push(`  - _...and ${detection.files_changed.length - 8} more_`);
-      }
-      lines.push('');
-    }
-
-    lines.push('### Quality Gates');
-    for (const gate of cycle.gate_results) {
-      const icon = gate.passed ? 'pass' : 'fail';
-      lines.push(`- ${icon === 'pass' ? '**PASS**' : '**FAIL**'} ${gate.type}${gate.message ? `: ${gate.message}` : ''}`);
-    }
-    lines.push('');
-
-    lines.push('### Summary');
-    lines.push(`| Metric | Value |`);
-    lines.push(`|--------|-------|`);
-    lines.push(`| Scans | ${cycle.scans_completed}/${cycle.scans_total} |`);
-    lines.push(`| Ideas Generated | ${cycle.ideas_generated} |`);
-    lines.push(`| Ideas Resolved | ${cycle.ideas_resolved} |`);
-    lines.push(`| Gates Passed | ${cycle.quality_gates_passed}/${cycle.quality_gates_total} |`);
-    if (cycle.duration_ms) {
-      lines.push(`| Duration | ${(cycle.duration_ms / 1000).toFixed(1)}s |`);
-    }
-    lines.push('');
-    lines.push('---');
-    lines.push('_Generated by AI-Driven Code Quality Lifecycle_');
-
-    return lines.join('\n');
+    // Complete the cycle
+    await this.completeCycle(cycle);
   }
 
-  /**
-   * Estimate the impact of changes in this cycle
-   */
-  private estimateImpact(cycle: LifecycleCycle): string {
-    if (cycle.ideas_resolved === 0 && cycle.ideas_generated === 0) {
-      return 'No changes detected';
-    }
-    if (cycle.ideas_resolved === 0) {
-      return `${cycle.ideas_generated} ideas generated, none auto-resolved`;
-    }
-    if (cycle.quality_gates_passed === cycle.quality_gates_total) {
-      return `${cycle.ideas_resolved} improvements implemented, all quality gates passed`;
-    }
-    return `${cycle.ideas_resolved} improvements implemented, ${cycle.quality_gates_passed}/${cycle.quality_gates_total} gates passed`;
-  }
+  // ── State-machine helpers ─────────────────────────────────────────────
 
-  /**
-   * Get info about resolved ideas for the current project
-   */
-  private async getResolvedIdeasInfo(projectId: string): Promise<Array<{ id: string; title: string; category: string }>> {
-    try {
-      const response = await fetch(`/api/ideas?projectId=${projectId}&status=implemented&limit=10`);
-      if (!response.ok) return [];
-      const data = await response.json();
-      return (data.ideas || []).map((i: { id: string; title: string; category: string }) => ({
-        id: i.id,
-        title: i.title,
-        category: i.category,
-      }));
-    } catch {
-      return [];
-    }
-  }
-
-  /**
-   * Complete the cycle successfully
-   */
   private async completeCycle(cycle: LifecycleCycle): Promise<void> {
     const now = new Date().toISOString();
 
@@ -618,9 +275,6 @@ class LifecycleOrchestrator {
     this.currentCycle = null;
   }
 
-  /**
-   * Handle cycle error
-   */
   private async handleCycleError(cycle: LifecycleCycle, error: Error): Promise<void> {
     const now = new Date().toISOString();
 
@@ -651,141 +305,7 @@ class LifecycleOrchestrator {
     }
   }
 
-  /**
-   * Execute a scan via API
-   */
-  private async executeScan(projectId: string, scanType: ScanType): Promise<{ ideaCount: number }> {
-    try {
-      const response = await fetch('/api/lifecycle/scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId,
-          scanType,
-          provider: this.config?.provider || 'gemini',
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Scan failed');
-      }
-
-      return await response.json();
-    } catch (error) {
-      throw new Error(`Scan ${scanType} failed: ${error instanceof Error ? error.message : 'Network error'}`);
-    }
-  }
-
-  /**
-   * Get ideas to resolve
-   */
-  private async getIdeasToResolve(projectId: string): Promise<Array<{ id: string; title: string }>> {
-    try {
-      const response = await fetch(`/api/ideas?projectId=${projectId}&status=accepted`);
-
-      if (!response.ok) {
-        return [];
-      }
-
-      const data = await response.json();
-      return data.ideas || [];
-    } catch {
-      return [];
-    }
-  }
-
-  /**
-   * Resolve an idea
-   */
-  private async resolveIdea(ideaId: string, projectId: string): Promise<void> {
-    try {
-      await fetch('/api/lifecycle/resolve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ideaId, projectId }),
-      });
-    } catch {
-      // Silently fail resolution attempts
-    }
-  }
-
-  /**
-   * Run a quality gate
-   */
-  private async runQualityGate(gate: QualityGateType): Promise<QualityGateResult> {
-    const startTime = Date.now();
-
-    try {
-      const response = await fetch('/api/lifecycle/quality-gate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          gate,
-          projectId: this.config?.project_id,
-          timeout: this.config?.gate_timeout_ms,
-        }),
-      });
-
-      const result = await response.json();
-
-      return {
-        type: gate,
-        passed: result.passed,
-        message: result.message,
-        details: result.details,
-        duration_ms: Date.now() - startTime,
-      };
-    } catch (error) {
-      return {
-        type: gate,
-        passed: false,
-        message: `Gate failed: ${error instanceof Error ? error.message : 'Network error'}`,
-        duration_ms: Date.now() - startTime,
-      };
-    }
-  }
-
-  /**
-   * Deploy to a target with rich idea/gate data for PR body
-   */
-  private async deployToTarget(target: string, cycle: LifecycleCycle): Promise<void> {
-    this.logEvent('info', 'deploying', `Deploying to ${target}`);
-
-    try {
-      const ideas = await this.getResolvedIdeasInfo(cycle.project_id);
-
-      const response = await fetch('/api/lifecycle/deploy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          target,
-          projectId: cycle.project_id,
-          cycleId: cycle.id,
-          ideas,
-          gateResults: cycle.gate_results.map(r => ({
-            type: r.type,
-            passed: r.passed,
-            message: r.message,
-          })),
-        }),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.details?.prUrl) {
-          cycle.deployment_details = {
-            ...cycle.deployment_details,
-            prUrl: result.details.prUrl,
-          };
-        }
-      }
-    } catch (error) {
-      throw new Error(`Deployment to ${target} failed: ${error instanceof Error ? error.message : 'Network error'}`);
-    }
-  }
-
-  // Helper methods
+  // ── Internal helpers ──────────────────────────────────────────────────
 
   private updateCyclePhase(cycle: LifecycleCycle, phase: LifecyclePhase, step: string, progress: number): void {
     cycle.phase = phase;
@@ -859,11 +379,13 @@ class LifecycleOrchestrator {
   }
 
   private checkScheduledTrigger(): void {
-    if (!this.currentCycle && this.nextScheduledAt) {
+    if (!this.currentCycle && !this.cycleLock && this.nextScheduledAt) {
       const now = Date.now();
       const scheduled = new Date(this.nextScheduledAt).getTime();
 
       if (now >= scheduled) {
+        // Clear before triggering to prevent repeat-fire on every poll
+        this.nextScheduledAt = null;
         this.triggerCycle('scheduled').catch(() => {
           // Silently handle scheduled trigger failures
         });
@@ -871,15 +393,11 @@ class LifecycleOrchestrator {
     }
   }
 
-  private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  // Public getters
+  // ── Public getters ────────────────────────────────────────────────────
 
   getStatus(): LifecycleOrchestratorStatus {
     return {
-      is_running: this.isRunning,
+      is_running: this._isRunning,
       active_cycles: this.currentCycle ? 1 : 0,
       current_cycle_id: this.currentCycle?.id,
       current_phase: this.currentCycle?.phase,

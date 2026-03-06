@@ -4,7 +4,7 @@ import { Save, Plus, FolderPlus, Scan } from 'lucide-react';
 import { Caveat } from 'next/font/google';
 import { DndContext, DragOverlay, DragEndEvent } from '@dnd-kit/core';
 import { useContextStore, useShallow } from '../../../stores/contextStore';
-import { useActiveProjectStore } from '../../../stores/activeProjectStore';
+import { useClientProjectStore } from '../../../stores/clientProjectStore';
 import { useGlobalModal } from '../../../hooks/useGlobalModal';
 import ContextEditModal from './sub_ContextGen/ContextEditModal';
 import ContextSection from './sub_ContextGroups/ContextSection';
@@ -42,7 +42,7 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
   const flushPendingMoves = useContextStore(s => s.flushPendingMoves);
   const clearPendingMoves = useContextStore(s => s.clearPendingMoves);
   const deleteAllContexts = useContextStore(s => s.deleteAllContexts);
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
   const { showFullScreenModal } = useGlobalModal();
   const { isDetailOpen, selectedGroupId, closeGroupDetail, openGroupDetail } = useContextDetail();
   const [showGroupModal, setShowGroupModal] = useState(false);

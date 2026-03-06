@@ -1,5 +1,5 @@
 'use client';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { motion, useTransform } from 'framer-motion';
 import { DbDirection } from '@/app/db';
 import { Calendar, Compass, MapPin, Check, X, Trash2 } from 'lucide-react';
@@ -251,6 +251,25 @@ export default function DirectionCard({
 }: DirectionCardProps) {
   const isPaired = !!directionB && !!pairId;
   const [selectedVariant, setSelectedVariant] = useState<'A' | 'B' | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // Reset scroll position when navigating to a new card
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+      setShowScrollTop(false);
+    }
+  }, [direction.id]);
+
+  // Track scroll position for scroll-to-top indicator
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => setShowScrollTop(el.scrollTop > 100);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [direction.id]);
 
   // Only use drag for single directions
   const { x, rotateZ, exitX, exitOpacity, handleDragEnd } = useDragSwipe(
@@ -324,7 +343,7 @@ export default function DirectionCard({
         )}
 
         {/* Card content */}
-        <div className={isPaired ? 'p-6' : 'p-8'}>
+        <div ref={scrollRef} className={`${isPaired ? 'p-6' : 'p-8'} overflow-y-auto max-h-full`}>
           {/* Header */}
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -492,6 +511,20 @@ export default function DirectionCard({
             </div>
           </div>
         </div>
+
+        {/* Scroll-to-top pill — appears when scrolled past 100px */}
+        {showScrollTop && (
+          <button
+            onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="absolute bottom-3 right-3 z-[3] flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-800/90 border border-gray-600/60 text-gray-400 hover:text-white hover:border-gray-500 transition-all text-xs backdrop-blur-sm shadow-lg"
+            aria-label="Scroll to top"
+          >
+            <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 9V3M3 5l3-3 3 3" />
+            </svg>
+            Top
+          </button>
+        )}
 
         {/* Gradient overlay for depth */}
         <div className={`absolute inset-0 bg-gradient-to-t ${

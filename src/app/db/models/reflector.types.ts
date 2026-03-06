@@ -3,7 +3,8 @@
  * Types for Executive Analysis feature
  */
 
-export type ExecutiveAnalysisStatus = 'pending' | 'running' | 'completed' | 'failed';
+import type { BaseLifecycleStatus } from '@/lib/status';
+export type ExecutiveAnalysisStatus = BaseLifecycleStatus;
 export type ExecutiveAnalysisTriggerType = 'manual' | 'scheduled';
 
 /**

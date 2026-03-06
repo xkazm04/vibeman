@@ -11,7 +11,7 @@ import { useChatStore } from '@/stores/annette/chatStore';
 import { useAnnetteNotificationStore } from '@/stores/annette/notificationStore';
 import { useVoiceStore } from '@/stores/annette/voiceStore';
 import { useWidgetStore } from '@/stores/annette/widgetStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useVoiceCompanionStore } from '@/stores/voiceCompanionStore';
 import ChatPanel from './components/ChatPanel';
 import DecisionPanel from './components/DecisionPanel';
@@ -22,7 +22,7 @@ import AutonomousAgentPanel from './components/AutonomousAgentPanel';
 type Tab = 'annette' | 'voicelab' | 'companion' | 'autonomous';
 
 export default function CommanderLayout() {
-  const activeProject = useActiveProjectStore((s) => s.activeProject);
+  const activeProject = useClientProjectStore((s) => s.activeProject);
   const setSession = useChatStore((s) => s.setSession);
   const clearMessages = useChatStore((s) => s.clearMessages);
   const notificationsMuted = useAnnetteNotificationStore((s) => s.notificationsMuted);

@@ -14,8 +14,10 @@
 import { useEffect, useState, useMemo, useRef, lazy, Suspense } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { Brain, Activity, AlertCircle, Layers, Clock, Sparkles, AlertTriangle, TrendingDown, TrendingUp, X, Castle, ChevronRight, Focus } from 'lucide-react';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useBrainStore } from '@/stores/brainStore';
+import { useApplicationSession, useSessionAbortSignals } from '@/lib/session';
+import { useReflectionEvents } from './lib/useReflectionEvents';
 import BehavioralFocusPanel from './components/BehavioralFocusPanel';
 import OutcomesSummary from './components/OutcomesSummary';
 import ReflectionStatus from './components/ReflectionStatus';
@@ -25,6 +27,7 @@ import InsightsPanel from './components/InsightsPanel';
 import ActivityHeatmap from './components/ActivityHeatmap';
 import CorrelationMatrix from './components/CorrelationMatrix';
 import NextUpCard from './components/NextUpCard';
+import TemporalRhythmHeatmap from './components/TemporalRhythmHeatmap';
 import type { SignalAnomaly, AnomalySeverity } from '@/lib/brain/anomalyDetector';
 
 const EventCanvasD3 = lazy(() => import('./sub_MemoryCanvas/EventCanvasD3'));
@@ -43,8 +46,17 @@ const tabs: Array<{ id: BrainTab; label: string; icon: React.ComponentType<{ cla
 
 export default function BrainLayout() {
   const [activeTab, setActiveTab] = useState<BrainTab>('dashboard');
-  const activeProject = useActiveProjectStore((state) => state.activeProject);
-  const selectedProjectId = useActiveProjectStore((state) => state.selectedProjectId);
+
+  // Use coordinator as primary source for activeProject
+  const { activeProject: sessionProject } = useApplicationSession();
+  const getAbortSignal = useSessionAbortSignals();
+
+  // Fall back to legacy store for selectedProjectId (filter state not in coordinator)
+  const selectedProjectId = useClientProjectStore((state) => state.selectedProjectId);
+  // Prefer coordinator project, fall back to legacy for backward compat
+  const legacyProject = useClientProjectStore((state) => state.activeProject);
+  const activeProject = sessionProject ?? legacyProject;
+
   const {
     isLoadingContext,
     isLoadingOutcomes,
@@ -57,6 +69,12 @@ export default function BrainLayout() {
 
   const isGlobalMode = selectedProjectId === 'all';
 
+  // SSE-driven reflection lifecycle → cascade refresh of dependent components
+  useReflectionEvents({
+    projectId: isGlobalMode ? null : activeProject?.id ?? null,
+    enabled: true,
+  });
+
   // Anomaly detection state
   const [anomalies, setAnomalies] = useState<SignalAnomaly[]>([]);
   const [anomaliesDismissed, setAnomaliesDismissed] = useState(false);
@@ -65,13 +83,15 @@ export default function BrainLayout() {
   const [secondaryCollapsed, setSecondaryCollapsed] = useState(false);
 
   // Load data when project changes or mode switches
-  // Single batched call replaces 4 separate API requests
+  // Uses coordinator AbortSignal to cancel stale fetches on rapid project switching
   useEffect(() => {
     if (isGlobalMode) {
       fetchGlobalReflectionStatus();
       setAnomalies([]);
     } else if (activeProject?.id) {
-      fetchDashboard(activeProject.id).then((detectedAnomalies) => {
+      const { signal } = getAbortSignal('brain_dashboard');
+      fetchDashboard(activeProject.id, signal).then((detectedAnomalies) => {
+        if (signal.aborted) return;
         if (detectedAnomalies.length > 0) {
           setAnomalies(detectedAnomalies);
           setAnomaliesDismissed(false);
@@ -80,7 +100,8 @@ export default function BrainLayout() {
         }
       });
     }
-  }, [isGlobalMode, activeProject?.id, fetchDashboard, fetchGlobalReflectionStatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGlobalMode, activeProject?.id]);
 
   if (!isGlobalMode && !activeProject) {
     return (
@@ -97,7 +118,8 @@ export default function BrainLayout() {
   const scope: 'project' | 'global' = isGlobalMode ? 'global' : 'project';
 
   // ── Focus Flow: priority scoring from store signals ──────────────────
-  const { outcomeStats, shouldTrigger, reflectionStatus: refStatus } = useBrainStore();
+  const { outcomeStats } = useBrainStore();
+  const { shouldTrigger, status: refStatus } = useBrainStore((s) => s.reflections.project);
 
   const widgetPriorities = useMemo(() => {
     const scores: Record<string, number> = {
@@ -106,6 +128,7 @@ export default function BrainLayout() {
       effectiveness: 5,
       insights: 5,
       heatmap: 4,
+      rhythm: 4,
       correlation: 3,
       nextUp: 3,
       focus: 4,
@@ -437,6 +460,8 @@ function FocusWidget({ widgetId, index, score, scope, isGlobalMode, activeProjec
         return <InsightsPanel scope={scope} />;
       case 'heatmap':
         return <ActivityHeatmap scope={scope} />;
+      case 'rhythm':
+        return <TemporalRhythmHeatmap scope={scope} />;
       case 'correlation':
         return <CorrelationMatrix scope={scope} />;
       case 'nextUp':

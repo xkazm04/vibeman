@@ -123,7 +123,7 @@ function dbContextToContext(dbContext: DbContext & { group_name?: string; group_
     groupId: dbContext.group_id,
     name: dbContext.name,
     description: dbContext.description || undefined,
-    filePaths: JSON.parse(dbContext.file_paths),
+    filePaths: safeJsonParse<string[]>(dbContext.file_paths) ?? [],
     hasContextFile: Boolean(dbContext.has_context_file),
     contextFilePath: dbContext.context_file_path || undefined,
     preview: dbContext.preview || undefined,

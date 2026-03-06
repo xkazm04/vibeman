@@ -3,7 +3,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { llmManager } from '@/lib/llm';
 import { withObservability } from '@/lib/observability/middleware';
-import { handleApiError } from '@/lib/api-errors';
+import { handleApiError, ApiErrorCode } from '@/lib/api-errors';
+import { ErrorClassifier } from '@/lib/errorClassifier';
+import { sanitizeErrorMessage } from '@/lib/api-helpers/errorSanitizer';
 
 interface GenerateResponseData {
   response?: string;
@@ -23,16 +25,6 @@ function validatePrompt(prompt?: string) {
     );
   }
   return null;
-}
-
-function createErrorResponse(error: string, statusCode = 500) {
-  return NextResponse.json(
-    {
-      success: false,
-      error
-    },
-    { status: statusCode }
-  );
 }
 
 function createSuccessResponse(data: GenerateResponseData) {
@@ -76,13 +68,33 @@ async function handlePost(request: NextRequest) {
     });
 
     if (!response.success) {
-      return createErrorResponse(response.error || 'Generation failed');
+      // Classify the error from the LLM response for actionable user messaging
+      const errorObj = new Error(response.error || 'Generation failed');
+      if (response.errorCode) {
+        (errorObj as any).status = response.errorCode;
+      }
+      const classified = ErrorClassifier.classify(errorObj);
+      const status = response.errorCode || (classified.statusCode ?? 502);
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: sanitizeErrorMessage(classified.userMessage),
+          code: ApiErrorCode.LLM_ERROR,
+          userMessage: classified.userMessage,
+          recoveryActions: classified.recoveryActions,
+          isTransient: classified.isTransient,
+          retryDelay: classified.retryDelay,
+          errorType: classified.type,
+        },
+        { status }
+      );
     }
 
     return createSuccessResponse(response);
 
   } catch (error) {
-    return handleApiError(error, 'LLM generation');
+    return handleApiError(error, 'LLM generation', ApiErrorCode.LLM_ERROR);
   }
 }
 

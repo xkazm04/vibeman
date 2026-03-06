@@ -14,6 +14,8 @@ import type {
   CrossTaskSelectionSignalData,
   CliMemorySignalData,
 } from '@/app/db/models/brain.types';
+import { SignalType } from '@/types/signals';
+import { LRUCache } from '@/lib/brain/lruCache';
 
 /**
  * Generate a unique signal ID
@@ -23,13 +25,12 @@ function generateSignalId(): string {
 }
 
 /**
- * Simple dedup cache to prevent recording identical signals within a time window.
- * Key: project_id + signal_type + data_hash
+ * Bounded LRU dedup cache to prevent recording identical signals within a time window.
+ * Key: project_id + signal_type + data_hash → timestamp of last seen.
+ * Gracefully evicts oldest entries instead of cliff-edge Map.clear().
  */
-const recentSignalHashes = new Map<string, number>();
+const recentSignalHashes = new LRUCache<string, number>(1000);
 const DEDUP_WINDOW_MS = 60_000; // 60 seconds
-const DEDUP_SOFT_CAP = 500;     // trigger time-based cleanup
-const DEDUP_HARD_CAP = 1000;    // force eviction of oldest entries
 
 function createSignalHash(projectId: string, signalType: string, data: string): string {
   // Simple hash: first 100 chars of data + type + project
@@ -42,30 +43,11 @@ function isDuplicate(projectId: string, signalType: string, data: string): boole
   const lastSeen = recentSignalHashes.get(hash);
   const now = Date.now();
 
-  if (lastSeen && (now - lastSeen) < DEDUP_WINDOW_MS) {
+  if (lastSeen !== undefined && (now - lastSeen) < DEDUP_WINDOW_MS) {
     return true;
   }
 
   recentSignalHashes.set(hash, now);
-
-  // Cleanup old entries when past soft cap
-  if (recentSignalHashes.size > DEDUP_SOFT_CAP) {
-    for (const [key, time] of recentSignalHashes.entries()) {
-      if (now - time > DEDUP_WINDOW_MS) {
-        recentSignalHashes.delete(key);
-      }
-    }
-
-    // Hard cap: if still too large, evict oldest entries
-    if (recentSignalHashes.size > DEDUP_HARD_CAP) {
-      const entries = Array.from(recentSignalHashes.entries()).sort((a, b) => a[1] - b[1]);
-      const toRemove = entries.length - DEDUP_SOFT_CAP;
-      for (let i = 0; i < toRemove; i++) {
-        recentSignalHashes.delete(entries[i][0]);
-      }
-    }
-  }
-
   return false;
 }
 
@@ -123,11 +105,11 @@ export const signalCollector = {
   ): void => {
     try {
       const dataStr = JSON.stringify(data);
-      if (isDuplicate(projectId, 'git_activity', dataStr)) return;
+      if (isDuplicate(projectId, SignalType.GIT_ACTIVITY, dataStr)) return;
       behavioralSignalDb.create({
         id: generateSignalId(),
         project_id: projectId,
-        signal_type: 'git_activity',
+        signal_type: SignalType.GIT_ACTIVITY,
         context_id: contextId || null,
         context_name: contextName || null,
         data: dataStr,
@@ -150,11 +132,11 @@ export const signalCollector = {
   ): void => {
     try {
       const dataStr = JSON.stringify(data);
-      if (isDuplicate(projectId, 'api_focus', dataStr)) return;
+      if (isDuplicate(projectId, SignalType.API_FOCUS, dataStr)) return;
       behavioralSignalDb.create({
         id: generateSignalId(),
         project_id: projectId,
-        signal_type: 'api_focus',
+        signal_type: SignalType.API_FOCUS,
         context_id: contextId || null,
         context_name: contextName || null,
         data: dataStr,
@@ -175,7 +157,7 @@ export const signalCollector = {
   ): void => {
     try {
       const dataStr = JSON.stringify(data);
-      if (isDuplicate(projectId, 'context_focus', dataStr)) return;
+      if (isDuplicate(projectId, SignalType.CONTEXT_FOCUS, dataStr)) return;
 
       // Enrich signal data with context metadata
       let enrichedData = dataStr;
@@ -198,7 +180,7 @@ export const signalCollector = {
       behavioralSignalDb.create({
         id: generateSignalId(),
         project_id: projectId,
-        signal_type: 'context_focus',
+        signal_type: SignalType.CONTEXT_FOCUS,
         context_id: data.contextId,
         context_name: data.contextName,
         data: enrichedData,
@@ -224,11 +206,11 @@ export const signalCollector = {
   ): void => {
     try {
       const dataStr = JSON.stringify(data);
-      if (isDuplicate(projectId, 'implementation', dataStr)) return;
+      if (isDuplicate(projectId, SignalType.IMPLEMENTATION, dataStr)) return;
       behavioralSignalDb.create({
         id: generateSignalId(),
         project_id: projectId,
-        signal_type: 'implementation',
+        signal_type: SignalType.IMPLEMENTATION,
         context_id: data.contextId || null,
         context_name: null,
         data: dataStr,
@@ -258,11 +240,11 @@ export const signalCollector = {
   ): void => {
     try {
       const dataStr = JSON.stringify(data);
-      if (isDuplicate(projectId, 'context_focus', `idea_decision:${data.ideaId}`)) return;
+      if (isDuplicate(projectId, SignalType.CONTEXT_FOCUS, `idea_decision:${data.ideaId}`)) return;
       behavioralSignalDb.create({
         id: generateSignalId(),
         project_id: projectId,
-        signal_type: 'context_focus',
+        signal_type: SignalType.CONTEXT_FOCUS,
         context_id: data.contextId || null,
         context_name: data.contextName || 'General',
         data: dataStr,
@@ -291,11 +273,11 @@ export const signalCollector = {
   ): void => {
     try {
       const dataStr = JSON.stringify(data);
-      if (isDuplicate(projectId, 'context_focus', `goal_lifecycle:${data.goalId}:${data.signalType}`)) return;
+      if (isDuplicate(projectId, SignalType.CONTEXT_FOCUS, `goal_lifecycle:${data.goalId}:${data.signalType}`)) return;
       behavioralSignalDb.create({
         id: generateSignalId(),
         project_id: projectId,
-        signal_type: 'context_focus',
+        signal_type: SignalType.CONTEXT_FOCUS,
         context_id: data.contextId || null,
         context_name: data.contextName || 'General',
         data: dataStr,
@@ -316,11 +298,11 @@ export const signalCollector = {
   ): void => {
     try {
       const dataStr = JSON.stringify(data);
-      if (isDuplicate(projectId, 'cross_task_analysis', dataStr)) return;
+      if (isDuplicate(projectId, SignalType.CROSS_TASK_ANALYSIS, dataStr)) return;
       behavioralSignalDb.create({
         id: generateSignalId(),
         project_id: projectId,
-        signal_type: 'cross_task_analysis',
+        signal_type: SignalType.CROSS_TASK_ANALYSIS,
         context_id: null,
         context_name: null,
         data: dataStr,
@@ -341,11 +323,11 @@ export const signalCollector = {
   ): void => {
     try {
       const dataStr = JSON.stringify(data);
-      if (isDuplicate(projectId, 'cross_task_selection', dataStr)) return;
+      if (isDuplicate(projectId, SignalType.CROSS_TASK_SELECTION, dataStr)) return;
       behavioralSignalDb.create({
         id: generateSignalId(),
         project_id: projectId,
-        signal_type: 'cross_task_selection',
+        signal_type: SignalType.CROSS_TASK_SELECTION,
         context_id: null,
         context_name: null,
         data: dataStr,
@@ -368,11 +350,11 @@ export const signalCollector = {
   ): void => {
     try {
       const dataStr = JSON.stringify(data);
-      if (isDuplicate(projectId, 'cli_memory', dataStr)) return;
+      if (isDuplicate(projectId, SignalType.CLI_MEMORY, dataStr)) return;
       behavioralSignalDb.create({
         id: generateSignalId(),
         project_id: projectId,
-        signal_type: 'cli_memory',
+        signal_type: SignalType.CLI_MEMORY,
         context_id: contextId || null,
         context_name: contextName || null,
         data: dataStr,
@@ -406,7 +388,7 @@ export const signalCollector = {
         behavioralSignalDb.create({
           id: generateSignalId(),
           project_id: projectId,
-          signal_type: 'api_focus',
+          signal_type: SignalType.API_FOCUS,
           context_id: ep.contextId || null,
           context_name: ep.contextName || null,
           data: JSON.stringify({
@@ -445,16 +427,16 @@ export const signalCollector = {
     for (const signal of signals) {
       try {
         switch (signal.type) {
-          case 'git_activity':
+          case SignalType.GIT_ACTIVITY:
             signalCollector.recordGitActivity(projectId, signal.data as GitActivitySignalData, signal.contextId, signal.contextName);
             break;
-          case 'api_focus':
+          case SignalType.API_FOCUS:
             signalCollector.recordApiFocus(projectId, signal.data as ApiFocusSignalData, signal.contextId, signal.contextName);
             break;
-          case 'context_focus':
+          case SignalType.CONTEXT_FOCUS:
             signalCollector.recordContextFocus(projectId, signal.data as ContextFocusSignalData);
             break;
-          case 'implementation':
+          case SignalType.IMPLEMENTATION:
             signalCollector.recordImplementation(projectId, signal.data as ImplementationSignalData);
             break;
         }

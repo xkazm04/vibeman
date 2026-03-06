@@ -6,7 +6,7 @@ import { Caveat } from 'next/font/google';
 import { Target, Code, Plus, AlertCircle, Loader2 } from 'lucide-react';
 import { Goal } from '@/types';
 import { getStatusInfo } from '@/app/features/Goals/sub_GoalModal/lib';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useContextStore } from '@/stores/contextStore';
 import { UniversalSelect } from '@/components/ui/UniversalSelect';
 import { useSimpleErrorHandler } from '@/hooks/useErrorHandler';
@@ -44,7 +44,7 @@ export default function GoalAddPanel({
   projectPath,
   onRequirementCreated
 }: GoalAddPanelProps) {
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
   const { selectedContextIds } = useContextStore();
 
   // Tab state

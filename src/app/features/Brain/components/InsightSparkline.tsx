@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useId } from 'react';
+import { useCallback, useState, useId } from 'react';
 import type { ConfidencePoint } from '@/app/api/brain/insights/route';
+import ChartTooltip from './ChartTooltip';
 
 interface Props {
   history: ConfidencePoint[];
@@ -34,8 +35,20 @@ const trendColors: Record<Trend, string> = {
  * Features gradient fill under the line and a draw-in entrance animation.
  */
 export default function InsightSparkline({ history, width = 48, height = 18 }: Props) {
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [activeIdx, setActiveIdx] = useState<number | null>(null);
+  const [tooltipRect, setTooltipRect] = useState<DOMRect | null>(null);
   const gradientId = useId();
+
+  const handleDotInteraction = useCallback((e: React.MouseEvent<SVGCircleElement> | React.FocusEvent<SVGCircleElement>, idx: number) => {
+    const rect = (e.target as SVGCircleElement).getBoundingClientRect();
+    setActiveIdx(idx);
+    setTooltipRect(rect);
+  }, []);
+
+  const handleDotLeave = useCallback(() => {
+    setActiveIdx(null);
+    setTooltipRect(null);
+  }, []);
 
   if (history.length === 0) return null;
 
@@ -154,32 +167,30 @@ export default function InsightSparkline({ history, width = 48, height = 18 }: P
             animation: `sparkline-draw-${safeGradientId} 0.6s ease-out forwards`,
           }}
         />
-        {/* Data point dots */}
+        {/* Data point dots (hover + keyboard focus) */}
         {points.map((p, idx) => (
           <circle
             key={idx}
             cx={p.x}
             cy={p.y}
-            r={hoveredIdx === idx ? 3 : 1.5}
+            r={activeIdx === idx ? 3 : 1.5}
             fill={color}
-            className="transition-all"
-            onMouseEnter={() => setHoveredIdx(idx)}
-            onMouseLeave={() => setHoveredIdx(null)}
+            className="transition-all cursor-pointer outline-none"
+            tabIndex={0}
+            role="graphics-symbol"
+            aria-label={`${p.confidence}%, ${formatTooltipDate(p.date)}`}
+            onMouseEnter={(e) => handleDotInteraction(e, idx)}
+            onFocus={(e) => handleDotInteraction(e, idx)}
+            onMouseLeave={handleDotLeave}
+            onBlur={handleDotLeave}
           />
         ))}
       </svg>
-      {/* Tooltip */}
-      {hoveredIdx !== null && points[hoveredIdx] && (
-        <div
-          className="absolute z-50 px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-zinc-200 whitespace-nowrap pointer-events-none shadow-lg"
-          style={{
-            bottom: height + 4,
-            left: Math.min(Math.max(points[hoveredIdx].x - 20, 0), width - 40),
-          }}
-        >
-          {points[hoveredIdx].confidence}% -- {formatTooltipDate(points[hoveredIdx].date)}
-        </div>
-      )}
+      <ChartTooltip
+        label={activeIdx !== null && points[activeIdx] ? `${points[activeIdx].confidence}% -- ${formatTooltipDate(points[activeIdx].date)}` : ''}
+        anchorRect={tooltipRect}
+        visible={activeIdx !== null}
+      />
     </div>
   );
 }

@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback } from 'react';
 import { History, TrendingUp, Lightbulb, Clock, BarChart3 } from 'lucide-react';
 import BrainPanelHeader from './BrainPanelHeader';
 import GlowCard from './GlowCard';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useAbortableFetch } from '@/hooks/useAbortableFetch';
+import { subscribeToReflectionCompletion } from '@/stores/reflectionCompletionEmitter';
 import ReflectionHistoryItem, { type ReflectionHistoryEntry } from './ReflectionHistoryItem';
 
 const ACCENT_COLOR = '#a855f7'; // Purple
@@ -39,7 +40,7 @@ export default function ReflectionHistoryPanel({ scope = 'project' }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const activeProject = useActiveProjectStore((state) => state.activeProject);
+  const activeProject = useClientProjectStore((state) => state.activeProject);
   const abortableFetch = useAbortableFetch();
 
   const fetchHistory = useCallback(async () => {
@@ -71,6 +72,19 @@ export default function ReflectionHistoryPanel({ scope = 'project' }: Props) {
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory]);
+
+  // Subscribe to reflection completion events for auto-refresh
+  useEffect(() => {
+    const unsubscribe = subscribeToReflectionCompletion((_reflectionId, projectId, completionScope) => {
+      if (scope === 'global' && completionScope === 'global') {
+        fetchHistory();
+      } else if (scope === 'project' && completionScope === 'project' && projectId === activeProject?.id) {
+        fetchHistory();
+      }
+    });
+
+    return unsubscribe;
+  }, [scope, activeProject?.id, fetchHistory]);
 
   if (isLoading) {
     return (

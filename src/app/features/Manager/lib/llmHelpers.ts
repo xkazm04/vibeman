@@ -4,9 +4,38 @@
  */
 
 import { SupportedProvider } from '@/lib/llm/types';
+import { type RecoveryAction } from '@/lib/errorClassifier';
 import { AdvisorType, LLMPromptContext, EnrichedImplementationLog, NewTaskPromptContext } from './types';
 import { buildAdvisorPrompt, buildAnalystPrompt, generateRequirementName, buildNewTaskAdvisorPrompt, buildNewTaskAnalystPrompt } from './promptTemplates';
 import { wrapRequirementForExecution } from '@/lib/prompts/requirement_file';
+
+/**
+ * Error class that carries classified error information from the LLM generate API
+ */
+export class LLMApiError extends Error {
+  userMessage: string;
+  recoveryActions: RecoveryAction[];
+  isTransient: boolean;
+  retryDelay?: number;
+  errorType?: string;
+
+  constructor(data: {
+    error: string;
+    userMessage?: string;
+    recoveryActions?: RecoveryAction[];
+    isTransient?: boolean;
+    retryDelay?: number;
+    errorType?: string;
+  }) {
+    super(data.userMessage || data.error);
+    this.name = 'LLMApiError';
+    this.userMessage = data.userMessage || data.error;
+    this.recoveryActions = data.recoveryActions || [];
+    this.isTransient = data.isTransient ?? false;
+    this.retryDelay = data.retryDelay;
+    this.errorType = data.errorType;
+  }
+}
 
 /**
  * Call LLM via API route (server-side execution)
@@ -24,7 +53,7 @@ async function callLLMApi(prompt: string, provider: SupportedProvider, maxTokens
 
   if (!response.ok) {
     const errorData = await response.json();
-    throw new Error(errorData.error || 'LLM API call failed');
+    throw new LLMApiError(errorData);
   }
 
   const data = await response.json();

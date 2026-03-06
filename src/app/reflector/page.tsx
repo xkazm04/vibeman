@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Trophy, Calendar, Network, BarChart3 } from 'lucide-react';
 import { DbIdea } from '@/app/db';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
 import TotalViewFilters from '@/app/features/reflector/components/TotalViewFilters';
 import TotalViewDashboard from '@/app/features/reflector/components/TotalViewDashboard';
 import ActiveFiltersDisplay from '@/app/features/reflector/components/ActiveFiltersDisplay';
@@ -27,7 +27,7 @@ function ReflectorPageContent() {
   const [viewMode, setViewMode] = useState<'weekly' | 'total' | 'ideas_stats' | 'dependencies'>('weekly');
   const [filters, setFilters] = useState<FilterState>(getEmptyFilterState());
 
-  const { projects, initializeProjects } = useProjectConfigStore();
+  const { projects, initializeProjects } = useServerProjectStore();
   const searchParams = useSearchParams();
   const router = useRouter();
 

@@ -5,7 +5,7 @@
  * (lane backgrounds, time axis) while reusing common event/label rendering.
  */
 
-import { executeRenderPipeline, type RenderContext, type RenderPassFn } from '../sub_MemoryCanvas/lib/canvasRenderPipeline';
+import { executeRenderPipeline, withWorldTransform, type RenderContext, type RenderPassFn, type RenderPipelineConfig } from '../sub_MemoryCanvas/lib/canvasRenderPipeline';
 import { hexToRgba } from '../sub_MemoryCanvas/lib/helpers';
 import { COLORS } from '../sub_MemoryCanvas/lib/constants';
 import type { SignalType } from '../sub_MemoryCanvas/lib/types';
@@ -105,31 +105,28 @@ export const renderTimelineGrid: RenderPassFn<TimelineGridConfig> = (
   const plotH = height - margin.top - margin.bottom;
   const laneH = plotH / laneCount;
 
-  ctx.save();
-  ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * transform.x, dpr * transform.y);
+  withWorldTransform(ctx, dpr, transform, () => {
+    ctx.strokeStyle = gridColor;
+    ctx.lineWidth = 1 / k;
 
-  ctx.strokeStyle = gridColor;
-  ctx.lineWidth = 1 / k;
+    // Horizontal lane dividers
+    for (let i = 0; i <= laneCount; i++) {
+      const y = margin.top + i * laneH;
+      ctx.beginPath();
+      ctx.moveTo(margin.left, y);
+      ctx.lineTo(margin.left + plotW, y);
+      ctx.stroke();
+    }
 
-  // Horizontal lane dividers
-  for (let i = 0; i <= laneCount; i++) {
-    const y = margin.top + i * laneH;
-    ctx.beginPath();
-    ctx.moveTo(margin.left, y);
-    ctx.lineTo(margin.left + plotW, y);
-    ctx.stroke();
-  }
-
-  // Vertical day dividers
-  for (let d = 0; d <= dayCount; d++) {
-    const x = margin.left + (d / dayCount) * plotW;
-    ctx.beginPath();
-    ctx.moveTo(x, margin.top);
-    ctx.lineTo(x, margin.top + plotH);
-    ctx.stroke();
-  }
-
-  ctx.restore();
+    // Vertical day dividers
+    for (let d = 0; d <= dayCount; d++) {
+      const x = margin.left + (d / dayCount) * plotW;
+      ctx.beginPath();
+      ctx.moveTo(x, margin.top);
+      ctx.lineTo(x, margin.top + plotH);
+      ctx.stroke();
+    }
+  });
 };
 
 // ─── Empty State Pass ─────────────────────────────────────────────────────
@@ -208,14 +205,12 @@ export const renderEmptyState: RenderPassFn<EmptyStateConfig> = (
 
 // ─── Timeline Render Pipeline ─────────────────────────────────────────────
 
-export interface TimelineRenderPipelineConfig {
+export type TimelineRenderPipelineConfig = RenderPipelineConfig & {
   laneBackground?: LaneBackgroundConfig;
   timeAxis?: TimeAxisConfig;
   timelineGrid?: TimelineGridConfig;
   emptyState?: EmptyStateConfig;
-  // Extend with shared pipeline passes
-  [key: string]: any;
-}
+};
 
 export function executeTimelineRenderPipeline(
   context: RenderContext,

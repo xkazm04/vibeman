@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, X, Loader2, AlertCircle, Zap } from 'lucide-react';
 import { UniversalModal } from '@/components/UniversalModal';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import CandidateCard from './CandidateCard';
 
 interface GoalCandidate {
@@ -31,7 +31,7 @@ interface GoalCandidatesModalProps {
 }
 
 export default function GoalCandidatesModal({ isOpen, onClose, onGoalCreated }: GoalCandidatesModalProps) {
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
   const [candidates, setCandidates] = useState<GoalCandidate[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);

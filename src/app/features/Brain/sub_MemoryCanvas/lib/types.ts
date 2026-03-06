@@ -12,6 +12,14 @@ export interface BrainEvent {
   summary: string;
   x: number;
   y: number;
+  /** Present only for session_cluster events */
+  cluster?: {
+    signalCount: number;
+    dominantType: SignalType;
+    durationMs: number;
+    intensity: number;
+    childSignalIds: string[];
+  };
 }
 
 export interface SpatialIndex {

@@ -41,6 +41,15 @@ export default function IdeaCard({
   const { x, rotateZ, exitX, exitOpacity, handleDragEnd } = useDragSwipe(onSwipeLeft, onSwipeRight);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScroll, setCanScroll] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // Reset scroll position when navigating to a new card
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+      setShowScrollTop(false);
+    }
+  }, [idea.id]);
 
   // Detect if content overflows and needs scrolling
   useEffect(() => {
@@ -51,6 +60,15 @@ export default function IdeaCard({
     const ro = new ResizeObserver(check);
     ro.observe(el);
     return () => ro.disconnect();
+  }, [idea.id]);
+
+  // Track scroll position for scroll-to-top indicator
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => setShowScrollTop(el.scrollTop > 100);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
   }, [idea.id]);
 
   // Continuous directional feedback: border color shifts during drag
@@ -224,6 +242,20 @@ export default function IdeaCard({
             </div>
           </div>
         </div>
+
+        {/* Scroll-to-top pill — appears when scrolled past 100px */}
+        {showScrollTop && (
+          <button
+            onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="absolute bottom-3 right-3 z-[3] flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-800/90 border border-gray-600/60 text-gray-400 hover:text-white hover:border-gray-500 transition-all text-xs backdrop-blur-sm shadow-lg"
+            aria-label="Scroll to top"
+          >
+            <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 9V3M3 5l3-3 3 3" />
+            </svg>
+            Top
+          </button>
+        )}
 
         {/* Scroll fade indicator — only visible when content overflows */}
         {canScroll && (

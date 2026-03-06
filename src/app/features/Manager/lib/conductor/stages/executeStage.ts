@@ -1,12 +1,14 @@
 /**
- * Execute Stage — Dispatch tasks to CLI sessions
+ * Execute Stage — DAG-aware parallel dispatch to CLI sessions
  *
- * Takes batched requirement files and dispatches them to CLI sessions
- * using startExecution directly (same pattern as scout stage).
- * Reads requirement file content, sends as prompt to CLI, polls for completion.
+ * Uses DAGScheduler to resolve task dependencies (from batchStage's
+ * dagDependencies) and execute independent tasks in parallel, up to
+ * config.maxConcurrentTasks. Tasks whose dependencies have all completed
+ * are dispatched immediately; tasks blocked by unfinished deps wait.
  */
 
 import type { BalancingConfig, BatchDescriptor, ExecutionResult, ExecutionTaskState } from '../types';
+import { DAGScheduler, type DAGTask, type DAGTaskStatus } from '@/lib/dag/dagScheduler';
 import { readRequirement } from '@/app/Claude/sub_ClaudeCodeManager/folderManager';
 import {
   startExecution,
@@ -31,81 +33,136 @@ interface ExecuteStageResult {
 }
 
 /**
- * Execute the Execute stage: dispatch tasks to CLI and collect results.
+ * Execute the Execute stage: dispatch tasks to CLI via DAG-aware parallelism.
  *
- * For each requirement:
- * 1. Read the requirement file content from .claude/commands/
- * 2. Dispatch to CLI via startExecution with content as prompt
- * 3. Poll for completion via getExecution
+ * 1. Build DAGTask[] from batch.dagDependencies
+ * 2. Loop: ask DAGScheduler for the next ready batch (respecting maxConcurrentTasks)
+ * 3. Dispatch ready tasks in parallel, await all, update DAG state
+ * 4. Repeat until DAG is finished (all completed/failed/blocked)
  */
 export async function executeExecuteStage(input: ExecuteInput): Promise<ExecuteStageResult> {
   const { batch, config, projectId, projectPath, onTaskUpdate } = input;
   const results: ExecutionResult[] = [];
+  const maxParallel = config.maxConcurrentTasks || 2;
 
-  // Build initial task state array
-  const taskStates: ExecutionTaskState[] = batch.requirementNames.map((reqName) => {
+  // Build initial task state map (keyed by reqName for fast lookup)
+  const taskStateMap = new Map<string, ExecutionTaskState>();
+  for (const reqName of batch.requirementNames) {
     const assignment = batch.modelAssignments[reqName];
-    return {
+    taskStateMap.set(reqName, {
       requirementName: reqName,
       provider: (assignment?.provider || config.executionProvider) as CLIProvider,
       model: assignment?.model || config.executionModel || 'sonnet',
       status: 'pending' as const,
-    };
-  });
-  onTaskUpdate?.(taskStates);
+    });
+  }
+  const emitUpdate = () => onTaskUpdate?.([...taskStateMap.values()]);
+  emitUpdate();
 
-  for (let i = 0; i < batch.requirementNames.length; i++) {
-    const reqName = batch.requirementNames[i];
+  // Build DAGTask list from batch dependencies
+  const dagTasks: DAGTask[] = batch.requirementNames.map((reqName) => ({
+    id: reqName,
+    status: 'pending' as DAGTaskStatus,
+    dependencies: batch.dagDependencies[reqName] || [],
+  }));
 
+  const scheduler = new DAGScheduler({ maxParallel });
+
+  // Validate — log warning but proceed (treat cycles as independent)
+  const cycleError = scheduler.validateNoCycles(dagTasks);
+  if (cycleError) {
+    console.warn(`[execute] DAG cycle detected, proceeding anyway: ${cycleError}`);
+  }
+
+  // DAG execution loop
+  while (true) {
     if (input.abortSignal?.aborted) {
-      taskStates[i].status = 'aborted';
-      onTaskUpdate?.(taskStates);
-      results.push({
-        taskId: reqName,
-        requirementName: reqName,
-        success: false,
-        error: 'Aborted by user',
-      });
+      // Abort all remaining pending tasks
+      for (const dt of dagTasks) {
+        if (dt.status === 'pending' || dt.status === 'running') {
+          dt.status = 'failed';
+          const ts = taskStateMap.get(dt.id)!;
+          ts.status = 'aborted';
+          ts.error = 'Aborted by user';
+          results.push({
+            taskId: dt.id,
+            requirementName: dt.id,
+            success: false,
+            error: 'Aborted by user',
+          });
+        }
+      }
+      emitUpdate();
+      break;
+    }
+
+    const state = scheduler.getState(dagTasks);
+
+    if (state.isFinished) break;
+
+    const nextBatch = scheduler.getNextBatch(dagTasks);
+    if (nextBatch.length === 0 && state.running.length === 0) {
+      // Nothing ready and nothing running — everything is blocked by failures
+      break;
+    }
+
+    if (nextBatch.length === 0) {
+      // Tasks are still running, wait before re-checking
+      await new Promise((r) => setTimeout(r, 2000));
       continue;
     }
 
-    // Mark task as running
-    taskStates[i].status = 'running';
-    taskStates[i].startedAt = new Date().toISOString();
-    onTaskUpdate?.(taskStates);
+    // Mark tasks as running and dispatch in parallel
+    const dispatched: Promise<{ reqName: string; result: ExecutionResult }>[] = [];
 
-    try {
-      const result = await executeRequirement(
-        projectId,
-        projectPath,
-        reqName,
-        taskStates[i].provider,
-        taskStates[i].model,
-        config.executionTimeoutMs || 6000 * 1000,
-        input.abortSignal
+    for (const reqName of nextBatch) {
+      const dagTask = dagTasks.find((t) => t.id === reqName)!;
+      dagTask.status = 'running';
+
+      const ts = taskStateMap.get(reqName)!;
+      ts.status = 'running';
+      ts.startedAt = new Date().toISOString();
+      emitUpdate();
+
+      dispatched.push(
+        executeRequirement(
+          projectId,
+          projectPath,
+          reqName,
+          ts.provider,
+          ts.model,
+          config.executionTimeoutMs || 6000 * 1000,
+          input.abortSignal
+        )
+          .then((result) => ({ reqName, result }))
+          .catch((error) => ({
+            reqName,
+            result: {
+              taskId: reqName,
+              requirementName: reqName,
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            } as ExecutionResult,
+          }))
       );
+    }
 
-      // Update task state from result
-      taskStates[i].status = result.success ? 'completed' : 'failed';
-      taskStates[i].executionId = result.taskId;
-      taskStates[i].durationMs = result.durationMs;
-      if (result.error) taskStates[i].error = result.error;
-      onTaskUpdate?.(taskStates);
+    // Await all dispatched tasks in this wave
+    const settled = await Promise.all(dispatched);
+
+    for (const { reqName, result } of settled) {
+      const dagTask = dagTasks.find((t) => t.id === reqName)!;
+      dagTask.status = result.success ? 'completed' : 'failed';
+
+      const ts = taskStateMap.get(reqName)!;
+      ts.status = result.success ? 'completed' : 'failed';
+      ts.executionId = result.taskId;
+      ts.durationMs = result.durationMs;
+      if (result.error) ts.error = result.error;
 
       results.push(result);
-    } catch (error) {
-      console.error(`[execute] Failed task ${reqName}:`, error);
-      taskStates[i].status = 'failed';
-      taskStates[i].error = error instanceof Error ? error.message : String(error);
-      onTaskUpdate?.(taskStates);
-
-      results.push({
-        taskId: reqName,
-        requirementName: reqName,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      });
     }
+    emitUpdate();
   }
 
   const allCompleted = results.every((r) => r.success);

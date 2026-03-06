@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTooltipStore } from '@/stores/tooltipStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import ContextOverviewHeader, { TabType } from './components/ContextOverviewHeader';
 import ContextDescription from './components/ContextDescription';
 import ContextPreviewManager from '@/app/features/Context/sub_ContextPreview/ContextPreviewManager';
@@ -35,7 +35,7 @@ const ContextOverview = ({
     updateContext
   } = useTooltipStore();
 
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
   const activeProjectId = activeProject?.id;
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('manager');

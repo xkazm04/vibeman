@@ -20,12 +20,6 @@ export interface CLIGitConfig {
   commitMessageTemplate: string;
 }
 
-// Recovery state (ephemeral, not persisted)
-export interface RecoveryState {
-  inProgress: boolean;
-  endTime: number;
-}
-
 // Session state
 export interface CLISessionState {
   id: CLISessionId;
@@ -36,6 +30,7 @@ export interface CLISessionState {
   currentTaskId: string | null; // Task ID associated with current execution
   queue: QueuedTask[];
   isRunning: boolean;
+  isRecovering: boolean; // True only while this session is being recovered after crash/refresh
   autoStart: boolean;
   createdAt: number;
   lastActivityAt: number;
@@ -50,7 +45,6 @@ export interface CLISessionState {
 // Store state
 interface CLISessionStoreState {
   sessions: Record<CLISessionId, CLISessionState>;
-  recoveryState: RecoveryState;
   nerdMode: boolean;
 
   // Actions
@@ -71,11 +65,10 @@ interface CLISessionStoreState {
   setGitConfig: (sessionId: CLISessionId, config: CLIGitConfig | null) => void;
   setProvider: (sessionId: CLISessionId, provider: CLIProvider) => void;
   setModel: (sessionId: CLISessionId, model: CLIModel | null) => void;
+  setSessionRecovering: (sessionId: CLISessionId, recovering: boolean) => void;
   toggleNerdMode: () => void;
 
   // Recovery
-  startRecovery: (durationMs?: number) => void;
-  endRecovery: () => void;
   getActiveSessions: () => CLISessionState[];
   getSessionsNeedingRecovery: () => CLISessionState[];
 }
@@ -90,6 +83,7 @@ const createDefaultSession = (id: CLISessionId): CLISessionState => ({
   currentTaskId: null,
   queue: [],
   isRunning: false,
+  isRecovering: false,
   autoStart: false,
   createdAt: 0,
   lastActivityAt: 0,
@@ -113,10 +107,6 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
         cliSession2: createDefaultSession('cliSession2'),
         cliSession3: createDefaultSession('cliSession3'),
         cliSession4: createDefaultSession('cliSession4'),
-      },
-      recoveryState: {
-        inProgress: false,
-        endTime: 0,
       },
       nerdMode: false,
 
@@ -382,26 +372,20 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
         }));
       },
 
+      setSessionRecovering: (sessionId, recovering) => {
+        set((state) => ({
+          sessions: {
+            ...state.sessions,
+            [sessionId]: {
+              ...state.sessions[sessionId],
+              isRecovering: recovering,
+            },
+          },
+        }));
+      },
+
       toggleNerdMode: () => {
         set({ nerdMode: !get().nerdMode });
-      },
-
-      startRecovery: (durationMs = 10000) => {
-        set({
-          recoveryState: {
-            inProgress: true,
-            endTime: Date.now() + durationMs,
-          },
-        });
-      },
-
-      endRecovery: () => {
-        set({
-          recoveryState: {
-            inProgress: false,
-            endTime: 0,
-          },
-        });
       },
 
       getActiveSessions: () => {
@@ -426,7 +410,7 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
     }),
     {
       name: 'cli-session-storage',
-      version: 8, // v8: added nerdMode UI preference
+      version: 9, // v9: per-session isRecovering flag
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         // Only persist session data, not ephemeral state
@@ -495,6 +479,13 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
                   };
                 }
               }
+              // v8 -> v9: Add per-session isRecovering flag (ephemeral, always starts false)
+              if (version < 9) {
+                migratedSessions[id] = {
+                  ...migratedSessions[id],
+                  isRecovering: false,
+                };
+              }
             }
           }
           // v7 -> v8: Add nerdMode UI preference
@@ -504,6 +495,16 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
           };
         }
         return state;
+      },
+      // Reset ephemeral isRecovering flag on rehydration — it must always start as false
+      onRehydrateStorage: () => (state) => {
+        if (state?.sessions) {
+          for (const id of Object.keys(state.sessions)) {
+            if (state.sessions[id as CLISessionId]) {
+              state.sessions[id as CLISessionId].isRecovering = false;
+            }
+          }
+        }
       },
     }
   )

@@ -12,13 +12,13 @@ import { Bot } from 'lucide-react';
 import { useWidgetStore } from '@/stores/annette/widgetStore';
 import { useChatStore } from '@/stores/annette/chatStore';
 import { useAnnetteNotificationStore } from '@/stores/annette/notificationStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useSSEStreamWithBackoff } from '@/hooks/useSSEStreamWithBackoff';
 import type { AnnetteNotification } from '@/lib/annette/notificationEngine';
 import AnnetteDropdownPanel from './AnnetteDropdownPanel';
 
 export default function AnnetteTopBarWidget() {
-  const activeProject = useActiveProjectStore((s) => s.activeProject);
+  const activeProject = useClientProjectStore((s) => s.activeProject);
   const isWidgetOpen = useWidgetStore((s) => s.isWidgetOpen);
   const unreadCount = useWidgetStore((s) => s.unreadCount);
   const toggleWidget = useWidgetStore((s) => s.toggleWidget);

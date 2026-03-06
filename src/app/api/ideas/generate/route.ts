@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateIdeas } from '@/app/projects/ProjectAI/ScanIdeas/generateIdeas';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { withObservability } from '@/lib/observability/middleware';
+import {
+  IdeasErrorCode,
+  createIdeasErrorResponse,
+  handleIdeasApiError,
+} from '@/app/features/Ideas/lib/ideasHandlers';
 
 interface GenerateIdeasRequest {
   projectId: string;
@@ -25,19 +30,6 @@ function validateGenerateIdeasRequest(body: Partial<GenerateIdeasRequest>): stri
   return null;
 }
 
-function createErrorResponse(message: string, status: number) {
-  return NextResponse.json({ error: message }, { status });
-}
-
-function createSuccessResponse(ideas: any[], scanId: string) {
-  return NextResponse.json({
-    success: true,
-    ideas,
-    scanId,
-    count: ideas.length
-  });
-}
-
 /**
  * POST /api/ideas/generate
  * Generate ideas for a project or specific context
@@ -50,7 +42,9 @@ async function handlePost(request: NextRequest) {
 
     const validationError = validateGenerateIdeasRequest(body);
     if (validationError) {
-      return createErrorResponse(validationError, 400);
+      return createIdeasErrorResponse(IdeasErrorCode.MISSING_REQUIRED_FIELD, {
+        message: validationError,
+      });
     }
 
     const {
@@ -74,16 +68,20 @@ async function handlePost(request: NextRequest) {
     });
 
     if (!result.success) {
-      return createErrorResponse(result.error || 'Failed to generate ideas', 500);
+      return createIdeasErrorResponse(IdeasErrorCode.INTERNAL_ERROR, {
+        message: result.error || 'Failed to generate ideas',
+      });
     }
 
-    return createSuccessResponse(result.ideas || [], result.scanId || '');
+    return NextResponse.json({
+      success: true,
+      ideas: result.ideas || [],
+      scanId: result.scanId || '',
+      count: (result.ideas || []).length,
+    });
 
   } catch (error) {
-    return createErrorResponse(
-      error instanceof Error ? error.message : 'Unknown error occurred',
-      500
-    );
+    return handleIdeasApiError(error);
   }
 }
 

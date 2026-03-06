@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { behavioralSignalDb } from '@/app/db';
 import type { BehavioralSignalType } from '@/types/signals';
-import { getAllSignalTypes, isValidSignalType } from '@/types/signals';
+import { SignalType, getAllSignalTypes, isValidSignalType } from '@/types/signals';
 import { withObservability } from '@/lib/observability/middleware';
 import { recordSignal, deleteSignal } from '@/lib/brain/brainService';
 import { parseQueryInt } from '@/lib/api-helpers/parseQueryInt';
@@ -25,7 +25,7 @@ function validateSignalData(signalType: BehavioralSignalType, data: Record<strin
   }
 
   switch (signalType) {
-    case 'git_activity': {
+    case SignalType.GIT_ACTIVITY: {
       if (!Array.isArray(data.filesChanged)) return 'git_activity.data requires filesChanged (string[])';
       if (typeof data.commitMessage !== 'string') return 'git_activity.data requires commitMessage (string)';
       if (typeof data.linesAdded !== 'number') return 'git_activity.data requires linesAdded (number)';
@@ -33,7 +33,7 @@ function validateSignalData(signalType: BehavioralSignalType, data: Record<strin
       if (typeof data.branch !== 'string') return 'git_activity.data requires branch (string)';
       return null;
     }
-    case 'api_focus': {
+    case SignalType.API_FOCUS: {
       if (typeof data.endpoint !== 'string') return 'api_focus.data requires endpoint (string)';
       if (typeof data.method !== 'string') return 'api_focus.data requires method (string)';
       if (typeof data.callCount !== 'number') return 'api_focus.data requires callCount (number)';
@@ -41,14 +41,14 @@ function validateSignalData(signalType: BehavioralSignalType, data: Record<strin
       if (typeof data.errorRate !== 'number') return 'api_focus.data requires errorRate (number)';
       return null;
     }
-    case 'context_focus': {
+    case SignalType.CONTEXT_FOCUS: {
       if (typeof data.contextId !== 'string') return 'context_focus.data requires contextId (string)';
       if (typeof data.contextName !== 'string') return 'context_focus.data requires contextName (string)';
       if (typeof data.duration !== 'number') return 'context_focus.data requires duration (number)';
       if (!Array.isArray(data.actions)) return 'context_focus.data requires actions (string[])';
       return null;
     }
-    case 'implementation': {
+    case SignalType.IMPLEMENTATION: {
       if (typeof data.requirementId !== 'string') return 'implementation.data requires requirementId (string)';
       if (typeof data.requirementName !== 'string') return 'implementation.data requires requirementName (string)';
       if (!Array.isArray(data.filesCreated)) return 'implementation.data requires filesCreated (string[])';
@@ -58,7 +58,7 @@ function validateSignalData(signalType: BehavioralSignalType, data: Record<strin
       if (typeof data.executionTimeMs !== 'number') return 'implementation.data requires executionTimeMs (number)';
       return null;
     }
-    case 'cli_memory': {
+    case SignalType.CLI_MEMORY: {
       const validCategories = ['decision', 'insight', 'pattern', 'context', 'lesson'];
       if (typeof data.category !== 'string' || !validCategories.includes(data.category)) {
         return `cli_memory.data requires category (one of: ${validCategories.join(', ')})`;
@@ -67,6 +67,9 @@ function validateSignalData(signalType: BehavioralSignalType, data: Record<strin
       if (typeof data.source !== 'string') return 'cli_memory.data requires source (string)';
       return null;
     }
+    case SignalType.SESSION_CLUSTER:
+      // Session clusters are created internally by the clustering algorithm
+      return null;
     default:
       return `Unknown signal type: ${signalType}`;
   }
@@ -121,9 +124,20 @@ async function handleGet(request: NextRequest) {
     const signalType = searchParams.get('signalType') as BehavioralSignalType | null;
     const contextId = searchParams.get('contextId');
     const since = searchParams.get('since');
+    const clusterId = searchParams.get('clusterId');
+    // When compressed=true (default), clustered child signals are hidden
+    // and only the cluster composite is returned. Set compressed=false to
+    // see all raw signals including clustered children.
+    const compressed = searchParams.get('compressed') !== 'false';
 
-    if (!projectId) {
+    if (!projectId && !clusterId) {
       return buildErrorResponse('projectId is required', { status: 400 });
+    }
+
+    // Expand a specific cluster: return its child signals
+    if (clusterId) {
+      const children = behavioralSignalDb.getByClusterId(clusterId);
+      return buildSuccessResponse({ signals: children, clusterId });
     }
 
     const limit = parseQueryInt(searchParams.get('limit'), {
@@ -133,15 +147,20 @@ async function handleGet(request: NextRequest) {
       paramName: 'limit',
     });
 
-    const signals = behavioralSignalDb.getByProject(projectId, {
+    const queryOptions = {
       signalType: signalType || undefined,
       contextId: contextId || undefined,
       limit,
       since: since || undefined,
-    });
+    };
 
-    const counts = behavioralSignalDb.getCountByType(projectId);
-    const contextActivity = behavioralSignalDb.getContextActivity(projectId);
+    // Use unclustered query in compressed mode to hide absorbed signals
+    const signals = compressed
+      ? behavioralSignalDb.getUnclusteredByProject(projectId!, queryOptions)
+      : behavioralSignalDb.getByProject(projectId!, queryOptions);
+
+    const counts = behavioralSignalDb.getCountByType(projectId!);
+    const contextActivity = behavioralSignalDb.getContextActivity(projectId!);
 
     return buildSuccessResponse({
       signals,

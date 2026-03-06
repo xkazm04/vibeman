@@ -5,6 +5,7 @@
 
 import { getDatabase } from '../connection';
 import { getCurrentTimestamp, generateId } from './repository.utils';
+import { createGenericRepository } from './generic.repository';
 
 export interface DbScanProfile {
   id: string;
@@ -42,6 +43,11 @@ export interface UpdateScanProfileInput {
   promptOverrides?: Record<string, string>;
 }
 
+const base = createGenericRepository<DbScanProfile>({
+  tableName: 'scan_profiles',
+  defaultOrder: 'updated_at DESC',
+});
+
 export const scanProfileRepository = {
   create(input: CreateScanProfileInput): DbScanProfile {
     const db = getDatabase();
@@ -67,19 +73,15 @@ export const scanProfileRepository = {
       now,
     );
 
-    return db.prepare('SELECT * FROM scan_profiles WHERE id = ?').get(id) as DbScanProfile;
+    return base.getById(id)!;
   },
 
   getById(id: string): DbScanProfile | undefined {
-    const db = getDatabase();
-    return db.prepare('SELECT * FROM scan_profiles WHERE id = ?').get(id) as DbScanProfile | undefined;
+    return base.getById(id) ?? undefined;
   },
 
   getByProject(projectId: string): DbScanProfile[] {
-    const db = getDatabase();
-    return db.prepare(
-      'SELECT * FROM scan_profiles WHERE project_id = ? ORDER BY updated_at DESC',
-    ).all(projectId) as DbScanProfile[];
+    return base.getByProject(projectId);
   },
 
   getByGoal(goalId: string): DbScanProfile[] {
@@ -90,40 +92,14 @@ export const scanProfileRepository = {
   },
 
   update(id: string, input: UpdateScanProfileInput): DbScanProfile | undefined {
-    const db = getDatabase();
-    const now = getCurrentTimestamp();
-    const sets: string[] = ['updated_at = ?'];
-    const values: (string | null)[] = [now];
-
-    if (input.name !== undefined) {
-      sets.push('name = ?');
-      values.push(input.name);
-    }
-    if (input.description !== undefined) {
-      sets.push('description = ?');
-      values.push(input.description);
-    }
-    if (input.scanTypes !== undefined) {
-      sets.push('scan_types = ?');
-      values.push(JSON.stringify(input.scanTypes));
-    }
-    if (input.contextIds !== undefined) {
-      sets.push('context_ids = ?');
-      values.push(JSON.stringify(input.contextIds));
-    }
-    if (input.groupIds !== undefined) {
-      sets.push('group_ids = ?');
-      values.push(JSON.stringify(input.groupIds));
-    }
-    if (input.promptOverrides !== undefined) {
-      sets.push('prompt_overrides = ?');
-      values.push(JSON.stringify(input.promptOverrides));
-    }
-
-    values.push(id);
-    db.prepare(`UPDATE scan_profiles SET ${sets.join(', ')} WHERE id = ?`).run(...values);
-
-    return this.getById(id);
+    const dbUpdates: Record<string, unknown> = {};
+    if (input.name !== undefined) dbUpdates.name = input.name;
+    if (input.description !== undefined) dbUpdates.description = input.description;
+    if (input.scanTypes !== undefined) dbUpdates.scan_types = JSON.stringify(input.scanTypes);
+    if (input.contextIds !== undefined) dbUpdates.context_ids = JSON.stringify(input.contextIds);
+    if (input.groupIds !== undefined) dbUpdates.group_ids = JSON.stringify(input.groupIds);
+    if (input.promptOverrides !== undefined) dbUpdates.prompt_overrides = JSON.stringify(input.promptOverrides);
+    return base.update(id, dbUpdates) ?? undefined;
   },
 
   recordRun(id: string): void {
@@ -135,8 +111,6 @@ export const scanProfileRepository = {
   },
 
   delete(id: string): boolean {
-    const db = getDatabase();
-    const result = db.prepare('DELETE FROM scan_profiles WHERE id = ?').run(id);
-    return result.changes > 0;
+    return base.deleteById(id);
   },
 };

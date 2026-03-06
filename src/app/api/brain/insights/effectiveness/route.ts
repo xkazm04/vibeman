@@ -4,8 +4,8 @@
  *      insight creation dates with direction acceptance rate changes.
  *
  * Uses a 24-hour cache (insight_effectiveness_cache table) to avoid
- * expensive recalculation per request. Cache is invalidated when
- * directions are accepted.
+ * expensive recalculation per request. Cache is invalidated on any
+ * direction status change (accepted, rejected, reverted, deleted).
  *
  * Performance: Uses a window-based approach that limits directions to a
  * configurable recent window (default 90 days) and computes pre/post rates

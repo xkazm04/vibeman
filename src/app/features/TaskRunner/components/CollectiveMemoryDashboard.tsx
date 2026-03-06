@@ -22,22 +22,22 @@ interface Props {
 }
 
 const TYPE_META: Record<CollectiveMemoryType, { label: string; color: string; bg: string; icon: React.ComponentType<{ className?: string }> }> = {
-  pattern: { label: 'Pattern', color: 'text-blue-400', bg: 'bg-blue-500/10', icon: Database },
+  pattern: { label: 'Pattern', color: 'text-cyan-400', bg: 'bg-cyan-500/10', icon: Database },
   error_fix: { label: 'Error Fix', color: 'text-red-400', bg: 'bg-red-500/10', icon: Bug },
-  approach: { label: 'Approach', color: 'text-green-400', bg: 'bg-green-500/10', icon: Route },
-  optimization: { label: 'Optimization', color: 'text-yellow-400', bg: 'bg-yellow-500/10', icon: Gauge },
-  conflict_resolution: { label: 'Conflict', color: 'text-purple-400', bg: 'bg-purple-500/10', icon: GitMerge },
+  approach: { label: 'Approach', color: 'text-purple-400', bg: 'bg-purple-500/10', icon: Route },
+  optimization: { label: 'Optimization', color: 'text-amber-400', bg: 'bg-amber-500/10', icon: Gauge },
+  conflict_resolution: { label: 'Conflict', color: 'text-blue-400', bg: 'bg-blue-500/10', icon: GitMerge },
 };
 
 function ScoreBar({ score }: { score: number }) {
   const pct = Math.round(score * 100);
-  const color = pct >= 70 ? 'bg-green-500' : pct >= 40 ? 'bg-yellow-500' : 'bg-zinc-600';
+  const color = pct >= 70 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-gray-600';
   return (
     <div className="flex items-center gap-1.5">
-      <div className="w-16 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+      <div className="w-16 h-1.5 rounded-full bg-gray-800 overflow-hidden">
         <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
       </div>
-      <span className={`text-[10px] font-mono ${pct >= 70 ? 'text-green-400' : pct >= 40 ? 'text-yellow-400' : 'text-zinc-500'}`}>
+      <span className={`text-[10px] font-mono ${pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-gray-500'}`}>
         {pct}%
       </span>
     </div>
@@ -47,7 +47,7 @@ function ScoreBar({ score }: { score: number }) {
 function TrendChart({ trends }: { trends: { date: string; score: number; memoryCount: number }[] }) {
   if (trends.length < 2) {
     return (
-      <div className="flex items-center justify-center h-24 text-xs text-zinc-600">
+      <div className="flex items-center justify-center h-24 text-xs text-gray-600">
         Need more data for trends
       </div>
     );
@@ -69,11 +69,11 @@ function TrendChart({ trends }: { trends: { date: string; score: number; memoryC
               style={{ height: scoreHeight, opacity: countOpacity }}
             />
             {i % Math.max(1, Math.floor(trends.length / 5)) === 0 && (
-              <span className="text-[8px] text-zinc-600 truncate w-full text-center">
+              <span className="text-[8px] text-gray-600 truncate w-full text-center">
                 {t.date.slice(5)}
               </span>
             )}
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 hidden group-hover:block bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-[9px] text-zinc-300 whitespace-nowrap z-10">
+            <div className="absolute -top-8 left-1/2 -translate-x-1/2 hidden group-hover:block bg-gray-800 border border-gray-700 rounded px-1.5 py-0.5 text-[9px] text-gray-300 whitespace-nowrap z-10">
               {Math.round(t.score * 100)}% ({t.memoryCount} new)
             </div>
           </div>
@@ -108,7 +108,7 @@ function MemoryRow({
       className={`px-3 py-2.5 cursor-pointer transition-colors border-l-2 ${
         isSelected
           ? 'bg-cyan-500/5 border-l-cyan-500'
-          : 'border-l-transparent hover:bg-zinc-800/30'
+          : 'border-l-transparent hover:bg-gray-800/30'
       }`}
     >
       <div className="flex items-start gap-2">
@@ -117,21 +117,21 @@ function MemoryRow({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-200 font-medium truncate flex-1">
+            <span className="text-xs text-gray-200 font-medium truncate flex-1">
               {memory.title}
             </span>
             <ScoreBar score={memory.effectiveness_score} />
           </div>
-          <p className="text-[10px] text-zinc-500 truncate mt-0.5">{memory.description}</p>
+          <p className="text-[10px] text-gray-500 truncate mt-0.5">{memory.description}</p>
           <div className="flex items-center gap-2 mt-1">
             <span className={`text-[9px] px-1 py-px rounded ${meta.bg} ${meta.color}`}>
               {meta.label}
             </span>
-            <span className="text-[9px] text-zinc-600">
+            <span className="text-[9px] text-gray-600">
               {memory.success_count}OK {memory.failure_count}FAIL
             </span>
             {tags.slice(0, 3).map(tag => (
-              <span key={tag} className="text-[9px] px-1 py-px rounded bg-zinc-800 text-zinc-500">
+              <span key={tag} className="text-[9px] px-1 py-px rounded bg-gray-800 text-gray-500">
                 {tag}
               </span>
             ))}
@@ -139,7 +139,7 @@ function MemoryRow({
         </div>
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/10 text-zinc-600 hover:text-red-400 transition-all"
+          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/10 text-gray-600 hover:text-red-400 transition-all"
           title="Delete memory"
         >
           <Trash2 className="w-3 h-3" />
@@ -167,7 +167,7 @@ function MemoryDetail({ memory }: { memory: DbCollectiveMemoryEntry }) {
           <Icon className={`w-5 h-5 ${meta.color}`} />
         </div>
         <div className="flex-1">
-          <h3 className="text-sm font-semibold text-zinc-200">{memory.title}</h3>
+          <h3 className="text-sm font-semibold text-gray-200">{memory.title}</h3>
           <span className={`text-[10px] px-1.5 py-0.5 rounded ${meta.bg} ${meta.color}`}>
             {meta.label}
           </span>
@@ -176,15 +176,15 @@ function MemoryDetail({ memory }: { memory: DbCollectiveMemoryEntry }) {
 
       {/* Description */}
       <div>
-        <h4 className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Description</h4>
-        <p className="text-xs text-zinc-400 leading-relaxed">{memory.description}</p>
+        <h4 className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Description</h4>
+        <p className="text-xs text-gray-400 leading-relaxed">{memory.description}</p>
       </div>
 
       {/* Code Pattern */}
       {memory.code_pattern && (
         <div>
-          <h4 className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Pattern Detected</h4>
-          <code className="block text-xs text-cyan-400 bg-zinc-900 rounded px-2 py-1 font-mono">
+          <h4 className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Pattern Detected</h4>
+          <code className="block text-xs text-cyan-400 bg-gray-900 rounded px-2 py-1 font-mono">
             {memory.code_pattern}
           </code>
         </div>
@@ -192,16 +192,16 @@ function MemoryDetail({ memory }: { memory: DbCollectiveMemoryEntry }) {
 
       {/* Effectiveness */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-zinc-800/50 rounded-lg p-2">
-          <div className="text-[10px] text-zinc-500">Score</div>
+        <div className="bg-gray-800/50 rounded-lg p-2">
+          <div className="text-[10px] text-gray-500">Score</div>
           <div className="text-lg font-bold text-cyan-400">{Math.round(memory.effectiveness_score * 100)}%</div>
         </div>
-        <div className="bg-zinc-800/50 rounded-lg p-2">
-          <div className="text-[10px] text-zinc-500">Successes</div>
-          <div className="text-lg font-bold text-green-400">{memory.success_count}</div>
+        <div className="bg-gray-800/50 rounded-lg p-2">
+          <div className="text-[10px] text-gray-500">Successes</div>
+          <div className="text-lg font-bold text-emerald-400">{memory.success_count}</div>
         </div>
-        <div className="bg-zinc-800/50 rounded-lg p-2">
-          <div className="text-[10px] text-zinc-500">Failures</div>
+        <div className="bg-gray-800/50 rounded-lg p-2">
+          <div className="text-[10px] text-gray-500">Failures</div>
           <div className="text-lg font-bold text-red-400">{memory.failure_count}</div>
         </div>
       </div>
@@ -209,10 +209,10 @@ function MemoryDetail({ memory }: { memory: DbCollectiveMemoryEntry }) {
       {/* Tags */}
       {tags.length > 0 && (
         <div>
-          <h4 className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Tags</h4>
+          <h4 className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Tags</h4>
           <div className="flex flex-wrap gap-1">
             {tags.map(tag => (
-              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/50">
+              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-400 border border-gray-700/50">
                 {tag}
               </span>
             ))}
@@ -223,10 +223,10 @@ function MemoryDetail({ memory }: { memory: DbCollectiveMemoryEntry }) {
       {/* File Patterns */}
       {filePatterns.length > 0 && (
         <div>
-          <h4 className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">File Patterns</h4>
+          <h4 className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">File Patterns</h4>
           <div className="flex flex-wrap gap-1">
             {filePatterns.map(fp => (
-              <span key={fp} className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-500 font-mono">
+              <span key={fp} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-900 text-gray-500 font-mono">
                 {fp}
               </span>
             ))}
@@ -235,7 +235,7 @@ function MemoryDetail({ memory }: { memory: DbCollectiveMemoryEntry }) {
       )}
 
       {/* Timestamps */}
-      <div className="text-[9px] text-zinc-600 space-y-0.5 pt-2 border-t border-zinc-800/50">
+      <div className="text-[9px] text-gray-600 space-y-0.5 pt-2 border-t border-gray-800/50">
         <div>Created: {new Date(memory.created_at).toLocaleString()}</div>
         {memory.last_applied_at && (
           <div>Last applied: {new Date(memory.last_applied_at).toLocaleString()}</div>
@@ -302,26 +302,26 @@ export default function CollectiveMemoryDashboard({ projectId }: Props) {
 
       {/* Stats Row */}
       {stats && (
-        <div className="px-4 py-3 border-b border-zinc-800/50 flex-shrink-0">
+        <div className="px-4 py-3 border-b border-gray-800/50 flex-shrink-0">
           <div className="grid grid-cols-4 gap-3">
-            <div className="bg-zinc-800/40 rounded-lg px-3 py-2">
-              <div className="text-[10px] text-zinc-500 uppercase tracking-wider">Total Memories</div>
-              <div className="text-xl font-bold text-zinc-200">{stats.total}</div>
+            <div className="bg-gray-800/40 rounded-lg px-3 py-2">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Total Memories</div>
+              <div className="text-xl font-bold text-gray-200">{stats.total}</div>
             </div>
-            <div className="bg-zinc-800/40 rounded-lg px-3 py-2">
-              <div className="text-[10px] text-zinc-500 uppercase tracking-wider">Avg. Effectiveness</div>
+            <div className="bg-gray-800/40 rounded-lg px-3 py-2">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Avg. Effectiveness</div>
               <div className="text-xl font-bold text-cyan-400">{Math.round(stats.avgEffectiveness * 100)}%</div>
             </div>
-            <div className="bg-zinc-800/40 rounded-lg px-3 py-2">
-              <div className="text-[10px] text-zinc-500 uppercase tracking-wider">This Week</div>
-              <div className="text-xl font-bold text-green-400">+{stats.recentCount}</div>
+            <div className="bg-gray-800/40 rounded-lg px-3 py-2">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">This Week</div>
+              <div className="text-xl font-bold text-emerald-400">+{stats.recentCount}</div>
             </div>
-            <div className="bg-zinc-800/40 rounded-lg px-3 py-2">
-              <div className="text-[10px] text-zinc-500 uppercase tracking-wider">Applications</div>
+            <div className="bg-gray-800/40 rounded-lg px-3 py-2">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Applications</div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-green-400">{stats.recentApplications.success}OK</span>
+                <span className="text-sm font-bold text-emerald-400">{stats.recentApplications.success}OK</span>
                 <span className="text-sm font-bold text-red-400">{stats.recentApplications.failure}F</span>
-                <span className="text-sm font-bold text-zinc-500">{stats.recentApplications.pending}P</span>
+                <span className="text-sm font-bold text-gray-500">{stats.recentApplications.pending}P</span>
               </div>
             </div>
           </div>
@@ -330,25 +330,25 @@ export default function CollectiveMemoryDashboard({ projectId }: Props) {
 
       {/* Trend Chart */}
       {trends.length > 0 && (
-        <div className="px-4 py-3 border-b border-zinc-800/50 flex-shrink-0">
+        <div className="px-4 py-3 border-b border-gray-800/50 flex-shrink-0">
           <div className="flex items-center gap-2 mb-2">
-            <BarChart3 className="w-3.5 h-3.5 text-zinc-500" />
-            <span className="text-[10px] uppercase tracking-wider text-zinc-500">Effectiveness Trend (30d)</span>
+            <BarChart3 className="w-3.5 h-3.5 text-gray-500" />
+            <span className="text-[10px] uppercase tracking-wider text-gray-500">Effectiveness Trend (30d)</span>
           </div>
           <TrendChart trends={trends} />
         </div>
       )}
 
       {/* Search + Filters */}
-      <div className="px-4 py-2 border-b border-zinc-800/50 flex-shrink-0 space-y-2">
+      <div className="px-4 py-2 border-b border-gray-800/50 flex-shrink-0 space-y-2">
         <div className="relative">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600" />
           <input
             type="text"
             placeholder="Search memories..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-7 pr-3 py-1.5 text-xs bg-zinc-900/50 border border-zinc-800 rounded-md text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-cyan-500/30"
+            className="w-full pl-7 pr-3 py-1.5 text-xs bg-gray-900/50 border border-gray-800 rounded-md text-gray-300 placeholder-gray-600 focus:outline-none focus:border-cyan-500/30"
           />
         </div>
         <div className="flex gap-1 flex-wrap">
@@ -362,7 +362,7 @@ export default function CollectiveMemoryDashboard({ projectId }: Props) {
                 className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
                   isActive
                     ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                    : 'text-zinc-500 hover:text-zinc-300 bg-zinc-800/30 hover:bg-zinc-800/60'
+                    : 'text-gray-500 hover:text-gray-300 bg-gray-800/30 hover:bg-gray-800/60'
                 }`}
               >
                 {meta ? meta.label : 'All'}
@@ -375,19 +375,19 @@ export default function CollectiveMemoryDashboard({ projectId }: Props) {
       {/* Content: List + Detail */}
       <div className="flex-1 flex overflow-hidden">
         {/* Memory List */}
-        <div className="w-1/2 border-r border-zinc-800/50 overflow-y-auto">
+        <div className="w-1/2 border-r border-gray-800/50 overflow-y-auto">
           {isLoading ? (
-            <div className="p-4 text-center text-xs text-zinc-500">Loading...</div>
+            <div className="p-4 text-center text-xs text-gray-500">Loading...</div>
           ) : memories.length === 0 ? (
             <div className="p-8 text-center">
-              <Database className="w-8 h-8 text-zinc-700 mx-auto mb-2" />
-              <p className="text-xs text-zinc-500">No memories yet.</p>
-              <p className="text-[10px] text-zinc-600 mt-1">
+              <Database className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+              <p className="text-xs text-gray-500">No memories yet.</p>
+              <p className="text-[10px] text-gray-600 mt-1">
                 Memories are captured automatically as tasks complete.
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-zinc-800/30">
+            <div className="divide-y divide-gray-800/30">
               <AnimatePresence mode="popLayout">
                 {memories.map(mem => (
                   <MemoryRow
@@ -409,8 +409,8 @@ export default function CollectiveMemoryDashboard({ projectId }: Props) {
             <MemoryDetail memory={selectedMemory} />
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center p-4">
-              <ChevronRight className="w-6 h-6 text-zinc-700 mb-2" />
-              <p className="text-xs text-zinc-500">Select a memory to view details</p>
+              <ChevronRight className="w-6 h-6 text-gray-700 mb-2" />
+              <p className="text-xs text-gray-500">Select a memory to view details</p>
             </div>
           )}
         </div>

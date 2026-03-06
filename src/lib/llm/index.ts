@@ -16,7 +16,9 @@ export {
   APIKeyStorage,
   ProviderConfigStorage,
   DefaultProviderStorage,
-  StorageUtils
+  FallbackChainStorage,
+  StorageUtils,
+  DEFAULT_FALLBACK_CHAIN
 } from './llm-storage';
 
 // Base client class

@@ -4,8 +4,11 @@
  */
 
 import { getDatabase } from '../connection';
+import { getHotWritesDatabase } from '../hot-writes';
 import type { DbBrainInsight, LearningInsight, EvidenceRef } from '../models/brain.types';
 import { getCurrentTimestamp, selectOne, selectAll } from './repository.utils';
+import { createGenericRepository } from './generic.repository';
+import { generateInsightHash } from '@/lib/brain/insightId';
 
 /**
  * Parse evidence JSON, handling both legacy string[] and typed EvidenceRef[] formats.
@@ -54,6 +57,10 @@ export function dbInsightToLearning(row: DbBrainInsight): LearningInsight {
   };
 }
 
+const base = createGenericRepository<DbBrainInsight>({
+  tableName: 'brain_insights',
+});
+
 export const brainInsightRepository = {
   /**
    * Create a new insight
@@ -80,18 +87,19 @@ export const brainInsightRepository = {
   }): DbBrainInsight => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
+    const canonicalId = generateInsightHash(input.type, input.title, input.project_id);
 
     // Wrap in transaction for atomicity
     const transaction = db.transaction(() => {
       db.prepare(`
         INSERT INTO brain_insights (
           id, reflection_id, project_id, type, title, description,
-          confidence, evidence, evolves_from_id, evolves_title,
+          confidence, evidence, canonical_id, evolves_from_id, evolves_title,
           conflict_with_id, conflict_with_title, conflict_type,
           conflict_resolved, conflict_resolution,
           auto_pruned, auto_prune_reason, original_confidence,
           created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         input.id,
         input.reflection_id,
@@ -101,6 +109,7 @@ export const brainInsightRepository = {
         input.description,
         input.confidence,
         JSON.stringify(input.evidence),
+        canonicalId,
         input.evolves_from_id ?? null,
         input.evolves_title ?? null,
         input.conflict_with_id ?? null,
@@ -125,6 +134,8 @@ export const brainInsightRepository = {
         // Prepare FK validation queries for each evidence type
         const directionExistsStmt = db.prepare('SELECT 1 FROM directions WHERE id = ? LIMIT 1');
         const reflectionExistsStmt = db.prepare('SELECT 1 FROM brain_reflections WHERE id = ? LIMIT 1');
+        const hotDb = getHotWritesDatabase();
+        const signalExistsStmt = hotDb.prepare('SELECT 1 FROM behavioral_signals WHERE id = ? LIMIT 1');
 
         for (const ref of input.evidence) {
           // Validate evidence reference exists before inserting
@@ -134,8 +145,7 @@ export const brainInsightRepository = {
           } else if (ref.type === 'reflection') {
             exists = !!reflectionExistsStmt.get(ref.id);
           } else if (ref.type === 'signal') {
-            // Signals don't have a persistent table yet, skip validation
-            exists = true;
+            exists = !!signalExistsStmt.get(ref.id);
           }
 
           if (!exists) {
@@ -161,6 +171,10 @@ export const brainInsightRepository = {
 
   /**
    * Batch create insights (used during reflection completion)
+   *
+   * Resolves evolves_from_id and conflict_with_id via canonical_id lookup
+   * instead of relying on fragile title matching. Also inserts lineage
+   * records into insight_lineage for evolution and conflict tracking.
    */
   createBatch: (
     reflectionId: string,
@@ -176,12 +190,12 @@ export const brainInsightRepository = {
       const stmt = db.prepare(`
         INSERT INTO brain_insights (
           id, reflection_id, project_id, type, title, description,
-          confidence, evidence, evolves_from_id, evolves_title,
+          confidence, evidence, canonical_id, evolves_from_id, evolves_title,
           conflict_with_id, conflict_with_title, conflict_type,
           conflict_resolved, conflict_resolution,
           auto_pruned, auto_prune_reason, original_confidence,
           created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       const evidenceStmt = db.prepare(`
@@ -189,12 +203,65 @@ export const brainInsightRepository = {
         VALUES (?, ?, ?, ?)
       `);
 
+      const lineageStmt = db.prepare(`
+        INSERT INTO insight_lineage (parent_insight_id, child_insight_id, relationship_type, reason, created_at)
+        VALUES (?, ?, ?, ?, ?)
+      `);
+
+      // Lookup by title (fallback) and by canonical_id (preferred)
+      const findByCanonicalStmt = db.prepare(
+        'SELECT id, title FROM brain_insights WHERE project_id = ? AND canonical_id = ? ORDER BY created_at DESC LIMIT 1'
+      );
+      const findByTitleStmt = db.prepare(
+        'SELECT id, title FROM brain_insights WHERE project_id = ? AND title = ? ORDER BY created_at DESC LIMIT 1'
+      );
+
       // Prepare FK validation queries for each evidence type
       const directionExistsStmt = db.prepare('SELECT 1 FROM directions WHERE id = ? LIMIT 1');
       const reflectionExistsStmt = db.prepare('SELECT 1 FROM brain_reflections WHERE id = ? LIMIT 1');
+      const hotDb = getHotWritesDatabase();
+      const signalExistsStmt = hotDb.prepare('SELECT 1 FROM behavioral_signals WHERE id = ? LIMIT 1');
 
       for (const insight of insights) {
         const id = `bi_${crypto.randomUUID()}`;
+        const canonicalId = generateInsightHash(insight.type, insight.title, projectId);
+
+        // Resolve evolves_from_id via canonical_id, falling back to title
+        let evolvesFromId: string | null = null;
+        if (insight.evolves) {
+          // First try canonical lookup (handles rephrased titles)
+          const evolvesCanonical = generateInsightHash(insight.type, insight.evolves, projectId);
+          const byCanonical = findByCanonicalStmt.get(projectId, evolvesCanonical) as { id: string; title: string } | undefined;
+          if (byCanonical) {
+            evolvesFromId = byCanonical.id;
+          } else {
+            // Fallback to exact title match
+            const byTitle = findByTitleStmt.get(projectId, insight.evolves) as { id: string; title: string } | undefined;
+            if (byTitle) {
+              evolvesFromId = byTitle.id;
+            }
+          }
+        }
+
+        // Resolve conflict_with_id via canonical_id, falling back to title
+        let conflictWithId: string | null = null;
+        if (insight.conflict_with) {
+          // Try all insight types for the conflicting insight's canonical id
+          for (const candidateType of ['preference_learned', 'pattern_detected', 'warning', 'recommendation'] as const) {
+            const conflictCanonical = generateInsightHash(candidateType, insight.conflict_with, projectId);
+            const byCanonical = findByCanonicalStmt.get(projectId, conflictCanonical) as { id: string; title: string } | undefined;
+            if (byCanonical) {
+              conflictWithId = byCanonical.id;
+              break;
+            }
+          }
+          if (!conflictWithId) {
+            const byTitle = findByTitleStmt.get(projectId, insight.conflict_with) as { id: string; title: string } | undefined;
+            if (byTitle) {
+              conflictWithId = byTitle.id;
+            }
+          }
+        }
 
         stmt.run(
           id,
@@ -205,9 +272,10 @@ export const brainInsightRepository = {
           insight.description,
           insight.confidence,
           JSON.stringify(insight.evidence || []),
-          null, // evolves_from_id resolved later
+          canonicalId,
+          evolvesFromId,
           insight.evolves || null,
-          null, // conflict_with_id resolved later
+          conflictWithId,
           insight.conflict_with || null,
           insight.conflict_type || null,
           insight.conflict_resolved ? 1 : 0,
@@ -219,6 +287,14 @@ export const brainInsightRepository = {
           now
         );
 
+        // Insert lineage records for evolution and conflict relationships
+        if (evolvesFromId) {
+          lineageStmt.run(evolvesFromId, id, 'evolved_into', `Evolved: "${insight.evolves}" → "${insight.title}"`, now);
+        }
+        if (conflictWithId) {
+          lineageStmt.run(conflictWithId, id, 'conflicts_with', `Conflict type: ${insight.conflict_type || 'unknown'}`, now);
+        }
+
         // Insert evidence into junction table with FK validation
         if (insight.evidence && insight.evidence.length > 0) {
           for (const ref of insight.evidence) {
@@ -229,8 +305,7 @@ export const brainInsightRepository = {
             } else if (ref.type === 'reflection') {
               exists = !!reflectionExistsStmt.get(ref.id);
             } else if (ref.type === 'signal') {
-              // Signals don't have a persistent table yet, skip validation
-              exists = true;
+              exists = !!signalExistsStmt.get(ref.id);
             }
 
             if (!exists) {
@@ -257,13 +332,23 @@ export const brainInsightRepository = {
   /**
    * Get insight by ID
    */
-  getById: (id: string): DbBrainInsight | null => {
+  getById: (id: string): DbBrainInsight | null => base.getById(id),
+
+  /**
+   * Get insight by canonical_id within a project (preferred for dedup lookups)
+   */
+  getByCanonicalId: (projectId: string, canonicalId: string): DbBrainInsight | null => {
     const db = getDatabase();
-    return selectOne<DbBrainInsight>(db, 'SELECT * FROM brain_insights WHERE id = ?', id);
+    return selectOne<DbBrainInsight>(
+      db,
+      'SELECT * FROM brain_insights WHERE project_id = ? AND canonical_id = ? ORDER BY created_at DESC LIMIT 1',
+      projectId,
+      canonicalId
+    );
   },
 
   /**
-   * Get insight by title within a project
+   * Get insight by title within a project (legacy fallback)
    */
   getByTitle: (projectId: string, title: string): DbBrainInsight | null => {
     const db = getDatabase();
@@ -360,6 +445,10 @@ export const brainInsightRepository = {
 
   /**
    * Get insights with metadata for the UI (includes confidence history)
+   *
+   * Builds confidence history by following the evolves_from_id chain (ID-based)
+   * instead of the legacy title-alias approach. Falls back to evolves_title
+   * for insights created before the ID-based lineage was introduced.
    */
   getWithMeta: (
     projectId: string | null,
@@ -388,13 +477,13 @@ export const brainInsightRepository = {
     const historyMap = new Map<string, Array<{ confidence: number; date: string; reflectionId: string }>>();
 
     if (includeHistory) {
-      // Get all insights in chronological order to build history
+      // Get all insights in chronological order to build evolution chains
       const histQuery = isGlobal
-        ? `SELECT bi.title, bi.confidence, bi.reflection_id, bi.evolves_title, br.completed_at
+        ? `SELECT bi.id, bi.title, bi.confidence, bi.reflection_id, bi.evolves_from_id, bi.evolves_title, br.completed_at
            FROM brain_insights bi
            JOIN brain_reflections br ON bi.reflection_id = br.id
            ORDER BY br.completed_at ASC`
-        : `SELECT bi.title, bi.confidence, bi.reflection_id, bi.evolves_title, br.completed_at
+        : `SELECT bi.id, bi.title, bi.confidence, bi.reflection_id, bi.evolves_from_id, bi.evolves_title, br.completed_at
            FROM brain_insights bi
            JOIN brain_reflections br ON bi.reflection_id = br.id
            WHERE bi.project_id = ?
@@ -403,42 +492,59 @@ export const brainInsightRepository = {
       const histRows = (isGlobal
         ? db.prepare(histQuery).all()
         : db.prepare(histQuery).all(projectId)
-      ) as Array<{ title: string; confidence: number; reflection_id: string; evolves_title: string | null; completed_at: string }>;
+      ) as Array<{ id: string; title: string; confidence: number; reflection_id: string; evolves_from_id: string | null; evolves_title: string | null; completed_at: string }>;
 
-      // Track title aliases (evolves chain)
-      const titleAliases = new Map<string, string>();
+      // Map insight id → its row for chain resolution
+      const byId = new Map<string, typeof histRows[0]>();
+      for (const hr of histRows) byId.set(hr.id, hr);
+
+      // Track which insight id's history has been merged into a successor
+      // Maps: old insight id → latest successor insight id
+      const idRedirects = new Map<string, string>();
 
       for (const hr of histRows) {
-        let canonicalTitle = hr.title;
+        let targetId = hr.id;
 
-        if (hr.evolves_title) {
-          // This insight evolved from another — update alias chain
-          const resolvedAlias = titleAliases.get(hr.evolves_title);
-          if (resolvedAlias) {
-            // Transfer history
-            const oldHistory = historyMap.get(resolvedAlias);
-            if (oldHistory) {
-              historyMap.set(hr.title, oldHistory);
-              historyMap.delete(resolvedAlias);
-            }
-          } else {
-            const oldHistory = historyMap.get(hr.evolves_title);
-            if (oldHistory) {
-              historyMap.set(hr.title, oldHistory);
-              historyMap.delete(hr.evolves_title);
+        if (hr.evolves_from_id) {
+          // Follow the redirect chain to find the canonical target
+          let parentId = hr.evolves_from_id;
+          while (idRedirects.has(parentId)) {
+            parentId = idRedirects.get(parentId)!;
+          }
+
+          // Transfer parent's history to this insight
+          const parentHistory = historyMap.get(parentId);
+          if (parentHistory) {
+            historyMap.set(hr.id, parentHistory);
+            historyMap.delete(parentId);
+          }
+          // Redirect the parent (and any of its ancestors) to this insight
+          idRedirects.set(parentId, hr.id);
+          if (hr.evolves_from_id !== parentId) {
+            idRedirects.set(hr.evolves_from_id, hr.id);
+          }
+          targetId = hr.id;
+        } else if (hr.evolves_title && !hr.evolves_from_id) {
+          // Legacy fallback: no evolves_from_id, use title matching
+          for (const [existingId, existingHistory] of historyMap.entries()) {
+            const existingRow = byId.get(existingId);
+            if (existingRow && existingRow.title === hr.evolves_title) {
+              historyMap.set(hr.id, existingHistory);
+              historyMap.delete(existingId);
+              idRedirects.set(existingId, hr.id);
+              break;
             }
           }
-          titleAliases.set(hr.evolves_title, hr.title);
-          canonicalTitle = hr.title;
+          targetId = hr.id;
         }
 
-        const history = historyMap.get(canonicalTitle) || [];
+        const history = historyMap.get(targetId) || [];
         history.push({
           confidence: hr.confidence,
           date: hr.completed_at,
           reflectionId: hr.reflection_id,
         });
-        historyMap.set(canonicalTitle, history);
+        historyMap.set(targetId, history);
       }
     }
 
@@ -447,7 +553,7 @@ export const brainInsightRepository = {
       project_id: row.project_id,
       reflection_id: row.reflection_id,
       confidenceHistory: includeHistory
-        ? historyMap.get(row.title) || [{ confidence: row.confidence, date: row.completed_at, reflectionId: row.reflection_id }]
+        ? historyMap.get(row.id) || [{ confidence: row.confidence, date: row.completed_at, reflectionId: row.reflection_id }]
         : undefined,
     }));
   },
@@ -481,11 +587,7 @@ export const brainInsightRepository = {
   /**
    * Delete an insight by ID
    */
-  delete: (id: string): boolean => {
-    const db = getDatabase();
-    const result = db.prepare('DELETE FROM brain_insights WHERE id = ?').run(id);
-    return result.changes > 0;
-  },
+  delete: (id: string): boolean => base.deleteById(id),
 
   /**
    * Delete an insight by title within a reflection
@@ -531,7 +633,7 @@ export const brainInsightRepository = {
     const db = getDatabase();
     const row = selectOne<{ count: number }>(
       db,
-      'SELECT COUNT(*) as count FROM brain_insights WHERE project_id = ? AND conflict_with_title IS NOT NULL AND conflict_resolved = 0',
+      'SELECT COUNT(*) as count FROM brain_insights WHERE project_id = ? AND (conflict_with_id IS NOT NULL OR conflict_with_title IS NOT NULL) AND conflict_resolved = 0',
       projectId
     );
     return row?.count ?? 0;

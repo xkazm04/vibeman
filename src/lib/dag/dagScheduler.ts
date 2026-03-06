@@ -13,7 +13,8 @@
 // Types
 // ============================================================================
 
-export type DAGTaskStatus = 'pending' | 'running' | 'completed' | 'failed';
+import type { BaseLifecycleStatus } from '@/lib/status';
+export type DAGTaskStatus = BaseLifecycleStatus;
 
 export interface DAGTask {
   id: string;

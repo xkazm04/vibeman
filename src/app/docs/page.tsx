@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, Compass, Folder, File } from 'lucide-react';
 import { useThemeStore } from '@/stores/themeStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import ContextSelector, { Context, ContextGroup } from '@/components/ContextSelector';
 import MarkdownViewer from '@/components/markdown/MarkdownViewer';
 import DocsAnalysisLayout from '../features/Docs/sub_DocsAnalysis/DocsAnalysisLayout';
@@ -28,7 +28,7 @@ const TABS: { id: TabType; label: string; icon: React.ReactNode; description: st
 
 // Contexts Tab Content Component
 function ContextsTabContent() {
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
   const [contexts, setContexts] = useState<Context[]>([]);
   const [contextGroups, setContextGroups] = useState<ContextGroup[]>([]);
   const [selectedContextId, setSelectedContextId] = useState<string | null>(null);

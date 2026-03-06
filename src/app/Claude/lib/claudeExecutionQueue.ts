@@ -15,6 +15,9 @@ import { signalCollector } from '@/lib/brain/signalCollector';
 import { invalidateContextCache } from '@/lib/brain/brainService';
 import { onTaskCompleted, resolveTaskApplications } from '@/lib/collective-memory/taskCompletionHook';
 import { emitTaskChange } from './taskChangeEmitter';
+import { detectErrorType, getErrorDescription } from '@/app/features/Manager/lib/conductor/selfHealing/errorClassifier';
+import { buildHealingContext } from '@/app/features/Manager/lib/conductor/selfHealing/promptPatcher';
+import type { ErrorType, HealingPatch } from '@/app/features/Manager/lib/conductor/types';
 
 export interface GitExecutionConfig {
   enabled: boolean;
@@ -25,6 +28,16 @@ export interface GitExecutionConfig {
 export interface SessionConfig {
   sessionId?: string;        // Internal session ID (for tracking)
   claudeSessionId?: string;  // Claude CLI session ID (for --resume)
+}
+
+/** Self-healing metadata attached to a task after error classification. */
+export interface TaskHealingInfo {
+  errorType: ErrorType;
+  errorDescription: string;
+  healingAttempt: number;       // 0 = original run, 1-3 = healing retries
+  maxHealingAttempts: number;
+  healingPatches: HealingPatch[];
+  healed: boolean;              // true if a retry succeeded after healing
 }
 
 export interface ExecutionTask {
@@ -44,6 +57,7 @@ export interface ExecutionTask {
   sessionLimitReached?: boolean;
   capturedClaudeSessionId?: string;  // Claude session ID captured from output
   memoryApplicationIds?: string[];   // Collective memory application IDs for feedback loop
+  healing?: TaskHealingInfo;         // Self-healing metadata from error classification
 }
 
 class ClaudeExecutionQueue {
@@ -265,16 +279,90 @@ class ClaudeExecutionQueue {
   }
 
   /**
+   * Classify an error and attach healing metadata to the task.
+   * Returns the classified error type for use by retry logic.
+   */
+  private classifyTaskError(task: ExecutionTask, error: string): ErrorType {
+    const errorType = detectErrorType(error);
+    const errorDescription = getErrorDescription(errorType);
+    const currentAttempt = task.healing?.healingAttempt ?? 0;
+
+    task.healing = {
+      errorType,
+      errorDescription,
+      healingAttempt: currentAttempt,
+      maxHealingAttempts: 3,
+      healingPatches: task.healing?.healingPatches ?? [],
+      healed: false,
+    };
+
+    task.progress.push(this.createProgressEntry(
+      `[Self-Healing] Error classified: ${errorType} — ${errorDescription}`
+    ));
+
+    logger.info('Task error classified', {
+      taskId: task.id,
+      errorType,
+      errorDescription,
+      attempt: currentAttempt,
+    });
+
+    return errorType;
+  }
+
+  /**
+   * Generate a rule-based healing patch for a given error type.
+   * Lightweight alternative to the full healingAnalyzer (avoids LLM call).
+   */
+  private generateHealingPatch(errorType: ErrorType, errorMessage: string): HealingPatch | null {
+    const RULE_PATCHES: Partial<Record<ErrorType, string>> = {
+      missing_context:
+        '\n\n## File Discovery\nBefore modifying any file, first use the Read tool to verify it exists and understand its current content. If a file is not found, search for alternative locations using Glob.',
+      tool_failure:
+        '\n\n## Edit Safety\nWhen using the Edit tool, ensure old_string matches exactly (including whitespace). If an edit fails, re-read the file and retry with the correct content. Never use Edit on files you haven\'t read first.',
+      dependency_missing:
+        '\n\n## Dependency Awareness\nBefore importing or using any package, verify it exists in package.json. Do not add new dependencies unless explicitly required. Use existing utilities and patterns from the codebase.',
+      timeout:
+        '\n\n## Execution Constraint\nKeep changes focused and minimal. If the task seems too large, implement only the most critical part and document remaining work as TODO comments.',
+      prompt_ambiguity:
+        '\n\n## Requirement Clarification\nIf the requirement is ambiguous, make a reasonable choice and document your interpretation. Focus on the most impactful interpretation rather than asking for clarification.',
+      invalid_output:
+        '\n\n## Output Validation\nEnsure all outputs match the expected format. Verify API responses before proceeding to the next step. If a compilation error occurs, fix it before moving on.',
+      permission_error:
+        '\n\n## Permission Handling\nIf you encounter permission errors, do not attempt to change file permissions. Instead, work with files you have access to and report any permission issues.',
+    };
+
+    const patchContent = RULE_PATCHES[errorType];
+    if (!patchContent) return null;
+
+    return {
+      id: `patch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      pipelineRunId: 'taskrunner',
+      targetType: 'prompt',
+      targetId: `healing_${errorType}`,
+      originalValue: '',
+      patchedValue: patchContent,
+      reason: `Auto-healing for ${errorType}: ${errorMessage.slice(0, 100)}`,
+      errorPattern: errorMessage.slice(0, 200),
+      appliedAt: new Date().toISOString(),
+      reverted: false,
+    };
+  }
+
+  /**
    * Helper: Update task status on failure
    */
   private handleTaskFailure(task: ExecutionTask, error: string, logFilePath?: string): void {
+    // Classify the error before marking as failed
+    this.classifyTaskError(task, error);
+
     task.status = 'failed';
     task.error = error;
     task.logFilePath = logFilePath;
     task.endTime = new Date();
     this.notifyTaskChange(task);
     task.progress.push(this.createProgressEntry('✗ Execution failed'));
-    logger.error('Task failed', { taskId: task.id, error });
+    logger.error('Task failed', { taskId: task.id, error, errorType: task.healing?.errorType });
 
     // Emit task failed notification
     if (task.projectId) {
@@ -318,6 +406,82 @@ class ClaudeExecutionQueue {
         resolveTaskApplications(task.memoryApplicationIds, 'failure', error);
       }
     }
+  }
+
+  /**
+   * Attempt self-healing retry for a failed task.
+   * Returns true if the task was re-queued for retry, false if healing is not possible.
+   */
+  private attemptHealing(task: ExecutionTask, errorMsg: string, logFilePath?: string): boolean {
+    const MAX_HEALING_ATTEMPTS = 3;
+    const currentAttempt = task.healing?.healingAttempt ?? 0;
+
+    // Don't retry session limits, timeouts beyond attempt 1, or if max attempts reached
+    if (currentAttempt >= MAX_HEALING_ATTEMPTS) return false;
+
+    // Classify the error
+    const errorType = this.classifyTaskError(task, errorMsg);
+
+    // Don't heal unknown errors or timeouts beyond first retry
+    if (errorType === 'unknown') return false;
+    if (errorType === 'timeout' && currentAttempt >= 1) return false;
+    if (errorType === 'permission_error') return false; // Can't self-heal permissions
+
+    // Generate a healing patch
+    const patch = this.generateHealingPatch(errorType, errorMsg);
+    if (!patch) return false;
+
+    // Store the patch
+    task.healing!.healingPatches.push(patch);
+    task.healing!.healingAttempt = currentAttempt + 1;
+
+    // Re-queue the task for retry
+    task.status = 'pending';
+    task.error = undefined;
+    task.logFilePath = logFilePath;
+    task.progress.push(this.createProgressEntry(
+      `[Self-Healing] Retry ${currentAttempt + 1}/${MAX_HEALING_ATTEMPTS} — applying patch for ${errorType}`
+    ));
+    this.notifyTaskChange(task);
+
+    logger.info('Task re-queued for self-healing retry', {
+      taskId: task.id,
+      errorType,
+      attempt: currentAttempt + 1,
+      patchId: patch.id,
+    });
+
+    return true;
+  }
+
+  /**
+   * Record a successful healing to collective memory for future auto-injection.
+   */
+  private recordHealingSuccess(task: ExecutionTask): void {
+    if (!task.projectId || !task.healing) return;
+
+    try {
+      const { collectiveMemoryRepository } = require('@/app/db/repositories/collective-memory.repository');
+      collectiveMemoryRepository.create({
+        project_id: task.projectId,
+        task_id: task.id,
+        memory_type: 'error_fix',
+        title: `Self-healed: ${task.healing.errorType}`,
+        description: `Task "${task.requirementName}" failed with ${task.healing.errorType} and was auto-healed after ${task.healing.healingAttempt} attempt(s). Applied patches: ${task.healing.healingPatches.map(p => p.reason).join('; ')}`,
+        tags: ['self-healing', task.healing.errorType],
+      });
+    } catch {
+      // Collective memory recording must never break the main flow
+    }
+  }
+
+  /**
+   * Build the healing context string from a task's accumulated patches.
+   * This gets injected into the prompt on retry.
+   */
+  private getHealingContextForTask(task: ExecutionTask): string {
+    if (!task.healing?.healingPatches.length) return '';
+    return buildHealingContext(task.healing.healingPatches);
   }
 
   /**
@@ -366,6 +530,9 @@ class ClaudeExecutionQueue {
         claudeSessionId: task.sessionConfig?.claudeSessionId,
       });
 
+      // Build healing context for retries (empty string on first run)
+      const healingContext = this.getHealingContextForTask(task);
+
       // Execute in background (non-blocking)
       const result = await executeRequirement(
         task.projectPath,
@@ -377,7 +544,8 @@ class ClaudeExecutionQueue {
           this.notifyTaskChange(task);
         },
         task.gitConfig, // Pass git configuration as 5th parameter
-        task.sessionConfig // Pass session configuration as 6th parameter
+        task.sessionConfig, // Pass session configuration as 6th parameter
+        healingContext || undefined // Pass healing context as 7th parameter
       );
 
       logger.debug('Received execution result', {
@@ -403,17 +571,39 @@ class ClaudeExecutionQueue {
 
       // Update task with results
       if (result.success) {
+        // If this was a healing retry, mark as healed
+        if (task.healing && task.healing.healingAttempt > 0) {
+          task.healing.healed = true;
+          task.progress.push(this.createProgressEntry(
+            `[Self-Healing] Task healed on attempt ${task.healing.healingAttempt}!`
+          ));
+          this.recordHealingSuccess(task);
+        }
         this.handleTaskSuccess(task, result.output, result.logFilePath);
       } else if (result.sessionLimitReached) {
         this.handleTaskSessionLimit(task, result.error, result.logFilePath);
       } else {
-        this.handleTaskFailure(task, result.error || 'Unknown error', result.logFilePath);
+        const errorMsg = result.error || 'Unknown error';
+        // Attempt self-healing retry if eligible
+        if (this.attemptHealing(task, errorMsg, result.logFilePath)) {
+          // Task has been re-queued for retry — schedule next processing cycle
+          this.isProcessing = false;
+          setImmediate(() => this.processQueue());
+          return;
+        }
+        this.handleTaskFailure(task, errorMsg, result.logFilePath);
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       task.error = errorMsg;
       task.endTime = new Date();
       task.progress.push(this.createProgressEntry(`✗ Execution error: ${errorMsg}`));
+      // Attempt self-healing retry if eligible
+      if (this.attemptHealing(task, errorMsg)) {
+        this.isProcessing = false;
+        setImmediate(() => this.processQueue());
+        return;
+      }
       this.handleTaskFailure(task, errorMsg);
 
       logger.error('Exception during task execution', {

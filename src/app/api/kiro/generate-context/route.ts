@@ -140,13 +140,19 @@ interface DbContext {
 }
 
 function convertDbContextToFrontend(dbContext: DbContext) {
+  let filePaths: string[] = [];
+  try {
+    filePaths = JSON.parse(dbContext.file_paths);
+  } catch (e) {
+    console.warn(`[kiro/generate-context] Malformed file_paths JSON in context ${dbContext.id}, skipping:`, e);
+  }
   return {
     id: dbContext.id,
     projectId: dbContext.project_id,
     groupId: dbContext.group_id,
     name: dbContext.name,
     description: dbContext.description,
-    filePaths: JSON.parse(dbContext.file_paths),
+    filePaths,
     hasContextFile: Boolean(dbContext.has_context_file),
     contextFilePath: dbContext.context_file_path,
     createdAt: new Date(dbContext.created_at),

@@ -3,6 +3,7 @@
  * Monitors file changes and auto-enqueues scans based on configuration
  */
 
+import * as path from 'path';
 import chokidar, { FSWatcher } from 'chokidar';
 import { scanQueueDb } from '@/app/db';
 import { DbFileWatchConfig } from '@/app/db/models/types';
@@ -47,7 +48,7 @@ class FileWatcherManager {
 
       // Create full paths for watch patterns
       const fullWatchPatterns = watchPatterns.map(pattern =>
-        `${projectPath}/${pattern}`
+        path.join(projectPath, pattern)
       );
 
       console.log(`Starting file watcher for project ${projectId}`);

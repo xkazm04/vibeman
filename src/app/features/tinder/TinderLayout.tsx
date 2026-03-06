@@ -2,13 +2,14 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
-import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import TinderItemsContent from '@/app/features/tinder/components/TinderItemsContent';
 import TinderFilterTabs from '@/app/features/tinder/components/TinderFilterTabs';
 import TestModeControls from '@/app/features/tinder/components/TestModeControls';
 import IdeasCategorySidebar from '@/app/features/tinder/components/IdeasCategorySidebar';
 import EffortRiskFilterSidebar from '@/app/features/tinder/components/EffortRiskFilterSidebar';
+import KeyboardShortcutOverlay from '@/app/features/tinder/components/KeyboardShortcutOverlay';
 import { useTinderItems, useTinderItemsKeyboardShortcuts } from '@/app/features/tinder/lib/useTinderItems';
 import { useTestMode, useTestModeIdeas } from '@/app/features/tinder/lib/useTestMode';
 import { fetchContextsForProjects } from '@/app/features/Ideas/lib/contextLoader';
@@ -16,8 +17,8 @@ import { Context } from '@/lib/queries/contextQueries';
 import { useDeviceMeshStore, useSelectedDevice } from '@/stores/deviceMeshStore';
 
 const TinderLayout = () => {
-  const { initializeProjects, projects } = useProjectConfigStore();
-  const { selectedProjectId } = useUnifiedProjectStore();
+  const { initializeProjects, projects } = useServerProjectStore();
+  const { selectedProjectId } = useClientProjectStore();
   const [contextsMap, setContextsMap] = React.useState<Record<string, Context[]>>({});
 
   // Remote mode state
@@ -116,8 +117,23 @@ const TinderLayout = () => {
   // Show sidebar only in ideas mode with categories
   const showCategorySidebar = filterMode === 'ideas' && !isRemoteMode;
 
+  // Keyboard shortcut overlay (toggle with '?')
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+      if (e.key === '?') {
+        e.preventDefault();
+        setShowShortcuts((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
+
   // Setup keyboard shortcuts
-  useTinderItemsKeyboardShortcuts(handleAccept, handleReject, !processing);
+  useTinderItemsKeyboardShortcuts(handleAccept, handleReject, !processing && !showShortcuts);
 
   const handleStartOver = () => {
     resetStats();
@@ -272,6 +288,9 @@ const TinderLayout = () => {
         prerequisiteNotification={prerequisiteNotification}
         onDismissPrerequisiteNotification={dismissPrerequisiteNotification}
       />
+
+      {/* Keyboard shortcut overlay — toggle with '?' */}
+      <KeyboardShortcutOverlay open={showShortcuts} onClose={() => setShowShortcuts(false)} />
     </div>
   );
 };

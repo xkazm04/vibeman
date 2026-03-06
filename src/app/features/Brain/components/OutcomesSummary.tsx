@@ -10,7 +10,7 @@ import { useId, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Target, CheckCircle, XCircle, RotateCcw, Clock, TrendingUp } from 'lucide-react';
 import { useBrainStore } from '@/stores/brainStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { subscribeToReflectionCompletion } from '@/stores/reflectionCompletionEmitter';
 import GlowCard from './GlowCard';
 
@@ -120,7 +120,7 @@ function useDailyTrend(recentOutcomes: { execution_completed_at: string | null; 
 export default function OutcomesSummary({ isLoading }: Props) {
   const trendGradientId = `outcomeTrendGrad-${useId()}`;
   const { outcomeStats, recentOutcomes, fetchRecentOutcomes } = useBrainStore();
-  const activeProject = useActiveProjectStore(state => state.activeProject);
+  const activeProject = useClientProjectStore(state => state.activeProject);
   const { days: trendDays, daysWithData } = useDailyTrend(recentOutcomes);
 
   // Subscribe to reflection completion events for auto-refresh

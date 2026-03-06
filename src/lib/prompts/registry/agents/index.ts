@@ -10,7 +10,6 @@ export * from './bug-hunter';
 export * from './zen-architect';
 export * from './perf-optimizer';
 export * from './security-protector';
-export * from './insight-synth';
 export * from './ambiguity-guardian';
 export * from './business-visionary';
 export * from './ui-perfectionist';
@@ -32,7 +31,6 @@ import { BUG_HUNTER_PROMPT } from './bug-hunter';
 import { ZEN_ARCHITECT_PROMPT } from './zen-architect';
 import { PERF_OPTIMIZER_PROMPT } from './perf-optimizer';
 import { SECURITY_PROTECTOR_PROMPT } from './security-protector';
-import { INSIGHT_SYNTH_PROMPT } from './insight-synth';
 import { AMBIGUITY_GUARDIAN_PROMPT } from './ambiguity-guardian';
 import { BUSINESS_VISIONARY_PROMPT } from './business-visionary';
 import { UI_PERFECTIONIST_PROMPT } from './ui-perfectionist';
@@ -59,7 +57,6 @@ export const ALL_AGENT_PROMPTS: PromptDefinition[] = [
   ZEN_ARCHITECT_PROMPT,
   PERF_OPTIMIZER_PROMPT,
   SECURITY_PROTECTOR_PROMPT,
-  INSIGHT_SYNTH_PROMPT,
   AMBIGUITY_GUARDIAN_PROMPT,
   BUSINESS_VISIONARY_PROMPT,
   UI_PERFECTIONIST_PROMPT,

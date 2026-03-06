@@ -12,7 +12,7 @@ import {
   Send, Loader2, ChevronDown, ChevronRight, Zap, BarChart3, Cpu,
   Mic, MicOff, Volume2, BrainCircuit, Database, Radio, Globe, Play,
 } from 'lucide-react';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import VoiceLabTimingBar from './VoiceLabTimingBar';
 
 // --- Types ---
@@ -152,7 +152,7 @@ function RecordingWaveform() {
 // --- Component ---
 
 export default function VoiceLabPanel() {
-  const activeProject = useActiveProjectStore((s) => s.activeProject);
+  const activeProject = useClientProjectStore((s) => s.activeProject);
   const [pipeline, setPipeline] = useState<'annette' | 'simple'>('annette');
   const [includeTts, setIncludeTts] = useState(false);
   const [autoPlay, setAutoPlay] = useState(true);

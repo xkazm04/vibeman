@@ -1,5 +1,11 @@
 import { getDatabase } from '../connection';
 import { DbScanQueueItem, DbScanNotification, DbFileWatchConfig } from '../models/types';
+import { createGenericRepository } from './generic.repository';
+
+const base = createGenericRepository<DbScanQueueItem>({
+  tableName: 'scan_queue',
+  defaultOrder: 'priority DESC, created_at ASC',
+});
 
 /**
  * Scan Queue Repository
@@ -99,8 +105,7 @@ export const scanQueueRepository = {
       const result = updateStmt.run(now, now, candidate.id);
       if (result.changes > 0) {
         // Successfully claimed - return the item
-        const selectStmt = db.prepare('SELECT * FROM scan_queue WHERE id = ?');
-        return selectStmt.get(candidate.id) as DbScanQueueItem;
+        return base.getById(candidate.id);
       }
       // Another worker claimed this one, try the next candidate
     }
@@ -111,12 +116,7 @@ export const scanQueueRepository = {
   /**
    * Get a single queue item by ID
    */
-  getQueueItemById: (id: string): DbScanQueueItem | null => {
-    const db = getDatabase();
-    const stmt = db.prepare('SELECT * FROM scan_queue WHERE id = ?');
-    const item = stmt.get(id) as DbScanQueueItem | undefined;
-    return item || null;
-  },
+  getQueueItemById: (id: string): DbScanQueueItem | null => base.getById(id),
 
   /**
    * Create a new queue item
@@ -155,8 +155,7 @@ export const scanQueueRepository = {
       now
     );
 
-    const selectStmt = db.prepare('SELECT * FROM scan_queue WHERE id = ?');
-    return selectStmt.get(item.id) as DbScanQueueItem;
+    return base.getById(item.id)!;
   },
 
   /**
@@ -196,8 +195,7 @@ export const scanQueueRepository = {
       return null;
     }
 
-    const selectStmt = db.prepare('SELECT * FROM scan_queue WHERE id = ?');
-    return selectStmt.get(id) as DbScanQueueItem;
+    return base.getById(id)!;
   },
 
   /**
@@ -230,8 +228,7 @@ export const scanQueueRepository = {
       return null;
     }
 
-    const selectStmt = db.prepare('SELECT * FROM scan_queue WHERE id = ?');
-    return selectStmt.get(id) as DbScanQueueItem;
+    return base.getById(id)!;
   },
 
   /**
@@ -253,8 +250,7 @@ export const scanQueueRepository = {
       return null;
     }
 
-    const selectStmt = db.prepare('SELECT * FROM scan_queue WHERE id = ?');
-    return selectStmt.get(id) as DbScanQueueItem;
+    return base.getById(id)!;
   },
 
   /**
@@ -276,19 +272,33 @@ export const scanQueueRepository = {
       return null;
     }
 
-    const selectStmt = db.prepare('SELECT * FROM scan_queue WHERE id = ?');
-    return selectStmt.get(id) as DbScanQueueItem;
+    return base.getById(id)!;
+  },
+
+  /**
+   * Reset orphaned running items back to queued.
+   * Items stuck in 'running' status after a crash are recovered so they can be reprocessed.
+   * Returns the number of items reset.
+   */
+  resetOrphanedRunning: (): number => {
+    const db = getDatabase();
+    const now = new Date().toISOString();
+
+    const stmt = db.prepare(`
+      UPDATE scan_queue
+      SET status = 'queued', started_at = NULL, updated_at = ?,
+          progress = 0, progress_message = 'Requeued after worker restart', current_step = NULL
+      WHERE status = 'running'
+    `);
+
+    const result = stmt.run(now);
+    return result.changes;
   },
 
   /**
    * Delete a queue item
    */
-  deleteQueueItem: (id: string): boolean => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM scan_queue WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
-  },
+  deleteQueueItem: (id: string): boolean => base.deleteById(id),
 
   /**
    * Delete old completed/failed queue items

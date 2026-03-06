@@ -2,6 +2,7 @@
 
 import React from 'react';
 import TaskItem from '../TaskItem';
+import { TruncateTooltip } from '@/components/ui/TruncateTooltip';
 import type { ProjectRequirement } from '../lib/types';
 import type { DbIdea } from '@/app/db';
 import type { ContextInfo } from '../hooks/useTaskColumnData';
@@ -51,16 +52,26 @@ export default function TaskGroupedList({
               className="w-2 h-2 rounded-full flex-shrink-0"
               style={{ backgroundColor: group.context?.color || '#4b5563' }}
             />
-            <span
-              className="text-[10px] font-medium truncate"
-              style={{ color: group.context?.color || '#9ca3af' }}
+            <TruncateTooltip
+              text={
+                group.context
+                  ? group.context.groupName
+                    ? `${group.context.groupName} - ${group.context.name}`
+                    : group.context.name
+                  : 'Without Context'
+              }
             >
-              {group.context
-                ? group.context.groupName
-                  ? `${group.context.groupName} - ${group.context.name}`
-                  : group.context.name
-                : 'Without Context'}
-            </span>
+              <span
+                className="text-[10px] font-medium truncate block"
+                style={{ color: group.context?.color || '#9ca3af' }}
+              >
+                {group.context
+                  ? group.context.groupName
+                    ? `${group.context.groupName} - ${group.context.name}`
+                    : group.context.name
+                  : 'Without Context'}
+              </span>
+            </TruncateTooltip>
             <div className="flex-1 h-px bg-gray-700/40" />
             <span className="text-[9px] text-gray-500 font-mono">{group.requirements.length}</span>
           </div>

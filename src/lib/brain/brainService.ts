@@ -16,13 +16,17 @@ import { reflectionAgent } from '@/lib/brain/reflectionAgent';
 import { signalCollector } from '@/lib/brain/signalCollector';
 import { getBehavioralContext } from '@/lib/brain/behavioralContext';
 import { detectConflicts, markConflictsOnInsights } from '@/lib/brain/insightConflictDetector';
-import { normalize, tokenOverlap, DEDUP_THRESHOLD } from '@/lib/brain/insightSimilarity';
+import { tokenOverlap, DEDUP_THRESHOLD } from '@/lib/brain/insightSimilarity';
 import { autoPruneInsights, type AutoPruneResult } from '@/lib/brain/insightAutoPruner';
+import { generateInsightHash } from '@/lib/brain/insightId';
 import { predictiveIntentEngine } from '@/lib/brain/predictiveIntentEngine';
 import { brainReflectionDb, brainInsightDb, behavioralSignalDb } from '@/app/db';
 import { getDatabase } from '@/app/db/connection';
 import { getHotWritesDatabase } from '@/app/db/hot-writes';
 import type { LearningInsight, BehavioralSignalType, ReflectionTriggerType, EvidenceRef } from '@/app/db/models/brain.types';
+import { SignalType } from '@/types/signals';
+import { LRUCache } from '@/lib/brain/lruCache';
+import { tryClusterSignals } from '@/lib/brain/signalClusterer';
 
 // ---------------------------------------------------------------------------
 // Evidence coercion (LLM returns plain string IDs → classify by prefix)
@@ -45,7 +49,7 @@ function coerceEvidence(raw: unknown): EvidenceRef[] {
 // Context cache (moved from api/brain/context/route.ts)
 // ---------------------------------------------------------------------------
 
-const contextCache = new Map<string, { data: unknown; expiry: number }>();
+const contextCache = new LRUCache<string, { data: unknown; expiry: number }>(200);
 const CACHE_TTL_MS = 60 * 1000; // 60 seconds
 
 /**
@@ -53,36 +57,50 @@ const CACHE_TTL_MS = 60 * 1000; // 60 seconds
  * Called after signals are recorded, deleted, or decayed.
  */
 export function invalidateContextCache(projectId: string): void {
-  for (const key of contextCache.keys()) {
-    if (key.startsWith(`${projectId}:`)) {
-      contextCache.delete(key);
-    }
-  }
+  contextCache.deleteMatching(key => key.startsWith(`${projectId}:`));
 }
 
 // ---------------------------------------------------------------------------
-// Insight deduplication
+// Insight deduplication (canonical_id primary, fuzzy fallback)
 // ---------------------------------------------------------------------------
 
 function deduplicateInsights(
   newInsights: LearningInsight[],
-  existingInsights: LearningInsight[]
+  existingInsights: LearningInsight[],
+  projectId: string
 ): LearningInsight[] {
   if (existingInsights.length === 0) return newInsights;
+
+  // Build a map of canonical_id → existing insight for O(1) lookup
+  const existingByCanonical = new Map<string, LearningInsight>();
+  for (const existing of existingInsights) {
+    const hash = generateInsightHash(existing.type, existing.title, projectId);
+    existingByCanonical.set(hash, existing);
+  }
 
   const result: LearningInsight[] = [];
 
   for (const insight of newInsights) {
-    const match = existingInsights.find(existing => {
-      if (existing.type !== insight.type) return false;
-      return tokenOverlap(insight.title, existing.title) >= DEDUP_THRESHOLD;
-    });
+    const hash = generateInsightHash(insight.type, insight.title, projectId);
+
+    // Primary: O(1) canonical hash match
+    let match = existingByCanonical.get(hash);
+
+    // Fallback: O(n) fuzzy match for near-duplicates not caught by hash
+    if (!match) {
+      match = existingInsights.find(existing => {
+        if (existing.type !== insight.type) return false;
+        return tokenOverlap(insight.title, existing.title) >= DEDUP_THRESHOLD;
+      });
+    }
 
     if (!match) {
       result.push(insight);
     } else if (insight.confidence > match.confidence + 10) {
+      // Higher confidence → evolution of existing insight
       result.push({ ...insight, evolves: match.title });
     }
+    // else: duplicate with similar confidence → skip
   }
 
   return result;
@@ -159,28 +177,35 @@ export interface RecordSignalInput {
 }
 
 /**
- * Record a behavioral signal and invalidate the context cache.
+ * Record a behavioral signal, attempt session clustering, and invalidate cache.
  * Callers are responsible for validating data shape before calling.
  */
 export function recordSignal(input: RecordSignalInput): void {
   const { projectId, signalType, data, contextId, contextName } = input;
 
   switch (signalType) {
-    case 'git_activity':
+    case SignalType.GIT_ACTIVITY:
       signalCollector.recordGitActivity(projectId, data, contextId, contextName);
       break;
-    case 'api_focus':
+    case SignalType.API_FOCUS:
       signalCollector.recordApiFocus(projectId, data, contextId, contextName);
       break;
-    case 'context_focus':
+    case SignalType.CONTEXT_FOCUS:
       signalCollector.recordContextFocus(projectId, data);
       break;
-    case 'implementation':
+    case SignalType.IMPLEMENTATION:
       signalCollector.recordImplementation(projectId, data);
       break;
-    case 'cli_memory':
+    case SignalType.CLI_MEMORY:
       signalCollector.recordCliMemory(projectId, data, contextId, contextName);
       break;
+  }
+
+  // Post-write clustering hook: attempt to compress bursts of same-type signals
+  try {
+    tryClusterSignals(projectId, signalType);
+  } catch {
+    // Clustering is best-effort — never block signal recording
   }
 
   invalidateContextCache(projectId);
@@ -323,9 +348,9 @@ export function completeReflection(input: CompleteReflectionInput): CompleteRefl
   try {
     const db = getDatabase();
     const runCompletion = db.transaction(() => {
-      // Deduplicate insights against previously stored ones
+      // Deduplicate insights against previously stored ones (canonical_id based)
       const existingInsights = brainInsightDb.getAllInsights(projectId);
-      dedupedInsights = deduplicateInsights(validatedInsights, existingInsights);
+      dedupedInsights = deduplicateInsights(validatedInsights, existingInsights, projectId);
 
       // Detect conflicts between new insights and existing insights
       for (const insight of dedupedInsights) {
@@ -421,12 +446,6 @@ export function getContext(options: GetContextOptions): { context: unknown; cach
     if (cached && Date.now() < cached.expiry) {
       return { context: cached.data, cached: true };
     }
-  }
-
-  // Clean up expired entries on miss
-  const now = Date.now();
-  for (const [key, value] of contextCache.entries()) {
-    if (now > value.expiry) contextCache.delete(key);
   }
 
   const context = getBehavioralContext(projectId, windowDays);

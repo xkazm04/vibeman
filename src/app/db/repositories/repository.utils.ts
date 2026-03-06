@@ -75,6 +75,7 @@ const VALID_TABLE_NAMES = [
   'insight_effectiveness_cache',
   'insight_influence_log',
   'integration',
+  'integrations',
   'intent_predictions',
   'invariants',
   'learning_insights',

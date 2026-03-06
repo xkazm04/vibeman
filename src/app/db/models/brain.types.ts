@@ -10,8 +10,9 @@ export type { BehavioralSignalType };
 // Reflection trigger types
 export type ReflectionTriggerType = 'threshold' | 'scheduled' | 'manual';
 
-// Reflection status
-export type ReflectionStatus = 'pending' | 'running' | 'completed' | 'failed';
+// Reflection status (narrowed from unified StatusAlgebra)
+import type { BaseLifecycleStatus } from '@/lib/status';
+export type ReflectionStatus = BaseLifecycleStatus;
 
 // Reflection scope
 export type ReflectionScope = 'project' | 'global';
@@ -30,6 +31,7 @@ export interface DbBehavioralSignal {
   timestamp: string;
   created_at: string;
   decay_applied_at: string | null;
+  cluster_id: string | null;
 }
 
 /**
@@ -97,6 +99,30 @@ export interface CliMemorySignalData {
   source: 'claude_code_cli';
   sessionContext?: string;  // optional: what user was working on
   files?: string[];         // optional: related files
+}
+
+/**
+ * Session Cluster — compressed composite of related signals
+ */
+export interface SessionClusterSignalData {
+  /** IDs of the child signals that were compressed into this cluster */
+  childSignalIds: string[];
+  /** The dominant signal type within the cluster */
+  dominantType: BehavioralSignalType;
+  /** Number of signals in the cluster */
+  signalCount: number;
+  /** ISO timestamp of the earliest signal in the cluster */
+  startTime: string;
+  /** ISO timestamp of the latest signal in the cluster */
+  endTime: string;
+  /** Duration of the cluster in milliseconds */
+  durationMs: number;
+  /** Intensity: signals per minute within the cluster window */
+  intensity: number;
+  /** Unique files touched across all child signals (if applicable) */
+  filesTouched: string[];
+  /** Summary of activity (auto-generated) */
+  summary: string;
 }
 
 /**
@@ -201,6 +227,7 @@ export interface DbBrainInsight {
   description: string;
   confidence: number;
   evidence: string; // JSON array of direction/signal IDs
+  canonical_id: string | null; // hash-based dedup key (type+normalizedTitle+projectId)
   evolves_from_id: string | null; // FK to previous insight ID
   evolves_title: string | null; // original title for display (before FK was resolved)
   // Conflict fields

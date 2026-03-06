@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useShallow } from 'zustand/react/shallow';
 import TaskColumnHeader from './components/TaskColumnHeader';
@@ -11,6 +11,7 @@ import type { ProjectRequirement } from './lib/types';
 import { useTaskRunnerStore } from './store/taskRunnerStore';
 import type { AggregationCheckResult } from './lib/ideaAggregator';
 import type { DbIdea } from '@/app/db';
+import { fetchAutoAssignConfig } from '@/lib/autoAssignConfig';
 
 interface TaskColumnProps {
   projectId: string;
@@ -28,6 +29,7 @@ interface TaskColumnProps {
   aggregationData?: AggregationCheckResult | null;
   ideasData?: Record<string, DbIdea | null>;
   contextsData?: Record<string, ContextInfo>;
+  onAutoAssign?: (requirements: ProjectRequirement[], ideasMap: Record<string, DbIdea | null>) => void;
 }
 
 const TaskColumn = React.memo(function TaskColumn({
@@ -46,8 +48,10 @@ const TaskColumn = React.memo(function TaskColumn({
   aggregationData,
   ideasData,
   contextsData,
+  onAutoAssign,
 }: TaskColumnProps) {
   const [isAggregating, setIsAggregating] = useState(false);
+  const [pendingAutoAssign, setPendingAutoAssign] = useState(false);
 
   // Project-scoped store subscription: only re-renders when THIS project's tasks change
   const projectPrefix = `${projectId}:`;
@@ -157,6 +161,68 @@ const TaskColumn = React.memo(function TaskColumn({
     onToggleProjectSelection(projectId);
   }, [onToggleProjectSelection, projectId]);
 
+  // Auto-assign: selected idle requirements
+  const selectedIdleRequirements = useMemo(() => {
+    return requirementsWithStatus.filter((req) => {
+      const reqId = getRequirementId(req);
+      const isSelected = selectedRequirements.has(reqId);
+      const isIdle = !req.status || req.status.type === 'idle';
+      return isSelected && isIdle;
+    });
+  }, [requirementsWithStatus, selectedRequirements, getRequirementId]);
+
+  // After consolidation, fire auto-assign with fresh data once requirements re-render
+  useEffect(() => {
+    if (!pendingAutoAssign || !onAutoAssign) return;
+    const timer = setTimeout(() => {
+      setPendingAutoAssign(false);
+      // Use ALL idle requirements (old selection IDs are invalid after aggregation)
+      const allIdle = requirementsWithStatus.filter(
+        (req) => !req.status || req.status.type === 'idle'
+      );
+      if (allIdle.length > 0) {
+        onAutoAssign(allIdle, ideasMap);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [pendingAutoAssign, requirementsWithStatus, ideasMap, onAutoAssign]);
+
+  const handleAutoAssign = useCallback(async () => {
+    if (!onAutoAssign) return;
+
+    const config = await fetchAutoAssignConfig();
+
+    if (config.consolidateBeforeAssign && aggregationCheck?.canAggregate && projectPath) {
+      // Phase 1: Consolidate first (reuses existing aggregation flow)
+      setIsAggregating(true);
+      try {
+        const response = await fetch('/api/idea-aggregator', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectPath }),
+        });
+        const data = await response.json();
+        if (data.success) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          await onRefresh?.();
+          await checkAggregation();
+          setPendingAutoAssign(true); // Phase 2 handled by useEffect above
+          return;
+        }
+      } catch (error) {
+        console.error('Consolidation before auto-assign failed:', error);
+      } finally {
+        setIsAggregating(false);
+      }
+    }
+
+    // Direct assignment (consolidation disabled or not possible)
+    if (selectedIdleRequirements.length > 0) {
+      onAutoAssign(selectedIdleRequirements, ideasMap);
+    }
+  }, [onAutoAssign, aggregationCheck, projectPath, selectedIdleRequirements,
+      ideasMap, onRefresh, checkAggregation]);
+
   return (
     <motion.div
       className="flex flex-col bg-gray-900/40 border border-gray-700/40 rounded-lg overflow-hidden"
@@ -187,9 +253,11 @@ const TaskColumn = React.memo(function TaskColumn({
         onResetAllQueued={handleResetAllQueued}
         canBulkDelete={!!onBulkDelete}
         canReset={!!onReset}
+        onAutoAssign={onAutoAssign ? handleAutoAssign : undefined}
+        autoAssignCount={selectedIdleRequirements.length}
       />
 
-      <div className="flex-1 px-2 py-2 min-h-[100px] max-h-[500px] overflow-y-auto custom-scrollbar">
+      <div className="flex-1 px-2 py-2 min-h-[100px] max-h-[calc(100vh-220px)] overflow-y-auto custom-scrollbar">
         <TaskGroupedList
           groupedRequirements={groupedRequirements}
           selectedRequirements={selectedRequirements}

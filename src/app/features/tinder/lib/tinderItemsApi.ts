@@ -1,5 +1,9 @@
 /**
- * API functions for unified Tinder-style evaluation (Ideas + Directions)
+ * API functions for unified Tinder-style evaluation (Ideas + Directions).
+ *
+ * Write operations (accept/reject/delete) go through the unified
+ * POST /api/tinder/actions endpoint. Read operations use their
+ * dedicated GET endpoints.
  */
 
 import {
@@ -7,38 +11,41 @@ import {
   TinderFilterMode,
   TinderItemsResponse,
   isIdeaItem,
-  isDirectionItem
+  isDirectionItem,
+  isDirectionPairItem,
+  getTinderItemId,
 } from './tinderTypes';
 
-// In-flight accept tracking to prevent double-submission for directions.
-// Key is directionId, value is the pending promise.
-// Entries auto-expire after INFLIGHT_TTL_MS to prevent stale promises on unmount/navigation.
-const INFLIGHT_TTL_MS = 30_000;
-const inflightTinderAccepts = new Map<string, Promise<AcceptResult>>();
-const inflightTinderTimers = new Map<string, ReturnType<typeof setTimeout>>();
+// ---------------------------------------------------------------------------
+// In-flight dedup (prevents double-submission on rapid clicks)
+// ---------------------------------------------------------------------------
 
-function trackInflight<T>(map: Map<string, Promise<T>>, timers: Map<string, ReturnType<typeof setTimeout>>, key: string, promise: Promise<T>): void {
-  map.set(key, promise);
-  // Auto-cleanup after TTL in case the await is abandoned (e.g., navigation/unmount)
+const INFLIGHT_TTL_MS = 30_000;
+const inflightActions = new Map<string, Promise<ActionResult>>();
+const inflightTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function trackInflight(key: string, promise: Promise<ActionResult>): void {
+  inflightActions.set(key, promise);
   const timer = setTimeout(() => {
-    map.delete(key);
-    timers.delete(key);
+    inflightActions.delete(key);
+    inflightTimers.delete(key);
   }, INFLIGHT_TTL_MS);
-  timers.set(key, timer);
+  inflightTimers.set(key, timer);
 }
 
-function clearInflight<T>(map: Map<string, Promise<T>>, timers: Map<string, ReturnType<typeof setTimeout>>, key: string): void {
-  map.delete(key);
-  const timer = timers.get(key);
+function clearInflight(key: string): void {
+  inflightActions.delete(key);
+  const timer = inflightTimers.get(key);
   if (timer) {
     clearTimeout(timer);
-    timers.delete(key);
+    inflightTimers.delete(key);
   }
 }
 
-/**
- * Handle API response errors
- */
+// ---------------------------------------------------------------------------
+// Error handling
+// ---------------------------------------------------------------------------
+
 async function handleApiError(response: Response, defaultMessage: string): Promise<never> {
   try {
     const error = await response.json();
@@ -53,13 +60,84 @@ async function handleApiError(response: Response, defaultMessage: string): Promi
   }
 }
 
+// ---------------------------------------------------------------------------
+// Unified action types
+// ---------------------------------------------------------------------------
+
+type ItemType = 'idea' | 'direction' | 'direction_pair';
+type ActionType = 'accept' | 'reject' | 'delete';
+
+export interface PrerequisiteIdea {
+  id: string;
+  title: string;
+  status: string;
+  category: string;
+}
+
+/** Result from any tinder action (accept/reject/delete) */
+export interface ActionResult {
+  success: boolean;
+  requirementName?: string;
+  requirementPath?: string;
+  error?: string;
+  prerequisites?: PrerequisiteIdea[];
+  unlocks?: PrerequisiteIdea[];
+  rejectedCount?: number;
+  deletedCount?: number;
+}
+
+/** @deprecated Use ActionResult instead */
+export type AcceptResult = ActionResult;
+
+// ---------------------------------------------------------------------------
+// Core unified action caller
+// ---------------------------------------------------------------------------
+
+async function tinderAction(
+  itemType: ItemType,
+  itemId: string,
+  action: ActionType,
+  projectPath?: string,
+  metadata?: Record<string, unknown>
+): Promise<ActionResult> {
+  const response = await fetch('/api/tinder/actions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ itemType, itemId, action, projectPath, metadata }),
+  });
+
+  // 409 Conflict (already processed) is treated as success
+  if (response.status === 409) {
+    return { success: true };
+  }
+
+  if (!response.ok) {
+    await handleApiError(response, `Failed to ${action} ${itemType}`);
+  }
+
+  return response.json();
+}
+
+/** Resolve item type string from a TinderItem */
+function resolveItemType(item: TinderItem): ItemType {
+  if (isIdeaItem(item)) return 'idea';
+  if (isDirectionPairItem(item)) return 'direction_pair';
+  if (isDirectionItem(item)) return 'direction';
+  throw new Error('Unknown item type');
+}
+
+// ---------------------------------------------------------------------------
+// Read operations (unchanged — use dedicated GET endpoints)
+// ---------------------------------------------------------------------------
+
 /**
- * Fetch tinder items (ideas and/or directions) in batches
+ * Fetch tinder items (ideas and/or directions) in batches.
+ * Uses keyset pagination via `afterId` cursor instead of offset.
  */
 export async function fetchTinderItems(
   projectId: string | undefined,
   itemType: TinderFilterMode = 'both',
-  offset: number = 0,
+  afterId: string | null = null,
   limit: number = 20,
   category?: string | null,
   effortRange?: [number, number] | null,
@@ -67,22 +145,23 @@ export async function fetchTinderItems(
   sortOrder: 'asc' | 'desc' = 'asc'
 ): Promise<TinderItemsResponse> {
   const params = new URLSearchParams({
-    offset: offset.toString(),
     limit: limit.toString(),
     itemType,
     sortOrder,
   });
 
+  if (afterId) {
+    params.append('after_id', afterId);
+  }
+
   if (projectId && projectId !== 'all') {
     params.append('projectId', projectId);
   }
 
-  // Add category filter for ideas
   if (category && itemType === 'ideas') {
     params.append('category', category);
   }
 
-  // Add effort/risk range filters (server-side)
   if (effortRange) {
     params.append('effortMin', effortRange[0].toString());
     params.append('effortMax', effortRange[1].toString());
@@ -101,9 +180,6 @@ export async function fetchTinderItems(
   return response.json();
 }
 
-/**
- * Fetch idea categories with counts for filtering
- */
 import type { CategoryCount } from './tinderTypes';
 
 export interface CategoriesResponse {
@@ -130,162 +206,58 @@ export async function fetchIdeaCategories(
   return response.json();
 }
 
+// ---------------------------------------------------------------------------
+// Write operations — unified via /api/tinder/actions
+// ---------------------------------------------------------------------------
+
 /**
  * Accept a tinder item (idea or direction).
- * Dispatches to the correct endpoint based on item type.
- *
  * For directions: concurrent calls for the same ID coalesce into one request.
  * 409 Conflict (already accepted) is treated as success.
  */
-export interface PrerequisiteIdea {
-  id: string;
-  title: string;
-  status: string;
-  category: string;
-}
-
-export interface AcceptResult {
-  success: boolean;
-  requirementName?: string;
-  error?: string;
-  prerequisites?: PrerequisiteIdea[];
-  unlocks?: PrerequisiteIdea[];
-}
-
 export async function acceptTinderItem(
   item: TinderItem,
   projectPath: string
-): Promise<AcceptResult> {
-  if (isIdeaItem(item)) {
-    // Accept idea via existing endpoint
-    const response = await fetch('/api/ideas/tinder/accept', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ideaId: item.data.id, projectPath }),
-    });
+): Promise<ActionResult> {
+  const itemType = resolveItemType(item);
+  const itemId = getTinderItemId(item);
+  const key = `accept:${itemType}:${itemId}`;
 
-    if (!response.ok) {
-      await handleApiError(response, 'Failed to accept idea');
-    }
+  // Deduplicate concurrent calls
+  const existing = inflightActions.get(key);
+  if (existing) return existing;
 
-    return response.json();
-  } else if (isDirectionItem(item)) {
-    const directionId = item.data.id;
+  const promise = tinderAction(itemType, itemId, 'accept', projectPath);
+  trackInflight(key, promise);
 
-    // Deduplicate concurrent calls for the same direction
-    const existing = inflightTinderAccepts.get(directionId);
-    if (existing) return existing;
-
-    const promise = performAcceptDirection(directionId, projectPath);
-    trackInflight(inflightTinderAccepts, inflightTinderTimers, directionId, promise);
-
-    try {
-      return await promise;
-    } finally {
-      clearInflight(inflightTinderAccepts, inflightTinderTimers, directionId);
-    }
+  try {
+    return await promise;
+  } finally {
+    clearInflight(key);
   }
-
-  throw new Error('Unknown item type');
-}
-
-async function performAcceptDirection(
-  directionId: string,
-  projectPath: string
-): Promise<AcceptResult> {
-  const response = await fetch(`/api/directions/${directionId}/accept`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ projectPath }),
-  });
-
-  // 409 Conflict means direction was already accepted — treat as success
-  if (response.status === 409) {
-    return { success: true };
-  }
-
-  if (!response.ok) {
-    await handleApiError(response, 'Failed to accept direction');
-  }
-
-  return response.json();
 }
 
 /**
- * Reject a tinder item (idea or direction)
- * Dispatches to the correct endpoint based on item type
+ * Reject a tinder item (idea or direction).
  */
 export async function rejectTinderItem(
   item: TinderItem,
   projectPath?: string,
   rejectionReason?: string
-): Promise<{ success: boolean }> {
-  if (isIdeaItem(item)) {
-    // Reject idea via existing endpoint (with optional reason)
-    const response = await fetch('/api/ideas/tinder/reject', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ideaId: item.data.id, projectPath, rejectionReason }),
-    });
-
-    if (!response.ok) {
-      await handleApiError(response, 'Failed to reject idea');
-    }
-
-    return response.json();
-  } else if (isDirectionItem(item)) {
-    // Reject direction via PUT to update status
-    const response = await fetch(`/api/directions/${item.data.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'rejected' }),
-    });
-
-    if (!response.ok) {
-      await handleApiError(response, 'Failed to reject direction');
-    }
-
-    return { success: true };
-  }
-
-  throw new Error('Unknown item type');
+): Promise<ActionResult> {
+  const itemType = resolveItemType(item);
+  const itemId = getTinderItemId(item);
+  return tinderAction(itemType, itemId, 'reject', projectPath, { rejectionReason });
 }
 
 /**
- * Delete a tinder item (idea or direction)
- * Dispatches to the correct endpoint based on item type
+ * Delete a tinder item (idea or direction).
  */
-export async function deleteTinderItem(item: TinderItem): Promise<{ success: boolean }> {
-  if (isIdeaItem(item)) {
-    // Delete idea
-    const response = await fetch(`/api/ideas?id=${item.data.id}`, {
-      method: 'DELETE',
-    });
-
-    if (!response.ok) {
-      await handleApiError(response, 'Failed to delete idea');
-    }
-
-    return response.json();
-  } else if (isDirectionItem(item)) {
-    // Delete direction
-    const response = await fetch(`/api/directions/${item.data.id}`, {
-      method: 'DELETE',
-    });
-
-    if (!response.ok) {
-      await handleApiError(response, 'Failed to delete direction');
-    }
-
-    return { success: true };
-  }
-
-  throw new Error('Unknown item type');
+export async function deleteTinderItem(item: TinderItem): Promise<ActionResult> {
+  const itemType = resolveItemType(item);
+  const itemId = getTinderItemId(item);
+  return tinderAction(itemType, itemId, 'delete');
 }
-
-// In-flight pair accept tracking to prevent double-submission.
-const inflightPairAccepts = new Map<string, Promise<AcceptResult>>();
-const inflightPairTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 /**
  * Accept one variant from a direction pair.
@@ -296,67 +268,98 @@ export async function acceptPairVariant(
   pairId: string,
   variant: 'A' | 'B',
   projectPath: string
-): Promise<AcceptResult> {
-  const key = `${pairId}:${variant}`;
-  const existing = inflightPairAccepts.get(key);
+): Promise<ActionResult> {
+  const key = `accept:direction_pair:${pairId}:${variant}`;
+  const existing = inflightActions.get(key);
   if (existing) return existing;
 
-  const promise = (async () => {
-    const response = await fetch(`/api/directions/pair/${pairId}/accept`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ variant, projectPath }),
-    });
+  const promise = tinderAction('direction_pair', pairId, 'accept', projectPath, { variant });
+  trackInflight(key, promise);
 
-    if (response.status === 409) {
-      return { success: true };
-    }
-
-    if (!response.ok) {
-      await handleApiError(response, 'Failed to accept direction variant');
-    }
-
-    return response.json();
-  })();
-
-  trackInflight(inflightPairAccepts, inflightPairTimers, key, promise);
   try {
     return await promise;
   } finally {
-    clearInflight(inflightPairAccepts, inflightPairTimers, key);
+    clearInflight(key);
   }
 }
 
 /**
- * Reject both directions in a pair
+ * Reject both directions in a pair.
  */
-export async function rejectDirectionPair(pairId: string): Promise<{ success: boolean }> {
-  const response = await fetch(`/api/directions/pair/${pairId}/reject`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+export async function rejectDirectionPair(pairId: string): Promise<ActionResult> {
+  return tinderAction('direction_pair', pairId, 'reject');
+}
+
+/**
+ * Delete both directions in a pair.
+ */
+export async function deleteDirectionPair(pairId: string): Promise<ActionResult> {
+  return tinderAction('direction_pair', pairId, 'delete');
+}
+
+// ---------------------------------------------------------------------------
+// Idea-specific helpers (used by useTinderIdeas hook)
+// Thin wrappers around tinderAction for consumers that work with raw idea IDs
+// rather than TinderItem objects.
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch pending ideas in batches (ideas-only read path).
+ */
+export async function fetchIdeasBatch(
+  projectId?: string,
+  offset: number = 0,
+  limit: number = 20
+): Promise<{ ideas: import('@/app/db').DbIdea[]; hasMore: boolean; total: number }> {
+  const params = new URLSearchParams({
+    offset: offset.toString(),
+    limit: limit.toString(),
+    status: 'pending',
   });
 
+  if (projectId && projectId !== 'all') {
+    params.append('projectId', projectId);
+  }
+
+  const response = await fetch(`/api/ideas/tinder?${params.toString()}`);
+
   if (!response.ok) {
-    await handleApiError(response, 'Failed to reject direction pair');
+    await handleApiError(response, 'Failed to fetch ideas');
   }
 
   return response.json();
 }
 
 /**
- * Delete both directions in a pair
+ * Accept a single idea by ID and project path.
  */
-export async function deleteDirectionPair(pairId: string): Promise<{ success: boolean }> {
-  const response = await fetch(`/api/directions/pair/${pairId}`, {
-    method: 'DELETE',
-  });
-
-  if (!response.ok) {
-    await handleApiError(response, 'Failed to delete direction pair');
-  }
-
-  return response.json();
+export async function acceptIdeaById(
+  ideaId: string,
+  projectPath: string
+): Promise<ActionResult> {
+  return tinderAction('idea', ideaId, 'accept', projectPath);
 }
+
+/**
+ * Reject a single idea by ID.
+ */
+export async function rejectIdeaById(
+  ideaId: string,
+  projectPath?: string
+): Promise<ActionResult> {
+  return tinderAction('idea', ideaId, 'reject', projectPath);
+}
+
+/**
+ * Delete a single idea by ID.
+ */
+export async function deleteIdeaById(ideaId: string): Promise<ActionResult> {
+  return tinderAction('idea', ideaId, 'delete');
+}
+
+// ---------------------------------------------------------------------------
+// Flush (bulk delete)
+// ---------------------------------------------------------------------------
 
 /**
  * Flush (permanently delete) pending items based on filter mode

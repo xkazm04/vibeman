@@ -1,11 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Monitor, AlertTriangle } from 'lucide-react';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 
 export const StandalonePreviewLever: React.FC = () => {
-  const { activeProject, showPreview, togglePreview } = useActiveProjectStore();
+  const { activeProject, showPreview, togglePreview } = useClientProjectStore();
   const { processes } = useServerProjectStore();
 
   const status = activeProject ? processes[activeProject.id] : null;

@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Edit3, Loader2 } from 'lucide-react';
 import ProjectForm from './ProjectForm';
 import { Project, ProjectType } from '@/types';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import type { ProjectFormData } from '../../sub_ProjectForm';
 
 interface ProjectEditProps {
@@ -25,8 +25,8 @@ function normalizeProjectType(type: string | undefined): ProjectType {
 export default function ProjectEdit({ isOpen, onClose, onProjectUpdated, project }: ProjectEditProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { updateProject } = useProjectConfigStore();
-  const { activeProject, setActiveProject } = useActiveProjectStore();
+  const { updateProject } = useServerProjectStore();
+  const { activeProject, setActiveProject } = useClientProjectStore();
 
   // Handler for immediate type update with optimistic UI
   const handleTypeChange = async (newType: ProjectType) => {

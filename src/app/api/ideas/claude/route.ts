@@ -12,6 +12,11 @@ import { buildPrompt, PromptOptions } from '@/app/projects/ProjectAI/ScanIdeas/p
 import { buildContextSection, buildExistingIdeasSection, buildGoalsSection, buildBehavioralSection } from '@/app/projects/ProjectAI/ScanIdeas/lib/sectionBuilders';
 import { contextDb, contextGroupDb, goalDb, ideaDb, DbContext, DbContextGroup } from '@/app/db';
 import { logger } from '@/lib/logger';
+import {
+  IdeasErrorCode,
+  createIdeasErrorResponse,
+  handleIdeasApiError,
+} from '@/app/features/Ideas/lib/ideasHandlers';
 
 interface ClaudeIdeasRequest {
   projectId: string;
@@ -451,8 +456,11 @@ ${fullPrompt}
 
 **Note:** These API calls go to Vibeman's idea management system (${apiUrl}), NOT the project you're analyzing.
 
-**IMPORTANT:** For group-level ideas, set context_id to null since the idea spans multiple contexts.
-Include a note in the idea description that it relates to the "${group.name}" group.
+**IMPORTANT:** For each idea, assign \`context_id\` to the most relevant context from the list below.
+Only use \`null\` if the idea truly spans ALL contexts equally and cannot be attributed to a single one.
+
+### Available Contexts in This Group
+${contexts.map(ctx => `- \`${ctx.id}\`: **${ctx.name}** — ${ctx.description || 'No description'}`).join('\n')}
 
 You need to perform TWO steps to save ideas:
 
@@ -481,11 +489,11 @@ Content-Type: application/json
 {
   "scan_id": "<scan_id_from_step_1>",
   "project_id": "${projectId}",
-  "context_id": null,
+  "context_id": "<most_relevant_context_id_from_list_above_or_null>",
   "scan_type": "${scanType}",
   "category": "<category>",
   "title": "<title>",
-  "description": "<description> (Note: This idea relates to the ${group.name} group)",
+  "description": "<description>",
   "reasoning": "<reasoning>",
   "effort": <1-10>,
   "impact": <1-10>,
@@ -543,7 +551,7 @@ curl -X POST ${apiUrl}/api/ideas \\
   -d '{
     "scan_id": "'$SCAN_ID'",
     "project_id": "${projectId}",
-    "context_id": null,
+    "context_id": "${contexts[0]?.id || 'null'}",
     "scan_type": "${scanType}",
     "category": "functionality",
     "title": "Example: Cross-context caching strategy for ${group.name}",
@@ -630,10 +638,9 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!projectId || !projectName || !projectPath || !scanType) {
-      return NextResponse.json(
-        { error: 'projectId, projectName, projectPath, and scanType are required' },
-        { status: 400 }
-      );
+      return createIdeasErrorResponse(IdeasErrorCode.MISSING_REQUIRED_FIELD, {
+        message: 'projectId, projectName, projectPath, and scanType are required',
+      });
     }
 
     let requirementContent: string;
@@ -643,19 +650,22 @@ export async function POST(request: NextRequest) {
       // Load group with all its contexts and file paths
       const group = contextGroupDb.getGroupById(groupId);
       if (!group) {
-        return NextResponse.json(
-          { error: `Context group not found: ${groupId}` },
-          { status: 404 }
-        );
+        return createIdeasErrorResponse(IdeasErrorCode.CONTEXT_NOT_FOUND, {
+          message: `Context group not found: ${groupId}`,
+        });
       }
 
       const groupContexts = contextDb.getContextsByGroup(groupId);
       const allFilePaths = groupContexts.flatMap(ctx => {
-        // Parse file_paths if it's a JSON string
-        const filePaths = typeof ctx.file_paths === 'string'
-          ? JSON.parse(ctx.file_paths)
-          : ctx.file_paths;
-        return filePaths || [];
+        try {
+          const filePaths = typeof ctx.file_paths === 'string'
+            ? JSON.parse(ctx.file_paths)
+            : ctx.file_paths;
+          return filePaths || [];
+        } catch (e) {
+          console.warn(`[claude/route] Malformed file_paths JSON in context ${ctx.id}, skipping:`, e);
+          return [];
+        }
       });
 
       const groupData: GroupData = {
@@ -703,9 +713,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     logger.error('[API] Claude Ideas error:', { error });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return handleIdeasApiError(error);
   }
 }

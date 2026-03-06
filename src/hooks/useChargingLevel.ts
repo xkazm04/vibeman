@@ -1,11 +1,10 @@
 import { useMemo } from 'react';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
 
 export const useChargingLevel = () => {
   // Use Zustand selectors to subscribe to specific state slices
   const processes = useServerProjectStore((state) => state.processes);
-  const projects = useProjectConfigStore((state) => state.projects);
+  const projects = useServerProjectStore((state) => state.projects);
 
   const chargingLevel = useMemo(() => {
     // Maximum of 4 projects as specified

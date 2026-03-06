@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Folder, FolderOpen, File, ChevronRight, ChevronDown } from 'lucide-react';
-import { useActiveProjectStore } from '../stores/activeProjectStore';
+import { useClientProjectStore } from '../stores/clientProjectStore';
 import { useThemeStore } from '@/stores/themeStore';
 
 interface FolderNode {
@@ -19,7 +19,7 @@ interface FolderSelectorProps {
 }
 
 export default function FolderSelector({ onSelect, selectedPath, className = '' }: FolderSelectorProps) {
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
   const { getThemeColors } = useThemeStore();
   const colors = getThemeColors();
   const [folderTree, setFolderTree] = useState<FolderNode[]>([]);

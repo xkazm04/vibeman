@@ -5,8 +5,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useMotionValue, useTransform, PanInfo, MotionValue } from 'framer-motion';
 import { DbIdea } from '@/app/db';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
-import { fetchIdeasBatch, acceptIdea, rejectIdea, deleteIdea } from './tinderApi';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
+import { fetchIdeasBatch, acceptIdeaById, rejectIdeaById, deleteIdeaById } from './tinderItemsApi';
 import { TINDER_CONSTANTS } from './tinderUtils';
 
 export interface TinderStats {
@@ -41,7 +41,7 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState<TinderStats>({ accepted: 0, rejected: 0, deleted: 0 });
 
-  const { getProject } = useProjectConfigStore();
+  const { getProject } = useServerProjectStore();
 
   const loadIdeas = useCallback(async (offset: number = 0) => {
     setLoading(true);
@@ -98,7 +98,7 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
     setIdeas(prev => prev.filter(idea => idea.id !== ideaId));
 
     try {
-      await acceptIdea(ideaId, selectedProject.path);
+      await acceptIdeaById(ideaId, selectedProject.path);
       setStats(prev => ({ ...prev, accepted: prev.accepted + 1 }));
       loadMoreIfNeeded();
     } catch (error) {
@@ -128,7 +128,7 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
     setIdeas(prev => prev.filter(idea => idea.id !== ideaId));
 
     try {
-      await rejectIdea(ideaId, selectedProject?.path);
+      await rejectIdeaById(ideaId, selectedProject?.path);
       setStats(prev => ({ ...prev, rejected: prev.rejected + 1 }));
       loadMoreIfNeeded();
     } catch (error) {
@@ -157,7 +157,7 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
     setIdeas(prev => prev.filter(idea => idea.id !== ideaId));
 
     try {
-      await deleteIdea(ideaId);
+      await deleteIdeaById(ideaId);
       setStats(prev => ({ ...prev, deleted: prev.deleted + 1 }));
       loadMoreIfNeeded();
     } catch (error) {

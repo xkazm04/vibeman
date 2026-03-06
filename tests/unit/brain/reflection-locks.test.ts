@@ -49,6 +49,7 @@ function createBrainTables(db: Database.Database) {
       description TEXT NOT NULL,
       confidence INTEGER NOT NULL DEFAULT 50,
       evidence TEXT NOT NULL DEFAULT '[]',
+      canonical_id TEXT,
       evolves_from_id TEXT,
       evolves_title TEXT,
       conflict_with_id TEXT,
@@ -62,6 +63,20 @@ function createBrainTables(db: Database.Database) {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       FOREIGN KEY (reflection_id) REFERENCES brain_reflections(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS insight_lineage (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      parent_insight_id TEXT NOT NULL,
+      child_insight_id TEXT NOT NULL,
+      relationship_type TEXT NOT NULL,
+      reason TEXT,
+      resolved INTEGER DEFAULT 0,
+      resolution_method TEXT,
+      created_at TEXT NOT NULL,
+      resolved_at TEXT,
+      FOREIGN KEY (parent_insight_id) REFERENCES brain_insights(id) ON DELETE CASCADE,
+      FOREIGN KEY (child_insight_id) REFERENCES brain_insights(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS brain_insight_evidence (

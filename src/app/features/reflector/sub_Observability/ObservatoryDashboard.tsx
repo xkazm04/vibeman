@@ -13,7 +13,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Compass, Activity, RefreshCw, Calendar, Settings, Grid3X3, List } from 'lucide-react';
+import { Compass, Activity, RefreshCw, Calendar, Settings, Grid3X3, List, Database } from 'lucide-react';
 
 // Architecture components from Docs
 import SystemMap from '@/app/features/Docs/sub_DocsAnalysis/components/SystemMap';
@@ -42,7 +42,7 @@ import {
 } from '@/app/features/Docs/sub_DocsAnalysis/lib/useDocsAnalysisQueries';
 
 // Observability components
-import { ObsKPICards, EndpointUsageChart, EndpointTable, OnboardingStepper } from './components';
+import { ObsKPICards, EndpointUsageChart, EndpointTable, OnboardingStepper, DatabaseHealthPanel } from './components';
 import {
   fetchObservabilityStats,
   checkProjectRegistration,
@@ -52,9 +52,8 @@ import { ObsStatsResponse, ObsEndpointSummary, ObsConfigResponse } from './lib/t
 
 // Stores
 import { useClientProjectStore } from '@/stores/clientProjectStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
 
-type ViewMode = 'architecture' | 'metrics';
+type ViewMode = 'architecture' | 'metrics' | 'database';
 
 interface DashboardState {
   loading: boolean;
@@ -77,7 +76,7 @@ const DAYS_OPTIONS = [
 
 export default function ObservatoryDashboard() {
   const { activeProject: clientProject } = useClientProjectStore();
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
 
   // Use either project store's active project
   const projectId = activeProject?.id || clientProject?.id || '';
@@ -377,6 +376,17 @@ export default function ObservatoryDashboard() {
               <Activity className="w-4 h-4" />
               Metrics
             </button>
+            <button
+              onClick={() => setViewMode('database')}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-2 ${
+                viewMode === 'database'
+                  ? 'bg-cyan-500/20 text-cyan-300'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              <Database className="w-4 h-4" />
+              DB Health
+            </button>
           </div>
 
           {/* Date range selector (for metrics) */}
@@ -461,7 +471,10 @@ export default function ObservatoryDashboard() {
       )}
 
       {/* Content Area */}
-      {viewMode === 'architecture' ? (
+      {viewMode === 'database' ? (
+        /* Database Health View */
+        <DatabaseHealthPanel projectId={projectId} />
+      ) : viewMode === 'architecture' ? (
         /* Architecture Explorer View */
         <div
           className="h-[600px] flex flex-col bg-gradient-to-br from-slate-950 via-gray-900 to-slate-950 rounded-2xl overflow-hidden border border-gray-700/30"

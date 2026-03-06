@@ -254,6 +254,44 @@ export function handleIdeasApiError(
 }
 
 // =============================================================================
+// ROUTE ERROR HANDLER MIDDLEWARE
+// =============================================================================
+
+/**
+ * Wraps a Next.js route handler with standardized Ideas error handling.
+ *
+ * Any uncaught exception becomes a consistent IdeasApiError response
+ * using the specified default error code.
+ *
+ * @param handler - The route handler function
+ * @param defaultCode - Error code for unexpected exceptions (default: INTERNAL_ERROR)
+ * @returns Wrapped handler that catches exceptions and returns IdeasApiError responses
+ *
+ * @example
+ * async function handlePost(request: NextRequest) {
+ *   // validation errors use createIdeasErrorResponse directly
+ *   const body = await request.json();
+ *   if (!body.id) return createMissingFieldError('id');
+ *   // ... business logic
+ * }
+ * export const POST = withIdeasErrorHandler(handlePost);
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function withIdeasErrorHandler<T extends (...args: any[]) => Promise<NextResponse<any>>>(
+  handler: T,
+  defaultCode: IdeasErrorCodeType = IdeasErrorCode.INTERNAL_ERROR,
+): T {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (async (...args: any[]) => {
+    try {
+      return await handler(...args);
+    } catch (error) {
+      return handleIdeasApiError(error, defaultCode);
+    }
+  }) as T;
+}
+
+// =============================================================================
 // TYPE GUARDS AND UTILITIES
 // =============================================================================
 
@@ -272,7 +310,9 @@ export function isIdeasApiError(error: unknown): error is IdeasApiError {
 }
 
 /**
- * Valid idea statuses for validation
+ * Valid idea statuses for query filtering.
+ * Core statuses come from IdeaStateMachine; extra values are accepted
+ * as filter parameters even if no rows match.
  */
 export const VALID_IDEA_STATUSES = [
   'pending',
@@ -286,7 +326,8 @@ export const VALID_IDEA_STATUSES = [
 export type IdeaStatus = typeof VALID_IDEA_STATUSES[number];
 
 /**
- * Validates if a status string is a valid idea status
+ * Validates if a status string is a valid idea status (for query filtering).
+ * For transition validation, use IdeaStateMachine.authorize() instead.
  */
 export function isValidIdeaStatus(status: string): status is IdeaStatus {
   return VALID_IDEA_STATUSES.includes(status as IdeaStatus);

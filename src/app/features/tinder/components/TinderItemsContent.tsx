@@ -3,8 +3,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Sparkles, Trash2, RefreshCw, Link2, AlertTriangle, Zap, X, Check } from 'lucide-react';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
-import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { GradientButton } from '@/components/ui';
 import IdeaCard from './IdeaCard';
 import DirectionCard from './DirectionCard';
@@ -34,6 +34,7 @@ const TINDER_KEYBOARD_HINTS = [
   { key: 'Z', label: 'Reject', color: 'red' as const },
   { key: 'D', label: 'Delete', color: 'gray' as const },
   { key: 'V', label: 'Variants', color: 'purple' as const },
+  { key: '?', label: 'Shortcuts', color: 'gray' as const },
 ];
 
 // ── Rejection Reason Picker ──────────────────────────────────────────────────
@@ -138,8 +139,8 @@ export default function TinderItemsContent({
   prerequisiteNotification,
   onDismissPrerequisiteNotification,
 }: TinderItemsContentProps) {
-  const { getProject, projects } = useProjectConfigStore();
-  const { selectedProjectId } = useUnifiedProjectStore();
+  const { getProject, projects } = useServerProjectStore();
+  const { selectedProjectId } = useClientProjectStore();
   const [flushing, setFlushing] = React.useState(false);
   const [flushError, setFlushError] = React.useState<string | null>(null);
   const [flushSuccess, setFlushSuccess] = React.useState(false);

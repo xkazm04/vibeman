@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import { FolderOpen, Settings2, GitBranch, Terminal } from 'lucide-react';
-import { useProjectConfigStore } from '../../../../stores/projectConfigStore';
+import { useServerProjectStore } from '../../../../stores/serverProjectStore';
 import ProjectPortSelection from './ProjectPortSelection';
 import {
   PathSelection,
@@ -68,7 +68,7 @@ export default function ProjectForm({
   workspaceId,
   workspaceBasePath
 }: ProjectFormProps) {
-  const { projects } = useProjectConfigStore();
+  const { projects } = useServerProjectStore();
   const [loadingDirectories, setLoadingDirectories] = useState(false);
   const [directories, setDirectories] = useState<Directory[]>([]);
   const [parentPath, setParentPath] = useState(workspaceBasePath || '');

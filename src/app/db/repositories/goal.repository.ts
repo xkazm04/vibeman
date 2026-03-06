@@ -1,6 +1,12 @@
 import { getDatabase } from '../connection';
 import { DbGoal } from '../models/types';
-import { buildUpdateQuery, getCurrentTimestamp, selectOne } from './repository.utils';
+import { getCurrentTimestamp, selectOne } from './repository.utils';
+import { createGenericRepository } from './generic.repository';
+
+const base = createGenericRepository<DbGoal>({
+  tableName: 'goals',
+  defaultOrder: 'order_index ASC',
+});
 
 /**
  * Goal Repository
@@ -10,23 +16,12 @@ export const goalRepository = {
   /**
    * Get all goals for a project
    */
-  getGoalsByProject: (projectId: string): DbGoal[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM goals
-      WHERE project_id = ?
-      ORDER BY order_index ASC
-    `);
-    return stmt.all(projectId) as DbGoal[];
-  },
+  getGoalsByProject: (projectId: string): DbGoal[] => base.getByProject(projectId),
 
   /**
    * Get a single goal by ID
    */
-  getGoalById: (goalId: string): DbGoal | null => {
-    const db = getDatabase();
-    return selectOne<DbGoal>(db, 'SELECT * FROM goals WHERE id = ?', goalId);
-  },
+  getGoalById: (goalId: string): DbGoal | null => base.getById(goalId),
 
   /**
    * Create a new goal
@@ -60,7 +55,7 @@ export const goalRepository = {
       now
     );
 
-    return selectOne<DbGoal>(db, 'SELECT * FROM goals WHERE id = ?', goal.id)!;
+    return base.getById(goal.id)!;
   },
 
   /**
@@ -72,43 +67,12 @@ export const goalRepository = {
     status?: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
     order_index?: number;
     context_id?: string | null;
-  }): DbGoal | null => {
-    const db = getDatabase();
-    const { fields, values } = buildUpdateQuery(updates);
-
-    if (fields.length === 0) {
-      return selectOne<DbGoal>(db, 'SELECT * FROM goals WHERE id = ?', id);
-    }
-
-    const now = getCurrentTimestamp();
-    fields.push('updated_at = ?');
-    values.push(now);
-    values.push(id);
-
-    const stmt = db.prepare(`
-      UPDATE goals
-      SET ${fields.join(', ')}
-      WHERE id = ?
-    `);
-
-    const result = stmt.run(...values);
-
-    if (result.changes === 0) {
-      return null;
-    }
-
-    return selectOne<DbGoal>(db, 'SELECT * FROM goals WHERE id = ?', id);
-  },
+  }): DbGoal | null => base.update(id, updates as Record<string, unknown>),
 
   /**
    * Delete a goal
    */
-  deleteGoal: (id: string): boolean => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM goals WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
-  },
+  deleteGoal: (id: string): boolean => base.deleteById(id),
 
   /**
    * Get in-progress goals that match a specific context_id

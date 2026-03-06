@@ -1,6 +1,11 @@
 import { getDatabase } from '../connection';
 import { DbContext } from '../models/types';
-import { buildUpdateQuery, getCurrentTimestamp, selectOne } from './repository.utils';
+import { getCurrentTimestamp, selectOne } from './repository.utils';
+import { createGenericRepository } from './generic.repository';
+
+const base = createGenericRepository<DbContext>({
+  tableName: 'contexts',
+});
 
 /**
  * Context Repository
@@ -167,122 +172,21 @@ export const contextRepository = {
     cross_refs?: string | null;
     tech_stack?: string | null;
   }): DbContext | null => {
-    const db = getDatabase();
-    const now = new Date().toISOString();
-
-    // Build dynamic update query
-    const updateFields: string[] = [];
-    const values: (string | number | null)[] = [];
-
-    if (updates.name !== undefined) {
-      updateFields.push('name = ?');
-      values.push(updates.name);
-    }
-    if (updates.description !== undefined) {
-      updateFields.push('description = ?');
-      values.push(updates.description || null);
-    }
+    // Transform fields that need special handling before delegating to base.update
+    const dbUpdates: Record<string, unknown> = { ...updates };
     if (updates.file_paths !== undefined) {
-      updateFields.push('file_paths = ?');
-      values.push(JSON.stringify(updates.file_paths));
-    }
-    if (updates.group_id !== undefined) {
-      updateFields.push('group_id = ?');
-      values.push(updates.group_id);
+      dbUpdates.file_paths = JSON.stringify(updates.file_paths);
     }
     if (updates.has_context_file !== undefined) {
-      updateFields.push('has_context_file = ?');
-      values.push(updates.has_context_file ? 1 : 0);
+      dbUpdates.has_context_file = updates.has_context_file ? 1 : 0;
     }
-    if (updates.context_file_path !== undefined) {
-      updateFields.push('context_file_path = ?');
-      values.push(updates.context_file_path);
-    }
-    if (updates.preview !== undefined) {
-      updateFields.push('preview = ?');
-      values.push(updates.preview);
-    }
-    if (updates.test_scenario !== undefined) {
-      updateFields.push('test_scenario = ?');
-      values.push(updates.test_scenario);
-    }
-    if (updates.test_updated !== undefined) {
-      updateFields.push('test_updated = ?');
-      values.push(updates.test_updated);
-    }
-    if (updates.target !== undefined) {
-      updateFields.push('target = ?');
-      values.push(updates.target);
-    }
-    if (updates.target_fulfillment !== undefined) {
-      updateFields.push('target_fulfillment = ?');
-      values.push(updates.target_fulfillment);
-    }
-    if (updates.target_rating !== undefined) {
-      updateFields.push('target_rating = ?');
-      values.push(updates.target_rating);
-    }
-    if (updates.entry_points !== undefined) {
-      updateFields.push('entry_points = ?');
-      values.push(updates.entry_points);
-    }
-    if (updates.db_tables !== undefined) {
-      updateFields.push('db_tables = ?');
-      values.push(updates.db_tables);
-    }
-    if (updates.keywords !== undefined) {
-      updateFields.push('keywords = ?');
-      values.push(updates.keywords);
-    }
-    if (updates.api_surface !== undefined) {
-      updateFields.push('api_surface = ?');
-      values.push(updates.api_surface);
-    }
-    if (updates.cross_refs !== undefined) {
-      updateFields.push('cross_refs = ?');
-      values.push(updates.cross_refs);
-    }
-    if (updates.tech_stack !== undefined) {
-      updateFields.push('tech_stack = ?');
-      values.push(updates.tech_stack);
-    }
-
-    if (updateFields.length === 0) {
-      // No updates to make
-      const selectStmt = db.prepare('SELECT * FROM contexts WHERE id = ?');
-      return selectStmt.get(id) as DbContext | null;
-    }
-
-    updateFields.push('updated_at = ?');
-    values.push(now);
-    values.push(id);
-
-    const stmt = db.prepare(`
-      UPDATE contexts
-      SET ${updateFields.join(', ')}
-      WHERE id = ?
-    `);
-
-    const result = stmt.run(...values);
-
-    if (result.changes === 0) {
-      return null; // Context not found
-    }
-
-    // Return the updated context
-    const selectStmt = db.prepare('SELECT * FROM contexts WHERE id = ?');
-    return selectStmt.get(id) as DbContext;
+    return base.update(id, dbUpdates);
   },
 
   /**
    * Delete a context
    */
-  deleteContext: (id: string): boolean => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM contexts WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
-  },
+  deleteContext: (id: string): boolean => base.deleteById(id),
 
   /**
    * Move context to different group
@@ -333,12 +237,7 @@ export const contextRepository = {
   /**
    * Delete all contexts for a project
    */
-  deleteAllContextsByProject: (projectId: string): number => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM contexts WHERE project_id = ?');
-    const result = stmt.run(projectId);
-    return result.changes;
-  },
+  deleteAllContextsByProject: (projectId: string): number => base.deleteByProject(projectId),
 
   /**
    * Batch move contexts to new groups in 2 queries (1 UPDATE + 1 SELECT)

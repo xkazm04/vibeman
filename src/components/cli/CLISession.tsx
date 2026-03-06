@@ -2,7 +2,7 @@
 
 import { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Play, CheckCircle, XCircle, Clock, Copy, Check, Github, Settings, X, AlertTriangle } from 'lucide-react';
+import { Plus, Play, CheckCircle, XCircle, Clock, Copy, Check, Github, Settings, X, AlertTriangle, RotateCcw } from 'lucide-react';
 import { CompactTerminal } from './CompactTerminal';
 import { CLIGitConfigPanel } from './CLIGitConfigPanel';
 import type { QueuedTask } from './types';
@@ -152,8 +152,8 @@ export function CLISession({
 
   // ---- Nerd Mode: stripped-down, animation-free, monospace ----
   if (nerdMode) {
-    const statusText = isRunning ? 'RUN' : hasQueue ? 'IDLE' : '---';
-    const statusClass = isRunning ? 'text-cyan-400' : hasQueue ? 'text-gray-300' : 'text-gray-600';
+    const statusText = session.isRecovering ? 'RCV' : isRunning ? 'RUN' : hasQueue ? 'IDLE' : '---';
+    const statusClass = session.isRecovering ? 'text-amber-400' : isRunning ? 'text-cyan-400' : hasQueue ? 'text-gray-300' : 'text-gray-600';
 
     return (
       <div className="flex flex-col font-mono border border-gray-800 bg-gray-950 overflow-hidden">
@@ -354,6 +354,13 @@ export function CLISession({
               </div>
             )}
           </div>
+          {/* Per-session recovery indicator */}
+          {session.isRecovering && (
+            <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 bg-amber-500/10 text-amber-400 rounded font-medium border border-amber-500/20 animate-pulse">
+              <RotateCcw className="w-2.5 h-2.5 animate-spin" />
+              Recovering...
+            </span>
+          )}
           {/* Session resolved count */}
           {session.completedCount > 0 && (
             <span className="text-[9px] px-1.5 py-0.5 bg-gradient-to-r from-green-500/10 to-emerald-500/10 text-green-400 rounded font-medium border border-green-500/20">

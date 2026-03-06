@@ -1,6 +1,7 @@
 'use client';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Wifi, WifiOff } from 'lucide-react';
+import { X, Wifi, WifiOff, Upload } from 'lucide-react';
 import type { ProjectRequirement, TaskRunnerActions } from './lib/types';
 import { CLIBatchPanel } from '@/components/cli';
 import TaskMonitor from './components/TaskMonitor';
@@ -39,6 +40,28 @@ export default function TaskRunnerHeader({
     toggleRemoteMode,
   } = useRemoteTaskRunner();
 
+  // Sync projects to Supabase
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
+
+  const handleSyncProjects = async () => {
+    setIsSyncing(true);
+    setSyncFeedback(null);
+    try {
+      const res = await fetch('/api/external-requirements/sync-projects', { method: 'POST' });
+      const data = await res.json();
+      setSyncFeedback(
+        data.success
+          ? `Synced ${data.synced} project${data.synced !== 1 ? 's' : ''}`
+          : data.error || 'Sync failed'
+      );
+    } catch {
+      setSyncFeedback('Network error');
+    }
+    setIsSyncing(false);
+    setTimeout(() => setSyncFeedback(null), 3000);
+  };
+
   const clearError = () => {
     setError(undefined);
   };
@@ -73,7 +96,19 @@ export default function TaskRunnerHeader({
       {/* Controls Row */}
       <div className="flex items-center justify-between">
         <div className="flex-1" />
-        <div className="flex-1 flex justify-end">
+        <div className="flex-1 flex justify-end gap-2">
+          {/* Sync Projects to Supabase */}
+          <button
+            onClick={handleSyncProjects}
+            disabled={isSyncing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-gray-800/50 text-gray-400 hover:text-teal-400 hover:bg-teal-500/10 border border-gray-700/50 hover:border-teal-500/30 transition-all duration-200 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 active:scale-95"
+            title={syncFeedback || 'Sync projects to Supabase for external requirements'}
+            data-testid="sync-projects-btn"
+          >
+            <Upload className={`w-3.5 h-3.5 ${isSyncing ? 'animate-pulse' : ''}`} />
+            <span>{syncFeedback || 'Sync'}</span>
+          </button>
+
           {/* Remote Mode Toggle */}
           <AnimatePresence>
             {isRemoteAvailable && (

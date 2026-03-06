@@ -5,8 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Trash2, RefreshCw, X, Check } from 'lucide-react';
 import IdeasLoadingState from '@/app/features/Ideas/components/IdeasLoadingState';
 import { DbIdea } from '@/app/db';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
-import { useUnifiedProjectStore } from '@/stores/unifiedProjectStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { GradientButton } from '@/components/ui';
 import IdeaCard from './IdeaCard';
 import { SideActionButton, CompactBottomBar } from './TinderButtons';
@@ -25,6 +25,7 @@ const TINDER_KEYBOARD_HINTS = [
   { key: 'Z', label: 'Reject', color: 'red' as const },
   { key: 'D', label: 'Delete', color: 'gray' as const },
   { key: 'V', label: 'Variants', color: 'purple' as const },
+  { key: '?', label: 'Shortcuts', color: 'gray' as const },
 ];
 
 interface TinderContentProps {
@@ -57,8 +58,8 @@ export default function TinderContent({
   contextsMap = {},
   onAcceptVariant,
 }: TinderContentProps) {
-  const { getProject, projects } = useProjectConfigStore();
-  const { selectedProjectId } = useUnifiedProjectStore();
+  const { getProject, projects } = useServerProjectStore();
+  const { selectedProjectId } = useClientProjectStore();
   const [flushing, setFlushing] = React.useState(false);
   const [flushError, setFlushError] = React.useState<string | null>(null);
   const [flushSuccess, setFlushSuccess] = React.useState(false);

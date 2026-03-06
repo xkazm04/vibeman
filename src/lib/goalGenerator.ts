@@ -83,12 +83,15 @@ export async function generateGoalCandidates(options: GoalGenerationOptions): Pr
 
     // Get context information
     const contexts = contextRepository.getContextsByProject(projectId);
-    const contextSummary = contexts.map(ctx => ({
-      id: ctx.id,
-      name: ctx.name,
-      description: ctx.description,
-      files: JSON.parse(ctx.file_paths)
-    }));
+    const contextSummary = contexts.map(ctx => {
+      let files: string[] = [];
+      try {
+        files = JSON.parse(ctx.file_paths);
+      } catch (e) {
+        console.warn(`[goalGenerator] Malformed file_paths JSON in context ${ctx.id}, skipping:`, e);
+      }
+      return { id: ctx.id, name: ctx.name, description: ctx.description, files };
+    });
 
     // Build the LLM prompt
     const systemPrompt = buildSystemPrompt();

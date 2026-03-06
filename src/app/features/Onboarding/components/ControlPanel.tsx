@@ -1,7 +1,7 @@
 'use client';
 
 import { useOnboardingStore } from '@/stores/onboardingStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import Drawer from '@/components/ui/Drawer';
 import StarterTasks from '../sub_GettingStarted/components/StarterTasks';
 import { buildTasks } from '../sub_GettingStarted/lib/config';
@@ -20,7 +20,7 @@ interface ControlPanelProps {
  */
 export default function ControlPanel({ isOpen, onClose, onOpenBlueprint }: ControlPanelProps) {
   const { isStepCompleted, setActiveModule, closeControlPanel } = useOnboardingStore();
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
 
   // Build tasks from store - now project-specific
   // Wrapper to handle type conversion from string to OnboardingStep

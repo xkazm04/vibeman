@@ -20,7 +20,7 @@ import {
   TrendingUp,
   ChevronDown,
 } from 'lucide-react';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useAbortableFetch } from '@/hooks/useAbortableFetch';
 import GlowCard from './GlowCard';
 import BrainPanelHeader from './BrainPanelHeader';
@@ -91,7 +91,7 @@ interface ActivityHeatmapProps {
 }
 
 export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapProps) {
-  const activeProject = useActiveProjectStore((s) => s.activeProject);
+  const activeProject = useClientProjectStore((s) => s.activeProject);
   const [data, setData] = useState<HeatmapDayData[]>([]);
   const [contexts, setContexts] = useState<HeatmapContext[]>([]);
   const [signalTypes, setSignalTypes] = useState<string[]>([]);

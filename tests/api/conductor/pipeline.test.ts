@@ -188,16 +188,8 @@ function setupFetchMock() {
       }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
 
-    // Triage: accept idea
-    if (urlStr.includes('/api/ideas/tinder/accept')) {
-      return new Response(JSON.stringify({ success: true }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Triage: reject idea
-    if (urlStr.includes('/api/ideas/tinder/reject')) {
+    // Triage: accept/reject idea (unified endpoint)
+    if (urlStr.includes('/api/tinder/actions')) {
       return new Response(JSON.stringify({ success: true }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Target, Code } from 'lucide-react';
 import { Goal } from '../../../../../types';
-import { useActiveProjectStore } from '../../../../../stores/activeProjectStore';
+import { useClientProjectStore } from '../../../../../stores/clientProjectStore';
 import { useContextStore } from '../../../../../stores/contextStore';
 import { UniversalModal } from '@/components/UniversalModal';
 import { useSimpleErrorHandler } from '@/hooks/useErrorHandler';
@@ -31,7 +31,7 @@ interface GoalsAddModalProps {
 type TabType = 'goal' | 'code';
 
 export default function GoalsAddModal({ isOpen, onClose, onSubmit, projectPath, onRequirementCreated }: GoalsAddModalProps) {
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
   const { selectedContextIds } = useContextStore();
 
   // Tab state

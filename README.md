@@ -205,16 +205,62 @@ SQLite databases are created automatically on first run. No manual setup require
 
 ## Local Setup
 
-### Prerequisites
+### Platform Prerequisites
+
+Vibeman runs on **Windows**, **macOS**, and **Linux**. The core app (Next.js + SQLite) is fully cross-platform. CLI providers spawn as subprocesses with piped I/O (no PTY/terminal emulation), so they work on all platforms where the CLI binaries are available in PATH.
+
+#### Common (all platforms)
+
+| Requirement | Notes |
+|-------------|-------|
+| Node.js 20+ | Required for Next.js and `better-sqlite3` native compilation |
+| npm | Comes with Node.js |
+| C/C++ build tools | Required by `better-sqlite3` native addon (see platform-specific below) |
+
+#### Windows
+
+| Requirement | Install |
+|-------------|---------|
+| Build Tools | `npm install -g windows-build-tools` or install Visual Studio Build Tools with "Desktop development with C++" workload |
+| Python 3 | Required by `node-gyp` (included with Visual Studio Build Tools) |
+
+CLI binaries resolve through `cmd.exe` shell (`shell: true` in spawn). Both `.exe` and `.cmd` installs are supported automatically.
+
+#### macOS
+
+| Requirement | Install |
+|-------------|---------|
+| Xcode Command Line Tools | `xcode-select --install` |
+
+No additional build tools needed. `better-sqlite3` compiles out of the box with Xcode CLT.
+
+#### Linux (Debian/Ubuntu)
+
+| Requirement | Install |
+|-------------|---------|
+| Build essentials | `sudo apt install build-essential python3` |
+
+For other distros, install `gcc`, `g++`, `make`, and `python3`.
+
+### Quick Start
 
 ```bash
 npm install
 npm run dev        # Start the development server on http://localhost:3000
 ```
 
+---
+
 ### CLI Providers
 
 The Task Runner supports multiple CLI providers for executing implementation tasks. Each provider uses a different AI backend but integrates through the same SSE-based streaming UI.
+
+| Provider | Invocation | How It Works |
+|----------|-----------|--------------|
+| **Claude** | `spawn('claude')` subprocess | Headless CLI with `--output-format stream-json`, piped stdio |
+| **Gemini** | `spawn('gemini')` subprocess | Headless CLI with `-o stream-json`, piped stdio |
+| **Ollama** | `spawn('claude')` subprocess | Claude CLI routed to local Ollama via env vars |
+| **Copilot** | In-process Node.js SDK | `@github/copilot-sdk` npm package, no subprocess |
 
 #### Claude Code CLI (Default)
 
@@ -258,9 +304,15 @@ gemini --version
 
 Routes Claude CLI through a local Ollama instance. Ollama exposes an Anthropic-compatible Messages API at `/v1/messages`, so Claude CLI works transparently with Ollama-hosted models.
 
+**Requires:** Both `claude` CLI and `ollama` installed.
+
 ```bash
-# Install Ollama: https://ollama.com/download
+# Install Ollama
+#   macOS/Linux: curl -fsSL https://ollama.com/install.sh | sh
+#   Windows:     download from https://ollama.com/download
+
 # Start Ollama (runs on http://localhost:11434 by default)
+ollama serve
 
 # Pull the cloud model
 ollama pull qwen3.5:cloud
@@ -282,7 +334,7 @@ OLLAMA_API_KEY=ollama
 
 #### VS Code Copilot Bridge
 
-Leverages GitHub Copilot subscription models (GPT-5.3 Codex, Claude Opus 4.6, GPT-4.1) through a lightweight VS Code extension that exposes Copilot's `vscode.lm` API over HTTP.
+Leverages GitHub Copilot subscription models (GPT-5.3 Codex, Claude Opus 4.6, GPT-4.1) through a lightweight VS Code extension that exposes Copilot's `vscode.lm` API over HTTP. This provider uses the `@github/copilot-sdk` npm package (in-process, no CLI binary needed).
 
 ```bash
 # 1. Build the extension
@@ -315,6 +367,17 @@ npm run compile
 npx @vscode/vsce package --allow-missing-repository
 code-insiders --install-extension vibeman-bridge-0.1.0.vsix
 ```
+
+---
+
+### Cross-Platform Notes
+
+- **Process spawning:** On Windows, CLI subprocesses use `shell: true` to resolve `.cmd`/`.exe` wrappers. On macOS/Linux, `shell: false` resolves binaries directly from PATH.
+- **Process management:** Port checks use `lsof` (macOS/Linux) or `netstat` (Windows). Process termination uses `kill` (macOS/Linux) or `taskkill` (Windows). All branched via `process.platform`.
+- **Database:** SQLite via `better-sqlite3` compiles native bindings on `npm install`. The DB file is created at `database/goals.db` relative to project root using `path.join()`.
+- **File paths:** All server-side path construction uses Node.js `path.join()` / `path.resolve()`. No hardcoded separators.
+- **Logs:** CLI execution logs go to `.claude/logs/` within the project directory.
+- **Copilot SDK:** Pure Node.js, no platform-specific behavior.
 
 ---
 

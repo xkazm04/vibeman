@@ -306,10 +306,10 @@ function evaluateIdea(
 }
 
 async function acceptIdea(ideaId: string, projectPath: string): Promise<void> {
-  const response = await fetch(`${getBaseUrl()}/api/ideas/tinder/accept`, {
+  const response = await fetch(`${getBaseUrl()}/api/tinder/actions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ideaId, projectPath }),
+    body: JSON.stringify({ itemType: 'idea', itemId: ideaId, action: 'accept', projectPath }),
   });
 
   if (!response.ok) {
@@ -318,10 +318,10 @@ async function acceptIdea(ideaId: string, projectPath: string): Promise<void> {
 }
 
 async function rejectIdea(ideaId: string, reason: string): Promise<void> {
-  const response = await fetch(`${getBaseUrl()}/api/ideas/tinder/reject`, {
+  const response = await fetch(`${getBaseUrl()}/api/tinder/actions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ideaId, reason }),
+    body: JSON.stringify({ itemType: 'idea', itemId: ideaId, action: 'reject', metadata: { rejectionReason: reason } }),
   });
 
   if (!response.ok) {

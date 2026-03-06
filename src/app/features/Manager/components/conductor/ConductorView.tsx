@@ -10,7 +10,7 @@
 import { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Workflow, Sparkles } from 'lucide-react';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { useConductorStore } from '../../lib/conductor/conductorStore';
 import { useConductorStatus } from '../../lib/conductor/useConductorStatus';
@@ -29,7 +29,7 @@ interface ConductorViewProps {
 }
 
 export default function ConductorView({ projectId }: ConductorViewProps) {
-  const activeProject = useActiveProjectStore((state) => state.activeProject);
+  const activeProject = useClientProjectStore((state) => state.activeProject);
   const { getThemeColors } = useThemeStore();
   const colors = getThemeColors();
   const { currentRun, isRunning, processLog, startRun, nerdMode } = useConductorStore();

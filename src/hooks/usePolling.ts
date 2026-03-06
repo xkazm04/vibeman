@@ -267,6 +267,17 @@ export interface UsePollingOptions {
   enabled: boolean;
   intervalMs: number;
   immediate?: boolean;
+  /** Exponential backoff config — when set, interval grows after each poll */
+  backoff?: {
+    /** Strategy: 'exponential' doubles each tick, 'linear' adds intervalMs each tick */
+    strategy: 'exponential' | 'linear';
+    /** Maximum interval in ms (caps growth) */
+    maxIntervalMs: number;
+  };
+  /** Maximum polling attempts before auto-stop (default: Infinity) */
+  maxAttempts?: number;
+  /** Called when maxAttempts is reached */
+  onTimeout?: () => void;
 }
 
 export interface UsePollingReturn {
@@ -277,37 +288,77 @@ export interface UsePollingReturn {
 /**
  * React hook for polling with automatic cleanup.
  * Internally uses createUnifiedPoller.
+ *
+ * Supports optional exponential/linear backoff and maxAttempts.
  */
 export function usePolling(
   callback: () => void | Promise<void>,
   options: UsePollingOptions
 ): UsePollingReturn {
-  const { enabled, intervalMs, immediate = true } = options;
+  const { enabled, intervalMs, immediate = true, backoff, maxAttempts, onTimeout } = options;
 
   const callbackRef = useRef(callback);
   callbackRef.current = callback;
 
   const pollerRef = useRef<UnifiedPoller | null>(null);
-  const currentIntervalRef = useRef<number | null>(null);
+  const configKeyRef = useRef<string | null>(null);
+
+  // Stable config key to detect meaningful changes
+  const configKey = `${intervalMs}:${backoff?.strategy}:${backoff?.maxIntervalMs}:${maxAttempts}`;
 
   const clearPoller = useCallback(() => {
     pollerRef.current?.stop();
     pollerRef.current = null;
-    currentIntervalRef.current = null;
+    configKeyRef.current = null;
   }, []);
 
   const startPoller = useCallback(
     (runImmediate: boolean) => {
       clearPoller();
+
+      // Build backoff levels if configured
+      let backoffConfig: UnifiedPollerConfig['backoff'] | undefined;
+      if (backoff) {
+        const levels: number[] = [];
+        let current = intervalMs;
+        const maxMs = backoff.maxIntervalMs;
+        // Generate up to 20 levels to cover the range
+        for (let i = 0; i < 20; i++) {
+          current = backoff.strategy === 'exponential'
+            ? intervalMs * Math.pow(2, i)
+            : intervalMs * (i + 1);
+          if (current >= maxMs) {
+            levels.push(maxMs);
+            break;
+          }
+          levels.push(current);
+        }
+        if (levels.length === 0) levels.push(intervalMs);
+        backoffConfig = { levels };
+      }
+
       const poller = createUnifiedPoller(
         () => { callbackRef.current(); },
-        { activeIntervalMs: intervalMs, immediate: runImmediate }
+        {
+          activeIntervalMs: intervalMs,
+          // When backoff is configured, start idle so backoff kicks in
+          idleIntervalMs: backoff ? intervalMs : undefined,
+          immediate: runImmediate,
+          backoff: backoffConfig,
+          maxAttempts,
+          onTimeout,
+        }
       );
       pollerRef.current = poller;
-      currentIntervalRef.current = intervalMs;
+      configKeyRef.current = configKey;
       poller.start();
+
+      // When using backoff, signal idle immediately to engage backoff curve
+      if (backoff) {
+        poller.signalIdle();
+      }
     },
-    [intervalMs, clearPoller]
+    [intervalMs, backoff, maxAttempts, onTimeout, clearPoller, configKey]
   );
 
   useEffect(() => {
@@ -316,15 +367,15 @@ export function usePolling(
       return;
     }
 
-    if (currentIntervalRef.current === intervalMs && pollerRef.current !== null) {
+    if (configKeyRef.current === configKey && pollerRef.current !== null) {
       return;
     }
 
-    const isFirstStart = currentIntervalRef.current === null;
+    const isFirstStart = configKeyRef.current === null;
     startPoller(immediate && isFirstStart);
 
     return clearPoller;
-  }, [enabled, intervalMs, immediate, startPoller, clearPoller]);
+  }, [enabled, configKey, immediate, startPoller, clearPoller]);
 
   const poll = useCallback(() => {
     callbackRef.current();

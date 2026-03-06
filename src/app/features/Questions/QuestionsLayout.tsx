@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { HelpCircle, Compass, RefreshCw, GitBranch, Table2, Grid3X3, Layers, Sparkles, X, AlertTriangle } from 'lucide-react';
 import LiquidStepRail from '@/components/ui/LiquidStepRail';
 import { DbQuestion } from '@/app/db';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import ContextMapSelector from './components/ContextMapSelector';
 import CombinedGeneratePanel from './components/CombinedGeneratePanel';
 import UnifiedTable from './components/UnifiedTable';
@@ -44,7 +44,7 @@ import type { AutoDeepenResponse } from './lib/questionsApi';
 export { createQuestionsEngine, createDirectionsEngine } from '@/lib/interrogative-engine';
 
 export default function QuestionsLayout() {
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
 
   // Context selection state (local UI state)
   const [selectedContextIds, setSelectedContextIds] = useState<string[]>([]);

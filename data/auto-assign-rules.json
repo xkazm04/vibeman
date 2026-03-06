@@ -1,0 +1,18 @@
+{
+  "geminiRule": {
+    "enabled": true,
+    "conditions": {
+      "effort": 1,
+      "risk": 1
+    },
+    "provider": "gemini",
+    "model": null
+  },
+  "defaultRule": {
+    "enabled": true,
+    "provider": null,
+    "model": null
+  },
+  "maxTasksPerSession": 10,
+  "consolidateBeforeAssign": true
+}

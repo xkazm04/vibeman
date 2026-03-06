@@ -1,19 +1,32 @@
 'use client';
-import React from 'react';
+import React, { useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import TaskRunnerHeader from '@/app/features/TaskRunner/TaskRunnerHeader';
 import TaskColumn from '@/app/features/TaskRunner/TaskColumn';
+import ExternalRequirementsColumn from '@/app/features/TaskRunner/components/ExternalRequirementsColumn';
 import { usePollingCleanupOnUnmount } from '@/app/features/TaskRunner/lib/pollingManager';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
 import { useRequirements } from '@/app/features/TaskRunner/hooks/useRequirements';
 import { useTaskRunnerBatchData } from '@/app/features/TaskRunner/hooks/useTaskRunnerBatchData';
+import { useActiveProjectStore } from '@/stores/clientProjectStore';
+import { useCLISessionStore } from '@/components/cli/store/cliSessionStore';
+import { useTaskRunnerStore } from '@/app/features/TaskRunner/store/taskRunnerStore';
+import { clearSessionStrategy } from '@/components/cli/store/cliExecutionManager';
+import { fetchAutoAssignConfig } from '@/lib/autoAssignConfig';
+import { autoAssignTasks } from '@/app/features/TaskRunner/lib/autoAssigner';
+import { createQueuedStatus } from '@/app/features/TaskRunner/lib/types';
+import type { ProjectRequirement } from '@/app/features/TaskRunner/lib/types';
+import type { DbIdea } from '@/app/db';
 
 
 
 const TaskRunnerLayout = () => {
   // Cleanup all SSE/polling connections when navigating away from TaskRunner
   usePollingCleanupOnUnmount();
+
+  // Active project for external requirements column
+  const activeProject = useActiveProjectStore((s) => s.activeProject);
 
   const {
     requirements,
@@ -35,6 +48,52 @@ const TaskRunnerLayout = () => {
 
   // Batch-fetch aggregation, ideas, and contexts for ALL columns (3 calls instead of 3N)
   const { aggregationByProject, ideasMap, contextsMap } = useTaskRunnerBatchData(groupedRequirements);
+
+  // Auto-assign handler: distributes selected idle requirements to free CLI sessions
+  const handleAutoAssign = useCallback(async (
+    selectedReqs: ProjectRequirement[],
+    columnIdeasMap: Record<string, DbIdea | null>,
+  ) => {
+    const config = await fetchAutoAssignConfig();
+    const sessions = useCLISessionStore.getState().sessions;
+    const addTasksToSession = useCLISessionStore.getState().addTasksToSession;
+    const setProvider = useCLISessionStore.getState().setProvider;
+    const setModel = useCLISessionStore.getState().setModel;
+    const updateTaskRunnerStatus = useTaskRunnerStore.getState().updateTaskStatus;
+
+    const assignments = autoAssignTasks({
+      requirements: selectedReqs,
+      ideasMap: columnIdeasMap,
+      sessions,
+      config,
+      getRequirementId,
+    });
+
+    // Execute assignments
+    for (const assignment of assignments) {
+      // Set provider/model override if specified
+      if (assignment.providerOverride) {
+        setProvider(assignment.sessionId, assignment.providerOverride);
+        clearSessionStrategy(assignment.sessionId);
+      }
+      if (assignment.modelOverride !== undefined) {
+        setModel(assignment.sessionId, assignment.modelOverride);
+      }
+
+      // Add tasks to session queue
+      addTasksToSession(assignment.sessionId, assignment.tasks);
+
+      // Sync queued status to TaskRunner store so TaskColumn shows correct status
+      for (const task of assignment.tasks) {
+        updateTaskRunnerStatus(task.id, createQueuedStatus());
+      }
+    }
+
+    // Clear selection for assigned tasks
+    if (assignments.length > 0) {
+      actions.setSelectedRequirements(new Set());
+    }
+  }, [getRequirementId, actions]);
 
   if (isLoading) {
     return (
@@ -73,14 +132,20 @@ const TaskRunnerLayout = () => {
 
         {/* Requirements Grid - Column Layout */}
         <LazyContentSection delay={0.2}>
-          {requirements.length === 0 ? (
-            <div className="text-center py-20">
-              <p className="text-gray-500 text-lg">
-                No requirements found. Create requirements in your projects&apos; .claude/commands directory.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            {/* External Requirements Column (Supabase) — always first */}
+            <ExternalRequirementsColumn
+              projectId={activeProject?.id ?? null}
+              projectPath={activeProject?.path ?? null}
+            />
+
+            {requirements.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <p className="text-gray-500 text-sm">
+                  No local requirements. Create them in your projects&apos; .claude/commands directory.
+                </p>
+              </div>
+            ) : (
               <AnimatePresence>
                 {Object.entries(groupedRequirements).map(([projectId, projectReqs]) => {
                   const projectName = projectReqs[0]?.projectName || 'Unknown Project';
@@ -103,12 +168,13 @@ const TaskRunnerLayout = () => {
                       aggregationData={aggregationByProject[projectId]}
                       ideasData={ideasMap}
                       contextsData={contextsMap}
+                      onAutoAssign={handleAutoAssign}
                     />
                   );
                 })}
               </AnimatePresence>
-            </div>
-          )}
+            )}
+          </div>
         </LazyContentSection>
       </div>
 

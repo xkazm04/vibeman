@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Save, AlertCircle } from 'lucide-react';
 import { Context, ContextGroup, useContextStore } from '@/stores/contextStore';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import { normalizePath } from '@/utils/pathUtils';
 import ContextGenForm from './ContextGenForm';
@@ -30,7 +30,7 @@ export default function ContextEditModal({
     fileStructure,
     loadProjectFileStructure,
     isLoading: fileStructureLoading,
-  } = useActiveProjectStore();
+  } = useClientProjectStore();
   const { hideModal } = useGlobalModal();
 
   // Form state

@@ -1,0 +1,3 @@
+src/app/api/ideas/bulk/route.ts(77,43): error TS2345: Argument of type '(request: NextRequest) => Promise<NextResponse<{ error: IdeasApiError; }> | NextResponse<{ success: boolean; successCount: number; failCount: number; total: number; }>>' is not assignable to parameter of type 'RouteHandler'.
+  Types of parameters 'request' and 'request' are incompatible.
+    Type 'Request' is missing the following properties from type 'NextRequest': cookies, nextUrl, page, ua

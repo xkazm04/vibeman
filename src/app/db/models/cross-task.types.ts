@@ -3,8 +3,9 @@
  * Types for cross-project requirement analysis and implementation planning
  */
 
-// Analysis status
-export type CrossTaskStatus = 'pending' | 'running' | 'completed' | 'failed';
+// Analysis status (narrowed from unified StatusAlgebra)
+import type { BaseLifecycleStatus } from '@/lib/status';
+export type CrossTaskStatus = BaseLifecycleStatus;
 
 /**
  * Cross Task Plan - stores cross-project analysis session and results

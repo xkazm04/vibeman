@@ -3,7 +3,7 @@
  *
  * Centralized exports for CLI session management.
  *
- * NOTE: Client-only hooks (useCLIRecovery, useCLIRecoveryStatus) are NOT exported here
+ * NOTE: Client-only hooks (useCLIRecovery) are NOT exported here
  * to prevent circular imports when server code imports from this module.
  * Import them directly from './useCLIRecovery' in client components.
  */
@@ -39,4 +39,4 @@ export {
 } from './cliExecutionManager';
 
 // NOTE: Recovery hooks are NOT exported from barrel to avoid pulling React hooks into server context.
-// Import directly: import { useCLIRecovery, useCLIRecoveryStatus } from './useCLIRecovery';
+// Import directly: import { useCLIRecovery } from './useCLIRecovery';

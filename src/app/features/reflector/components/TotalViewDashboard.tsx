@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DbIdea, DbDirection } from '@/app/db';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useContextStore } from '@/stores/contextStore';
 import { groupIdeasByProjectAndContext } from '../lib/groupIdeasByProjectAndContext';
 import { Sparkles, Package, Compass } from 'lucide-react';
@@ -21,7 +21,7 @@ interface TotalViewDashboardProps {
 }
 
 export default function TotalViewDashboard({ ideas, directions = [], suggestionType = 'ideas', isFiltered }: TotalViewDashboardProps) {
-  const { projects } = useProjectConfigStore();
+  const { projects } = useServerProjectStore();
   const { contexts } = useContextStore();
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [focusedProject, setFocusedProject] = useState<string | null>(null);

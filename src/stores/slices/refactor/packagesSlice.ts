@@ -5,7 +5,7 @@
 import type { StateCreator } from 'zustand';
 import type { PackagesSlice, RefactorState, PackageGenerationStatus } from './types';
 import type { RefactoringPackage, DependencyGraph, ProjectContext, PackageFilter } from '@/app/features/RefactorWizard/lib/types';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 
 export const createPackagesSlice: StateCreator<
   RefactorState,
@@ -101,7 +101,7 @@ export const createPackagesSlice: StateCreator<
 
   generatePackages: async () => {
     const { opportunities, selectedOpportunities, llmProvider, llmModel, selectedFolders } = get();
-    const activeProject = useActiveProjectStore.getState().activeProject;
+    const activeProject = useClientProjectStore.getState().activeProject;
 
     if (!activeProject?.path) {
       set({ packageGenerationError: 'No active project selected' });

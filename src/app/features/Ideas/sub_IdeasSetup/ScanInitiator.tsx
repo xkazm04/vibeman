@@ -3,9 +3,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Target, ChevronDown, Zap } from 'lucide-react';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { ScanType } from '../lib/scanTypes';
-import { executeClaudeIdeasWithContexts } from './lib/claudeIdeasExecutor';
+import { executeClaudeCodeScan } from './lib/ideaExecutor';
 
 // Component imports
 import ClaudeIdeasButton from './components/ClaudeIdeasButton';
@@ -23,6 +23,7 @@ interface ScanInitiatorProps {
   selectedScanTypes: ScanType[];
   onScanTypesChange?: (types: ScanType[]) => void;
   selectedContextIds: string[];
+  selectedGroupIds?: string[];
   onBatchScan?: () => void;
 }
 
@@ -31,6 +32,7 @@ export default function ScanInitiator({
   selectedScanTypes,
   onScanTypesChange,
   selectedContextIds: propSelectedContextIds,
+  selectedGroupIds: propSelectedGroupIds = [],
 }: ScanInitiatorProps) {
   const [message, setMessage] = React.useState<string>('');
 
@@ -43,7 +45,7 @@ export default function ScanInitiator({
   const [isGoalScanning, setIsGoalScanning] = React.useState(false);
   const [goalDropdownOpen, setGoalDropdownOpen] = React.useState(false);
 
-  const { activeProject } = useActiveProjectStore();
+  const { activeProject } = useClientProjectStore();
   const goalDropdownRef = React.useRef<HTMLDivElement>(null);
 
   // Load goals for the active project
@@ -115,7 +117,7 @@ export default function ScanInitiator({
       setMessage(`Profile created: ${scanTypes.length} agents selected. Creating requirement files...`);
 
       // Step 2: Execute the scan using the profile configuration
-      const result = await executeClaudeIdeasWithContexts({
+      const result = await executeClaudeCodeScan({
         projectId: activeProject.id,
         projectName: activeProject.name,
         projectPath: activeProject.path,
@@ -133,11 +135,11 @@ export default function ScanInitiator({
 
       if (result.success) {
         const goalTitle = goals.find(g => g.id === selectedGoalId)?.title || 'goal';
-        setMessage(`${result.filesCreated} requirement files created for "${goalTitle}"! Use TaskRunner to execute.`);
+        setMessage(`${result.itemCount} requirement files created for "${goalTitle}"! Use TaskRunner to execute.`);
         onScanComplete();
         setTimeout(() => setMessage(''), 8000);
       } else {
-        setMessage(`Partial success: ${result.filesCreated} files. Errors: ${result.errors.join(', ')}`);
+        setMessage(`Partial success: ${result.itemCount} files. Errors: ${result.errors.join(', ')}`);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -163,23 +165,28 @@ export default function ScanInitiator({
     setMessage('Creating Claude Code requirement files...');
 
     try {
-      const itemCount = currentSelectedContextIds.length > 0 ? currentSelectedContextIds.length : 1;
+      const itemCount = currentSelectedContextIds.length > 0
+        ? currentSelectedContextIds.length
+        : propSelectedGroupIds.length > 0
+          ? propSelectedGroupIds.length
+          : 1;
       const expectedFiles = selectedScanTypes.length * itemCount;
 
-      const result = await executeClaudeIdeasWithContexts({
+      const result = await executeClaudeCodeScan({
         projectId: activeProject.id,
         projectName: activeProject.name,
         projectPath: activeProject.path,
         scanTypes: selectedScanTypes,
         contextIds: currentSelectedContextIds,
+        groupIds: propSelectedGroupIds,
       });
 
       if (result.success) {
-        setMessage(`${result.filesCreated}/${expectedFiles} requirement files created! Use TaskRunner to execute them.`);
+        setMessage(`${result.itemCount}/${expectedFiles} requirement files created! Use TaskRunner to execute them.`);
         onScanComplete();
         setTimeout(() => setMessage(''), 8000);
       } else {
-        setMessage(`Partial success: ${result.filesCreated} files created. Errors: ${result.errors.join(', ')}`);
+        setMessage(`Partial success: ${result.itemCount} files created. Errors: ${result.errors.join(', ')}`);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

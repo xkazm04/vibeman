@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Target, Box } from 'lucide-react';
 import { DbIdea, DbGoal } from '@/app/db';
 import ContextMenu from '@/components/ContextMenu';
-import { useActiveProjectStore } from '@/stores/activeProjectStore';
+import { useClientProjectStore } from '@/stores/clientProjectStore';
 
 interface IdeaDetailMetaProps {
   idea: DbIdea;
@@ -12,7 +12,7 @@ interface IdeaDetailMetaProps {
 }
 
 export default function IdeaDetailMeta({ idea, onUpdate }: IdeaDetailMetaProps) {
-  const activeProject = useActiveProjectStore(state => state.activeProject);
+  const activeProject = useClientProjectStore(state => state.activeProject);
   const [goalTitle, setGoalTitle] = useState<string | null>(null);
   const [contextName, setContextName] = useState<string | null>(null);
   const [loadingGoal, setLoadingGoal] = useState(false);

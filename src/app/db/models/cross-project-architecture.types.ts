@@ -15,8 +15,9 @@ export type FrameworkCategory = 'react' | 'nextjs' | 'vue' | 'node' | 'python' |
 // Analysis scope
 export type AnalysisScope = 'project' | 'workspace';
 
-// Analysis status
-export type AnalysisStatus = 'pending' | 'running' | 'completed' | 'failed';
+// Analysis status (narrowed from unified StatusAlgebra)
+import type { BaseLifecycleStatus } from '@/lib/status';
+export type AnalysisStatus = BaseLifecycleStatus;
 
 // Analysis trigger type
 export type AnalysisTriggerType = 'manual' | 'onboarding' | 'scheduled';

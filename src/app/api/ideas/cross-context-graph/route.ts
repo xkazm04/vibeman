@@ -12,6 +12,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { contextDb, contextGroupDb, contextGroupRelationshipDb, ideaDb, directionDb } from '@/app/db';
 import { buildContextGraph, analyzeCascade } from '@/lib/ideas/crossContextGraph';
 import { logger } from '@/lib/logger';
+import {
+  IdeasErrorCode,
+  createIdeasErrorResponse,
+  handleIdeasApiError,
+} from '@/app/features/Ideas/lib/ideasHandlers';
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +24,10 @@ export async function GET(request: NextRequest) {
     const cascadeContextId = request.nextUrl.searchParams.get('cascade');
 
     if (!projectId) {
-      return NextResponse.json({ error: 'projectId is required' }, { status: 400 });
+      return createIdeasErrorResponse(IdeasErrorCode.MISSING_REQUIRED_FIELD, {
+        field: 'projectId',
+        message: 'projectId is required',
+      });
     }
 
     // Fetch all data for the project
@@ -51,9 +59,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     logger.error('[API] Cross-context graph error:', { error });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return handleIdeasApiError(error);
   }
 }

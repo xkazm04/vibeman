@@ -10,7 +10,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { deleteRequirement, loadRequirements } from '@/app/Claude/lib/requirementApi';
 import { useRequirementBatch, requirementKeys } from '@/lib/queries/requirementQueries';
 import type { ProjectRequirement, TaskRunnerActions } from '@/app/features/TaskRunner/lib/types';
@@ -66,7 +66,7 @@ export interface UseRequirementsReturn {
 }
 
 export function useRequirements(): UseRequirementsReturn {
-  const { projects, initializeProjects } = useProjectConfigStore();
+  const { projects, initializeProjects } = useServerProjectStore();
   const queryClient = useQueryClient();
   const [requirements, setRequirements] = useState<ProjectRequirement[]>([]);
   const [selectedRequirements, setSelectedRequirements] = useState<Set<string>>(new Set());

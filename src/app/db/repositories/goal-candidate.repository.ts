@@ -1,6 +1,11 @@
 import { getDatabase } from '../connection';
 import { DbGoalCandidate } from '../models/types';
-import { buildUpdateStatement } from './repository.utils';
+import { createGenericRepository } from './generic.repository';
+
+const base = createGenericRepository<DbGoalCandidate>({
+  tableName: 'goal_candidates',
+  defaultOrder: 'priority_score DESC, created_at DESC',
+});
 
 /**
  * Goal Candidate Repository
@@ -37,15 +42,7 @@ export const goalCandidateRepository = {
   /**
    * Get a single goal candidate by ID
    */
-  getCandidateById: (candidateId: string): DbGoalCandidate | null => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM goal_candidates
-      WHERE id = ?
-    `);
-    const candidate = stmt.get(candidateId) as DbGoalCandidate | undefined;
-    return candidate || null;
-  },
+  getCandidateById: (candidateId: string): DbGoalCandidate | null => base.getById(candidateId),
 
   /**
    * Create multiple goal candidates in a batch
@@ -113,42 +110,12 @@ export const goalCandidateRepository = {
     user_action?: 'accepted' | 'rejected' | 'tweaked' | 'pending' | null;
     goal_id?: string | null;
     context_id?: string | null;
-  }): DbGoalCandidate | null => {
-    const db = getDatabase();
-
-    const result = buildUpdateStatement(
-      db,
-      'goal_candidates',
-      updates as Record<string, unknown>,
-      'id',
-      ['id', 'project_id', 'created_at', 'updated_at'],
-    );
-
-    if (!result) {
-      // No updates to make
-      const selectStmt = db.prepare('SELECT * FROM goal_candidates WHERE id = ?');
-      return selectStmt.get(id) as DbGoalCandidate | null;
-    }
-
-    const runResult = result.stmt.run(...result.values, id);
-
-    if (runResult.changes === 0) {
-      return null; // Candidate not found
-    }
-
-    const selectStmt = db.prepare('SELECT * FROM goal_candidates WHERE id = ?');
-    return selectStmt.get(id) as DbGoalCandidate;
-  },
+  }): DbGoalCandidate | null => base.update(id, updates as Record<string, unknown>),
 
   /**
    * Delete a goal candidate
    */
-  deleteCandidate: (id: string): boolean => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM goal_candidates WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
-  },
+  deleteCandidate: (id: string): boolean => base.deleteById(id),
 
   /**
    * Delete all candidates for a project (with optional filter)

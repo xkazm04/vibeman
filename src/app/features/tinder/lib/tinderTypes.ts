@@ -59,6 +59,8 @@ export interface TinderItemsResponse {
   items: TinderItem[];
   hasMore: boolean;
   total: number;
+  /** Keyset cursor — ID of the last item in this page. Pass as `after_id` to fetch next page. */
+  nextCursor: string | null;
   counts: {
     ideas: number;
     directions: number;

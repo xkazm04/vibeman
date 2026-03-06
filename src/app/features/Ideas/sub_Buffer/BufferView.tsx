@@ -9,7 +9,7 @@ import BufferColumn from './BufferColumn';
 import { createIdeaStagingBuffer } from '@/lib/staging-buffer';
 
 const ideaStagingBuffer = createIdeaStagingBuffer<DbIdea>();
-import { useProjectConfigStore } from '@/stores/projectConfigStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
 import {
   useBufferIdeas,
   useDeleteIdea,
@@ -49,7 +49,7 @@ export default function BufferView({
   onIdeaClick,
 }: BufferViewProps) {
   const router = useRouter();
-  const { getProject } = useProjectConfigStore();
+  const { getProject } = useServerProjectStore();
 
   const [errorBanner, setErrorBanner] = React.useState<string | null>(null);
 
@@ -168,11 +168,13 @@ export default function BufferView({
       }
 
       try {
-        const response = await fetch('/api/ideas/tinder/accept', {
+        const response = await fetch('/api/tinder/actions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ideaId,
+            itemType: 'idea',
+            itemId: ideaId,
+            action: 'accept',
             projectPath: project.path,
           }),
         });
@@ -211,11 +213,13 @@ export default function BufferView({
       }
 
       try {
-        const response = await fetch('/api/ideas/tinder/accept', {
+        const response = await fetch('/api/tinder/actions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ideaId,
+            itemType: 'idea',
+            itemId: ideaId,
+            action: 'accept',
             projectPath: project.path,
           }),
         });

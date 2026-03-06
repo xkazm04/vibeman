@@ -26,6 +26,7 @@ import { executeExecuteStage } from './stages/executeStage';
 import { executeReviewStage } from './stages/reviewStage';
 import { analyzeErrors } from './selfHealing/healingAnalyzer';
 import { buildHealingContext } from './selfHealing/promptPatcher';
+import { performTaskCleanup } from '@/lib/execution/taskCleanup';
 
 // ============================================================================
 // Orchestrator State (in-memory, survives HMR)
@@ -501,8 +502,15 @@ async function runPipelineLoop(
               error: result.error,
             });
           } else if (result.success) {
-            // Clean up conductor-generated requirement files after successful execution
-            await cleanupRequirementFile(projectPath, result.requirementName);
+            // Full cleanup cascade: update idea status → ensure impl log → delete requirement file
+            if (result.requirementName.startsWith('conductor-')) {
+              await performTaskCleanup({
+                projectPath,
+                requirementName: result.requirementName,
+                projectId,
+                baseUrl: getBaseUrl(),
+              });
+            }
           }
         }
       } catch (error) {
@@ -669,23 +677,6 @@ async function enrichIdeasWithContext(ideas: any[], projectId: string): Promise<
     });
   } catch {
     return ideas;
-  }
-}
-
-/**
- * Delete a conductor-generated requirement file after successful execution.
- * Only deletes files with the conductor- prefix to avoid touching user files.
- */
-async function cleanupRequirementFile(projectPath: string, requirementName: string): Promise<void> {
-  if (!requirementName.startsWith('conductor-')) return;
-  try {
-    await fetch(`${getBaseUrl()}/api/claude-code/requirement`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ projectPath, requirementName }),
-    });
-  } catch {
-    // Non-fatal — requirement file cleanup is best-effort
   }
 }
 
