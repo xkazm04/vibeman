@@ -24,7 +24,7 @@ const ALL_SCAN_TYPES: ScanType[] = [
   'ai_integration_scout', 'delight_designer', 'code_refactor',
   'user_empathy_champion', 'competitor_analyst', 'paradigm_shifter',
   'moonshot_architect', 'dev_experience_engineer', 'data_flow_optimizer',
-  'pragmatic_integrator',
+  'pragmatic_integrator', 'observability_scout', 'brand_artist',
 ];
 
 let rotateIndex = 0;

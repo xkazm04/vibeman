@@ -55,6 +55,8 @@ function shortLabel(scanType: string): string {
     dev_experience_engineer: 'DevExp',
     data_flow_optimizer: 'DataFlow',
     pragmatic_integrator: 'Integrator',
+    observability_scout: 'Observe',
+    brand_artist: 'Brand',
   };
   return labels[scanType] || scanType.replace(/_/g, ' ').slice(0, 10);
 }

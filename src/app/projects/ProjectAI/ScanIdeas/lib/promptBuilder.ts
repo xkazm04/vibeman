@@ -28,6 +28,10 @@ const SCAN_TYPE_TEMPERATURE: Partial<Record<ScanType, number>> = {
   insight_synth: 0.75,
   delight_designer: 0.75,
   tech_innovator: 0.75,
+  // Observability — moderate precision
+  observability_scout: 0.6,
+  // Brand — creative
+  brand_artist: 0.75,
 };
 
 interface BuildPromptOptions {

@@ -29,6 +29,9 @@ import { buildDataFlowOptimizerPrompt } from './dataFlowOptimizerPrompt';
 // Code Cleanup
 import { buildCodeRefactorPrompt } from './codeRefactorPrompt';
 import { buildPragmaticIntegratorPrompt } from './pragmaticIntegratorPrompt';
+// Observability & Brand
+import { buildObservabilityScoutPrompt } from './observabilityScoutPrompt';
+import { buildBrandArtistPrompt } from './brandArtistPrompt';
 
 import { ScanType, registerPromptBuilders, getAgent } from '@/app/features/Ideas/lib/scanTypes';
 
@@ -76,6 +79,9 @@ export const PROMPT_BUILDERS: Partial<Record<ScanType, PromptBuilder>> = {
   // Code Cleanup
   code_refactor: buildCodeRefactorPrompt,
   pragmatic_integrator: buildPragmaticIntegratorPrompt,
+  // Observability & Brand
+  observability_scout: buildObservabilityScoutPrompt,
+  brand_artist: buildBrandArtistPrompt,
 };
 
 // Register all prompt builders into the unified AGENT_REGISTRY
@@ -126,4 +132,7 @@ export {
   // Code Cleanup
   buildCodeRefactorPrompt,
   buildPragmaticIntegratorPrompt,
+  // Observability & Brand
+  buildObservabilityScoutPrompt,
+  buildBrandArtistPrompt,
 };

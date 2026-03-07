@@ -29,7 +29,10 @@ export type ScanType =
   // Gap Coverage
   | 'dev_experience_engineer'
   | 'data_flow_optimizer'
-  | 'pragmatic_integrator';
+  | 'pragmatic_integrator'
+  // Observability & Brand
+  | 'observability_scout'
+  | 'brand_artist';
 
 export type ScanState = 'idle' | 'scanning' | 'success' | 'error';
 
@@ -409,6 +412,38 @@ export const AGENT_REGISTRY: Record<ScanType, AgentDefinition> = {
       'Design plugin ecosystem',
       'Plan offline-first architecture',
       'Create white-label solution',
+    ],
+  },
+
+  // Observability & Brand
+  observability_scout: {
+    id: 'observability_scout',
+    label: 'Observability Scout',
+    abbr: 'os',
+    emoji: '📡',
+    color: 'bg-gradient-to-r from-orange-500/20 to-orange-600/20 border-orange-500/40 text-orange-300',
+    description: 'Monitoring, logging & debuggability',
+    category: 'technical',
+    agentFile: 'observability_scout.md',
+    examples: [
+      'Add structured logging with correlation IDs to pipeline',
+      'Create health check endpoint for all services',
+      'Instrument silent catch blocks with error tracking',
+    ],
+  },
+  brand_artist: {
+    id: 'brand_artist',
+    label: 'Brand Artist',
+    abbr: 'ba',
+    emoji: '🎨',
+    color: 'bg-gradient-to-r from-rose-500/20 to-amber-500/20 border-rose-500/40 text-rose-300',
+    description: 'Brand identity, visuals & typography',
+    category: 'user',
+    agentFile: 'brand_artist.md',
+    examples: [
+      'Design illustrated empty state for task runner',
+      'Create custom SVG icon set for navigation',
+      'Establish consistent typography scale across dashboard',
     ],
   },
 };
