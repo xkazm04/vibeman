@@ -3,8 +3,12 @@ import {
   addColumnIfNotExists,
   addColumnsIfNotExist,
   createTableIfNotExists,
+  ensureMigrationsTable,
   getTableInfo,
   hasColumn,
+  isMigrationApplied,
+  recordMigration,
+  runOnce,
   safeMigration,
   tableExists,
   type MigrationLogger,
@@ -85,303 +89,167 @@ const migrationLogger: MigrationLogger = {
 export function runMigrations() {
   const db = getConnection();
 
+  // ── Migration Tracking ────────────────────────────────────────────────
+  // Create tracking table so migrations only run once.
+  ensureMigrationsTable(db);
+
+  // Bootstrap: if the DB already has the ideas table, this is an existing
+  // database being upgraded. Pre-seed destructive migrations as "applied"
+  // so they never re-run and destroy data. Safe additive migrations
+  // (addColumnIfNotExists) will still run via runOnce to add any missing columns.
+  if (!isMigrationApplied(db, '_bootstrap')) {
+    if (tableExists(db, 'ideas')) {
+      // Destructive migrations that drop/recreate the ideas table —
+      // they already ran on the original device, never run them again.
+      const DESTRUCTIVE_MIGRATIONS = [
+        'm007', // migrateIdeasCategoryConstraint — drops & recreates ideas
+        'm035', // migrateIdeasExtendedScoring — renames ideas → ideas_old, recreates
+        'm132', // migrate132EnforceIdeasScanCascade — DELETE orphaned ideas
+        'm143', // migrate143FixIdeasEffortConstraint — renames ideas → ideas_old_143, recreates
+      ];
+      for (const name of DESTRUCTIVE_MIGRATIONS) {
+        recordMigration(db, name);
+      }
+
+      // Clean up stale temp tables from previous failed destructive migrations
+      try { db.exec('DROP TABLE IF EXISTS ideas_old'); } catch { /* ignore */ }
+      try { db.exec('DROP TABLE IF EXISTS ideas_old_143'); } catch { /* ignore */ }
+      try { db.exec('DROP TABLE IF EXISTS ideas_backup'); } catch { /* ignore */ }
+
+      recordMigration(db, '_bootstrap');
+      migrationLogger.info('Migration tracking initialized — destructive migrations pre-seeded');
+    } else {
+      // Fresh DB — record bootstrap so we don't re-check next time
+      recordMigration(db, '_bootstrap');
+    }
+  }
+
+  // Helper: run a migration only once (skips if already recorded in _migrations_applied)
+  const once = (name: string, fn: () => void) => runOnce(db, name, fn, migrationLogger);
+
   try {
-    // Migration 1: Add token columns to scans table
-    migrateScansTokenColumns();
-
-    // Migration 2: Update contexts table with new columns
-    migrateContextsTable();
-
-    // Migration 3: Update goals table with context_id support
-    migrateGoalsTable();
-
-    // Migration 4: Add scan_type column to ideas table
-    migrateIdeasScanType();
-
-    // Migration 5: Add effort and impact columns to ideas table
-    migrateIdeasEffortImpact();
-
-    // Migration 6: Add implemented_at column to ideas table
-    migrateIdeasImplementedAt();
-
-    // Migration 7: Remove category CHECK constraint from ideas table
-    migrateIdeasCategoryConstraint();
-
-    // Migration 8: Add requirement_id and goal_id columns to ideas table
-    migrateIdeasRequirementAndGoal();
-
-    // Migration 9: Add test_scenario and test_updated columns to contexts table
-    migrateContextsTestingColumns();
-
-    // Migration 10-11: test_selectors + security pipeline removed (deprecated)
-
-
-    // Migration 12: Create goal_candidates table
-    migrateGoalCandidatesTable();
-    // Migration 13: Create voicebot_analytics table
-    migrateVoicebotAnalyticsTable();
-    // Migration 14: Add context_id column to events table
-    migrateEventsContextId();
-    // Migration 15-18: test_scenarios, test_executions, visual_diffs, scan_predictions removed (deprecated)
-
-    // Migration 19: Add target fields to contexts table
-    migrateContextsTargetFields();
-    // Migration 20: test_case_management removed (deprecated)
-
-    // Migration 21: Add implemented_tasks column to contexts table
-    migrateContextsImplementedTasks();
-    // Migration 22: Add context_id column to implementation_log table
-    migrateImplementationLogContextId();
-    // Migration 23: Add screenshot column to implementation_log table
-    migrateImplementationLogScreenshot();
-    // Migration 24: Add overview_bullets column to implementation_log table
-    migrateImplementationLogOverviewBullets();
-    // Migration 25: Create marketplace tables for refactoring patterns
-    migrateMarketplaceTables();
-    // Migration 26: Create adaptive learning tables for self-optimizing development cycle
-    migrateAdaptiveLearningTables();
-    // Migration 27: debt_prediction removed (deprecated)
-
-    // Migration 28: Create lifecycle automation tables
-    migrateLifecycleTables();
-    // Migration 29: Add target_rating column to contexts table
-    migrateContextsTargetRating();
-    // Migration 30: Add type and icon columns to context_groups table
-    migrateContextGroupsArchitectureFields();
-    // Migration 31: Create context_group_relationships table
-    migrateContextGroupRelationshipsTable();
-    // Migration 32: Create security intelligence dashboard tables
-    migrateSecurityIntelligenceTables();
-    // Migration 33: blueprint removed (deprecated)
-
-    // Migration 34: Create developer mind-meld tables
-    migrateDeveloperMindMeldTables();
-    // Migration 35: Update ideas table to support 1-10 scoring and add risk column
-    migrateIdeasExtendedScoring();
-    // Defensive: ensure risk column exists even if migration 35 failed silently
-    safeMigration('ideasRiskColumnDefensive', () => {
-      const db = getConnection();
+    once('m001', () => migrateScansTokenColumns());
+    once('m002', () => migrateContextsTable());
+    once('m003', () => migrateGoalsTable());
+    once('m004', () => migrateIdeasScanType());
+    once('m005', () => migrateIdeasEffortImpact());
+    once('m006', () => migrateIdeasImplementedAt());
+    once('m007', () => migrateIdeasCategoryConstraint());         // DESTRUCTIVE: drops & recreates ideas
+    once('m008', () => migrateIdeasRequirementAndGoal());
+    once('m009', () => migrateContextsTestingColumns());
+    once('m012', () => migrateGoalCandidatesTable());
+    once('m013', () => migrateVoicebotAnalyticsTable());
+    once('m014', () => migrateEventsContextId());
+    once('m019', () => migrateContextsTargetFields());
+    once('m021', () => migrateContextsImplementedTasks());
+    once('m022', () => migrateImplementationLogContextId());
+    once('m023', () => migrateImplementationLogScreenshot());
+    once('m024', () => migrateImplementationLogOverviewBullets());
+    once('m025', () => migrateMarketplaceTables());
+    once('m026', () => migrateAdaptiveLearningTables());
+    once('m028', () => migrateLifecycleTables());
+    once('m029', () => migrateContextsTargetRating());
+    once('m030', () => migrateContextGroupsArchitectureFields());
+    once('m031', () => migrateContextGroupRelationshipsTable());
+    once('m032', () => migrateSecurityIntelligenceTables());
+    once('m034', () => migrateDeveloperMindMeldTables());
+    once('m035', () => migrateIdeasExtendedScoring());            // DESTRUCTIVE: renames ideas → ideas_old
+    once('m035b', () => {
+      // Defensive: ensure risk column exists even if m035 failed silently
       if (tableExists(db, 'ideas')) {
         addColumnIfNotExists(db, 'ideas', 'risk', 'INTEGER', migrationLogger);
       }
-    }, migrationLogger);
-    // Migration 36: Create onboarding accelerator tables
-    migrateOnboardingAcceleratorTables();
-    // Migration 37: Create strategic roadmap engine tables
-    migrateStrategicRoadmapTables();
-    // Migration 38: Create hypothesis-driven testing tables
-    migrateHypothesisTestingTables();
-    // Migration 39: Create project health score tables
-    migrateProjectHealthTables();
-    // Migration 40: Create daily standup tables
-    migrateDailyStandupTables();
-    // Migration 41: Create red team testing tables
-    migrateRedTeamTestingTables();
-    // Migration 42: Create architecture graph tables
-    migrateArchitectureGraphTables();
-    // Migration 43: Create focus mode tables
-    migrateFocusModeTables();
-    // Migration 44: Create autonomous CI tables
-    migrateAutonomousCITables();
-    // Migration 45: Create ROI Simulator tables
-    migrateROISimulatorTables();
-    // Migration 46: Create Goal Hub tables
-    migrateGoalHub();
-    // Migration 47: Create Social Channel Configs tables
-    migrateSocialChannelConfigs();
-    // Migration 48: Create Social Feedback Items table
-    migrateSocialFeedbackItems();
-    // Migration 49: Create Social Discovery Configs table
-    migrateSocialDiscoveryConfigs();
-    // Migration 50: Offload System - REMOVED (migrated to Supabase)
-    // Migration 51: Create Claude Code Sessions tables
-    migrateClaudeCodeSessions();
-    // Migration 52: Create Automation Sessions table
-    migrateAutomationSessions();
-    // Migration 53: Create Automation Session Events table
-    migrateAutomationSessionEvents();
-    // Migration 54: Create Integration Framework tables
-    migrateIntegrationFramework();
-    // Migration 55: Create Code Health Observatory tables
-    migrateObservatory();
-    // Migration 56: Add risk column to ideas table
-    migrateIdeasRiskColumn();
-    // Migration 57: Add paused phase to automation_sessions
-    migrateAutomationSessionPausedPhase();
-    // Migration 58: Create questions table for guided idea generation
-    migrateQuestionsTable();
-    // Migration 59: Create Claude Terminal tables
-    migrateClaudeTerminalTables();
-    // Migration 60: Create directions table for actionable development guidance
-    migrateDirectionsTable();
-    // Migration 61: Create hall_of_fame_stars table
-    migrateHallOfFameStars();
-    // Migration 62: Create API Observability tables
-    migrateApiObservability();
-    // Migration 63: Create context_api_routes table and enhance contexts table
-    migrateContextApiRoutes();
-    // Migration 64: Create obs_xray_events table for persisted X-Ray traffic
-    migrateObsXRayEvents();
-    // Migration 65: Add SQLite context references to directions table
-    migrateDirectionsContextLink();
-    // Migration 66: Create prompt_templates table for reusable prompt composition
-    migratePromptTemplates();
-    // Migration 67: Create Brain 2.0 tables for behavioral learning and reflection
-    migrateBrainV2();
-    // Migration 68: Add scope column to brain_reflections for global reflection support
-    migrateBrainGlobalReflection();
-    // Migration 69: Create Annette 2.0 conversation + memory tables
-    migrateAnnetteV2();
-    // Migration 70: Create workspaces tables for project grouping
-    migrateWorkspaces();
-    // Migration 71: Create Annette Memory System tables for persistent memory and knowledge graph
-    migrateAnnetteMemorySystem();
-    // Migration 72: Create Executive Analysis table for AI-driven insights
-    migrateExecutiveAnalysis();
-    // Migration 73: Create Cross-Project Architecture tables for workspace-level visualization
-    migrateCrossProjectArchitecture();
-    // Migration 74: Workspace & Project Enhancements - base_path for workspaces
-    migrateWorkspaceProjectEnhancements();
-    // Migration 75: Group Health Scans - health tracking for context groups
-    migrateGroupHealth();
-    // Migration 76: Remote Message Broker Config - Supabase credentials storage
-    migrateRemoteConfig();
-    // Migration 77: Drop Orphaned Tables - v1.1 Dead Code Cleanup
-    migrateDropOrphanedTables();
-    // Migration 78: Direction Pairs - two alternative solutions for comparison
-    migrate065DirectionPairs();
-    // Migration 79: Cleanup Stale Context Paths - remove non-existent file references
-    migrate066CleanupStaleContextPaths();
-    // Migration 80: Fix CHECK constraints for directions.status and behavioral_signals.signal_type
-    migrate067FixCheckConstraints();
-    // Migration 81: Discovered Templates - store templates from external projects
-    migrateDiscoveredTemplates();
-    // Migration 82: Generation History - track template generation history
-    migrateGenerationHistory();
-    // Migration 83: Context AI Navigation - entry_points, db_tables, keywords, api_surface, cross_refs, tech_stack
-    migrateContextAiNavigation();
-    // Migration 84: Collective Memory - cross-session learning and pattern knowledge graph
-    migrateCollectiveMemory();
-    // Migration 85: Brain Insights Table - extract insights from JSON blobs to proper table
-    migrateBrainInsightsTable();
-
-    // Migration 85b: Drop insights_generated column - eliminate dual-write split-brain
-    migrateDropInsightsGeneratedColumn();
-
-    // Migration 86: Fix Generation History FK - remove invalid foreign key constraint
-
-    migrateFixGenerationHistoryFk();
-    // Migration 87: Template Category - add category column for grouping
-    migrateTemplateCategory();
-    // Migration 88: Behavioral Signals Indexes - compound indexes for query performance
-    migrateBehavioralSignalsIndexes();
-    // Migration 89: Template Source Column - consolidate prompt_templates into discovered_templates
-    migrateTemplateSourceColumn();
-    // Migration 99: Review Use Case Flows - activity diagram visualization
-    migrateReviewUseCaseFlows099();
-    // Migration 100: Behavioral Signal Decay Tracking - batched weekly decay
-    migrateBehavioralSignalDecayTracking100();
-    // Migration 101: Insight Effectiveness Cache - avoid O(n*m) recalculation
-    migrate101InsightEffectivenessCache(migrationLogger);
-
-    // Migration 103: Goal Lifecycle Engine - autonomous progress tracking
-    migrate103GoalLifecycle(db as any, migrationLogger);
-
-    // Migration 104: Execution Flows - store extracted flow diagrams
-    migrate104ExecutionFlows(db as any, migrationLogger);
-
-    // Migration 105: Composite indexes for date-range queries
-    migrate105PerformanceIndexes(db as any, migrationLogger);
-
-    // Migration 106: Cleanup phantom context file paths (re-validates all contexts)
-    migrate106CleanupPhantomContextPaths();
-
-    // Migration 108: Observability - metrics snapshots + prompt version history
-    migrate108Observability(db as any, migrationLogger);
-
-    // Migration 113: Direction Decision Record - ADR field
-    migrate113DirectionDecisionRecord(db as any, migrationLogger);
-
-    // Migration 114: Question Tree - recursive strategic question trees
-    migrate114QuestionTree(db as any, migrationLogger);
-
-    // Migration 115: Direction Effort/Impact - prioritization scoring
-    migrate115DirectionEffortImpact(db as any, migrationLogger);
-
-    // Migration 116: Annette Rapport Model - developer relationship personality adaptation
-    migrate116AnnetteRapport(db as any, migrationLogger);
-
-    // Migration 117: Autonomous Agent Mode - goal-driven execution
-    migrate117AutonomousAgent(db as any, migrationLogger);
-
-    // Migration 118: Composite index for ideas category GROUP BY queries
-    migrate118IdeasCategoryCompositeIndex(db as any, migrationLogger);
-
-    // Migration 119: Predictive Intent Engine - context transition Markov chain
-    migrate119PredictiveIntent(db as any, migrationLogger);
-
-    // Migration 120: Schema Intelligence - self-optimizing database
-    migrate120SchemaIntelligence(db as any, migrationLogger);
-
-    // Migration 121: Scan Profiles
-    migrate121ScanProfiles(db as any, migrationLogger);
-
-    // Migration 122: Idea Dependencies
-    migrate122IdeaDependencies(db as any, migrationLogger);
-
-    // Migration 123: Typed Evidence Refs - classify string evidence IDs by prefix
-    migrate123TypedEvidenceRefs(db as any, migrationLogger);
-
-    // Migration 124: Insight Influence Log - causal validation via counterfactual tracking
-    migrate124InsightInfluenceLog(db as any, migrationLogger);
-
-    // Migration 125: Direction Preference Profiles - adaptive pair generation
-    migrate125DirectionPreferenceProfiles(db as any, migrationLogger);
-
-    // Migration 126: Question Gap Detection - auto-deepening via answer analysis
-    migrate126QuestionGapDetection(db as any, migrationLogger);
-
-    // Migration 127: Drop task_ids JSON column - session_tasks junction table is source of truth
-    migrate127DropSessionTaskIdsColumn(db as any, migrationLogger);
-
-    // Migration 128: UNIQUE partial index for active reflections - eliminates TOCTOU race
-    migrate128ReflectionUniqueActive(db as any, migrationLogger);
-
-    // Migration 129: hypothesis_assertions column on directions
-    migrate129DirectionHypothesisAssertions(db as any, migrationLogger);
-
-    // Migration 130: Align scoring constraints to 1-10 scale across all tables
-    migrate130AlignScoringConstraints(db as any, migrationLogger);
-
-    // Migration 131: Add PID tracking to sessions for orphan reaping
-    migrate131SessionPidTracking(db as any, migrationLogger);
-
-    // Migration 132: Enforce ON DELETE CASCADE for ideas.scan_id and clean up orphans
-    migrate132EnforceIdeasScanCascade(db as any, migrationLogger);
-
-    // Migration 133: Add query performance indexes for brain insights and directions
-    migrate133BrainDirectionsQueryIndexes(db as any, migrationLogger);
-
-    // Migration 134: Conductor pipeline tables
-    migrate134ConductorPipeline(db as any, migrationLogger);
-
-    // Migration 135: Brain insight evidence junction table
-    migrate135BrainInsightEvidenceJunction(db as any, migrationLogger);
-
-    // Migration 136: Add version column to effectiveness cache
-    migrate136EffectivenessCacheVersion(migrationLogger);
-
-    // Migration 137: Cascade delete evidence junction on source removal
-    migrate137CascadeDeleteEvidenceJunction(db as any, migrationLogger);
-
-    // Migration 142: Provider/model tracking columns on ideas, implementation_log, scans
-    migrate142ProviderModelTracking(db as any, migrationLogger);
-
-    // Migration 143: Fix ideas effort/impact CHECK constraints (1-3 → 1-10)
-    migrate143FixIdeasEffortConstraint(db as any, migrationLogger);
-
-    // Migration 144: Detailed ideas flag for implementation-ready scans
-    migrate144DetailedIdeas(db as any, migrationLogger);
+    });
+    once('m036', () => migrateOnboardingAcceleratorTables());
+    once('m037', () => migrateStrategicRoadmapTables());
+    once('m038', () => migrateHypothesisTestingTables());
+    once('m039', () => migrateProjectHealthTables());
+    once('m040', () => migrateDailyStandupTables());
+    once('m041', () => migrateRedTeamTestingTables());
+    once('m042', () => migrateArchitectureGraphTables());
+    once('m043', () => migrateFocusModeTables());
+    once('m044', () => migrateAutonomousCITables());
+    once('m045', () => migrateROISimulatorTables());
+    once('m046', () => migrateGoalHub());
+    once('m047', () => migrateSocialChannelConfigs());
+    once('m048', () => migrateSocialFeedbackItems());
+    once('m049', () => migrateSocialDiscoveryConfigs());
+    once('m051', () => migrateClaudeCodeSessions());
+    once('m052', () => migrateAutomationSessions());
+    once('m053', () => migrateAutomationSessionEvents());
+    once('m054', () => migrateIntegrationFramework());
+    once('m055', () => migrateObservatory());
+    once('m056', () => migrateIdeasRiskColumn());
+    once('m057', () => migrateAutomationSessionPausedPhase());
+    once('m058', () => migrateQuestionsTable());
+    once('m059', () => migrateClaudeTerminalTables());
+    once('m060', () => migrateDirectionsTable());
+    once('m061', () => migrateHallOfFameStars());
+    once('m062', () => migrateApiObservability());
+    once('m063', () => migrateContextApiRoutes());
+    once('m064', () => migrateObsXRayEvents());
+    once('m065', () => migrateDirectionsContextLink());
+    once('m066', () => migratePromptTemplates());
+    once('m067', () => migrateBrainV2());
+    once('m068', () => migrateBrainGlobalReflection());
+    once('m069', () => migrateAnnetteV2());
+    once('m070', () => migrateWorkspaces());
+    once('m071', () => migrateAnnetteMemorySystem());
+    once('m072', () => migrateExecutiveAnalysis());
+    once('m073', () => migrateCrossProjectArchitecture());
+    once('m074', () => migrateWorkspaceProjectEnhancements());
+    once('m075', () => migrateGroupHealth());
+    once('m076', () => migrateRemoteConfig());
+    once('m077', () => migrateDropOrphanedTables());
+    once('m078', () => migrate065DirectionPairs());
+    once('m079', () => migrate066CleanupStaleContextPaths());
+    once('m080', () => migrate067FixCheckConstraints());
+    once('m081', () => migrateDiscoveredTemplates());
+    once('m082', () => migrateGenerationHistory());
+    once('m083', () => migrateContextAiNavigation());
+    once('m084', () => migrateCollectiveMemory());
+    once('m085', () => migrateBrainInsightsTable());
+    once('m085b', () => migrateDropInsightsGeneratedColumn());
+    once('m086', () => migrateFixGenerationHistoryFk());
+    once('m087', () => migrateTemplateCategory());
+    once('m088', () => migrateBehavioralSignalsIndexes());
+    once('m089', () => migrateTemplateSourceColumn());
+    once('m099', () => migrateReviewUseCaseFlows099());
+    once('m100', () => migrateBehavioralSignalDecayTracking100());
+    once('m101', () => migrate101InsightEffectivenessCache(migrationLogger));
+    once('m103', () => migrate103GoalLifecycle(db as any, migrationLogger));
+    once('m104', () => migrate104ExecutionFlows(db as any, migrationLogger));
+    once('m105', () => migrate105PerformanceIndexes(db as any, migrationLogger));
+    once('m106', () => migrate106CleanupPhantomContextPaths());
+    once('m108', () => migrate108Observability(db as any, migrationLogger));
+    once('m113', () => migrate113DirectionDecisionRecord(db as any, migrationLogger));
+    once('m114', () => migrate114QuestionTree(db as any, migrationLogger));
+    once('m115', () => migrate115DirectionEffortImpact(db as any, migrationLogger));
+    once('m116', () => migrate116AnnetteRapport(db as any, migrationLogger));
+    once('m117', () => migrate117AutonomousAgent(db as any, migrationLogger));
+    once('m118', () => migrate118IdeasCategoryCompositeIndex(db as any, migrationLogger));
+    once('m119', () => migrate119PredictiveIntent(db as any, migrationLogger));
+    once('m120', () => migrate120SchemaIntelligence(db as any, migrationLogger));
+    once('m121', () => migrate121ScanProfiles(db as any, migrationLogger));
+    once('m122', () => migrate122IdeaDependencies(db as any, migrationLogger));
+    once('m123', () => migrate123TypedEvidenceRefs(db as any, migrationLogger));
+    once('m124', () => migrate124InsightInfluenceLog(db as any, migrationLogger));
+    once('m125', () => migrate125DirectionPreferenceProfiles(db as any, migrationLogger));
+    once('m126', () => migrate126QuestionGapDetection(db as any, migrationLogger));
+    once('m127', () => migrate127DropSessionTaskIdsColumn(db as any, migrationLogger));
+    once('m128', () => migrate128ReflectionUniqueActive(db as any, migrationLogger));
+    once('m129', () => migrate129DirectionHypothesisAssertions(db as any, migrationLogger));
+    once('m130', () => migrate130AlignScoringConstraints(db as any, migrationLogger));
+    once('m131', () => migrate131SessionPidTracking(db as any, migrationLogger));
+    once('m132', () => migrate132EnforceIdeasScanCascade(db as any, migrationLogger));  // DESTRUCTIVE: deletes orphans
+    once('m133', () => migrate133BrainDirectionsQueryIndexes(db as any, migrationLogger));
+    once('m134', () => migrate134ConductorPipeline(db as any, migrationLogger));
+    once('m135', () => migrate135BrainInsightEvidenceJunction(db as any, migrationLogger));
+    once('m136', () => migrate136EffectivenessCacheVersion(migrationLogger));
+    once('m137', () => migrate137CascadeDeleteEvidenceJunction(db as any, migrationLogger));
+    once('m142', () => migrate142ProviderModelTracking(db as any, migrationLogger));
+    once('m143', () => migrate143FixIdeasEffortConstraint(db as any, migrationLogger));  // DESTRUCTIVE: recreates ideas
+    once('m144', () => migrate144DetailedIdeas(db as any, migrationLogger));
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -726,6 +594,10 @@ function migrateIdeasCategoryConstraint() {
       return;
     }
 
+    // Disable FK constraints during test insert to avoid false positives.
+    // We only care about the category CHECK constraint, not FK violations.
+    db.exec('PRAGMA foreign_keys = OFF');
+
     // Test if we can insert a non-standard category value
     const testId = 'category-test-' + Date.now();
     const testInsert = db.prepare(`
@@ -741,6 +613,7 @@ function migrateIdeasCategoryConstraint() {
       const deleteStmt = db.prepare('DELETE FROM ideas WHERE id = ?');
       deleteStmt.run(testId);
 
+      db.exec('PRAGMA foreign_keys = ON');
       migrationLogger.info('Ideas table already supports flexible category values');
       return;
     } catch (constraintError) {
@@ -825,9 +698,11 @@ function migrateIdeasCategoryConstraint() {
         CREATE INDEX IF NOT EXISTS idx_ideas_category ON ideas(category);
       `);
 
+      db.exec('PRAGMA foreign_keys = ON');
       migrationLogger.info('Ideas table category constraint removed successfully');
     }
   } catch (error) {
+    try { db.exec('PRAGMA foreign_keys = ON'); } catch { /* ignore */ }
     migrationLogger.error('Error during ideas category constraint migration:', error);
   }
 }
@@ -2867,7 +2742,8 @@ function migrateIdeasExtendedScoring() {
     // SQLite doesn't support modifying CHECK constraints directly
     // We need to recreate the table with new constraints
 
-    // Step 1: Rename the existing table
+    // Step 1: Clean up stale temp table from previous failed runs, then rename
+    db.exec('DROP TABLE IF EXISTS ideas_old');
     db.exec('ALTER TABLE ideas RENAME TO ideas_old');
 
     // Step 2: Create new table with updated constraints

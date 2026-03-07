@@ -23,6 +23,7 @@ interface TaskColumnProps {
   onReset?: (reqId: string) => void;
   onBulkDelete?: (reqIds: string[]) => void;
   onToggleProjectSelection: (projectId: string) => void;
+  onToggleContextSelection?: (projectId: string, contextKey: string, ideasMap: Record<string, DbIdea | null>) => void;
   getRequirementId: (req: ProjectRequirement) => string;
   onRefresh?: () => void;
   aggregationData?: AggregationCheckResult | null;
@@ -42,6 +43,7 @@ const TaskColumn = React.memo(function TaskColumn({
   onReset,
   onBulkDelete,
   onToggleProjectSelection,
+  onToggleContextSelection,
   getRequirementId,
   onRefresh,
   aggregationData,
@@ -159,6 +161,13 @@ const TaskColumn = React.memo(function TaskColumn({
     onToggleProjectSelection(projectId);
   }, [onToggleProjectSelection, projectId]);
 
+  const handleContextSelectionToggle = useCallback(
+    (contextKey: string) => {
+      onToggleContextSelection?.(projectId, contextKey, ideasMap);
+    },
+    [onToggleContextSelection, projectId, ideasMap]
+  );
+
   // Auto-assign: selected idle requirements
   const selectedIdleRequirements = useMemo(() => {
     return requirementsWithStatus.filter((req) => {
@@ -219,6 +228,7 @@ const TaskColumn = React.memo(function TaskColumn({
           onToggleSelect={onToggleSelect}
           onDelete={onDelete}
           onReset={onReset}
+          onToggleContextSelection={handleContextSelectionToggle}
         />
       </div>
     </motion.div>

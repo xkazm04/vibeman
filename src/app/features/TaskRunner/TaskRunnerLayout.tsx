@@ -39,6 +39,7 @@ const TaskRunnerLayout = () => {
     actions,
     toggleSelection,
     toggleProjectSelection,
+    toggleContextSelection,
     handleDelete,
     handleReset,
     handleBulkDelete,
@@ -170,6 +171,7 @@ const TaskRunnerLayout = () => {
                       onReset={handleReset}
                       onBulkDelete={handleBulkDelete}
                       onToggleProjectSelection={toggleProjectSelection}
+                      onToggleContextSelection={toggleContextSelection}
                       getRequirementId={getRequirementId}
                       onRefresh={() => refreshProjectRequirements(projectId, projectPath)}
                       aggregationData={aggregationByProject[projectId]}

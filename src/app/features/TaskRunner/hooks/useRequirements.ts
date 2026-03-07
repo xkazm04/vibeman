@@ -14,6 +14,7 @@ import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { deleteRequirement, loadRequirements } from '@/app/Claude/lib/requirementApi';
 import { useRequirementBatch, requirementKeys } from '@/lib/queries/requirementQueries';
 import type { ProjectRequirement, TaskRunnerActions } from '@/app/features/TaskRunner/lib/types';
+import type { DbIdea } from '@/app/db';
 import {
   createIdleStatus,
   isTaskRunning,
@@ -53,6 +54,8 @@ export interface UseRequirementsReturn {
   toggleSelection: (reqId: string) => void;
   /** Toggle selection of all requirements in a project */
   toggleProjectSelection: (projectId: string) => void;
+  /** Toggle selection of all requirements within a context group */
+  toggleContextSelection: (projectId: string, contextKey: string, ideasMap: Record<string, DbIdea | null>) => void;
   /** Delete a single requirement */
   handleDelete: (reqId: string) => Promise<void>;
   /** Reset a task status back to idle */
@@ -157,6 +160,42 @@ export function useRequirements(): UseRequirementsReturn {
       const storeTasks = useTaskRunnerStore.getState().tasks;
 
       const selectableReqs = projectReqs.filter((req) => {
+        const taskState = storeTasks[getRequirementId(req)];
+        const status = taskState?.status;
+        return !status || (!isTaskRunning(status) && !isTaskQueued(status));
+      });
+
+      const allSelected = selectableReqs.every((req) =>
+        selectedRequirements.has(getRequirementId(req))
+      );
+
+      setSelectedRequirements((prev) => {
+        const newSet = new Set(prev);
+        if (allSelected) {
+          selectableReqs.forEach((req) => newSet.delete(getRequirementId(req)));
+        } else {
+          selectableReqs.forEach((req) => newSet.add(getRequirementId(req)));
+        }
+        return newSet;
+      });
+    },
+    [groupedRequirements, selectedRequirements]
+  );
+
+  const toggleContextSelection = useCallback(
+    (projectId: string, contextKey: string, ideasMap: Record<string, DbIdea | null>) => {
+      const projectReqs = groupedRequirements[projectId] || [];
+      const storeTasks = useTaskRunnerStore.getState().tasks;
+
+      // Filter to requirements in this context group
+      const contextReqs = projectReqs.filter((req) => {
+        const idea = ideasMap[req.requirementName];
+        const reqContextKey = idea?.context_id || '__no_context__';
+        return reqContextKey === contextKey;
+      });
+
+      // Filter to selectable (not running/queued)
+      const selectableReqs = contextReqs.filter((req) => {
         const taskState = storeTasks[getRequirementId(req)];
         const status = taskState?.status;
         return !status || (!isTaskRunning(status) && !isTaskQueued(status));
@@ -308,6 +347,7 @@ export function useRequirements(): UseRequirementsReturn {
     actions,
     toggleSelection,
     toggleProjectSelection,
+    toggleContextSelection,
     handleDelete,
     handleReset,
     handleBulkDelete,

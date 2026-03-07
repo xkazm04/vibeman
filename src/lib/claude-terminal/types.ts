@@ -276,7 +276,7 @@ export type ClaudeModel = 'opus' | 'sonnet';
 export type GeminiModel = 'gemini-3.1-pro-preview';
 /** Copilot models are dynamic (queried from SDK at runtime); string type allows any model ID */
 export type CopilotModel = string;
-export type OllamaModel = 'qwen3.5:cloud';
+export type OllamaModel = 'qwen3.5:cloud' | 'qwen3.5:latest';
 export type CLIModel = ClaudeModel | GeminiModel | CopilotModel | OllamaModel;
 
 /** Provider configuration for process spawning */
@@ -310,5 +310,6 @@ export const PROVIDER_MODELS: Record<CLIProvider, { id: CLIModel; label: string 
   ],
   ollama: [
     { id: 'qwen3.5:cloud', label: 'Qwen 3.5 Cloud' },
+    { id: 'qwen3.5:latest', label: 'Qwen 3.5 Local' },
   ],
 };

@@ -124,3 +124,51 @@ export function safeMigration(
     logger?.error(`Error in migration ${name}:`, error);
   }
 }
+
+// ── Migration Tracking ─────────────────────────────────────────────────
+
+/**
+ * Create the migration tracking table if it doesn't exist
+ */
+export function ensureMigrationsTable(db: DbConnection): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS _migrations_applied (
+      name TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+}
+
+/**
+ * Check if a migration has already been applied
+ */
+export function isMigrationApplied(db: DbConnection, name: string): boolean {
+  const row = db.prepare('SELECT 1 FROM _migrations_applied WHERE name = ?').get(name);
+  return !!row;
+}
+
+/**
+ * Record a migration as applied
+ */
+export function recordMigration(db: DbConnection, name: string): void {
+  db.prepare('INSERT OR IGNORE INTO _migrations_applied (name) VALUES (?)').run(name);
+}
+
+/**
+ * Run a migration only once — skips if already applied, records on success
+ */
+export function runOnce(
+  db: DbConnection,
+  name: string,
+  migrationFn: () => void,
+  logger?: MigrationLogger
+): void {
+  if (isMigrationApplied(db, name)) return;
+
+  try {
+    migrationFn();
+    recordMigration(db, name);
+  } catch (error) {
+    logger?.error(`Error in migration ${name}:`, error);
+  }
+}
