@@ -56,6 +56,7 @@ async function handleGet(request: NextRequest) {
       overall: stats.overall,
       projects: stats.projects,
       contexts: stats.contexts,
+      providers: stats.providers,
       weeklySnapshots: includeSnapshots
         ? stats.weeklySnapshots.map(snapshot => ({
             weekStart: snapshot.weekStart,

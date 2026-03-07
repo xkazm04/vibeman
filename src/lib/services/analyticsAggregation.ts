@@ -33,11 +33,16 @@ export interface WeeklySnapshot {
   contextBreakdown: Map<string, number>;
 }
 
+export interface AggregatedProviderStats extends AggregatedIdeaStats {
+  provider: string;
+}
+
 export interface AggregatedStats {
   scanTypes: AggregatedScanTypeStats[];
   overall: AggregatedIdeaStats;
   projects: Array<{ projectId: string; name: string; totalIdeas: number }>;
   contexts: Array<{ contextId: string; name: string; totalIdeas: number }>;
+  providers: AggregatedProviderStats[];
   weeklySnapshots: WeeklySnapshot[];
   lastUpdated: number;
   cacheKey: string;
@@ -217,6 +222,28 @@ class AnalyticsAggregationService {
   }
 
   /**
+   * Calculate per-provider stats (only ideas that have a provider set)
+   */
+  private calculateProviderStats(ideas: DbIdea[]): AggregatedProviderStats[] {
+    const providerMap = new Map<string, DbIdea[]>();
+    for (const idea of ideas) {
+      if (!idea.provider) continue;
+      const list = providerMap.get(idea.provider) || [];
+      list.push(idea);
+      providerMap.set(idea.provider, list);
+    }
+
+    return Array.from(providerMap.entries()).map(([provider, providerIdeas]) => {
+      const counts = this.calculateStatusCounts(providerIdeas);
+      return {
+        provider,
+        ...counts,
+        acceptanceRatio: this.calculateAcceptanceRatio(counts.accepted, counts.implemented, counts.total),
+      };
+    });
+  }
+
+  /**
    * Calculate overall stats
    */
   private calculateOverallStats(ideas: DbIdea[]): AggregatedIdeaStats {
@@ -323,6 +350,7 @@ class AnalyticsAggregationService {
       totalIdeas
     }));
 
+    const providerStats = this.calculateProviderStats(filteredIdeas);
     const weeklySnapshots = this.generateWeeklySnapshots(filteredIdeas);
 
     return {
@@ -330,6 +358,7 @@ class AnalyticsAggregationService {
       overall,
       projects,
       contexts,
+      providers: providerStats,
       weeklySnapshots,
       lastUpdated: Date.now(),
       cacheKey: this.generateCacheKey(key)
@@ -398,6 +427,7 @@ class AnalyticsAggregationService {
       totalIdeas
     }));
 
+    const providerStats = this.calculateProviderStats(filteredIdeas);
     const weeklySnapshots = this.generateWeeklySnapshots(filteredIdeas);
 
     return {
@@ -405,6 +435,7 @@ class AnalyticsAggregationService {
       overall,
       projects,
       contexts,
+      providers: providerStats,
       weeklySnapshots,
       lastUpdated: Date.now(),
       cacheKey: `${projectId || 'all'}:${contextId || 'all'}:custom`

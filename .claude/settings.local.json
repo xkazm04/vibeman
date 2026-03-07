@@ -150,7 +150,15 @@
       "Bash(git merge:*)",
       "Bash(git init:*)",
       "Bash(npx create-next-app@latest:*)",
-      "Bash(npx:*)"
+      "Bash(npx:*)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:github.blog)",
+      "WebFetch(domain:docs.github.com)",
+      "WebFetch(domain:deepwiki.com)",
+      "Bash(npm view:*)",
+      "Bash(Select-String \"error TS\")",
+      "Bash(Measure-Object -Line)",
+      "Bash(Select-Object -ExpandProperty Lines)"
     ],
     "deny": [],
     "ask": []

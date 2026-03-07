@@ -10,6 +10,7 @@ import AcceptanceChart, { AcceptanceBarClickData } from './AcceptanceChart';
 import EffortImpactMatrix, { QuadrantType, QuadrantDrillDownData } from './EffortImpactMatrix';
 import KPISummaryCards, { KPIFilterType } from './KPISummaryCards';
 import ComparisonView from './ComparisonView';
+import ProviderBreakdown from './ProviderBreakdown';
 import ExecutiveSummary from './ExecutiveSummary';
 import { ComparisonFilterState, ReflectionStats, ComparisonStats } from '../lib/types';
 import { fetchReflectionStats, fetchComparisonStats } from '../lib/statsApi';
@@ -438,6 +439,11 @@ export default function ReflectionDashboard() {
                       ))}
                   </div>
                 </motion.div>
+              )}
+
+              {/* Provider Performance Breakdown */}
+              {filters.suggestionType !== 'directions' && stats.providers && stats.providers.length > 0 && (
+                <ProviderBreakdown providers={stats.providers} />
               )}
 
               {/* Context Map Cards Grid (Directions) - Compact 6-column matrix */}

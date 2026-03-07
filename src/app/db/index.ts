@@ -86,6 +86,9 @@ import { insightEffectivenessCacheRepository } from './repositories/insight-effe
 import { insightInfluenceRepository } from './repositories/insight-influence.repository';
 import { directionPreferenceRepository } from './repositories/direction-preference.repository';
 import { goalSignalRepository, goalSubGoalRepository } from './repositories/goal-lifecycle.repository';
+import { fileWriteQueueRepository } from './repositories/file-write-queue.repository';
+import { scanResultRepository } from './repositories/scanResult.repository';
+import { triageRuleRepository } from './repositories/triage-rule.repository';
 
 // Export types
 export * from './models/types';
@@ -568,6 +571,33 @@ export const collectiveMemoryDb = {
 export const agentDb = {
   goals: agentGoalRepository,
   steps: agentStepRepository,
+  close: closeDatabase,
+};
+
+/**
+ * File Write Queue Database Operations
+ * Manages pending file writes with retry logic
+ */
+export const fileWriteQueueDb = {
+  ...fileWriteQueueRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Scan Result Database Operations
+ * Persists scan results to SQLite
+ */
+export const scanResultDb = {
+  ...scanResultRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Triage Rule Database Operations
+ * Manages auto-triage rules (accept/reject/archive)
+ */
+export const triageRuleDb = {
+  ...triageRuleRepository,
   close: closeDatabase,
 };
 

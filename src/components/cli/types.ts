@@ -26,6 +26,10 @@ export interface QueuedTask {
   directPrompt?: string;
   /** IDs of tasks that must complete before this one starts (for DAG scheduling) */
   dependencies?: string[];
+  /** IDs of original requirements consolidated into this task (for status fan-out) */
+  consolidatedFrom?: string[];
+  /** Requirement names of consolidated constituents (for cleanup on completion) */
+  consolidatedRequirementNames?: string[];
 }
 
 // CLISessionState is defined in ./store/cliSessionStore.ts and re-exported from ./store/index.ts

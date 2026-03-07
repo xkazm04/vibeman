@@ -22,6 +22,8 @@ interface QueryRequestBody {
   model?: CLIModel;
   /** Extra environment variables for the CLI process (e.g., VIBEMAN_PROJECT_ID, VIBEMAN_TASK_ID) */
   extraEnv?: Record<string, string>;
+  /** Enable git worktree isolation for this execution (Claude only) */
+  useWorktree?: boolean;
 }
 
 /**
@@ -78,7 +80,7 @@ async function checkOllamaCloudAuth(model: string): Promise<{ error: string; sig
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as QueryRequestBody;
-    const { projectPath, prompt, resumeSessionId, provider, model, extraEnv } = body;
+    const { projectPath, prompt, resumeSessionId, provider, model, extraEnv, useWorktree } = body;
 
     if (!projectPath) {
       return NextResponse.json(
@@ -111,7 +113,7 @@ export async function POST(request: NextRequest) {
       prompt,
       resumeSessionId,
       undefined,
-      provider ? { provider, model: model || undefined } : undefined,
+      provider ? { provider, model: model || undefined, useWorktree } : undefined,
       extraEnv
     );
 

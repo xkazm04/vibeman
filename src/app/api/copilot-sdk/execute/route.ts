@@ -1,7 +1,7 @@
 /**
  * Copilot SDK Execute API Route
  *
- * POST: Start a new Copilot SDK execution
+ * POST: Start a new Copilot SDK execution (with optional session resume)
  * GET: Get execution status
  * DELETE: Abort an ongoing execution
  */
@@ -11,6 +11,7 @@ import {
   startCopilotExecution,
   getCopilotExecution,
   abortCopilotExecution,
+  getCachedSessionId,
 } from '@/lib/copilot-sdk/client';
 
 interface ExecuteRequestBody {
@@ -18,15 +19,21 @@ interface ExecuteRequestBody {
   prompt: string;
   model?: string;
   apiKey?: string;
+  /** Resume a specific session by ID */
+  resumeSessionId?: string;
 }
 
 /**
  * POST: Start a new Copilot SDK execution
+ *
+ * If `resumeSessionId` is provided, the execution will resume that session,
+ * preserving conversation history. If not provided but a cached session
+ * exists for the project path, it will be auto-resumed.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as ExecuteRequestBody;
-    const { projectPath, prompt, model, apiKey } = body;
+    const { projectPath, prompt, model, apiKey, resumeSessionId } = body;
 
     if (!projectPath) {
       return NextResponse.json(
@@ -42,12 +49,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const executionId = startCopilotExecution(projectPath, prompt, model, apiKey);
+    // Auto-resume: use cached session for this project if no explicit ID
+    const effectiveResumeId = resumeSessionId || getCachedSessionId(projectPath);
+
+    const executionId = startCopilotExecution(
+      projectPath,
+      prompt,
+      model,
+      apiKey,
+      effectiveResumeId
+    );
 
     return NextResponse.json({
       success: true,
       executionId,
       streamUrl: `/api/copilot-sdk/stream?executionId=${executionId}`,
+      resumed: !!effectiveResumeId,
     });
   } catch (error) {
     console.error('Copilot SDK execute error:', error);
@@ -127,6 +144,7 @@ export async function GET(request: NextRequest) {
         model: execution.model,
         status: execution.status,
         sessionId: execution.sessionId,
+        resumed: execution.resumed,
         startTime: execution.startTime,
         endTime: execution.endTime,
         eventCount: execution.events.length,

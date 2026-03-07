@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Scope Tailwind content scanning to src/ only.
+   The default scans the entire project root, which on Windows picks up
+   the "nul" device-name file that Claude CLI creates via `> nul` redirects,
+   causing a Turbopack panic. */
+@source "../../src";
+
 @theme {
   --color-background: #0f0f23;
   --color-foreground: #e2e8f0;

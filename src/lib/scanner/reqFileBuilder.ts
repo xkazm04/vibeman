@@ -53,7 +53,22 @@ function buildDescriptionSection(idea: DbIdea): string {
   let section = `## Description\n${idea.description || 'No description provided'}`;
 
   if (idea.reasoning) {
-    section += `\n\n## Reasoning\n${idea.reasoning}`;
+    // Check if reasoning contains an embedded implementation procedure section
+    const procedureMarker = '## Implementation Procedure';
+    const procedureIndex = idea.reasoning.indexOf(procedureMarker);
+
+    if (procedureIndex !== -1) {
+      // Split reasoning from procedure — show reasoning first, procedure as separate section
+      const reasoningText = idea.reasoning.slice(0, procedureIndex).trim();
+      const procedureText = idea.reasoning.slice(procedureIndex).trim();
+
+      if (reasoningText) {
+        section += `\n\n## Reasoning\n${reasoningText}`;
+      }
+      section += `\n\n${procedureText}`;
+    } else {
+      section += `\n\n## Reasoning\n${idea.reasoning}`;
+    }
   }
 
   return section;

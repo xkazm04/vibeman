@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-03-03T20:51:59.905Z",
+  "timestamp": "2026-03-07T11:43:07.317Z",
   "files": [
     {
       "path": "C:\\Users\\kazim\\dac\\vibeman\\src\\components\\buttons\\IlluminatedButton.tsx",
@@ -24,10 +24,17 @@
       "extractedComponents": []
     },
     {
+      "path": "C:\\Users\\kazim\\dac\\vibeman\\src\\components\\cli\\AutoAssignSettingsModal.tsx",
+      "status": "pending",
+      "lineCount": 265,
+      "colorReplacements": 1,
+      "extractedComponents": []
+    },
+    {
       "path": "C:\\Users\\kazim\\dac\\vibeman\\src\\components\\cli\\CLISession.tsx",
       "status": "pending",
-      "lineCount": 446,
-      "colorReplacements": 4,
+      "lineCount": 599,
+      "colorReplacements": 9,
       "extractedComponents": []
     },
     {
@@ -129,13 +136,6 @@
       "extractedComponents": []
     },
     {
-      "path": "C:\\Users\\kazim\\dac\\vibeman\\src\\components\\GlobalTaskBar\\BlueprintProgress.tsx",
-      "status": "pending",
-      "lineCount": 330,
-      "colorReplacements": 4,
-      "extractedComponents": []
-    },
-    {
       "path": "C:\\Users\\kazim\\dac\\vibeman\\src\\components\\GlobalTaskBar\\ConductorProgress.tsx",
       "status": "pending",
       "lineCount": 147,
@@ -194,7 +194,7 @@
     {
       "path": "C:\\Users\\kazim\\dac\\vibeman\\src\\components\\idea\\IdeaDetailModal.tsx",
       "status": "pending",
-      "lineCount": 449,
+      "lineCount": 453,
       "colorReplacements": 2,
       "extractedComponents": []
     },
@@ -376,7 +376,7 @@
   ],
   "summary": {
     "byCategory": {
-      "text": 93,
+      "text": 95,
       "border": 60,
       "background": 57,
       "shadow": 12,

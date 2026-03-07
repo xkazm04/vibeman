@@ -143,7 +143,15 @@ export function CLIBatchPanel({
     updateTaskStatus(sessionId, taskId, createRunningStatus());
     // Sync to TaskRunner store so TaskColumn shows correct status
     updateTaskRunnerStatus(taskId, createRunningStatus());
-  }, [updateTaskStatus, updateTaskRunnerStatus]);
+    // Fan-out: mark consolidated constituent requirements as running
+    const session = sessions[sessionId];
+    const task = session?.queue.find(t => t.id === taskId);
+    if (task?.consolidatedFrom) {
+      for (const constituentId of task.consolidatedFrom) {
+        updateTaskRunnerStatus(constituentId, createRunningStatus());
+      }
+    }
+  }, [sessions, updateTaskStatus, updateTaskRunnerStatus]);
 
   // Handle task completion - delete requirement file if successful
   const handleTaskComplete = useCallback(async (sessionId: CLISessionId, taskId: string, success: boolean) => {
@@ -151,10 +159,19 @@ export function CLIBatchPanel({
     const session = sessions[sessionId];
     const task = session?.queue.find(t => t.id === taskId);
 
+    const finalStatus = success ? createCompletedStatus() : createFailedStatus('Task failed');
+
     // Update CLI store immediately
-    updateTaskStatus(sessionId, taskId, success ? createCompletedStatus() : createFailedStatus('Task failed'));
+    updateTaskStatus(sessionId, taskId, finalStatus);
     // Sync to TaskRunner store so TaskColumn shows correct status
-    updateTaskRunnerStatus(taskId, success ? createCompletedStatus() : createFailedStatus('Task failed'));
+    updateTaskRunnerStatus(taskId, finalStatus);
+
+    // Fan-out: mark consolidated constituent requirements with same status
+    if (task?.consolidatedFrom) {
+      for (const constituentId of task.consolidatedFrom) {
+        updateTaskRunnerStatus(constituentId, finalStatus);
+      }
+    }
 
     // If successful, perform cleanup actions
     if (success && task) {
@@ -179,14 +196,30 @@ export function CLIBatchPanel({
         }
       }
 
-      // Shared cleanup: delete requirement file and update idea status
+      // Shared cleanup: delete lead requirement file and update idea status
       const deleted = await performTaskCleanup(task.projectPath, task.requirementName);
 
       if (deleted) {
         // Notify parent to remove from requirements list (UI-specific)
         onRequirementCompleted?.(taskId, task.projectPath, task.requirementName);
+      }
 
-        // Remove completed task from queue after short delay
+      // Cleanup consolidated constituent requirement files
+      if (task.consolidatedRequirementNames) {
+        for (const reqName of task.consolidatedRequirementNames) {
+          const reqDeleted = await performTaskCleanup(task.projectPath, reqName);
+          if (reqDeleted) {
+            // Find the constituent ID to notify parent
+            const constituentId = task.consolidatedFrom?.find(id => id.endsWith(`:${reqName}`));
+            if (constituentId) {
+              onRequirementCompleted?.(constituentId, task.projectPath, reqName);
+            }
+          }
+        }
+      }
+
+      // Remove completed task from queue after short delay
+      if (deleted || task.consolidatedRequirementNames) {
         setTimeout(() => {
           removeTask(sessionId, taskId);
         }, 2000); // Show completed state briefly before removing

@@ -187,6 +187,13 @@ export default function IdeaDetailMeta({ idea, onUpdate }: IdeaDetailMetaProps) 
           </span>
         </motion.button>
 
+        {/* Provider Badge */}
+        {idea.provider && (
+          <span className="px-2 py-1 bg-gray-800/40 border border-gray-700/40 rounded text-gray-400 uppercase">
+            {idea.provider}{idea.model ? ` · ${idea.model}` : ''}
+          </span>
+        )}
+
         {/* Context Badge - Clickable */}
         <motion.button
           data-testid="idea-meta-context-button"

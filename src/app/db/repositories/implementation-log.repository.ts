@@ -121,13 +121,15 @@ export const implementationLogRepository = {
     overview_bullets?: string;
     tested?: boolean;
     screenshot?: string;
+    provider?: string;
+    model?: string;
   }): DbImplementationLog => {
     const db = getDatabase();
     const now = new Date().toISOString();
 
     const stmt = db.prepare(`
-      INSERT INTO implementation_log (id, project_id, context_id, requirement_name, title, overview, overview_bullets, tested, screenshot, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO implementation_log (id, project_id, context_id, requirement_name, title, overview, overview_bullets, tested, screenshot, provider, model, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -140,6 +142,8 @@ export const implementationLogRepository = {
       log.overview_bullets || null,
       log.tested ? 1 : 0,
       log.screenshot || null,
+      log.provider || null,
+      log.model || null,
       now
     );
 

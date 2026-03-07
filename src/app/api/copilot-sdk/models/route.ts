@@ -6,19 +6,13 @@
 
 import { NextResponse } from 'next/server';
 import { CopilotClient } from '@github/copilot-sdk';
-import { join, dirname } from 'path';
+import { join } from 'path';
 import { existsSync } from 'fs';
 
 /** Resolve the bundled CLI path to avoid Turbopack import.meta.resolve breakage */
 function resolveCopilotCliPath(): string | undefined {
-  try {
-    const sdkIndex = require.resolve('@github/copilot/sdk');
-    const cliPath = join(dirname(dirname(sdkIndex)), 'index.js');
-    if (existsSync(cliPath)) return cliPath;
-  } catch { /* not found */ }
-
-  const fallback = join(process.cwd(), 'node_modules', '@github', 'copilot', 'index.js');
-  if (existsSync(fallback)) return fallback;
+  const cliPath = join(process.cwd(), 'node_modules', '@github', 'copilot', 'index.js');
+  if (existsSync(cliPath)) return cliPath;
   return undefined;
 }
 

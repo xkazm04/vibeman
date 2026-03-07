@@ -15,6 +15,7 @@ interface GenerateIdeasRequest {
   contextId?: string;
   provider?: string;
   scanType?: ScanType;
+  detailed?: boolean;
   codebaseFiles: Array<{ path: string; content: string; type: string }>;
 }
 
@@ -54,6 +55,7 @@ async function handlePost(request: NextRequest) {
       contextId,
       provider,
       scanType,
+      detailed,
       codebaseFiles
     } = body;
 
@@ -64,6 +66,7 @@ async function handlePost(request: NextRequest) {
       contextId,
       provider,
       scanType,
+      detailed,
       codebaseFiles
     });
 

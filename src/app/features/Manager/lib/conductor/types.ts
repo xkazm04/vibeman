@@ -120,6 +120,10 @@ export interface BalancingConfig {
   // Self-healing
   healingEnabled: boolean;
   healingThreshold: number;
+
+  // Experimental
+  /** [Experimental] Enable Claude Agent Teams for coordinated multi-session work */
+  experimentalAgentTeams: boolean;
 }
 
 export const DEFAULT_BALANCING_CONFIG: BalancingConfig = {
@@ -167,6 +171,9 @@ export const DEFAULT_BALANCING_CONFIG: BalancingConfig = {
   // Self-healing defaults
   healingEnabled: true,
   healingThreshold: 3,
+
+  // Experimental defaults
+  experimentalAgentTeams: false,
 };
 
 // ============================================================================
@@ -176,6 +183,7 @@ export const DEFAULT_BALANCING_CONFIG: BalancingConfig = {
 export type ErrorType =
   | 'prompt_ambiguity'
   | 'missing_context'
+  | 'rate_limit'
   | 'tool_failure'
   | 'timeout'
   | 'permission_error'
@@ -257,6 +265,8 @@ export interface ExecutionResult {
   error?: string;
   filesChanged?: string[];
   durationMs?: number;
+  provider?: string;
+  model?: string;
 }
 
 export interface ReviewDecision {

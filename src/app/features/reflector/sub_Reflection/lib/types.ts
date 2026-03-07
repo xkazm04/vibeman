@@ -29,6 +29,10 @@ export interface ScanTypeStats extends IdeaStats {
   scanType: ScanType;
 }
 
+export interface ProviderStats extends IdeaStats {
+  provider: string;
+}
+
 export interface DateRange {
   startDate: string | null;
   endDate: string | null;
@@ -62,6 +66,8 @@ export interface ReflectionStats {
     name: string;
     totalIdeas: number;
   }>;
+  // Per-provider breakdown (populated when ideas have provider data)
+  providers?: ProviderStats[];
   // Optional direction data (populated when suggestionType includes directions)
   contextMaps?: ContextMapStats[];
   directionsOverall?: DirectionStats;

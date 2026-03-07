@@ -188,6 +188,11 @@ export default function IdeaCard({
                   <span className="text-xs text-gray-400 uppercase tracking-wide">
                     {idea.category.replace('_', ' ')}{idea.scan_type ? ` · ${idea.scan_type.replace('_', ' ')}` : ''}
                   </span>
+                  {idea.detailed === 1 && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-semibold uppercase tracking-wide">
+                      Detailed
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -235,6 +240,14 @@ export default function IdeaCard({
               <span className="text-sm text-gray-400 transition-colors duration-200">{projectName}</span>
               <span className="text-sm text-gray-500">•</span>
               <span className="text-sm text-gray-400 transition-colors duration-200">{contextName}</span>
+              {idea.provider && (
+                <>
+                  <span className="text-sm text-gray-500">•</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-700/50 text-gray-400 font-medium uppercase">
+                    {idea.provider}{idea.model ? ` · ${idea.model}` : ''}
+                  </span>
+                </>
+              )}
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-500 tabular-nums">
               <Calendar className="w-3 h-3" />

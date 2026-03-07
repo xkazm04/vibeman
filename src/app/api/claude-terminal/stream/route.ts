@@ -146,6 +146,18 @@ export async function GET(request: NextRequest) {
               timestamp: cliEvent.timestamp,
             };
 
+          case 'rate_limit':
+            return {
+              type: 'rate_limit',
+              data: {
+                retryAfterMs: data.retryAfterMs ?? 60000,
+                message: data.message,
+                isUsingOverage: data.isUsingOverage,
+                overageStatus: data.overageStatus,
+              },
+              timestamp: cliEvent.timestamp,
+            };
+
           default:
             // Unknown event types are skipped (stdout, etc.)
             return null;

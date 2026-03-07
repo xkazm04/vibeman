@@ -4,13 +4,15 @@
  * Server-side wrapper around @github/copilot-sdk that manages execution
  * lifecycle, event tracking, and SSE coordination.
  *
- * Follows the same globalThis persistence pattern as cli-service.ts
- * to survive Next.js HMR reloads in dev mode.
+ * Features:
+ * - Session resume: reuse existing Copilot sessions across tasks for context continuity
+ * - Auth pre-check: validates GitHub auth before starting execution
+ * - Global persistence: survives Next.js HMR reloads in dev mode
  */
 
 import { CopilotClient, approveAll, type SessionEvent } from '@github/copilot-sdk';
 import { EventEmitter } from 'events';
-import { join, dirname } from 'path';
+import { join } from 'path';
 import { existsSync } from 'fs';
 
 // ─── Execution Types ─────────────────────────────────────────────────
@@ -31,8 +33,10 @@ export interface CopilotExecution {
   endTime?: number;
   events: CopilotExecutionEvent[];
   sessionId?: string;
+  /** Whether this execution resumed a previous session */
+  resumed?: boolean;
   /** Internal: for abort support */
-  _session?: { abort: () => Promise<void>; destroy: () => Promise<void> };
+  _session?: { abort: () => Promise<void>; destroy: () => Promise<void>; setModel: (model: string) => Promise<void> };
   _client?: CopilotClient;
 }
 
@@ -41,10 +45,13 @@ export interface CopilotExecution {
 const globalForCopilot = globalThis as unknown as {
   copilotActiveExecutions: Map<string, CopilotExecution> | undefined;
   copilotExecutionBus: EventEmitter | undefined;
+  /** Persist session IDs per project path for resume across executions */
+  copilotSessionCache: Map<string, string> | undefined;
 };
 
 const activeExecutions = globalForCopilot.copilotActiveExecutions ?? new Map<string, CopilotExecution>();
 const executionBus = globalForCopilot.copilotExecutionBus ?? new EventEmitter();
+const sessionCache = globalForCopilot.copilotSessionCache ?? new Map<string, string>();
 executionBus.setMaxListeners(50);
 
 if (!globalForCopilot.copilotActiveExecutions) {
@@ -53,18 +60,35 @@ if (!globalForCopilot.copilotActiveExecutions) {
 if (!globalForCopilot.copilotExecutionBus) {
   globalForCopilot.copilotExecutionBus = executionBus;
 }
+if (!globalForCopilot.copilotSessionCache) {
+  globalForCopilot.copilotSessionCache = sessionCache;
+}
 
 // ─── Public API ──────────────────────────────────────────────────────
+
+export interface StartExecutionOptions {
+  projectPath: string;
+  prompt: string;
+  model?: string;
+  apiKey?: string;
+  /** Resume a specific session by ID (takes priority over auto-resume) */
+  resumeSessionId?: string;
+}
 
 /**
  * Start a new Copilot SDK execution.
  * Returns the execution ID immediately; the session runs asynchronously.
+ *
+ * If `resumeSessionId` is provided, the execution will resume that session
+ * preserving conversation history. Otherwise, a new session is created
+ * (and its ID is cached for future resume by project path).
  */
 export function startCopilotExecution(
   projectPath: string,
   prompt: string,
   model?: string,
-  apiKey?: string
+  apiKey?: string,
+  resumeSessionId?: string
 ): string {
   const executionId = `copilot-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -72,18 +96,19 @@ export function startCopilotExecution(
     id: executionId,
     projectPath,
     prompt,
-    model: model || 'gpt-4.1',
+    model: model || 'gpt-5.4',
     status: 'running',
     startTime: Date.now(),
     events: [],
+    resumed: !!resumeSessionId,
   };
 
   activeExecutions.set(executionId, execution);
   executionBus.emit('registered', executionId);
-  console.log(`[Copilot SDK] Registered execution: ${executionId}. Total active: ${activeExecutions.size}`);
+  console.log(`[Copilot SDK] Registered execution: ${executionId}${resumeSessionId ? ` (resuming ${resumeSessionId})` : ''}. Total active: ${activeExecutions.size}`);
 
   // Kick off async execution (don't await)
-  runCopilotSession(execution, apiKey).catch((err) => {
+  runCopilotSession(execution, apiKey, resumeSessionId).catch((err) => {
     console.error(`[Copilot SDK] Execution ${executionId} failed:`, err);
     if (execution.status === 'running') {
       execution.status = 'error';
@@ -164,6 +189,40 @@ export async function abortCopilotExecution(id: string): Promise<boolean> {
   }
 }
 
+/**
+ * Get cached session ID for a project path (for resume support).
+ */
+export function getCachedSessionId(projectPath: string): string | undefined {
+  return sessionCache.get(projectPath);
+}
+
+/**
+ * Check if GitHub Copilot auth is valid.
+ * Returns null if auth is OK, or an error message if not.
+ */
+export async function checkCopilotAuth(apiKey?: string): Promise<string | null> {
+  let client: CopilotClient | undefined;
+  try {
+    const options: Record<string, unknown> = {};
+    const cliPath = resolveCopilotCliPath();
+    if (cliPath) options.cliPath = cliPath;
+    if (apiKey) options.githubToken = apiKey;
+
+    client = new CopilotClient(options);
+    await client.start();
+    const authStatus = await client.getAuthStatus();
+
+    if (!authStatus.isAuthenticated) {
+      return 'Not authenticated with GitHub Copilot. Run: gh auth login';
+    }
+    return null;
+  } catch (err) {
+    return err instanceof Error ? err.message : 'Auth check failed';
+  } finally {
+    if (client) await client.stop().catch(() => {});
+  }
+}
+
 // ─── Internal: CLI Path Resolution ───────────────────────────────────
 
 /**
@@ -173,18 +232,15 @@ export async function abortCopilotExecution(id: string): Promise<boolean> {
  * the CLI entry point, but Turbopack transforms `import.meta.resolve` into a
  * broken stub (`__TURBOPACK__import$2e$meta__.resolve`). By passing `cliPath`
  * explicitly we bypass that call entirely.
+ *
+ * Note: `require.resolve('@github/copilot/sdk')` also fails because the
+ * @github/copilot package exports `./sdk` only for ESM import, not CJS require
+ * (ERR_PACKAGE_PATH_NOT_EXPORTED). We use direct path construction instead.
  */
 function resolveCopilotCliPath(): string | undefined {
-  // Try require.resolve (works in Node.js CJS/ESM compat)
-  try {
-    const sdkIndex = require.resolve('@github/copilot/sdk');
-    const cliPath = join(dirname(dirname(sdkIndex)), 'index.js');
-    if (existsSync(cliPath)) return cliPath;
-  } catch { /* not found via require.resolve */ }
-
-  // Fallback: well-known relative path from project root
-  const fallback = join(process.cwd(), 'node_modules', '@github', 'copilot', 'index.js');
-  if (existsSync(fallback)) return fallback;
+  // Direct path: @github/copilot ships as a dependency of @github/copilot-sdk
+  const cliPath = join(process.cwd(), 'node_modules', '@github', 'copilot', 'index.js');
+  if (existsSync(cliPath)) return cliPath;
 
   // Let the SDK try its own resolution (may work if serverExternalPackages kicks in)
   return undefined;
@@ -192,7 +248,11 @@ function resolveCopilotCliPath(): string | undefined {
 
 // ─── Internal: Session Runner ────────────────────────────────────────
 
-async function runCopilotSession(execution: CopilotExecution, apiKey?: string): Promise<void> {
+async function runCopilotSession(
+  execution: CopilotExecution,
+  apiKey?: string,
+  resumeSessionId?: string
+): Promise<void> {
   const clientOptions: Record<string, unknown> = {};
 
   // Resolve CLI path to avoid Turbopack import.meta.resolve breakage
@@ -210,15 +270,40 @@ async function runCopilotSession(execution: CopilotExecution, apiKey?: string): 
   execution._client = client;
 
   try {
-    const session = await client.createSession({
-      model: execution.model,
-      streaming: true,
-      workingDirectory: execution.projectPath,
-      onPermissionRequest: approveAll,
-    });
+    let session;
+
+    if (resumeSessionId) {
+      // Resume existing session — preserves conversation history
+      try {
+        session = await client.resumeSession(resumeSessionId, {
+          onPermissionRequest: approveAll,
+          streaming: true,
+        });
+        console.log(`[Copilot SDK] Resumed session: ${resumeSessionId}`);
+      } catch (resumeErr) {
+        // If resume fails (session expired/deleted), fall back to new session
+        console.warn(`[Copilot SDK] Resume failed for ${resumeSessionId}, creating new session:`, resumeErr);
+        session = await client.createSession({
+          model: execution.model,
+          streaming: true,
+          workingDirectory: execution.projectPath,
+          onPermissionRequest: approveAll,
+        });
+      }
+    } else {
+      session = await client.createSession({
+        model: execution.model,
+        streaming: true,
+        workingDirectory: execution.projectPath,
+        onPermissionRequest: approveAll,
+      });
+    }
 
     execution._session = session;
     execution.sessionId = session.sessionId;
+
+    // Cache session ID for future resume
+    sessionCache.set(execution.projectPath, session.sessionId);
 
     // Emit init event
     execution.events.push({
@@ -226,6 +311,7 @@ async function runCopilotSession(execution: CopilotExecution, apiKey?: string): 
       data: {
         sessionId: session.sessionId,
         model: execution.model,
+        resumed: !!resumeSessionId,
       },
       timestamp: Date.now(),
     });
@@ -267,6 +353,7 @@ async function runCopilotSession(execution: CopilotExecution, apiKey?: string): 
     }
   } finally {
     // Cleanup: destroy session and stop client
+    // Note: we DON'T clear sessionCache here so it can be resumed later
     try {
       if (execution._session) await execution._session.destroy();
     } catch { /* ignore */ }

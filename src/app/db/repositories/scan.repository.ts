@@ -80,13 +80,15 @@ export const scanRepository = {
     summary?: string;
     input_tokens?: number;
     output_tokens?: number;
+    provider?: string;
+    model?: string;
   }): DbScan => {
     const db = getDatabase();
     const now = new Date().toISOString();
 
     const stmt = db.prepare(`
-      INSERT INTO scans (id, project_id, scan_type, timestamp, summary, input_tokens, output_tokens, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO scans (id, project_id, scan_type, timestamp, summary, input_tokens, output_tokens, provider, model, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -97,6 +99,8 @@ export const scanRepository = {
       scan.summary || null,
       scan.input_tokens || null,
       scan.output_tokens || null,
+      scan.provider || null,
+      scan.model || null,
       now
     );
 

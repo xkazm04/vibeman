@@ -38,6 +38,16 @@ const ERROR_PATTERNS: ErrorPattern[] = [
     description: 'LLM needed files or context that was not provided',
   },
   {
+    type: 'rate_limit',
+    patterns: [
+      /rate.?limit|429|too many requests/i,
+      /retry.?after|quota.?exceeded/i,
+      /session.?limit|usage.?limit/i,
+      /subscription.?plan|billing/i,
+    ],
+    description: 'API rate limit or subscription quota exceeded',
+  },
+  {
     type: 'tool_failure',
     patterns: [
       /edit.*failed|write.*failed|tool.*error/i,

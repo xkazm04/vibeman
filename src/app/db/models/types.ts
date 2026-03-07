@@ -196,6 +196,9 @@ export interface DbIdea {
   risk: number | null; // 1-10 scale: 1 = very safe, 10 = critical risk
   requirement_id: string | null; // Claude Code requirement file name
   goal_id: string | null; // Related goal (foreign key to goals table)
+  provider: string | null; // CLI provider that generated this idea (claude, gemini, copilot, ollama)
+  model: string | null; // Model used to generate this idea
+  detailed: number; // Boolean flag (0 or 1) — includes implementation procedure steps
   created_at: string;
   updated_at: string;
   implemented_at: string | null; // Date when idea was implemented
@@ -217,6 +220,8 @@ export interface DbImplementationLog {
   overview_bullets: string | null; // Newline-separated bullet points for card display
   tested: number; // SQLite boolean (0 or 1)
   screenshot: string | null; // Relative path from project/public to screenshot image
+  provider: string | null; // CLI provider that executed this task
+  model: string | null; // Model used for execution
   created_at: string;
 }
 
@@ -699,3 +704,29 @@ export interface DbAgentStep {
 
 // Export standard category type for use in type annotations
 export type { IdeaCategory };
+
+// Triage types
+export type TriageAction = 'accept' | 'reject' | 'archive';
+
+export type TriageConditionField = 'impact' | 'effort' | 'risk' | 'category' | 'scan_type' | 'age_days';
+export type TriageConditionOperator = 'gte' | 'lte' | 'eq' | 'neq' | 'in' | 'not_in';
+
+export interface TriageCondition {
+  field: TriageConditionField;
+  operator: TriageConditionOperator;
+  value: number | string | string[];
+}
+
+export interface DbTriageRule {
+  id: string;
+  project_id: string | null;
+  name: string;
+  description: string | null;
+  action: TriageAction;
+  conditions: string; // JSON-stringified TriageCondition[]
+  enabled: number; // SQLite boolean (0 | 1)
+  priority: number;
+  times_fired: number;
+  created_at: string;
+  updated_at: string;
+}

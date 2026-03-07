@@ -45,6 +45,7 @@ class TerminalStrategy implements ExecutionStrategy {
       if (task.projectId) extraEnv.VIBEMAN_PROJECT_ID = task.projectId;
       if (task.requirementName) extraEnv.VIBEMAN_TASK_ID = task.requirementName;
 
+      const provider = options?.provider || undefined;
       const response = await fetch('/api/claude-terminal/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -52,9 +53,10 @@ class TerminalStrategy implements ExecutionStrategy {
           projectPath: task.projectPath,
           prompt,
           resumeSessionId: options?.resumeSessionId || undefined,
-          provider: options?.provider || undefined,
+          provider,
           model: options?.model || undefined,
           extraEnv: Object.keys(extraEnv).length > 0 ? extraEnv : undefined,
+          useWorktree: provider === 'claude' || !provider ? true : undefined,
         }),
       });
 

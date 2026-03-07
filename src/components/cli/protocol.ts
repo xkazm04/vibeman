@@ -50,6 +50,17 @@ export interface ErrorEvent {
   timestamp: number;
 }
 
+export interface RateLimitEvent {
+  type: 'rate_limit';
+  data: {
+    retryAfterMs: number;
+    message?: string;
+    isUsingOverage?: boolean;
+    overageStatus?: string;
+  };
+  timestamp: number;
+}
+
 /** All possible CLI SSE event types */
 export type CLIEvent =
   | ConnectedEvent
@@ -57,7 +68,8 @@ export type CLIEvent =
   | ToolUseEvent
   | ToolResultEvent
   | ResultEvent
-  | ErrorEvent;
+  | ErrorEvent
+  | RateLimitEvent;
 
 /** The discriminant values */
 export type CLIEventType = CLIEvent['type'];

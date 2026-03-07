@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useShallow } from 'zustand/react/shallow';
 import TaskColumnHeader from './components/TaskColumnHeader';
@@ -11,7 +11,6 @@ import type { ProjectRequirement } from './lib/types';
 import { useTaskRunnerStore } from './store/taskRunnerStore';
 import type { AggregationCheckResult } from './lib/ideaAggregator';
 import type { DbIdea } from '@/app/db';
-import { fetchAutoAssignConfig } from '@/lib/autoAssignConfig';
 
 interface TaskColumnProps {
   projectId: string;
@@ -51,7 +50,6 @@ const TaskColumn = React.memo(function TaskColumn({
   onAutoAssign,
 }: TaskColumnProps) {
   const [isAggregating, setIsAggregating] = useState(false);
-  const [pendingAutoAssign, setPendingAutoAssign] = useState(false);
 
   // Project-scoped store subscription: only re-renders when THIS project's tasks change
   const projectPrefix = `${projectId}:`;
@@ -171,57 +169,11 @@ const TaskColumn = React.memo(function TaskColumn({
     });
   }, [requirementsWithStatus, selectedRequirements, getRequirementId]);
 
-  // After consolidation, fire auto-assign with fresh data once requirements re-render
-  useEffect(() => {
-    if (!pendingAutoAssign || !onAutoAssign) return;
-    const timer = setTimeout(() => {
-      setPendingAutoAssign(false);
-      // Use ALL idle requirements (old selection IDs are invalid after aggregation)
-      const allIdle = requirementsWithStatus.filter(
-        (req) => !req.status || req.status.type === 'idle'
-      );
-      if (allIdle.length > 0) {
-        onAutoAssign(allIdle, ideasMap);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [pendingAutoAssign, requirementsWithStatus, ideasMap, onAutoAssign]);
-
-  const handleAutoAssign = useCallback(async () => {
-    if (!onAutoAssign) return;
-
-    const config = await fetchAutoAssignConfig();
-
-    if (config.consolidateBeforeAssign && aggregationCheck?.canAggregate && projectPath) {
-      // Phase 1: Consolidate first (reuses existing aggregation flow)
-      setIsAggregating(true);
-      try {
-        const response = await fetch('/api/idea-aggregator', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projectPath }),
-        });
-        const data = await response.json();
-        if (data.success) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
-          await onRefresh?.();
-          await checkAggregation();
-          setPendingAutoAssign(true); // Phase 2 handled by useEffect above
-          return;
-        }
-      } catch (error) {
-        console.error('Consolidation before auto-assign failed:', error);
-      } finally {
-        setIsAggregating(false);
-      }
-    }
-
-    // Direct assignment (consolidation disabled or not possible)
-    if (selectedIdleRequirements.length > 0) {
+  const handleAutoAssign = useCallback(() => {
+    if (onAutoAssign && selectedIdleRequirements.length > 0) {
       onAutoAssign(selectedIdleRequirements, ideasMap);
     }
-  }, [onAutoAssign, aggregationCheck, projectPath, selectedIdleRequirements,
-      ideasMap, onRefresh, checkAggregation]);
+  }, [onAutoAssign, selectedIdleRequirements, ideasMap]);
 
   return (
     <motion.div

@@ -11,5 +11,37 @@
         "VIBEMAN_BASE_URL": "http://localhost:3000"
       }
     }
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://localhost:3000/api/hooks/task-stopped",
+            "headers": {
+              "X-Hook-Secret": "$VIBEMAN_HOOK_SECRET"
+            },
+            "allowedEnvVars": ["VIBEMAN_HOOK_SECRET"],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://localhost:3000/api/hooks/task-completed",
+            "headers": {
+              "X-Hook-Secret": "$VIBEMAN_HOOK_SECRET"
+            },
+            "allowedEnvVars": ["VIBEMAN_HOOK_SECRET"],
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }

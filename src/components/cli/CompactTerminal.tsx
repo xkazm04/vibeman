@@ -529,7 +529,7 @@ export function CompactTerminal({
         : '/api/claude-terminal/query';
       const executeBody = isCopilot
         ? { projectPath: task.projectPath, prompt: taskPrompt, model: model || undefined }
-        : { projectPath: task.projectPath, prompt: taskPrompt, resumeSessionId: resumeSession ? sessionId : undefined, provider, model: model || undefined };
+        : { projectPath: task.projectPath, prompt: taskPrompt, resumeSessionId: resumeSession ? sessionId : undefined, provider, model: model || undefined, useWorktree: provider === 'claude' ? true : undefined };
 
       const response = await fetch(executeUrl, {
         method: 'POST',

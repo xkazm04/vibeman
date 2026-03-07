@@ -160,6 +160,8 @@ export async function processExternalRequirement(
         requirement_name: reqName,
         title: requirement.title,
         overview: `External requirement from ${requirement.source_app}: ${requirement.description.slice(0, 500)}`,
+        provider: config.provider,
+        model: config.model,
       });
 
       // Update Supabase: implemented + link log

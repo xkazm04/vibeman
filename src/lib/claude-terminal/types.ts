@@ -283,6 +283,10 @@ export type CLIModel = ClaudeModel | GeminiModel | CopilotModel | OllamaModel;
 export interface CLIProviderConfig {
   provider: CLIProvider;
   model?: CLIModel;
+  /** Enable git worktree isolation (Claude only, CLI v2.1.49+). Each execution gets its own worktree. */
+  useWorktree?: boolean;
+  /** [Experimental] Enable Claude Agent Teams for coordinated multi-session work (Claude only, CLI v2.1.50+). */
+  enableAgentTeams?: boolean;
 }
 
 /** Models available per provider - for UI dropdowns
@@ -297,8 +301,11 @@ export const PROVIDER_MODELS: Record<CLIProvider, { id: CLIModel; label: string 
     { id: 'gemini-3.1-pro-preview', label: 'Pro Preview' },
   ],
   copilot: [
+    { id: 'gpt-5.4', label: 'GPT 5.4' },
     { id: 'gpt-5.3-codex', label: 'GPT 5.3 Codex' },
+    { id: 'gpt-5.2-codex', label: 'GPT 5.2 Codex' },
     { id: 'claude-opus-4.6', label: 'Claude Opus 4.6' },
+    { id: 'claude-sonnet-4.5', label: 'Claude Sonnet 4.5' },
     { id: 'gemini-3.1-pro', label: 'Gemini 3.1 Pro' },
   ],
   ollama: [

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit2, Trash2, RotateCcw } from 'lucide-react';
+import { Edit2, Trash2, RotateCcw, FileSearch } from 'lucide-react';
 
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import { TaskProgress } from './components/TaskProgress';
@@ -193,6 +193,14 @@ const TaskItem = React.memo(function TaskItem({
                 title={`Risk: ${idea.risk}/10 - ${riskScale.entries[idea.risk]?.description || ''}`}
               >
                 <RiskIcon className={`w-3 h-3 ${riskScale.entries[idea.risk]?.color || 'text-gray-400'}`} />
+              </div>
+            )}
+            {idea.detailed === 1 && (
+              <div
+                className="w-5 h-5 rounded flex items-center justify-center bg-amber-500/10"
+                title="Detailed: includes implementation procedure"
+              >
+                <FileSearch className="w-3 h-3 text-amber-400" />
               </div>
             )}
           </div>

@@ -59,11 +59,16 @@ export function IdeaCard({ idea, index, accentColor }: IdeaCardProps) {
 
       {/* Footer */}
       <div className="flex items-center justify-between text-sm text-gray-500">
-        <span>
+        <span className="flex items-center gap-2">
           {idea.effort && idea.impact && (
             <>
               E:{idea.effort} • I:{idea.impact}
             </>
+          )}
+          {idea.provider && (
+            <span className="text-[10px] px-1 py-0.5 rounded bg-gray-700/50 text-gray-500 font-medium uppercase">
+              {idea.provider}
+            </span>
           )}
         </span>
         {idea.implemented_at && (

@@ -72,7 +72,6 @@ function initializeHotWritesTables(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_hot_bs_type ON behavioral_signals(project_id, signal_type);
     CREATE INDEX IF NOT EXISTS idx_hot_bs_timestamp ON behavioral_signals(project_id, timestamp);
     CREATE INDEX IF NOT EXISTS idx_hot_bs_decay ON behavioral_signals(project_id, weight, decay_applied_at);
-    CREATE INDEX IF NOT EXISTS idx_hot_bs_cluster ON behavioral_signals(cluster_id);
 
     CREATE TABLE IF NOT EXISTS obs_api_calls (
       id TEXT PRIMARY KEY,
@@ -104,8 +103,9 @@ function migrateHotWritesTables(db: Database.Database): void {
     const columns = db.prepare("PRAGMA table_info('behavioral_signals')").all() as Array<{ name: string }>;
     if (!columns.some((c) => c.name === 'cluster_id')) {
       db.exec(`ALTER TABLE behavioral_signals ADD COLUMN cluster_id TEXT`);
-      db.exec(`CREATE INDEX IF NOT EXISTS idx_hot_bs_cluster ON behavioral_signals(cluster_id)`);
     }
+    // Always ensure the index exists (covers both fresh tables and migrated ones)
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_hot_bs_cluster ON behavioral_signals(cluster_id)`);
   } catch {
     // Best-effort migration — table may not exist yet or column may already exist
   }

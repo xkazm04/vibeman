@@ -96,6 +96,7 @@ export async function executeScan(params: {
   contextId?: string;
   provider: SupportedProvider;
   scanType: ScanType;
+  detailed?: boolean;
   codebaseFiles: CodebaseFile[];
 }): Promise<number> {
   const response = await fetch('/api/ideas/generate', {

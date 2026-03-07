@@ -6,6 +6,7 @@
  */
 
 import { spawn, ChildProcess } from 'child_process';
+import { randomUUID } from 'crypto';
 import { EventEmitter } from 'events';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -128,7 +129,7 @@ export type CLIMessage =
 
 // Events emitted during execution
 export interface CLIExecutionEvent {
-  type: 'init' | 'text' | 'tool_use' | 'tool_result' | 'result' | 'error' | 'stdout';
+  type: 'init' | 'text' | 'tool_use' | 'tool_result' | 'result' | 'error' | 'stdout' | 'rate_limit';
   data: Record<string, unknown>;
   timestamp: number;
 }
@@ -146,16 +147,21 @@ export interface CLIExecution {
   endTime?: number;
   events: CLIExecutionEvent[];
   logFilePath?: string;
+  /** Per-execution secret for validating HTTP hook callbacks */
+  hookSecret?: string;
 }
 
 // Active executions map + event bus - use globalThis to persist across Next.js module reloads in dev mode
 const globalForExecutions = globalThis as unknown as {
   cliActiveExecutions: Map<string, CLIExecution> | undefined;
   cliExecutionBus: EventEmitter | undefined;
+  /** Maps Claude session_id → execution ID for HTTP hook lookups */
+  cliSessionToExecution: Map<string, string> | undefined;
 };
 
 const activeExecutions = globalForExecutions.cliActiveExecutions ?? new Map<string, CLIExecution>();
 const executionBus = globalForExecutions.cliExecutionBus ?? new EventEmitter();
+const sessionToExecution = globalForExecutions.cliSessionToExecution ?? new Map<string, string>();
 executionBus.setMaxListeners(50); // Allow many concurrent stream consumers
 
 if (!globalForExecutions.cliActiveExecutions) {
@@ -163,6 +169,9 @@ if (!globalForExecutions.cliActiveExecutions) {
 }
 if (!globalForExecutions.cliExecutionBus) {
   globalForExecutions.cliExecutionBus = executionBus;
+}
+if (!globalForExecutions.cliSessionToExecution) {
+  globalForExecutions.cliSessionToExecution = sessionToExecution;
 }
 
 /**
@@ -189,6 +198,36 @@ function getLogFilePath(projectPath: string, executionId: string, provider: CLIP
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const sanitized = executionId.replace(/[^a-zA-Z0-9-_]/g, '_').slice(0, 50);
   return path.join(getLogsDirectory(projectPath), `${provider}_${sanitized}_${timestamp}.log`);
+}
+
+/**
+ * Cached Claude CLI version string (e.g. "2.1.71").
+ * Resolved once on first call, then reused. Returns null if CLI is missing.
+ */
+let cachedCliVersion: string | null | undefined;
+
+function getClaudeCliVersion(): string | null {
+  if (cachedCliVersion !== undefined) return cachedCliVersion;
+  try {
+    const { execSync } = require('child_process');
+    const raw = execSync('claude --version', { timeout: 5000, encoding: 'utf-8' }) as string;
+    const match = raw.match(/(\d+\.\d+\.\d+)/);
+    cachedCliVersion = match ? match[1] : null;
+  } catch {
+    cachedCliVersion = null;
+  }
+  return cachedCliVersion;
+}
+
+/** Check if installed Claude CLI version supports a feature introduced in `minVersion` (e.g. "2.1.49") */
+function cliSupports(minVersion: string): boolean {
+  const version = getClaudeCliVersion();
+  if (!version) return false;
+  const [aMaj, aMin, aPatch] = version.split('.').map(Number);
+  const [bMaj, bMin, bPatch] = minVersion.split('.').map(Number);
+  if (aMaj !== bMaj) return aMaj > bMaj;
+  if (aMin !== bMin) return aMin > bMin;
+  return aPatch >= bPatch;
 }
 
 /**
@@ -266,11 +305,19 @@ function buildSpawnConfig(
     '--verbose',
     '--dangerously-skip-permissions',
   ];
+  // Worktree isolation: each execution gets its own git worktree (CLI v2.1.49+, not compatible with --resume)
+  if (providerConfig?.useWorktree && !resumeSessionId && cliSupports('2.1.49')) {
+    args.push('-w');
+  }
   if (model) args.push('--model', model);
   if (resumeSessionId) args.push('--resume', resumeSessionId);
 
   const env = { ...process.env };
   delete env.ANTHROPIC_API_KEY; // Force web subscription auth
+  // Agent Teams: experimental opt-in for coordinated multi-session work
+  if (providerConfig?.enableAgentTeams) {
+    env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = '1';
+  }
   return { command: 'claude', args, env, stdinPrompt: true };
 }
 
@@ -334,6 +381,9 @@ export function startExecution(
   ensureLogsDirectory(projectPath);
   const logFilePath = getLogFilePath(projectPath, executionId, provider);
 
+  // Generate a per-execution secret for HTTP hook validation (Claude only)
+  const hookSecret = provider === 'claude' ? randomUUID() : undefined;
+
   const execution: CLIExecution = {
     id: executionId,
     projectPath,
@@ -344,6 +394,7 @@ export function startExecution(
     startTime: Date.now(),
     events: [],
     logFilePath,
+    hookSecret,
   };
 
   activeExecutions.set(executionId, execution);
@@ -400,6 +451,11 @@ export function startExecution(
     Object.assign(spawnConfig.env, extraEnv);
   }
 
+  // Inject hook secret for HTTP hook validation (Claude only)
+  if (hookSecret) {
+    spawnConfig.env.VIBEMAN_HOOK_SECRET = hookSecret;
+  }
+
   try {
     const childProcess = spawn(spawnConfig.command, spawnConfig.args, {
       cwd: projectPath,
@@ -433,6 +489,10 @@ export function startExecution(
       if (parsed.type === 'system' && parsed.subtype === 'init') {
         initEventReceived = true;
         execution.sessionId = parsed.session_id;
+        // Map session_id → executionId for HTTP hook lookups
+        if (parsed.session_id) {
+          sessionToExecution.set(parsed.session_id, execution.id);
+        }
         emitEvent({
           type: 'init',
           data: {
@@ -565,6 +625,25 @@ export function startExecution(
               durationMs: stats.duration_ms,
               isError,
               ...(isError && parsed.error ? { message: typeof parsed.error === 'string' ? parsed.error : (parsed.error.message || String(parsed.error)) } : {}),
+            },
+            timestamp: Date.now(),
+          });
+        }
+
+      // ── Rate limit: {"type":"rate_limit_event","rate_limit_info":{...}} (CLI v2.1.45+)
+      // Informational event — CLI retries internally, but we surface it for monitoring.
+      // Cast through unknown since rate_limit_event is not in the CLIMessage union.
+      } else {
+        const msg = parsed as unknown as Record<string, unknown>;
+        if (msg.type === 'rate_limit_event') {
+          const info = (msg.rate_limit_info || {}) as Record<string, unknown>;
+          emitEvent({
+            type: 'rate_limit',
+            data: {
+              retryAfterMs: 60000, // CLI handles retry internally; this is for queue backoff
+              isUsingOverage: info.isUsingOverage as boolean | undefined,
+              overageStatus: info.overageStatus as string | undefined,
+              message: `Rate limit event: overage ${info.overageStatus || 'unknown'}`,
             },
             timestamp: Date.now(),
           });
@@ -724,6 +803,14 @@ export function getExecution(executionId: string): CLIExecution | undefined {
     console.debug(`[CLI] getExecution: ${executionId} not found. Active executions: ${activeExecutions.size}`);
   }
   return execution;
+}
+
+/**
+ * Look up an execution by its Claude session ID (for HTTP hook callbacks).
+ */
+export function getExecutionBySessionId(sessionId: string): CLIExecution | undefined {
+  const executionId = sessionToExecution.get(sessionId);
+  return executionId ? activeExecutions.get(executionId) : undefined;
 }
 
 /**

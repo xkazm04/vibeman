@@ -58,11 +58,15 @@ export interface ExecutionTask {
   capturedClaudeSessionId?: string;  // Claude session ID captured from output
   memoryApplicationIds?: string[];   // Collective memory application IDs for feedback loop
   healing?: TaskHealingInfo;         // Self-healing metadata from error classification
+  provider?: string;                 // CLI provider used for execution
+  model?: string;                    // Model used for execution
 }
 
 class ClaudeExecutionQueue {
   private tasks: Map<string, ExecutionTask> = new Map();
   private isProcessing = false;
+  /** Timestamp until which new task processing is paused due to rate limiting */
+  private rateLimitBackoffUntil: number = 0;
 
   /**
    * Helper: Create a progress log entry
@@ -114,7 +118,9 @@ class ClaudeExecutionQueue {
     requirementName: string,
     projectId?: string,
     gitConfig?: GitExecutionConfig,
-    sessionConfig?: SessionConfig
+    sessionConfig?: SessionConfig,
+    provider?: string,
+    model?: string
   ): string {
     // Use requirement name as task ID for stable identification
     // This ensures the task ID matches what the frontend expects
@@ -140,6 +146,8 @@ class ClaudeExecutionQueue {
       sessionConfig,
       status: 'pending',
       progress: [],
+      provider,
+      model,
     };
 
     this.tasks.set(taskId, task);
@@ -228,6 +236,8 @@ class ClaudeExecutionQueue {
           filesDeleted: [],
           success: true,
           executionTimeMs: duration || 0,
+          provider: task.provider,
+          model: task.model,
         });
         // Invalidate Brain context cache so dashboard reflects new signal
         invalidateContextCache(task.projectId);
@@ -330,6 +340,8 @@ class ClaudeExecutionQueue {
         '\n\n## Output Validation\nEnsure all outputs match the expected format. Verify API responses before proceeding to the next step. If a compilation error occurs, fix it before moving on.',
       permission_error:
         '\n\n## Permission Handling\nIf you encounter permission errors, do not attempt to change file permissions. Instead, work with files you have access to and report any permission issues.',
+      rate_limit:
+        '\n\n## Rate Limit\nThe API rate limit was hit. Keep changes minimal and focused to reduce token usage.',
     };
 
     const patchContent = RULE_PATCHES[errorType];
@@ -382,6 +394,8 @@ class ClaudeExecutionQueue {
           success: false,
           executionTimeMs: duration || 0,
           error,
+          provider: task.provider,
+          model: task.model,
         });
         // Invalidate Brain context cache so dashboard reflects new signal
         invalidateContextCache(task.projectId);
@@ -426,6 +440,20 @@ class ClaudeExecutionQueue {
     if (errorType === 'unknown') return false;
     if (errorType === 'timeout' && currentAttempt >= 1) return false;
     if (errorType === 'permission_error') return false; // Can't self-heal permissions
+
+    // Rate limit: backoff instead of prompt patching
+    if (errorType === 'rate_limit') {
+      const backoffMs = 60000; // 60 seconds default
+      this.rateLimitBackoffUntil = Date.now() + backoffMs;
+      task.status = 'pending';
+      task.error = undefined;
+      task.progress.push(this.createProgressEntry(
+        `[Rate Limit] Backing off for ${backoffMs / 1000}s before retry`
+      ));
+      this.notifyTaskChange(task);
+      logger.info('Rate limit detected, backing off', { taskId: task.id, backoffMs });
+      return true;
+    }
 
     // Generate a healing patch
     const patch = this.generateHealingPatch(errorType, errorMsg);
@@ -491,6 +519,14 @@ class ClaudeExecutionQueue {
     if (this.isProcessing) {
       logger.debug('Already processing queue, skipping...');
       return; // Already processing
+    }
+
+    // Rate limit backoff: wait before processing next task
+    if (Date.now() < this.rateLimitBackoffUntil) {
+      const waitMs = this.rateLimitBackoffUntil - Date.now();
+      logger.info('Rate limit backoff active, deferring queue processing', { waitMs });
+      setTimeout(() => this.processQueue(), waitMs);
+      return;
     }
 
     const pendingTask = Array.from(this.tasks.values()).find(

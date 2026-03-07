@@ -72,6 +72,8 @@ export interface ImplementationSignalData {
   success: boolean;
   executionTimeMs: number;
   error?: string;
+  provider?: string;
+  model?: string;
 }
 
 export interface CrossTaskAnalysisSignalData {

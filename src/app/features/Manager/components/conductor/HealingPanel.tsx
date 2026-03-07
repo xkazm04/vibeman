@@ -19,6 +19,7 @@ import type { ErrorType, HealingPatch, ErrorClassification } from '../../lib/con
 const ERROR_TYPE_CONFIG: Record<ErrorType, { icon: typeof Bug; label: string; color: string }> = {
   prompt_ambiguity: { icon: FileQuestion, label: 'Prompt Ambiguity', color: 'amber' },
   missing_context: { icon: FileWarning, label: 'Missing Context', color: 'orange' },
+  rate_limit: { icon: Timer, label: 'Rate Limit', color: 'yellow' },
   tool_failure: { icon: Bug, label: 'Tool Failure', color: 'red' },
   timeout: { icon: Timer, label: 'Timeout', color: 'purple' },
   permission_error: { icon: Lock, label: 'Permission Error', color: 'red' },

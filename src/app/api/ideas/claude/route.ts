@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ScanType, SCAN_TYPE_CONFIGS, getScanTypeAbbr } from '@/app/features/Ideas/lib/scanTypes';
 import { buildPrompt, PromptOptions } from '@/app/projects/ProjectAI/ScanIdeas/prompts';
+import { IMPLEMENTATION_PROCEDURE_EXTENSION } from '@/app/projects/ProjectAI/ScanIdeas/prompts/schemaTemplate';
 import { buildContextSection, buildExistingIdeasSection, buildGoalsSection, buildBehavioralSection } from '@/app/projects/ProjectAI/ScanIdeas/lib/sectionBuilders';
 import { contextDb, contextGroupDb, goalDb, ideaDb, DbContext, DbContextGroup } from '@/app/db';
 import { logger } from '@/lib/logger';
@@ -26,6 +27,7 @@ interface ClaudeIdeasRequest {
   contextId?: string;
   groupId?: string;
   goalId?: string; // Focus scan on a specific goal
+  detailed?: boolean; // Include implementation procedure steps
 }
 
 /** Group data with all contexts and aggregated file paths */
@@ -62,8 +64,9 @@ function buildClaudeIdeaRequirement(config: {
   scanType: ScanType;
   context: DbContext | null;
   goalId?: string;
+  detailed?: boolean;
 }): string {
-  const { projectId, projectName, scanType, context, goalId } = config;
+  const { projectId, projectName, scanType, context, goalId, detailed } = config;
   const apiUrl = getVibemanApiUrl();
 
   const scanConfig = SCAN_TYPE_CONFIGS.find(s => s.value === scanType);
@@ -113,10 +116,13 @@ function buildClaudeIdeaRequirement(config: {
   };
 
   const scanPrompt = buildPrompt(scanType, promptOptions);
-  const fullPrompt = scanPrompt + goalFocusDirective;
+  const detailedExtension = detailed ? IMPLEMENTATION_PROCEDURE_EXTENSION : '';
+  const fullPrompt = scanPrompt + goalFocusDirective + detailedExtension;
+
+  const scanTypeLabel = detailed ? `${scanLabel} (Detailed)` : scanLabel;
 
   // Build the Claude Code requirement wrapper
-  return `# ${scanEmoji} Claude Code Idea Generation: ${scanLabel}
+  return `# ${scanEmoji} Claude Code Idea Generation: ${scanTypeLabel}
 
 ## Mission
 You are tasked with generating high-quality backlog ideas for the "${projectName}" project.
@@ -334,8 +340,9 @@ function buildClaudeIdeaRequirementForGroup(config: {
   scanType: ScanType;
   groupData: GroupData;
   goalId?: string;
+  detailed?: boolean;
 }): string {
-  const { projectId, projectName, scanType, groupData, goalId } = config;
+  const { projectId, projectName, scanType, groupData, goalId, detailed } = config;
   const { group, contexts, allFilePaths } = groupData;
   const apiUrl = getVibemanApiUrl();
 
@@ -380,13 +387,16 @@ function buildClaudeIdeaRequirementForGroup(config: {
   };
 
   const scanPrompt = buildPrompt(scanType, promptOptions);
-  const fullPrompt = scanPrompt + goalFocusDirective;
+  const detailedExtension = detailed ? IMPLEMENTATION_PROCEDURE_EXTENSION : '';
+  const fullPrompt = scanPrompt + goalFocusDirective + detailedExtension;
 
-  return `# ${scanEmoji} Claude Code Idea Generation: ${scanLabel}
+  const scanTypeLabel = detailed ? `${scanLabel} (Detailed)` : scanLabel;
+
+  return `# ${scanEmoji} Claude Code Idea Generation: ${scanTypeLabel}
 
 ## Mission
 You are tasked with generating high-quality backlog ideas for the "${projectName}" project.
-Your role is: **${scanLabel}**
+Your role is: **${scanTypeLabel}**
 
 ## Target: Context Group "${group.name}"
 - Group ID: ${group.id}
@@ -634,7 +644,7 @@ export async function POST(request: NextRequest) {
   try {
     const body: ClaudeIdeasRequest = await request.json();
 
-    const { projectId, projectName, projectPath, scanType, contextId, groupId, goalId } = body;
+    const { projectId, projectName, projectPath, scanType, contextId, groupId, goalId, detailed } = body;
 
     // Validate required fields
     if (!projectId || !projectName || !projectPath || !scanType) {
@@ -680,6 +690,7 @@ export async function POST(request: NextRequest) {
         scanType,
         groupData,
         goalId,
+        detailed,
       });
       requirementSuffix = `-grp-${groupId.slice(0, 8)}`;
     } else {
@@ -692,15 +703,17 @@ export async function POST(request: NextRequest) {
         scanType,
         context,
         goalId,
+        detailed,
       });
       requirementSuffix = contextId ? `-${contextId.slice(0, 8)}` : '-all';
     }
 
     // Build unique requirement name with scan type abbreviation
-    // Format: idea-gen-<timestamp>-<suffix>-<abbr>
+    // Format: idea-gen-<timestamp>-<suffix>-<abbr> (detailed prefix added when in detailed mode)
     const timestamp = Date.now();
     const abbr = getScanTypeAbbr(scanType);
-    const requirementName = `idea-gen-${timestamp}${requirementSuffix}-${abbr}`;
+    const detailedPrefix = detailed ? 'dtl-' : '';
+    const requirementName = `${detailedPrefix}idea-gen-${timestamp}${requirementSuffix}-${abbr}`;
 
     return NextResponse.json({
       success: true,

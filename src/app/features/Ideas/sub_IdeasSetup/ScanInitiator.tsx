@@ -8,7 +8,7 @@ import { ScanType } from '../lib/scanTypes';
 import { executeClaudeCodeScan } from './lib/ideaExecutor';
 
 // Component imports
-import ClaudeIdeasButton from './components/ClaudeIdeasButton';
+import ClaudeIdeasButton, { DetailedIdeasButton } from './components/ClaudeIdeasButton';
 import ScanTypeSelector from './ScanTypeSelector';
 
 interface GoalOption {
@@ -38,6 +38,7 @@ export default function ScanInitiator({
 
   // Generated Ideas state
   const [isProcessing, setIsProcessing] = React.useState(false);
+  const [isDetailedProcessing, setIsDetailedProcessing] = React.useState(false);
 
   // Goal-driven scan state
   const [goals, setGoals] = React.useState<GoalOption[]>([]);
@@ -196,6 +197,54 @@ export default function ScanInitiator({
     }
   };
 
+  // Detailed Ideas: Create requirement files with implementation procedures
+  const handleDetailedScanClick = async () => {
+    if (!activeProject) {
+      setMessage('No active project selected');
+      return;
+    }
+
+    if (!activeProject.path) {
+      setMessage('Project path is not defined');
+      return;
+    }
+
+    setIsDetailedProcessing(true);
+    setMessage('Creating detailed requirement files with implementation procedures...');
+
+    try {
+      const itemCount = currentSelectedContextIds.length > 0
+        ? currentSelectedContextIds.length
+        : propSelectedGroupIds.length > 0
+          ? propSelectedGroupIds.length
+          : 1;
+      const expectedFiles = selectedScanTypes.length * itemCount;
+
+      const result = await executeClaudeCodeScan({
+        projectId: activeProject.id,
+        projectName: activeProject.name,
+        projectPath: activeProject.path,
+        scanTypes: selectedScanTypes,
+        contextIds: currentSelectedContextIds,
+        groupIds: propSelectedGroupIds,
+        detailed: true,
+      });
+
+      if (result.success) {
+        setMessage(`${result.itemCount}/${expectedFiles} detailed requirement files created! Use TaskRunner to execute them.`);
+        onScanComplete();
+        setTimeout(() => setMessage(''), 8000);
+      } else {
+        setMessage(`Partial success: ${result.itemCount} detailed files created. Errors: ${result.errors.join(', ')}`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setMessage(`Failed to create detailed requirement files: ${errorMessage}`);
+    } finally {
+      setIsDetailedProcessing(false);
+    }
+  };
+
   const selectedGoal = goals.find(g => g.id === selectedGoalId);
 
   return (
@@ -227,8 +276,19 @@ export default function ScanInitiator({
           {activeProject && (
             <ClaudeIdeasButton
               onClick={handleGeneratedIdeasClick}
-              disabled={isProcessing || !activeProject}
+              disabled={isProcessing || isDetailedProcessing || !activeProject}
               isProcessing={isProcessing}
+              scanTypesCount={selectedScanTypes.length}
+              contextsCount={currentSelectedContextIds.length}
+            />
+          )}
+
+          {/* Detailed Ideas Button */}
+          {activeProject && (
+            <DetailedIdeasButton
+              onClick={handleDetailedScanClick}
+              disabled={isDetailedProcessing || isProcessing || !activeProject}
+              isProcessing={isDetailedProcessing}
               scanTypesCount={selectedScanTypes.length}
               contextsCount={currentSelectedContextIds.length}
             />

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2, FileSearch } from 'lucide-react';
 
 interface ClaudeIdeasButtonProps {
   onClick: () => void;
@@ -49,6 +49,52 @@ export default function ClaudeIdeasButton({
         {isProcessing
           ? 'Creating Tasks...'
           : `Generated ideas (${totalTasks})`}
+      </span>
+    </motion.button>
+  );
+}
+
+/**
+ * Detailed Ideas Button — generates implementation-ready ideas
+ * with step-by-step procedure sections for less capable LLMs.
+ */
+export function DetailedIdeasButton({
+  onClick,
+  disabled = false,
+  isProcessing,
+  scanTypesCount,
+  contextsCount = 0,
+}: ClaudeIdeasButtonProps) {
+  const multiplier = contextsCount > 0 ? contextsCount : 1;
+  const totalTasks = scanTypesCount * multiplier;
+
+  const tooltipText = contextsCount > 0
+    ? `Generate detailed ideas with implementation procedures (${scanTypesCount} × ${contextsCount} = ${totalTasks} tasks)`
+    : `Generate detailed ideas with implementation procedures (${scanTypesCount} scan types)`;
+
+  return (
+    <motion.button
+      onClick={onClick}
+      disabled={disabled || isProcessing}
+      className={`flex items-center space-x-2 px-5 py-2 rounded-lg border transition-all duration-300 font-semibold text-sm ${
+        isProcessing
+          ? 'bg-amber-500/30 border-amber-500/50'
+          : 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/40 hover:border-amber-500/60'
+      } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      whileHover={!disabled && !isProcessing ? { scale: 1.05 } : {}}
+      whileTap={!disabled && !isProcessing ? { scale: 0.95 } : {}}
+      title={tooltipText}
+      data-testid="detailed-ideas-btn"
+    >
+      {isProcessing ? (
+        <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+      ) : (
+        <FileSearch className="w-4 h-4 text-amber-400" />
+      )}
+      <span className="text-white">
+        {isProcessing
+          ? 'Creating Detailed...'
+          : `Detailed ideas (${totalTasks})`}
       </span>
     </motion.button>
   );

@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/lib/logger';
 import { signalCollector } from '@/lib/brain/signalCollector';
 import { validateScore } from '@/app/db/repositories/repository.utils';
+import { IMPLEMENTATION_PROCEDURE_EXTENSION } from './prompts/schemaTemplate';
 
 
 export interface IdeaGenerationOptions {
@@ -17,6 +18,7 @@ export interface IdeaGenerationOptions {
   contextId?: string;
   provider?: string;
   scanType?: ScanType;
+  detailed?: boolean;
   codebaseFiles?: Array<{ path: string; content: string; type: string }>;
 }
 
@@ -25,6 +27,7 @@ export interface GeneratedIdea {
   title: string; // Required - ideas without title will be skipped
   description?: string; // Optional
   reasoning?: string; // Optional
+  procedure?: string[]; // Ordered implementation steps (detailed mode only)
   effort?: number; // 1-10 scale: 1 = trivial, 10 = massive
   impact?: number; // 1-10 scale: 1 = negligible, 10 = transformational
   risk?: number; // 1-10 scale: 1 = very safe, 10 = critical
@@ -49,6 +52,7 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
       contextId,
       provider,
       scanType,
+      detailed = false,
       codebaseFiles = []
     } = options;
 
@@ -100,8 +104,10 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
       existingIdeas,
     });
 
-    const prompt = promptResult.fullPrompt;
-    logger.info('Sending prompt to LLM', { promptLength: prompt.length });
+    const prompt = detailed
+      ? promptResult.fullPrompt + IMPLEMENTATION_PROCEDURE_EXTENSION
+      : promptResult.fullPrompt;
+    logger.info('Sending prompt to LLM', { promptLength: prompt.length, detailed });
 
     // 6. Generate ideas using LLM with config from standardized template
     const selectedProvider = (provider as any) || DefaultProviderStorage.getDefaultProvider();
@@ -149,6 +155,10 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
       throw new Error('Failed to parse LLM response as JSON: ' + (parseError instanceof Error ? parseError.message : 'Unknown error'));
     }
 
+    // Resolve actual provider/model from LLM response (may differ from selected due to fallback)
+    const actualProvider = result.provider || selectedProvider;
+    const actualModel = result.model || undefined;
+
     // 8. Create scan record with token tracking
     const scanId = uuidv4();
     const scanCategory = contextId ? 'context_analysis' : 'project_analysis';
@@ -161,7 +171,9 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
       scan_type: scanCategory,
       summary: scanSummary,
       input_tokens: result.usage?.prompt_tokens,
-      output_tokens: result.usage?.completion_tokens
+      output_tokens: result.usage?.completion_tokens,
+      provider: actualProvider,
+      model: actualModel,
     });
 
     // 9. Save ideas to database
@@ -187,9 +199,16 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
         const description = idea.description && typeof idea.description === 'string' && idea.description.trim() !== ''
           ? idea.description.trim()
           : undefined;
-        const reasoning = idea.reasoning && typeof idea.reasoning === 'string' && idea.reasoning.trim() !== ''
+        // In detailed mode, merge procedure steps into reasoning for storage
+        let reasoning = idea.reasoning && typeof idea.reasoning === 'string' && idea.reasoning.trim() !== ''
           ? idea.reasoning.trim()
           : undefined;
+
+        if (detailed && Array.isArray(idea.procedure) && idea.procedure.length > 0) {
+          const procedureText = '\n\n## Implementation Procedure\n' +
+            idea.procedure.map((step, i) => `${i + 1}. ${step}`).join('\n');
+          reasoning = (reasoning || '') + procedureText;
+        }
 
         const effort = validateScore(idea.effort);
         const impact = validateScore(idea.impact);
@@ -227,7 +246,10 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
           effort,
           impact,
           risk,
-          goal_id: validatedGoalId
+          goal_id: validatedGoalId,
+          provider: actualProvider,
+          model: actualModel,
+          detailed,
         });
       });
 

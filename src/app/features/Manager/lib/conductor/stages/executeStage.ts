@@ -150,6 +150,7 @@ export async function executeExecuteStage(input: ExecuteInput): Promise<ExecuteS
     // Await all dispatched tasks in this wave
     const settled = await Promise.all(dispatched);
 
+    let rateLimitDetected = false;
     for (const { reqName, result } of settled) {
       const dagTask = dagTasks.find((t) => t.id === reqName)!;
       dagTask.status = result.success ? 'completed' : 'failed';
@@ -160,9 +161,20 @@ export async function executeExecuteStage(input: ExecuteInput): Promise<ExecuteS
       ts.durationMs = result.durationMs;
       if (result.error) ts.error = result.error;
 
+      // Detect rate limit errors for backoff
+      if (!result.success && result.error && /rate.?limit|429|too many requests|quota.?exceeded/i.test(result.error)) {
+        rateLimitDetected = true;
+      }
+
       results.push(result);
     }
     emitUpdate();
+
+    // Rate limit backoff: pause before dispatching next wave
+    if (rateLimitDetected) {
+      console.log('[execute] Rate limit detected, backing off 60s before next wave');
+      await new Promise((r) => setTimeout(r, 60000));
+    }
   }
 
   const allCompleted = results.every((r) => r.success);
@@ -191,6 +203,7 @@ async function executeRequirement(
   const providerConfig: CLIProviderConfig = {
     provider: provider as CLIProvider,
     model: (model || undefined) as CLIModel | undefined,
+    useWorktree: provider === 'claude', // Worktree isolation for parallel Claude executions
   };
 
   const executionId = startExecution(
@@ -220,6 +233,8 @@ async function executeRequirement(
         success: false,
         error: 'Aborted by user',
         durationMs: Date.now() - startTime,
+        provider,
+        model,
       };
     }
 
@@ -234,6 +249,8 @@ async function executeRequirement(
         requirementName,
         success: true,
         durationMs: Date.now() - startTime,
+        provider,
+        model,
       };
     }
 
@@ -244,6 +261,8 @@ async function executeRequirement(
         success: false,
         error: `CLI execution ${execution.status}`,
         durationMs: Date.now() - startTime,
+        provider,
+        model,
       };
     }
 
@@ -258,5 +277,7 @@ async function executeRequirement(
     success: false,
     error: `Execution timed out after ${maxWaitMs / 1000}s`,
     durationMs: Date.now() - startTime,
+    provider,
+    model,
   };
 }

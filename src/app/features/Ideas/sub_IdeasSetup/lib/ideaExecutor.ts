@@ -25,6 +25,7 @@ export interface ExecutionConfig {
   contextIds: string[];
   groupIds?: string[];
   goalId?: string;
+  detailed?: boolean;
 }
 
 export interface ExecutionResult {
@@ -142,6 +143,7 @@ export async function executeClaudeCodeScan(config: ExecutionConfig): Promise<Ex
             contextId: target.contextId,
             groupId: target.groupId,
             goalId: config.goalId,
+            detailed: config.detailed,
           }),
         });
 

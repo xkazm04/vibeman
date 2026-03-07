@@ -23,14 +23,16 @@ import { invalidateContextCache } from '@/lib/brain/brainService';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { 
-      projectId, 
-      requirementName, 
-      title, 
-      overview, 
+    const {
+      projectId,
+      requirementName,
+      title,
+      overview,
       overviewBullets,
       contextId,
-      screenshot 
+      screenshot,
+      provider,
+      model,
     } = body;
 
     // Validate required fields
@@ -60,6 +62,8 @@ export async function POST(request: NextRequest) {
       overview_bullets: overviewBullets || null,
       tested: false,
       screenshot: screenshot || null,
+      provider: provider || undefined,
+      model: model || undefined,
     });
 
     logger.info('Implementation log created via simplified API', {
@@ -80,6 +84,8 @@ export async function POST(request: NextRequest) {
         filesDeleted: [],
         success: true,
         executionTimeMs: 0,
+        provider,
+        model,
       });
       // Invalidate Brain context cache so dashboard reflects new signal
       invalidateContextCache(projectId);

@@ -287,6 +287,9 @@ export const ideaRepository = {
     risk?: number | null;
     requirement_id?: string | null;
     goal_id?: string | null;
+    provider?: string | null;
+    model?: string | null;
+    detailed?: boolean;
   }): DbIdea => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
@@ -300,9 +303,9 @@ export const ideaRepository = {
       INSERT INTO ideas (
         id, scan_id, project_id, context_id, scan_type, category, title, description,
         reasoning, status, user_feedback, user_pattern, effort, impact, risk, requirement_id, goal_id,
-        created_at, updated_at
+        provider, model, detailed, created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -323,6 +326,9 @@ export const ideaRepository = {
       validatedRisk,
       idea.requirement_id || null,
       idea.goal_id || null,
+      idea.provider || null,
+      idea.model || null,
+      idea.detailed ? 1 : 0,
       now,
       now
     );

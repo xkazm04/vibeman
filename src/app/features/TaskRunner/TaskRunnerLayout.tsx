@@ -67,6 +67,7 @@ const TaskRunnerLayout = () => {
       sessions,
       config,
       getRequirementId,
+      contextsMap,
     });
 
     // Execute assignments
@@ -86,6 +87,12 @@ const TaskRunnerLayout = () => {
       // Sync queued status to TaskRunner store so TaskColumn shows correct status
       for (const task of assignment.tasks) {
         updateTaskRunnerStatus(task.id, createQueuedStatus());
+        // Fan-out: mark consolidated constituent requirements as queued too
+        if (task.consolidatedFrom) {
+          for (const constituentId of task.consolidatedFrom) {
+            updateTaskRunnerStatus(constituentId, createQueuedStatus());
+          }
+        }
       }
     }
 
@@ -93,7 +100,7 @@ const TaskRunnerLayout = () => {
     if (assignments.length > 0) {
       actions.setSelectedRequirements(new Set());
     }
-  }, [getRequirementId, actions]);
+  }, [getRequirementId, actions, contextsMap]);
 
   if (isLoading) {
     return (

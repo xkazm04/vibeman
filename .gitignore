@@ -43,6 +43,10 @@ next-env.d.ts
 # temp files
 /temp
 
+# Windows reserved device name — Claude CLI creates this via `> nul` redirects.
+# Turbopack panics when Tailwind content scanning encounters it.
+nul
+
 # database files
 /database/*.db
 /database/*.db-shm

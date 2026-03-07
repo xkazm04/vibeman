@@ -43,7 +43,7 @@ async function handleGet(request: NextRequest) {
 async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, project_id, context_id, requirement_name, title, overview, overview_bullets, tested } = body;
+    const { id, project_id, context_id, requirement_name, title, overview, overview_bullets, tested, provider, model } = body;
 
     if (!id || !project_id || !requirement_name || !title || !overview) {
       return NextResponse.json(
@@ -61,6 +61,8 @@ async function handlePost(request: NextRequest) {
       overview,
       overview_bullets,
       tested: tested || false,
+      provider,
+      model,
     });
 
     // Record brain signal: implementation logged
@@ -74,6 +76,8 @@ async function handlePost(request: NextRequest) {
         filesDeleted: [],
         success: true,
         executionTimeMs: 0,
+        provider,
+        model,
       });
     } catch {
       // Signal recording must never break the main flow

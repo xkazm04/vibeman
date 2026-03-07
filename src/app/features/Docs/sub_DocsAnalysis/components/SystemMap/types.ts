@@ -8,6 +8,14 @@ import type { ContextGroupRelationship } from '@/lib/queries/contextQueries';
 // Module layer types
 export type ModuleLayer = 'pages' | 'client' | 'server' | 'external';
 
+// Cluster position for dynamic grid layout
+export interface ClusterPosition {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 // Extended module type for internal use
 export interface SystemModule {
   id: string;

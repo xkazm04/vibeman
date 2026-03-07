@@ -88,6 +88,58 @@ ${allowedCategories.map(cat => `- **${cat}**: ${categoryMap[cat] || 'General imp
 }
 
 /**
+ * Implementation procedure extension for detailed scan mode.
+ * Append this to any scan prompt to instruct the LLM to include
+ * step-by-step implementation procedures in each idea.
+ */
+export const IMPLEMENTATION_PROCEDURE_EXTENSION = `
+---
+
+## DETAILED MODE: Implementation Procedure Required
+
+**This is a DETAILED scan.** For each idea, you MUST include an additional \`procedure\` field — an ordered array of concrete implementation steps. These steps will be used by less capable AI models to execute the idea, so they must be explicit and reference actual file paths, function names, and patterns observed in the codebase.
+
+### Extended JSON Structure
+
+Each idea MUST include:
+\`\`\`
+{
+  "category": "...",
+  "title": "...",
+  "description": "...",
+  "reasoning": "Why valuable + high-level approach with specific file references",
+  "procedure": [
+    "1. Create migration file src/app/db/migrations/NNN_feature.ts adding column X to table Y",
+    "2. Extend DbFoo interface in src/app/db/models/types.ts with new field",
+    "3. Update createFoo() in src/app/db/repositories/foo.repository.ts — add param, update INSERT",
+    "4. Add API handler in src/app/api/foo/route.ts accepting the new field",
+    "5. Wire into FooComponent at src/components/FooComponent.tsx — add state and render logic"
+  ],
+  "effort": 5,
+  "impact": 7,
+  "risk": 4
+}
+\`\`\`
+
+### Procedure Guidelines
+
+- **Be specific**: Reference actual file paths, function names, and class names from the codebase
+- **Be ordered**: Steps should follow the natural dependency chain (schema → types → repository → API → UI)
+- **Be complete**: Include ALL steps needed — migrations, type changes, repository updates, API routes, UI components, tests
+- **Be actionable**: Each step should be clear enough that a developer (or AI) can execute it without asking questions
+- **Estimate scope**: If a step touches multiple files, list them explicitly
+- **Include verification**: Add a final step describing how to verify the implementation works
+
+### Reasoning Enhancement
+
+In detailed mode, the \`reasoning\` field should also be more implementation-aware:
+- Reference specific files, patterns, or architectural decisions observed in the codebase
+- Explain WHY this particular approach (not just why the idea is valuable)
+- Note any risks or gotchas observed in the existing code
+
+---`;
+
+/**
  * Final reminder to ensure JSON-only output
  */
 export const JSON_OUTPUT_REMINDER = `

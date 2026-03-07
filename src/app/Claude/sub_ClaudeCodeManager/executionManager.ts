@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { randomUUID } from 'crypto';
 import { readRequirement } from './folderManager';
 import { getLogFilePath, getLogsDirectory } from './logManager';
 import { buildExecutionPrompt } from './executionPrompt';
@@ -179,6 +180,7 @@ export async function executeRequirement(
         delete env.ANTHROPIC_API_KEY; // Remove API key to use web subscription auth
         if (projectId) env.VIBEMAN_PROJECT_ID = projectId;
         env.VIBEMAN_TASK_ID = requirementName;
+        env.VIBEMAN_HOOK_SECRET = randomUUID();
 
         const spawnStartTime = Date.now();
 

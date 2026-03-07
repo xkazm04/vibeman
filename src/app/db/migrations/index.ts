@@ -51,6 +51,9 @@ import { migrate134ConductorPipeline } from './134_conductor_pipeline';
 import { migrate135BrainInsightEvidenceJunction } from './135_brain_insight_evidence_junction';
 import { migrate136EffectivenessCacheVersion } from './136_effectiveness_cache_version';
 import { migrate137CascadeDeleteEvidenceJunction } from './137_cascade_delete_evidence_junction';
+import { migrate142ProviderModelTracking } from './142_provider_model_tracking';
+import { migrate143FixIdeasEffortConstraint } from './143_fix_ideas_effort_constraint';
+import { migrate144DetailedIdeas } from './144_detailed_ideas';
 
 /**
  * Migration logger utility
@@ -370,6 +373,15 @@ export function runMigrations() {
 
     // Migration 137: Cascade delete evidence junction on source removal
     migrate137CascadeDeleteEvidenceJunction(db as any, migrationLogger);
+
+    // Migration 142: Provider/model tracking columns on ideas, implementation_log, scans
+    migrate142ProviderModelTracking(db as any, migrationLogger);
+
+    // Migration 143: Fix ideas effort/impact CHECK constraints (1-3 → 1-10)
+    migrate143FixIdeasEffortConstraint(db as any, migrationLogger);
+
+    // Migration 144: Detailed ideas flag for implementation-ready scans
+    migrate144DetailedIdeas(db as any, migrationLogger);
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
