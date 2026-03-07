@@ -31,6 +31,12 @@ async function handleGet(request: NextRequest) {
   // Sort order: 'asc' = lowest effort+risk first (default), 'desc' = highest first
   const sortOrder = (searchParams.get('sortOrder') || 'asc') as 'asc' | 'desc';
 
+  // Scan type filter (alternative to category filter)
+  const scanType = searchParams.get('scanType');
+
+  // Context filter ('unassigned' = null context_id)
+  const contextId = searchParams.get('contextId');
+
   // Validate limit parameter
   const rawLimit = parseInt(limitParam, 10);
   if (isNaN(rawLimit) || rawLimit < 1) {
@@ -71,6 +77,20 @@ async function handleGet(request: NextRequest) {
     // Apply category filter if specified (only for ideas mode or when explicitly filtering)
     if (ideaCategory && itemType === 'ideas') {
       pendingIdeas = pendingIdeas.filter(idea => idea.category === ideaCategory);
+    }
+
+    // Apply scan type filter if specified
+    if (scanType) {
+      pendingIdeas = pendingIdeas.filter(idea => (idea.scan_type || 'overall') === scanType);
+    }
+
+    // Apply context filter if specified
+    if (contextId) {
+      if (contextId === 'unassigned') {
+        pendingIdeas = pendingIdeas.filter(idea => !idea.context_id);
+      } else {
+        pendingIdeas = pendingIdeas.filter(idea => idea.context_id === contextId);
+      }
     }
 
     // Apply effort/risk range filters server-side (before pagination)

@@ -83,6 +83,18 @@ export function useTinderItems(
     categoriesLoading: core.categoriesLoading,
     setCategory: core.handleSetCategory,
     setFilterMode: core.handleSetFilterMode,
+    // Scan type filtering
+    filterDimension: core.filterDimension,
+    setFilterDimension: core.handleSetFilterDimension,
+    selectedScanType: core.selectedScanType,
+    setScanType: core.handleSetScanType,
+    scanTypes: core.scanTypes,
+    scanTypesLoading: core.scanTypesLoading,
+    // Context filtering
+    selectedContextId: core.selectedContextId,
+    setContextId: core.handleSetContextId,
+    contextCounts: core.contextCounts,
+    contextCountsLoading: core.contextCountsLoading,
     handleAccept: active.handleAccept,
     handleReject: active.handleReject,
     handleDelete: active.handleDelete,
