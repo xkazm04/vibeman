@@ -24,6 +24,7 @@
 .DS_Store
 *.pem
 /.claude/*
+!/.claude/skills/
 # debug
 npm-debug.log*
 yarn-debug.log*
