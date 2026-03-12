@@ -1,5 +1,6 @@
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import {
+  Activity,
   Brain,
   Bug,
   Zap,
@@ -8,6 +9,7 @@ import {
   Scale,
   TrendingUp,
   Palette,
+  Paintbrush,
   Compass,
   Sparkles,
   Heart,
@@ -186,6 +188,22 @@ export const SCAN_TYPE_CONFIG: Record<ScanType, ScanTypeConfig> = {
     borderColor: 'border-lime-500/40',
     bgGradient: 'from-lime-500/5 to-lime-600/2',
     description: 'E2E usability, simplification & consolidation'
+  },
+  observability_scout: {
+    label: 'Observability Scout',
+    icon: Activity,
+    color: 'text-orange-400',
+    borderColor: 'border-orange-500/40',
+    bgGradient: 'from-orange-500/5 to-orange-600/2',
+    description: 'Monitoring, logging & debuggability'
+  },
+  brand_artist: {
+    label: 'Brand Artist',
+    icon: Paintbrush,
+    color: 'text-rose-400',
+    borderColor: 'border-rose-500/40',
+    bgGradient: 'from-rose-500/5 to-amber-500/2',
+    description: 'Brand identity, visuals & typography'
   }
 };
 

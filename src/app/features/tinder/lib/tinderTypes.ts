@@ -75,6 +75,22 @@ export interface CategoryCount {
   count: number;
 }
 
+// Scan type count for filtering
+export interface ScanTypeCount {
+  scan_type: string;
+  count: number;
+}
+
+// Context count for filtering
+export interface ContextCountItem {
+  context_id: string | null;
+  context_name: string;
+  count: number;
+}
+
+// Filter dimension: switches between category and scan_type in the sidebar
+export type FilterDimension = 'category' | 'scan_type';
+
 // Hook result type
 export interface UseTinderItemsResult {
   items: TinderItem[];
@@ -97,6 +113,18 @@ export interface UseTinderItemsResult {
   categoriesLoading: boolean;
   setCategory: (category: string | null) => void;
   setFilterMode: (mode: TinderFilterMode) => void;
+  // Scan type filtering (alternative to category)
+  filterDimension: FilterDimension;
+  setFilterDimension: (dimension: FilterDimension) => void;
+  selectedScanType: string | null;
+  setScanType: (scanType: string | null) => void;
+  scanTypes: ScanTypeCount[];
+  scanTypesLoading: boolean;
+  // Context filtering (independent, combinable with category/scan_type)
+  selectedContextId: string | null;
+  setContextId: (contextId: string | null) => void;
+  contextCounts: ContextCountItem[];
+  contextCountsLoading: boolean;
   handleAccept: () => Promise<void>;
   handleReject: (rejectionReason?: string) => Promise<void>;
   handleDelete: () => Promise<void>;

@@ -17,6 +17,8 @@ import {
   rejectTinderItem,
   deleteTinderItem,
   fetchIdeaCategories,
+  fetchScanTypes,
+  fetchContextCounts,
   acceptPairVariant,
   rejectDirectionPair,
   deleteDirectionPair,
@@ -47,6 +49,9 @@ export function useLocalTinderItems(
     hasMore,
     filterMode,
     selectedCategory,
+    filterDimension,
+    selectedScanType,
+    selectedContextId,
     loadingRef,
     nextCursorRef,
     setItems,
@@ -59,12 +64,21 @@ export function useLocalTinderItems(
     setGoalTitlesMap,
     setCategories,
     setCategoriesLoading,
+    setScanTypes,
+    setScanTypesLoading,
+    setContextCounts,
+    setContextCountsLoading,
     setPrerequisiteNotification,
     updateStats,
     updateCategoryCountOptimistic,
     updateCountsOptimistic,
     setStats,
   } = core;
+
+  // Determine active scan type (only when in scan_type dimension)
+  const activeScanType = filterDimension === 'scan_type' ? selectedScanType : null;
+  // Category only applies when in category dimension
+  const activeCategory = filterDimension === 'category' ? selectedCategory : null;
 
   // Load items from local DB with keyset cursor pagination
   const loadItems = useCallback(async (afterId: string | null = null) => {
@@ -77,10 +91,12 @@ export function useLocalTinderItems(
         filterMode,
         afterId,
         TINDER_CONSTANTS.BATCH_SIZE,
-        selectedCategory,
+        activeCategory,
         effortRange,
         riskRange,
-        sortOrder
+        sortOrder,
+        activeScanType,
+        selectedContextId,
       );
 
       if (!afterId) {
@@ -104,7 +120,7 @@ export function useLocalTinderItems(
       loadingRef.current = false;
       setLoading(false);
     }
-  }, [selectedProjectId, filterMode, selectedCategory, effortRange, riskRange, sortOrder, loadingRef, nextCursorRef, setItems, setCurrentIndex, setLoading, setHasMore, setTotal, setCounts, setGoalTitlesMap]);
+  }, [selectedProjectId, filterMode, activeCategory, activeScanType, selectedContextId, effortRange, riskRange, sortOrder, loadingRef, nextCursorRef, setItems, setCurrentIndex, setLoading, setHasMore, setTotal, setCounts, setGoalTitlesMap]);
 
   const loadMoreIfNeeded = useCallback(() => {
     if (currentIndex >= items.length - TINDER_CONSTANTS.LOAD_MORE_THRESHOLD && hasMore && !loadingRef.current) {
@@ -127,6 +143,38 @@ export function useLocalTinderItems(
       setCategoriesLoading(false);
     }
   }, [selectedProjectId, setCategories, setCategoriesLoading]);
+
+  // Load scan types for filtering
+  const loadScanTypes = useCallback(async () => {
+    setScanTypesLoading(true);
+    try {
+      const result = await fetchScanTypes(
+        selectedProjectId === 'all' ? undefined : selectedProjectId
+      );
+      setScanTypes(result.scanTypes);
+    } catch (error) {
+      console.error('Failed to load scan types:', error);
+      setScanTypes([]);
+    } finally {
+      setScanTypesLoading(false);
+    }
+  }, [selectedProjectId, setScanTypes, setScanTypesLoading]);
+
+  // Load context counts for filtering
+  const loadContextCounts = useCallback(async () => {
+    setContextCountsLoading(true);
+    try {
+      const result = await fetchContextCounts(
+        selectedProjectId === 'all' ? undefined : selectedProjectId
+      );
+      setContextCounts(result.contexts);
+    } catch (error) {
+      console.error('Failed to load context counts:', error);
+      setContextCounts([]);
+    } finally {
+      setContextCountsLoading(false);
+    }
+  }, [selectedProjectId, setContextCounts, setContextCountsLoading]);
 
   // Accept handler
   const handleAccept = useCallback(async () => {
@@ -405,14 +453,16 @@ export function useLocalTinderItems(
     if (!enabled) return;
     if (filterMode === 'ideas') {
       loadCategories();
+      loadScanTypes();
+      loadContextCounts();
     }
-  }, [enabled, filterMode, loadCategories]);
+  }, [enabled, filterMode, loadCategories, loadScanTypes, loadContextCounts]);
 
   // Load items when dependencies change
   useEffect(() => {
     if (!enabled) return;
     loadItems(null);
-  }, [enabled, selectedProjectId, filterMode, selectedCategory, effortRange, riskRange, sortOrder]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled, selectedProjectId, filterMode, activeCategory, activeScanType, selectedContextId, effortRange, riskRange, sortOrder]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     loadItems: () => loadItems(null),

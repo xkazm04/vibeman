@@ -15,6 +15,7 @@ import {
   isDirectionPairItem,
   getTinderItemId,
 } from './tinderTypes';
+import type { CategoryCount, ScanTypeCount, ContextCountItem } from './tinderTypes';
 
 // ---------------------------------------------------------------------------
 // In-flight dedup (prevents double-submission on rapid clicks)
@@ -142,7 +143,9 @@ export async function fetchTinderItems(
   category?: string | null,
   effortRange?: [number, number] | null,
   riskRange?: [number, number] | null,
-  sortOrder: 'asc' | 'desc' = 'asc'
+  sortOrder: 'asc' | 'desc' = 'asc',
+  scanType?: string | null,
+  contextId?: string | null,
 ): Promise<TinderItemsResponse> {
   const params = new URLSearchParams({
     limit: limit.toString(),
@@ -160,6 +163,14 @@ export async function fetchTinderItems(
 
   if (category && itemType === 'ideas') {
     params.append('category', category);
+  }
+
+  if (scanType) {
+    params.append('scanType', scanType);
+  }
+
+  if (contextId) {
+    params.append('contextId', contextId);
   }
 
   if (effortRange) {
@@ -180,11 +191,57 @@ export async function fetchTinderItems(
   return response.json();
 }
 
-import type { CategoryCount } from './tinderTypes';
-
 export interface CategoriesResponse {
   categories: CategoryCount[];
   total: number;
+}
+
+export interface ScanTypesResponse {
+  scanTypes: ScanTypeCount[];
+  total: number;
+}
+
+export async function fetchScanTypes(
+  projectId?: string,
+  status: string = 'pending'
+): Promise<ScanTypesResponse> {
+  const params = new URLSearchParams({ status });
+
+  if (projectId && projectId !== 'all') {
+    params.append('projectId', projectId);
+  }
+
+  const response = await fetch(`/api/ideas/scan-types?${params.toString()}`);
+
+  if (!response.ok) {
+    await handleApiError(response, 'Failed to fetch scan types');
+  }
+
+  return response.json();
+}
+
+export interface ContextCountsResponse {
+  contexts: ContextCountItem[];
+  total: number;
+}
+
+export async function fetchContextCounts(
+  projectId?: string,
+  status: string = 'pending'
+): Promise<ContextCountsResponse> {
+  const params = new URLSearchParams({ status });
+
+  if (projectId && projectId !== 'all') {
+    params.append('projectId', projectId);
+  }
+
+  const response = await fetch(`/api/ideas/context-counts?${params.toString()}`);
+
+  if (!response.ok) {
+    await handleApiError(response, 'Failed to fetch context counts');
+  }
+
+  return response.json();
 }
 
 export async function fetchIdeaCategories(

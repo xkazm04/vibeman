@@ -10,6 +10,9 @@ import {
   TinderItemStats,
   TinderCombinedStats,
   CategoryCount,
+  ScanTypeCount,
+  ContextCountItem,
+  FilterDimension,
   PrerequisiteNotification,
   initialTinderItemStats,
   isIdeaItem,
@@ -30,6 +33,15 @@ export interface TinderCoreState {
   selectedCategory: string | null;
   categories: CategoryCount[];
   categoriesLoading: boolean;
+  // Scan type filter
+  filterDimension: FilterDimension;
+  selectedScanType: string | null;
+  scanTypes: ScanTypeCount[];
+  scanTypesLoading: boolean;
+  // Context filter
+  selectedContextId: string | null;
+  contextCounts: ContextCountItem[];
+  contextCountsLoading: boolean;
   prerequisiteNotification: PrerequisiteNotification | null;
   /** Synchronous loading guard — prevents double-fetches on rapid swipe */
   loadingRef: React.MutableRefObject<boolean>;
@@ -49,6 +61,10 @@ export interface TinderCoreActions {
   setGoalTitlesMap: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   setCategories: React.Dispatch<React.SetStateAction<CategoryCount[]>>;
   setCategoriesLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  setScanTypes: React.Dispatch<React.SetStateAction<ScanTypeCount[]>>;
+  setScanTypesLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  setContextCounts: React.Dispatch<React.SetStateAction<ContextCountItem[]>>;
+  setContextCountsLoading: React.Dispatch<React.SetStateAction<boolean>>;
   setPrerequisiteNotification: React.Dispatch<React.SetStateAction<PrerequisiteNotification | null>>;
   updateStats: (item: TinderItem, action: 'accepted' | 'rejected' | 'deleted') => void;
   updateCategoryCountOptimistic: (item: TinderItem) => void;
@@ -60,6 +76,9 @@ export interface TinderCoreActions {
   resetStats: () => void;
   handleSetFilterMode: (mode: TinderFilterMode) => void;
   handleSetCategory: (category: string | null) => void;
+  handleSetFilterDimension: (dimension: FilterDimension) => void;
+  handleSetScanType: (scanType: string | null) => void;
+  handleSetContextId: (contextId: string | null) => void;
   dismissPrerequisiteNotification: () => void;
 }
 
@@ -79,6 +98,13 @@ export function useTinderItemsCore(initialFilterMode: TinderFilterMode): UseTind
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [categories, setCategories] = useState<CategoryCount[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [filterDimension, setFilterDimension] = useState<FilterDimension>('category');
+  const [selectedScanType, setSelectedScanType] = useState<string | null>(null);
+  const [scanTypes, setScanTypes] = useState<ScanTypeCount[]>([]);
+  const [scanTypesLoading, setScanTypesLoading] = useState(false);
+  const [selectedContextId, setSelectedContextId] = useState<string | null>(null);
+  const [contextCounts, setContextCounts] = useState<ContextCountItem[]>([]);
+  const [contextCountsLoading, setContextCountsLoading] = useState(false);
   const [prerequisiteNotification, setPrerequisiteNotification] = useState<PrerequisiteNotification | null>(null);
 
   const loadingRef = useRef(false);
@@ -154,6 +180,21 @@ export function useTinderItemsCore(initialFilterMode: TinderFilterMode): UseTind
     setSelectedCategory(category);
   }, []);
 
+  const handleSetFilterDimension = useCallback((dimension: FilterDimension) => {
+    setFilterDimension(dimension);
+    // Clear both selections when switching dimensions
+    setSelectedCategory(null);
+    setSelectedScanType(null);
+  }, []);
+
+  const handleSetScanType = useCallback((scanType: string | null) => {
+    setSelectedScanType(scanType);
+  }, []);
+
+  const handleSetContextId = useCallback((contextId: string | null) => {
+    setSelectedContextId(contextId);
+  }, []);
+
   const dismissPrerequisiteNotification = useCallback(() => {
     setPrerequisiteNotification(null);
   }, []);
@@ -174,6 +215,13 @@ export function useTinderItemsCore(initialFilterMode: TinderFilterMode): UseTind
     selectedCategory,
     categories,
     categoriesLoading,
+    filterDimension,
+    selectedScanType,
+    scanTypes,
+    scanTypesLoading,
+    selectedContextId,
+    contextCounts,
+    contextCountsLoading,
     prerequisiteNotification,
     loadingRef,
     nextCursorRef,
@@ -189,6 +237,10 @@ export function useTinderItemsCore(initialFilterMode: TinderFilterMode): UseTind
     setGoalTitlesMap,
     setCategories,
     setCategoriesLoading,
+    setScanTypes,
+    setScanTypesLoading,
+    setContextCounts,
+    setContextCountsLoading,
     setPrerequisiteNotification,
     updateStats,
     updateCategoryCountOptimistic,
@@ -198,6 +250,9 @@ export function useTinderItemsCore(initialFilterMode: TinderFilterMode): UseTind
     resetStats,
     handleSetFilterMode,
     handleSetCategory,
+    handleSetFilterDimension,
+    handleSetScanType,
+    handleSetContextId,
     dismissPrerequisiteNotification,
   };
 }
