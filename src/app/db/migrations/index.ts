@@ -58,6 +58,7 @@ import { migrate137CascadeDeleteEvidenceJunction } from './137_cascade_delete_ev
 import { migrate142ProviderModelTracking } from './142_provider_model_tracking';
 import { migrate143FixIdeasEffortConstraint } from './143_fix_ideas_effort_constraint';
 import { migrate144DetailedIdeas } from './144_detailed_ideas';
+import { migrate145FixIdeasEffortConstraintRetry } from './145_fix_ideas_effort_constraint_retry';
 
 /**
  * Migration logger utility
@@ -250,6 +251,7 @@ export function runMigrations() {
     once('m142', () => migrate142ProviderModelTracking(db as any, migrationLogger));
     once('m143', () => migrate143FixIdeasEffortConstraint(db as any, migrationLogger));  // DESTRUCTIVE: recreates ideas
     once('m144', () => migrate144DetailedIdeas(db as any, migrationLogger));
+    once('m145', () => migrate145FixIdeasEffortConstraintRetry(db as any, migrationLogger));  // Re-run: m143 was pre-seeded during bootstrap
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {

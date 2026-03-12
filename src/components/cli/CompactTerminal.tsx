@@ -370,8 +370,10 @@ export function CompactTerminal({
     eventSource.onerror = () => {
       eventSource.close();
       eventSourceRef.current = null;
+      // Finalize the task as failed so isStreaming resets and the queue can continue
+      finalizeTask(false);
     };
-  }, [protocol]);
+  }, [protocol, finalizeTask]);
 
   // Reconnect to active execution on mount (background processing support)
   useEffect(() => {
@@ -527,9 +529,12 @@ export function CompactTerminal({
       const executeUrl = isCopilot
         ? `${COPILOT_SDK_BASE}/execute`
         : '/api/claude-terminal/query';
+      // Only use worktree isolation when there's a single task (worktree sessions can't be resumed for chaining)
+      const hasMultipleTasks = taskQueue.filter(t => t.status.type === 'queued' || t.status.type === 'running').length > 1;
+      const useWorktree = provider === 'claude' && !resumeSession && !hasMultipleTasks ? true : undefined;
       const executeBody = isCopilot
         ? { projectPath: task.projectPath, prompt: taskPrompt, model: model || undefined }
-        : { projectPath: task.projectPath, prompt: taskPrompt, resumeSessionId: resumeSession ? sessionId : undefined, provider, model: model || undefined, useWorktree: provider === 'claude' ? true : undefined };
+        : { projectPath: task.projectPath, prompt: taskPrompt, resumeSessionId: resumeSession ? sessionId : undefined, provider, model: model || undefined, useWorktree };
 
       const response = await fetch(executeUrl, {
         method: 'POST',
@@ -683,8 +688,10 @@ export function CompactTerminal({
       // Add delay before starting next task to allow cleanup to complete
       // This ensures requirement file deletion happens before next task starts
       pendingNextTaskRef.current = setTimeout(() => {
-        // Resume session if we have one (for chaining)
-        const shouldResume = sessionId !== null;
+        // Only resume session for consolidated tasks (directPrompt = multi-phase same-context work).
+        // Independent queued tasks (each with its own requirement file) must start fresh —
+        // resuming a previous session can cause immediate exits or context confusion.
+        const shouldResume = sessionId !== null && !!nextTask.directPrompt;
         executeTask(nextTask, shouldResume);
       }, 3000); // 3 second delay between tasks for cleanup
     } else if (!nextTask && taskQueue.length > 0 && autoStart) {

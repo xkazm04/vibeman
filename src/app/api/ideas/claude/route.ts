@@ -263,6 +263,7 @@ Content-Type: application/json
 
 \`\`\`bash
 # Step 1: Create scan record
+# NOTE: Use node -e or grep/sed to parse JSON — do NOT use jq or python (may not be installed)
 SCAN_RESPONSE=$(curl -s -X POST ${apiUrl}/api/scans \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -271,8 +272,8 @@ SCAN_RESPONSE=$(curl -s -X POST ${apiUrl}/api/scans \\
     "summary": "Claude Code idea generation - ${scanLabel}"
   }')
 
-# Extract scan_id from response
-SCAN_ID=$(echo $SCAN_RESPONSE | jq -r '.scan.id')
+# Extract scan_id from response (cross-platform — no jq/python required)
+SCAN_ID=$(node -e "console.log(JSON.parse(process.argv[1]).scan.id)" "$SCAN_RESPONSE")
 
 # Step 2: Create ideas using the scan_id
 curl -X POST ${apiUrl}/api/ideas \\
@@ -306,6 +307,16 @@ curl -X POST ${apiUrl}/api/ideas \\
 7. Report what ideas were created
 
 **REMINDER:** Do NOT create any files or endpoints in "${projectName}". Only READ/ANALYZE it.
+
+## Error Handling
+
+**CRITICAL:** If Vibeman API calls fail (4xx/5xx errors), follow these rules:
+- **DO NOT** attempt to debug, fix, or investigate Vibeman's database, schema, or code
+- **DO NOT** look for database files, read migration files, or inspect Vibeman's source code
+- **DO NOT** install tools like jq, python, or sqlite3 — they are not needed
+- If a curl call fails, log the error response and try adjusting the JSON payload (e.g., remove optional fields like \`detailed\`, \`provider\`, \`model\`)
+- If it still fails after one retry, report the error and move on to the next idea
+- Vibeman is an EXTERNAL system — you have no ability or responsibility to fix it
 
 ## Quality Standards
 
@@ -552,8 +563,8 @@ SCAN_RESPONSE=$(curl -s -X POST ${apiUrl}/api/scans \\
     "summary": "Claude Code idea generation - ${scanLabel} (Group: ${group.name})"
   }')
 
-# Extract scan_id from response
-SCAN_ID=$(echo $SCAN_RESPONSE | jq -r '.scan.id')
+# Extract scan_id from response (cross-platform — no jq/python required)
+SCAN_ID=$(node -e "console.log(JSON.parse(process.argv[1]).scan.id)" "$SCAN_RESPONSE")
 
 # Step 2: Create ideas using the scan_id
 curl -X POST ${apiUrl}/api/ideas \\
@@ -587,6 +598,16 @@ curl -X POST ${apiUrl}/api/ideas \\
 7. Report what ideas were created
 
 **REMINDER:** Do NOT create any files or endpoints in "${projectName}". Only READ/ANALYZE it.
+
+## Error Handling
+
+**CRITICAL:** If Vibeman API calls fail (4xx/5xx errors), follow these rules:
+- **DO NOT** attempt to debug, fix, or investigate Vibeman's database, schema, or code
+- **DO NOT** look for database files, read migration files, or inspect Vibeman's source code
+- **DO NOT** install tools like jq, python, or sqlite3 — they are not needed
+- If a curl call fails, log the error response and try adjusting the JSON payload (e.g., remove optional fields like \`detailed\`, \`provider\`, \`model\`)
+- If it still fails after one retry, report the error and move on to the next idea
+- Vibeman is an EXTERNAL system — you have no ability or responsibility to fix it
 
 ## Quality Standards
 
