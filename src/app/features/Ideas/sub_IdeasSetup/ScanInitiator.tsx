@@ -4,6 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Target, ChevronDown, Zap } from 'lucide-react';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
+import { toast } from '@/stores/messageStore';
 import { ScanType } from '../lib/scanTypes';
 import { executeClaudeCodeScan } from './lib/ideaExecutor';
 
@@ -34,8 +35,6 @@ export default function ScanInitiator({
   selectedContextIds: propSelectedContextIds,
   selectedGroupIds: propSelectedGroupIds = [],
 }: ScanInitiatorProps) {
-  const [message, setMessage] = React.useState<string>('');
-
   // Generated Ideas state
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [isDetailedProcessing, setIsDetailedProcessing] = React.useState(false);
@@ -92,7 +91,7 @@ export default function ScanInitiator({
     if (!activeProject || !activeProject.path || !selectedGoalId) return;
 
     setIsGoalScanning(true);
-    setMessage('Generating goal-driven scan profile...');
+    toast.info('Goal scan', 'Generating goal-driven scan profile...');
 
     try {
       // Step 1: Auto-generate scan profile from goal
@@ -115,7 +114,7 @@ export default function ScanInitiator({
       const scanTypes = JSON.parse(profile.scan_types) as ScanType[];
       const contextIds = profile.context_ids ? JSON.parse(profile.context_ids) as string[] : [];
 
-      setMessage(`Profile created: ${scanTypes.length} agents selected. Creating requirement files...`);
+      toast.info('Goal scan', `Profile created: ${scanTypes.length} agents selected. Creating requirement files...`);
 
       // Step 2: Execute the scan using the profile configuration
       const result = await executeClaudeCodeScan({
@@ -136,15 +135,14 @@ export default function ScanInitiator({
 
       if (result.success) {
         const goalTitle = goals.find(g => g.id === selectedGoalId)?.title || 'goal';
-        setMessage(`${result.itemCount} requirement files created for "${goalTitle}"! Use TaskRunner to execute.`);
+        toast.success('Goal scan complete', `${result.itemCount} requirement files created for "${goalTitle}"! Use TaskRunner to execute.`);
         onScanComplete();
-        setTimeout(() => setMessage(''), 8000);
       } else {
-        setMessage(`Partial success: ${result.itemCount} files. Errors: ${result.errors.join(', ')}`);
+        toast.warning('Goal scan partial', `${result.itemCount} files created. Errors: ${result.errors.join(', ')}`);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setMessage(`Goal scan failed: ${errorMessage}`);
+      toast.error('Goal scan failed', errorMessage);
     } finally {
       setIsGoalScanning(false);
     }
@@ -153,17 +151,17 @@ export default function ScanInitiator({
   // Generated Ideas: Create requirement files directly
   const handleGeneratedIdeasClick = async () => {
     if (!activeProject) {
-      setMessage('No active project selected');
+      toast.error('No active project', 'Please select a project first');
       return;
     }
 
     if (!activeProject.path) {
-      setMessage('Project path is not defined');
+      toast.error('Missing project path', 'Project path is not defined');
       return;
     }
 
     setIsProcessing(true);
-    setMessage('Creating Claude Code requirement files...');
+    toast.info('Creating files', 'Creating Claude Code requirement files...');
 
     try {
       const itemCount = currentSelectedContextIds.length > 0
@@ -183,15 +181,14 @@ export default function ScanInitiator({
       });
 
       if (result.success) {
-        setMessage(`${result.itemCount}/${expectedFiles} requirement files created! Use TaskRunner to execute them.`);
+        toast.success('Files created', `${result.itemCount}/${expectedFiles} requirement files created! Use TaskRunner to execute them.`);
         onScanComplete();
-        setTimeout(() => setMessage(''), 8000);
       } else {
-        setMessage(`Partial success: ${result.itemCount} files created. Errors: ${result.errors.join(', ')}`);
+        toast.error('Creation failed', `${result.itemCount} files created. Errors: ${result.errors.join(', ')}`);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setMessage(`Failed to create requirement files: ${errorMessage}`);
+      toast.error('Creation failed', errorMessage);
     } finally {
       setIsProcessing(false);
     }
@@ -200,17 +197,17 @@ export default function ScanInitiator({
   // Detailed Ideas: Create requirement files with implementation procedures
   const handleDetailedScanClick = async () => {
     if (!activeProject) {
-      setMessage('No active project selected');
+      toast.error('No active project', 'Please select a project first');
       return;
     }
 
     if (!activeProject.path) {
-      setMessage('Project path is not defined');
+      toast.error('Missing project path', 'Project path is not defined');
       return;
     }
 
     setIsDetailedProcessing(true);
-    setMessage('Creating detailed requirement files with implementation procedures...');
+    toast.info('Creating files', 'Creating detailed requirement files with implementation procedures...');
 
     try {
       const itemCount = currentSelectedContextIds.length > 0
@@ -231,15 +228,14 @@ export default function ScanInitiator({
       });
 
       if (result.success) {
-        setMessage(`${result.itemCount}/${expectedFiles} detailed requirement files created! Use TaskRunner to execute them.`);
+        toast.success('Files created', `${result.itemCount}/${expectedFiles} detailed requirement files created! Use TaskRunner to execute them.`);
         onScanComplete();
-        setTimeout(() => setMessage(''), 8000);
       } else {
-        setMessage(`Partial success: ${result.itemCount} detailed files created. Errors: ${result.errors.join(', ')}`);
+        toast.error('Creation failed', `${result.itemCount} detailed files created. Errors: ${result.errors.join(', ')}`);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setMessage(`Failed to create detailed requirement files: ${errorMessage}`);
+      toast.error('Creation failed', errorMessage);
     } finally {
       setIsDetailedProcessing(false);
     }
@@ -251,17 +247,6 @@ export default function ScanInitiator({
     <div className="space-y-4">
       {/* Main Controls Row */}
       <div className="bg-gray-800/40 backdrop-blur-sm rounded-xl p-4 border border-gray-700/40 space-y-4">
-        {/* Status message */}
-        {message && (
-          <motion.div
-            className="text-sm text-gray-300"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            {message}
-          </motion.div>
-        )}
-
         {/* Scan Type Selector */}
         {onScanTypesChange && (
           <ScanTypeSelector

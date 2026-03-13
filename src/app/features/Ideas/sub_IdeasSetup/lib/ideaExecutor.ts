@@ -175,7 +175,8 @@ export async function executeClaudeCodeScan(config: ExecutionConfig): Promise<Ex
           result.itemCount++;
           result.requirementPaths.push(writeResult.filePath || apiResult.requirementName);
         } else {
-          result.errors.push(`${scanLabel}/${itemLabel}: Failed to write requirement file`);
+          const writeError = await writeResponse.json().catch(() => ({ error: 'Unknown write error' }));
+          result.errors.push(`${scanLabel}/${itemLabel}: ${writeError.error || writeError.details || 'Failed to write requirement file'}`);
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';

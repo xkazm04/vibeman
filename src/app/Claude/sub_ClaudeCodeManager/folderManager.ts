@@ -184,12 +184,17 @@ export function createRequirement(
   try {
     const structure = getClaudeFolderStructure(projectPath);
 
-    // Ensure .claude folder is initialized
+    // Ensure .claude folder and commands subdirectory exist
     if (!claudeFolderExists(projectPath)) {
       const initResult = initializeClaudeFolder(projectPath);
       if (!initResult.success) {
-        return { success: false, error: 'Failed to initialize .claude folder' };
+        return { success: false, error: `Failed to initialize .claude folder: ${initResult.error}` };
       }
+    }
+
+    // Ensure commands directory exists even if .claude folder already existed
+    if (!fs.existsSync(structure.commands)) {
+      fs.mkdirSync(structure.commands, { recursive: true });
     }
 
     // Sanitize requirement name to be filesystem-safe
