@@ -1,140 +1,75 @@
-# Vibeman
+# Vibeman Conductor Redesign
 
 ## What This Is
 
-An AI-driven development platform that automates the entire software development lifecycle using multiple specialized AI agents. Vibeman boosts personal productivity through intelligent code analysis, idea generation, batch implementation, and automated testing. Includes remote control via Butler mobile app for triaging and triggering execution while away from desk.
+A local-first autonomous development management tool. The Conductor module orchestrates goal-driven software development: it analyzes the codebase, generates a prioritized backlog, produces requirement specs, distributes implementation across 1-4 CLI sessions, and validates the result against quality criteria. Built as a Next.js web app for a single power user managing multiple projects.
 
 ## Core Value
 
-Maximize developer productivity by automating routine development tasks through AI agents, with seamless mobile control for managing work queues remotely.
-
-## Current Milestone: v2.0 Template Discovery & Research Integration
-
-**Goal:** Transform the unused PromptTemplates module into a template discovery and research execution system.
-
-**Target features:**
-- Template discovery: Scan foreign projects for `TemplateConfig` exports in `src/templates/configs/*.ts`
-- Auto-import: Discovered templates saved to DB with metadata
-- Variable UI: Simplified form for filling research queries (minimum: query field)
-- Requirement generation: Create .md files with CLI execution hints
-- Full redesign: Rebuild Integrations module with clean visual hierarchy
-
-**Integration target:**
-- res project at `C:/Users/mkdol/dolla/res`
-- 10 templates: tech_market, financial, competitive, investigative, due_diligence, legal, contract, reputation, purchase_decision, understanding
+Conductor reliably and autonomously turns a high-level goal into committed, production-quality code — with minimal human intervention beyond goal definition and optional triage approval.
 
 ## Requirements
 
 ### Validated
 
-<!-- v1.0 Butler-Vibeman Remote Integration (2026-01-28) -->
-- ✓ Supabase integration with credentials management and connection testing
-- ✓ Manual sync of directions and requirements to Supabase
-- ✓ Auto-sync of accept/reject decisions back to SQLite
-- ✓ Zen mode command center with 1-4 CLI sessions and event sidebar
-- ✓ Remote batch execution via Supabase commands
-- ✓ Butler mobile triage with swipe gestures (accept/reject/skip)
-- ✓ Butler batch composer with healthcheck pre-flight
-- ✓ Push notifications for batch completion/failure
+- Goal management UI with CRUD operations — existing
+- Multi-provider CLI sessions (Claude, Gemini, Copilot, Ollama) with 4 concurrent slots — existing
+- SQLite persistence with migration system — existing
+- Zustand state management with persist middleware — existing
+- Brain module for pattern storage and retrieval — existing
+- Ideas module for creative backlog generation — existing
+- TaskRunner for multi-task execution — existing
+- Theme system (Purple/Cyan/Red) — existing
+- Project management with active project selection — existing
+- API-first architecture with typed query wrappers — existing
 
 ### Active
 
-<!-- v2.0 Template Discovery & Research Integration -->
-
-**Template Discovery:**
-- [ ] DISC-01: Scan project path for `src/templates/configs/*.ts` files
-- [ ] DISC-02: Parse TypeScript to extract `TemplateConfig` exports
-- [ ] DISC-03: Store discovered templates in DB with source_project_path
-- [ ] DISC-04: Detect template changes on re-scan (update vs skip)
-- [ ] DISC-05: Show discovery progress and results in UI
-
-**Research Variable UI:**
-- [ ] VAR-01: Query input field (required, the research topic)
-- [ ] VAR-02: Granularity selector (quick/standard/deep)
-- [ ] VAR-03: Template selector from discovered templates
-- [ ] VAR-04: Preview interpolated prompt before generation
-- [ ] VAR-05: Generate .md requirement file with filled variables
-
-**Execution Hints:**
-- [ ] EXEC-01: Show CLI command to run after generation
-- [ ] EXEC-02: Copy-to-clipboard for command
-- [ ] EXEC-03: Track generation history per template
-
-**UI Redesign:**
-- [ ] UI-01: Clean visual hierarchy with consistent spacing
-- [ ] UI-02: Project scanner card (path input + scan button)
-- [ ] UI-03: Discovered templates grid with metadata cards
-- [ ] UI-04: Research launcher panel with variable inputs
-- [ ] UI-05: Execution history timeline
-- [ ] UI-06: Remove whitespace issues, improve typography
+- [ ] Conductor pipeline rebuild from scratch (new architecture)
+- [ ] Goal-to-backlog: codebase analysis to identify gaps, debt, missing tests relative to goal
+- [ ] Backlog triage with optional user approval/adjustment checkpoint
+- [ ] Markdown requirement spec generation (one .md per backlog item with acceptance criteria, affected files, approach)
+- [ ] Domain-isolated parallel execution across 1-4 CLI sessions
+- [ ] Brain integration as pattern library + active decision engine
+- [ ] Automated test generation for new code during execution
+- [ ] Build validation (TypeScript compiles, no errors)
+- [ ] LLM-powered code review against quality rubric
+- [ ] Execution report + commit on goal completion
+- [ ] Configurable checkpoints (triage, pre-execute, post-review)
 
 ### Out of Scope
 
-- Direct CLI invocation from Vibeman — user runs command manually in res project
-- Research results viewing — handled by res project's report UI
-- Template editing in Vibeman — edit source `.ts` files in res project
-- Multi-project simultaneous discovery — one project at a time
-- Template versioning — always use latest from source
+- Multi-user support — single-user local tool
+- PR/branch workflow — commits directly, no branching strategy
+- Deployment automation — tool produces committed code, not deployments
+- Real-time collaboration — solo developer workflow
+- Existing test suite execution as gate — only new test generation and build validation
 
 ## Context
 
-**Existing Vibeman Architecture:**
-- Next.js 16 + React 19 + TypeScript
-- SQLite database with repository pattern (`src/app/db/`)
-- Integrations module exists (`src/app/features/Integrations/`) — target for redesign
-- PromptTemplates submodule (`sub_PromptTemplates/`) — ~20 files, never used
-
-**Existing PromptTemplates Module:**
-- Manual template creation with 6 categories
-- `{{VARIABLE}}` interpolation syntax
-- Batch generation via GeneratorPanel
-- API routes: `/api/prompt-templates/*`
-- DB: `prompt_templates` table with variables JSON
-
-**Integration Target (res project):**
-- Path: `C:/Users/mkdol/dolla/res`
-- Templates: `src/templates/configs/*.ts`
-- 10 templates: tech_market, financial, competitive, investigative, due_diligence, legal, contract, reputation, purchase_decision, understanding
-
-**TemplateConfig Structure:**
-```typescript
-{
-  templateId: string;
-  templateName: string;
-  description: string;
-  searchAngles: SearchAngle[];
-  findingTypes: FindingTypeConfig[];
-  perspectives: string[];
-  searchDepthGuidance: { quick, standard, deep };
-  defaultMaxSearches: number;
-}
-```
-
-**Data Flow:**
-1. User enters project path → Vibeman scans for templates
-2. Discovered templates stored in SQLite with metadata
-3. User selects template → fills query variable
-4. Vibeman generates `.md` requirement file
-5. User copies CLI command → runs in res project
-6. Claude Code executes research → saves to Supabase
+- This is a brownfield redesign: the current Conductor (Scout → Triage → Batch → Execute → Review with self-healing) exists but will be rebuilt from scratch
+- Brain module provides learned patterns and active decision support — Conductor should query Brain for architecture decisions and code conventions
+- Ideas module can feed creative suggestions into backlog generation
+- TaskRunner handles CLI session management — Conductor orchestrates which tasks go to which sessions
+- The app runs locally on Windows 11, SQLite is the primary datastore
+- CLI providers route through `src/lib/claude-terminal/` with model routing via `routeModel()`
 
 ## Constraints
 
-- **Vibeman-only changes**: res project is read-only for discovery
-- **File structure detection**: Scan `src/templates/configs/*.ts` pattern, no manifest
-- **SQLite compatibility**: Use existing DB patterns and better-sqlite3
-- **Existing UI patterns**: Follow Vibeman's dark theme and component conventions
-- **TypeScript parsing**: Extract exports without full compilation (regex or ts-morph)
+- **Tech stack**: Next.js App Router, TypeScript, SQLite via better-sqlite3, Zustand — must stay within existing stack
+- **CLI sessions**: Maximum 4 concurrent sessions, domain isolation required to prevent file conflicts
+- **Single user**: No auth, no multi-tenancy, localhost only
+- **Database migrations**: Must use `addColumnIfNotExists()`, never drop/recreate tables, new columns must be nullable or have defaults
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| File structure discovery | Simpler than manifest, no source project changes needed | — Pending |
-| Generate file + CLI hint | Decouples Vibeman from res execution environment | — Pending |
-| Full UI redesign | Module never used, opportunity to do it right | — Pending |
-| Regex-based TS parsing | Faster than full ts-morph, sufficient for export extraction | — Pending |
-| Single project at a time | Simpler state management, avoid confusion | — Pending |
+| Rebuild Conductor from scratch | Current pipeline has reliability issues, architecture doesn't support Brain/Ideas integration cleanly | — Pending |
+| Domain isolation for parallel sessions | Simpler than file-level locking, prevents merge conflicts by design | — Pending |
+| Markdown specs over structured JSON | Human-readable, easier to review at triage checkpoint, LLM-friendly format | — Pending |
+| Brain as both pattern library and decision engine | Maximizes value of learned patterns — passive reference + active consultation | — Pending |
+| Checkpoints over full autonomy | User wants control at key gates without micromanaging every step | — Pending |
 
 ---
-*Last updated: 2026-02-02 after v2.0 milestone initialization*
+*Last updated: 2026-03-14 after initialization*
