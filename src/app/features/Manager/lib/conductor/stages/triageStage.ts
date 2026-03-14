@@ -1,20 +1,20 @@
 /**
- * Triage Stage — CLI-Evaluated Idea Scoring + Threshold Accept/Reject
+ * Triage Stage -- CLI-Evaluated Idea Scoring
  *
  * Uses a CLI/LLM session to evaluate ideas in context of the codebase
  * and brain behavioral patterns. The CLI scores each idea (effort, impact, risk)
- * via PATCH /api/ideas, then threshold logic accepts or rejects.
+ * via PATCH /api/ideas. Returns scored items for the orchestrator to present
+ * at the triage checkpoint.
  *
  * Flow:
  * 1. Build triage evaluation prompt (ideas + brain context)
  * 2. Dispatch CLI execution with the prompt
  * 3. CLI analyzes codebase, scores ideas, updates via PATCH API
  * 4. Re-fetch ideas from DB (now with scores)
- * 5. Apply threshold logic from BalancingConfig
- * 6. Accept/reject via tinder APIs
+ * 5. Return scored items -- orchestrator handles checkpoint + accept/reject
  */
 
-import type { BalancingConfig, TriageResult, ProcessLogEntry } from '../types';
+import type { BalancingConfig, ProcessLogEntry } from '../types';
 import {
   startExecution,
   getExecution,
@@ -22,6 +22,16 @@ import {
 import type { CLIProviderConfig, CLIModel } from '@/lib/claude-terminal/types';
 import { ideaDb } from '@/app/db';
 import { getBehavioralContext } from '@/lib/brain/behavioralContext';
+
+export interface ScoredTriageItem {
+  id: string;
+  title: string;
+  description?: string;
+  category: string;
+  effort: number | null;
+  impact: number | null;
+  risk: number | null;
+}
 
 interface IdeaForTriage {
   id: string;
@@ -50,13 +60,15 @@ interface TriageInput {
 }
 
 /**
- * Execute the Triage stage: CLI-evaluate ideas, then apply thresholds.
+ * Execute the Triage stage: CLI-evaluate ideas, return scored items.
+ * Does NOT make accept/reject decisions -- the orchestrator handles that
+ * via the triage checkpoint flow.
  */
-export async function executeTriageStage(input: TriageInput): Promise<TriageResult> {
+export async function executeTriageStage(input: TriageInput): Promise<ScoredTriageItem[]> {
   const { ideas, config, projectId, projectPath } = input;
 
   if (ideas.length === 0) {
-    return { acceptedIds: [], rejectedIds: [], skippedIds: [] };
+    return [];
   }
 
   // Check which ideas need scoring (no effort/impact/risk)
@@ -100,31 +112,63 @@ export async function executeTriageStage(input: TriageInput): Promise<TriageResu
       })
     : ideas;
 
-  // Apply threshold logic
+  // Return scored items for the orchestrator to use at checkpoint
+  return scoredIdeas.map((idea) => ({
+    id: idea.id,
+    title: idea.title,
+    description: idea.description,
+    category: idea.category,
+    effort: idea.effort,
+    impact: idea.impact,
+    risk: idea.risk,
+  }));
+}
+
+/**
+ * Apply accept/reject decisions to ideas via tinder API.
+ * Called by the orchestrator after the triage checkpoint resolves.
+ */
+export async function applyTriageDecisions(
+  decisions: Array<{ itemId: string; action: 'approve' | 'reject' }>,
+  projectPath: string
+): Promise<{ acceptedIds: string[]; rejectedIds: string[] }> {
   const acceptedIds: string[] = [];
   const rejectedIds: string[] = [];
-  const skippedIds: string[] = [];
 
-  for (const idea of scoredIdeas) {
-    const decision = evaluateIdea(idea, config);
-
+  for (const decision of decisions) {
     try {
-      if (decision === 'accept') {
-        await acceptIdea(idea.id, projectPath);
-        acceptedIds.push(idea.id);
-      } else if (decision === 'reject') {
-        await rejectIdea(idea.id, 'auto_triage');
-        rejectedIds.push(idea.id);
+      if (decision.action === 'approve') {
+        await acceptIdea(decision.itemId, projectPath);
+        acceptedIds.push(decision.itemId);
       } else {
-        skippedIds.push(idea.id);
+        await rejectIdea(decision.itemId, 'triage_user_decision');
+        rejectedIds.push(decision.itemId);
       }
     } catch (error) {
-      console.error(`[triage] Failed to process idea ${idea.id}:`, error);
-      skippedIds.push(idea.id);
+      console.error(`[triage] Failed to process decision for ${decision.itemId}:`, error);
     }
   }
 
-  return { acceptedIds, rejectedIds, skippedIds };
+  return { acceptedIds, rejectedIds };
+}
+
+/**
+ * Auto-approve all items (used when skipTriage=true).
+ */
+export async function autoApproveAll(
+  itemIds: string[],
+  projectPath: string
+): Promise<string[]> {
+  const acceptedIds: string[] = [];
+  for (const id of itemIds) {
+    try {
+      await acceptIdea(id, projectPath);
+      acceptedIds.push(id);
+    } catch (error) {
+      console.error(`[triage] Failed to auto-approve ${id}:`, error);
+    }
+  }
+  return acceptedIds;
 }
 
 /**
@@ -261,48 +305,6 @@ Evaluate ALL ${ideas.length} ideas. Do not skip any.`;
   }
 
   console.log(`[triage] CLI evaluation finished for ${ideas.length} ideas`);
-}
-
-/**
- * Evaluate a single idea against triage thresholds.
- * Uses default scores (5) for any missing values.
- */
-function evaluateIdea(
-  idea: IdeaForTriage,
-  config: BalancingConfig
-): 'accept' | 'reject' | 'skip' {
-  const { minImpact, maxEffort, maxRisk } = config;
-  const effort = idea.effort ?? 5;
-  const impact = idea.impact ?? 5;
-  const risk = idea.risk ?? 5;
-
-  // Hard reject: doesn't meet minimum thresholds
-  if (impact < minImpact && effort > maxEffort) {
-    return 'reject';
-  }
-
-  // Hard reject: too risky with low impact
-  if (risk > maxRisk && impact < minImpact) {
-    return 'reject';
-  }
-
-  // Accept: meets all thresholds
-  if (impact >= minImpact && effort <= maxEffort && risk <= maxRisk) {
-    return 'accept';
-  }
-
-  // Borderline: high impact compensates for moderate effort/risk
-  if (impact >= minImpact + 2 && effort <= maxEffort + 2) {
-    return 'accept';
-  }
-
-  // Borderline: low effort compensates for moderate risk
-  if (effort <= 3 && risk <= maxRisk + 2) {
-    return 'accept';
-  }
-
-  // Default: reject in autonomous mode
-  return 'reject';
 }
 
 async function acceptIdea(ideaId: string, projectPath: string): Promise<void> {

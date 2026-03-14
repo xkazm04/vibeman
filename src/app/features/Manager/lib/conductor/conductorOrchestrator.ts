@@ -24,7 +24,10 @@ import { createEmptyStages, createEmptyMetrics } from './types';
 import { conductorRepository } from './conductor.repository';
 import { v4 as uuidv4 } from 'uuid';
 import { executeScoutStage } from './stages/scoutStage';
-import { executeTriageStage } from './stages/triageStage';
+import { executeTriageStage, applyTriageDecisions, autoApproveAll } from './stages/triageStage';
+import type { ScoredTriageItem } from './stages/triageStage';
+import type { TriageCheckpointData } from './types';
+import { detectBrainConflicts } from '@/lib/brain/conflictDetector';
 import { executeBatchStage } from './stages/batchStage';
 import { executeExecuteStage } from './stages/executeStage';
 import { executeReviewStage } from './stages/reviewStage';
@@ -350,16 +353,17 @@ async function runPipelineLoop(
     executeStageAndPersist(runId, 'triage', { status: 'running', startedAt: new Date().toISOString(), itemsIn: 0, itemsOut: 0 });
     updateRunInDb(runId, { current_stage: 'triage' });
 
-    let triageResult;
+    let triageResult: { acceptedIds: string[]; rejectedIds: string[]; skippedIds: string[] } = { acceptedIds: [], rejectedIds: [], skippedIds: [] };
     try {
       const allIdeaIds = scoutResults.flatMap((r) => r.ideaIds);
       const ideas = await fetchIdeas(allIdeaIds, projectId);
 
-      log('triage', 'started', `Evaluating ${ideas.length} idea${ideas.length !== 1 ? 's' : ''} against thresholds`, {
+      log('triage', 'started', `Evaluating ${ideas.length} idea${ideas.length !== 1 ? 's' : ''} via CLI scoring`, {
         itemsIn: ideas.length,
       });
 
-      triageResult = await executeTriageStage({
+      // Step 1: Score items via CLI (no accept/reject yet)
+      const scoredItems: ScoredTriageItem[] = await executeTriageStage({
         ideas,
         config,
         projectId,
@@ -370,6 +374,87 @@ async function runPipelineLoop(
           log('triage', event, message, extra);
         },
       });
+
+      log('triage', 'info', `Scored ${scoredItems.length} items`);
+
+      // Step 2: Check skipTriage bypass
+      const skipTriage = checkpointConfig.skipTriage ?? false;
+
+      if (skipTriage) {
+        // Bypass checkpoint -- auto-approve all items
+        log('triage', 'info', 'Triage bypassed (skipTriage=true)');
+        const approvedIds = await autoApproveAll(
+          scoredItems.map(i => i.id),
+          projectPath
+        );
+        triageResult = { acceptedIds: approvedIds, rejectedIds: [], skippedIds: [] };
+      } else {
+        // Step 3: Detect Brain conflicts
+        let conflictMap: Map<string, { hasConflict: boolean; reason: string | null; patternTitle: string | null }>;
+        try {
+          conflictMap = detectBrainConflicts(scoredItems, projectId);
+        } catch {
+          conflictMap = new Map();
+        }
+
+        // Step 4: Build triage checkpoint data
+        const triageData: TriageCheckpointData = {
+          items: scoredItems.map(item => {
+            const conflict = conflictMap.get(item.id) || { hasConflict: false, reason: null, patternTitle: null };
+            return {
+              id: item.id,
+              title: item.title,
+              description: item.description,
+              category: item.category,
+              effort: item.effort,
+              impact: item.impact,
+              risk: item.risk,
+              brainConflict: conflict,
+            };
+          }),
+          timeoutAt: new Date(Date.now() + 3_600_000).toISOString(),
+          createdAt: new Date().toISOString(),
+        };
+
+        // Step 5: Pause at triage checkpoint
+        updateRunInDb(runId, { checkpoint_type: 'triage', triage_data: JSON.stringify(triageData) });
+        conductorRepository.updateRunStatus(runId, 'paused');
+        log('triage', 'info', 'Triage checkpoint -- waiting for user review');
+
+        const waitResult = await waitForResumeWithTimeout(runId, 3_600_000);
+
+        if (waitResult === 'timeout') {
+          log('triage', 'info', 'Triage checkpoint timed out after 1 hour');
+          updateRunInDb(runId, { checkpoint_type: null, triage_data: null });
+          conductorRepository.updateRunStatus(runId, 'interrupted', metrics);
+          return;
+        }
+
+        if (waitResult === 'aborted') {
+          log('triage', 'info', 'Triage checkpoint aborted');
+          updateRunInDb(runId, { checkpoint_type: null, triage_data: null });
+          conductorRepository.updateRunStatus(runId, 'interrupted', metrics);
+          return;
+        }
+
+        // Step 6: Read decisions from triage_data (user submitted via API)
+        const db = getDatabase();
+        const triageRow = db.prepare('SELECT triage_data FROM conductor_runs WHERE id = ?').get(runId) as { triage_data: string | null } | undefined;
+        const updatedTriageData: TriageCheckpointData | null = triageRow?.triage_data ? JSON.parse(triageRow.triage_data) : null;
+
+        if (updatedTriageData?.decisions && updatedTriageData.decisions.length > 0) {
+          const result = await applyTriageDecisions(updatedTriageData.decisions, projectPath);
+          triageResult = { acceptedIds: result.acceptedIds, rejectedIds: result.rejectedIds, skippedIds: [] };
+        } else {
+          // No decisions provided -- treat all as rejected
+          log('triage', 'info', 'No triage decisions provided after resume -- rejecting all');
+          triageResult = { acceptedIds: [], rejectedIds: scoredItems.map(i => i.id), skippedIds: [] };
+        }
+
+        // Clear checkpoint state
+        updateRunInDb(runId, { checkpoint_type: null, triage_data: null });
+        conductorRepository.updateRunStatus(runId, 'running');
+      }
 
       metrics.ideasAccepted += triageResult.acceptedIds.length;
       metrics.ideasRejected += triageResult.rejectedIds.length;
@@ -750,6 +835,36 @@ async function waitForResume(runId: string): Promise<void> {
     const run = conductorRepository.getRunById(runId);
     if (!run || run.status !== 'paused') break;
     if (conductorRepository.checkAbort(runId)) break;
+  }
+}
+
+/**
+ * Wait for resume with a timeout. Returns the outcome:
+ * - 'resumed': Run status changed from paused (user submitted decisions)
+ * - 'timeout': Exceeded timeoutMs without resume
+ * - 'aborted': Abort signal detected
+ */
+async function waitForResumeWithTimeout(
+  runId: string,
+  timeoutMs: number
+): Promise<'resumed' | 'timeout' | 'aborted'> {
+  const startTime = Date.now();
+
+  while (true) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    if (conductorRepository.checkAbort(runId)) {
+      return 'aborted';
+    }
+
+    const run = conductorRepository.getRunById(runId);
+    if (!run || (run.status as string) !== 'paused') {
+      return 'resumed';
+    }
+
+    if (Date.now() - startTime >= timeoutMs) {
+      return 'timeout';
+    }
   }
 }
 
