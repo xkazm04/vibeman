@@ -78,7 +78,7 @@ Plans:
   4. On successful completion, the report and all changed files are committed to git (configurable, default off)
 **Plans**: 3 plans
 Plans:
-- [ ] 04-01-PLAN.md — Review types, GoalInput extension, migration 203
+- [x] 04-01-PLAN.md — Review types, GoalInput extension, migration 203
 - [ ] 04-02-PLAN.md — diffReviewer, reportGenerator, gitCommitter modules
 - [ ] 04-03-PLAN.md — reviewStage refactor, orchestrator wiring, unit tests
 
@@ -137,7 +137,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 1. Foundation | 3/3 | Complete   | 2026-03-14 |
 | 2. Spec Writer | 3/3 | Complete   | 2026-03-14 |
 | 3. Execute Stage | 3/3 | Complete   | 2026-03-14 |
-| 4. Review Stage | 0/3 | Not started | - |
+| 4. Review Stage | 2/3 | In Progress|  |
 | 5. Triage | 0/? | Not started | - |
 | 6. Goal Analyzer and Backlog | 0/? | Not started | - |
 | 7. Self-Healing | 0/? | Not started | - |

@@ -48,13 +48,13 @@ Requirements for the Conductor rebuild. Each maps to roadmap phases.
 ### Validation
 
 - [x] **VALD-01**: Build validation gate runs TypeScript compile check (tsc --noEmit) after execution completes
-- [ ] **VALD-02**: LLM-powered code review evaluates diff against quality rubric (types, naming, patterns, no regressions)
-- [ ] **VALD-03**: Code review produces pass/fail with rationale per reviewed file
+- [x] **VALD-02**: LLM-powered code review evaluates diff against quality rubric (types, naming, patterns, no regressions)
+- [x] **VALD-03**: Code review produces pass/fail with rationale per reviewed file
 
 ### Reporting
 
-- [ ] **REPT-01**: Execution report generated on goal completion: goal, items executed, files changed, build status, review outcome
-- [ ] **REPT-02**: Report and all work committed to git on successful completion
+- [x] **REPT-01**: Execution report generated on goal completion: goal, items executed, files changed, build status, review outcome
+- [x] **REPT-02**: Report and all work committed to git on successful completion
 
 ### Brain Integration
 
@@ -129,10 +129,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXEC-03 | Phase 3 | Complete |
 | EXEC-04 | Phase 3 | Complete |
 | VALD-01 | Phase 3 | Complete |
-| VALD-02 | Phase 4 | Pending |
-| VALD-03 | Phase 4 | Pending |
-| REPT-01 | Phase 4 | Pending |
-| REPT-02 | Phase 4 | Pending |
+| VALD-02 | Phase 4 | Complete |
+| VALD-03 | Phase 4 | Complete |
+| REPT-01 | Phase 4 | Complete |
+| REPT-02 | Phase 4 | Complete |
 | BRAIN-01 | Phase 6 | Pending |
 | BRAIN-02 | Phase 6 | Pending |
 | BRAIN-03 | Phase 5 | Pending |
