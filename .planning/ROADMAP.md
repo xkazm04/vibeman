@@ -93,9 +93,9 @@ Plans:
   4. An abandoned triage checkpoint times out after a configurable maximum duration and interrupts the pipeline cleanly rather than hanging
 **Plans**: 3 plans
 Plans:
-- [ ] 05-01-PLAN.md — [to be planned]
-- [ ] 05-02-PLAN.md — [to be planned]
-- [ ] 05-03-PLAN.md — [to be planned]
+- [ ] 05-01-PLAN.md — Types, DB migration, Brain conflict detector, and test scaffold
+- [ ] 05-02-PLAN.md — Triage stage refactor, orchestrator checkpoint wiring, and API endpoints
+- [ ] 05-03-PLAN.md — Integration tests for all triage requirements
 
 ### Phase 6: Goal Analyzer and Backlog
 **Goal**: A user-defined goal is transformed into a prioritized, domain-tagged backlog through codebase analysis constrained by the goal and enriched by Brain patterns
@@ -138,6 +138,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 2. Spec Writer | 3/3 | Complete   | 2026-03-14 |
 | 3. Execute Stage | 3/3 | Complete   | 2026-03-14 |
 | 4. Review Stage | 3/3 | Complete   | 2026-03-14 |
-| 5. Triage | 0/? | Not started | - |
+| 5. Triage | 0/3 | Not started | - |
 | 6. Goal Analyzer and Backlog | 0/? | Not started | - |
 | 7. Self-Healing | 0/? | Not started | - |
