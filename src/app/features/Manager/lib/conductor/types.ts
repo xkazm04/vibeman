@@ -430,6 +430,78 @@ export const STAGE_CONFIGS: StageConfig[] = [
 ];
 
 // ============================================================================
+// Spec Writer
+// ============================================================================
+
+export interface AffectedFiles {
+  create: string[];
+  modify: string[];
+  delete: string[];
+}
+
+export interface AcceptanceCriterion {
+  given: string;
+  when: string;
+  then: string;
+}
+
+export type SpecComplexity = 'S' | 'M' | 'L';
+
+export interface CodeConvention {
+  rule: string;
+  confidence: 'Strong pattern' | 'Emerging pattern';
+  source: string;
+}
+
+export interface SpecMetadata {
+  id: string;
+  runId: string;
+  backlogItemId: string;
+  sequenceNumber: number;
+  title: string;
+  slug: string;
+  affectedFiles: AffectedFiles;
+  complexity: SpecComplexity;
+  status: 'pending' | 'executing' | 'completed' | 'failed';
+  createdAt: string;
+}
+
+export interface SpecRenderData {
+  title: string;
+  goalDescription: string;
+  acceptanceCriteria: AcceptanceCriterion[];
+  affectedFiles: AffectedFiles;
+  approach: string;
+  codeConventions: CodeConvention[] | null;
+  constraints: string[];
+  complexity: SpecComplexity;
+}
+
+export interface ApprovedBacklogItem {
+  id: string;
+  title: string;
+  description: string;
+  effort: number;
+  impact: number;
+  category: string;
+  filePaths: string[];
+}
+
+export interface SpecWriterInput {
+  runId: string;
+  projectId: string;
+  projectPath: string;
+  approvedItems: ApprovedBacklogItem[];
+  config: BalancingConfig;
+  goalContext: { title: string; description: string };
+}
+
+export interface SpecWriterOutput {
+  specs: SpecMetadata[];
+  specDir: string;
+}
+
+// ============================================================================
 // Helpers
 // ============================================================================
 
