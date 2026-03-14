@@ -138,6 +138,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 2. Spec Writer | 3/3 | Complete   | 2026-03-14 |
 | 3. Execute Stage | 3/3 | Complete   | 2026-03-14 |
 | 4. Review Stage | 3/3 | Complete   | 2026-03-14 |
-| 5. Triage | 1/3 | In Progress|  |
+| 5. Triage | 2/3 | In Progress|  |
 | 6. Goal Analyzer and Backlog | 0/? | Not started | - |
 | 7. Self-Healing | 0/? | Not started | - |

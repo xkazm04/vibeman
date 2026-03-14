@@ -27,10 +27,10 @@ Requirements for the Conductor rebuild. Each maps to roadmap phases.
 
 ### Triage
 
-- [ ] **TRIA-01**: Pipeline pauses at triage checkpoint presenting generated backlog for user review
-- [ ] **TRIA-02**: User can batch-approve, individually approve/reject, or adjust backlog items at triage
+- [x] **TRIA-01**: Pipeline pauses at triage checkpoint presenting generated backlog for user review
+- [x] **TRIA-02**: User can batch-approve, individually approve/reject, or adjust backlog items at triage
 - [x] **TRIA-03**: Triage checkpoint is configurable — can be bypassed for trusted goals with explicit toggle
-- [ ] **TRIA-04**: Triage checkpoint has a maximum timeout to prevent permanent pipeline hangs on abandoned sessions
+- [x] **TRIA-04**: Triage checkpoint has a maximum timeout to prevent permanent pipeline hangs on abandoned sessions
 
 ### Specification
 
@@ -117,10 +117,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BACK-01 | Phase 6 | Pending |
 | BACK-02 | Phase 6 | Pending |
 | BACK-03 | Phase 6 | Pending |
-| TRIA-01 | Phase 5 | Pending |
-| TRIA-02 | Phase 5 | Pending |
+| TRIA-01 | Phase 5 | Complete |
+| TRIA-02 | Phase 5 | Complete |
 | TRIA-03 | Phase 5 | Complete |
-| TRIA-04 | Phase 5 | Pending |
+| TRIA-04 | Phase 5 | Complete |
 | SPEC-01 | Phase 2 | Complete |
 | SPEC-02 | Phase 2 | Complete |
 | SPEC-03 | Phase 2 | Complete |
