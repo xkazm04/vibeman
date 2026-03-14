@@ -12,7 +12,7 @@ The Conductor is rebuilt stage-by-stage in dependency order: the durable foundat
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Durable state machine, typed stage contracts, and DB schema that survive process restarts
+- [x] **Phase 1: Foundation** - Durable state machine, typed stage contracts, and DB schema that survive process restarts (completed 2026-03-14)
 - [ ] **Phase 2: Spec Writer** - One structured markdown spec per backlog item with acceptance criteria and file claims
 - [ ] **Phase 3: Execute Stage** - File-level domain isolation, real success detection, and parallel dispatch across 1-4 sessions
 - [ ] **Phase 4: Review Stage** - LLM code review, Brain signal writes, execution report, and git commit
@@ -134,7 +134,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 1/3 | In Progress|  |
+| 1. Foundation | 3/3 | Complete   | 2026-03-14 |
 | 2. Spec Writer | 0/? | Not started | - |
 | 3. Execute Stage | 0/? | Not started | - |
 | 4. Review Stage | 0/? | Not started | - |
