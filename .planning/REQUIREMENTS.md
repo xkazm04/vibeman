@@ -29,7 +29,7 @@ Requirements for the Conductor rebuild. Each maps to roadmap phases.
 
 - [ ] **TRIA-01**: Pipeline pauses at triage checkpoint presenting generated backlog for user review
 - [ ] **TRIA-02**: User can batch-approve, individually approve/reject, or adjust backlog items at triage
-- [ ] **TRIA-03**: Triage checkpoint is configurable — can be bypassed for trusted goals with explicit toggle
+- [x] **TRIA-03**: Triage checkpoint is configurable — can be bypassed for trusted goals with explicit toggle
 - [ ] **TRIA-04**: Triage checkpoint has a maximum timeout to prevent permanent pipeline hangs on abandoned sessions
 
 ### Specification
@@ -60,7 +60,7 @@ Requirements for the Conductor rebuild. Each maps to roadmap phases.
 
 - [ ] **BRAIN-01**: Brain serves as pattern library — Conductor queries stored patterns during Scout and Spec generation
 - [ ] **BRAIN-02**: Brain serves as active decision engine — Conductor consults Brain before architecture decisions and task routing
-- [ ] **BRAIN-03**: Brain acts as conflict gate at triage — blocking tasks that contradict learned patterns
+- [x] **BRAIN-03**: Brain acts as conflict gate at triage — blocking tasks that contradict learned patterns
 
 ### Self-Healing
 
@@ -119,7 +119,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BACK-03 | Phase 6 | Pending |
 | TRIA-01 | Phase 5 | Pending |
 | TRIA-02 | Phase 5 | Pending |
-| TRIA-03 | Phase 5 | Pending |
+| TRIA-03 | Phase 5 | Complete |
 | TRIA-04 | Phase 5 | Pending |
 | SPEC-01 | Phase 2 | Complete |
 | SPEC-02 | Phase 2 | Complete |
@@ -135,7 +135,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REPT-02 | Phase 4 | Complete |
 | BRAIN-01 | Phase 6 | Pending |
 | BRAIN-02 | Phase 6 | Pending |
-| BRAIN-03 | Phase 5 | Pending |
+| BRAIN-03 | Phase 5 | Complete |
 | HEAL-01 | Phase 7 | Pending |
 | HEAL-02 | Phase 7 | Pending |
 | HEAL-03 | Phase 7 | Pending |
