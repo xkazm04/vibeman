@@ -41,8 +41,7 @@ import { ideaRepository } from '@/app/db/repositories/idea.repository';
 import { executeGoalAnalysis } from './stages/goalAnalyzer';
 import type { GoalAnalyzerOutput } from './stages/goalAnalyzer.types';
 import { analyzeErrors } from './selfHealing/healingAnalyzer';
-import { buildHealingContext, prunePatches, updatePatchStats } from './selfHealing/promptPatcher';
-import { classifyError } from './selfHealing/errorClassifier';
+import { buildHealingContext, prunePatches, savePatch, updatePatchStats } from './selfHealing/promptPatcher';
 import { performTaskCleanup } from '@/lib/execution/taskCleanup';
 
 // ============================================================================
@@ -397,7 +396,7 @@ async function runPipelineLoop(
                 activePatches.push(...patches);
                 metrics.healingPatchesApplied += patches.length;
                 for (const patch of patches) {
-                  savePatchToDb(patch);
+                  void savePatch(patch);
                   log('review', 'info', `Applied healing patch: ${patch.reason}`);
                 }
                 conductorRepository.incrementRetryCount(runId, err.errorType, err.taskId || `scout-${cycle}`);
@@ -828,6 +827,7 @@ async function runPipelineLoop(
         goalDescription: (goalRecord as any)?.description || '',
         autoCommit: (goalRecord as any)?.auto_commit === 1,
         reviewModel: (goalRecord as any)?.review_model || null,
+        runId,
       });
 
       metrics = reviewResult.updatedMetrics;
@@ -858,7 +858,7 @@ async function runPipelineLoop(
               activePatches.push(...patches);
               metrics.healingPatchesApplied += patches.length;
               for (const patch of patches) {
-                savePatchToDb(patch);
+                void savePatch(patch);
                 log('review', 'info', `Applied healing patch: ${patch.reason}`);
               }
               conductorRepository.incrementRetryCount(runId, err.errorType, err.taskId || `review-${cycle}`);
@@ -1105,28 +1105,7 @@ function saveErrorToDb(runId: string, errors: ErrorClassification[]): void {
   }
 }
 
-function savePatchToDb(patch: HealingPatch): void {
-  try {
-    const db = getDatabase();
-    db.prepare(`
-      INSERT INTO conductor_healing_patches
-      (id, pipeline_run_id, target_type, target_id, original_value, patched_value, reason, error_pattern, applied_at, reverted)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-    `).run(
-      patch.id,
-      patch.pipelineRunId,
-      patch.targetType,
-      patch.targetId,
-      patch.originalValue,
-      patch.patchedValue,
-      patch.reason,
-      patch.errorPattern,
-      patch.appliedAt
-    );
-  } catch (error) {
-    console.error('[conductor] Patch save failed:', error);
-  }
-}
+
 
 function getBaseUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
