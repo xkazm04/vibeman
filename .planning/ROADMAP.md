@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation** - Durable state machine, typed stage contracts, and DB schema that survive process restarts (completed 2026-03-14)
 - [x] **Phase 2: Spec Writer** - One structured markdown spec per backlog item with acceptance criteria and file claims (completed 2026-03-14)
 - [x] **Phase 3: Execute Stage** - File-level domain isolation, real success detection, and parallel dispatch across 1-4 sessions (completed 2026-03-14)
-- [ ] **Phase 4: Review Stage** - LLM code review, Brain signal writes, execution report, and git commit
+- [x] **Phase 4: Review Stage** - LLM code review, Brain signal writes, execution report, and git commit (completed 2026-03-14)
 - [ ] **Phase 5: Triage** - User checkpoint with Brain conflict gate and configurable bypass
 - [ ] **Phase 6: Goal Analyzer and Backlog** - Codebase gap analysis against goal and prioritized backlog generation
 - [ ] **Phase 7: Self-Healing** - Error classification, prompt patching, and patch lifecycle management
@@ -137,7 +137,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 1. Foundation | 3/3 | Complete   | 2026-03-14 |
 | 2. Spec Writer | 3/3 | Complete   | 2026-03-14 |
 | 3. Execute Stage | 3/3 | Complete   | 2026-03-14 |
-| 4. Review Stage | 2/3 | In Progress|  |
+| 4. Review Stage | 3/3 | Complete   | 2026-03-14 |
 | 5. Triage | 0/? | Not started | - |
 | 6. Goal Analyzer and Backlog | 0/? | Not started | - |
 | 7. Self-Healing | 0/? | Not started | - |
