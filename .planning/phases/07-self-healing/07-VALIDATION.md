@@ -19,16 +19,16 @@ created: 2026-03-14
 |----------|-------|
 | **Framework** | vitest |
 | **Config file** | vitest.config.ts |
-| **Quick run command** | `npx vitest run tests/api/conductor/self-healing.test.ts` |
-| **Full suite command** | `npx vitest run tests/api/conductor/` |
+| **Quick run command** | `npx vitest run tests/conductor/self-healing.test.ts` |
+| **Full suite command** | `npx vitest run tests/conductor/` |
 | **Estimated runtime** | ~15 seconds |
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run `npx vitest run tests/api/conductor/self-healing.test.ts`
-- **After every plan wave:** Run `npx vitest run tests/api/conductor/`
+- **After every task commit:** Run `npx vitest run tests/conductor/self-healing.test.ts`
+- **After every plan wave:** Run `npx vitest run tests/conductor/`
 - **Before `/gsd:verify-work`:** Full suite must be green
 - **Max feedback latency:** 15 seconds
 
@@ -38,10 +38,10 @@ created: 2026-03-14
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 07-01-01 | 01 | 1 | HEAL-01 | unit | `npx vitest run tests/api/conductor/self-healing.test.ts -t "classif"` | ❌ W0 | ⬜ pending |
-| 07-01-02 | 01 | 1 | HEAL-02 | unit | `npx vitest run tests/api/conductor/self-healing.test.ts -t "healing"` | ❌ W0 | ⬜ pending |
-| 07-02-01 | 02 | 2 | HEAL-02, HEAL-03 | integration | `npx vitest run tests/api/conductor/self-healing.test.ts -t "retry"` | ❌ W0 | ⬜ pending |
-| 07-03-01 | 03 | 3 | HEAL-03, HEAL-04 | integration | `npx vitest run tests/api/conductor/self-healing.test.ts -t "prun"` | ❌ W0 | ⬜ pending |
+| 07-01-01 | 01 | 1 | HEAL-01 | unit | `npx vitest run tests/conductor/self-healing.test.ts -t "classif"` | ❌ W0 | ⬜ pending |
+| 07-01-02 | 01 | 1 | HEAL-02 | unit | `npx vitest run tests/conductor/self-healing.test.ts -t "healing"` | ❌ W0 | ⬜ pending |
+| 07-02-01 | 02 | 2 | HEAL-02, HEAL-03 | integration | `npx vitest run tests/conductor/self-healing.test.ts -t "retry"` | ❌ W0 | ⬜ pending |
+| 07-03-01 | 03 | 3 | HEAL-03, HEAL-04 | integration | `npx vitest run tests/conductor/self-healing.test.ts -t "prun"` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -49,10 +49,10 @@ created: 2026-03-14
 
 ## Wave 0 Requirements
 
-- [ ] `tests/api/conductor/self-healing.test.ts` — stubs for HEAL-01 through HEAL-04
+- [ ] `tests/conductor/self-healing.test.ts` — stubs for HEAL-01 through HEAL-04
 - [ ] Test helpers for mock error scenarios (syntax, dependency, logic, timeout)
 
-*Existing conductor test infrastructure (`tests/api/conductor/pipeline.test.ts`) provides base patterns.*
+*Existing conductor test infrastructure (`tests/conductor/pipeline.test.ts`) provides base patterns.*
 
 ---
 
