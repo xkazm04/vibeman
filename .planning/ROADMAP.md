@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Durable state machine, typed stage contracts, and DB schema that survive process restarts (completed 2026-03-14)
 - [x] **Phase 2: Spec Writer** - One structured markdown spec per backlog item with acceptance criteria and file claims (completed 2026-03-14)
-- [ ] **Phase 3: Execute Stage** - File-level domain isolation, real success detection, and parallel dispatch across 1-4 sessions
+- [x] **Phase 3: Execute Stage** - File-level domain isolation, real success detection, and parallel dispatch across 1-4 sessions (completed 2026-03-14)
 - [ ] **Phase 4: Review Stage** - LLM code review, Brain signal writes, execution report, and git commit
 - [ ] **Phase 5: Triage** - User checkpoint with Brain conflict gate and configurable bypass
 - [ ] **Phase 6: Goal Analyzer and Backlog** - Codebase gap analysis against goal and prioritized backlog generation
@@ -63,9 +63,9 @@ Plans:
   5. Configurable pre-execute and post-review checkpoint toggles are respected — pipeline pauses when enabled
 **Plans**: 3 plans
 Plans:
-- [ ] 03-01-PLAN.md — DB migration, domain scheduler, file verifier, build validator
-- [ ] 03-02-PLAN.md — Refactor executeStage and orchestrator wiring (checkpoints, build validation)
-- [ ] 03-03-PLAN.md — Integration tests for execute stage, checkpoints, and build validation
+- [x] 03-01-PLAN.md — DB migration, domain scheduler, file verifier, build validator
+- [x] 03-02-PLAN.md — Refactor executeStage and orchestrator wiring (checkpoints, build validation)
+- [x] 03-03-PLAN.md — Integration tests for execute stage, checkpoints, and build validation
 
 ### Phase 4: Review Stage
 **Goal**: Every completed pipeline run produces an LLM code review, a Brain signal write, and an execution report; successful runs can commit
