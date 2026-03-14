@@ -2,10 +2,11 @@
  * Conductor Pipeline Run API
  *
  * POST: Start, pause, resume, or stop a pipeline run
+ *
+ * Uses conductorRepository for all DB state management.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/app/db/connection';
 import { v4 as uuidv4 } from 'uuid';
 import {
   startPipeline,
@@ -13,11 +14,12 @@ import {
   resumePipeline,
   stopPipeline,
 } from '@/app/features/Manager/lib/conductor/conductorOrchestrator';
+import { conductorRepository } from '@/app/features/Manager/lib/conductor/conductor.repository';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { action, projectId, runId, config, projectPath, projectName } = body;
+    const { action, projectId, runId, config, projectPath, projectName, goalId } = body;
 
     if (!action) {
       return NextResponse.json(
@@ -25,8 +27,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    const db = getDatabase();
 
     switch (action) {
       case 'start': {
@@ -37,43 +37,17 @@ export async function POST(request: NextRequest) {
           );
         }
 
+        if (!goalId) {
+          return NextResponse.json(
+            { success: false, error: 'Missing goalId' },
+            { status: 400 }
+          );
+        }
+
         const id = runId || uuidv4();
-        const now = new Date().toISOString();
 
-        const stages = {
-          scout: { status: 'pending', itemsIn: 0, itemsOut: 0 },
-          triage: { status: 'pending', itemsIn: 0, itemsOut: 0 },
-          batch: { status: 'pending', itemsIn: 0, itemsOut: 0 },
-          execute: { status: 'pending', itemsIn: 0, itemsOut: 0 },
-          review: { status: 'pending', itemsIn: 0, itemsOut: 0 },
-        };
-
-        const metrics = {
-          ideasGenerated: 0,
-          ideasAccepted: 0,
-          ideasRejected: 0,
-          tasksCreated: 0,
-          tasksCompleted: 0,
-          tasksFailed: 0,
-          healingPatchesApplied: 0,
-          totalDurationMs: 0,
-          estimatedCost: 0,
-        };
-
-        db.prepare(`
-          INSERT INTO conductor_runs (id, project_id, status, current_stage, cycle, config_snapshot, stages_state, metrics, started_at)
-          VALUES (?, ?, 'running', 'scout', 1, ?, ?, ?, ?)
-        `).run(
-          id,
-          projectId,
-          JSON.stringify(config || {}),
-          JSON.stringify(stages),
-          JSON.stringify(metrics),
-          now
-        );
-
-        // Launch pipeline orchestrator in background
-        startPipeline(id, projectId, config || {}, projectPath, projectName);
+        // Launch pipeline orchestrator — it creates the DB run record internally
+        startPipeline(id, projectId, config || {}, projectPath, projectName, goalId);
 
         return NextResponse.json({
           success: true,
@@ -92,9 +66,13 @@ export async function POST(request: NextRequest) {
 
         if (runId) {
           pausePipeline(runId);
-          db.prepare(`UPDATE conductor_runs SET status = 'paused' WHERE id = ? AND status = 'running'`).run(runId);
         } else {
-          db.prepare(`UPDATE conductor_runs SET status = 'paused' WHERE project_id = ? AND status = 'running'`).run(projectId);
+          // For projectId-based pause, get the latest running run
+          const runs = conductorRepository.getRunHistory(projectId, 1);
+          const activeRun = runs.find(r => r.status === 'running');
+          if (activeRun) {
+            pausePipeline(activeRun.id);
+          }
         }
 
         return NextResponse.json({ success: true, status: 'paused' });
@@ -110,9 +88,12 @@ export async function POST(request: NextRequest) {
 
         if (runId) {
           resumePipeline(runId);
-          db.prepare(`UPDATE conductor_runs SET status = 'running' WHERE id = ? AND status = 'paused'`).run(runId);
         } else {
-          db.prepare(`UPDATE conductor_runs SET status = 'running' WHERE project_id = ? AND status = 'paused'`).run(projectId);
+          const runs = conductorRepository.getRunHistory(projectId, 1);
+          const pausedRun = runs.find(r => r.status === 'paused');
+          if (pausedRun) {
+            resumePipeline(pausedRun.id);
+          }
         }
 
         return NextResponse.json({ success: true, status: 'running' });
@@ -126,12 +107,14 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const now = new Date().toISOString();
         if (runId) {
           stopPipeline(runId);
-          db.prepare(`UPDATE conductor_runs SET status = 'completed', completed_at = ? WHERE id = ? AND status IN ('running', 'paused')`).run(now, runId);
         } else {
-          db.prepare(`UPDATE conductor_runs SET status = 'completed', completed_at = ? WHERE project_id = ? AND status IN ('running', 'paused')`).run(now, projectId);
+          const runs = conductorRepository.getRunHistory(projectId, 1);
+          const activeRun = runs.find(r => r.status === 'running' || r.status === 'paused');
+          if (activeRun) {
+            stopPipeline(activeRun.id);
+          }
         }
 
         return NextResponse.json({ success: true, status: 'completed' });

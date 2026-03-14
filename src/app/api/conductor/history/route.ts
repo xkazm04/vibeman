@@ -2,10 +2,12 @@
  * Conductor Pipeline History API
  *
  * GET: Get past pipeline run summaries for a project
+ *
+ * Uses conductorRepository for DB-persisted state (no globalThis).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/app/db/connection';
+import { conductorRepository } from '@/app/features/Manager/lib/conductor/conductor.repository';
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,29 +22,26 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const db = getDatabase();
+    const runs = conductorRepository.getRunHistory(projectId, limit);
 
-    const rows = db.prepare(`
-      SELECT id, project_id, status, cycle, metrics, started_at, completed_at
-      FROM conductor_runs
-      WHERE project_id = ?
-      ORDER BY created_at DESC
-      LIMIT ?
-    `).all(projectId, limit) as any[];
-
-    const runs = rows.map((row: any) => ({
-      id: row.id,
-      projectId: row.project_id,
-      status: row.status,
-      cycles: row.cycle,
-      metrics: JSON.parse(row.metrics || '{}'),
-      startedAt: row.started_at,
-      completedAt: row.completed_at,
+    const runSummaries = runs.map((run) => ({
+      id: run.id,
+      projectId: run.project_id,
+      goalId: run.goal_id,
+      status: run.status,
+      currentStage: run.current_stage,
+      cycle: run.cycle,
+      metrics: run.metrics,
+      startedAt: run.started_at,
+      completedAt: run.completed_at,
+      durationMs: run.started_at && run.completed_at
+        ? new Date(run.completed_at).getTime() - new Date(run.started_at).getTime()
+        : null,
     }));
 
     return NextResponse.json({
       success: true,
-      runs,
+      runs: runSummaries,
     });
   } catch (error) {
     console.error('[conductor/history] Error:', error);
