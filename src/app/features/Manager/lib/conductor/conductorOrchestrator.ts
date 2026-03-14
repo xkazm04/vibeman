@@ -626,10 +626,25 @@ async function runPipelineLoop(
         currentCycle: cycle,
         config,
         projectId,
+        projectPath,
+        specs: specWriterOutput?.specs || [],
+        buildResult: buildResult || { passed: false, durationMs: 0 },
+        goalTitle: goalRecord?.title || 'Untitled Goal',
+        goalDescription: (goalRecord as any)?.description || '',
+        autoCommit: (goalRecord as any)?.auto_commit === 1,
+        reviewModel: (goalRecord as any)?.review_model || null,
       });
 
       metrics = reviewResult.updatedMetrics;
       allErrors = [...allErrors, ...reviewResult.errors];
+
+      // Persist report and review results to DB
+      if (reviewResult.report) {
+        updateRunInDb(runId, { execution_report: JSON.stringify(reviewResult.report) });
+      }
+      if (reviewResult.reviewResults) {
+        updateRunInDb(runId, { review_results: JSON.stringify(reviewResult.reviewResults) });
+      }
 
       // Trigger self-healing if needed
       if (reviewResult.decision.healingTriggered && config.healingEnabled) {

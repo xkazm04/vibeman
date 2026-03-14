@@ -1,39 +1,90 @@
 /**
- * Review Stage — Analyze results and decide whether to continue
+ * Review Stage — Analyze results, run LLM code review, write Brain signals,
+ * generate execution report, and optionally auto-commit.
  *
- * Aggregates execution metrics, feeds results to Brain for learning,
- * triggers self-healing if failures detected, and decides whether
- * to loop back to Scout for another cycle.
+ * Orchestrates sub-operations from the review/ modules while preserving
+ * existing metric aggregation and decision logic.
  */
 
 import type {
-  BalancingConfig,
   PipelineMetrics,
-  ExecutionResult,
   ReviewDecision,
   ErrorClassification,
+  SpecMetadata,
 } from '../types';
+import type {
+  ReviewStageInput,
+  ReviewStageResult,
+  ExecutionReport,
+} from '../review/reviewTypes';
 import { checkQuota } from '../balancingEngine';
-
-interface ReviewInput {
-  executionResults: ExecutionResult[];
-  currentMetrics: PipelineMetrics;
-  currentCycle: number;
-  config: BalancingConfig;
-  projectId: string;
-}
+import { extractFileDiffs, reviewFileDiffs } from '../review/diffReviewer';
+import { generateExecutionReport } from '../review/reportGenerator';
+import { canCommit, commitChanges } from '../review/gitCommitter';
+import { recordSignal } from '@/lib/brain/brainService';
 
 /**
- * Execute the Review stage: analyze results and decide next action.
+ * Execute the Review stage: analyze results, run LLM review, write Brain
+ * signals, generate report, and optionally auto-commit.
  */
-export async function executeReviewStage(input: ReviewInput): Promise<{
+export async function executeReviewStage(input: ReviewStageInput): Promise<{
   decision: ReviewDecision;
   updatedMetrics: PipelineMetrics;
   errors: ErrorClassification[];
+  reviewResults: ReviewStageResult | null;
+  report: ExecutionReport | null;
 }> {
   const { executionResults, currentMetrics, currentCycle, config, projectId } = input;
 
-  // Aggregate metrics from execution results
+  // 1. Extract diffs
+  const fileDiffs = extractFileDiffs(input.projectPath, input.executionResults, input.specs);
+
+  // 2. LLM code review (non-blocking on failure)
+  let reviewResults: ReviewStageResult | null = null;
+  try {
+    reviewResults = await reviewFileDiffs(fileDiffs, input.specs, input.reviewModel);
+  } catch (error) {
+    console.error('[review] LLM code review failed (non-blocking):', error);
+  }
+
+  // 3. Brain signal writes per spec (non-blocking)
+  for (const spec of input.specs) {
+    try {
+      // Find review rationale for this spec's files
+      const specFiles = [
+        ...(spec.affectedFiles?.create || []),
+        ...(spec.affectedFiles?.modify || []),
+        ...(spec.affectedFiles?.delete || []),
+      ].map((f) => f.replace(/\\/g, '/'));
+
+      const relevantReviews = reviewResults?.fileResults.filter((r) =>
+        specFiles.includes(r.filePath)
+      ) || [];
+
+      recordSignal({
+        projectId,
+        signalType: 'implementation' as any,
+        data: {
+          requirementId: spec.id,
+          requirementName: spec.title,
+          filesCreated: spec.affectedFiles?.create || [],
+          filesModified: spec.affectedFiles?.modify || [],
+          filesDeleted: spec.affectedFiles?.delete || [],
+          success: reviewResults?.overallPassed ?? false,
+          executionTimeMs: 0,
+          reviewRationale: relevantReviews.map((r) => ({
+            filePath: r.filePath,
+            passed: r.passed,
+            rationale: r.rationale,
+          })),
+        },
+      });
+    } catch (error) {
+      console.error(`[review] Brain signal write failed for spec ${spec.id} (non-blocking):`, error);
+    }
+  }
+
+  // 4. Metric aggregation (preserved from original)
   const completedCount = executionResults.filter((r) => r.success).length;
   const failedCount = executionResults.filter((r) => !r.success).length;
   const totalDuration = executionResults.reduce((sum, r) => sum + (r.durationMs || 0), 0);
@@ -45,13 +96,12 @@ export async function executeReviewStage(input: ReviewInput): Promise<{
     totalDurationMs: currentMetrics.totalDurationMs + totalDuration,
   };
 
-  // Calculate success rate
   const totalExecuted = updatedMetrics.tasksCompleted + updatedMetrics.tasksFailed;
   const successRate = totalExecuted > 0
     ? updatedMetrics.tasksCompleted / totalExecuted
     : 0;
 
-  // Classify errors from failed tasks
+  // 5. Classify errors from failed tasks
   const errors: ErrorClassification[] = [];
   for (const result of executionResults) {
     if (!result.success && result.error) {
@@ -59,14 +109,7 @@ export async function executeReviewStage(input: ReviewInput): Promise<{
     }
   }
 
-  // Feed results to Brain (record behavioral signals)
-  try {
-    await recordBrainSignals(projectId, executionResults);
-  } catch (error) {
-    console.error('[review] Failed to record brain signals:', error);
-  }
-
-  // Decide whether to continue
+  // 6. Make decision (preserved from original)
   const decision = makeDecision(
     currentCycle,
     config,
@@ -75,12 +118,40 @@ export async function executeReviewStage(input: ReviewInput): Promise<{
     errors.length
   );
 
-  return { decision, updatedMetrics, errors };
+  // 7. Generate report
+  const fallbackReviewResult: ReviewStageResult = {
+    overallPassed: false,
+    fileResults: [],
+    reviewModel: input.reviewModel || 'none',
+    reviewedAt: new Date().toISOString(),
+  };
+  const report = generateExecutionReport(input, reviewResults || fallbackReviewResult);
+
+  // 8. Auto-commit (gated on both build and review pass)
+  if (input.autoCommit && reviewResults && canCommit(input.buildResult, reviewResults)) {
+    const allFilesChanged = [
+      ...new Set(
+        input.executionResults.flatMap((r) => r.filesChanged || [])
+      ),
+    ];
+    const commitResult = commitChanges(
+      input.projectPath,
+      input.goalTitle,
+      input.specs.length,
+      allFilesChanged
+    );
+    if (commitResult) {
+      report.autoCommitted = true;
+      report.commitSha = commitResult.sha;
+    }
+  }
+
+  return { decision, updatedMetrics, errors, reviewResults, report };
 }
 
 function makeDecision(
   currentCycle: number,
-  config: BalancingConfig,
+  config: import('../types').BalancingConfig,
   metrics: PipelineMetrics,
   successRate: number,
   errorCount: number
@@ -136,7 +207,7 @@ function makeDecision(
 }
 
 function classifyError(
-  result: ExecutionResult,
+  result: import('../types').ExecutionResult,
   _projectId: string
 ): ErrorClassification {
   const errorMsg = result.error || 'Unknown error';
@@ -168,37 +239,4 @@ function detectErrorType(errorMessage: string): ErrorClassification['errorType']
   if (msg.includes('context') || msg.includes('file not') || msg.includes('no such file')) return 'missing_context';
 
   return 'unknown';
-}
-
-async function recordBrainSignals(
-  projectId: string,
-  results: ExecutionResult[]
-): Promise<void> {
-  // Record execution outcomes as behavioral signals
-  for (const result of results) {
-    try {
-      await fetch(`${getBaseUrl()}/api/brain/signals`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId,
-          signalType: 'implementation',
-          data: {
-            success: result.success,
-            taskId: result.taskId,
-            requirementName: result.requirementName,
-            error: result.error,
-            durationMs: result.durationMs,
-            filesChanged: result.filesChanged || [],
-          },
-        }),
-      });
-    } catch {
-      // Silent fail for brain signals
-    }
-  }
-}
-
-function getBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 }
