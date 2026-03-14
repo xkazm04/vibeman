@@ -21,8 +21,8 @@ Requirements for the Conductor rebuild. Each maps to roadmap phases.
 
 ### Backlog
 
-- [ ] **BACK-01**: Conductor generates prioritized backlog items from goal gap analysis
-- [ ] **BACK-02**: Backlog generation integrates Ideas module scan types (zen_architect, bug_hunter, ui_perfectionist) for creative suggestions
+- [x] **BACK-01**: Conductor generates prioritized backlog items from goal gap analysis
+- [x] **BACK-02**: Backlog generation integrates Ideas module scan types (zen_architect, bug_hunter, ui_perfectionist) for creative suggestions
 - [x] **BACK-03**: Each backlog item includes rationale, estimated effort, and affected domain
 
 ### Triage
@@ -58,8 +58,8 @@ Requirements for the Conductor rebuild. Each maps to roadmap phases.
 
 ### Brain Integration
 
-- [ ] **BRAIN-01**: Brain serves as pattern library — Conductor queries stored patterns during Scout and Spec generation
-- [ ] **BRAIN-02**: Brain serves as active decision engine — Conductor consults Brain before architecture decisions and task routing
+- [x] **BRAIN-01**: Brain serves as pattern library — Conductor queries stored patterns during Scout and Spec generation
+- [x] **BRAIN-02**: Brain serves as active decision engine — Conductor consults Brain before architecture decisions and task routing
 - [x] **BRAIN-03**: Brain acts as conflict gate at triage — blocking tasks that contradict learned patterns
 
 ### Self-Healing
@@ -114,8 +114,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GOAL-01 | Phase 1 | Complete |
 | GOAL-02 | Phase 6 | Complete |
 | GOAL-03 | Phase 6 | Complete |
-| BACK-01 | Phase 6 | Pending |
-| BACK-02 | Phase 6 | Pending |
+| BACK-01 | Phase 6 | Complete |
+| BACK-02 | Phase 6 | Complete |
 | BACK-03 | Phase 6 | Complete |
 | TRIA-01 | Phase 5 | Complete |
 | TRIA-02 | Phase 5 | Complete |
@@ -133,8 +133,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VALD-03 | Phase 4 | Complete |
 | REPT-01 | Phase 4 | Complete |
 | REPT-02 | Phase 4 | Complete |
-| BRAIN-01 | Phase 6 | Pending |
-| BRAIN-02 | Phase 6 | Pending |
+| BRAIN-01 | Phase 6 | Complete |
+| BRAIN-02 | Phase 6 | Complete |
 | BRAIN-03 | Phase 5 | Complete |
 | HEAL-01 | Phase 7 | Pending |
 | HEAL-02 | Phase 7 | Pending |
