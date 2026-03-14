@@ -63,6 +63,7 @@ import { migrate146TemplateStatus } from './146_template_status';
 import { migrate200ConductorFoundation } from './200_conductor_foundation';
 import { migrate201ConductorSpecs } from './201_conductor_specs';
 import { migrate202ExecuteStageColumns } from './202_execute_stage_columns';
+import { migrate203ReviewStageColumns } from './203_review_stage_columns';
 
 /**
  * Migration logger utility
@@ -260,6 +261,7 @@ export function runMigrations() {
     once('m200', () => migrate200ConductorFoundation(db as any, migrationLogger));
     once('m201', () => migrate201ConductorSpecs(db as any, migrationLogger));
     once('m202', () => migrate202ExecuteStageColumns(db as any, migrationLogger));
+    once('m203', () => migrate203ReviewStageColumns(db as any, migrationLogger));
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
