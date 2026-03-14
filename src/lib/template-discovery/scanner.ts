@@ -10,6 +10,7 @@
 import 'server-only';
 import { glob } from 'glob';
 import path from 'path';
+import { normalizePath } from '@/utils/pathUtils';
 
 export interface DiscoveredFile {
   filePath: string;
@@ -28,7 +29,7 @@ export interface ScanResult {
  */
 function extractCategory(relativePath: string): string {
   // Normalize to forward slashes
-  const normalized = relativePath.replace(/\\/g, '/');
+  const normalized = normalizePath(relativePath);
 
   // Pattern: src/templates/{category}/file.ts
   const match = normalized.match(/src\/templates\/([^/]+)\//);
@@ -64,7 +65,7 @@ export async function discoverTemplateFiles(projectPath: string): Promise<ScanRe
     });
 
     for (const match of matches) {
-      const fullPath = path.join(projectPath, match).replace(/\\/g, '/');
+      const fullPath = normalizePath(path.join(projectPath, match));
 
       // Deduplicate
       if (seenPaths.has(fullPath)) continue;
@@ -78,7 +79,7 @@ export async function discoverTemplateFiles(projectPath: string): Promise<ScanRe
   }
 
   return {
-    projectPath: projectPath.replace(/\\/g, '/'),
+    projectPath: normalizePath(projectPath),
     files: allMatches,
   };
 }

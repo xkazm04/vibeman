@@ -31,24 +31,27 @@ export function computeContentHash(content: string): string {
 }
 
 /**
- * Parse a TypeScript file and extract TemplateConfig exports
+ * Parse a TypeScript file and extract TemplateConfig exports.
+ * Accepts an optional shared Project instance to avoid creating a new one per file.
+ * When a Project is provided, the source file is removed after parsing to prevent memory accumulation.
  */
-export async function parseTemplateConfig(filePath: string): Promise<ParseResult> {
+export async function parseTemplateConfig(filePath: string, project?: Project): Promise<ParseResult> {
+  const isSharedProject = !!project;
+  const tsMorphProject = project ?? new Project({
+    compilerOptions: {
+      allowJs: true,
+      skipLibCheck: true,
+    },
+    skipAddingFilesFromTsConfig: true,
+  });
+
+  let sourceFile;
   try {
     // Read file content for hashing
     const fileContent = await fs.readFile(filePath, 'utf-8');
     const contentHash = computeContentHash(fileContent);
 
-    // Create ts-morph project (no full compilation needed)
-    const project = new Project({
-      compilerOptions: {
-        allowJs: true,
-        skipLibCheck: true,
-      },
-      skipAddingFilesFromTsConfig: true,
-    });
-
-    const sourceFile = project.addSourceFileAtPath(filePath);
+    sourceFile = tsMorphProject.addSourceFileAtPath(filePath);
     const configs: ParsedTemplateConfig[] = [];
 
     // Get all exported declarations
@@ -102,18 +105,36 @@ export async function parseTemplateConfig(filePath: string): Promise<ParseResult
       configs: [],
       error: error instanceof Error ? error.message : 'Unknown error',
     };
+  } finally {
+    // Remove source file from project to prevent memory accumulation
+    if (sourceFile) {
+      try {
+        tsMorphProject.removeSourceFile(sourceFile);
+      } catch {
+        // Ignore removal errors
+      }
+    }
   }
 }
 
 /**
- * Parse multiple template files efficiently (reuse ts-morph Project)
+ * Parse multiple template files efficiently (reuse single ts-morph Project)
  */
 export async function parseTemplateConfigs(filePaths: string[]): Promise<ParseResult[]> {
   const results: ParseResult[] = [];
 
+  // Create ONE Project instance and share across all file parses
+  const project = new Project({
+    compilerOptions: {
+      allowJs: true,
+      skipLibCheck: true,
+    },
+    skipAddingFilesFromTsConfig: true,
+  });
+
   // Process sequentially to avoid memory issues with large projects
   for (const filePath of filePaths) {
-    const result = await parseTemplateConfig(filePath);
+    const result = await parseTemplateConfig(filePath, project);
     results.push(result);
   }
 

@@ -6,9 +6,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { stat } from 'fs/promises';
+import { Project } from 'ts-morph';
 import { discoverTemplateFiles, parseTemplateConfig } from '@/lib/template-discovery';
 import { discoveredTemplateRepository } from '@/app/db/repositories/discovered-template.repository';
 import { isTableMissingError } from '@/app/db/repositories/repository.utils';
+import { normalizePath } from '@/utils/pathUtils';
 
 export interface ScanRequest {
   projectPath: string;
@@ -30,6 +32,7 @@ export interface ScanResponse {
     action: 'created' | 'updated' | 'unchanged';
   }>;
   errors?: string[];
+  staleCount?: number;
 }
 
 /**
@@ -66,7 +69,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
     }
 
     // Normalize path
-    const normalizedPath = projectPath.replace(/\\/g, '/');
+    const normalizedPath = normalizePath(projectPath);
 
     // Step 1: Discover template files
     const scanResult = await discoverTemplateFiles(projectPath);
@@ -82,22 +85,41 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
     }
 
     // Step 2: Parse template configs and upsert to database
+    // Create a single ts-morph Project instance for all file parsing
+    const tsMorphProject = new Project({
+      compilerOptions: { allowJs: true, skipLibCheck: true },
+      skipAddingFilesFromTsConfig: true,
+    });
+
     const templates: ScanResponse['templates'] = [];
     const errors: string[] = [];
     let created = 0, updated = 0, unchanged = 0;
 
     for (const discoveredFile of scanResult.files) {
-      const parseResult = await parseTemplateConfig(discoveredFile.filePath);
+      const parseResult = await parseTemplateConfig(discoveredFile.filePath, tsMorphProject);
 
       if (parseResult.error) {
         errors.push(`${parseResult.filePath}: ${parseResult.error}`);
+
+        // Mark existing templates for this file path as error
+        const existingTemplates = discoveredTemplateRepository.getBySourcePath(normalizedPath);
+        const normalizedFilePath = normalizePath(parseResult.filePath);
+        for (const existing of existingTemplates) {
+          if (normalizePath(existing.file_path) === normalizedFilePath) {
+            discoveredTemplateRepository.markError(
+              normalizedPath,
+              existing.template_id,
+              parseResult.error!
+            );
+          }
+        }
         continue;
       }
 
       for (const config of parseResult.configs) {
         const upsertResult = discoveredTemplateRepository.upsert({
           source_project_path: normalizedPath,
-          file_path: parseResult.filePath.replace(/\\/g, '/'),
+          file_path: normalizePath(parseResult.filePath),
           template_id: config.templateId,
           template_name: config.templateName,
           description: config.description || null,
@@ -120,11 +142,15 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
       }
     }
 
-    // Step 4: Clean up stale templates (removed from source)
+    // Step 4: Mark stale templates (replaced destructive deleteStale)
+    // Only mark stale when there were NO parse errors (partial failure safety)
     const currentTemplateIds = templates.map(t => t.templateId);
-    const deletedCount = discoveredTemplateRepository.deleteStale(normalizedPath, currentTemplateIds);
-    if (deletedCount > 0) {
-      console.log(`[Template Discovery] Deleted ${deletedCount} stale templates`);
+    const hasErrors = errors.length > 0;
+    const staleCount = hasErrors
+      ? 0  // Skip stale marking when there were parse errors (partial failure safety)
+      : discoveredTemplateRepository.markStale(normalizedPath, currentTemplateIds);
+    if (staleCount > 0) {
+      console.log(`[Template Discovery] Marked ${staleCount} templates as stale`);
     }
 
     return NextResponse.json({
@@ -134,6 +160,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
       results: { created, updated, unchanged },
       templates,
       ...(errors.length > 0 && { errors }),
+      ...(staleCount > 0 && { staleCount }),
     });
 
   } catch (error) {

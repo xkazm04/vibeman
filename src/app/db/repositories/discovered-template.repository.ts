@@ -87,7 +87,7 @@ export const discoveredTemplateRepository = {
    * Returns the template and action taken (created | updated | unchanged)
    */
   upsert: (
-    template: Omit<DbDiscoveredTemplate, 'id' | 'discovered_at' | 'updated_at'>
+    template: Omit<DbDiscoveredTemplate, 'id' | 'discovered_at' | 'updated_at' | 'status' | 'parse_error'>
   ): { template: DbDiscoveredTemplate; action: 'created' | 'updated' | 'unchanged' } => withTableCheck('template discovery', () => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
@@ -185,7 +185,7 @@ export const discoveredTemplateRepository = {
    * Batch upsert with aggregated results
    */
   upsertMany: (
-    templates: Array<Omit<DbDiscoveredTemplate, 'id' | 'discovered_at' | 'updated_at'>>
+    templates: Array<Omit<DbDiscoveredTemplate, 'id' | 'discovered_at' | 'updated_at' | 'status' | 'parse_error'>>
   ): { created: number; updated: number; unchanged: number } => withTableCheck('template discovery', () => {
     const results = { created: 0, updated: 0, unchanged: 0 };
 
