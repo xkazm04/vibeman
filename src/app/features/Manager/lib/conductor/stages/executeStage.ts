@@ -1,15 +1,21 @@
 /**
- * Execute Stage — DAG-aware parallel dispatch to CLI sessions
+ * Execute Stage — Domain-scheduler-aware parallel dispatch to CLI sessions
  *
- * Uses DAGScheduler to resolve task dependencies (from batchStage's
- * dagDependencies) and execute independent tasks in parallel, up to
- * config.maxConcurrentTasks. Tasks whose dependencies have all completed
- * are dispatched immediately; tasks blocked by unfinished deps wait.
+ * Uses domainScheduler to resolve file-path overlap conflicts and execute
+ * non-overlapping specs in parallel, up to config.maxConcurrentTasks.
+ * Specs that touch the same files are serialized; non-overlapping specs run in parallel.
+ *
+ * After each CLI exit, file verification checks whether expected file changes
+ * actually occurred. Exit-0 with no file changes marks the spec as failed.
  */
 
-import type { BalancingConfig, BatchDescriptor, ExecutionResult, ExecutionTaskState } from '../types';
-import { DAGScheduler, type DAGTask, type DAGTaskStatus } from '@/lib/dag/dagScheduler';
-import { readRequirement } from '@/app/Claude/sub_ClaudeCodeManager/folderManager';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import type { BalancingConfig, ExecutionResult, ExecutionTaskState, SpecMetadata } from '../types';
+import { getNextBatch, getAllPaths, type SchedulerState } from '../execution/domainScheduler';
+import { snapshotFiles, verifyExecution, type FileSnapshot } from '../execution/fileVerifier';
+import { specRepository } from '../spec/specRepository';
+import { specFileManager } from '../spec/specFileManager';
 import {
   startExecution,
   getExecution,
@@ -18,7 +24,7 @@ import {
 import type { CLIProviderConfig, CLIModel, CLIProvider } from '@/lib/claude-terminal/types';
 
 interface ExecuteInput {
-  batch: BatchDescriptor;
+  runId: string;
   config: BalancingConfig;
   projectId: string;
   projectPath: string;
@@ -33,113 +39,115 @@ interface ExecuteStageResult {
 }
 
 /**
- * Execute the Execute stage: dispatch tasks to CLI via DAG-aware parallelism.
+ * Execute the Execute stage: dispatch specs to CLI via domain-scheduler-aware parallelism.
  *
- * 1. Build DAGTask[] from batch.dagDependencies
- * 2. Loop: ask DAGScheduler for the next ready batch (respecting maxConcurrentTasks)
- * 3. Dispatch ready tasks in parallel, await all, update DAG state
- * 4. Repeat until DAG is finished (all completed/failed/blocked)
+ * 1. Read specs from DB via specRepository
+ * 2. Initialize SchedulerState from pending specs
+ * 3. Loop: ask domainScheduler for non-overlapping batch (respecting maxConcurrentTasks)
+ * 4. Dispatch ready specs in parallel, verify file changes on completion
+ * 5. Repeat until all specs are completed/failed
  */
 export async function executeExecuteStage(input: ExecuteInput): Promise<ExecuteStageResult> {
-  const { batch, config, projectId, projectPath, onTaskUpdate } = input;
+  const { runId, config, projectId, projectPath, onTaskUpdate } = input;
   const results: ExecutionResult[] = [];
   const maxParallel = config.maxConcurrentTasks || 2;
 
-  // Build initial task state map (keyed by reqName for fast lookup)
+  // Read specs from DB
+  const allSpecs = specRepository.getSpecsByRunId(runId);
+  const pendingSpecs = allSpecs.filter((s) => s.status === 'pending');
+
+  // Build initial task state map (keyed by spec ID for fast lookup)
   const taskStateMap = new Map<string, ExecutionTaskState>();
-  for (const reqName of batch.requirementNames) {
-    const assignment = batch.modelAssignments[reqName];
-    taskStateMap.set(reqName, {
-      requirementName: reqName,
-      provider: (assignment?.provider || config.executionProvider) as CLIProvider,
-      model: assignment?.model || config.executionModel || 'sonnet',
+  for (const spec of pendingSpecs) {
+    taskStateMap.set(spec.id, {
+      requirementName: spec.slug,
+      provider: config.executionProvider as CLIProvider,
+      model: config.executionModel || 'sonnet',
       status: 'pending' as const,
     });
   }
   const emitUpdate = () => onTaskUpdate?.([...taskStateMap.values()]);
   emitUpdate();
 
-  // Build DAGTask list from batch dependencies
-  const dagTasks: DAGTask[] = batch.requirementNames.map((reqName) => ({
-    id: reqName,
-    status: 'pending' as DAGTaskStatus,
-    dependencies: batch.dagDependencies[reqName] || [],
-  }));
+  // Initialize scheduler state
+  const schedulerState: SchedulerState = {
+    pending: [...pendingSpecs],
+    running: new Map(),
+    completed: new Set(),
+    failed: new Set(),
+  };
 
-  const scheduler = new DAGScheduler({ maxParallel });
-
-  // Validate — log warning but proceed (treat cycles as independent)
-  const cycleError = scheduler.validateNoCycles(dagTasks);
-  if (cycleError) {
-    console.warn(`[execute] DAG cycle detected, proceeding anyway: ${cycleError}`);
-  }
-
-  // DAG execution loop
+  // Domain scheduler execution loop
   while (true) {
     if (input.abortSignal?.aborted) {
-      // Abort all remaining pending tasks
-      for (const dt of dagTasks) {
-        if (dt.status === 'pending' || dt.status === 'running') {
-          dt.status = 'failed';
-          const ts = taskStateMap.get(dt.id)!;
+      // Abort all remaining pending/running specs
+      for (const spec of schedulerState.pending) {
+        const ts = taskStateMap.get(spec.id);
+        if (ts) {
           ts.status = 'aborted';
           ts.error = 'Aborted by user';
-          results.push({
-            taskId: dt.id,
-            requirementName: dt.id,
-            success: false,
-            error: 'Aborted by user',
-          });
         }
+        specRepository.updateSpecStatus(spec.id, 'failed');
+        results.push({
+          taskId: spec.id,
+          requirementName: spec.slug,
+          success: false,
+          error: 'Aborted by user',
+        });
       }
       emitUpdate();
       break;
     }
 
-    const state = scheduler.getState(dagTasks);
+    const nextBatch = getNextBatch(schedulerState, maxParallel);
 
-    if (state.isFinished) break;
-
-    const nextBatch = scheduler.getNextBatch(dagTasks);
-    if (nextBatch.length === 0 && state.running.length === 0) {
-      // Nothing ready and nothing running — everything is blocked by failures
-      break;
-    }
-
-    if (nextBatch.length === 0) {
-      // Tasks are still running, wait before re-checking
+    if (nextBatch.length === 0 && schedulerState.running.size > 0) {
+      // Specs are still running, wait before re-checking
       await new Promise((r) => setTimeout(r, 2000));
       continue;
     }
 
-    // Mark tasks as running and dispatch in parallel
-    const dispatched: Promise<{ reqName: string; result: ExecutionResult }>[] = [];
+    if (nextBatch.length === 0) {
+      // Nothing ready and nothing running — all done or blocked
+      break;
+    }
 
-    for (const reqName of nextBatch) {
-      const dagTask = dagTasks.find((t) => t.id === reqName)!;
-      dagTask.status = 'running';
+    // Mark specs as running and dispatch in parallel
+    const dispatched: Promise<{ specId: string; result: ExecutionResult }>[] = [];
 
-      const ts = taskStateMap.get(reqName)!;
-      ts.status = 'running';
-      ts.startedAt = new Date().toISOString();
+    for (const spec of nextBatch) {
+      // Update scheduler state
+      const specPaths = getAllPaths(spec.affectedFiles);
+      schedulerState.running.set(spec.id, specPaths);
+      schedulerState.pending = schedulerState.pending.filter((s) => s.id !== spec.id);
+
+      // Update DB status BEFORE dispatch
+      specRepository.updateSpecStatus(spec.id, 'executing');
+
+      const ts = taskStateMap.get(spec.id);
+      if (ts) {
+        ts.status = 'running';
+        ts.startedAt = new Date().toISOString();
+      }
       emitUpdate();
 
       dispatched.push(
-        executeRequirement(
+        executeSpec(
           projectId,
           projectPath,
-          reqName,
-          ts.provider,
-          ts.model,
+          runId,
+          spec,
+          config.executionProvider as string,
+          config.executionModel || 'sonnet',
           config.executionTimeoutMs || 6000 * 1000,
           input.abortSignal
         )
-          .then((result) => ({ reqName, result }))
+          .then((result) => ({ specId: spec.id, result }))
           .catch((error) => ({
-            reqName,
+            specId: spec.id,
             result: {
-              taskId: reqName,
-              requirementName: reqName,
+              taskId: spec.id,
+              requirementName: spec.slug,
               success: false,
               error: error instanceof Error ? error.message : String(error),
             } as ExecutionResult,
@@ -147,19 +155,29 @@ export async function executeExecuteStage(input: ExecuteInput): Promise<ExecuteS
       );
     }
 
-    // Await all dispatched tasks in this wave
+    // Await all dispatched specs in this wave
     const settled = await Promise.all(dispatched);
 
     let rateLimitDetected = false;
-    for (const { reqName, result } of settled) {
-      const dagTask = dagTasks.find((t) => t.id === reqName)!;
-      dagTask.status = result.success ? 'completed' : 'failed';
+    for (const { specId, result } of settled) {
+      // Update scheduler state
+      schedulerState.running.delete(specId);
+      if (result.success) {
+        schedulerState.completed.add(specId);
+      } else {
+        schedulerState.failed.add(specId);
+      }
 
-      const ts = taskStateMap.get(reqName)!;
-      ts.status = result.success ? 'completed' : 'failed';
-      ts.executionId = result.taskId;
-      ts.durationMs = result.durationMs;
-      if (result.error) ts.error = result.error;
+      // Update DB status AFTER execution
+      specRepository.updateSpecStatus(specId, result.success ? 'completed' : 'failed');
+
+      const ts = taskStateMap.get(specId);
+      if (ts) {
+        ts.status = result.success ? 'completed' : 'failed';
+        ts.executionId = result.taskId;
+        ts.durationMs = result.durationMs;
+        if (result.error) ts.error = result.error;
+      }
 
       // Detect rate limit errors for backoff
       if (!result.success && result.error && /rate.?limit|429|too many requests|quota.?exceeded/i.test(result.error)) {
@@ -182,10 +200,11 @@ export async function executeExecuteStage(input: ExecuteInput): Promise<ExecuteS
   return { results, allCompleted };
 }
 
-async function executeRequirement(
+async function executeSpec(
   projectId: string,
   projectPath: string,
-  requirementName: string,
+  runId: string,
+  spec: SpecMetadata,
   provider: string,
   model: string,
   timeoutMs: number,
@@ -193,34 +212,44 @@ async function executeRequirement(
 ): Promise<ExecutionResult> {
   const startTime = Date.now();
 
-  // Step 1: Read the requirement file content
-  const reqResult = readRequirement(projectPath, requirementName);
-  if (!reqResult.success || !reqResult.content) {
-    throw new Error(`Failed to read requirement "${requirementName}": ${reqResult.error || 'File not found'}`);
+  // Step 1: Read the spec file content from disk
+  const specDir = path.join(process.cwd(), '.conductor', 'runs', runId, 'specs');
+  const filename = specFileManager.formatFilename(spec.sequenceNumber, spec.slug);
+  const specFilePath = path.join(specDir, filename);
+
+  let specContent: string;
+  try {
+    specContent = fs.readFileSync(specFilePath, 'utf-8');
+  } catch (error) {
+    throw new Error(`Failed to read spec file "${specFilePath}": ${error instanceof Error ? error.message : String(error)}`);
   }
 
-  // Step 2: Dispatch to CLI via startExecution
+  // Step 2: Take file snapshots BEFORE dispatch (for post-execution verification)
+  const filesToSnapshot = [...spec.affectedFiles.modify, ...spec.affectedFiles.create];
+  const beforeSnapshots: FileSnapshot[] = snapshotFiles(projectPath, filesToSnapshot);
+
+  // Step 3: Dispatch to CLI via startExecution
   const providerConfig: CLIProviderConfig = {
     provider: provider as CLIProvider,
     model: (model || undefined) as CLIModel | undefined,
-    useWorktree: provider === 'claude', // Worktree isolation for parallel Claude executions
+    useWorktree: false, // Domain isolation replaces worktree
   };
 
   const executionId = startExecution(
     projectPath,
-    reqResult.content,
+    specContent,
     undefined, // no resume session
     undefined, // no onEvent callback
     providerConfig,
     {
       VIBEMAN_PROJECT_ID: projectId,
-      VIBEMAN_REQUIREMENT: requirementName,
+      VIBEMAN_SPEC_ID: spec.id,
     }
   );
 
-  console.log(`[execute] Started CLI execution ${executionId} for ${requirementName} (${provider}/${model})`);
+  console.log(`[execute] Started CLI execution ${executionId} for spec ${spec.slug} (${provider}/${model})`);
 
-  // Step 3: Poll for completion
+  // Step 4: Poll for completion
   const maxWaitMs = timeoutMs;
   const pollIntervalMs = 5000;
 
@@ -229,7 +258,7 @@ async function executeRequirement(
       abortExecution(executionId);
       return {
         taskId: executionId,
-        requirementName,
+        requirementName: spec.slug,
         success: false,
         error: 'Aborted by user',
         durationMs: Date.now() - startTime,
@@ -240,13 +269,28 @@ async function executeRequirement(
 
     const execution = getExecution(executionId);
     if (!execution) {
-      throw new Error(`Execution ${executionId} not found — may have been cleaned up`);
+      throw new Error(`Execution ${executionId} not found -- may have been cleaned up`);
     }
 
     if (execution.status === 'completed') {
+      // Step 5: Post-execution file verification
+      const verification = verifyExecution(projectPath, spec.affectedFiles, beforeSnapshots);
+      if (!verification.passed) {
+        console.log(`[execute] Spec ${spec.slug} CLI exited 0 but file verification failed: ${verification.reason}`);
+        return {
+          taskId: executionId,
+          requirementName: spec.slug,
+          success: false,
+          error: `File verification failed: ${verification.reason}`,
+          durationMs: Date.now() - startTime,
+          provider,
+          model,
+        };
+      }
+
       return {
         taskId: executionId,
-        requirementName,
+        requirementName: spec.slug,
         success: true,
         durationMs: Date.now() - startTime,
         provider,
@@ -255,9 +299,10 @@ async function executeRequirement(
     }
 
     if (execution.status === 'error' || execution.status === 'aborted') {
+      // Non-zero exit -- mark failed directly (no file check needed)
       return {
         taskId: executionId,
-        requirementName,
+        requirementName: spec.slug,
         success: false,
         error: `CLI execution ${execution.status}`,
         durationMs: Date.now() - startTime,
@@ -269,11 +314,11 @@ async function executeRequirement(
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
 
-  // Timed out — kill the CLI process
+  // Timed out -- kill the CLI process
   abortExecution(executionId);
   return {
     taskId: executionId,
-    requirementName,
+    requirementName: spec.slug,
     success: false,
     error: `Execution timed out after ${maxWaitMs / 1000}s`,
     durationMs: Date.now() - startTime,
