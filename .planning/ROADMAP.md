@@ -123,9 +123,9 @@ Plans:
   4. Each patch has an expiry timestamp and a success-rate metric — both are visible in the healing history UI
 **Plans**: 3 plans
 Plans:
-- [ ] 07-01-PLAN.md — [to be planned]
-- [ ] 07-02-PLAN.md — [to be planned]
-- [ ] 07-03-PLAN.md — [to be planned]
+- [ ] 07-01-PLAN.md — DB migration, types, and test scaffold for healing lifecycle
+- [ ] 07-02-PLAN.md — Patch lifecycle, classifier consolidation, and repository methods
+- [ ] 07-03-PLAN.md — Orchestrator wiring, API updates, and integration tests
 
 ## Progress
 
@@ -140,4 +140,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 4. Review Stage | 3/3 | Complete   | 2026-03-14 |
 | 5. Triage | 3/3 | Complete   | 2026-03-14 |
 | 6. Goal Analyzer and Backlog | 2/3 | In Progress|  |
-| 7. Self-Healing | 0/? | Not started | - |
+| 7. Self-Healing | 0/3 | Not started | - |
