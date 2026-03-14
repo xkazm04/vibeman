@@ -15,7 +15,7 @@ import type { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 
 export type PipelineStage = 'scout' | 'triage' | 'batch' | 'execute' | 'review';
 
-export type PipelineStatus = 'idle' | 'running' | 'paused' | 'stopping' | 'completed' | 'failed' | 'interrupted';
+export type PipelineStatus = 'idle' | 'running' | 'paused' | 'stopping' | 'completed' | 'failed' | 'interrupted' | 'queued';
 
 export const PIPELINE_STAGES: PipelineStage[] = ['scout', 'triage', 'batch', 'execute', 'review'];
 
@@ -44,6 +44,7 @@ export interface PipelineMetrics {
 export interface PipelineRun {
   id: string;
   projectId: string;
+  goalId: string;
   status: PipelineStatus;
   currentStage: PipelineStage;
   cycle: number;
@@ -222,8 +223,45 @@ export interface HealingPatch {
 }
 
 // ============================================================================
+// Goal Input
+// ============================================================================
+
+export interface GoalInput {
+  title: string;
+  description: string;
+  targetPaths: string[] | null;
+  excludedPaths: string[] | null;
+  maxSessions: number;
+  priority: 'low' | 'normal' | 'high';
+  checkpointConfig: {
+    triage: boolean;
+    preExecute: boolean;
+    postReview: boolean;
+  };
+  useBrain: boolean;
+}
+
+// ============================================================================
+// Pipeline Context
+// ============================================================================
+
+export interface PipelineContext {
+  runId: string;
+  projectId: string;
+  goalId: string;
+  config: BalancingConfig;
+  abortSignal?: { shouldAbort: boolean };
+}
+
+// ============================================================================
 // Stage I/O Types
 // ============================================================================
+
+export interface ScoutInput {
+  goalId: string;
+  projectId: string;
+  goalInput: GoalInput;
+}
 
 export interface ScoutResult {
   scanType: ScanType;
@@ -275,6 +313,46 @@ export interface ReviewDecision {
   successRate: number;
   healingTriggered: boolean;
 }
+
+// ============================================================================
+// Stage Input Types (for StageIO discriminated union)
+// ============================================================================
+
+export interface TriageInput {
+  runId: string;
+  items: unknown[];
+}
+
+export interface BatchInput {
+  runId: string;
+  approved: string[];
+}
+
+export interface ExecuteInput {
+  runId: string;
+  batches: unknown[];
+}
+
+export interface ReviewInput {
+  runId: string;
+  results: unknown[];
+}
+
+// ============================================================================
+// StageIO Discriminated Union
+// ============================================================================
+
+type StageIO = {
+  scout: { input: ScoutInput; output: ScoutResult };
+  triage: { input: TriageInput; output: TriageResult };
+  batch: { input: BatchInput; output: BatchDescriptor };
+  execute: { input: ExecuteInput; output: ExecutionResult[] };
+  review: { input: ReviewInput; output: ReviewDecision };
+};
+
+export type StageInput<S extends PipelineStage> = StageIO[S]['input'];
+export type StageOutput<S extends PipelineStage> = StageIO[S]['output'];
+export type StageFn<S extends PipelineStage> = (ctx: PipelineContext, input: StageInput<S>) => Promise<StageOutput<S>>;
 
 // ============================================================================
 // Process Log

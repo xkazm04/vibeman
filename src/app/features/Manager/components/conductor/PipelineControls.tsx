@@ -23,6 +23,7 @@ const STATUS_BADGES: Record<PipelineStatus, { label: string; className: string }
   completed: { label: 'Completed', className: 'bg-cyan-600/20 text-cyan-400 border border-cyan-600/40' },
   failed: { label: 'Failed', className: 'bg-red-600/20 text-red-400 border border-red-600/40' },
   interrupted: { label: 'Interrupted', className: 'bg-amber-600/20 text-amber-400 border border-amber-600/40' },
+  queued: { label: 'Queued', className: 'bg-indigo-600/20 text-indigo-400 border border-indigo-600/40' },
 };
 
 export default function PipelineControls({ projectId, onStart, onOpenSettings }: PipelineControlsProps) {

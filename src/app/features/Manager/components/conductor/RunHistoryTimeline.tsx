@@ -43,6 +43,7 @@ const STATUS_STYLES: Record<PipelineStatus, { icon: typeof CheckCircle2; color: 
   paused: { icon: Clock, color: 'amber' },
   stopping: { icon: Clock, color: 'red' },
   interrupted: { icon: XCircle, color: 'amber' },
+  queued: { icon: Clock, color: 'indigo' },
 };
 
 function RunSummaryCard({ run }: { run: PipelineRunSummary }) {

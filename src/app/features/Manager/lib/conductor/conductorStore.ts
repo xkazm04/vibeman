@@ -109,6 +109,7 @@ export const useConductorStore = create<ConductorStoreState>()(
           const run: PipelineRun = {
             id: runId,
             projectId,
+            goalId: '',
             status: 'running',
             currentStage: 'scout',
             cycle: 1,
