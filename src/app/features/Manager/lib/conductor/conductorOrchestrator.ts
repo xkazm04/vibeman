@@ -32,6 +32,8 @@ import { executeSpecWriterStage } from './stages/specWriterStage';
 import { specRepository } from './spec/specRepository';
 import { specFileManager } from './spec/specFileManager';
 import type { SpecWriterInput, ApprovedBacklogItem, SpecWriterOutput } from './types';
+import { runBuildValidation } from './execution/buildValidator';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
 import { analyzeErrors } from './selfHealing/healingAnalyzer';
 import { buildHealingContext } from './selfHealing/promptPatcher';
 import { performTaskCleanup } from '@/lib/execution/taskCleanup';
@@ -200,6 +202,17 @@ async function runPipelineLoop(
   } catch {
     // Continue without patches
   }
+
+  // Read checkpoint config from goal
+  const goalRun = conductorRepository.getRunById(runId);
+  const goalId = goalRun?.goal_id;
+  const goalRecord = goalId ? goalRepository.getGoalById(goalId) : null;
+  const checkpointConfigRaw = (goalRecord as any)?.checkpoint_config;
+  const checkpointConfig = checkpointConfigRaw
+    ? (typeof checkpointConfigRaw === 'string'
+        ? JSON.parse(checkpointConfigRaw)
+        : checkpointConfigRaw)
+    : { triage: false, preExecute: false, postReview: false };
 
   while (cycle <= (config.maxCyclesPerRun || 3)) {
     // Check for abort between cycles
@@ -494,27 +507,36 @@ async function runPipelineLoop(
 
     if (shouldAbort(runId)) break;
 
+    // ---- PRE-EXECUTE CHECKPOINT ----
+    if (checkpointConfig.preExecute) {
+      log('execute', 'info', 'Pre-execute checkpoint -- waiting for approval');
+      updateRunInDb(runId, { checkpoint_type: 'pre_execute' });
+      conductorRepository.updateRunStatus(runId, 'paused');
+      await waitForResume(runId);
+      if (shouldAbort(runId)) {
+        conductorRepository.updateRunStatus(runId, 'interrupted', metrics);
+        return;
+      }
+      updateRunInDb(runId, { checkpoint_type: null });
+      conductorRepository.updateRunStatus(runId, 'running');
+      log('execute', 'info', 'Pre-execute checkpoint approved -- proceeding');
+    }
+
     // ---- EXECUTE ----
     let executionResults;
-    if (batchDescriptor && batchDescriptor.requirementNames.length > 0) {
+    if (specWriterOutput && specWriterOutput.specs.length > 0) {
       const executeStart = Date.now();
       executeStageAndPersist(runId, 'execute', { status: 'running', startedAt: new Date().toISOString(), itemsIn: 0, itemsOut: 0 });
       updateRunInDb(runId, { current_stage: 'execute' });
 
-      const dispatchDetails = batchDescriptor.requirementNames
-        .map((name) => {
-          const assignment = batchDescriptor.modelAssignments[name];
-          return assignment ? `${name} -> ${assignment.provider}/${assignment.model}` : name;
-        })
-        .slice(0, 3)
-        .join(', ');
-      log('execute', 'started', `Dispatching ${batchDescriptor.requirementNames.length} task${batchDescriptor.requirementNames.length !== 1 ? 's' : ''}: ${dispatchDetails}${batchDescriptor.requirementNames.length > 3 ? '...' : ''}`, {
-        itemsIn: batchDescriptor.requirementNames.length,
+      const specCount = specWriterOutput.specs.length;
+      log('execute', 'started', `Dispatching ${specCount} spec${specCount !== 1 ? 's' : ''} via domain scheduler`, {
+        itemsIn: specCount,
       });
 
       try {
         const executeResult = await executeExecuteStage({
-          batch: batchDescriptor,
+          runId,
           config,
           projectId,
           projectPath,
@@ -538,7 +560,7 @@ async function runPipelineLoop(
         executeStageAndPersist(runId, 'execute', {
           status: 'completed',
           completedAt: new Date().toISOString(),
-          itemsIn: batchDescriptor.requirementNames.length,
+          itemsIn: specCount,
           itemsOut: succeeded,
         });
 
@@ -578,6 +600,18 @@ async function runPipelineLoop(
     }
 
     if (shouldAbort(runId)) break;
+
+    // ---- BUILD VALIDATION ----
+    log('execute', 'info', 'Running build validation (tsc --noEmit)');
+    const buildResult = runBuildValidation(projectPath);
+    updateRunInDb(runId, { build_validation: JSON.stringify(buildResult) });
+    if (buildResult.skipped) {
+      log('execute', 'info', `Build validation skipped: ${buildResult.reason}`);
+    } else if (buildResult.passed) {
+      log('execute', 'info', `Build validation passed (${buildResult.durationMs}ms)`);
+    } else {
+      log('execute', 'info', `Build validation failed (${buildResult.durationMs}ms): ${buildResult.errorOutput?.slice(0, 200)}`);
+    }
 
     // ---- REVIEW ----
     const reviewStart = Date.now();
@@ -632,6 +666,21 @@ async function runPipelineLoop(
 
       // Update metrics in DB
       conductorRepository.updateRunStatus(runId, 'running', metrics);
+
+      // ---- POST-REVIEW CHECKPOINT ----
+      if (checkpointConfig.postReview) {
+        log('review', 'info', 'Post-review checkpoint -- waiting for approval');
+        updateRunInDb(runId, { checkpoint_type: 'post_review' });
+        conductorRepository.updateRunStatus(runId, 'paused');
+        await waitForResume(runId);
+        if (shouldAbort(runId)) {
+          conductorRepository.updateRunStatus(runId, 'interrupted', metrics);
+          return;
+        }
+        updateRunInDb(runId, { checkpoint_type: null });
+        conductorRepository.updateRunStatus(runId, 'running');
+        log('review', 'info', 'Post-review checkpoint approved -- proceeding');
+      }
 
       if (!reviewResult.decision.shouldContinue) {
         // Clean up spec artifacts on successful completion
