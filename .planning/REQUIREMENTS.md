@@ -64,10 +64,10 @@ Requirements for the Conductor rebuild. Each maps to roadmap phases.
 
 ### Self-Healing
 
-- [ ] **HEAL-01**: Error classifier categorizes execution failures by type (syntax, dependency, logic, timeout)
+- [x] **HEAL-01**: Error classifier categorizes execution failures by type (syntax, dependency, logic, timeout)
 - [ ] **HEAL-02**: Healing analyzer suggests prompt corrections based on classified error type
 - [ ] **HEAL-03**: Prompt patcher applies corrections and retries with bounded retry count (max 2-3 attempts)
-- [ ] **HEAL-04**: Healing patches have expiry and effectiveness tracking — stale or ineffective patches are pruned
+- [x] **HEAL-04**: Healing patches have expiry and effectiveness tracking — stale or ineffective patches are pruned
 
 ## v2 Requirements
 
@@ -136,10 +136,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BRAIN-01 | Phase 6 | Complete |
 | BRAIN-02 | Phase 6 | Complete |
 | BRAIN-03 | Phase 5 | Complete |
-| HEAL-01 | Phase 7 | Pending |
+| HEAL-01 | Phase 7 | Complete |
 | HEAL-02 | Phase 7 | Pending |
 | HEAL-03 | Phase 7 | Pending |
-| HEAL-04 | Phase 7 | Pending |
+| HEAL-04 | Phase 7 | Complete |
 
 **Coverage:**
 - v1 requirements: 32 total
