@@ -27,7 +27,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Switching between projects in the UI does not trigger repeated scan API calls or UI flicker
   3. Rescanning the same project does not create duplicate template records in the database
   4. A scan where 3 of 10 templates fail to parse does not delete the 7 previously stored valid templates
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 01-01-PLAN.md -- Backend pipeline fixes: ts-morph reuse, path normalization, safe stale cleanup
+- [ ] 01-02-PLAN.md -- Frontend: remove auto-scan, add toast feedback, stale/error badges
 
 ### Phase 2: Generation Flow
 **Goal**: Users can go from selecting a template to having a runnable CLI command in their clipboard
@@ -54,10 +58,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3
+Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Pipeline Hardening | 0/? | Not started | - |
+| 1. Pipeline Hardening | 0/2 | Planning complete | - |
 | 2. Generation Flow | 0/? | Not started | - |
 | 3. UI Redesign | 0/? | Not started | - |
