@@ -63,9 +63,9 @@ Plans:
   5. Configurable pre-execute and post-review checkpoint toggles are respected — pipeline pauses when enabled
 **Plans**: 3 plans
 Plans:
-- [ ] 03-01-PLAN.md — [to be planned]
-- [ ] 03-02-PLAN.md — [to be planned]
-- [ ] 03-03-PLAN.md — [to be planned]
+- [ ] 03-01-PLAN.md — DB migration, domain scheduler, file verifier, build validator
+- [ ] 03-02-PLAN.md — Refactor executeStage and orchestrator wiring (checkpoints, build validation)
+- [ ] 03-03-PLAN.md — Integration tests for execute stage, checkpoints, and build validation
 
 ### Phase 4: Review Stage
 **Goal**: Every completed pipeline run produces an LLM code review, a Brain signal write, and an execution report; successful runs can commit
@@ -136,7 +136,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-03-14 |
 | 2. Spec Writer | 3/3 | Complete   | 2026-03-14 |
-| 3. Execute Stage | 0/? | Not started | - |
+| 3. Execute Stage | 0/3 | Not started | - |
 | 4. Review Stage | 0/? | Not started | - |
 | 5. Triage | 0/? | Not started | - |
 | 6. Goal Analyzer and Backlog | 0/? | Not started | - |
