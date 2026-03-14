@@ -28,6 +28,10 @@ import { executeTriageStage } from './stages/triageStage';
 import { executeBatchStage } from './stages/batchStage';
 import { executeExecuteStage } from './stages/executeStage';
 import { executeReviewStage } from './stages/reviewStage';
+import { executeSpecWriterStage } from './stages/specWriterStage';
+import { specRepository } from './spec/specRepository';
+import { specFileManager } from './spec/specFileManager';
+import type { SpecWriterInput, ApprovedBacklogItem, SpecWriterOutput } from './types';
 import { analyzeErrors } from './selfHealing/healingAnalyzer';
 import { buildHealingContext } from './selfHealing/promptPatcher';
 import { performTaskCleanup } from '@/lib/execution/taskCleanup';
@@ -444,6 +448,52 @@ async function runPipelineLoop(
 
     if (shouldAbort(runId)) break;
 
+    // ---- SPEC WRITER (between batch and execute) ----
+    let specWriterOutput: SpecWriterOutput | null = null;
+    if (batchDescriptor && batchDescriptor.requirementNames.length > 0) {
+      try {
+        // Build approved items from accepted ideas for spec generation
+        const specIdeas = await fetchIdeas(triageResult.acceptedIds, projectId);
+        const approvedItems: ApprovedBacklogItem[] = specIdeas.map((idea: any) => ({
+          id: idea.id,
+          title: idea.title || 'Untitled',
+          description: idea.description || '',
+          effort: idea.effort || 5,
+          impact: idea.impact || 5,
+          category: idea.category || 'feature',
+          filePaths: idea.context_file_paths
+            ? (typeof idea.context_file_paths === 'string' ? JSON.parse(idea.context_file_paths) : idea.context_file_paths)
+            : [],
+        }));
+
+        // Get goal context for spec generation
+        const goalRun = conductorRepository.getRunById(runId);
+        const goalContext = {
+          title: projectName,
+          description: `Pipeline run for ${projectName}`,
+        };
+
+        const specWriterInput: SpecWriterInput = {
+          runId,
+          projectId,
+          projectPath,
+          approvedItems,
+          config,
+          goalContext,
+        };
+
+        log('batch', 'info', `Generating specs for ${approvedItems.length} approved item${approvedItems.length !== 1 ? 's' : ''}`);
+        specWriterOutput = await executeSpecWriterStage(specWriterInput);
+        log('batch', 'info', `Generated ${specWriterOutput.specs.length} spec${specWriterOutput.specs.length !== 1 ? 's' : ''} in ${specWriterOutput.specDir}`);
+      } catch (error) {
+        log('batch', 'failed', `Spec writer failed: ${String(error)}`, { error: String(error) });
+        conductorRepository.updateRunStatus(runId, 'failed', metrics);
+        return;
+      }
+    }
+
+    if (shouldAbort(runId)) break;
+
     // ---- EXECUTE ----
     let executionResults;
     if (batchDescriptor && batchDescriptor.requirementNames.length > 0) {
@@ -584,6 +634,13 @@ async function runPipelineLoop(
       conductorRepository.updateRunStatus(runId, 'running', metrics);
 
       if (!reviewResult.decision.shouldContinue) {
+        // Clean up spec artifacts on successful completion
+        try {
+          specRepository.deleteSpecsByRunId(runId);
+          await specFileManager.deleteSpecDir(runId);
+        } catch {
+          // Cleanup failure is non-fatal
+        }
         conductorRepository.updateRunStatus(runId, 'completed', metrics);
         return;
       }
@@ -607,6 +664,13 @@ async function runPipelineLoop(
     log('review', 'info', 'Pipeline aborted');
     conductorRepository.updateRunStatus(runId, 'interrupted', metrics);
   } else {
+    // Clean up spec artifacts on successful completion
+    try {
+      specRepository.deleteSpecsByRunId(runId);
+      await specFileManager.deleteSpecDir(runId);
+    } catch {
+      // Cleanup failure is non-fatal
+    }
     log('review', 'completed', `Max cycles reached (${config.maxCyclesPerRun || 3}) -- pipeline complete`);
     conductorRepository.updateRunStatus(runId, 'completed', metrics);
   }
