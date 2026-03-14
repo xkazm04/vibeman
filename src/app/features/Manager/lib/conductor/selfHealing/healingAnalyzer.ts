@@ -49,6 +49,7 @@ export async function analyzeErrors(
           errorPattern: suggestion.errorPattern,
           appliedAt: new Date().toISOString(),
           reverted: false,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         });
       }
     } catch (error) {

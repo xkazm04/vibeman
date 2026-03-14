@@ -18,7 +18,14 @@ import {
   mergeError,
 } from '@/app/features/Manager/lib/conductor/selfHealing/errorClassifier';
 import { analyzeErrors } from '@/app/features/Manager/lib/conductor/selfHealing/healingAnalyzer';
-import type { ErrorClassification } from '@/app/features/Manager/lib/conductor/types';
+import {
+  savePatch,
+  prunePatches,
+  updatePatchStats,
+  buildHealingContext,
+} from '@/app/features/Manager/lib/conductor/selfHealing/promptPatcher';
+import { conductorRepository } from '@/app/features/Manager/lib/conductor/conductor.repository';
+import type { ErrorClassification, HealingPatch } from '@/app/features/Manager/lib/conductor/types';
 
 // ============================================================================
 // Test database setup
@@ -68,6 +75,23 @@ function createTables(db: Database.Database) {
       success_count INTEGER DEFAULT 0
     );
   `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS conductor_errors (
+      id TEXT PRIMARY KEY,
+      pipeline_run_id TEXT,
+      stage TEXT NOT NULL,
+      error_type TEXT NOT NULL,
+      error_message TEXT,
+      task_id TEXT,
+      scan_type TEXT,
+      occurrence_count INTEGER DEFAULT 1,
+      first_seen TEXT,
+      last_seen TEXT,
+      resolved INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+  `);
 }
 
 vi.mock('@/app/db/connection', () => ({
@@ -86,6 +110,7 @@ beforeAll(() => {
 beforeEach(() => {
   testDb.exec('DELETE FROM conductor_runs');
   testDb.exec('DELETE FROM conductor_healing_patches');
+  testDb.exec('DELETE FROM conductor_errors');
 });
 
 afterAll(() => {
@@ -156,6 +181,28 @@ describe('Self-Healing Pipeline', () => {
       expect(parsed[0].errorType).toBe('timeout');
       expect(parsed[1].errorType).toBe('missing_context');
     });
+
+    it('saveClassificationsOnRun persists compact summary via repository', () => {
+      testDb.prepare(
+        'INSERT INTO conductor_runs (id, project_id, status) VALUES (?, ?, ?)'
+      ).run('run-repo-01', 'proj-1', 'running');
+
+      const classifications: ErrorClassification[] = [
+        classifyError('timed out after 30s', 'execute', 'run-repo-01', 'task-1'),
+        classifyError('file not found: foo.ts', 'execute', 'run-repo-01', 'task-2'),
+      ];
+
+      conductorRepository.saveClassificationsOnRun('run-repo-01', classifications);
+
+      const row = testDb.prepare(
+        'SELECT error_classifications FROM conductor_runs WHERE id = ?'
+      ).get('run-repo-01') as { error_classifications: string };
+
+      const parsed = JSON.parse(row.error_classifications);
+      expect(parsed).toHaveLength(2);
+      expect(parsed[0].errorType).toBe('timeout');
+      expect(parsed[1].errorType).toBe('missing_context');
+    });
   });
 
   // ============================================================================
@@ -200,6 +247,24 @@ describe('Self-Healing Pipeline', () => {
       const patches = await analyzeErrors(errors, 'run-heal-02c');
       expect(patches).toHaveLength(0);
     });
+
+    it('sets expiresAt on generated patches', async () => {
+      const errors: ErrorClassification[] = [
+        classifyError('file not found: src/a.ts', 'execute', 'run-heal-02d'),
+        classifyError('unable to locate src/b.ts', 'execute', 'run-heal-02d'),
+      ];
+      let merged = [errors[0]];
+      merged = mergeError(merged, errors[1]);
+
+      const patches = await analyzeErrors(merged, 'run-heal-02d');
+      expect(patches.length).toBeGreaterThanOrEqual(1);
+      for (const patch of patches) {
+        expect(patch.expiresAt).toBeDefined();
+        const expiryDate = new Date(patch.expiresAt!);
+        const sixDaysFromNow = new Date(Date.now() + 6 * 24 * 60 * 60 * 1000);
+        expect(expiryDate.getTime()).toBeGreaterThan(sixDaysFromNow.getTime());
+      }
+    });
   });
 
   // ============================================================================
@@ -207,17 +272,41 @@ describe('Self-Healing Pipeline', () => {
   // ============================================================================
 
   describe('HEAL-03: Bounded retry', () => {
-    // TODO: import bounded retry functions from Plan 02 implementation
-    it.skip('retries failed task up to MAX_RETRIES times', () => {
-      // Will test that a failed task is retried up to the configured max
+    it('tracks retry count per error class in DB', () => {
+      testDb.prepare(
+        'INSERT INTO conductor_runs (id, project_id, status) VALUES (?, ?, ?)'
+      ).run('run-retry-01', 'proj-1', 'running');
+
+      conductorRepository.incrementRetryCount('run-retry-01', 'timeout', 'task-a');
+      conductorRepository.incrementRetryCount('run-retry-01', 'timeout', 'task-a');
+      conductorRepository.incrementRetryCount('run-retry-01', 'missing_context', 'task-a');
+
+      const timeoutCount = conductorRepository.getRetryCount('run-retry-01', 'timeout', 'task-a');
+      expect(timeoutCount).toBe(1); // single row with occurrence_count=2
+
+      const contextCount = conductorRepository.getRetryCount('run-retry-01', 'missing_context', 'task-a');
+      expect(contextCount).toBe(1);
     });
 
-    it.skip('stops retrying after MAX_RETRIES exceeded', () => {
-      // Will test that retry stops after limit and marks task as permanently failed
+    it('getRetryCount returns 0 when no retries recorded', () => {
+      testDb.prepare(
+        'INSERT INTO conductor_runs (id, project_id, status) VALUES (?, ?, ?)'
+      ).run('run-retry-02', 'proj-1', 'running');
+
+      const count = conductorRepository.getRetryCount('run-retry-02', 'timeout');
+      expect(count).toBe(0);
     });
 
-    it.skip('tracks retry count per error class in DB', () => {
-      // Will test that each retry increments a counter stored in the DB
+    it('incrementRetryCount creates new row for different taskId', () => {
+      testDb.prepare(
+        'INSERT INTO conductor_runs (id, project_id, status) VALUES (?, ?, ?)'
+      ).run('run-retry-03', 'proj-1', 'running');
+
+      conductorRepository.incrementRetryCount('run-retry-03', 'timeout', 'task-x');
+      conductorRepository.incrementRetryCount('run-retry-03', 'timeout', 'task-y');
+
+      const countAll = conductorRepository.getRetryCount('run-retry-03', 'timeout');
+      expect(countAll).toBe(2); // two separate rows
     });
   });
 
@@ -226,25 +315,145 @@ describe('Self-Healing Pipeline', () => {
   // ============================================================================
 
   describe('HEAL-04: Patch lifecycle', () => {
-    // TODO: import patch lifecycle functions from Plan 02 implementation
-    it.skip('sets expires_at on new patches (default 7 days)', () => {
-      // Will test that newly created patches get an expires_at 7 days in the future
+    it('sets expires_at on new patches (default 7 days)', async () => {
+      testDb.prepare(
+        'INSERT INTO conductor_runs (id, project_id, status) VALUES (?, ?, ?)'
+      ).run('run-patch-01', 'proj-1', 'running');
+
+      const patch: HealingPatch = {
+        id: 'patch-lifecycle-01',
+        pipelineRunId: 'run-patch-01',
+        targetType: 'prompt',
+        targetId: 'test',
+        originalValue: '',
+        patchedValue: 'test instruction',
+        reason: 'testing',
+        errorPattern: 'test error',
+        appliedAt: new Date().toISOString(),
+        reverted: false,
+      };
+
+      await savePatch(patch);
+
+      const row = testDb.prepare(
+        'SELECT expires_at FROM conductor_healing_patches WHERE id = ?'
+      ).get('patch-lifecycle-01') as { expires_at: string };
+
+      expect(row.expires_at).toBeDefined();
+      const expiryDate = new Date(row.expires_at);
+      const sixDaysFromNow = new Date(Date.now() + 6 * 24 * 60 * 60 * 1000);
+      expect(expiryDate.getTime()).toBeGreaterThan(sixDaysFromNow.getTime());
     });
 
-    it.skip('prunes expired patches at pipeline start', () => {
-      // Will test that expired patches are removed before a new pipeline run
+    it('prunes expired patches at pipeline start', async () => {
+      testDb.prepare(
+        'INSERT INTO conductor_runs (id, project_id, status) VALUES (?, ?, ?)'
+      ).run('run-prune-01', 'proj-prune', 'completed');
+
+      // Insert an expired patch
+      testDb.prepare(`
+        INSERT INTO conductor_healing_patches
+        (id, pipeline_run_id, target_type, target_id, patched_value, reason, error_pattern, applied_at, reverted, expires_at, application_count, success_count)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, 0)
+      `).run(
+        'patch-expired', 'run-prune-01', 'prompt', 'test',
+        'old instruction', 'stale', 'error', new Date().toISOString(),
+        new Date(Date.now() - 1000).toISOString() // expired 1s ago
+      );
+
+      // Insert a valid patch
+      testDb.prepare(`
+        INSERT INTO conductor_healing_patches
+        (id, pipeline_run_id, target_type, target_id, patched_value, reason, error_pattern, applied_at, reverted, expires_at, application_count, success_count)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, 0)
+      `).run(
+        'patch-valid', 'run-prune-01', 'prompt', 'test',
+        'good instruction', 'valid', 'error', new Date().toISOString(),
+        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      );
+
+      const surviving = prunePatches('proj-prune');
+      expect(surviving).toHaveLength(1);
+      expect(surviving[0].id).toBe('patch-valid');
+
+      // Verify expired patch is reverted in DB
+      const expiredRow = testDb.prepare(
+        'SELECT reverted FROM conductor_healing_patches WHERE id = ?'
+      ).get('patch-expired') as { reverted: number };
+      expect(expiredRow.reverted).toBe(1);
     });
 
-    it.skip('computes success rate from application_count and success_count', () => {
-      // Will test success_count / application_count calculation
+    it('auto-reverts patches with success rate below 0.3 after 3+ applications', () => {
+      testDb.prepare(
+        'INSERT INTO conductor_runs (id, project_id, status) VALUES (?, ?, ?)'
+      ).run('run-prune-02', 'proj-prune2', 'completed');
+
+      // Insert ineffective patch (3 applications, 0 successes = 0% success rate)
+      testDb.prepare(`
+        INSERT INTO conductor_healing_patches
+        (id, pipeline_run_id, target_type, target_id, patched_value, reason, error_pattern, applied_at, reverted, expires_at, application_count, success_count)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 3, 0)
+      `).run(
+        'patch-ineffective', 'run-prune-02', 'prompt', 'test',
+        'bad instruction', 'ineffective', 'error', new Date().toISOString(),
+        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      );
+
+      const surviving = prunePatches('proj-prune2');
+      expect(surviving).toHaveLength(0);
+
+      const row = testDb.prepare(
+        'SELECT reverted FROM conductor_healing_patches WHERE id = ?'
+      ).get('patch-ineffective') as { reverted: number };
+      expect(row.reverted).toBe(1);
     });
 
-    it.skip('auto-reverts patches with success rate below 0.3 after 3+ applications', () => {
-      // Will test that ineffective patches (< 30% success after 3+ uses) are reverted
+    it('increments application_count when patch stats are updated', () => {
+      testDb.prepare(
+        'INSERT INTO conductor_runs (id, project_id, status) VALUES (?, ?, ?)'
+      ).run('run-stats-01', 'proj-stats', 'running');
+
+      testDb.prepare(`
+        INSERT INTO conductor_healing_patches
+        (id, pipeline_run_id, target_type, target_id, patched_value, reason, error_pattern, applied_at, reverted, expires_at, application_count, success_count)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, 0)
+      `).run(
+        'patch-stats-01', 'run-stats-01', 'prompt', 'test',
+        'instruction', 'testing', 'error', new Date().toISOString(),
+        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      );
+
+      updatePatchStats('patch-stats-01', true);
+      updatePatchStats('patch-stats-01', false);
+      updatePatchStats('patch-stats-01', true);
+
+      const row = testDb.prepare(
+        'SELECT application_count, success_count FROM conductor_healing_patches WHERE id = ?'
+      ).get('patch-stats-01') as { application_count: number; success_count: number };
+
+      expect(row.application_count).toBe(3);
+      expect(row.success_count).toBe(2);
     });
 
-    it.skip('increments application_count when patch is active during a run', () => {
-      // Will test that application_count increments each time a patch is used
+    it('buildHealingContext filters out expired patches', () => {
+      const patches: HealingPatch[] = [
+        {
+          id: 'p1', pipelineRunId: 'r1', targetType: 'prompt', targetId: 't1',
+          originalValue: '', patchedValue: 'active instruction', reason: '',
+          errorPattern: '', appliedAt: '', reverted: false,
+          expiresAt: new Date(Date.now() + 86400000).toISOString(),
+        },
+        {
+          id: 'p2', pipelineRunId: 'r1', targetType: 'prompt', targetId: 't2',
+          originalValue: '', patchedValue: 'expired instruction', reason: '',
+          errorPattern: '', appliedAt: '', reverted: false,
+          expiresAt: new Date(Date.now() - 1000).toISOString(),
+        },
+      ];
+
+      const context = buildHealingContext(patches);
+      expect(context).toContain('active instruction');
+      expect(context).not.toContain('expired instruction');
     });
   });
 });
