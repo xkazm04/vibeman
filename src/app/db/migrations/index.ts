@@ -60,6 +60,7 @@ import { migrate143FixIdeasEffortConstraint } from './143_fix_ideas_effort_const
 import { migrate144DetailedIdeas } from './144_detailed_ideas';
 import { migrate145FixIdeasEffortConstraintRetry } from './145_fix_ideas_effort_constraint_retry';
 import { migrate146TemplateStatus } from './146_template_status';
+import { migrate200ConductorFoundation } from './200_conductor_foundation';
 
 /**
  * Migration logger utility
@@ -254,6 +255,7 @@ export function runMigrations() {
     once('m144', () => migrate144DetailedIdeas(db as any, migrationLogger));
     once('m145', () => migrate145FixIdeasEffortConstraintRetry(db as any, migrationLogger));  // Re-run: m143 was pre-seeded during bootstrap
     once('m146', () => migrate146TemplateStatus(db as any, migrationLogger));
+    once('m200', () => migrate200ConductorFoundation(db as any, migrationLogger));
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
