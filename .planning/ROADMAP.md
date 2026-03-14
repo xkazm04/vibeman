@@ -108,9 +108,9 @@ Plans:
   4. Brain patterns are consulted before architecture decisions during analysis — the goal analyzer uses behavioral context as explicit constraints, not optional decoration
 **Plans**: 3 plans
 Plans:
-- [ ] 06-01-PLAN.md — [to be planned]
-- [ ] 06-02-PLAN.md — [to be planned]
-- [ ] 06-03-PLAN.md — [to be planned]
+- [ ] 06-01-PLAN.md — Types, DB migration, and file discovery utility
+- [ ] 06-02-PLAN.md — Goal analyzer core with LLM prompt and Brain integration
+- [ ] 06-03-PLAN.md — Orchestrator wiring and integration tests
 
 ### Phase 7: Self-Healing
 **Goal**: Execution failures are classified, corrected with bounded prompt patches, and stale or ineffective patches are automatically pruned
