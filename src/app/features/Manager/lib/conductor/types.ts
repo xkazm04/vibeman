@@ -237,6 +237,7 @@ export interface GoalInput {
     triage: boolean;
     preExecute: boolean;
     postReview: boolean;
+    skipTriage?: boolean;
   };
   useBrain: boolean;
   autoCommit: boolean;
@@ -278,6 +279,26 @@ export interface TriageResult {
   acceptedIds: string[];
   rejectedIds: string[];
   skippedIds: string[];
+}
+
+export interface TriageCheckpointData {
+  items: Array<{
+    id: string;
+    title: string;
+    description?: string;
+    category: string;
+    effort: number | null;
+    impact: number | null;
+    risk: number | null;
+    brainConflict: {
+      hasConflict: boolean;
+      reason: string | null;
+      patternTitle: string | null;
+    };
+  }>;
+  timeoutAt: string; // ISO timestamp
+  createdAt: string;
+  decisions?: Array<{ itemId: string; action: 'approve' | 'reject' }>;
 }
 
 export interface BatchDescriptor {
