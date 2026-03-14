@@ -1,56 +1,106 @@
-# Requirements: Vibeman v2.0 Template Discovery & Research Integration
+# Requirements: Vibeman Conductor Redesign
 
 **Defined:** 2026-03-14
-**Core Value:** Maximize developer productivity by automating routine development tasks through AI agents, with seamless mobile control for managing work queues remotely.
+**Core Value:** Conductor reliably and autonomously turns a high-level goal into committed, production-quality code
 
 ## v1 Requirements
 
-Requirements for v2.0 milestone. Each maps to roadmap phases.
+Requirements for the Conductor rebuild. Each maps to roadmap phases.
 
-### Pipeline Hardening
+### Foundation
 
-- [x] **PIPE-01**: ts-morph Project instance reused across file scans instead of creating new per file
-- [ ] **PIPE-02**: useEffect auto-scan does not re-trigger infinitely on project switch
-- [x] **PIPE-03**: Path normalization centralized in single utility instead of 5 fragmented locations
-- [x] **PIPE-04**: Stale template cleanup skipped when scan partially fails (no silent data loss)
+- [ ] **FOUND-01**: Conductor pipeline state persists in SQLite, not globalThis — surviving process restarts and HMR
+- [ ] **FOUND-02**: Each pipeline stage is a pure async function receiving context and returning typed output
+- [ ] **FOUND-03**: Pipeline run records (status, metrics, stage logs, duration) persist in SQLite with queryable history
 
-### Generation Flow
+### Goal Analysis
 
-- [ ] **GEN-01**: User can select research granularity (quick/standard/deep) before generation
-- [ ] **GEN-02**: User sees CLI command to run after .md file generation
-- [ ] **GEN-03**: User can copy CLI command to clipboard with one click
-- [ ] **GEN-04**: User can preview interpolated prompt before generating .md file
-- [ ] **GEN-05**: User can view generation history showing what was generated, when, and for what query
+- [ ] **GOAL-01**: User can define a structured goal with goal statement and optional constraint fields
+- [ ] **GOAL-02**: Conductor analyzes codebase relative to stated goal using ts-morph structural analysis + LLM interpretation
+- [ ] **GOAL-03**: Goal analysis produces a gap report identifying missing code, debt, and untested areas relevant to the goal
 
-### UI Redesign
+### Backlog
 
-- [ ] **UI-01**: Integrations module has clean visual hierarchy with consistent spacing and typography
-- [ ] **UI-02**: Project scanner card with path input and scan button
-- [ ] **UI-03**: Discovered templates displayed in grid with metadata cards
-- [ ] **UI-04**: Research launcher panel with query input, granularity selector, and template selector
+- [ ] **BACK-01**: Conductor generates prioritized backlog items from goal gap analysis
+- [ ] **BACK-02**: Backlog generation integrates Ideas module scan types (zen_architect, bug_hunter, ui_perfectionist) for creative suggestions
+- [ ] **BACK-03**: Each backlog item includes rationale, estimated effort, and affected domain
+
+### Triage
+
+- [ ] **TRIA-01**: Pipeline pauses at triage checkpoint presenting generated backlog for user review
+- [ ] **TRIA-02**: User can batch-approve, individually approve/reject, or adjust backlog items at triage
+- [ ] **TRIA-03**: Triage checkpoint is configurable — can be bypassed for trusted goals with explicit toggle
+- [ ] **TRIA-04**: Triage checkpoint has a maximum timeout to prevent permanent pipeline hangs on abandoned sessions
+
+### Specification
+
+- [ ] **SPEC-01**: Conductor generates one markdown requirement spec per approved backlog item
+- [ ] **SPEC-02**: Each spec includes goal context, acceptance criteria, affected files, implementation approach, and constraints
+- [ ] **SPEC-03**: Spec generation queries Brain for code conventions and architecture patterns relevant to the spec domain
+
+### Execution
+
+- [ ] **EXEC-01**: Conductor assigns non-overlapping file domains to each CLI session based on spec affected files
+- [ ] **EXEC-02**: Conductor distributes specs across 1-4 CLI sessions with domain-isolated parallel execution
+- [ ] **EXEC-03**: Per-task execution status is visible (running, completed, failed) with stage indicator
+- [ ] **EXEC-04**: Configurable checkpoints available at pre-execute and post-review stages
+
+### Validation
+
+- [ ] **VALD-01**: Build validation gate runs TypeScript compile check (tsc --noEmit) after execution completes
+- [ ] **VALD-02**: LLM-powered code review evaluates diff against quality rubric (types, naming, patterns, no regressions)
+- [ ] **VALD-03**: Code review produces pass/fail with rationale per reviewed file
+
+### Reporting
+
+- [ ] **REPT-01**: Execution report generated on goal completion: goal, items executed, files changed, build status, review outcome
+- [ ] **REPT-02**: Report and all work committed to git on successful completion
+
+### Brain Integration
+
+- [ ] **BRAIN-01**: Brain serves as pattern library — Conductor queries stored patterns during Scout and Spec generation
+- [ ] **BRAIN-02**: Brain serves as active decision engine — Conductor consults Brain before architecture decisions and task routing
+- [ ] **BRAIN-03**: Brain acts as conflict gate at triage — blocking tasks that contradict learned patterns
+
+### Self-Healing
+
+- [ ] **HEAL-01**: Error classifier categorizes execution failures by type (syntax, dependency, logic, timeout)
+- [ ] **HEAL-02**: Healing analyzer suggests prompt corrections based on classified error type
+- [ ] **HEAL-03**: Prompt patcher applies corrections and retries with bounded retry count (max 2-3 attempts)
+- [ ] **HEAL-04**: Healing patches have expiry and effectiveness tracking — stale or ineffective patches are pruned
 
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
 
-### Advanced Features
+### Enhanced Execution
 
-- **ADV-01**: Template search/filter within discovered templates
-- **ADV-02**: Batch generation across multiple templates simultaneously
-- **ADV-03**: Execution history timeline with visual representation
-- **ADV-04**: Template categorization display by research type
+- **EXEC-05**: Complexity-based model routing assigns Sonnet for simple tasks and Opus for complex tasks
+- **EXEC-06**: DAG-based task dependency resolution determines execution order via topological sort
+
+### Enhanced Validation
+
+- **VALD-04**: Automated test generation embedded in requirement specs as mandatory execution step
+- **VALD-05**: Auto-commit on goal completion (currently manual commit after review)
+
+### Operations
+
+- **OPS-01**: Token/cost estimation before execution for budget awareness
+- **OPS-02**: Multi-goal queue for sequential goal execution without user re-initiation
 
 ## Out of Scope
 
+Explicitly excluded. Documented to prevent scope creep.
+
 | Feature | Reason |
 |---------|--------|
-| Direct CLI execution from Vibeman | Security risk, different runtime environment — show command + copy instead |
-| Research results viewing | res project has its own report UI — avoid duplication |
-| Template editing in Vibeman | Templates are source code in res project — creates sync issues |
-| Multi-project simultaneous scanning | Adds state complexity for minimal value — one project at a time |
-| Template versioning | Overcomplicates "scan and use latest" pattern |
-| File watching / auto-rescan | chokidar on external paths is fragile — manual rescan button instead |
-| config_json rename/migration | Existing field works, cosmetic rename not worth migration risk |
+| Multi-user support | Single-user local tool — no auth, no multi-tenancy |
+| Git branch per task | Direct-to-main workflow per project constraints; domain isolation replaces branching |
+| Existing test suite as gate | Existing tests may be slow/flaky; build validation + new test gen covers quality |
+| Real-time collaborative UI | Single-user tool; collaboration adds unneeded complexity |
+| Deployment automation | Tool produces committed code, not deployments |
+| Infinite retry on failure | Burns tokens; bounded retry + self-healing is the correct approach |
+| Micro-approval per spec | Batch approve at triage; per-spec approval defeats autonomy |
 
 ## Traceability
 
@@ -58,25 +108,44 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PIPE-01 | Phase 1 | Complete |
-| PIPE-02 | Phase 1 | Pending |
-| PIPE-03 | Phase 1 | Complete |
-| PIPE-04 | Phase 1 | Complete |
-| GEN-01 | Phase 2 | Pending |
-| GEN-02 | Phase 2 | Pending |
-| GEN-03 | Phase 2 | Pending |
-| GEN-04 | Phase 2 | Pending |
-| GEN-05 | Phase 2 | Pending |
-| UI-01 | Phase 3 | Pending |
-| UI-02 | Phase 3 | Pending |
-| UI-03 | Phase 3 | Pending |
-| UI-04 | Phase 3 | Pending |
+| FOUND-01 | — | Pending |
+| FOUND-02 | — | Pending |
+| FOUND-03 | — | Pending |
+| GOAL-01 | — | Pending |
+| GOAL-02 | — | Pending |
+| GOAL-03 | — | Pending |
+| BACK-01 | — | Pending |
+| BACK-02 | — | Pending |
+| BACK-03 | — | Pending |
+| TRIA-01 | — | Pending |
+| TRIA-02 | — | Pending |
+| TRIA-03 | — | Pending |
+| TRIA-04 | — | Pending |
+| SPEC-01 | — | Pending |
+| SPEC-02 | — | Pending |
+| SPEC-03 | — | Pending |
+| EXEC-01 | — | Pending |
+| EXEC-02 | — | Pending |
+| EXEC-03 | — | Pending |
+| EXEC-04 | — | Pending |
+| VALD-01 | — | Pending |
+| VALD-02 | — | Pending |
+| VALD-03 | — | Pending |
+| REPT-01 | — | Pending |
+| REPT-02 | — | Pending |
+| BRAIN-01 | — | Pending |
+| BRAIN-02 | — | Pending |
+| BRAIN-03 | — | Pending |
+| HEAL-01 | — | Pending |
+| HEAL-02 | — | Pending |
+| HEAL-03 | — | Pending |
+| HEAL-04 | — | Pending |
 
 **Coverage:**
-- v1 requirements: 13 total
-- Mapped to phases: 13
-- Unmapped: 0
+- v1 requirements: 32 total
+- Mapped to phases: 0
+- Unmapped: 32
 
 ---
 *Requirements defined: 2026-03-14*
-*Last updated: 2026-03-14 after roadmap creation*
+*Last updated: 2026-03-14 after initial definition*
