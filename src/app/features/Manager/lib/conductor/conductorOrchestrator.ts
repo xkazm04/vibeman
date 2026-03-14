@@ -41,7 +41,8 @@ import { ideaRepository } from '@/app/db/repositories/idea.repository';
 import { executeGoalAnalysis } from './stages/goalAnalyzer';
 import type { GoalAnalyzerOutput } from './stages/goalAnalyzer.types';
 import { analyzeErrors } from './selfHealing/healingAnalyzer';
-import { buildHealingContext } from './selfHealing/promptPatcher';
+import { buildHealingContext, prunePatches, updatePatchStats } from './selfHealing/promptPatcher';
+import { classifyError } from './selfHealing/errorClassifier';
 import { performTaskCleanup } from '@/lib/execution/taskCleanup';
 
 // ============================================================================
@@ -202,9 +203,9 @@ async function runPipelineLoop(
     updateRunInDb(runId, { process_log: JSON.stringify(processLog) });
   };
 
-  // Load existing patches for this project
+  // Load existing patches for this project, pruning expired/ineffective ones
   try {
-    activePatches = await loadActivePatches(projectId);
+    activePatches = prunePatches(projectId);
   } catch {
     // Continue without patches
   }
@@ -384,20 +385,38 @@ async function runPipelineLoop(
         executeStageAndPersist(runId, 'batch', { status: 'skipped', itemsIn: 0, itemsOut: 0 });
         executeStageAndPersist(runId, 'execute', { status: 'skipped', itemsIn: 0, itemsOut: 0 });
 
-        // Trigger healing if enabled
+        // Trigger healing if enabled (with bounded retry)
         if (config.healingEnabled) {
+          const MAX_HEAL_RETRIES = 3;
           log('review', 'info', `Self-healing triggered -- analyzing ${allErrors.length} error${allErrors.length !== 1 ? 's' : ''}`);
           try {
-            const newPatches = await analyzeErrors(allErrors, runId);
-            activePatches = [...activePatches, ...newPatches];
-            metrics.healingPatchesApplied += newPatches.length;
-            for (const patch of newPatches) {
-              saveErrorToDb(runId, allErrors);
-              savePatchToDb(patch);
-              log('review', 'info', `Applied healing patch: ${patch.reason}`);
+            for (const err of allErrors) {
+              const retryCount = conductorRepository.getRetryCount(runId, err.errorType, err.taskId);
+              if (retryCount < MAX_HEAL_RETRIES) {
+                const patches = await analyzeErrors([err], runId);
+                activePatches.push(...patches);
+                metrics.healingPatchesApplied += patches.length;
+                for (const patch of patches) {
+                  savePatchToDb(patch);
+                  log('review', 'info', `Applied healing patch: ${patch.reason}`);
+                }
+                conductorRepository.incrementRetryCount(runId, err.errorType, err.taskId || `scout-${cycle}`);
+                log('execute', 'info', `Retry ${retryCount + 1}/${MAX_HEAL_RETRIES} for ${err.errorType}`);
+              }
             }
+            saveErrorToDb(runId, allErrors);
           } catch (healError) {
             log('review', 'info', `Healing analysis failed: ${String(healError)}`);
+          }
+        }
+
+        // Save classifications on run record
+        conductorRepository.saveClassificationsOnRun(runId, allErrors);
+
+        // Update patch stats (failure path)
+        for (const patch of activePatches) {
+          if (!patch.reverted) {
+            updatePatchStats(patch.id, false);
           }
         }
 
@@ -822,22 +841,42 @@ async function runPipelineLoop(
         updateRunInDb(runId, { review_results: JSON.stringify(reviewResult.reviewResults) });
       }
 
-      // Trigger self-healing if needed
+      // Save classifications on run record after review
+      if (allErrors.length > 0) {
+        conductorRepository.saveClassificationsOnRun(runId, allErrors);
+      }
+
+      // Trigger self-healing if needed (with bounded retry)
       if (reviewResult.decision.healingTriggered && config.healingEnabled) {
+        const MAX_HEAL_RETRIES = 3;
         log('review', 'info', `Self-healing triggered -- analyzing ${allErrors.length} error${allErrors.length !== 1 ? 's' : ''}`);
         try {
-          const newPatches = await analyzeErrors(allErrors, runId);
-          activePatches = [...activePatches, ...newPatches];
-          metrics.healingPatchesApplied += newPatches.length;
-
-          for (const patch of newPatches) {
-            saveErrorToDb(runId, allErrors);
-            savePatchToDb(patch);
-            log('review', 'info', `Applied healing patch: ${patch.reason}`);
+          for (const err of allErrors) {
+            const retryCount = conductorRepository.getRetryCount(runId, err.errorType, err.taskId);
+            if (retryCount < MAX_HEAL_RETRIES) {
+              const patches = await analyzeErrors([err], runId);
+              activePatches.push(...patches);
+              metrics.healingPatchesApplied += patches.length;
+              for (const patch of patches) {
+                savePatchToDb(patch);
+                log('review', 'info', `Applied healing patch: ${patch.reason}`);
+              }
+              conductorRepository.incrementRetryCount(runId, err.errorType, err.taskId || `review-${cycle}`);
+              log('execute', 'info', `Retry ${retryCount + 1}/${MAX_HEAL_RETRIES} for ${err.errorType} on task ${err.taskId || 'unknown'}`);
+            }
           }
+          saveErrorToDb(runId, allErrors);
         } catch (healError) {
           log('review', 'info', `Healing analysis failed: ${String(healError)}`);
           console.error('[conductor] Healing analysis failed:', healError);
+        }
+      }
+
+      // Update patch stats based on review outcome
+      const reviewSuccess = !reviewResult.decision.healingTriggered;
+      for (const patch of activePatches) {
+        if (!patch.reverted) {
+          updatePatchStats(patch.id, reviewSuccess);
         }
       }
 
@@ -1018,19 +1057,6 @@ async function enrichIdeasWithContext(ideas: any[], projectId: string): Promise<
     });
   } catch {
     return ideas;
-  }
-}
-
-async function loadActivePatches(projectId: string): Promise<HealingPatch[]> {
-  try {
-    const response = await fetch(
-      `${getBaseUrl()}/api/conductor/healing?projectId=${projectId}`
-    );
-    if (!response.ok) return [];
-    const data = await response.json();
-    return (data.patches || []).filter((p: HealingPatch) => !p.reverted);
-  } catch {
-    return [];
   }
 }
 
