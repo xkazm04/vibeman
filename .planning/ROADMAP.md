@@ -138,7 +138,7 @@ Plans:
   3. No dead imports of classifyError in conductorOrchestrator.ts
 **Plans**: 1 plan
 Plans:
-- [ ] 08-01-PLAN.md — Fix orchestrator healing wiring (runId, savePatchToDb, dead import)
+- [x] 08-01-PLAN.md — Fix orchestrator healing wiring (runId, savePatchToDb, dead import)
 
 ## Progress
 
@@ -154,4 +154,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 5. Triage | 3/3 | Complete   | 2026-03-14 |
 | 6. Goal Analyzer and Backlog | 2/3 | In Progress|  |
 | 7. Self-Healing | 3/3 | Complete   | 2026-03-14 |
-| 8. Self-Healing Wiring Fixes | 0/1 | Not started | - |
+| 8. Self-Healing Wiring Fixes | 1/1 | Complete | 2026-03-15 |
