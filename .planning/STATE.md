@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-03-14T15:13:00Z"
-last_activity: 2026-03-14 — Plan 03-01 complete (execute stage utilities: scheduler, verifier, validator)
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-03-14T15:19:00Z"
+last_activity: 2026-03-14 — Plan 03-02 complete (execute stage refactor + orchestrator wiring)
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 8
+  completed_plans: 8
 ---
 
 ---
@@ -87,11 +87,11 @@ See: .planning/PROJECT.md (updated 2026-03-14)
 ## Current Position
 
 Phase: 3 of 7 (Execute Stage)
-Plan: 1 of 3 in current phase (1 complete)
+Plan: 2 of 3 in current phase (2 complete)
 Status: In Progress
-Last activity: 2026-03-14 — Plan 03-01 complete (execute stage utilities: scheduler, verifier, validator)
+Last activity: 2026-03-14 — Plan 03-02 complete (execute stage refactor + orchestrator wiring)
 
-Progress: [█████████░] 90%
+Progress: [█████████░] 93%
 
 ## Performance Metrics
 
@@ -115,6 +115,7 @@ Progress: [█████████░] 90%
 | Phase 02 P02 | 3min | 2 tasks | 4 files |
 | Phase 02 P03 | 3min | 2 tasks | 3 files |
 | Phase 03 P01 | 4min | 2 tasks | 8 files |
+| Phase 03 P02 | 3min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -143,6 +144,9 @@ Recent decisions affecting current work:
 - [Phase 03]: Path normalization uses node:path.normalize() + backslash replace for Windows compat
 - [Phase 03]: hasOverlap iterates smaller set for O(min(a,b)) efficiency
 - [Phase 03]: Migration 202 uses runOnce wrapper matching existing m200/m201 pattern
+- [Phase 03]: Execute stage reads specs from specRepository via runId, not BatchDescriptor
+- [Phase 03]: useWorktree=false — domain isolation replaces worktree isolation
+- [Phase 03]: Checkpoint config read from goal's checkpoint_config JSON field
 
 ### Pending Todos
 
@@ -156,6 +160,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T15:13:00Z
-Stopped at: Completed 03-01-PLAN.md
-Resume file: .planning/phases/03-execute-stage/03-01-SUMMARY.md
+Last session: 2026-03-14T15:19:00Z
+Stopped at: Completed 03-02-PLAN.md
+Resume file: .planning/phases/03-execute-stage/03-02-SUMMARY.md

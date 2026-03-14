@@ -42,8 +42,8 @@ Requirements for the Conductor rebuild. Each maps to roadmap phases.
 
 - [x] **EXEC-01**: Conductor assigns non-overlapping file domains to each CLI session based on spec affected files
 - [x] **EXEC-02**: Conductor distributes specs across 1-4 CLI sessions with domain-isolated parallel execution
-- [ ] **EXEC-03**: Per-task execution status is visible (running, completed, failed) with stage indicator
-- [ ] **EXEC-04**: Configurable checkpoints available at pre-execute and post-review stages
+- [x] **EXEC-03**: Per-task execution status is visible (running, completed, failed) with stage indicator
+- [x] **EXEC-04**: Configurable checkpoints available at pre-execute and post-review stages
 
 ### Validation
 
@@ -126,8 +126,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SPEC-03 | Phase 2 | Complete |
 | EXEC-01 | Phase 3 | Complete |
 | EXEC-02 | Phase 3 | Complete |
-| EXEC-03 | Phase 3 | Pending |
-| EXEC-04 | Phase 3 | Pending |
+| EXEC-03 | Phase 3 | Complete |
+| EXEC-04 | Phase 3 | Complete |
 | VALD-01 | Phase 3 | Complete |
 | VALD-02 | Phase 4 | Pending |
 | VALD-03 | Phase 4 | Pending |
