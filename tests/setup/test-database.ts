@@ -365,6 +365,45 @@ export function setupTestDatabase(): void {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  // Create conductor_runs table (needed for conductor_specs FK)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS conductor_runs (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      goal_id TEXT,
+      status TEXT NOT NULL DEFAULT 'idle',
+      current_stage TEXT,
+      cycle INTEGER DEFAULT 1,
+      config_snapshot TEXT,
+      stages TEXT,
+      metrics TEXT,
+      process_log TEXT DEFAULT '[]',
+      should_abort INTEGER DEFAULT 0,
+      error_message TEXT,
+      queued_at TEXT,
+      started_at TEXT DEFAULT (datetime('now')),
+      completed_at TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+  `);
+
+  // Create conductor_specs table (spec writer metadata)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS conductor_specs (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL,
+      backlog_item_id TEXT NOT NULL,
+      sequence_number INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      slug TEXT NOT NULL,
+      affected_files TEXT NOT NULL,
+      complexity TEXT NOT NULL CHECK (complexity IN ('S', 'M', 'L')),
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'executing', 'completed', 'failed')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (run_id) REFERENCES conductor_runs(id)
+    );
+  `);
 }
 
 /**
@@ -375,6 +414,8 @@ export function cleanupTestDatabase(): void {
 
   // Delete data in reverse order of dependencies
   const tables = [
+    'conductor_specs',
+    'conductor_runs',
     'test_case_steps',
     'test_case_scenarios',
     'hall_of_fame_entries',
