@@ -36,7 +36,7 @@ Requirements for the Conductor rebuild. Each maps to roadmap phases.
 
 - [x] **SPEC-01**: Conductor generates one markdown requirement spec per approved backlog item
 - [x] **SPEC-02**: Each spec includes goal context, acceptance criteria, affected files, implementation approach, and constraints
-- [ ] **SPEC-03**: Spec generation queries Brain for code conventions and architecture patterns relevant to the spec domain
+- [x] **SPEC-03**: Spec generation queries Brain for code conventions and architecture patterns relevant to the spec domain
 
 ### Execution
 
@@ -123,7 +123,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TRIA-04 | Phase 5 | Pending |
 | SPEC-01 | Phase 2 | Complete |
 | SPEC-02 | Phase 2 | Complete |
-| SPEC-03 | Phase 2 | Pending |
+| SPEC-03 | Phase 2 | Complete |
 | EXEC-01 | Phase 3 | Pending |
 | EXEC-02 | Phase 3 | Pending |
 | EXEC-03 | Phase 3 | Pending |
