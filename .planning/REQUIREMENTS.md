@@ -108,44 +108,44 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FOUND-01 | — | Pending |
-| FOUND-02 | — | Pending |
-| FOUND-03 | — | Pending |
-| GOAL-01 | — | Pending |
-| GOAL-02 | — | Pending |
-| GOAL-03 | — | Pending |
-| BACK-01 | — | Pending |
-| BACK-02 | — | Pending |
-| BACK-03 | — | Pending |
-| TRIA-01 | — | Pending |
-| TRIA-02 | — | Pending |
-| TRIA-03 | — | Pending |
-| TRIA-04 | — | Pending |
-| SPEC-01 | — | Pending |
-| SPEC-02 | — | Pending |
-| SPEC-03 | — | Pending |
-| EXEC-01 | — | Pending |
-| EXEC-02 | — | Pending |
-| EXEC-03 | — | Pending |
-| EXEC-04 | — | Pending |
-| VALD-01 | — | Pending |
-| VALD-02 | — | Pending |
-| VALD-03 | — | Pending |
-| REPT-01 | — | Pending |
-| REPT-02 | — | Pending |
-| BRAIN-01 | — | Pending |
-| BRAIN-02 | — | Pending |
-| BRAIN-03 | — | Pending |
-| HEAL-01 | — | Pending |
-| HEAL-02 | — | Pending |
-| HEAL-03 | — | Pending |
-| HEAL-04 | — | Pending |
+| FOUND-01 | Phase 1 | Pending |
+| FOUND-02 | Phase 1 | Pending |
+| FOUND-03 | Phase 1 | Pending |
+| GOAL-01 | Phase 1 | Pending |
+| GOAL-02 | Phase 6 | Pending |
+| GOAL-03 | Phase 6 | Pending |
+| BACK-01 | Phase 6 | Pending |
+| BACK-02 | Phase 6 | Pending |
+| BACK-03 | Phase 6 | Pending |
+| TRIA-01 | Phase 5 | Pending |
+| TRIA-02 | Phase 5 | Pending |
+| TRIA-03 | Phase 5 | Pending |
+| TRIA-04 | Phase 5 | Pending |
+| SPEC-01 | Phase 2 | Pending |
+| SPEC-02 | Phase 2 | Pending |
+| SPEC-03 | Phase 2 | Pending |
+| EXEC-01 | Phase 3 | Pending |
+| EXEC-02 | Phase 3 | Pending |
+| EXEC-03 | Phase 3 | Pending |
+| EXEC-04 | Phase 3 | Pending |
+| VALD-01 | Phase 3 | Pending |
+| VALD-02 | Phase 4 | Pending |
+| VALD-03 | Phase 4 | Pending |
+| REPT-01 | Phase 4 | Pending |
+| REPT-02 | Phase 4 | Pending |
+| BRAIN-01 | Phase 6 | Pending |
+| BRAIN-02 | Phase 6 | Pending |
+| BRAIN-03 | Phase 5 | Pending |
+| HEAL-01 | Phase 7 | Pending |
+| HEAL-02 | Phase 7 | Pending |
+| HEAL-03 | Phase 7 | Pending |
+| HEAL-04 | Phase 7 | Pending |
 
 **Coverage:**
 - v1 requirements: 32 total
-- Mapped to phases: 0
-- Unmapped: 32
+- Mapped to phases: 32
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-14*
-*Last updated: 2026-03-14 after initial definition*
+*Last updated: 2026-03-14 after roadmap creation — all 32 requirements mapped*

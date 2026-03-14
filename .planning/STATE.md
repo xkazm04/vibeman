@@ -1,53 +1,37 @@
----
-gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: milestone
-status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-03-14T08:46:00Z"
-last_activity: 2026-03-14 — Completed plan 01-01 (template discovery pipeline hardening)
-progress:
-  total_phases: 3
-  completed_phases: 0
-  total_plans: 2
-  completed_plans: 1
-  percent: 5
----
-
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-02)
+See: .planning/PROJECT.md (updated 2026-03-14)
 
-**Core value:** Maximize developer productivity by automating routine development tasks through AI agents, with seamless mobile control for managing work queues remotely.
-**Current focus:** Phase 1 - Pipeline Hardening
+**Core value:** Conductor reliably and autonomously turns a high-level goal into committed, production-quality code — with minimal human intervention beyond goal definition and optional triage approval
+**Current focus:** Phase 1 — Foundation
 
 ## Current Position
 
-Phase: 1 of 3 (Pipeline Hardening)
-Plan: 1 of 2 in current phase
-Status: Executing
-Last activity: 2026-03-14 — Completed plan 01-01 (template discovery pipeline hardening)
+Phase: 1 of 7 (Foundation)
+Plan: 0 of ? in current phase
+Status: Ready to plan
+Last activity: 2026-03-14 — Roadmap created, 32 v1 requirements mapped across 7 phases
 
-Progress: [█░░░░░░░░░] 5%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 5min
-- Total execution time: 0.08 hours
+- Total plans completed: 0
+- Average duration: —
+- Total execution time: —
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-pipeline-hardening | 1 | 5min | 5min |
+| - | - | - | - |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (5min)
-- Trend: -
+- Last 5 plans: —
+- Trend: —
 
 *Updated after each plan completion*
 
@@ -58,11 +42,11 @@ Progress: [█░░░░░░░░░] 5%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Roadmap]: Correctness-first approach — fix pipeline bugs before adding generation features or redesigning UI
-- [Roadmap]: 3 phases derived from 3 requirement categories (PIPE, GEN, UI) with linear dependency chain
-- [01-01]: markStale over deleteStale for non-destructive template lifecycle management
-- [01-01]: Empty currentTemplateIds returns 0 (safety guard against total parse failure)
-- [01-01]: Stale marking skipped entirely when any parse errors occur (partial failure safety)
+- Rebuild Conductor from scratch (brownfield redesign, not greenfield)
+- Stage build order imposed by dependencies: types+DB → Spec Writer → Execute → Review → Triage → Goal Analyzer/Backlog → Self-Healing
+- Domain isolation by file-path intersection (not category labels)
+- Brain conflict check must run at triage before task commitment (not passive enrichment)
+- Patch lifecycle: max 2-3 active patches per error class, effectiveness tracking required
 
 ### Pending Todos
 
@@ -70,12 +54,12 @@ None yet.
 
 ### Blockers/Concerns
 
-- Output directory strategy needs confirmation: `.claude/commands/` vs `{res-project-path}/research-requests/`
-- Granularity enum values (quick/standard/deep) need verification against actual res template configs
-- Project designation mechanism (new DB column vs auto-detect) to be decided in Phase 2 planning
+- Phase 3: CLI Service completion callback contract unverified — confirm whether `cli-service.ts` supports event emission or only polling; fallback design needed if not
+- Phase 5: `getBehavioralContext()` return format may not support structured conflict detection — verify at Phase 5 planning start
+- Phase 6: Goal Analyzer prompt design is highest-variance stage — plan for iteration cycles
 
 ## Session Continuity
 
-Last session: 2026-03-14T08:46:00Z
-Stopped at: Completed 01-01-PLAN.md
-Resume file: .planning/phases/01-pipeline-hardening/01-01-SUMMARY.md
+Last session: 2026-03-14
+Stopped at: Roadmap created, STATE.md initialized — ready to plan Phase 1
+Resume file: None
