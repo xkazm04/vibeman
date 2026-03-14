@@ -136,10 +136,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BRAIN-01 | Phase 6 | Complete |
 | BRAIN-02 | Phase 6 | Complete |
 | BRAIN-03 | Phase 5 | Complete |
-| HEAL-01 | Phase 7 | Complete |
+| HEAL-01 | Phase 7, Phase 8 (gap fix) | Complete |
 | HEAL-02 | Phase 7 | Complete |
-| HEAL-03 | Phase 7 | Complete |
-| HEAL-04 | Phase 7 | Complete |
+| HEAL-03 | Phase 7, Phase 8 (gap fix) | Complete |
+| HEAL-04 | Phase 7, Phase 8 (gap fix) | Complete |
 
 **Coverage:**
 - v1 requirements: 32 total

@@ -127,10 +127,23 @@ Plans:
 - [ ] 07-02-PLAN.md — Patch lifecycle, classifier consolidation, and repository methods
 - [ ] 07-03-PLAN.md — Orchestrator wiring, API updates, and integration tests
 
+### Phase 8: Self-Healing Wiring Fixes
+**Goal**: Cross-phase integration gaps in the healing subsystem are closed — review-stage errors carry correct runId and orchestrator-created patches expire properly
+**Depends on**: Phase 7
+**Requirements**: HEAL-01, HEAL-03, HEAL-04
+**Gap Closure**: Closes INT-01, INT-02 from v1.0 audit
+**Success Criteria** (what must be TRUE):
+  1. Error classifications from review stage have correct pipelineRunId (not blank) so retry-count lookups match
+  2. Healing patches created by the orchestrator include expires_at so date-based pruning applies
+  3. No dead imports of classifyError in conductorOrchestrator.ts
+**Plans**: 1 plan
+Plans:
+- [ ] 08-01-PLAN.md — Fix orchestrator healing wiring (runId, savePatchToDb, dead import)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -141,3 +154,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 5. Triage | 3/3 | Complete   | 2026-03-14 |
 | 6. Goal Analyzer and Backlog | 2/3 | In Progress|  |
 | 7. Self-Healing | 3/3 | Complete   | 2026-03-14 |
+| 8. Self-Healing Wiring Fixes | 0/1 | Not started | - |
