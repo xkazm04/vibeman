@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-03-14T10:22:30Z"
-last_activity: 2026-03-14 — Plan 01-01 complete (types, schema, test stubs)
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-03-14T10:34:08Z"
+last_activity: 2026-03-14 — Plan 01-02 complete (conductor repository, DB-first orchestrator, goal constraints)
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
-  percent: 4
+  completed_plans: 2
+  percent: 7
 ---
 
 # Project State
@@ -26,27 +26,27 @@ See: .planning/PROJECT.md (updated 2026-03-14)
 ## Current Position
 
 Phase: 1 of 7 (Foundation)
-Plan: 1 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: Executing
-Last activity: 2026-03-14 — Plan 01-01 complete (types, schema, test stubs)
+Last activity: 2026-03-14 — Plan 01-02 complete (conductor repository, DB-first orchestrator, goal constraints)
 
-Progress: [▓░░░░░░░░░] 4%
+Progress: [▓░░░░░░░░░] 7%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 4min
-- Total execution time: 4min
+- Total plans completed: 2
+- Average duration: 5.5min
+- Total execution time: 11min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation | 1 | 4min | 4min |
+| 01-foundation | 2 | 11min | 5.5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (4min)
+- Last 5 plans: 01-01 (4min), 01-02 (7min)
 - Trend: baseline
 
 *Updated after each plan completion*
@@ -65,6 +65,9 @@ Recent decisions affecting current work:
 - Domain isolation by file-path intersection (not category labels)
 - Brain conflict check must run at triage before task commitment (not passive enrichment)
 - Patch lifecycle: max 2-3 active patches per error class, effectiveness tracking required
+- INSERT OR REPLACE for conductorRepository.createRun() to handle pre-existing rows
+- In-memory AbortController kept for signal propagation; all persistent state in DB
+- Dynamic column list in goal createGoal INSERT preserves DB defaults when fields omitted
 
 ### Pending Todos
 
@@ -78,6 +81,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T10:22:30Z
-Stopped at: Completed 01-01-PLAN.md
-Resume file: .planning/phases/01-foundation/01-01-SUMMARY.md
+Last session: 2026-03-14T10:34:08Z
+Stopped at: Completed 01-02-PLAN.md
+Resume file: .planning/phases/01-foundation/01-02-SUMMARY.md
