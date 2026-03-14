@@ -1,169 +1,171 @@
 # Pitfalls Research
 
-**Domain:** Template discovery and research integration for a Next.js development platform
+**Domain:** Autonomous development orchestration — brownfield rebuild of a multi-stage pipeline that drives LLM CLI sessions to produce committed code
 **Researched:** 2026-03-14
-**Confidence:** HIGH (based on direct codebase analysis of existing implementation)
+**Confidence:** HIGH — derived from direct inspection of the existing (failing) Conductor implementation plus corroborating external research on multi-agent LLM systems
+
+---
 
 ## Critical Pitfalls
 
-### Pitfall 1: ts-morph creates a new Project per file, leaking memory on repeated scans
+### Pitfall 1: globalThis as a Long-Running Process Host
 
 **What goes wrong:**
-The current `parseTemplateConfig()` in `src/lib/template-discovery/parser.ts` creates a new `ts-morph Project` instance for every single file (line 43). ts-morph's `Project` holds an in-memory TypeScript language service. On repeated scans (auto-scan triggers on project change, plus manual rescan), these accumulate since Node's GC cannot immediately reclaim the language service instances. With Next.js API routes running in a long-lived server process, this leads to growing memory consumption over time.
+The current Conductor stores active pipeline runs in `globalThis.conductorActiveRuns` so they survive Next.js HMR. When the server restarts, the Node process is replaced, `globalThis` is wiped, and any running pipeline loop dies silently. The SQLite row stays `status='running'` indefinitely. The orphan-recovery function exists but only marks runs `interrupted` — it cannot resume them. A pipeline that was 80% done is simply abandoned.
 
 **Why it happens:**
-The parser was built for "scan once" usage. The auto-scan on project change in the UI (TemplateDiscoveryPanel lines 267-272) means the parser runs more frequently than anticipated. Each invocation allocates a fresh compiler host.
+Next.js server-side code is not designed to host long-lived stateful processes. HMR destroys module scope; `globalThis` survives a single re-compile but not a process restart. Developers reach for `globalThis` as the path-of-least-resistance to survive HMR, not realising it is still mortal under a full restart.
 
 **How to avoid:**
-- Reuse a single `ts-morph Project` instance across all files in a scan batch. The `parseTemplateConfigs()` function exists but does not actually reuse the project -- fix it to create one Project, add all source files, then iterate.
-- Alternatively, skip ts-morph entirely for this use case. The parser already falls back to regex for extracting `templateId`, `templateName`, and `description` (lines 78-80). The AST is only used to find exports typed as `TemplateConfig`. A regex-based approach scanning for `export const ... : TemplateConfig` would be sufficient for the known 10-template corpus and avoids the ts-morph dependency entirely.
+Treat the orchestrator as a durable state machine persisted entirely in SQLite, not in memory. Every pipeline action must be a DB write before it executes (write-ahead pattern). On startup, the orchestrator reads DB state and resumes interrupted runs from their last checkpointed stage. In-memory context (AbortController, timers) is reconstructable from DB state — never the source of truth.
 
 **Warning signs:**
-- Next.js dev server memory usage climbing after multiple project switches
-- `heap out of memory` errors during development
-- Scan times increasing on repeated runs
+- Pipeline status stuck as `running` in the DB after the dev server restarts
+- `globalForConductor.conductorActiveRuns.size` is 0 but DB shows active runs
+- Users report pipelines "disappearing" without completing
 
-**Phase to address:**
-Phase 1 (Template Discovery) -- before auto-scan is enabled, decide whether to keep ts-morph or replace with regex. Do not ship auto-scan with per-file Project instantiation.
+**Phase to address:** Foundation phase — define the durable state machine schema and checkpoint protocol before any stage logic is written. This is the highest-leverage architectural decision.
 
 ---
 
-### Pitfall 2: Auto-scan triggers infinite re-render loops via useEffect dependency chains
+### Pitfall 2: Domain Isolation in Name Only
 
 **What goes wrong:**
-The `TemplateDiscoveryPanel` has two useEffects that interact: one calls `loadTemplates()` on `projectPath` change (line 263), another calls `handleScan()` on `projectPath` change (line 268). `handleScan` internally calls `loadTemplates` after completion. If `loadTemplates` or `handleScan` are recreated on each render (e.g., a dependency changes that triggers the callback identity to change), these effects can chain-fire causing repeated API calls or UI flicker.
+The current batch stage uses a "DAG by category" heuristic: tasks in the same category are serialised, different categories run in parallel. In practice, category labels (`ui`, `testing`, `refactor`) are LLM-generated from idea descriptions and frequently wrong or inconsistent. Two tasks categorised differently still modify the same files, causing one to overwrite the other's changes silently. No actual file-level conflict detection exists.
 
 **Why it happens:**
-The `useCallback` for `handleScan` depends on `[projectPath, loadTemplates]` and `loadTemplates` depends on `[projectPath]`. React 19 strict mode double-invokes effects. If the store-derived `projectPath` value is not referentially stable across renders, the dependency chain triggers repeatedly.
+Category-based isolation is easy to implement and sounds correct, but the category is semantic metadata, not a filesystem claim. The category has no binding relationship to which files will actually be touched.
 
 **How to avoid:**
-- Guard the auto-scan effect with a debounce (300ms) to prevent rapid-fire scanning when project selection is changing.
-- Use `useRef` to store the scan function instead of `useCallback` to break the dependency chain.
-- Consolidate into a single effect: load templates first, if none found or stale, then scan.
+Domain isolation must be based on what files a task will touch, not what label it was given. The requirement spec generation phase (Batch in the new architecture) should extract `affected_files` explicitly and store them as structured data. Before dispatching parallel tasks, the scheduler computes intersection: if two tasks declare overlapping files, they must be serialised regardless of category. This is a static analysis pass, not LLM inference at dispatch time.
 
 **Warning signs:**
-- Network tab showing repeated POST to `/api/template-discovery` on page load
-- "Scanning..." indicator flickering
-- Console showing multiple "Scanning project for templates..." messages
+- Parallel tasks both modifying the same component and the second run reverting the first's changes
+- TypeScript errors appearing in files that weren't in the failing task's scope
+- `git diff` shows changes to files not mentioned in a task's requirement spec
 
-**Phase to address:**
-Phase 1 (Template Discovery) -- fix before shipping auto-scan behavior.
+**Phase to address:** Execution architecture phase — define the file-claim registry and intersection check before implementing parallel dispatch.
 
 ---
 
-### Pitfall 3: config_json stores raw TypeScript source text, not actual JSON
+### Pitfall 3: Prompt Drift from Healing Patch Accumulation
 
 **What goes wrong:**
-The `config_json` column in `discovered_templates` stores the raw TypeScript initializer text from `varDecl.getInitializer().getText()`. This is TypeScript object literal syntax (with trailing commas, unquoted keys, template literals, spread operators, function references), not valid JSON. Any downstream code that calls `JSON.parse(template.config_json)` will fail. The `promptGenerator.ts` currently treats it as opaque text for interpolation, which works but means the rich structured data (searchAngles, findingTypes, perspectives) is inaccessible for UI display.
+The self-healing system appends instruction blocks to prompts each time an error class recurs. After three or four healing cycles, the execution prompt contains six or more injected sections, some of which contradict each other (e.g., "keep changes minimal" injected for a timeout error, and "read at least 10 files before implementing" injected for a missing-context error). The LLM context window fills with meta-instructions that crowd out actual task content. Healing patches never expire or get evaluated for effectiveness.
 
 **Why it happens:**
-The parser extracts the AST initializer text because converting a TS object literal with complex nested structures (arrays of objects, function references, enum values) to JSON is non-trivial. The column name `config_json` is misleading.
+Additive healing is easy to implement and each individual patch seems reasonable. The interaction effects between patches accumulate invisibly because the patch store has no eviction, no effectiveness tracking, and no conflict detection.
 
 **How to avoid:**
-- Rename the column concept to `config_source` or `config_raw` in the type definition to signal it is not parseable JSON.
-- For structured access, extract the specific fields needed (searchAngles count, perspectives list, depth guidance) during parsing and store them as separate columns or a validated JSON subset.
-- Do NOT attempt to `eval()` or `new Function()` the TypeScript source to get a runtime object -- this is a security and reliability hazard.
+Healing patches must be bounded: maximum 2-3 active patches per error class, with effectiveness tracked by comparing success rate before and after application. Patches that do not improve success rate within N subsequent runs should be automatically reverted. Patches for contradictory goals (reduce scope vs. increase exploration) must be mutually exclusive — activating one deactivates the other. The total healing context injected into any prompt should have a hard token cap.
 
 **Warning signs:**
-- `SyntaxError: Unexpected token` when trying to parse config_json
-- Template detail views showing raw TypeScript syntax to users
-- Variable interpolation producing broken output when config contains template literals
+- Healing sections in prompts exceed 500 tokens
+- Success rate does not improve after healing patches are applied
+- Multiple patches active that address opposite concerns
+- Execution time per task increasing across cycles (context bloat)
 
-**Phase to address:**
-Phase 1 (Template Discovery) -- decide the storage format before the DB schema is locked in. Either extract structured metadata during parsing or accept raw source and name accordingly.
+**Phase to address:** Self-healing phase — design the patch lifecycle model with expiry and effectiveness feedback before implementing any healing logic.
 
 ---
 
-### Pitfall 4: Path normalization inconsistencies between Windows and POSIX
+### Pitfall 4: Success Detection Based on CLI Exit Code Alone
 
 **What goes wrong:**
-The codebase has multiple places doing `path.replace(/\\/g, '/')` -- in the API route (line 69), in the scanner (lines 67, 81), in the repository query (TemplateDiscoveryPanel line 77), and in the glob patterns. But `source_project_path` is the key used for upsert matching and stale template deletion. If one code path normalizes and another does not, templates become orphaned (scan writes with normalized path, query uses unnormalized path, returns empty results).
+The current execute stage marks a task `success=true` when the CLI execution reaches `status='completed'`. A CLI session that successfully runs to completion without crashing is not the same as a session that correctly implemented the requirement. The LLM may have written "I cannot find the file" to stdout and exited cleanly, or may have partially implemented 30% of the requirement and stopped. The pipeline reports 100% success.
 
 **Why it happens:**
-Windows paths use backslashes. The project stores paths from the active project store which may use either format. Different layers normalize independently without a single canonical source.
+There is no post-execution validation step between "CLI finished" and "task succeeded." The distinction between process completion and requirement satisfaction is collapsed.
 
 **How to avoid:**
-- Create a single `normalizePath(p: string): string` utility used everywhere -- scanner, parser, repository, API route, and UI code.
-- Normalize in the repository layer (lowest level) so all storage and queries use the same format regardless of what callers pass.
-- Add a check in the upsert that normalizes `source_project_path` before comparison.
+After each CLI session completes, run a lightweight validation pass: (1) TypeScript build check (`tsc --noEmit`) scoped to changed files; (2) require the agent to have called `log_implementation` MCP tool as a proof-of-completion signal; (3) check that at least one file in the declared `affected_files` was actually modified. Fail the task if any of these checks fail. This does not require running the full test suite — it just closes the gap between "process finished" and "requirement satisfied."
 
 **Warning signs:**
-- Templates discovered but not showing in the UI list
-- Re-scan always showing "created" instead of "unchanged" for existing templates
-- `deleteStale` removing all templates on every scan
+- 100% task success rates but no visible changes in the project
+- Requirement files not cleaned up after reported-successful runs
+- Brain module receives implementation logs for tasks that have no matching file changes
 
-**Phase to address:**
-Phase 1 (Template Discovery) -- this is a data integrity issue. Fix the normalization before any templates are stored in production.
+**Phase to address:** Execution phase — validation protocol must be specified before the execute stage is built, not retrofitted.
 
 ---
 
-### Pitfall 5: Stale template cleanup deletes too much on partial scan failure
+### Pitfall 5: Polling-Based Status as the Primary Coordination Mechanism
 
 **What goes wrong:**
-After scanning, `deleteStale()` in the API route (line 125) removes templates whose IDs are not in the current scan results. If the scan partially fails (e.g., 3 of 10 files parse successfully due to a ts-morph error), it deletes the 7 "missing" templates that were actually just unparseable.
+The execute stage polls `getExecution(executionId)` every 5 seconds across all parallel tasks simultaneously. With 4 concurrent tasks, each polling at 5s intervals, this generates a constant stream of in-process calls plus DB reads. More critically, the poll-to-detect-completion path means the orchestrator is always behind by up to 5 seconds and cannot react immediately to abort signals during the sleep interval. At scale (long-running tasks, many cycles), the polling loop is the bottleneck.
 
 **Why it happens:**
-The stale cleanup runs unconditionally after scanning, regardless of whether all files were successfully parsed.
+Polling is the simplest way to check status when the execution subsystem does not emit events. The CLI service (`cli-service.ts`) is a fire-and-forget model; the caller has no subscription mechanism, only a getter.
 
 **How to avoid:**
-- Only run stale cleanup if the scan completed without errors (`errors.length === 0`).
-- Or: only delete stale templates if the number of successfully parsed templates is above a threshold (e.g., > 50% of previously stored templates for that project path).
-- Log a warning when stale cleanup would delete more templates than were found in the current scan.
+The new architecture should treat CLI execution as an event source. The CLI service should support a completion callback or an EventEmitter interface. The orchestrator subscribes rather than polls. If the CLI service cannot be changed, use a short-circuit mechanism: after the task completion callback fires, immediately proceed rather than waiting for the next poll tick. Maintain a polling fallback with progressive backoff (5s → 10s → 30s) for stuck detection only, not as the primary notification path.
 
 **Warning signs:**
-- Template count dropping after a scan that had parse errors
-- Templates disappearing and reappearing between scans
-- Error messages in the scan result alongside a reduced template count
+- CPU usage spikes on the Node process during long pipeline runs due to constant polling
+- Abort signals taking up to 5 seconds to take effect
+- "Execution not found" errors that are timing-sensitive (execution cleaned up between polls)
 
-**Phase to address:**
-Phase 1 (Template Discovery) -- add the safety check before stale cleanup is operational.
+**Phase to address:** Execution architecture phase — define the event contract with the CLI service before building the stage.
 
 ---
 
-### Pitfall 6: Scanning wrong projects (not the res project)
+### Pitfall 6: Brain Integration as a Lookup, Not a Gate
 
 **What goes wrong:**
-The scanner looks for `src/templates/*/*.ts` in any project. If the active project in Vibeman is not the res project (e.g., it is Vibeman itself, or some other project with a `src/templates/` folder), the scanner will find files, attempt to parse them for `TemplateConfig` exports, and either fail silently or store garbage data. The auto-scan on project change makes this especially likely -- every project switch triggers a scan.
+When Brain is integrated as an optional enrichment source ("query Brain for context, proceed regardless"), its value is limited to cosmetic prompt decoration. The pipeline generates the same tasks it would have generated without Brain — Brain just adds a paragraph of retrieved patterns to the prompt. More critically, the pipeline may generate tasks that directly contradict existing Brain insights (e.g., generating a task to add Redux when Brain has recorded "avoid Redux — use Zustand" as a learned pattern).
 
 **Why it happens:**
-The UI scans whatever project is active in the header selector. There is no validation that the project actually contains res-style TemplateConfig exports.
+Optional enrichment is safe and easy to implement. Making Brain a gate (blocking a task if it conflicts with a pattern) requires resolving what happens when Brain says "no" — a harder design question developers defer.
 
 **How to avoid:**
-- Add a "template project" flag to the project record, so only designated projects trigger auto-scan.
-- Or: store a per-project "last scan found templates" flag and only auto-scan projects that previously yielded results.
-- Show a clear "No template configs found in this project" message (not an error) for non-template projects.
-- Current implementation handles empty results gracefully, but the unnecessary file system access and network requests are wasteful.
+Brain must be a filter before backlog items are committed to execution, not an annotation after the fact. At the triage stage, each backlog item should be checked against Brain patterns using a conflict-detection query: "Does any learned pattern contraindicate this approach?" Items that conflict with high-confidence Brain patterns should be flagged for human review at the triage checkpoint rather than automatically executed. Brain should also contribute positive guidance: if a pattern strongly suggests a specific approach, that approach should be encoded in the requirement spec, not just hinted at in the prompt.
 
 **Warning signs:**
-- "0 templates discovered" toast on every project switch for non-res projects
-- Unnecessary file system access on project change
-- User confusion about why scanning their React app finds nothing
+- Pipeline executing tasks that a developer has previously reversed and taught Brain about
+- Brain insights growing but never influencing which tasks run
+- Triage checkpoint approvals not surfacing Brain conflicts to the user
 
-**Phase to address:**
-Phase 2 (Research Variable UI) -- add project designation or manual-scan-only mode.
+**Phase to address:** Triage and spec generation phases — the Brain contract must be defined before these phases are implemented.
 
 ---
 
-### Pitfall 7: Generated files land in wrong location or create naming collisions
+### Pitfall 7: Requirement Specs as Flat Text Without Structured Acceptance Criteria
 
 **What goes wrong:**
-The generate route writes to `{targetProjectPath}/.claude/commands/{templateId}-{slug}.md` via `createRequirement` from `claudeCodeManager`. The slug function takes only the first 5 words and strips non-alphanumeric characters. Similar queries produce near-duplicate filenames. Also, the `.claude/commands/` path is hardcoded and may not match the target project's conventions.
+The current batch stage builds requirement files as freeform markdown with a description block. The LLM agent receives this and decides for itself what "done" means. Different agents interpret the same description differently, leading to partial implementations that the success-detection mechanism (CLI exit code) marks as complete. There is no machine-readable acceptance criteria that the validation pass can check.
 
 **Why it happens:**
-The `createRequirement` function was built for a specific Claude Code workflow. The slug algorithm does not include any uniqueness guarantee (no timestamp, no hash).
+Freeform markdown is fast to generate and easy to read. Structured acceptance criteria require a schema decision upfront. Developers defer this, intending to add structure "later" — but later never comes because the pipeline already works well enough in demos.
 
 **How to avoid:**
-- Include a timestamp or short hash in the filename: `{templateId}-{slug}-{timestamp}.md`.
-- Make the output directory configurable per template project, stored alongside the `source_project_path`.
-- Show the exact file path in the UI before generation, not just after.
+Every requirement spec must contain a machine-parseable `## Acceptance Criteria` section with checklist items that the agent is required to tick off using a structured tool call (`report_completion` with criteria IDs). The validation pass checks that all criteria are marked complete before declaring the task successful. This turns subjective "done" into verifiable "done." Criteria should be generated by the spec-writing stage (likely an LLM call), not hand-authored.
 
 **Warning signs:**
-- Overwrite confirmations appearing unexpectedly for different queries
-- Multiple similar-named files accumulating in `.claude/commands/`
-- User cannot find generated files
+- Agents implementing different subsets of the same requirement description across runs
+- No consistent `## Acceptance Criteria` section in generated requirement files
+- Human review at post-execute checkpoint required for most tasks (symptom of unclear specs)
 
-**Phase to address:**
-Phase 2 (Research Variable UI / EXEC requirements) -- when building the generation flow.
+**Phase to address:** Spec generation phase — acceptance criteria schema must be locked before requirement file generation is implemented.
+
+---
+
+### Pitfall 8: Goal-to-Backlog Without Codebase Grounding
+
+**What goes wrong:**
+The Scout stage generates ideas using scan-type prompts but does not anchor ideas to the specific goal the user set. A user sets a goal of "improve test coverage for the auth module" but Scout generates ideas across all scan types — UI improvements, performance optimisations, refactoring suggestions — none directly related to the goal. The triage pass then filters by impact/effort scores rather than goal relevance, so goal-aligned items may be deprioritised in favour of high-scoring but off-topic ideas.
+
+**Why it happens:**
+The Scout stage was designed as a general codebase scanner, not a goal-directed scanner. The goal is stored as user intent but not passed into the scanning prompts as a constraint.
+
+**How to avoid:**
+The goal must be the first filter, not a downstream filter. Scan prompts must include the active goal as an explicit constraint: "Generate ideas that contribute to: [goal]. Discard ideas that do not relate to this goal." The triage pass should have a goal-relevance score as a mandatory criterion alongside impact/effort/risk — an idea with high impact but zero goal relevance should not be promoted. If the goal is specific enough, some scan types can be skipped entirely (e.g., a UI-focused goal should not trigger `perf_optimizer` scans).
+
+**Warning signs:**
+- Triage checkpoint showing a diverse mix of unrelated improvements when the goal was narrow
+- Pipeline running for multiple cycles without making progress on the stated goal
+- User rejecting most triage suggestions because they are off-topic
+
+**Phase to address:** Scout and triage phases — goal propagation must be a first-class parameter before these stages are built.
 
 ---
 
@@ -171,97 +173,120 @@ Phase 2 (Research Variable UI / EXEC requirements) -- when building the generati
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Storing raw TS source as `config_json` | Avoids complex TS-to-JSON conversion | Cannot programmatically access template structure; misleading column name | MVP only -- extract structured fields in Phase 2 |
-| Per-file ts-morph Project instantiation | Simple implementation | Memory leaks on repeated scans | Never in production with auto-scan enabled |
-| Regex fallback for field extraction after AST parsing | Gets the job done for known templates | Brittle if template format changes (multiline strings, computed properties) | Acceptable if template format is stable and owned |
-| `confirm()` for overwrite dialog | Quick implementation | Blocks main thread; not styled consistently with app theme | MVP only -- replace with modal in Phase 4 |
-| Hardcoded `.claude/commands/` output path | Works for res project | Breaks for projects with different conventions | Only if res is the sole target permanently |
-| Duplicate content hash computation | Parser computes hash, repository recomputes | Wasted CPU cycles; potential inconsistency if algorithms differ | Acceptable at current scale, fix when optimizing |
+| Using category labels for domain isolation | Simple, no schema changes needed | Silent file conflicts in parallel runs, hard to debug | Never in the new architecture |
+| Additive healing patches without expiry | Easy to accumulate "learnings" | Prompt bloat, contradictory instructions, degraded output quality | Never — patches need a lifecycle from day one |
+| CLI exit code as success signal | Simple boolean check | False positives on incomplete implementations | Never — minimum validation must include file change verification |
+| Polling as primary completion notification | No CLI service changes required | Slow reaction times, wasted CPU, race conditions on cleanup | Only as fallback stuck-detection with long intervals |
+| Freeform requirement markdown without schema | Fast to prototype | Untestable acceptance criteria, inconsistent agent behaviour | Acceptable only in initial scaffolding, must be replaced before first real run |
+| Self-healing as prompt injection only | Easy to implement, auditable | Config and routing decisions cannot be healed by prompts alone | Prompts only heal prompt-class errors; separate healing strategies needed for config and routing |
+
+---
 
 ## Integration Gotchas
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| ts-morph in Next.js API routes | Importing ts-morph in client-side code (it requires Node.js fs module) | Use `import 'server-only'` guard (already done correctly); verify with bundle analysis |
-| Active project store | Assuming project path is always available and valid | Handle null/undefined project, validate path exists before scan, show clear empty state |
-| Cross-project file writes | Writing to foreign project without checking write permissions | Verify write access before generation; handle EACCES with user-friendly message |
-| SQLite content hash | Computing hash differently in two places (parser uses file content, repository uses config_json) | Compute once in parser, pass through; repository should trust the provided hash |
-| glob on Windows | Using backslash patterns with glob library | Always use forward slashes in glob patterns; normalize before globbing |
+| Brain module | Querying Brain after task is already scheduled | Query Brain before committing tasks to the execution queue; use results to filter or block |
+| Ideas module | Treating all Ideas equally regardless of source | Tag which ideas were generated by Conductor (vs. user-created) to enable targeted cleanup on failure |
+| TaskRunner / CLI sessions | Sharing a session between pipeline tasks and manual user tasks | Conductor must claim sessions exclusively for its duration or use a separate session pool |
+| SQLite migrations | Adding non-nullable columns to `conductor_runs` in new migrations | All new columns must be nullable or have a DEFAULT — existing rows in production cannot be patched retroactively |
+| MCP tools in agent prompts | Listing MCP tools the agent doesn't have access to in the session | Verify MCP tool availability per provider before referencing them in requirement specs |
+| `getBaseUrl()` in server-side code | Hardcoding `http://localhost:3000` as fallback | Use `NEXT_PUBLIC_APP_URL` consistently; local loopback calls from server to server work but fail on port-conflict scenarios |
+
+---
 
 ## Performance Traps
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Auto-scan on every project switch | Multiple simultaneous scans, wasted API calls | Debounce 300ms; cancel in-flight scan on project change; skip non-template projects | With 5+ projects being switched rapidly |
-| ts-morph parsing many files | Scan takes 10+ seconds, UI hangs on "scanning" | Add progress reporting; cache results by content hash; batch parse with single Project | At 50+ template files |
-| Storing full config source in SQLite | DB size grows, query performance degrades | Acceptable for 10-50 templates; for 200+, store only metadata | At 200+ templates |
-| No request cancellation | Old scan result overwrites newer scan if responses arrive out of order | Use AbortController; compare projectPath in response handler to current state | When switching projects during active scan |
+| Per-task DB read-modify-write for stage state | DB contention when multiple tasks report simultaneously | Batch stage updates per cycle, not per task event | At 4 concurrent tasks with 5s poll intervals — already at the limit |
+| JSON blob columns for stages_state and process_log | Full serialise/deserialise on every update, unbounded growth | Use a separate `conductor_stage_events` table with append-only rows | process_log exceeds ~500 entries for multi-cycle runs |
+| Loading all ideas then filtering by ID | Full table scan on `ideas` for large projects | Query by ID list directly: `WHERE id IN (...)` | Projects with 1000+ ideas in the DB |
+| Healing analysis calling LLM per error type | Cascading LLM calls during review stage block pipeline progress | Batch all error types into single healing analysis call | 3+ distinct error types in a single cycle |
+| Enriching ideas with context on every batch run | N+1 context lookups per accepted idea | Cache project contexts at the start of a run, reuse throughout | Projects with 20+ contexts |
+
+---
 
 ## Security Mistakes
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Accepting arbitrary project paths from client | Path traversal: user could scan `/etc/` or `C:\Windows\System32` | Validate path is under known project roots; reject paths with `..` segments |
-| Writing generated files to user-specified paths | Arbitrary file write via crafted `targetProjectPath` | Restrict write targets to known project directories registered in the app |
-| Executing foreign TypeScript via import/require | Arbitrary code execution in Vibeman's Node.js process | Never import/require foreign project files; use static analysis only (current approach is correct) |
+| Passing raw user goal text directly into LLM prompts without sanitisation | Prompt injection: a goal containing instruction text can redirect agent behaviour | Sanitise goal text — strip markdown formatting, limit length, escape special sequences before embedding in prompts |
+| Requirement files including unsanitised idea descriptions from the DB | If idea descriptions contain injected instructions from the Ideas module, they propagate into agent prompts | Treat idea content as user data — sanitise before embedding in requirement specs |
+| No input validation on the conductor run API (`/api/conductor/run`) | Malformed `config` object can crash the orchestrator or trigger unbounded resource consumption | Validate all config fields with explicit type guards before starting a pipeline run |
+| Healing patches applied globally across project runs | A patch intended to fix a specific run's errors silently modifies all future runs for the project | Scope patches to a run by default; require explicit opt-in to promote a patch to project-wide |
+
+---
 
 ## UX Pitfalls
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Auto-scan noise for non-template projects | Confusing "0 templates" on every project switch | Only auto-scan designated template projects; manual scan for others |
-| `confirm()` for overwrite | Jarring, unstyled, no file preview | In-app modal showing existing file content vs new content |
-| CLI command shown only after generation | Must generate before knowing the command | Show command template alongside the template selector, before generation |
-| No staleness indicator | User does not know if templates changed since last scan | Show "last scanned" timestamp; highlight changed templates on rescan |
-| State lost on navigation | User fills query, navigates away, loses work | Persist last-used template and project in Zustand with persist middleware |
-| Error message says "run migrations" | Non-technical users confused | Auto-detect missing tables at startup; show one-click setup action |
+| Checkpoint presented as a blocking modal | User cannot continue other work while pipeline waits at triage; they minimise the app and forget | Make checkpoints non-blocking: pipeline pauses and sends a notification; user reviews at their own pace via a persistent triage queue |
+| Process log showing raw stage events without grouping | Log becomes a wall of text after 2+ cycles; users stop reading it | Group events by cycle and stage with collapsible sections; surface only failures and completions at the top level |
+| Goal shown as a label but not as a progress metric | User cannot tell if the pipeline is actually making progress toward their goal | Surface a goal-progress indicator (% of goal-relevant ideas accepted and completed) alongside cycle/task counts |
+| Triage checkpoint requiring binary accept/reject per idea | User cannot adjust an idea's scope before accepting it | Allow inline editing of idea title and scope note at triage; agent receives the edited version in its requirement spec |
+| Pipeline "completed" status when all tasks failed | User sees green "completed" badge but nothing was implemented | Distinguish `completed-success`, `completed-partial`, and `completed-failed` statuses with different visual treatments |
+
+---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Template parsing:** Verify templates with multiline descriptions parse correctly -- regex `description:\s*['"]([^'"]+)['"]` fails on template literals or concatenated strings
-- [ ] **Path normalization:** Verify the same project scanned from different path formats (backslash vs forward slash, trailing slash vs not) produces the same DB records, not duplicates
-- [ ] **Stale template cleanup:** Verify that renaming a template in the source project causes the old record to be deleted and a new one created, not orphaned
-- [ ] **Content hash stability:** Verify CRLF vs LF line endings on Windows do not cause false "updated" results on every scan
-- [ ] **Category extraction:** Verify nested folder structures (`templates/research/v2/file.ts`) produce sensible categories
-- [ ] **Generation history FK:** Verify history records survive template deletion -- FK constraint was fixed in migration 069 but verify no cascade delete
-- [ ] **Partial scan failure:** Verify that a parse error on one file does not prevent processing of other files
-- [ ] **Bundle size:** Verify ts-morph is not included in the client-side JavaScript bundle -- check with `next build` and inspect chunk sizes
+- [ ] **Domain isolation:** Verify that `affected_files` in two parallel requirement specs have zero intersection — not just that their categories differ
+- [ ] **Brain integration:** Verify that Brain conflict-check results appear in the triage checkpoint UI, not just in server logs
+- [ ] **Healing patches:** Verify that a patch applied in cycle 1 is not still active in cycle 5 if it produced no improvement
+- [ ] **Success detection:** Verify that a task where the LLM wrote "I cannot complete this" and exited cleanly is marked as `failed`, not `success`
+- [ ] **Goal relevance:** Verify that triage output contains only ideas directly relevant to the active goal when the goal is narrow
+- [ ] **Orphan recovery:** Verify that a run marked `running` in the DB after process restart is recovered to `interrupted` on next startup, not left stuck
+- [ ] **Session exclusivity:** Verify that Conductor-owned CLI sessions are not visible or usable in the manual TaskRunner UI during a pipeline run
+- [ ] **Spec acceptance criteria:** Verify that every generated requirement file contains a `## Acceptance Criteria` section with at least one checkable item
+
+---
 
 ## Recovery Strategies
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Duplicate templates from path normalization | LOW | Delete all templates for affected source path; fix normalization; rescan |
-| Memory leak from ts-morph | LOW | Restart Next.js dev server; implement Project reuse or switch to regex |
-| Corrupt config_json data | LOW | Delete affected templates from DB; rescan source project; no data loss since source is read-only |
-| Generated files in wrong location | LOW | Manually move files; update output path configuration |
-| Auto-scan infinite loop | LOW | Remove auto-scan useEffect; add debounce; re-enable |
-| Stale cleanup deleted valid templates | LOW | Rescan project; templates will be re-created from source files |
+| Orphaned pipeline run | LOW | Mark DB row `interrupted`; user restarts from last completed stage using checkpoint data |
+| File conflict from parallel tasks | HIGH | `git diff` to identify conflicting files; manual merge or reset to pre-run commit; re-run with serialised execution |
+| Prompt bloat from patch accumulation | MEDIUM | Export active patches, prune ones applied more than N cycles ago or with zero effectiveness, reset healing state |
+| False-success tasks with no file changes | MEDIUM | Re-run failed tasks individually with validation enabled; mark affected ideas back to `pending` status |
+| Goal-irrelevant backlog filling triage | LOW | Clear generated ideas from current cycle in DB; re-run Scout with stronger goal constraint in prompt |
+| Brain conflict ignored (wrong task executed) | HIGH | Revert commits from the offending task; add explicit pattern to Brain before re-running |
+
+---
 
 ## Pitfall-to-Phase Mapping
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| ts-morph memory leak | Phase 1: Template Discovery | Run scan 10 times in succession, check memory does not grow |
-| useEffect re-render loop | Phase 1: Template Discovery | Switch projects 5 times rapidly, verify only 5 scan requests (not 20+) in network tab |
-| config_json is not JSON | Phase 1: Template Discovery | Attempt `JSON.parse()` on stored config_json; if it fails, rename column/type |
-| Path normalization | Phase 1: Template Discovery | Scan same project with backslash and forward-slash paths, verify single set of DB records |
-| Stale cleanup over-deletion | Phase 1: Template Discovery | Simulate parse failure on 1 file, verify other templates are not deleted |
-| Wrong project scanning | Phase 2: Research Variable UI | Switch to non-template project, verify graceful "no templates" state without network requests |
-| File output path conflicts | Phase 2: Research Variable UI | Generate 3 requirements for same template with similar queries, verify unique filenames |
-| No error boundary | Phase 4: UI Redesign | Kill DB connection, navigate to Integrations, verify fallback UI appears (not blank page) |
+| globalThis as process host | Foundation — durable state machine | Process restart during active run → run resumes from correct stage |
+| Domain isolation in name only | Execution architecture — file-claim registry | Two parallel tasks with overlapping files → serialised automatically |
+| Self-healing prompt drift | Self-healing design — patch lifecycle model | After 5 cycles, no more than 2 active patches per error class |
+| False success on CLI exit | Execution — validation protocol | LLM writing "cannot complete" → task marked failed |
+| Polling as primary coordination | Execution architecture — CLI event contract | Abort signal triggers in <1s, not after next poll tick |
+| Brain as lookup not gate | Triage phase — Brain conflict contract | Task contradicting a Brain pattern → flagged at checkpoint, not silently executed |
+| Freeform specs without criteria | Spec generation phase — requirement schema | Every generated spec contains parseable acceptance criteria |
+| Goal-blind Scout | Scout phase — goal propagation | Narrow goal → triage shows only goal-relevant ideas |
+
+---
 
 ## Sources
 
-- Direct codebase analysis: `src/lib/template-discovery/parser.ts` (ts-morph per-file instantiation, regex fallback)
-- Direct codebase analysis: `src/lib/template-discovery/scanner.ts` (glob patterns, path normalization)
-- Direct codebase analysis: `src/app/features/Integrations/sub_TemplateDiscovery/TemplateDiscoveryPanel.tsx` (useEffect chains, auto-scan)
-- Direct codebase analysis: `src/app/api/template-discovery/route.ts` (stale cleanup, path normalization)
-- Direct codebase analysis: `src/app/api/template-discovery/generate/route.ts` (slug generation, hardcoded output path)
-- Direct codebase analysis: `src/app/db/repositories/discovered-template.repository.ts` (upsert logic, duplicate hash computation)
-- Project constraints: `.planning/PROJECT.md` (out-of-scope items, TemplateConfig structure)
-- Vibeman migration system: 53 existing migrations, `_migrations_applied` tracking pattern
+- Direct inspection: `src/app/features/Manager/lib/conductor/conductorOrchestrator.ts` — globalThis pattern, orphan recovery, polling loop
+- Direct inspection: `src/app/features/Manager/lib/conductor/stages/executeStage.ts` — DAG scheduler, polling mechanism, success detection
+- Direct inspection: `src/app/features/Manager/lib/conductor/stages/batchStage.ts` — category-based domain isolation heuristic
+- Direct inspection: `src/app/features/Manager/lib/conductor/selfHealing/healingAnalyzer.ts` — patch accumulation, no expiry mechanism
+- Direct inspection: `.planning/codebase/CONCERNS.md` — documented known bugs: globalThis race condition, orphaned runs, polling overhead, test coverage gaps
+- [Why Multi-Agent LLM Systems Fail — Augment Code](https://www.augmentcode.com/guides/why-multi-agent-llm-systems-fail-and-how-to-fix-them) — resource ownership, coordination bottlenecks
+- [Why Do Multi-Agent LLM Systems Fail? — arXiv 2503.13657](https://arxiv.org/abs/2503.13657) — 1600+ annotated failure traces, three failure categories
+- [The 80% Problem in Agentic Coding — Addy Osmani](https://addyo.substack.com/p/the-80-problem-in-agentic-coding) — near-correct outputs, debugging cost
+- [Self-Improving Coding Agents — Addy Osmani](https://addyosmani.com/blog/self-improving-agents/) — patch drift, fresh-start periodicity
+- [AI Agent State Checkpointing — Fast.io](https://fast.io/resources/ai-agent-state-checkpointing/) — checkpoint anatomy, 60% waste reduction from checkpointing
+- [Building Reliable Background Tasks in Next.js — DBOS](https://www.dbos.dev/blog/durable-nextjs-background-tasks) — Next.js background job reliability, write-ahead patterns
+- [Where Autonomous Coding Agents Fail — Medium/Vivek Babu](https://medium.com/@vivek.babu/where-autonomous-coding-agents-fail-a-forensic-audit-of-real-world-prs-59d66e33efe9) — 67.3% AI PR rejection rate, false completion signals
 
 ---
-*Pitfalls research for: Template Discovery & Research Integration (Vibeman v2.0)*
+
+*Pitfalls research for: Vibeman Conductor pipeline rebuild*
 *Researched: 2026-03-14*
