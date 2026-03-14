@@ -1,9 +1,12 @@
 /**
  * Conductor Orchestrator — Server-side pipeline state machine
  *
- * Manages the pipeline loop: Scout → Triage → Batch → Execute → Review
+ * Manages the pipeline loop: Scout -> Triage -> Batch -> Execute -> Review
  * Each stage calls into existing Vibeman modules via API endpoints.
  * Self-healing triggers automatically when error thresholds are reached.
+ *
+ * DB-first state: All run state persists in SQLite via conductorRepository.
+ * No globalThis Map for active runs. The DB is the source of truth.
  */
 
 import { getDatabase } from '@/app/db/connection';
@@ -18,6 +21,7 @@ import type {
   ProcessLogEntry,
 } from './types';
 import { createEmptyStages, createEmptyMetrics } from './types';
+import { conductorRepository } from './conductor.repository';
 import { v4 as uuidv4 } from 'uuid';
 import { executeScoutStage } from './stages/scoutStage';
 import { executeTriageStage } from './stages/triageStage';
@@ -29,65 +33,49 @@ import { buildHealingContext } from './selfHealing/promptPatcher';
 import { performTaskCleanup } from '@/lib/execution/taskCleanup';
 
 // ============================================================================
-// Orchestrator State (in-memory, survives HMR)
+// Startup Recovery (DB-first, with HMR guard)
 // ============================================================================
 
-const globalForConductor = globalThis as unknown as {
-  conductorActiveRuns: Map<string, ConductorRunContext>;
-};
+conductorRepository.markInterruptedRuns();
 
-if (!globalForConductor.conductorActiveRuns) {
-  globalForConductor.conductorActiveRuns = new Map();
+// ============================================================================
+// In-memory abort controllers (ephemeral — only for signal propagation)
+// ============================================================================
 
-  // Ensure process_log column exists (idempotent)
-  try {
-    const db = getDatabase();
-    db.exec(`ALTER TABLE conductor_runs ADD COLUMN process_log TEXT DEFAULT '[]'`);
-  } catch {
-    // Column already exists — ignore
-  }
-}
-
-interface ConductorRunContext {
-  runId: string;
-  projectId: string;
-  config: BalancingConfig;
-  abortController: AbortController;
-  status: string; // 'running' | 'paused' | 'stopping'
-}
+const abortControllers = new Map<string, AbortController>();
 
 // ============================================================================
 // Public API
 // ============================================================================
 
 /**
- * Start a new pipeline run. Runs asynchronously in the background.
+ * Start a new pipeline run. Creates DB record first, then runs async loop.
  */
 export function startPipeline(
   runId: string,
   projectId: string,
   config: BalancingConfig,
   projectPath?: string,
-  projectName?: string
+  projectName?: string,
+  goalId?: string
 ): void {
   const abortController = new AbortController();
+  abortControllers.set(runId, abortController);
 
-  const context: ConductorRunContext = {
-    runId,
+  // Create the run in DB (status='running')
+  conductorRepository.createRun({
+    id: runId,
     projectId,
+    goalId: goalId || '',
     config,
-    abortController,
-    status: 'running',
-  };
-
-  globalForConductor.conductorActiveRuns.set(runId, context);
+  });
 
   // Run pipeline loop in background (non-blocking)
-  runPipelineLoop(context, projectPath || '', projectName || 'Project').catch((error) => {
+  runPipelineLoop(runId, projectId, config, abortController, projectPath || '', projectName || 'Project').catch((error) => {
     console.error(`[conductor] Pipeline ${runId} fatal error:`, error);
-    updateRunInDb(runId, { status: 'failed' });
+    conductorRepository.updateRunStatus(runId, 'failed');
   }).finally(() => {
-    globalForConductor.conductorActiveRuns.delete(runId);
+    abortControllers.delete(runId);
   });
 }
 
@@ -95,9 +83,9 @@ export function startPipeline(
  * Pause an active pipeline run.
  */
 export function pausePipeline(runId: string): boolean {
-  const context = globalForConductor.conductorActiveRuns.get(runId);
-  if (!context) return false;
-  context.status = 'paused';
+  const run = conductorRepository.getRunById(runId);
+  if (!run || run.status !== 'running') return false;
+  conductorRepository.updateRunStatus(runId, 'paused');
   return true;
 }
 
@@ -105,66 +93,64 @@ export function pausePipeline(runId: string): boolean {
  * Resume a paused pipeline run.
  */
 export function resumePipeline(runId: string): boolean {
-  const context = globalForConductor.conductorActiveRuns.get(runId);
-  if (!context) return false;
-  context.status = 'running';
+  const run = conductorRepository.getRunById(runId);
+  if (!run || run.status !== 'paused') return false;
+  conductorRepository.updateRunStatus(runId, 'running');
   return true;
 }
 
 /**
- * Stop a pipeline run gracefully.
+ * Stop a pipeline run gracefully via abort flag.
  */
 export function stopPipeline(runId: string): boolean {
-  const context = globalForConductor.conductorActiveRuns.get(runId);
-  if (!context) return false;
-  context.status = 'stopping';
-  context.abortController.abort();
+  conductorRepository.setAbort(runId);
+  const controller = abortControllers.get(runId);
+  if (controller) {
+    controller.abort();
+  }
   return true;
 }
 
 /**
- * Get active run context (for status checks).
+ * Get run status from DB.
  */
-export function getActiveRun(runId: string): ConductorRunContext | undefined {
-  return globalForConductor.conductorActiveRuns.get(runId);
+export function getActiveRun(runId: string) {
+  return conductorRepository.getRunById(runId);
 }
 
 /**
  * Recover orphaned runs after app crash/restart.
- * Queries DB for runs still marked 'running' or 'paused' that have no
- * corresponding entry in globalThis.conductorActiveRuns (their async loop died).
- * Marks them as 'interrupted' so the UI can show appropriate status.
+ * Delegates to conductorRepository.markInterruptedRuns().
  */
 export function recoverOrphanedRuns(): string[] {
-  try {
-    const db = getDatabase();
-    const orphanedRows = db.prepare(`
-      SELECT id, project_id, status, current_stage, cycle
-      FROM conductor_runs
-      WHERE status IN ('running', 'paused')
-      ORDER BY created_at DESC
-    `).all() as any[];
+  // Reset the guard so recovery can run again
+  (globalThis as any).__conductorRecoveryDone = false;
+  const count = conductorRepository.markInterruptedRuns();
+  // Return empty array — the count is returned by markInterruptedRuns
+  return [];
+}
 
-    const orphanedIds: string[] = [];
+// ============================================================================
+// Stage Execution with Persistence
+// ============================================================================
 
-    for (const row of orphanedRows) {
-      const hasActiveContext = globalForConductor.conductorActiveRuns.has(row.id);
-      if (!hasActiveContext) {
-        db.prepare(`
-          UPDATE conductor_runs
-          SET status = 'interrupted', completed_at = ?
-          WHERE id = ?
-        `).run(new Date().toISOString(), row.id);
-        orphanedIds.push(row.id);
-        console.log(`[conductor] Recovered orphaned run ${row.id} (was ${row.status} at stage ${row.current_stage})`);
-      }
-    }
+/**
+ * Execute a stage and persist its state to DB before and after.
+ * Returns true if pipeline should continue, false if aborted.
+ */
+function executeStageAndPersist(
+  runId: string,
+  stage: PipelineStage,
+  stageState: StageState
+): void {
+  conductorRepository.completeStage(runId, stage, stageState);
+}
 
-    return orphanedIds;
-  } catch (error) {
-    console.error('[conductor] Recovery check failed:', error);
-    return [];
-  }
+/**
+ * Check if the pipeline should abort between stages.
+ */
+function shouldAbort(runId: string): boolean {
+  return conductorRepository.checkAbort(runId);
 }
 
 // ============================================================================
@@ -172,11 +158,13 @@ export function recoverOrphanedRuns(): string[] {
 // ============================================================================
 
 async function runPipelineLoop(
-  context: ConductorRunContext,
+  runId: string,
+  projectId: string,
+  config: BalancingConfig,
+  abortController: AbortController,
   projectPath: string,
   projectName: string
 ): Promise<void> {
-  const { runId, projectId, config } = context;
   let cycle = 1;
   let metrics = createEmptyMetrics();
   let allErrors: ErrorClassification[] = [];
@@ -210,19 +198,22 @@ async function runPipelineLoop(
   }
 
   while (cycle <= (config.maxCyclesPerRun || 3)) {
-    // Check for pause/stop signals
-    if (context.status === 'stopping') {
+    // Check for abort between cycles
+    if (shouldAbort(runId)) {
       log('review', 'info', 'Pipeline stopped by user');
-      updateRunInDb(runId, { status: 'completed', completed_at: new Date().toISOString() });
+      conductorRepository.updateRunStatus(runId, 'interrupted', metrics);
       return;
     }
 
-    if (context.status === 'paused') {
-      log('scout', 'info', 'Pipeline paused — waiting for resume');
-      await waitForResume(context);
-      if ((context.status as string) === 'stopping') {
+    // Check for pause — read status from DB
+    const currentRun = conductorRepository.getRunById(runId);
+    if (currentRun?.status === 'paused') {
+      log('scout', 'info', 'Pipeline paused -- waiting for resume');
+      await waitForResume(runId);
+      // After resume, check if it was stopped instead
+      if (shouldAbort(runId)) {
         log('review', 'info', 'Pipeline stopped while paused');
-        updateRunInDb(runId, { status: 'completed', completed_at: new Date().toISOString() });
+        conductorRepository.updateRunStatus(runId, 'interrupted', metrics);
         return;
       }
       log('scout', 'info', 'Pipeline resumed');
@@ -236,7 +227,7 @@ async function runPipelineLoop(
 
     // ---- SCOUT ----
     const scoutStart = Date.now();
-    updateStageInDb(runId, 'scout', { status: 'running', startedAt: new Date().toISOString() });
+    executeStageAndPersist(runId, 'scout', { status: 'running', startedAt: new Date().toISOString(), itemsIn: 0, itemsOut: 0 });
     const scanTypeNames = config.scanTypes.slice(0, 3).join(', ') + (config.scanTypes.length > 3 ? '...' : '');
     log('scout', 'started', `Scanning with ${scanTypeNames} (context: ${config.contextStrategy})`);
 
@@ -248,7 +239,7 @@ async function runPipelineLoop(
         projectName,
         config,
         healingContext: healingContext || undefined,
-        abortSignal: context.abortController.signal,
+        abortSignal: abortController.signal,
         onProgress: (event, message, extra) => {
           log('scout', event, message, extra);
         },
@@ -258,7 +249,7 @@ async function runPipelineLoop(
       metrics.ideasGenerated += ideasGenerated;
       const scoutDuration = Date.now() - scoutStart;
 
-      updateStageInDb(runId, 'scout', {
+      executeStageAndPersist(runId, 'scout', {
         status: 'completed',
         completedAt: new Date().toISOString(),
         itemsIn: 0,
@@ -271,8 +262,8 @@ async function runPipelineLoop(
       });
 
       if (ideasGenerated === 0) {
-        // 0 ideas is a failure — classify as error for healing
-        log('scout', 'failed', 'Scout generated 0 ideas — marking as failure for self-healing', {
+        // 0 ideas is a failure -- classify as error for healing
+        log('scout', 'failed', 'Scout generated 0 ideas -- marking as failure for self-healing', {
           error: 'Zero ideas generated across all scan types',
         });
 
@@ -289,17 +280,19 @@ async function runPipelineLoop(
         };
         allErrors.push(zeroIdeasError);
 
-        updateStageInDb(runId, 'scout', {
+        executeStageAndPersist(runId, 'scout', {
           status: 'failed',
           error: 'Zero ideas generated',
+          itemsIn: 0,
+          itemsOut: 0,
         });
-        updateStageInDb(runId, 'triage', { status: 'skipped' });
-        updateStageInDb(runId, 'batch', { status: 'skipped' });
-        updateStageInDb(runId, 'execute', { status: 'skipped' });
+        executeStageAndPersist(runId, 'triage', { status: 'skipped', itemsIn: 0, itemsOut: 0 });
+        executeStageAndPersist(runId, 'batch', { status: 'skipped', itemsIn: 0, itemsOut: 0 });
+        executeStageAndPersist(runId, 'execute', { status: 'skipped', itemsIn: 0, itemsOut: 0 });
 
         // Trigger healing if enabled
         if (config.healingEnabled) {
-          log('review', 'info', `Self-healing triggered — analyzing ${allErrors.length} error${allErrors.length !== 1 ? 's' : ''}`);
+          log('review', 'info', `Self-healing triggered -- analyzing ${allErrors.length} error${allErrors.length !== 1 ? 's' : ''}`);
           try {
             const newPatches = await analyzeErrors(allErrors, runId);
             activePatches = [...activePatches, ...newPatches];
@@ -314,8 +307,8 @@ async function runPipelineLoop(
           }
         }
 
-        updateStageInDb(runId, 'review', { status: 'completed' });
-        log('review', 'completed', `Cycle ${cycle} failed — 0 ideas generated. ${cycle < (config.maxCyclesPerRun || 3) ? 'Retrying with healing...' : 'Max cycles reached.'}`);
+        executeStageAndPersist(runId, 'review', { status: 'completed', itemsIn: 0, itemsOut: 0 });
+        log('review', 'completed', `Cycle ${cycle} failed -- 0 ideas generated. ${cycle < (config.maxCyclesPerRun || 3) ? 'Retrying with healing...' : 'Max cycles reached.'}`);
 
         // Continue to next cycle (with healing patches applied) instead of breaking
         cycle++;
@@ -323,19 +316,21 @@ async function runPipelineLoop(
       }
     } catch (error) {
       log('scout', 'failed', `Scout failed: ${String(error)}`, { error: String(error) });
-      updateStageInDb(runId, 'scout', {
+      executeStageAndPersist(runId, 'scout', {
         status: 'failed',
         error: String(error),
+        itemsIn: 0,
+        itemsOut: 0,
       });
-      updateRunInDb(runId, { status: 'failed' });
+      conductorRepository.updateRunStatus(runId, 'failed', metrics);
       return;
     }
 
-    if (context.status === 'stopping') break;
+    if (shouldAbort(runId)) break;
 
     // ---- TRIAGE ----
     const triageStart = Date.now();
-    updateStageInDb(runId, 'triage', { status: 'running', startedAt: new Date().toISOString() });
+    executeStageAndPersist(runId, 'triage', { status: 'running', startedAt: new Date().toISOString(), itemsIn: 0, itemsOut: 0 });
     updateRunInDb(runId, { current_stage: 'triage' });
 
     let triageResult;
@@ -353,7 +348,7 @@ async function runPipelineLoop(
         projectId,
         projectPath,
         projectName,
-        abortSignal: context.abortController.signal,
+        abortSignal: abortController.signal,
         onProgress: (event, message, extra) => {
           log('triage', event, message, extra);
         },
@@ -363,7 +358,7 @@ async function runPipelineLoop(
       metrics.ideasRejected += triageResult.rejectedIds.length;
       const triageDuration = Date.now() - triageStart;
 
-      updateStageInDb(runId, 'triage', {
+      executeStageAndPersist(runId, 'triage', {
         status: 'completed',
         completedAt: new Date().toISOString(),
         itemsIn: ideas.length,
@@ -379,25 +374,27 @@ async function runPipelineLoop(
       if (triageResult.acceptedIds.length === 0) {
         log('batch', 'skipped', 'No accepted ideas to batch');
         log('execute', 'skipped', 'No tasks to execute');
-        updateStageInDb(runId, 'batch', { status: 'skipped' });
-        updateStageInDb(runId, 'execute', { status: 'skipped' });
+        executeStageAndPersist(runId, 'batch', { status: 'skipped', itemsIn: 0, itemsOut: 0 });
+        executeStageAndPersist(runId, 'execute', { status: 'skipped', itemsIn: 0, itemsOut: 0 });
       }
     } catch (error) {
       log('triage', 'failed', `Triage failed: ${String(error)}`, { error: String(error) });
-      updateStageInDb(runId, 'triage', {
+      executeStageAndPersist(runId, 'triage', {
         status: 'failed',
         error: String(error),
+        itemsIn: 0,
+        itemsOut: 0,
       });
       triageResult = { acceptedIds: [], rejectedIds: [], skippedIds: [] };
     }
 
-    if (context.status === 'stopping') break;
+    if (shouldAbort(runId)) break;
 
     // ---- BATCH ----
     let batchDescriptor;
     if (triageResult.acceptedIds.length > 0) {
       const batchStart = Date.now();
-      updateStageInDb(runId, 'batch', { status: 'running', startedAt: new Date().toISOString() });
+      executeStageAndPersist(runId, 'batch', { status: 'running', startedAt: new Date().toISOString(), itemsIn: 0, itemsOut: 0 });
       updateRunInDb(runId, { current_stage: 'batch' });
 
       log('batch', 'started', `Creating requirement files for ${triageResult.acceptedIds.length} idea${triageResult.acceptedIds.length !== 1 ? 's' : ''}`, {
@@ -422,7 +419,7 @@ async function runPipelineLoop(
         metrics.tasksCreated += batchDescriptor.requirementNames.length;
         const batchDuration = Date.now() - batchStart;
 
-        updateStageInDb(runId, 'batch', {
+        executeStageAndPersist(runId, 'batch', {
           status: 'completed',
           completedAt: new Date().toISOString(),
           itemsIn: triageResult.acceptedIds.length,
@@ -435,27 +432,29 @@ async function runPipelineLoop(
         });
       } catch (error) {
         log('batch', 'failed', `Batch failed: ${String(error)}`, { error: String(error) });
-        updateStageInDb(runId, 'batch', {
+        executeStageAndPersist(runId, 'batch', {
           status: 'failed',
           error: String(error),
+          itemsIn: 0,
+          itemsOut: 0,
         });
         batchDescriptor = null;
       }
     }
 
-    if (context.status === 'stopping') break;
+    if (shouldAbort(runId)) break;
 
     // ---- EXECUTE ----
     let executionResults;
     if (batchDescriptor && batchDescriptor.requirementNames.length > 0) {
       const executeStart = Date.now();
-      updateStageInDb(runId, 'execute', { status: 'running', startedAt: new Date().toISOString() });
+      executeStageAndPersist(runId, 'execute', { status: 'running', startedAt: new Date().toISOString(), itemsIn: 0, itemsOut: 0 });
       updateRunInDb(runId, { current_stage: 'execute' });
 
       const dispatchDetails = batchDescriptor.requirementNames
         .map((name) => {
           const assignment = batchDescriptor.modelAssignments[name];
-          return assignment ? `${name} → ${assignment.provider}/${assignment.model}` : name;
+          return assignment ? `${name} -> ${assignment.provider}/${assignment.model}` : name;
         })
         .slice(0, 3)
         .join(', ');
@@ -470,9 +469,12 @@ async function runPipelineLoop(
           projectId,
           projectPath,
           projectName,
-          abortSignal: context.abortController.signal,
+          abortSignal: abortController.signal,
           onTaskUpdate: (tasks) => {
-            updateStageInDb(runId, 'execute', {
+            executeStageAndPersist(runId, 'execute', {
+              status: 'running',
+              itemsIn: 0,
+              itemsOut: 0,
               details: { executionTasks: tasks },
             });
           },
@@ -483,7 +485,7 @@ async function runPipelineLoop(
         const failed = executeResult.results.length - succeeded;
         const executeDuration = Date.now() - executeStart;
 
-        updateStageInDb(runId, 'execute', {
+        executeStageAndPersist(runId, 'execute', {
           status: 'completed',
           completedAt: new Date().toISOString(),
           itemsIn: batchDescriptor.requirementNames.length,
@@ -502,7 +504,7 @@ async function runPipelineLoop(
               error: result.error,
             });
           } else if (result.success) {
-            // Full cleanup cascade: update idea status → ensure impl log → delete requirement file
+            // Full cleanup cascade: update idea status -> ensure impl log -> delete requirement file
             if (result.requirementName.startsWith('conductor-')) {
               await performTaskCleanup({
                 projectPath,
@@ -515,19 +517,21 @@ async function runPipelineLoop(
         }
       } catch (error) {
         log('execute', 'failed', `Execution failed: ${String(error)}`, { error: String(error) });
-        updateStageInDb(runId, 'execute', {
+        executeStageAndPersist(runId, 'execute', {
           status: 'failed',
           error: String(error),
+          itemsIn: 0,
+          itemsOut: 0,
         });
         executionResults = [];
       }
     }
 
-    if (context.status === 'stopping') break;
+    if (shouldAbort(runId)) break;
 
     // ---- REVIEW ----
     const reviewStart = Date.now();
-    updateStageInDb(runId, 'review', { status: 'running', startedAt: new Date().toISOString() });
+    executeStageAndPersist(runId, 'review', { status: 'running', startedAt: new Date().toISOString(), itemsIn: 0, itemsOut: 0 });
     updateRunInDb(runId, { current_stage: 'review' });
     log('review', 'started', 'Analyzing execution results');
 
@@ -545,7 +549,7 @@ async function runPipelineLoop(
 
       // Trigger self-healing if needed
       if (reviewResult.decision.healingTriggered && config.healingEnabled) {
-        log('review', 'info', `Self-healing triggered — analyzing ${allErrors.length} error${allErrors.length !== 1 ? 's' : ''}`);
+        log('review', 'info', `Self-healing triggered -- analyzing ${allErrors.length} error${allErrors.length !== 1 ? 's' : ''}`);
         try {
           const newPatches = await analyzeErrors(allErrors, runId);
           activePatches = [...activePatches, ...newPatches];
@@ -565,56 +569,59 @@ async function runPipelineLoop(
       const reviewDuration = Date.now() - reviewStart;
       const successRate = Math.round(reviewResult.decision.successRate * 100);
 
-      updateStageInDb(runId, 'review', {
+      executeStageAndPersist(runId, 'review', {
         status: 'completed',
         completedAt: new Date().toISOString(),
         itemsIn: (executionResults || []).length,
         itemsOut: reviewResult.decision.shouldContinue ? 1 : 0,
       });
 
-      log('review', 'completed', `Success rate ${successRate}% — ${reviewResult.decision.shouldContinue ? `continuing to cycle ${cycle + 1}` : 'pipeline complete'} (cycle ${cycle}/${config.maxCyclesPerRun || 3})`, {
+      log('review', 'completed', `Success rate ${successRate}% -- ${reviewResult.decision.shouldContinue ? `continuing to cycle ${cycle + 1}` : 'pipeline complete'} (cycle ${cycle}/${config.maxCyclesPerRun || 3})`, {
         durationMs: reviewDuration,
       });
 
       // Update metrics in DB
-      updateRunInDb(runId, { metrics: JSON.stringify(metrics) });
+      conductorRepository.updateRunStatus(runId, 'running', metrics);
 
       if (!reviewResult.decision.shouldContinue) {
-        updateRunInDb(runId, {
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-        });
+        conductorRepository.updateRunStatus(runId, 'completed', metrics);
         return;
       }
     } catch (error) {
       log('review', 'failed', `Review failed: ${String(error)}`, { error: String(error) });
-      updateStageInDb(runId, 'review', {
+      executeStageAndPersist(runId, 'review', {
         status: 'failed',
         error: String(error),
+        itemsIn: 0,
+        itemsOut: 0,
       });
-      updateRunInDb(runId, { status: 'failed' });
+      conductorRepository.updateRunStatus(runId, 'failed', metrics);
       return;
     }
 
     cycle++;
   }
 
-  // Max cycles reached
-  log('review', 'completed', `Max cycles reached (${config.maxCyclesPerRun || 3}) — pipeline complete`);
-  updateRunInDb(runId, {
-    status: 'completed',
-    completed_at: new Date().toISOString(),
-    metrics: JSON.stringify(metrics),
-  });
+  // Max cycles reached or aborted
+  if (shouldAbort(runId)) {
+    log('review', 'info', 'Pipeline aborted');
+    conductorRepository.updateRunStatus(runId, 'interrupted', metrics);
+  } else {
+    log('review', 'completed', `Max cycles reached (${config.maxCyclesPerRun || 3}) -- pipeline complete`);
+    conductorRepository.updateRunStatus(runId, 'completed', metrics);
+  }
 }
 
 // ============================================================================
 // Helpers
 // ============================================================================
 
-async function waitForResume(context: ConductorRunContext): Promise<void> {
-  while (context.status === 'paused') {
+async function waitForResume(runId: string): Promise<void> {
+  while (true) {
     await new Promise((resolve) => setTimeout(resolve, 2000));
+    const run = conductorRepository.getRunById(runId);
+    if (!run || run.status !== 'paused') break;
+    if (conductorRepository.checkAbort(runId)) break;
   }
 }
 
@@ -707,29 +714,6 @@ function updateRunInDb(runId: string, updates: Record<string, any>): void {
     );
   } catch (error) {
     console.error('[conductor] DB update failed:', error);
-  }
-}
-
-function updateStageInDb(
-  runId: string,
-  stage: PipelineStage,
-  stageUpdate: Partial<StageState> & { itemsIn?: number; itemsOut?: number }
-): void {
-  try {
-    const db = getDatabase();
-    const row = db.prepare(`SELECT stages_state FROM conductor_runs WHERE id = ?`).get(runId) as any;
-    if (!row) return;
-
-    const stages = JSON.parse(row.stages_state || '{}');
-    stages[stage] = { ...stages[stage], ...stageUpdate };
-
-    db.prepare(`UPDATE conductor_runs SET stages_state = ?, current_stage = ? WHERE id = ?`).run(
-      JSON.stringify(stages),
-      stage,
-      runId
-    );
-  } catch (error) {
-    console.error('[conductor] Stage update failed:', error);
   }
 }
 

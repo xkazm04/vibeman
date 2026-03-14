@@ -25,6 +25,7 @@ function createConductorTables(db: Database.Database) {
     CREATE TABLE IF NOT EXISTS conductor_runs (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL,
+      goal_id TEXT,
       status TEXT NOT NULL DEFAULT 'idle',
       current_stage TEXT,
       cycle INTEGER DEFAULT 1,
@@ -32,6 +33,9 @@ function createConductorTables(db: Database.Database) {
       stages_state TEXT,
       metrics TEXT,
       process_log TEXT DEFAULT '[]',
+      should_abort INTEGER DEFAULT 0,
+      error_message TEXT,
+      queued_at TEXT,
       started_at TEXT,
       completed_at TEXT,
       created_at TEXT DEFAULT (datetime('now'))

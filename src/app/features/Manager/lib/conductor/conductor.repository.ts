@@ -125,7 +125,7 @@ export const conductorRepository = {
     const configSnapshot = JSON.stringify(params.config);
 
     db.prepare(`
-      INSERT INTO conductor_runs
+      INSERT OR REPLACE INTO conductor_runs
         (id, project_id, goal_id, status, current_stage, cycle, config_snapshot, stages_state, metrics, started_at, created_at)
       VALUES (?, ?, ?, 'running', 'scout', 1, ?, ?, ?, ?, ?)
     `).run(
