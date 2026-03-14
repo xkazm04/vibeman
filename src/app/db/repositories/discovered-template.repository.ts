@@ -109,7 +109,15 @@ export const discoveredTemplateRepository = {
       const categoryChanged = existing.category !== template.category;
 
       if (!contentChanged && !categoryChanged) {
-        // Truly unchanged
+        // Content unchanged, but reset status to active if it was stale/error
+        if (existing.status !== 'active' || existing.parse_error) {
+          const resetStmt = db.prepare(`
+            UPDATE discovered_templates
+            SET status = 'active', parse_error = NULL, updated_at = ?
+            WHERE id = ?
+          `);
+          resetStmt.run(now, existing.id);
+        }
         return { template: existing, action: 'unchanged' };
       }
 
@@ -122,6 +130,8 @@ export const discoveredTemplateRepository = {
             category = ?,
             config_json = ?,
             content_hash = ?,
+            status = 'active',
+            parse_error = NULL,
             updated_at = ?
         WHERE id = ?
       `);
@@ -147,9 +157,9 @@ export const discoveredTemplateRepository = {
       INSERT INTO discovered_templates (
         id, source_project_path, file_path, template_id,
         template_name, description, category, config_json, content_hash,
-        source, discovered_at, updated_at
+        source, discovered_at, updated_at, status, parse_error
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NULL)
     `);
 
     insertStmt.run(
@@ -208,6 +218,69 @@ export const discoveredTemplateRepository = {
   }),
 
   /**
+   * Mark stale templates not in current template IDs list
+   * Sets status to 'stale' instead of deleting, preserving history.
+   * Safety guard: returns 0 if currentTemplateIds is empty (prevents mass marking on total parse failure).
+   */
+  markStale: (sourcePath: string, currentTemplateIds: string[]): number => withTableCheck('template discovery', () => {
+    const db = getDatabase();
+
+    if (currentTemplateIds.length === 0) {
+      // Safety guard: do NOT mark all as stale on total parse failure
+      return 0;
+    }
+
+    const now = getCurrentTimestamp();
+    const placeholders = currentTemplateIds.map(() => '?').join(', ');
+    const stmt = db.prepare(`
+      UPDATE discovered_templates
+      SET status = 'stale',
+          updated_at = ?
+      WHERE source_project_path = ?
+        AND template_id NOT IN (${placeholders})
+        AND status != 'stale'
+    `);
+
+    const result = stmt.run(now, sourcePath, ...currentTemplateIds);
+    return result.changes;
+  }),
+
+  /**
+   * Mark a specific template as having a parse error
+   */
+  markError: (sourcePath: string, templateId: string, errorMessage: string): void => withTableCheck('template discovery', () => {
+    const db = getDatabase();
+    const now = getCurrentTimestamp();
+    const stmt = db.prepare(`
+      UPDATE discovered_templates
+      SET status = 'error',
+          parse_error = ?,
+          updated_at = ?
+      WHERE source_project_path = ? AND template_id = ?
+    `);
+    stmt.run(errorMessage, now, sourcePath, templateId);
+  }),
+
+  /**
+   * Clear error state on a specific template, resetting to active
+   */
+  clearError: (sourcePath: string, templateId: string): void => withTableCheck('template discovery', () => {
+    const db = getDatabase();
+    const now = getCurrentTimestamp();
+    const stmt = db.prepare(`
+      UPDATE discovered_templates
+      SET status = 'active',
+          parse_error = NULL,
+          updated_at = ?
+      WHERE source_project_path = ? AND template_id = ?
+    `);
+    stmt.run(now, sourcePath, templateId);
+  }),
+
+  /**
+   * @deprecated Use markStale() instead. deleteStale destructively removes templates;
+   * markStale preserves them with status='stale' for recovery.
+   *
    * Delete stale templates not in current template IDs list
    * Useful after re-scanning a project to remove templates that no longer exist
    */

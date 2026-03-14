@@ -623,6 +623,8 @@ export interface DbDiscoveredTemplate {
   source: TemplateSource; // 'scanned' for auto-discovered, 'manual' for user-created
   discovered_at: string;
   updated_at: string;
+  status: 'active' | 'stale' | 'error'; // Template lifecycle state
+  parse_error: string | null; // Error message when status is 'error'
 }
 
 // Generation History types (for template discovery feature)
