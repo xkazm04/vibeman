@@ -33,9 +33,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Pipeline run history is queryable: user can retrieve past runs with stage logs, duration, and status
 **Plans**: 3 plans
 Plans:
-- [ ] 01-01-PLAN.md — Types, DB migration, and Wave 0 test stubs
-- [ ] 01-02-PLAN.md — Conductor repository, goal evolution, orchestrator rewrite
-- [ ] 01-03-PLAN.md — API route wiring and human verification
+- [x] 01-01-PLAN.md — Types, DB migration, and Wave 0 test stubs
+- [x] 01-02-PLAN.md — Conductor repository, goal evolution, orchestrator rewrite
+- [x] 01-03-PLAN.md — API route wiring and human verification
 
 ### Phase 2: Spec Writer
 **Goal**: Approved backlog items become structured markdown specs with machine-readable acceptance criteria and explicit file claims
@@ -47,9 +47,9 @@ Plans:
   3. Brain code conventions are visibly injected into the spec template — spec content reflects actual patterns from the Brain module
 **Plans**: 3 plans
 Plans:
-- [ ] 01-01-PLAN.md — Types, DB migration, and Wave 0 test stubs
-- [ ] 01-02-PLAN.md — Conductor repository, goal evolution, orchestrator rewrite
-- [ ] 01-03-PLAN.md — API route wiring and human verification
+- [ ] 02-01-PLAN.md — Spec writer types, DB migration, and specRepository
+- [ ] 02-02-PLAN.md — Spec template, file discovery, Brain integration, and stage function
+- [ ] 02-03-PLAN.md — Tests and orchestrator wiring
 
 ### Phase 3: Execute Stage
 **Goal**: Specs are dispatched to CLI sessions with true file-level domain isolation and success is only declared when the implementation is verified
@@ -63,9 +63,9 @@ Plans:
   5. Configurable pre-execute and post-review checkpoint toggles are respected — pipeline pauses when enabled
 **Plans**: 3 plans
 Plans:
-- [ ] 01-01-PLAN.md — Types, DB migration, and Wave 0 test stubs
-- [ ] 01-02-PLAN.md — Conductor repository, goal evolution, orchestrator rewrite
-- [ ] 01-03-PLAN.md — API route wiring and human verification
+- [ ] 03-01-PLAN.md — [to be planned]
+- [ ] 03-02-PLAN.md — [to be planned]
+- [ ] 03-03-PLAN.md — [to be planned]
 
 ### Phase 4: Review Stage
 **Goal**: Every completed pipeline run produces an LLM code review, a Brain signal write, and an execution report; successful runs can commit
@@ -78,9 +78,9 @@ Plans:
   4. On successful completion, the report and all changed files are committed to git (configurable, default off)
 **Plans**: 3 plans
 Plans:
-- [ ] 01-01-PLAN.md — Types, DB migration, and Wave 0 test stubs
-- [ ] 01-02-PLAN.md — Conductor repository, goal evolution, orchestrator rewrite
-- [ ] 01-03-PLAN.md — API route wiring and human verification
+- [ ] 04-01-PLAN.md — [to be planned]
+- [ ] 04-02-PLAN.md — [to be planned]
+- [ ] 04-03-PLAN.md — [to be planned]
 
 ### Phase 5: Triage
 **Goal**: Users review the generated backlog at a checkpoint that Brain has already filtered for pattern violations, with a configurable bypass and timeout
@@ -93,9 +93,9 @@ Plans:
   4. An abandoned triage checkpoint times out after a configurable maximum duration and interrupts the pipeline cleanly rather than hanging
 **Plans**: 3 plans
 Plans:
-- [ ] 01-01-PLAN.md — Types, DB migration, and Wave 0 test stubs
-- [ ] 01-02-PLAN.md — Conductor repository, goal evolution, orchestrator rewrite
-- [ ] 01-03-PLAN.md — API route wiring and human verification
+- [ ] 05-01-PLAN.md — [to be planned]
+- [ ] 05-02-PLAN.md — [to be planned]
+- [ ] 05-03-PLAN.md — [to be planned]
 
 ### Phase 6: Goal Analyzer and Backlog
 **Goal**: A user-defined goal is transformed into a prioritized, domain-tagged backlog through codebase analysis constrained by the goal and enriched by Brain patterns
@@ -108,9 +108,9 @@ Plans:
   4. Brain patterns are consulted before architecture decisions during analysis — the goal analyzer uses behavioral context as explicit constraints, not optional decoration
 **Plans**: 3 plans
 Plans:
-- [ ] 01-01-PLAN.md — Types, DB migration, and Wave 0 test stubs
-- [ ] 01-02-PLAN.md — Conductor repository, goal evolution, orchestrator rewrite
-- [ ] 01-03-PLAN.md — API route wiring and human verification
+- [ ] 06-01-PLAN.md — [to be planned]
+- [ ] 06-02-PLAN.md — [to be planned]
+- [ ] 06-03-PLAN.md — [to be planned]
 
 ### Phase 7: Self-Healing
 **Goal**: Execution failures are classified, corrected with bounded prompt patches, and stale or ineffective patches are automatically pruned
@@ -123,19 +123,19 @@ Plans:
   4. Each patch has an expiry timestamp and a success-rate metric — both are visible in the healing history UI
 **Plans**: 3 plans
 Plans:
-- [ ] 01-01-PLAN.md — Types, DB migration, and Wave 0 test stubs
-- [ ] 01-02-PLAN.md — Conductor repository, goal evolution, orchestrator rewrite
-- [ ] 01-03-PLAN.md — API route wiring and human verification
+- [ ] 07-01-PLAN.md — [to be planned]
+- [ ] 07-02-PLAN.md — [to be planned]
+- [ ] 07-03-PLAN.md — [to be planned]
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-03-14 |
-| 2. Spec Writer | 0/? | Not started | - |
+| 2. Spec Writer | 0/3 | Planned | - |
 | 3. Execute Stage | 0/? | Not started | - |
 | 4. Review Stage | 0/? | Not started | - |
 | 5. Triage | 0/? | Not started | - |
