@@ -53,8 +53,6 @@ nul
 /database/*.db-shm
 /database/*.db-wal
 
-# GSD planning docs (local only)
-/.planning/
 
 # Design test output
 .claude-design-tests/
