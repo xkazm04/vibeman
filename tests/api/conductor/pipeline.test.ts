@@ -519,6 +519,13 @@ describe('Conductor Pipeline Stages', () => {
         currentCycle: 1,
         config: DEFAULT_BALANCING_CONFIG,
         projectId: 'proj-001',
+        projectPath: '/test/project',
+        specs: [],
+        buildResult: { passed: true, durationMs: 0 },
+        goalTitle: 'Test Goal',
+        goalDescription: '',
+        autoCommit: false,
+        reviewModel: null,
       });
 
       // Should continue since cycle 1 < maxCycles 3 and success rate > 20%
@@ -546,6 +553,13 @@ describe('Conductor Pipeline Stages', () => {
         currentCycle: 3, // at max (default maxCyclesPerRun = 3)
         config: DEFAULT_BALANCING_CONFIG,
         projectId: 'proj-001',
+        projectPath: '/test/project',
+        specs: [],
+        buildResult: { passed: true, durationMs: 0 },
+        goalTitle: 'Test Goal',
+        goalDescription: '',
+        autoCommit: false,
+        reviewModel: null,
       });
 
       expect(result.decision.shouldContinue).toBe(false);
