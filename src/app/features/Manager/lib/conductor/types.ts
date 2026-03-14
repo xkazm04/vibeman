@@ -239,6 +239,8 @@ export interface GoalInput {
     postReview: boolean;
   };
   useBrain: boolean;
+  autoCommit: boolean;
+  reviewModel: string | null;
 }
 
 // ============================================================================
