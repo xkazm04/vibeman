@@ -9,13 +9,13 @@ Requirements for the Conductor rebuild. Each maps to roadmap phases.
 
 ### Foundation
 
-- [ ] **FOUND-01**: Conductor pipeline state persists in SQLite, not globalThis — surviving process restarts and HMR
-- [ ] **FOUND-02**: Each pipeline stage is a pure async function receiving context and returning typed output
-- [ ] **FOUND-03**: Pipeline run records (status, metrics, stage logs, duration) persist in SQLite with queryable history
+- [x] **FOUND-01**: Conductor pipeline state persists in SQLite, not globalThis — surviving process restarts and HMR
+- [x] **FOUND-02**: Each pipeline stage is a pure async function receiving context and returning typed output
+- [x] **FOUND-03**: Pipeline run records (status, metrics, stage logs, duration) persist in SQLite with queryable history
 
 ### Goal Analysis
 
-- [ ] **GOAL-01**: User can define a structured goal with goal statement and optional constraint fields
+- [x] **GOAL-01**: User can define a structured goal with goal statement and optional constraint fields
 - [ ] **GOAL-02**: Conductor analyzes codebase relative to stated goal using ts-morph structural analysis + LLM interpretation
 - [ ] **GOAL-03**: Goal analysis produces a gap report identifying missing code, debt, and untested areas relevant to the goal
 
@@ -108,10 +108,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FOUND-01 | Phase 1 | Pending |
-| FOUND-02 | Phase 1 | Pending |
-| FOUND-03 | Phase 1 | Pending |
-| GOAL-01 | Phase 1 | Pending |
+| FOUND-01 | Phase 1 | Complete |
+| FOUND-02 | Phase 1 | Complete |
+| FOUND-03 | Phase 1 | Complete |
+| GOAL-01 | Phase 1 | Complete |
 | GOAL-02 | Phase 6 | Pending |
 | GOAL-03 | Phase 6 | Pending |
 | BACK-01 | Phase 6 | Pending |
