@@ -16,14 +16,14 @@ Requirements for the Conductor rebuild. Each maps to roadmap phases.
 ### Goal Analysis
 
 - [x] **GOAL-01**: User can define a structured goal with goal statement and optional constraint fields
-- [ ] **GOAL-02**: Conductor analyzes codebase relative to stated goal using ts-morph structural analysis + LLM interpretation
-- [ ] **GOAL-03**: Goal analysis produces a gap report identifying missing code, debt, and untested areas relevant to the goal
+- [x] **GOAL-02**: Conductor analyzes codebase relative to stated goal using ts-morph structural analysis + LLM interpretation
+- [x] **GOAL-03**: Goal analysis produces a gap report identifying missing code, debt, and untested areas relevant to the goal
 
 ### Backlog
 
 - [ ] **BACK-01**: Conductor generates prioritized backlog items from goal gap analysis
 - [ ] **BACK-02**: Backlog generation integrates Ideas module scan types (zen_architect, bug_hunter, ui_perfectionist) for creative suggestions
-- [ ] **BACK-03**: Each backlog item includes rationale, estimated effort, and affected domain
+- [x] **BACK-03**: Each backlog item includes rationale, estimated effort, and affected domain
 
 ### Triage
 
@@ -112,11 +112,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FOUND-02 | Phase 1 | Complete |
 | FOUND-03 | Phase 1 | Complete |
 | GOAL-01 | Phase 1 | Complete |
-| GOAL-02 | Phase 6 | Pending |
-| GOAL-03 | Phase 6 | Pending |
+| GOAL-02 | Phase 6 | Complete |
+| GOAL-03 | Phase 6 | Complete |
 | BACK-01 | Phase 6 | Pending |
 | BACK-02 | Phase 6 | Pending |
-| BACK-03 | Phase 6 | Pending |
+| BACK-03 | Phase 6 | Complete |
 | TRIA-01 | Phase 5 | Complete |
 | TRIA-02 | Phase 5 | Complete |
 | TRIA-03 | Phase 5 | Complete |
