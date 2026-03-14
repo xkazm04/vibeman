@@ -37,6 +37,9 @@ import { specFileManager } from './spec/specFileManager';
 import type { SpecWriterInput, ApprovedBacklogItem, SpecWriterOutput } from './types';
 import { runBuildValidation } from './execution/buildValidator';
 import { goalRepository } from '@/app/db/repositories/goal.repository';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import { executeGoalAnalysis } from './stages/goalAnalyzer';
+import type { GoalAnalyzerOutput } from './stages/goalAnalyzer.types';
 import { analyzeErrors } from './selfHealing/healingAnalyzer';
 import { buildHealingContext } from './selfHealing/promptPatcher';
 import { performTaskCleanup } from '@/lib/execution/taskCleanup';
@@ -245,13 +248,84 @@ async function runPipelineLoop(
     // Build healing context from active patches
     const healingContext = buildHealingContext(activePatches);
 
+    // ---- GOAL ANALYZER ----
+    // For goal-driven runs, analyze codebase relative to goal and generate backlog
+    let skipScout = false;
+    if (goalRecord && goalRecord.description) {
+      const analyzerStart = Date.now();
+      log('scout', 'started', 'Running goal analysis against codebase');
+
+      try {
+        const analyzerResult: GoalAnalyzerOutput = await executeGoalAnalysis({
+          runId,
+          projectId,
+          projectPath,
+          goal: {
+            id: goalId!,
+            title: goalRecord.title || goalRecord.description.slice(0, 100),
+            description: goalRecord.description,
+            target_paths: (goalRecord as any).target_paths || null,
+            use_brain: (goalRecord as any).use_brain,
+          },
+          config,
+          abortSignal: abortController.signal,
+        });
+
+        // Store gap report on run
+        updateRunInDb(runId, { gap_report: JSON.stringify(analyzerResult.gapReport) });
+
+        // Create backlog items in ideas table
+        for (const item of analyzerResult.backlogItems) {
+          ideaRepository.createIdea({
+            id: uuidv4(),
+            scan_id: `conductor-${runId}`,
+            project_id: projectId,
+            context_id: item.contextId,
+            scan_type: item.sourceScanType || 'zen_architect',
+            category: item.category,
+            title: item.title,
+            description: item.description,
+            reasoning: `[Relevance: ${item.relevanceScore}] ${item.reasoning}`,
+            effort: item.effort,
+            impact: item.impact,
+            risk: item.risk,
+            goal_id: goalId,
+          });
+        }
+
+        const analyzerDuration = Date.now() - analyzerStart;
+        const gapCount = analyzerResult.gapReport.gaps.length;
+        const itemCount = analyzerResult.backlogItems.length;
+        metrics.ideasGenerated += itemCount;
+
+        log('scout', 'completed', `Goal analysis found ${gapCount} gaps, generated ${itemCount} backlog items`, {
+          itemsOut: itemCount,
+          durationMs: analyzerDuration,
+        });
+
+        executeStageAndPersist(runId, 'scout', {
+          status: 'completed',
+          completedAt: new Date().toISOString(),
+          itemsIn: 0,
+          itemsOut: itemCount,
+        });
+
+        skipScout = itemCount > 0; // Only skip scout if we generated items
+      } catch (err) {
+        log('scout', 'failed', `Goal analysis failed: ${(err as Error).message}`, {
+          error: (err as Error).message,
+        });
+        // Fall through to scout stage as fallback
+      }
+    }
+
     // ---- SCOUT ----
+    let scoutResults;
+    if (!skipScout) {
     const scoutStart = Date.now();
     executeStageAndPersist(runId, 'scout', { status: 'running', startedAt: new Date().toISOString(), itemsIn: 0, itemsOut: 0 });
     const scanTypeNames = config.scanTypes.slice(0, 3).join(', ') + (config.scanTypes.length > 3 ? '...' : '');
     log('scout', 'started', `Scanning with ${scanTypeNames} (context: ${config.contextStrategy})`);
-
-    let scoutResults;
     try {
       scoutResults = await executeScoutStage({
         projectId,
@@ -347,6 +421,23 @@ async function runPipelineLoop(
     }
 
     if (shouldAbort(runId)) break;
+    } // end if (!skipScout)
+
+    // When goal analysis produced items and skipped scout, skip triage and go to batch
+    // The backlog items are already in the ideas table; triage is not needed for goal-driven runs
+    if (skipScout) {
+      // Skip triage for goal-driven runs -- items already in ideas table
+      executeStageAndPersist(runId, 'triage', { status: 'skipped', itemsIn: 0, itemsOut: 0 });
+      log('triage', 'info', 'Triage skipped -- goal analysis items go directly to ideas table');
+
+      // Complete without triage/batch/execute since backlog items are written
+      executeStageAndPersist(runId, 'batch', { status: 'skipped', itemsIn: 0, itemsOut: 0 });
+      executeStageAndPersist(runId, 'execute', { status: 'skipped', itemsIn: 0, itemsOut: 0 });
+      executeStageAndPersist(runId, 'review', { status: 'completed', itemsIn: 0, itemsOut: 0 });
+      log('review', 'completed', 'Goal-driven run complete -- backlog items written to ideas table');
+      conductorRepository.updateRunStatus(runId, 'completed', metrics);
+      return;
+    }
 
     // ---- TRIAGE ----
     const triageStart = Date.now();
@@ -355,7 +446,7 @@ async function runPipelineLoop(
 
     let triageResult: { acceptedIds: string[]; rejectedIds: string[]; skippedIds: string[] } = { acceptedIds: [], rejectedIds: [], skippedIds: [] };
     try {
-      const allIdeaIds = scoutResults.flatMap((r) => r.ideaIds);
+      const allIdeaIds = scoutResults!.flatMap((r) => r.ideaIds);
       const ideas = await fetchIdeas(allIdeaIds, projectId);
 
       log('triage', 'started', `Evaluating ${ideas.length} idea${ideas.length !== 1 ? 's' : ''} via CLI scoring`, {
