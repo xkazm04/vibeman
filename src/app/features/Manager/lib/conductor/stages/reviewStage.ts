@@ -22,6 +22,7 @@ import { extractFileDiffs, reviewFileDiffs } from '../review/diffReviewer';
 import { generateExecutionReport } from '../review/reportGenerator';
 import { canCommit, commitChanges } from '../review/gitCommitter';
 import { recordSignal } from '@/lib/brain/brainService';
+import { classifyError as classifyErrorCanonical } from '../selfHealing/errorClassifier';
 
 /**
  * Execute the Review stage: analyze results, run LLM review, write Brain
@@ -101,11 +102,11 @@ export async function executeReviewStage(input: ReviewStageInput): Promise<{
     ? updatedMetrics.tasksCompleted / totalExecuted
     : 0;
 
-  // 5. Classify errors from failed tasks
+  // 5. Classify errors from failed tasks (using canonical classifier)
   const errors: ErrorClassification[] = [];
   for (const result of executionResults) {
     if (!result.success && result.error) {
-      errors.push(classifyError(result, projectId));
+      errors.push(classifyErrorCanonical(result.error, 'execute', input.runId || '', result.taskId));
     }
   }
 
@@ -206,37 +207,3 @@ function makeDecision(
   };
 }
 
-function classifyError(
-  result: import('../types').ExecutionResult,
-  _projectId: string
-): ErrorClassification {
-  const errorMsg = result.error || 'Unknown error';
-  const errorType = detectErrorType(errorMsg);
-
-  return {
-    id: `err-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    pipelineRunId: '', // Will be set by orchestrator
-    stage: 'execute',
-    errorType,
-    errorMessage: errorMsg,
-    taskId: result.taskId,
-    occurrenceCount: 1,
-    firstSeen: new Date().toISOString(),
-    lastSeen: new Date().toISOString(),
-    resolved: false,
-  };
-}
-
-function detectErrorType(errorMessage: string): ErrorClassification['errorType'] {
-  const msg = errorMessage.toLowerCase();
-
-  if (msg.includes('timeout') || msg.includes('timed out')) return 'timeout';
-  if (msg.includes('permission') || msg.includes('access denied')) return 'permission_error';
-  if (msg.includes('not found') || msg.includes('missing module') || msg.includes('cannot find')) return 'dependency_missing';
-  if (msg.includes('parse') || msg.includes('invalid json') || msg.includes('unexpected token')) return 'invalid_output';
-  if (msg.includes('tool') || msg.includes('edit failed') || msg.includes('write failed')) return 'tool_failure';
-  if (msg.includes('ambiguous') || msg.includes('unclear') || msg.includes('confused')) return 'prompt_ambiguity';
-  if (msg.includes('context') || msg.includes('file not') || msg.includes('no such file')) return 'missing_context';
-
-  return 'unknown';
-}

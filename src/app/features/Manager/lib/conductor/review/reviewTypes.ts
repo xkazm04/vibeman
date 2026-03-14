@@ -81,6 +81,7 @@ export interface ReviewStageInput {
   goalDescription: string;
   autoCommit: boolean;
   reviewModel: string | null;
+  runId?: string;
 }
 
 // ============================================================================
