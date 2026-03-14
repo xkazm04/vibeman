@@ -1,22 +1,23 @@
 /**
  * Template Discovery Panel
- * Auto-discovers templates from the active project and generates Claude Code requirement files.
+ * Discovers templates from the active project and generates Claude Code requirement files.
  *
  * Uses the active project from the SPA header - no manual path input needed.
- * Templates are auto-scanned on render when a project is selected.
+ * Templates are loaded from cache on project switch; scanning is manual only.
  */
 
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { scanProject, getTemplates, type ScanResult } from './lib/discoveryApi';
+import { scanProject, getTemplates, getFileCount, type ScanResult } from './lib/discoveryApi';
 import { TemplateVariableForm } from './TemplateVariableForm';
 import { PromptPreviewModal } from './PromptPreviewModal';
 import { GenerationHistoryPanel, type GenerationHistoryPanelRef } from './GenerationHistoryPanel';
 import TemplateColumn from './TemplateColumn';
 import { toast } from '@/stores/messageStore';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
+import { normalizePath } from '@/utils/pathUtils';
 import type { DbDiscoveredTemplate } from '../../../db/models/types';
 
 // UI Components
@@ -36,7 +37,9 @@ export function TemplateDiscoveryPanel() {
   const [scanStatus, setScanStatus] = useState<ScanStatus>('idle');
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [hasAutoScanned, setHasAutoScanned] = useState(false);
+
+  // Scan progress (file count)
+  const [scanProgress, setScanProgress] = useState<{ current: number; total: number } | null>(null);
 
   // Templates list
   const [templates, setTemplates] = useState<DbDiscoveredTemplate[]>([]);
@@ -60,9 +63,6 @@ export function TemplateDiscoveryPanel() {
   // Ref to history panel for refreshing after generation
   const historyPanelRef = useRef<GenerationHistoryPanelRef>(null);
 
-  // Track last scanned project to detect changes
-  const lastScannedProjectRef = useRef<string | null>(null);
-
   // Load templates callback
   const loadTemplates = useCallback(async () => {
     if (!projectPath) {
@@ -73,8 +73,8 @@ export function TemplateDiscoveryPanel() {
 
     try {
       setIsLoading(true);
-      // Filter by current project path
-      const data = await getTemplates(projectPath.replace(/\\/g, '/'));
+      // Filter by current project path (normalized)
+      const data = await getTemplates(normalizePath(projectPath));
       setTemplates(data);
     } catch (err) {
       console.error('Failed to load templates:', err);
@@ -94,16 +94,41 @@ export function TemplateDiscoveryPanel() {
     setScanResult(null);
 
     try {
+      // Get file count for progress display
+      const fileCount = await getFileCount(projectPath);
+
+      if (fileCount === 0) {
+        setScanStatus('complete');
+        setScanProgress(null);
+        toast.info('No Templates', 'No template files found in src/templates/');
+        return;
+      }
+
+      setScanProgress({ current: 0, total: fileCount });
+
       const result = await scanProject(projectPath);
       setScanResult(result);
       setScanStatus('complete');
-      setHasAutoScanned(true);
+      setScanProgress({ current: fileCount, total: fileCount });
+
+      // Toast notification with results summary
+      const templateCount = result.results.created + result.results.updated + result.results.unchanged;
+      const errorCount = result.errors?.length || 0;
+      const staleCount = result.staleCount || 0;
+
+      if (errorCount > 0) {
+        toast.warning('Scan Complete', `${templateCount} templates found, ${errorCount} parse errors`);
+      } else {
+        toast.success('Scan Complete', `${templateCount} templates found${staleCount > 0 ? `, ${staleCount} marked stale` : ''}`);
+      }
 
       // Refresh templates list
       await loadTemplates();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Scan failed');
       setScanStatus('error');
+      setScanProgress(null);
+      toast.error('Scan Failed', err instanceof Error ? err.message : 'Unknown error');
     }
   }, [projectPath, loadTemplates]);
 
@@ -258,18 +283,12 @@ export function TemplateDiscoveryPanel() {
     return templates.find((t) => t.id === selectedTemplateId) || null;
   }, [templates, selectedTemplateId]);
 
-  // Load existing templates when project changes
+  // Load cached templates when project changes (no scan triggered)
   useEffect(() => {
     loadTemplates();
+    setScanStatus('idle');
+    setScanResult(null);
   }, [loadTemplates]);
-
-  // Auto-scan when active project changes
-  useEffect(() => {
-    if (projectPath && projectPath !== lastScannedProjectRef.current) {
-      lastScannedProjectRef.current = projectPath;
-      handleScan();
-    }
-  }, [projectPath, handleScan]);
 
   // No project selected state
   if (!activeProject) {
@@ -297,17 +316,24 @@ export function TemplateDiscoveryPanel() {
             Templates from <span className="text-cyan-400">{activeProject.name}</span>
           </p>
         </div>
-        <UnifiedButton
-          icon={RefreshCw}
-          colorScheme="cyan"
-          variant="outline"
-          size="sm"
-          onClick={handleScan}
-          disabled={scanStatus === 'scanning'}
-          loading={scanStatus === 'scanning'}
-        >
-          {scanStatus === 'scanning' ? 'Scanning...' : 'Rescan'}
-        </UnifiedButton>
+        <div className="flex items-center gap-3">
+          {scanStatus === 'scanning' && scanProgress && (
+            <span className="text-sm text-purple-300">
+              Scanning... {scanProgress.current}/{scanProgress.total} files
+            </span>
+          )}
+          <UnifiedButton
+            icon={RefreshCw}
+            colorScheme="cyan"
+            variant="outline"
+            size="sm"
+            onClick={handleScan}
+            disabled={scanStatus === 'scanning'}
+            loading={scanStatus === 'scanning'}
+          >
+            {scanStatus === 'scanning' ? 'Scanning...' : 'Rescan'}
+          </UnifiedButton>
+        </div>
       </div>
 
       {/* Project Info Card */}
@@ -341,7 +367,11 @@ export function TemplateDiscoveryPanel() {
         {scanStatus === 'scanning' && (
           <div className="mt-3 p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
             <div className="flex items-center gap-2 text-cyan-300">
-              <span className="animate-pulse">Scanning project for templates...</span>
+              <span className="animate-pulse">
+                {scanProgress
+                  ? `Scanning... ${scanProgress.current}/${scanProgress.total} files`
+                  : 'Scanning project for templates...'}
+              </span>
             </div>
           </div>
         )}

@@ -186,6 +186,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { searchParams } = new URL(request.url);
     const sourcePath = searchParams.get('sourcePath');
+    const countOnly = searchParams.get('countOnly');
+    const projectPath = searchParams.get('projectPath');
+
+    // Lightweight file count endpoint for scan progress display
+    if (countOnly && projectPath) {
+      const scanResult = await discoverTemplateFiles(projectPath);
+      return NextResponse.json({ fileCount: scanResult.files.length });
+    }
 
     const templates = sourcePath
       ? discoveredTemplateRepository.getBySourcePath(sourcePath)

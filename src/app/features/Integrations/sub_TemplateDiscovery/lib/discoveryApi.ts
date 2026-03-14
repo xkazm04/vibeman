@@ -5,6 +5,7 @@
 
 // Import from repository for proper type resolution
 import type { DbDiscoveredTemplate } from '../../../../db/models/types';
+import { normalizePath } from '@/utils/pathUtils';
 
 export interface ScanResult {
   success: boolean;
@@ -22,6 +23,7 @@ export interface ScanResult {
     action: 'created' | 'updated' | 'unchanged';
   }>;
   errors?: string[];
+  staleCount?: number;
 }
 
 /**
@@ -46,8 +48,9 @@ export async function scanProject(projectPath: string): Promise<ScanResult> {
  * Get all discovered templates, optionally filtered by source path
  */
 export async function getTemplates(sourcePath?: string): Promise<DbDiscoveredTemplate[]> {
-  const url = sourcePath
-    ? `/api/template-discovery?sourcePath=${encodeURIComponent(sourcePath)}`
+  const normalizedSource = sourcePath ? normalizePath(sourcePath) : undefined;
+  const url = normalizedSource
+    ? `/api/template-discovery?sourcePath=${encodeURIComponent(normalizedSource)}`
     : '/api/template-discovery';
 
   const response = await fetch(url);
@@ -58,6 +61,23 @@ export async function getTemplates(sourcePath?: string): Promise<DbDiscoveredTem
 
   const data = await response.json();
   return data.templates;
+}
+
+/**
+ * Get the count of template files in a project (lightweight, no parsing)
+ */
+export async function getFileCount(projectPath: string): Promise<number> {
+  const normalizedPath = normalizePath(projectPath);
+  const url = `/api/template-discovery?countOnly=true&projectPath=${encodeURIComponent(normalizedPath)}`;
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    return 0;
+  }
+
+  const data = await response.json();
+  return data.fileCount ?? 0;
 }
 
 /**
