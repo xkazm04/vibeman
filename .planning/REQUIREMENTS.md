@@ -9,10 +9,10 @@ Requirements for v2.0 milestone. Each maps to roadmap phases.
 
 ### Pipeline Hardening
 
-- [ ] **PIPE-01**: ts-morph Project instance reused across file scans instead of creating new per file
+- [x] **PIPE-01**: ts-morph Project instance reused across file scans instead of creating new per file
 - [ ] **PIPE-02**: useEffect auto-scan does not re-trigger infinitely on project switch
-- [ ] **PIPE-03**: Path normalization centralized in single utility instead of 5 fragmented locations
-- [ ] **PIPE-04**: Stale template cleanup skipped when scan partially fails (no silent data loss)
+- [x] **PIPE-03**: Path normalization centralized in single utility instead of 5 fragmented locations
+- [x] **PIPE-04**: Stale template cleanup skipped when scan partially fails (no silent data loss)
 
 ### Generation Flow
 
@@ -58,10 +58,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PIPE-01 | Phase 1 | Pending |
+| PIPE-01 | Phase 1 | Complete |
 | PIPE-02 | Phase 1 | Pending |
-| PIPE-03 | Phase 1 | Pending |
-| PIPE-04 | Phase 1 | Pending |
+| PIPE-03 | Phase 1 | Complete |
+| PIPE-04 | Phase 1 | Complete |
 | GEN-01 | Phase 2 | Pending |
 | GEN-02 | Phase 2 | Pending |
 | GEN-03 | Phase 2 | Pending |

@@ -27,7 +27,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Switching between projects in the UI does not trigger repeated scan API calls or UI flicker
   3. Rescanning the same project does not create duplicate template records in the database
   4. A scan where 3 of 10 templates fail to parse does not delete the 7 previously stored valid templates
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 01-01-PLAN.md -- Backend pipeline fixes: ts-morph reuse, path normalization, safe stale cleanup
@@ -62,6 +62,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Pipeline Hardening | 0/2 | Planning complete | - |
+| 1. Pipeline Hardening | 1/2 | In Progress|  |
 | 2. Generation Flow | 0/? | Not started | - |
 | 3. UI Redesign | 0/? | Not started | - |
