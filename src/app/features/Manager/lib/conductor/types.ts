@@ -220,6 +220,9 @@ export interface HealingPatch {
   appliedAt: string;
   effectiveness?: number;
   reverted: boolean;
+  expiresAt?: string;
+  applicationCount?: number;
+  successCount?: number;
 }
 
 // ============================================================================
