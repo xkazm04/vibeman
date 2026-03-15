@@ -121,6 +121,21 @@ export interface GenerateStandupRequest {
 
 // ── Predictive Standup Types ──
 
+export interface GoalTransitionAction {
+  type: 'confirm_complete' | 'revert_open' | 'add_blocker';
+  label: string;
+}
+
+export interface GoalTransitionSuggestion {
+  goalId: string;
+  goalTitle: string;
+  goalStatus: string;
+  progress: number;
+  daysSinceActivity: number;
+  reason: string;
+  actions: GoalTransitionAction[];
+}
+
 export interface PredictiveStandupData {
   /** Goals at risk of stalling based on velocity and signal patterns */
   goalsAtRisk: GoalRiskAssessment[];
@@ -134,6 +149,8 @@ export interface PredictiveStandupData {
   velocityComparison: VelocityComparison;
   /** Overall prescriptive summary */
   missionBriefing: string;
+  /** Actionable goal state transition suggestions */
+  goalTransitionSuggestions: GoalTransitionSuggestion[];
 }
 
 export interface GoalRiskAssessment {

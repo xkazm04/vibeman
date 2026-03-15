@@ -15,8 +15,7 @@ import type { AutoAssignConfig } from '@/lib/autoAssignConfig';
 import type { DbIdea } from '@/app/db';
 import type { CLIProvider, CLIModel } from '@/lib/claude-terminal/types';
 import type { ContextInfo } from '../hooks/useTaskColumnData';
-
-const SESSION_IDS: CLISessionId[] = ['cliSession1', 'cliSession2', 'cliSession3', 'cliSession4'];
+import { SESSION_IDS } from './taskRunnerConfig';
 
 export interface AutoAssignInput {
   /** Requirements to auto-assign (selected + idle only) */

@@ -2,6 +2,7 @@ import { getDatabase } from '../connection';
 import { DbQuestion } from '../models/types';
 import { getCurrentTimestamp, selectOne } from './repository.utils';
 import { createGenericRepository } from './generic.repository';
+import { questionTransition, QuestionStatus } from '@/lib/stateMachine';
 
 const base = createGenericRepository<DbQuestion>({
   tableName: 'questions',
@@ -131,7 +132,15 @@ export const questionRepository = {
     strategic_brief?: string | null;
     gap_score?: number | null;
     gap_analysis?: string | null;
-  }): DbQuestion | null => base.update(id, updates as Record<string, unknown>),
+  }): DbQuestion | null => {
+    if (updates.status !== undefined) {
+      const current = base.getById(id);
+      if (current) {
+        questionTransition(current.status as QuestionStatus, updates.status);
+      }
+    }
+    return base.update(id, updates as Record<string, unknown>);
+  },
 
   /**
    * Answer a question (updates answer and status)

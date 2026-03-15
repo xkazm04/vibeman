@@ -10,6 +10,8 @@ import { questionDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { withObservability } from '@/lib/observability/middleware';
+import { isValidQuestionStatus } from '@/lib/stateMachine';
+import { groupByContextMap } from '@/lib/api-helpers/groupByContextMap';
 
 async function handleGet(request: NextRequest) {
   try {
@@ -25,6 +27,13 @@ async function handleGet(request: NextRequest) {
       );
     }
 
+    if (status !== null && !isValidQuestionStatus(status)) {
+      return NextResponse.json(
+        { error: `Invalid status '${status}'. Valid values: pending, answered` },
+        { status: 400 }
+      );
+    }
+
     let questions;
 
     if (contextMapId) {
@@ -35,24 +44,6 @@ async function handleGet(request: NextRequest) {
       questions = questionDb.getAnsweredQuestions(projectId);
     } else {
       questions = questionDb.getQuestionsByProject(projectId);
-    }
-
-    // Group questions by context_map_id for UI display
-    const grouped: Record<string, {
-      contextMapId: string;
-      contextMapTitle: string;
-      questions: typeof questions;
-    }> = {};
-
-    for (const q of questions) {
-      if (!grouped[q.context_map_id]) {
-        grouped[q.context_map_id] = {
-          contextMapId: q.context_map_id,
-          contextMapTitle: q.context_map_title,
-          questions: []
-        };
-      }
-      grouped[q.context_map_id].questions.push(q);
     }
 
     // When all questions are fetched (no status/contextMap filter), derive
@@ -77,8 +68,8 @@ async function handleGet(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      questions,
-      grouped: Object.values(grouped),
+      items: questions,
+      grouped: groupByContextMap(questions),
       counts,
       maxTreeDepth,
     });

@@ -1,18 +1,29 @@
 /**
- * Custom hook for unified Tinder functionality (Ideas + Directions)
- * Supports both local and remote modes via optional remoteDeviceId parameter.
+ * Two-layer Tinder hook architecture:
+ *   Layer 1 – useTinderItems: owns all shared state, delegates to one mode hook.
+ *   Layer 2 – useLocalMode / useRemoteMode: mode-specific data fetching and handlers.
  *
- * Delegates to composables:
- * - useTinderItemsCore: shared state, stats, category management
- * - useLocalTinderItems: local DB fetching, pagination, local CRUD
- * - useRemoteTinderItems: remote mesh commands, polling, remote triage
+ * Shared keyset pagination (loading guard + cursor refs + load-more check) is
+ * extracted into useCursorPagination, consumed by both mode hooks.
  */
 
-import { useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import {
+  TinderItem,
+  TinderFilterMode,
+  TinderItemStats,
+  CategoryCount,
+  ScanTypeCount,
+  ContextCountItem,
+  FilterDimension,
+  PrerequisiteNotification,
+  initialTinderItemStats,
+  isIdeaItem,
+} from './tinderTypes';
 import type { UseTinderItemsResult } from './tinderTypes';
-import { useTinderItemsCore } from './useTinderItemsCore';
-import { useLocalTinderItems } from './useLocalTinderItems';
-import { useRemoteTinderItems } from './useRemoteTinderItems';
+import type { UseTinderItemsCoreResult } from './useTinderItemsCore';
+import { useLocalMode } from './useLocalTinderItems';
+import { useRemoteMode } from './useRemoteTinderItems';
 
 interface UseTinderItemsOptions {
   selectedProjectId: string;
@@ -25,7 +36,6 @@ interface UseTinderItemsOptions {
 export function useTinderItems(
   selectedProjectIdOrOptions: string | UseTinderItemsOptions
 ): UseTinderItemsResult {
-  // Normalize parameters to support both old signature and new options object
   const options = typeof selectedProjectIdOrOptions === 'string'
     ? { selectedProjectId: selectedProjectIdOrOptions, remoteDeviceId: null }
     : selectedProjectIdOrOptions;
@@ -39,76 +49,165 @@ export function useTinderItems(
   } = options;
 
   const isRemoteMode = !!remoteDeviceId;
+  const initialFilterMode: TinderFilterMode = isRemoteMode ? 'directions' : 'both';
 
-  // Shared state & helpers
-  const core = useTinderItemsCore(isRemoteMode ? 'directions' : 'both');
+  // ── Shared state (Layer 1 owns all state; modes only own their refs) ────
+  const [items, setItems] = useState<TinderItem[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState<TinderItemStats>(initialTinderItemStats);
+  const [filterMode, setFilterMode] = useState<TinderFilterMode>(initialFilterMode);
+  const [counts, setCounts] = useState({ ideas: 0, directions: 0 });
+  const [goalTitlesMap, setGoalTitlesMap] = useState<Record<string, string>>({});
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categories, setCategories] = useState<CategoryCount[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [filterDimension, setFilterDimension] = useState<FilterDimension>('category');
+  const [selectedScanType, setSelectedScanType] = useState<string | null>(null);
+  const [scanTypes, setScanTypes] = useState<ScanTypeCount[]>([]);
+  const [scanTypesLoading, setScanTypesLoading] = useState(false);
+  const [selectedContextId, setSelectedContextId] = useState<string | null>(null);
+  const [contextCounts, setContextCounts] = useState<ContextCountItem[]>([]);
+  const [contextCountsLoading, setContextCountsLoading] = useState(false);
+  const [prerequisiteNotification, setPrerequisiteNotification] = useState<PrerequisiteNotification | null>(null);
 
-  // Both composables are always called (Rules of Hooks) but only one is "active"
-  const local = useLocalTinderItems(core, {
-    selectedProjectId,
-    effortRange,
-    riskRange,
-    sortOrder,
-    enabled: !isRemoteMode,
+  const combinedStats = {
+    accepted: stats.ideas.accepted + stats.directions.accepted,
+    rejected: stats.ideas.rejected + stats.directions.rejected,
+    deleted: stats.ideas.deleted + stats.directions.deleted,
+  };
+
+  const updateStats = useCallback((item: TinderItem, action: 'accepted' | 'rejected' | 'deleted') => {
+    setStats(prev => {
+      const type = isIdeaItem(item) ? 'ideas' : 'directions';
+      return { ...prev, [type]: { ...prev[type], [action]: prev[type][action] + 1 } };
+    });
+  }, []);
+
+  const updateCategoryCountOptimistic = useCallback((item: TinderItem) => {
+    if (!isIdeaItem(item)) return;
+    const category = item.data.category;
+    setCategories(prev =>
+      prev
+        .map(cat => cat.category === category ? { ...cat, count: Math.max(0, cat.count - 1) } : cat)
+        .filter(cat => cat.count > 0)
+    );
+  }, []);
+
+  const updateCountsOptimistic = useCallback((type: 'ideas' | 'directions', decrement = 1) => {
+    setCounts(prev => ({ ...prev, [type]: Math.max(0, prev[type] - decrement) }));
+  }, []);
+
+  const optimisticRemove = useCallback((index: number): TinderItem | undefined => {
+    let removed: TinderItem | undefined;
+    setItems(prev => {
+      removed = prev[index];
+      return prev.filter((_, i) => i !== index);
+    });
+    return removed;
+  }, []);
+
+  const revertRemove = useCallback((index: number, item: TinderItem) => {
+    setItems(prev => {
+      const next = [...prev];
+      next.splice(index, 0, item);
+      return next;
+    });
+  }, []);
+
+  const resetStats = useCallback(() => setStats(initialTinderItemStats), []);
+
+  const handleSetFilterMode = useCallback((mode: TinderFilterMode) => {
+    setFilterMode(mode);
+    if (mode !== 'ideas') setSelectedCategory(null);
+  }, []);
+
+  const handleSetCategory = useCallback((category: string | null) => setSelectedCategory(category), []);
+
+  const handleSetFilterDimension = useCallback((dimension: FilterDimension) => {
+    setFilterDimension(dimension);
+    setSelectedCategory(null);
+    setSelectedScanType(null);
+  }, []);
+
+  const handleSetScanType = useCallback((scanType: string | null) => setSelectedScanType(scanType), []);
+  const handleSetContextId = useCallback((contextId: string | null) => setSelectedContextId(contextId), []);
+  const dismissPrerequisiteNotification = useCallback(() => setPrerequisiteNotification(null), []);
+
+  // ── Pass state to mode hooks ─────────────────────────────────────────────
+  const core: UseTinderItemsCoreResult = {
+    items, currentIndex, loading, processing, hasMore, total,
+    stats, combinedStats, filterMode, counts, goalTitlesMap,
+    selectedCategory, categories, categoriesLoading,
+    filterDimension, selectedScanType, scanTypes, scanTypesLoading,
+    selectedContextId, contextCounts, contextCountsLoading,
+    prerequisiteNotification,
+    setItems, setCurrentIndex, setLoading, setProcessing, setHasMore, setTotal,
+    setStats, setCounts, setGoalTitlesMap,
+    setCategories, setCategoriesLoading,
+    setScanTypes, setScanTypesLoading,
+    setContextCounts, setContextCountsLoading,
+    setPrerequisiteNotification,
+    updateStats, updateCategoryCountOptimistic, updateCountsOptimistic,
+    optimisticRemove, revertRemove, resetStats,
+    handleSetFilterMode, handleSetCategory, handleSetFilterDimension,
+    handleSetScanType, handleSetContextId, dismissPrerequisiteNotification,
+  };
+
+  // ── Mode hooks — both always called (Rules of Hooks); only one is active ─
+  const local = useLocalMode(core, {
+    selectedProjectId, effortRange, riskRange, sortOrder, enabled: !isRemoteMode,
   });
 
-  const remote = useRemoteTinderItems(core, {
-    remoteDeviceId: remoteDeviceId || '',
-    enabled: isRemoteMode,
+  const remote = useRemoteMode(core, {
+    remoteDeviceId: remoteDeviceId || '', enabled: isRemoteMode,
   });
 
-  // Pick the active composable's handlers
   const active = isRemoteMode ? remote : local;
 
-  const currentItem = core.items[core.currentIndex];
-  const remainingCount = core.items.length - core.currentIndex;
-
   return {
-    items: core.items,
-    currentIndex: core.currentIndex,
-    loading: core.loading,
-    processing: core.processing,
-    hasMore: core.hasMore,
-    total: core.total,
-    stats: core.stats,
-    combinedStats: core.combinedStats,
-    remainingCount,
-    currentItem,
-    filterMode: core.filterMode,
-    counts: core.counts,
-    goalTitlesMap: core.goalTitlesMap,
-    // Category filtering
-    selectedCategory: core.selectedCategory,
-    categories: core.categories,
-    categoriesLoading: core.categoriesLoading,
-    setCategory: core.handleSetCategory,
-    setFilterMode: core.handleSetFilterMode,
-    // Scan type filtering
-    filterDimension: core.filterDimension,
-    setFilterDimension: core.handleSetFilterDimension,
-    selectedScanType: core.selectedScanType,
-    setScanType: core.handleSetScanType,
-    scanTypes: core.scanTypes,
-    scanTypesLoading: core.scanTypesLoading,
-    // Context filtering
-    selectedContextId: core.selectedContextId,
-    setContextId: core.handleSetContextId,
-    contextCounts: core.contextCounts,
-    contextCountsLoading: core.contextCountsLoading,
+    items,
+    currentIndex,
+    loading,
+    processing,
+    hasMore,
+    total,
+    stats,
+    combinedStats,
+    remainingCount: items.length - currentIndex,
+    currentItem: items[currentIndex],
+    filterMode,
+    counts,
+    goalTitlesMap,
+    selectedCategory,
+    categories,
+    categoriesLoading,
+    setCategory: handleSetCategory,
+    setFilterMode: handleSetFilterMode,
+    filterDimension,
+    setFilterDimension: handleSetFilterDimension,
+    selectedScanType,
+    setScanType: handleSetScanType,
+    scanTypes,
+    scanTypesLoading,
+    selectedContextId,
+    setContextId: handleSetContextId,
+    contextCounts,
+    contextCountsLoading,
     handleAccept: active.handleAccept,
     handleReject: active.handleReject,
     handleDelete: active.handleDelete,
-    // Idea variant handler
     handleAcceptIdeaVariant: active.handleAcceptIdeaVariant,
-    // Paired direction handlers
     handleAcceptPairVariant: active.handleAcceptPairVariant,
     handleRejectPair: active.handleRejectPair,
     handleDeletePair: active.handleDeletePair,
-    resetStats: core.resetStats,
+    resetStats,
     loadItems: active.loadItems,
-    // Dependency awareness
-    prerequisiteNotification: core.prerequisiteNotification,
-    dismissPrerequisiteNotification: core.dismissPrerequisiteNotification,
+    prerequisiteNotification,
+    dismissPrerequisiteNotification,
   };
 }
 
@@ -124,18 +223,9 @@ export function useTinderItemsKeyboardShortcuts(
     if (!enabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input or select
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) {
-        return;
-      }
-
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        handleReject();
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        handleAccept();
-      }
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+      if (e.key === 'ArrowLeft') { e.preventDefault(); handleReject(); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); handleAccept(); }
     };
 
     window.addEventListener('keydown', handleKeyDown);

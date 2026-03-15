@@ -13,8 +13,8 @@
 
 import { promises as fs } from 'fs';
 import * as path from 'path';
-import { glob } from 'glob';
 import type { FileAnalysis } from '@/app/features/RefactorWizard/lib/refactorAnalyzer';
+import { globFiles, chunkArray } from './fileWalker';
 
 export interface ChunkedScanOptions {
   /** Maximum number of files to process in a single chunk */
@@ -40,17 +40,6 @@ export interface ChunkedScanResult {
 const DEFAULT_CHUNK_SIZE = 100;
 const DEFAULT_MAX_FILE_SIZE = 1024 * 1024; // 1MB
 const DEFAULT_CONCURRENCY = 10;
-
-/**
- * Chunk an array into smaller arrays
- */
-function chunkArray<T>(array: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunks.push(array.slice(i, i + size));
-  }
-  return chunks;
-}
 
 /**
  * Process files concurrently with a concurrency limit
@@ -101,21 +90,7 @@ export async function scanProjectFilesChunked(
   } = options;
 
   // Step 1: Find all matching files
-  const allFilePaths: string[] = [];
-
-  for (const pattern of scanPatterns) {
-    const matches = await glob(pattern, {
-      cwd: projectPath,
-      ignore: ignorePatterns,
-      absolute: true,
-      windowsPathsNoEscape: true,
-    });
-
-    const matchArray = Array.isArray(matches) ? matches : [];
-    allFilePaths.push(...matchArray);
-  }
-
-  const uniqueFilePaths = Array.from(new Set(allFilePaths));
+  const uniqueFilePaths = await globFiles(projectPath, scanPatterns, { ignorePatterns });
   const totalFiles = uniqueFilePaths.length;
 
   console.log(`[ChunkedFileScanner] Found ${totalFiles} files to scan`);

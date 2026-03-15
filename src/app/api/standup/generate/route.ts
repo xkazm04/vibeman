@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { standupDb, implementationLogDb, ideaDb, scanDb, contextDb } from '@/app/db';
-import { StandupSourceData, StandupSummaryResponse, StandupBlocker, StandupHighlight, StandupFocusArea } from '@/app/db/models/standup.types';
-import { safeParseJsonArray } from '@/app/db/repositories/repository.utils';
+import { StandupSourceData, StandupSummaryResponse } from '@/app/db/models/standup.types';
+import { StandupBlockerSchema, StandupHighlightSchema, StandupFocusAreaSchema, parseStandupJsonArray } from '@/lib/api/schemas/standup';
 import { generateStandupSummary, getPeriodDateRange } from '@/app/features/DailyStandup/lib/standupGenerator';
 import { generatePredictiveStandup } from '@/lib/standup/predictiveStandupEngine';
 import { logger } from '@/lib/logger';
@@ -87,12 +87,12 @@ async function handlePost(request: NextRequest) {
           ideasImplemented: existing.ideas_implemented,
           scansCount: existing.scans_count,
         },
-        blockers: safeParseJsonArray<StandupBlocker>(existing.blockers),
-        highlights: safeParseJsonArray<StandupHighlight>(existing.highlights),
+        blockers: parseStandupJsonArray(StandupBlockerSchema, existing.blockers, 'blockers'),
+        highlights: parseStandupJsonArray(StandupHighlightSchema, existing.highlights, 'highlights'),
         insights: {
           velocityTrend: existing.velocity_trend,
           burnoutRisk: existing.burnout_risk,
-          focusAreas: safeParseJsonArray<StandupFocusArea>(existing.focus_areas),
+          focusAreas: parseStandupJsonArray(StandupFocusAreaSchema, existing.focus_areas, 'focus_areas'),
         },
         generatedAt: existing.generated_at,
       };
@@ -145,12 +145,12 @@ async function handlePost(request: NextRequest) {
             ideasImplemented: existing.ideas_implemented,
             scansCount: existing.scans_count,
           },
-          blockers: safeParseJsonArray<StandupBlocker>(existing.blockers),
-          highlights: safeParseJsonArray<StandupHighlight>(existing.highlights),
+          blockers: parseStandupJsonArray(StandupBlockerSchema, existing.blockers, 'blockers'),
+          highlights: parseStandupJsonArray(StandupHighlightSchema, existing.highlights, 'highlights'),
           insights: {
             velocityTrend: existing.velocity_trend,
             burnoutRisk: existing.burnout_risk,
-            focusAreas: safeParseJsonArray<StandupFocusArea>(existing.focus_areas),
+            focusAreas: parseStandupJsonArray(StandupFocusAreaSchema, existing.focus_areas, 'focus_areas'),
           },
           generatedAt: existing.generated_at,
         };
@@ -230,12 +230,12 @@ async function handlePost(request: NextRequest) {
         ideasImplemented: saved.ideas_implemented,
         scansCount: saved.scans_count,
       },
-      blockers: safeParseJsonArray<StandupBlocker>(saved.blockers),
-      highlights: safeParseJsonArray<StandupHighlight>(saved.highlights),
+      blockers: parseStandupJsonArray(StandupBlockerSchema, saved.blockers, 'blockers'),
+      highlights: parseStandupJsonArray(StandupHighlightSchema, saved.highlights, 'highlights'),
       insights: {
         velocityTrend: saved.velocity_trend,
         burnoutRisk: saved.burnout_risk,
-        focusAreas: safeParseJsonArray<StandupFocusArea>(saved.focus_areas),
+        focusAreas: parseStandupJsonArray(StandupFocusAreaSchema, saved.focus_areas, 'focus_areas'),
       },
       generatedAt: saved.generated_at,
     };

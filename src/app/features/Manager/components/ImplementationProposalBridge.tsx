@@ -15,17 +15,20 @@ import {
 } from '../lib/proposalAdapter';
 import type { EnrichedImplementationLog } from '../lib/types';
 
+export type ProposalAction =
+  | { type: 'accepted'; requirementName: string; content: string }
+  | { type: 'accepted-with-code'; requirementName: string; content: string }
+  | { type: 'declined' };
+
 export interface ImplementationProposalBridgeProps {
   /** The implementation log to generate proposals for */
   implementationLog: EnrichedImplementationLog;
   /** Optional project path for context */
   projectPath?: string;
-  /** Callback when a proposal is accepted */
-  onProposalAccepted: (proposalId: string, requirementName: string, content: string) => void;
-  /** Callback when a proposal is accepted with code generation */
-  onProposalAcceptedWithCode?: (proposalId: string, requirementName: string, content: string) => void;
-  /** Callback when a proposal is declined */
-  onProposalDeclined: (proposalId: string) => void;
+  /** Unified dispatcher for all proposal actions */
+  onProposalAction: (proposalId: string, action: ProposalAction) => void;
+  /** Whether to show the "Implement with AI" button */
+  showImplementWithAI?: boolean;
   /** Optional callback for error logging */
   onError?: (error: Error) => void;
 }
@@ -44,9 +47,8 @@ export interface ImplementationProposalBridgeProps {
 function ImplementationProposalBridgeInner({
   implementationLog,
   projectPath,
-  onProposalAccepted,
-  onProposalAcceptedWithCode,
-  onProposalDeclined,
+  onProposalAction,
+  showImplementWithAI,
   onError,
 }: ImplementationProposalBridgeProps) {
   // Generate proposals from the implementation log
@@ -121,7 +123,7 @@ function ImplementationProposalBridgeInner({
       const requirementName = `${implementationLog.requirement_name}-improvement`;
 
       // Notify parent
-      onProposalAccepted(currentProposal.id, requirementName, content);
+      onProposalAction(currentProposal.id, { type: 'accepted', requirementName, content });
 
       // Move to next proposal
       moveToNext();
@@ -131,7 +133,7 @@ function ImplementationProposalBridgeInner({
     } finally {
       setIsProcessing(false);
     }
-  }, [currentProposal, isProcessing, implementationLog, onProposalAccepted, moveToNext, onError]);
+  }, [currentProposal, isProcessing, implementationLog, onProposalAction, moveToNext, onError]);
 
   /**
    * Handle accepting a proposal with code generation
@@ -152,12 +154,8 @@ function ImplementationProposalBridgeInner({
       const content = createRequirementFromProposal(currentProposal, implementationLog);
       const requirementName = `${implementationLog.requirement_name}-improvement`;
 
-      // Notify parent (use code callback if available, otherwise regular accept)
-      if (onProposalAcceptedWithCode) {
-        onProposalAcceptedWithCode(currentProposal.id, requirementName, content);
-      } else {
-        onProposalAccepted(currentProposal.id, requirementName, content);
-      }
+      // Notify parent
+      onProposalAction(currentProposal.id, { type: 'accepted-with-code', requirementName, content });
 
       // Move to next proposal
       moveToNext();
@@ -167,15 +165,7 @@ function ImplementationProposalBridgeInner({
     } finally {
       setIsProcessing(false);
     }
-  }, [
-    currentProposal,
-    isProcessing,
-    implementationLog,
-    onProposalAccepted,
-    onProposalAcceptedWithCode,
-    moveToNext,
-    onError,
-  ]);
+  }, [currentProposal, isProcessing, implementationLog, onProposalAction, moveToNext, onError]);
 
   /**
    * Handle declining a proposal
@@ -193,7 +183,7 @@ function ImplementationProposalBridgeInner({
       );
 
       // Notify parent
-      onProposalDeclined(currentProposal.id);
+      onProposalAction(currentProposal.id, { type: 'declined' });
 
       // Move to next proposal
       moveToNext();
@@ -203,7 +193,7 @@ function ImplementationProposalBridgeInner({
     } finally {
       setIsProcessing(false);
     }
-  }, [currentProposal, isProcessing, onProposalDeclined, moveToNext, onError]);
+  }, [currentProposal, isProcessing, onProposalAction, moveToNext, onError]);
 
   /**
    * Handle closing the proposal panel
@@ -296,7 +286,7 @@ function ImplementationProposalBridgeInner({
             >
               {isProcessing ? 'Processing...' : 'Create Requirement'}
             </button>
-            {onProposalAcceptedWithCode && (
+            {showImplementWithAI && (
               <button
                 onClick={handleAcceptWithCode}
                 disabled={isProcessing}

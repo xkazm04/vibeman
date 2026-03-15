@@ -662,6 +662,13 @@ export default function BalancingModal({ isOpen, onClose }: BalancingModalProps)
                 max={30}
                 onChange={(v) => update({ maxIdeasPerCycle: v })}
               />
+              <SliderControl
+                label="Max Concurrent Scans"
+                value={config.maxConcurrentScans ?? 4}
+                min={1}
+                max={8}
+                onChange={(v) => update({ maxConcurrentScans: v })}
+              />
               <div className="space-y-1.5">
                 <span className="text-xs text-gray-400">Provider / Model</span>
                 <ProviderModelSelect
@@ -754,6 +761,11 @@ export default function BalancingModal({ isOpen, onClose }: BalancingModalProps)
                 onModelChange={(m) => update({ triageModel: m })}
               />
             </div>
+            <Toggle
+              label="Triage Checkpoint"
+              checked={config.triageCheckpointEnabled ?? true}
+              onChange={(v) => update({ triageCheckpointEnabled: v })}
+            />
           </div>
 
           {/* Batch */}
@@ -875,6 +887,43 @@ export default function BalancingModal({ isOpen, onClose }: BalancingModalProps)
               <SectionHeader icon={Activity} label="Subscription Usage" colorClass="text-blue-400" />
               <SubscriptionUsage />
             </div>
+          </div>
+        </div>
+
+        {/* ================================================================
+            Row 4: Planner + Intent Refinement
+            ================================================================ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Planner */}
+          <div className="space-y-3 p-4 rounded-xl bg-gray-800/20 border border-gray-800/50">
+            <SectionHeader icon={Brain} label="Planner" colorClass="text-indigo-400" />
+            <div className="text-[11px] text-gray-500 mb-2">
+              Structures goal-driven backlog with dependencies and composite groups.
+              Only runs for goal-driven pipeline runs.
+            </div>
+            <div className="space-y-1.5">
+              <span className="text-xs text-gray-400">Provider / Model</span>
+              <ProviderModelSelect
+                provider={config.plannerProvider || 'claude'}
+                model={config.plannerModel}
+                onProviderChange={(p) => update({ plannerProvider: p })}
+                onModelChange={(m) => update({ plannerModel: m })}
+              />
+            </div>
+          </div>
+
+          {/* Intent Refinement */}
+          <div className="space-y-3 p-4 rounded-xl bg-gray-800/20 border border-gray-800/50">
+            <SectionHeader icon={Filter} label="Intent Refinement" colorClass="text-purple-400" />
+            <div className="text-[11px] text-gray-500 mb-2">
+              Pre-pipeline modal where LLM generates clarifying questions about the goal.
+              Answers are used to improve goal analysis and planning quality.
+            </div>
+            <Toggle
+              label="Enable Intent Refinement"
+              checked={config.intentRefinementEnabled ?? false}
+              onChange={(v) => update({ intentRefinementEnabled: v })}
+            />
           </div>
         </div>
       </div>

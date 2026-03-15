@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { SSE_FALLBACK_INTERVAL_MS, DEFAULT_POLL_INTERVAL_MS } from './taskRunnerConfig';
 import {
   createUnifiedPoller,
   type UnifiedPoller,
@@ -69,13 +70,10 @@ interface PollingEntry {
 const activePollingIntervals = new Map<string, PollingEntry>();
 
 const DEFAULT_CONFIG = {
-  intervalMs: 10000,
+  intervalMs: DEFAULT_POLL_INTERVAL_MS,
   maxAttempts: Infinity,
   onAttempt: () => {},
 };
-
-/** Fallback polling interval when SSE disconnects (30s instead of 10s) */
-const SSE_FALLBACK_INTERVAL_MS = 30_000;
 
 // ============================================================================
 // Auto-cleanup: close SSE connections on page unload / navigation

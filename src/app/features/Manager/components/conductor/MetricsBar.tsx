@@ -4,16 +4,18 @@
 
 'use client';
 
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   Lightbulb, ThumbsUp, ThumbsDown, ListChecks,
   CheckCircle2, XCircle, Wrench, Clock, DollarSign,
 } from 'lucide-react';
-import type { PipelineMetrics } from '../../lib/conductor/types';
+import type { PipelineMetrics, ProcessLogEntry } from '../../lib/conductor/types';
 import { createEmptyMetrics } from '../../lib/conductor/types';
 
 interface MetricsBarProps {
   metrics: PipelineMetrics | null;
+  processLog?: ProcessLogEntry[];
   isRunning: boolean;
 }
 
@@ -54,8 +56,20 @@ function formatCost(cost: number): string {
   return `$${cost.toFixed(2)}`;
 }
 
-export default function MetricsBar({ metrics, isRunning }: MetricsBarProps) {
-  const m = metrics ?? createEmptyMetrics();
+export default function MetricsBar({ metrics, processLog, isRunning }: MetricsBarProps) {
+  // Derive live metrics from processLog if available (most recent metrics event wins)
+  const liveMetrics = useMemo(() => {
+    if (!processLog || processLog.length === 0) return null;
+    // Find the last metrics event in the log
+    for (let i = processLog.length - 1; i >= 0; i--) {
+      if (processLog[i].event === 'metrics' && processLog[i].metrics) {
+        return processLog[i].metrics!;
+      }
+    }
+    return null;
+  }, [processLog]);
+
+  const m = liveMetrics ?? metrics ?? createEmptyMetrics();
   const successRate = m.tasksCompleted + m.tasksFailed > 0
     ? Math.round((m.tasksCompleted / (m.tasksCompleted + m.tasksFailed)) * 100)
     : 0;

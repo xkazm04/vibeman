@@ -1,15 +1,20 @@
 /**
- * Scout Stage — Context-Aware Idea Generation
+ * Scout Stage — Parallel Context-Aware Idea Generation
  *
- * Builds (scanType, context) pairs and runs ONE at a time.
- * Each pair dispatches a CLI execution scoped to that scan type + context.
+ * Builds (scanType, context) pairs and runs them in parallel batches
+ * of `config.maxConcurrentScans` (default 4) using Promise.allSettled.
+ * Each pair dispatches its own CLI session scoped to that scan type + context.
  *
- * Flow per (scanType, context) pair:
- * 1. POST /api/ideas/claude → get requirementContent (the prompt)
- * 2. startExecution() → spawn CLI process with that prompt
- * 3. Poll execution status until completed/error
- * 4. Count ideas created in DB since execution started
- * 5. Emit progress callback with scan type, context name, idea count
+ * Flow:
+ * 1. Build all (scanType, context) pairs via balancingEngine
+ * 2. Slice pairs into batches of maxConcurrentScans
+ * 3. For each batch, launch all pairs concurrently:
+ *    a. POST /api/ideas/claude → get requirementContent (the prompt)
+ *    b. startExecution() → spawn CLI process with that prompt
+ *    c. Poll execution status until completed/error
+ *    d. Count ideas created in DB since execution started
+ *    e. Emit progress callback with scan type, context name, idea count
+ * 4. After each batch, check abort signal and idea cap before continuing
  */
 
 import type { ScanType } from '@/app/features/Ideas/lib/scanTypes';
@@ -38,15 +43,11 @@ interface ScoutInput {
 }
 
 /**
- * Execute the Scout stage: generate ideas using (scanType, context) pairs.
+ * Execute the Scout stage: generate ideas using (scanType, context) pairs
+ * in parallel batches of `config.maxConcurrentScans`.
  *
- * For each pair:
- * 1. Emits "started" progress with scan type + context name
- * 2. Gets the requirement prompt from /api/ideas/claude with contextId
- * 3. Dispatches it to the CLI for execution
- * 4. Waits for the CLI to finish
- * 5. Counts newly created ideas
- * 6. Emits "completed" progress with idea count + duration
+ * Each batch launches N pairs concurrently via Promise.allSettled.
+ * After each batch completes, checks abort signal and idea cap.
  */
 export async function executeScoutStage(input: ScoutInput): Promise<ScoutResult[]> {
   // Fetch project contexts for pair building
@@ -55,59 +56,70 @@ export async function executeScoutStage(input: ScoutInput): Promise<ScoutResult[
   // Build (scanType, context) pairs
   const pairs = selectScanPairs(input.config, contexts, input.brainContext);
   const results: ScoutResult[] = [];
+  const maxConcurrent = input.config.maxConcurrentScans || 4;
 
-  for (const pair of pairs) {
-    // Check abort signal before starting each pair
+  // Process pairs in parallel batches
+  for (let i = 0; i < pairs.length; i += maxConcurrent) {
     if (input.abortSignal?.aborted) {
       input.onProgress?.('info', 'Scout stopped by user');
       break;
     }
 
-    const label = formatPairLabel(pair);
+    const batch = pairs.slice(i, i + maxConcurrent);
+    input.onProgress?.(
+      'info',
+      `Launching batch of ${batch.length} scan${batch.length !== 1 ? 's' : ''} (${i + 1}-${i + batch.length}/${pairs.length})`
+    );
 
-    try {
-      // Emit scan start
-      input.onProgress?.('started', `Scanning ${label}...`);
-
-      const scanStart = Date.now();
-      const result = await generateIdeasForPair(
-        input.projectId,
-        input.projectPath,
-        input.projectName,
-        pair,
-        input.config,
-        input.healingContext,
-        input.abortSignal
-      );
-      results.push(result);
-
-      const durationMs = Date.now() - scanStart;
-
-      // Emit scan completion
-      input.onProgress?.(
-        result.ideasGenerated > 0 ? 'completed' : 'info',
-        `${label} — ${result.ideasGenerated} idea${result.ideasGenerated !== 1 ? 's' : ''} generated`,
-        { itemsOut: result.ideasGenerated, durationMs }
-      );
-
-      // Check if we've hit the max ideas cap
-      const totalIdeas = results.reduce((sum, r) => sum + r.ideasGenerated, 0);
-      if (totalIdeas >= input.config.maxIdeasPerCycle) {
-        input.onProgress?.('info', `Idea cap reached (${totalIdeas}/${input.config.maxIdeasPerCycle})`);
-        break;
+    const batchPromises = batch.map(async (pair) => {
+      const label = formatPairLabel(pair);
+      try {
+        input.onProgress?.('started', `Scanning ${label}...`);
+        const scanStart = Date.now();
+        const result = await generateIdeasForPair(
+          input.projectId,
+          input.projectPath,
+          input.projectName,
+          pair,
+          input.config,
+          input.healingContext,
+          input.abortSignal
+        );
+        const durationMs = Date.now() - scanStart;
+        input.onProgress?.(
+          result.ideasGenerated > 0 ? 'completed' : 'info',
+          `${label} — ${result.ideasGenerated} idea${result.ideasGenerated !== 1 ? 's' : ''}`,
+          { itemsOut: result.ideasGenerated, durationMs }
+        );
+        return result;
+      } catch (error) {
+        console.error(`[scout] Failed ${label}:`, error);
+        input.onProgress?.('failed', `${label} failed: ${String(error)}`, {
+          error: String(error),
+        });
+        return {
+          scanType: pair.scanType,
+          contextId: pair.contextId ?? undefined,
+          contextName: pair.contextName ?? undefined,
+          ideasGenerated: 0,
+          ideaIds: [],
+        } as ScoutResult;
       }
-    } catch (error) {
-      console.error(`[scout] Failed ${label}:`, error);
-      input.onProgress?.('failed', `${label} failed: ${String(error)}`, {
-        error: String(error),
-      });
-      results.push({
-        scanType: pair.scanType,
-        contextId: pair.contextId ?? undefined,
-        contextName: pair.contextName ?? undefined,
-        ideasGenerated: 0,
-        ideaIds: [],
-      });
+    });
+
+    const settled = await Promise.allSettled(batchPromises);
+    for (const result of settled) {
+      if (result.status === 'fulfilled') {
+        results.push(result.value);
+      }
+      // rejected case is already handled in the catch above
+    }
+
+    // Check idea cap after each batch
+    const totalIdeas = results.reduce((sum, r) => sum + r.ideasGenerated, 0);
+    if (totalIdeas >= input.config.maxIdeasPerCycle) {
+      input.onProgress?.('info', `Idea cap reached (${totalIdeas}/${input.config.maxIdeasPerCycle})`);
+      break;
     }
   }
 

@@ -132,9 +132,10 @@ function handleAcceptAction(candidateId: string, updates: any) {
   } satisfies CandidateAcceptResponse);
 }
 
-function handleRejectAction(candidateId: string) {
+function handleRejectAction(candidateId: string, rejectionReason?: string) {
   const updatedCandidate = goalCandidateRepository.updateCandidate(candidateId, {
-    user_action: 'rejected'
+    user_action: 'rejected',
+    rejection_reason: rejectionReason || null
   });
 
   return NextResponse.json({
@@ -171,7 +172,7 @@ function handleUpdateAction(candidateId: string, updates: any) {
 async function handlePut(request: NextRequest) {
   try {
     const body = await request.json();
-    const { candidateId, action, updates } = body;
+    const { candidateId, action, updates, rejectionReason } = body;
 
     if (!candidateId || !action) {
       return createErrorResponse('Candidate ID and action are required', 400);
@@ -181,7 +182,7 @@ async function handlePut(request: NextRequest) {
       case 'accept':
         return handleAcceptAction(candidateId, updates);
       case 'reject':
-        return handleRejectAction(candidateId);
+        return handleRejectAction(candidateId, rejectionReason);
       case 'tweak':
         return handleTweakAction(candidateId, updates);
       case 'update':

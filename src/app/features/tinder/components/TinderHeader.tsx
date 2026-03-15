@@ -107,10 +107,10 @@ export default function TinderHeader({
       setFlushError(null);
       setFlushSuccess(false);
 
-      const response = await fetch('/api/ideas/tinder/flush', {
+      const response = await fetch('/api/tinder/flush', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId: selectedProjectId }),
+        body: JSON.stringify({ projectId: selectedProjectId, itemType: 'ideas' }),
       });
 
       const data = await response.json();

@@ -1,7 +1,8 @@
 /**
- * Local tinder items composable — handles fetching from the local DB,
- * pagination, accept/reject/delete via local API endpoints, and
- * category loading. All UI state lives in useTinderItemsCore.
+ * Local mode hook (Layer 2) — handles fetching from the local DB,
+ * keyset cursor pagination via useCursorPagination, accept/reject/delete
+ * via local API endpoints, and filter data loading.
+ * All UI state lives in useTinderItems (Layer 1).
  */
 
 import { useEffect, useCallback } from 'react';
@@ -24,20 +25,21 @@ import {
   deleteDirectionPair,
 } from './tinderItemsApi';
 import { TINDER_CONSTANTS } from './tinderUtils';
+import { useCursorPagination } from './useCursorPagination';
 import type { UseTinderItemsCoreResult } from './useTinderItemsCore';
 
-interface UseLocalTinderItemsOptions {
+interface UseLocalModeOptions {
   selectedProjectId: string;
   effortRange: [number, number] | null;
   riskRange: [number, number] | null;
   sortOrder: 'asc' | 'desc';
-  /** When false, effects don't fire (inactive composable). */
+  /** When false, effects don't fire (inactive mode). */
   enabled: boolean;
 }
 
-export function useLocalTinderItems(
+export function useLocalMode(
   core: UseTinderItemsCoreResult,
-  options: UseLocalTinderItemsOptions
+  options: UseLocalModeOptions
 ) {
   const { selectedProjectId, effortRange, riskRange, sortOrder, enabled } = options;
   const { getProject } = useServerProjectStore();
@@ -52,8 +54,6 @@ export function useLocalTinderItems(
     filterDimension,
     selectedScanType,
     selectedContextId,
-    loadingRef,
-    nextCursorRef,
     setItems,
     setCurrentIndex,
     setLoading,
@@ -74,6 +74,14 @@ export function useLocalTinderItems(
     updateCountsOptimistic,
     setStats,
   } = core;
+
+  // Pagination state — loading guard + keyset cursor
+  const { loadingRef, nextCursorRef, loadMoreIfNeeded } = useCursorPagination({
+    hasMore,
+    itemsLength: items.length,
+    currentIndex,
+    threshold: TINDER_CONSTANTS.LOAD_MORE_THRESHOLD,
+  });
 
   // Determine active scan type (only when in scan_type dimension)
   const activeScanType = filterDimension === 'scan_type' ? selectedScanType : null;
@@ -120,13 +128,7 @@ export function useLocalTinderItems(
       loadingRef.current = false;
       setLoading(false);
     }
-  }, [selectedProjectId, filterMode, activeCategory, activeScanType, selectedContextId, effortRange, riskRange, sortOrder, loadingRef, nextCursorRef, setItems, setCurrentIndex, setLoading, setHasMore, setTotal, setCounts, setGoalTitlesMap]);
-
-  const loadMoreIfNeeded = useCallback(() => {
-    if (currentIndex >= items.length - TINDER_CONSTANTS.LOAD_MORE_THRESHOLD && hasMore && !loadingRef.current) {
-      loadItems(nextCursorRef.current);
-    }
-  }, [currentIndex, items.length, hasMore, loadItems, loadingRef, nextCursorRef]);
+  }, [selectedProjectId, filterMode, activeCategory, activeScanType, selectedContextId, effortRange, riskRange, sortOrder, setItems, setCurrentIndex, setLoading, setHasMore, setTotal, setCounts, setGoalTitlesMap]); // loadingRef and nextCursorRef are stable refs
 
   // Load idea categories for filtering
   const loadCategories = useCallback(async () => {
@@ -209,7 +211,7 @@ export function useLocalTinderItems(
       updateStats(currentItem, 'accepted');
       updateCategoryCountOptimistic(currentItem);
       updateCountsOptimistic(isIdeaItem(currentItem) ? 'ideas' : 'directions');
-      loadMoreIfNeeded();
+      loadMoreIfNeeded(loadItems);
     } catch (error) {
       alert('Failed to accept: ' + (error instanceof Error ? error.message : 'Unknown error'));
       setItems(prev => {
@@ -220,7 +222,7 @@ export function useLocalTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, items, getProject, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic, updateCountsOptimistic, setItems, setProcessing, setPrerequisiteNotification]);
+  }, [processing, currentIndex, items, getProject, loadMoreIfNeeded, loadItems, updateStats, updateCategoryCountOptimistic, updateCountsOptimistic, setItems, setProcessing, setPrerequisiteNotification]);
 
   // Reject handler
   const handleReject = useCallback(async (rejectionReason?: string) => {
@@ -238,7 +240,7 @@ export function useLocalTinderItems(
       updateStats(currentItem, 'rejected');
       updateCategoryCountOptimistic(currentItem);
       updateCountsOptimistic(isIdeaItem(currentItem) ? 'ideas' : 'directions');
-      loadMoreIfNeeded();
+      loadMoreIfNeeded(loadItems);
     } catch (error) {
       alert('Failed to reject');
       setItems(prev => {
@@ -249,7 +251,7 @@ export function useLocalTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, items, getProject, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic, updateCountsOptimistic, setItems, setProcessing]);
+  }, [processing, currentIndex, items, getProject, loadMoreIfNeeded, loadItems, updateStats, updateCategoryCountOptimistic, updateCountsOptimistic, setItems, setProcessing]);
 
   // Delete handler
   const handleDelete = useCallback(async () => {
@@ -270,7 +272,7 @@ export function useLocalTinderItems(
       updateStats(currentItem, 'deleted');
       updateCategoryCountOptimistic(currentItem);
       updateCountsOptimistic(isIdeaItem(currentItem) ? 'ideas' : 'directions');
-      loadMoreIfNeeded();
+      loadMoreIfNeeded(loadItems);
     } catch (error) {
       alert(`Failed to delete ${itemType}`);
       setItems(prev => {
@@ -281,7 +283,7 @@ export function useLocalTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, items, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic, updateCountsOptimistic, setItems, setProcessing]);
+  }, [processing, currentIndex, items, loadMoreIfNeeded, loadItems, updateStats, updateCategoryCountOptimistic, updateCountsOptimistic, setItems, setProcessing]);
 
   // Accept idea variant (scope: MVP / Standard / Ambitious)
   const handleAcceptIdeaVariant = useCallback(async (ideaId: string, variant: { title: string; description: string; effort: number; impact: number; risk: number; scope: string }) => {
@@ -320,7 +322,7 @@ export function useLocalTinderItems(
       updateStats(currentItem, 'accepted');
       updateCategoryCountOptimistic(currentItem);
       updateCountsOptimistic('ideas');
-      loadMoreIfNeeded();
+      loadMoreIfNeeded(loadItems);
     } catch (error) {
       alert('Failed to accept variant: ' + (error instanceof Error ? error.message : 'Unknown error'));
       setItems(prev => {
@@ -331,7 +333,7 @@ export function useLocalTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, items, getProject, loadMoreIfNeeded, updateStats, updateCategoryCountOptimistic, updateCountsOptimistic, setItems, setProcessing]);
+  }, [processing, currentIndex, items, getProject, loadMoreIfNeeded, loadItems, updateStats, updateCategoryCountOptimistic, updateCountsOptimistic, setItems, setProcessing]);
 
   // Accept a variant from a direction pair
   const handleAcceptPairVariant = useCallback(async (pairId: string, variant: 'A' | 'B') => {
@@ -363,7 +365,7 @@ export function useLocalTinderItems(
         },
       }));
       updateCountsOptimistic('directions', 2);
-      loadMoreIfNeeded();
+      loadMoreIfNeeded(loadItems);
     } catch (error) {
       alert('Failed to accept direction variant: ' + (error instanceof Error ? error.message : 'Unknown error'));
       setItems(prev => {
@@ -374,7 +376,7 @@ export function useLocalTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, items, getProject, loadMoreIfNeeded, updateCountsOptimistic, setItems, setProcessing, setStats]);
+  }, [processing, currentIndex, items, getProject, loadMoreIfNeeded, loadItems, updateCountsOptimistic, setItems, setProcessing, setStats]);
 
   // Reject both directions in a pair
   const handleRejectPair = useCallback(async (pairId: string) => {
@@ -397,7 +399,7 @@ export function useLocalTinderItems(
         },
       }));
       updateCountsOptimistic('directions', 2);
-      loadMoreIfNeeded();
+      loadMoreIfNeeded(loadItems);
     } catch (error) {
       alert('Failed to reject direction pair');
       setItems(prev => {
@@ -408,7 +410,7 @@ export function useLocalTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, items, loadMoreIfNeeded, updateCountsOptimistic, setItems, setProcessing, setStats]);
+  }, [processing, currentIndex, items, loadMoreIfNeeded, loadItems, updateCountsOptimistic, setItems, setProcessing, setStats]);
 
   // Delete both directions in a pair
   const handleDeletePair = useCallback(async (pairId: string) => {
@@ -435,7 +437,7 @@ export function useLocalTinderItems(
         },
       }));
       updateCountsOptimistic('directions', 2);
-      loadMoreIfNeeded();
+      loadMoreIfNeeded(loadItems);
     } catch (error) {
       alert('Failed to delete direction pair');
       setItems(prev => {
@@ -446,7 +448,7 @@ export function useLocalTinderItems(
     } finally {
       setProcessing(false);
     }
-  }, [processing, currentIndex, items, loadMoreIfNeeded, updateCountsOptimistic, setItems, setProcessing, setStats]);
+  }, [processing, currentIndex, items, loadMoreIfNeeded, loadItems, updateCountsOptimistic, setItems, setProcessing, setStats]);
 
   // Load categories when in ideas mode
   useEffect(() => {

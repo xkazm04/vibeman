@@ -7,6 +7,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/app/db/connection';
+import { withValidation } from '@/lib/api/withValidation';
+import { ConfigPutBodySchema, type ConfigPutBody } from '@/lib/api/schemas/conductor';
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,7 +31,7 @@ export async function GET(request: NextRequest) {
       WHERE project_id = ?
       ORDER BY created_at DESC
       LIMIT 1
-    `).get(projectId) as any;
+    `).get(projectId) as { config_snapshot: string | null } | undefined;
 
     return NextResponse.json({
       success: true,
@@ -44,36 +46,29 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function PUT(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { projectId, config } = body;
+export const PUT = withValidation(
+  ConfigPutBodySchema,
+  async (_request: NextRequest, body: ConfigPutBody) => {
+    try {
+      const { projectId, config } = body;
+      const db = getDatabase();
 
-    if (!projectId || !config) {
+      const result = db.prepare(`
+        UPDATE conductor_runs
+        SET config_snapshot = ?
+        WHERE project_id = ? AND status IN ('running', 'paused')
+      `).run(JSON.stringify(config), projectId);
+
+      return NextResponse.json({
+        success: true,
+        updated: result.changes > 0,
+      });
+    } catch (error) {
+      console.error('[conductor/config] Error:', error);
       return NextResponse.json(
-        { success: false, error: 'Missing projectId or config' },
-        { status: 400 }
+        { success: false, error: 'Internal server error' },
+        { status: 500 }
       );
     }
-
-    const db = getDatabase();
-
-    // Update config on the active run if one exists
-    const result = db.prepare(`
-      UPDATE conductor_runs
-      SET config_snapshot = ?
-      WHERE project_id = ? AND status IN ('running', 'paused')
-    `).run(JSON.stringify(config), projectId);
-
-    return NextResponse.json({
-      success: true,
-      updated: (result as any).changes > 0,
-    });
-  } catch (error) {
-    console.error('[conductor/config] Error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
   }
-}
+);

@@ -31,6 +31,7 @@ interface ExecuteInput {
   projectName: string;
   abortSignal?: AbortSignal;
   onTaskUpdate?: (tasks: ExecutionTaskState[]) => void;
+  maxRetries?: number;
 }
 
 interface ExecuteStageResult {
@@ -51,6 +52,11 @@ export async function executeExecuteStage(input: ExecuteInput): Promise<ExecuteS
   const { runId, config, projectId, projectPath, onTaskUpdate } = input;
   const results: ExecutionResult[] = [];
   const maxParallel = config.maxConcurrentTasks || 2;
+  const maxRetries = input.maxRetries ?? 2;
+
+  // Retry tracking
+  const retryCount = new Map<string, number>();
+  const retryErrors = new Map<string, string>();
 
   // Read specs from DB
   const allSpecs = specRepository.getSpecsByRunId(runId);
@@ -131,6 +137,8 @@ export async function executeExecuteStage(input: ExecuteInput): Promise<ExecuteS
       }
       emitUpdate();
 
+      const errorContext = retryErrors.get(spec.id);
+
       dispatched.push(
         executeSpec(
           projectId,
@@ -140,7 +148,8 @@ export async function executeExecuteStage(input: ExecuteInput): Promise<ExecuteS
           config.executionProvider as string,
           config.executionModel || 'sonnet',
           config.executionTimeoutMs || 6000 * 1000,
-          input.abortSignal
+          input.abortSignal,
+          errorContext
         )
           .then((result) => ({ specId: spec.id, result }))
           .catch((error) => ({
@@ -162,29 +171,61 @@ export async function executeExecuteStage(input: ExecuteInput): Promise<ExecuteS
     for (const { specId, result } of settled) {
       // Update scheduler state
       schedulerState.running.delete(specId);
+
       if (result.success) {
         schedulerState.completed.add(specId);
+        specRepository.updateSpecStatus(specId, 'completed');
+
+        const ts = taskStateMap.get(specId);
+        if (ts) {
+          ts.status = 'completed';
+          ts.executionId = result.taskId;
+          ts.durationMs = result.durationMs;
+        }
+
+        results.push(result);
       } else {
+        // Check if we can retry
+        const currentRetries = retryCount.get(specId) || 0;
+        const isAbort = result.error?.includes('Aborted by user');
+        const isRateLimit = result.error && /rate.?limit|429|too many requests|quota.?exceeded/i.test(result.error);
+
+        if (currentRetries < maxRetries && result.error && !isAbort) {
+          // Re-queue for retry with error context
+          retryCount.set(specId, currentRetries + 1);
+          retryErrors.set(specId, result.error);
+          const originalSpec = allSpecs.find((s) => s.id === specId);
+          if (originalSpec) {
+            schedulerState.pending.push(originalSpec);
+            specRepository.updateSpecStatus(specId, 'pending');
+            const ts = taskStateMap.get(specId);
+            if (ts) {
+              ts.status = 'pending';
+              ts.error = `Retry ${currentRetries + 1}/${maxRetries}: ${result.error}`;
+            }
+            console.log(`[execute] Retrying spec ${originalSpec.slug} (attempt ${currentRetries + 2}/${maxRetries + 1}): ${result.error}`);
+            // Don't push to results yet — wait for retry outcome
+            if (isRateLimit) rateLimitDetected = true;
+            continue;
+          }
+        }
+
+        // Exhausted retries or non-retryable — mark as failed
         schedulerState.failed.add(specId);
+        specRepository.updateSpecStatus(specId, 'failed');
+
+        const ts = taskStateMap.get(specId);
+        if (ts) {
+          ts.status = 'failed';
+          ts.executionId = result.taskId;
+          ts.durationMs = result.durationMs;
+          if (result.error) ts.error = result.error;
+        }
+
+        if (isRateLimit) rateLimitDetected = true;
+
+        results.push(result);
       }
-
-      // Update DB status AFTER execution
-      specRepository.updateSpecStatus(specId, result.success ? 'completed' : 'failed');
-
-      const ts = taskStateMap.get(specId);
-      if (ts) {
-        ts.status = result.success ? 'completed' : 'failed';
-        ts.executionId = result.taskId;
-        ts.durationMs = result.durationMs;
-        if (result.error) ts.error = result.error;
-      }
-
-      // Detect rate limit errors for backoff
-      if (!result.success && result.error && /rate.?limit|429|too many requests|quota.?exceeded/i.test(result.error)) {
-        rateLimitDetected = true;
-      }
-
-      results.push(result);
     }
     emitUpdate();
 
@@ -208,7 +249,8 @@ async function executeSpec(
   provider: string,
   model: string,
   timeoutMs: number,
-  abortSignal?: AbortSignal
+  abortSignal?: AbortSignal,
+  retryContext?: string
 ): Promise<ExecutionResult> {
   const startTime = Date.now();
 
@@ -222,6 +264,11 @@ async function executeSpec(
     specContent = fs.readFileSync(specFilePath, 'utf-8');
   } catch (error) {
     throw new Error(`Failed to read spec file "${specFilePath}": ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  // Prepend retry context if this is a retry attempt
+  if (retryContext) {
+    specContent = `PREVIOUS ATTEMPT FAILED\n\nThe previous attempt to implement this spec failed with the following error:\n\n${retryContext}\n\nPlease fix the issues and try again. Pay special attention to the error above.\n\n---\n\n${specContent}`;
   }
 
   // Step 2: Take file snapshots BEFORE dispatch (for post-execution verification)
@@ -292,6 +339,10 @@ async function executeSpec(
         taskId: executionId,
         requirementName: spec.slug,
         success: true,
+        filesChanged: [
+          ...spec.affectedFiles.create,
+          ...spec.affectedFiles.modify,
+        ],
         durationMs: Date.now() - startTime,
         provider,
         model,

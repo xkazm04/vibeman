@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { standupDb } from '@/app/db';
-import { StandupSummaryResponse, StandupBlocker, StandupHighlight, StandupFocusArea } from '@/app/db/models/standup.types';
-import { safeParseJsonArray } from '@/app/db/repositories/repository.utils';
+import { StandupSummaryResponse } from '@/app/db/models/standup.types';
+import { StandupBlockerSchema, StandupHighlightSchema, StandupFocusAreaSchema, parseStandupJsonArray } from '@/lib/api/schemas/standup';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
 
@@ -72,12 +72,12 @@ async function handleGet(request: NextRequest) {
         ideasImplemented: dbSummary.ideas_implemented,
         scansCount: dbSummary.scans_count,
       },
-      blockers: safeParseJsonArray<StandupBlocker>(dbSummary.blockers),
-      highlights: safeParseJsonArray<StandupHighlight>(dbSummary.highlights),
+      blockers: parseStandupJsonArray(StandupBlockerSchema, dbSummary.blockers, 'blockers'),
+      highlights: parseStandupJsonArray(StandupHighlightSchema, dbSummary.highlights, 'highlights'),
       insights: {
         velocityTrend: dbSummary.velocity_trend,
         burnoutRisk: dbSummary.burnout_risk,
-        focusAreas: safeParseJsonArray<StandupFocusArea>(dbSummary.focus_areas),
+        focusAreas: parseStandupJsonArray(StandupFocusAreaSchema, dbSummary.focus_areas, 'focus_areas'),
       },
       generatedAt: dbSummary.generated_at,
     };

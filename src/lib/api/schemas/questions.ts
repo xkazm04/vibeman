@@ -8,11 +8,11 @@ import { z } from 'zod';
 
 export const QuestionsResponseSchema = z.object({
   success: z.boolean(),
-  questions: z.array(z.record(z.string(), z.unknown())).default([]),
+  items: z.array(z.record(z.string(), z.unknown())).default([]),
   grouped: z.array(z.object({
     contextMapId: z.string(),
     contextMapTitle: z.string(),
-    questions: z.array(z.record(z.string(), z.unknown())),
+    items: z.array(z.record(z.string(), z.unknown())),
   })).default([]),
   counts: z.object({
     pending: z.number(),

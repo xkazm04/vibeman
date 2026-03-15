@@ -10,6 +10,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { QueuedTask } from '../types';
 import type { SkillId } from '../skills';
 import type { CLIProvider, CLIModel } from '@/lib/claude-terminal/types';
+import { taskEventBus } from '@/lib/taskEventBus';
 
 // Session IDs
 export type CLISessionId = 'cliSession1' | 'cliSession2' | 'cliSession3' | 'cliSession4';
@@ -192,6 +193,10 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
             },
           };
         });
+        if (status.type === 'queued') taskEventBus.emit({ type: 'task-queued', taskId, sessionId });
+        else if (status.type === 'running') taskEventBus.emit({ type: 'task-started', taskId, sessionId });
+        else if (status.type === 'completed') taskEventBus.emit({ type: 'task-completed', taskId, sessionId });
+        else if (status.type === 'failed') taskEventBus.emit({ type: 'task-failed', taskId, sessionId, error: status.error });
       },
 
       removeTask: (sessionId, taskId) => {

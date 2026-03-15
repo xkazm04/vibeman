@@ -1,7 +1,10 @@
 import { RequirementId, type RequirementIdString, type ParsedRequirementId } from './requirementId';
+import type { TaskLifecycleStatus } from '@/lib/status';
 
 // Re-export RequirementId for consumers
 export { RequirementId, type RequirementIdString, type ParsedRequirementId };
+// Re-export the canonical status type for consumers who only need the string form
+export type { TaskLifecycleStatus };
 
 // ============================================================================
 // Discriminated Union Types for Task Status
@@ -94,10 +97,11 @@ export type TaskStatusUnion =
   | TaskStatusFailed;
 
 /**
- * Simple string literal type for backward compatibility
- * Maps to the discriminated union's type field
+ * Simple string literal type — grounded in the unified status algebra.
+ * This is the canonical scalar type; TaskStatusUnion is its rich object form.
+ * Equivalent to TaskLifecycleStatus from '@/lib/status'.
  */
-export type TaskStatusType = TaskStatusUnion['type'];
+export type TaskStatusType = TaskLifecycleStatus;
 
 // ============================================================================
 // Helper Functions for Status Operations

@@ -1,7 +1,8 @@
 /**
- * Remote tinder items composable — handles fetching directions from
- * a remote device via mesh commands, polling for results, and
- * remote accept/reject triage. All UI state lives in useTinderItemsCore.
+ * Remote mode hook (Layer 2) — handles fetching directions from a remote device
+ * via mesh commands, polling for results, and remote accept/reject triage.
+ * All UI state lives in useTinderItems (Layer 1).
+ * Pagination refs are managed by useCursorPagination (hasMore: false — remote fetches all at once).
  */
 
 import { useEffect, useCallback, useRef } from 'react';
@@ -12,6 +13,7 @@ import {
   TinderItem,
   isIdeaItem,
 } from './tinderTypes';
+import { useCursorPagination } from './useCursorPagination';
 import type { UseTinderItemsCoreResult } from './useTinderItemsCore';
 
 /** Convert RemoteDirection to TinderItem format */
@@ -65,26 +67,32 @@ async function pollForResult(commandId: string, timeoutMs: number): Promise<any>
   throw new Error('Command timed out');
 }
 
-interface UseRemoteTinderItemsOptions {
+interface UseRemoteModeOptions {
   remoteDeviceId: string;
-  /** When false, effects don't fire (inactive composable). */
+  /** When false, effects don't fire (inactive mode). */
   enabled: boolean;
 }
 
-export function useRemoteTinderItems(
+export function useRemoteMode(
   core: UseTinderItemsCoreResult,
-  options: UseRemoteTinderItemsOptions
+  options: UseRemoteModeOptions
 ) {
   const { remoteDeviceId, enabled } = options;
   const { localDeviceId, localDeviceName } = useDeviceMeshStore();
   const pendingCommandRef = useRef<string | null>(null);
 
+  // Remote mode fetches all items at once — no cursor pagination, but we consume
+  // useCursorPagination for the loading guard ref (consistent with local mode).
+  const { loadingRef, nextCursorRef } = useCursorPagination({
+    hasMore: false,
+    itemsLength: 0,
+    currentIndex: 0,
+  });
+
   const {
     items,
     currentIndex,
     processing,
-    loadingRef,
-    nextCursorRef,
     setItems,
     setCurrentIndex,
     setLoading,
@@ -139,12 +147,12 @@ export function useRemoteTinderItems(
         setCounts({ ideas: 0, directions: tinderItems.length });
       }
     } catch (error) {
-      console.error('[useRemoteTinderItems] Remote load error:', error);
+      console.error('[useRemoteMode] Remote load error:', error);
     } finally {
       loadingRef.current = false;
       setLoading(false);
     }
-  }, [remoteDeviceId, localDeviceId, localDeviceName, loadingRef, nextCursorRef, setItems, setCurrentIndex, setLoading, setHasMore, setTotal, setCounts]);
+  }, [remoteDeviceId, localDeviceId, localDeviceName, setItems, setCurrentIndex, setLoading, setHasMore, setTotal, setCounts]); // loadingRef and nextCursorRef are stable refs
 
   // Send remote triage command (accept/reject)
   const sendRemoteTriageCommand = useCallback(async (
@@ -229,7 +237,7 @@ export function useRemoteTinderItems(
     }
   }, [processing, currentIndex, items, sendRemoteTriageCommand, updateStats, updateCategoryCountOptimistic, updateCountsOptimistic, setItems, setProcessing]);
 
-  // Delete handler — remote mode just skips locally
+  // Delete handler — remote mode just removes locally
   const handleDelete = useCallback(async () => {
     if (processing || currentIndex >= items.length) return;
 

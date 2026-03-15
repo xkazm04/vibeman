@@ -2,6 +2,29 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { DbIdea } from '@/app/db';
 
+// Stats response shape from /api/ideas/stats
+export interface IdeaStats {
+  scanTypes: Array<{
+    scanType: string;
+    pending: number;
+    accepted: number;
+    rejected: number;
+    implemented: number;
+    total: number;
+    acceptanceRatio: number;
+  }>;
+  overall: {
+    pending: number;
+    accepted: number;
+    rejected: number;
+    implemented: number;
+    total: number;
+    acceptanceRatio: number;
+  };
+  projects: Array<{ projectId: string; name: string; totalIdeas: number }>;
+  contexts: Array<{ contextId: string; name: string; totalIdeas: number }>;
+}
+
 // Idea status type for filtering
 export type IdeaStatus = 'pending' | 'accepted' | 'rejected' | 'implemented';
 
@@ -16,7 +39,10 @@ export const ideaQueryKeys = {
   byProject: (projectId: string) =>
     [...ideaQueryKeys.lists(), { projectId }] as const,
   buffer: () => [...ideaQueryKeys.lists(), 'buffer'] as const,
+  pending: () => [...ideaQueryKeys.lists(), { status: 'pending' as IdeaStatus }] as const,
   detail: (id: string) => [...ideaQueryKeys.all, 'detail', id] as const,
+  stats: (filters?: { projectId?: string; contextId?: string }) =>
+    [...ideaQueryKeys.all, 'stats', filters ?? {}] as const,
 };
 
 // API functions
@@ -384,4 +410,44 @@ export function useInvalidateIdeas() {
   return useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ideaQueryKeys.all });
   }, [queryClient]);
+}
+
+async function fetchIdeaStats(filters?: {
+  projectId?: string;
+  contextId?: string;
+}): Promise<IdeaStats> {
+  const params = new URLSearchParams();
+  if (filters?.projectId) params.append('projectId', filters.projectId);
+  if (filters?.contextId) params.append('contextId', filters.contextId);
+
+  const url = `/api/ideas/stats${params.toString() ? `?${params.toString()}` : ''}`;
+  const response = await fetch(url, {
+    cache: 'no-cache',
+    headers: { 'Cache-Control': 'no-cache' },
+  });
+
+  if (!response.ok) throw new Error('Failed to fetch idea stats');
+  return response.json();
+}
+
+/**
+ * Hook for fetching idea stats (counts by status + scan type).
+ * Shares the same invalidation group as all other idea queries —
+ * calling invalidateIdeas() after a tinder action updates this too.
+ */
+export function useIdeaStats(filters?: { projectId?: string; contextId?: string }) {
+  const query = useQuery({
+    queryKey: ideaQueryKeys.stats(filters),
+    queryFn: () => fetchIdeaStats(filters),
+    staleTime: 5000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+  });
+
+  return {
+    stats: query.data ?? null,
+    isLoading: query.isLoading,
+    error: query.error?.message,
+  };
 }

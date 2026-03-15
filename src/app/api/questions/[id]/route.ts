@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { questionDb } from '@/app/db';
 import { logger } from '@/lib/logger';
+import { InvalidTransitionError } from '@/lib/stateMachine';
 
 export async function GET(
   request: NextRequest,
@@ -82,6 +83,9 @@ export async function PUT(
     });
 
   } catch (error) {
+    if (error instanceof InvalidTransitionError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     logger.error('[API] Question PUT error:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unknown error' },

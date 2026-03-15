@@ -14,20 +14,56 @@ import type {
 } from '../types';
 
 // ============================================================================
-// Rubric & File Review
+// Deep Rubric (10-dimension scored review)
 // ============================================================================
 
-export interface RubricScores {
+export interface RubricDimension {
+  score: number; // 1-5
+  critical: boolean; // if true and score < 2, review fails
+  note?: string;
+}
+
+export interface DeepRubricScores {
+  structureSize: RubricDimension;      // Functions/files < 200 LOC
+  noAnyTypes: RubricDimension;         // No `any` usage
+  errorHandling: RubricDimension;      // Try/catch, error boundaries
+  security: RubricDimension;           // OWASP: no injection, XSS, etc.
+  resilience: RubricDimension;         // Circuit-breaking, graceful degradation
+  performance: RubricDimension;        // No N+1, efficient algorithms
+  naming: RubricDimension;             // Consistent, descriptive names
+  dependencies: RubricDimension;       // No circular, clean imports
+  testing: RubricDimension;            // Testable code, edge cases
+  reversibility: RubricDimension;      // Safe to roll back
+}
+
+/** Dimensions where score < 2 causes automatic failure */
+export const CRITICAL_DIMENSIONS: (keyof DeepRubricScores)[] = [
+  'security',
+  'errorHandling',
+  'noAnyTypes',
+  'structureSize',
+];
+
+// ============================================================================
+// Legacy Rubric (backward compatibility)
+// ============================================================================
+
+export type RubricScores = {
   logicCorrectness: 'pass' | 'fail';
   namingConventions: 'pass' | 'fail';
   typeSafety: 'pass' | 'fail';
-}
+};
+
+// ============================================================================
+// File Review Result
+// ============================================================================
 
 export interface FileReviewResult {
   filePath: string;
   passed: boolean;
   rationale: string;
   rubricScores: RubricScores;
+  deepScores?: DeepRubricScores;
 }
 
 // ============================================================================

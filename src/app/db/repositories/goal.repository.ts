@@ -2,6 +2,7 @@ import { getDatabase } from '../connection';
 import { DbGoal } from '../models/types';
 import { getCurrentTimestamp, selectOne } from './repository.utils';
 import { createGenericRepository } from './generic.repository';
+import { goalTransition, GoalStatus } from '@/lib/stateMachine';
 
 const base = createGenericRepository<DbGoal>({
   tableName: 'goals',
@@ -100,6 +101,12 @@ export const goalRepository = {
     checkpoint_config?: Record<string, boolean> | null;
     use_brain?: boolean;
   }): DbGoal | null => {
+    if (updates.status !== undefined) {
+      const current = base.getById(id);
+      if (current) {
+        goalTransition(current.status as GoalStatus, updates.status);
+      }
+    }
     // Serialize JSON fields before passing to generic update
     const serialized: Record<string, unknown> = { ...updates };
     if (updates.target_paths !== undefined) {

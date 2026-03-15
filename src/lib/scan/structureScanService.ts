@@ -23,6 +23,7 @@ import {
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { minimatch } from 'minimatch';
 import { logger } from '@/lib/logger';
+import { walkDirectory } from './fileWalker';
 
 // Constants
 const DEFAULT_IGNORE_PATTERNS = [
@@ -58,39 +59,11 @@ function normalizePath(filePath: string): string {
   return filePath.replace(/\\/g, '/');
 }
 
-async function scanDirectory(
-  currentPath: string,
-  relativePath: string,
-  ignorePatterns: string[],
-  files: string[]
-): Promise<void> {
-  try {
-    const entries = await fs.readdir(currentPath, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const entryRelPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
-      const entryFullPath = path.join(currentPath, entry.name);
-
-      if (shouldIgnorePath(entryRelPath, ignorePatterns)) continue;
-
-      if (entry.isDirectory()) {
-        await scanDirectory(entryFullPath, entryRelPath, ignorePatterns, files);
-      } else if (entry.isFile()) {
-        files.push(normalizePath(entryRelPath));
-      }
-    }
-  } catch (error) {
-    logger.error(`Error scanning ${currentPath}:`, { error });
-  }
-}
-
 async function getAllFiles(
   dirPath: string,
   ignorePatterns: string[] = []
 ): Promise<string[]> {
-  const files: string[] = [];
-  await scanDirectory(dirPath, '', ignorePatterns, files);
-  return files;
+  return walkDirectory(dirPath, { ignorePatterns });
 }
 
 function matchPattern(files: string[], pattern: string): string[] {

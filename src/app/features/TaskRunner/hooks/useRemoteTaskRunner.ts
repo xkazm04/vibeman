@@ -6,15 +6,15 @@
  * Manages remote batch execution and status polling
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useDeviceMeshStore, useSelectedDevice } from '@/stores/deviceMeshStore';
 import {
   useRemoteWorkStore,
   type RemoteRequirement,
   type RemoteBatchInfo,
 } from '@/stores/remoteWorkStore';
-
-const BATCH_POLL_INTERVAL_MS = 10_000; // 10 seconds
+import { BATCH_POLL_INTERVAL_MS } from '../lib/taskRunnerConfig';
+import { usePolling } from '@/hooks/usePolling';
 
 /**
  * Poll for command result with timeout
@@ -116,8 +116,6 @@ export function useRemoteTaskRunner(): UseRemoteTaskRunnerResult {
   } = useRemoteWorkStore();
 
   const selectedDevice = useSelectedDevice();
-  const batchPollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const isBatchPollingRef = useRef(false);
 
   const isRemoteAvailable = isRegistered && !!selectedDeviceId;
 
@@ -335,43 +333,16 @@ export function useRemoteTaskRunner(): UseRemoteTaskRunnerResult {
     }
   }, [isRemoteTaskRunnerMode, selectedDeviceId, fetchRequirements]);
 
-  // Start batch status polling when there are running batches
-  useEffect(() => {
-    const hasRunningBatches = remoteBatches.some(
-      (b) => b.status === 'running' || b.status === 'pending'
-    );
+  // Poll batch status while remote mode is active and batches are running
+  const hasRunningBatches = remoteBatches.some(
+    (b) => b.status === 'running' || b.status === 'pending'
+  );
 
-    if (isRemoteTaskRunnerMode && hasRunningBatches) {
-      // Clear any existing interval
-      if (batchPollIntervalRef.current) {
-        clearInterval(batchPollIntervalRef.current);
-      }
-
-      // Start polling with async overlap guard
-      batchPollIntervalRef.current = setInterval(async () => {
-        if (isBatchPollingRef.current) return; // Skip if previous poll still running
-        isBatchPollingRef.current = true;
-        try {
-          await refreshBatchStatus();
-        } finally {
-          isBatchPollingRef.current = false;
-        }
-      }, BATCH_POLL_INTERVAL_MS);
-
-      // Initial refresh
-      refreshBatchStatus();
-    } else if (batchPollIntervalRef.current) {
-      clearInterval(batchPollIntervalRef.current);
-      batchPollIntervalRef.current = null;
-    }
-
-    return () => {
-      if (batchPollIntervalRef.current) {
-        clearInterval(batchPollIntervalRef.current);
-        batchPollIntervalRef.current = null;
-      }
-    };
-  }, [isRemoteTaskRunnerMode, remoteBatches, refreshBatchStatus]);
+  usePolling(refreshBatchStatus, {
+    enabled: isRemoteTaskRunnerMode && hasRunningBatches,
+    intervalMs: BATCH_POLL_INTERVAL_MS,
+    immediate: true,
+  });
 
   // Clear remote mode when device disconnects
   useEffect(() => {

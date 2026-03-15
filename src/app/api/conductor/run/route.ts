@@ -15,19 +15,14 @@ import {
   stopPipeline,
 } from '@/app/features/Manager/lib/conductor/conductorOrchestrator';
 import { conductorRepository } from '@/app/features/Manager/lib/conductor/conductor.repository';
+import { withValidation } from '@/lib/api/withValidation';
+import { RunPostBodySchema, type RunPostBody } from '@/lib/api/schemas/conductor';
 
-export async function POST(request: NextRequest) {
+export const POST = withValidation(
+  RunPostBodySchema,
+  async (_request: NextRequest, body: RunPostBody) => {
+  const { action, projectId, runId, config, projectPath, projectName, goalId, refinedIntent } = body;
   try {
-    const body = await request.json();
-    const { action, projectId, runId, config, projectPath, projectName, goalId } = body;
-
-    if (!action) {
-      return NextResponse.json(
-        { success: false, error: 'Missing action' },
-        { status: 400 }
-      );
-    }
-
     switch (action) {
       case 'start': {
         if (!projectId) {
@@ -37,17 +32,11 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        if (!goalId) {
-          return NextResponse.json(
-            { success: false, error: 'Missing goalId' },
-            { status: 400 }
-          );
-        }
-
         const id = runId || uuidv4();
 
-        // Launch pipeline orchestrator — it creates the DB run record internally
-        startPipeline(id, projectId, config || {}, projectPath, projectName, goalId);
+        // Launch pipeline orchestrator — goalId is optional (non-goal runs skip goal analysis)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        startPipeline(id, projectId, (config || {}) as any, projectPath, projectName, goalId || undefined, refinedIntent || undefined);
 
         return NextResponse.json({
           success: true,
@@ -68,7 +57,7 @@ export async function POST(request: NextRequest) {
           pausePipeline(runId);
         } else {
           // For projectId-based pause, get the latest running run
-          const runs = conductorRepository.getRunHistory(projectId, 1);
+          const runs = conductorRepository.getRunHistory(projectId!, 1);
           const activeRun = runs.find(r => r.status === 'running');
           if (activeRun) {
             pausePipeline(activeRun.id);
@@ -89,7 +78,7 @@ export async function POST(request: NextRequest) {
         if (runId) {
           resumePipeline(runId);
         } else {
-          const runs = conductorRepository.getRunHistory(projectId, 1);
+          const runs = conductorRepository.getRunHistory(projectId!, 1);
           const pausedRun = runs.find(r => r.status === 'paused');
           if (pausedRun) {
             resumePipeline(pausedRun.id);
@@ -110,7 +99,7 @@ export async function POST(request: NextRequest) {
         if (runId) {
           stopPipeline(runId);
         } else {
-          const runs = conductorRepository.getRunHistory(projectId, 1);
+          const runs = conductorRepository.getRunHistory(projectId!, 1);
           const activeRun = runs.find(r => r.status === 'running' || r.status === 'paused');
           if (activeRun) {
             stopPipeline(activeRun.id);
@@ -133,4 +122,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

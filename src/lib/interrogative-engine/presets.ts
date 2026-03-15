@@ -239,8 +239,8 @@ export function createTinderEngine(
   return new InterrogativeEngine({
     name: 'tinder',
     persistence: new ApiItemPersistence<TinderItem>({
-      baseUrl: '/api/ideas/tinder',
-      queryParams: { projectId },
+      baseUrl: '/api/tinder/items',
+      queryParams: { projectId, itemType: 'ideas' },
       parseList: (data) => {
         const d = data as { items?: TinderItem[] };
         return d.items ?? [];
@@ -248,8 +248,10 @@ export function createTinderEngine(
     }),
     decision: {
       onAccept: async (item): Promise<AcceptResult> => {
-        const response = await fetch(`/api/ideas/tinder/${item.id}/accept`, {
+        const response = await fetch('/api/tinder/actions', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ itemType: 'idea', itemId: item.id, action: 'accept' }),
         });
         const data = await response.json();
         return {
@@ -259,8 +261,10 @@ export function createTinderEngine(
         };
       },
       onReject: async (item) => {
-        await fetch(`/api/ideas/tinder/${item.id}/reject`, {
+        await fetch('/api/tinder/actions', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ itemType: 'idea', itemId: item.id, action: 'reject' }),
         });
       },
     },

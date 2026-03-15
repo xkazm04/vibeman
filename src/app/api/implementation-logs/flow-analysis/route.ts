@@ -6,21 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { implementationLogDb, contextDb } from '@/app/db';
-
-interface FlowPair {
-  source_group_id: string;
-  target_group_id: string;
-  total_count: number;
-  success_count: number;
-  fail_count: number;
-  success_rate: number;
-  log_ids: string[];
-}
-
-interface Bottleneck {
-  group_id: string;
-  cross_context_fail_count: number;
-}
+import type { FlowPair, Bottleneck } from '@/app/features/Manager/lib/types';
 
 export async function GET(request: NextRequest) {
   try {

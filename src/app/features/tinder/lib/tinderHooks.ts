@@ -4,10 +4,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useMotionValue, useTransform, PanInfo, MotionValue } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
 import { DbIdea } from '@/app/db';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { fetchIdeasBatch, acceptIdeaById, rejectIdeaById, deleteIdeaById } from './tinderItemsApi';
 import { TINDER_CONSTANTS } from './tinderUtils';
+import { ideaQueryKeys } from '@/lib/queries/ideaQueries';
 
 export interface TinderStats {
   accepted: number;
@@ -39,20 +41,22 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
   const [processing, setProcessing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [total, setTotal] = useState(0);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [stats, setStats] = useState<TinderStats>({ accepted: 0, rejected: 0, deleted: 0 });
 
   const { getProject } = useServerProjectStore();
+  const queryClient = useQueryClient();
 
-  const loadIdeas = useCallback(async (offset: number = 0) => {
+  const loadIdeas = useCallback(async (cursor: string | null = null) => {
     setLoading(true);
     try {
       const result = await fetchIdeasBatch(
         selectedProjectId === 'all' ? undefined : selectedProjectId,
-        offset,
+        cursor,
         TINDER_CONSTANTS.BATCH_SIZE
       );
 
-      if (offset === 0) {
+      if (cursor === null) {
         setIdeas(result.ideas);
         setCurrentIndex(0);
       } else {
@@ -61,6 +65,7 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
 
       setHasMore(result.hasMore);
       setTotal(result.total);
+      setNextCursor(result.nextCursor);
     } catch (error) {
       // Silently fail - error will be visible through loading state
     } finally {
@@ -71,9 +76,9 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
   const loadMoreIfNeeded = useCallback(() => {
     // Load more when we're N cards away from the end
     if (currentIndex >= ideas.length - TINDER_CONSTANTS.LOAD_MORE_THRESHOLD && hasMore && !loading) {
-      loadIdeas(ideas.length);
+      loadIdeas(nextCursor);
     }
-  }, [currentIndex, ideas.length, hasMore, loading, loadIdeas]);
+  }, [currentIndex, ideas.length, hasMore, loading, loadIdeas, nextCursor]);
 
   const moveToNext = useCallback(() => {
     setCurrentIndex(prev => prev + 1);
@@ -100,6 +105,7 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
     try {
       await acceptIdeaById(ideaId, selectedProject.path);
       setStats(prev => ({ ...prev, accepted: prev.accepted + 1 }));
+      queryClient.invalidateQueries({ queryKey: ideaQueryKeys.all });
       loadMoreIfNeeded();
     } catch (error) {
       console.error('Failed to accept idea:', error);
@@ -130,6 +136,7 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
     try {
       await rejectIdeaById(ideaId, selectedProject?.path);
       setStats(prev => ({ ...prev, rejected: prev.rejected + 1 }));
+      queryClient.invalidateQueries({ queryKey: ideaQueryKeys.all });
       loadMoreIfNeeded();
     } catch (error) {
       console.error('Failed to reject idea:', error);
@@ -159,6 +166,7 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
     try {
       await deleteIdeaById(ideaId);
       setStats(prev => ({ ...prev, deleted: prev.deleted + 1 }));
+      queryClient.invalidateQueries({ queryKey: ideaQueryKeys.all });
       loadMoreIfNeeded();
     } catch (error) {
       console.error('Failed to delete idea:', error);
@@ -180,7 +188,7 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
 
   // Load initial batch when selectedProjectId changes
   useEffect(() => {
-    loadIdeas(0);
+    loadIdeas(null);
   }, [loadIdeas]);
 
   const currentIdea = ideas[currentIndex];
@@ -200,7 +208,7 @@ export function useTinderIdeas(selectedProjectId: string): UseTinderIdeasResult 
     handleReject,
     handleDelete,
     resetStats,
-    loadIdeas: () => loadIdeas(0),
+    loadIdeas: () => loadIdeas(null),
   };
 }
 

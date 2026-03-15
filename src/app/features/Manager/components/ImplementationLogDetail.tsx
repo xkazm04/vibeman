@@ -10,7 +10,7 @@ import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { EnrichedImplementationLog } from '../lib/types';
 import UserInputPanel from './UserInputPanel';
-import ImplementationProposalBridge from './ImplementationProposalBridge';
+import ImplementationProposalBridge, { type ProposalAction } from './ImplementationProposalBridge';
 import { ScreenshotPreview, ProjectContextTags, BulletsList } from './LogPreview';
 
 interface ImplementationLogDetailProps {
@@ -31,40 +31,25 @@ export default function ImplementationLogDetail({
   projectPath,
 }: ImplementationLogDetailProps) {
   /**
-   * Handle proposal acceptance - creates a new requirement
-   * Requirements: 2.3
+   * Unified dispatcher for all proposal actions.
+   * Requirements: 2.3, 2.4, 2.5
    */
-  const handleProposalAccepted = useCallback(
-    (proposalId: string, requirementName: string, content: string) => {
-      onRequirementCreated(requirementName, content);
-    },
-    [onRequirementCreated]
-  );
-
-  /**
-   * Handle proposal acceptance with code - triggers Claude Code pipeline
-   * Requirements: 2.4
-   */
-  const handleProposalAcceptedWithCode = useCallback(
-    (proposalId: string, requirementName: string, content: string) => {
-      if (onTriggerClaudeCode) {
-        onTriggerClaudeCode(requirementName, content);
+  const handleProposalAction = useCallback(
+    (proposalId: string, action: ProposalAction) => {
+      if (action.type === 'accepted') {
+        onRequirementCreated(action.requirementName, action.content);
+      } else if (action.type === 'accepted-with-code') {
+        if (onTriggerClaudeCode) {
+          onTriggerClaudeCode(action.requirementName, action.content);
+        } else {
+          onRequirementCreated(action.requirementName, action.content);
+        }
       } else {
-        // Fallback to regular requirement creation
-        onRequirementCreated(requirementName, content);
+        console.log('[ImplementationLogDetail] Proposal declined:', proposalId);
       }
     },
-    [onTriggerClaudeCode, onRequirementCreated]
+    [onRequirementCreated, onTriggerClaudeCode]
   );
-
-  /**
-   * Handle proposal decline - records the decline action
-   * Requirements: 2.5
-   */
-  const handleProposalDeclined = useCallback((proposalId: string) => {
-    // Log decline for analytics (could be extended to persist)
-    console.log('[ImplementationLogDetail] Proposal declined:', proposalId);
-  }, []);
 
   return (
     <motion.div
@@ -145,9 +130,8 @@ export default function ImplementationLogDetail({
             <ImplementationProposalBridge
               implementationLog={log}
               projectPath={projectPath}
-              onProposalAccepted={handleProposalAccepted}
-              onProposalAcceptedWithCode={onTriggerClaudeCode ? handleProposalAcceptedWithCode : undefined}
-              onProposalDeclined={handleProposalDeclined}
+              onProposalAction={handleProposalAction}
+              showImplementWithAI={!!onTriggerClaudeCode}
             />
 
             {/* Implementation Details */}

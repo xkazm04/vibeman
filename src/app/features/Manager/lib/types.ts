@@ -55,3 +55,37 @@ export interface ImprovementRequest {
   userInput: string;
   contextDescription?: string;
 }
+
+// Flow analysis types (shared between useFlowAnalysis hook and flow-analysis API route)
+
+export interface FlowPair {
+  source_group_id: string;
+  target_group_id: string;
+  total_count: number;
+  success_count: number;
+  fail_count: number;
+  success_rate: number;
+  log_ids: string[];
+}
+
+export interface Bottleneck {
+  group_id: string;
+  cross_context_fail_count: number;
+}
+
+export interface FlowAnalysisData {
+  pairs: FlowPair[];
+  bottlenecks: Bottleneck[];
+  total_logs: number;
+  cross_context_count: number;
+}
+
+export interface LogEntry {
+  id: string;
+  title: string;
+  requirement_name: string;
+  overview: string;
+  tested: number;
+  created_at: string;
+  context_name: string | null;
+}

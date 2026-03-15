@@ -21,6 +21,7 @@ import type {
   HealingPatch,
   ErrorClassification,
   ProcessLogEntry,
+  ServerRunPayload,
 } from './types';
 import {
   DEFAULT_BALANCING_CONFIG,
@@ -57,7 +58,7 @@ interface ConductorStoreState {
   pauseRun: () => void;
   resumeRun: () => void;
   stopRun: () => void;
-  setRunFromServer: (run: PipelineRun) => void;
+  setRunFromServer: (run: ServerRunPayload) => void;
 
   // Actions — Stage Updates
   advanceStage: (stage: PipelineStage, stageState: Partial<StageState>) => void;
@@ -76,6 +77,9 @@ interface ConductorStoreState {
 
   // Actions — UI Preferences
   toggleNerdMode: () => void;
+
+  // Actions — Run Reset
+  resetRun: () => void;
 
   // Actions — History
   addToHistory: (summary: PipelineRunSummary) => void;
@@ -154,12 +158,36 @@ export const useConductorStore = create<ConductorStoreState>()(
 
           set({
             currentRun: { ...currentRun, status: 'stopping' },
+            isRunning: false,
+            isPaused: false,
           });
+
+          // Auto-clear after timeout — if server never confirms, don't stay stuck
+          setTimeout(() => {
+            const state = get();
+            if (state.currentRun?.id === currentRun.id && state.currentRun?.status === 'stopping') {
+              set({
+                currentRun: { ...state.currentRun, status: 'interrupted', completedAt: new Date().toISOString() },
+                isRunning: false,
+                isPaused: false,
+              });
+            }
+          }, 10_000);
         },
 
         setRunFromServer: (run) => {
+          const { currentRun } = get();
+          const isTerminal = run.status === 'completed' || run.status === 'failed' || run.status === 'interrupted';
+
+          // Don't restore terminal runs from the server unless we're already
+          // tracking that specific run (prevents completed runs from being
+          // re-loaded after reset or when starting a new run)
+          if (isTerminal && (!currentRun || currentRun.id !== run.id)) {
+            return;
+          }
+
           // Parse process log from server response (comes as raw JSON or already parsed)
-          const rawLog = (run as any).processLog || (run as any).process_log;
+          const rawLog = run.process_log;
           let parsedLog: ProcessLogEntry[] = [];
           if (typeof rawLog === 'string') {
             try { parsedLog = JSON.parse(rawLog); } catch { /* ignore */ }
@@ -233,6 +261,17 @@ export const useConductorStore = create<ConductorStoreState>()(
             completedAt: completedRun.completedAt,
           });
 
+          set({
+            currentRun: null,
+            isRunning: false,
+            isPaused: false,
+            processLog: [],
+          });
+        },
+
+        // ---- Run Reset ----
+
+        resetRun: () => {
           set({
             currentRun: null,
             isRunning: false,

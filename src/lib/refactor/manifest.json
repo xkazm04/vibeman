@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-03-07T11:43:07.317Z",
+  "timestamp": "2026-03-14T20:18:23.051Z",
   "files": [
     {
       "path": "C:\\Users\\kazim\\dac\\vibeman\\src\\components\\buttons\\IlluminatedButton.tsx",
@@ -40,7 +40,7 @@
     {
       "path": "C:\\Users\\kazim\\dac\\vibeman\\src\\components\\cli\\CompactTerminal.tsx",
       "status": "pending",
-      "lineCount": 1053,
+      "lineCount": 1060,
       "colorReplacements": 5,
       "extractedComponents": []
     },

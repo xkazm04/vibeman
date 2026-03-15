@@ -7,6 +7,39 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/app/db/connection';
+import { withValidation } from '@/lib/api/withValidation';
+import { HealingPostBodySchema, type HealingPostBody } from '@/lib/api/schemas/conductor';
+
+interface ConductorErrorRow {
+  id: string;
+  pipeline_run_id: string;
+  stage: string;
+  error_type: string;
+  error_message: string;
+  task_id: string | null;
+  scan_type: string | null;
+  occurrence_count: number;
+  first_seen: string;
+  last_seen: string;
+  resolved: number;
+}
+
+interface HealingPatchRow {
+  id: string;
+  pipeline_run_id: string;
+  target_type: string;
+  target_id: string;
+  original_value: string;
+  patched_value: string;
+  reason: string;
+  error_pattern: string;
+  applied_at: string;
+  effectiveness: number | null;
+  reverted: number;
+  expires_at: string;
+  application_count: number | null;
+  success_count: number | null;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,7 +63,7 @@ export async function GET(request: NextRequest) {
       WHERE cr.project_id = ?
       ORDER BY ce.last_seen DESC
       LIMIT 50
-    `).all(projectId) as any[];
+    `).all(projectId) as ConductorErrorRow[];
 
     // Get patches for this project's runs
     const patches = db.prepare(`
@@ -40,11 +73,11 @@ export async function GET(request: NextRequest) {
       WHERE cr.project_id = ?
       ORDER BY cp.applied_at DESC
       LIMIT 50
-    `).all(projectId) as any[];
+    `).all(projectId) as HealingPatchRow[];
 
     return NextResponse.json({
       success: true,
-      errors: errors.map((e: any) => ({
+      errors: errors.map((e) => ({
         id: e.id,
         pipelineRunId: e.pipeline_run_id,
         stage: e.stage,
@@ -57,7 +90,7 @@ export async function GET(request: NextRequest) {
         lastSeen: e.last_seen,
         resolved: !!e.resolved,
       })),
-      patches: patches.map((p: any) => ({
+      patches: patches.map((p) => ({
         id: p.id,
         pipelineRunId: p.pipeline_run_id,
         targetType: p.target_type,
@@ -70,9 +103,9 @@ export async function GET(request: NextRequest) {
         effectiveness: p.effectiveness,
         reverted: !!p.reverted,
         expiresAt: p.expires_at,
-        applicationCount: p.application_count || 0,
-        successCount: p.success_count || 0,
-        successRate: p.application_count > 0 ? (p.success_count || 0) / p.application_count : null,
+        applicationCount: p.application_count ?? 0,
+        successCount: p.success_count ?? 0,
+        successRate: p.application_count ? (p.success_count ?? 0) / p.application_count : null,
       })),
     });
   } catch (error) {
@@ -84,18 +117,11 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withValidation(
+  HealingPostBodySchema,
+  async (_request: NextRequest, body: HealingPostBody) => {
+  const { action, patchId } = body;
   try {
-    const body = await request.json();
-    const { action, patchId } = body;
-
-    if (!action) {
-      return NextResponse.json(
-        { success: false, error: 'Missing action' },
-        { status: 400 }
-      );
-    }
-
     if (!patchId && action !== 'save') {
       return NextResponse.json(
         { success: false, error: 'Missing patchId' },
@@ -188,4 +214,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

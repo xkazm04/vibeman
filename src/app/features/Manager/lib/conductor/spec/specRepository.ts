@@ -134,4 +134,32 @@ export const specRepository = {
       'DELETE FROM conductor_specs WHERE run_id = ?'
     ).run(runId);
   },
+
+  /**
+   * Record the on-disk file path for a spec (set after the file is written).
+   */
+  updateFilePath(specId: string, filePath: string): void {
+    const db = getDatabase();
+    db.prepare(
+      'UPDATE conductor_specs SET file_path = ? WHERE id = ?'
+    ).run(filePath, specId);
+  },
+
+  /**
+   * Return distinct run IDs that have spec rows AND whose parent run is in a
+   * terminal state (completed / failed / interrupted) with completed_at older
+   * than `ttlHours` ago.  Used by the purge flow.
+   */
+  getTerminalRunIdsOlderThan(ttlHours: number): string[] {
+    const db = getDatabase();
+    const cutoff = new Date(Date.now() - ttlHours * 60 * 60 * 1000).toISOString();
+    const rows = db.prepare(`
+      SELECT DISTINCT cs.run_id
+      FROM conductor_specs cs
+      JOIN conductor_runs cr ON cr.id = cs.run_id
+      WHERE cr.status IN ('completed', 'failed', 'interrupted')
+        AND cr.completed_at < ?
+    `).all(cutoff) as Array<{ run_id: string }>;
+    return rows.map((r) => r.run_id);
+  },
 };

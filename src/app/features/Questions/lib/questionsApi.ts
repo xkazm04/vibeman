@@ -6,6 +6,7 @@
 import { DbQuestion } from '@/app/db';
 import { Context, ContextGroup } from '@/lib/queries/contextQueries';
 import { safeResponseJson, parseApiResponse, QuestionsResponseSchema, QuestionMutationSchema, SuccessResponseSchema } from '@/lib/apiResponseGuard';
+import type { GenericListResponse } from '@/lib/api-helpers/groupByContextMap';
 
 // ============================================================================
 // API Response Types - Discriminated Unions for type-safe response handling
@@ -80,20 +81,10 @@ export interface GroupedContexts {
   contexts: Context[];
 }
 
-export interface QuestionsResponse {
-  success: boolean;
-  questions: DbQuestion[];
-  grouped: {
-    contextMapId: string;
-    contextMapTitle: string;
-    questions: DbQuestion[];
-  }[];
-  counts: {
-    pending: number;
-    answered: number;
-    total: number;
-  };
-}
+export type QuestionsResponse = GenericListResponse<DbQuestion> & {
+  counts: { pending: number; answered: number; total: number };
+  maxTreeDepth?: number;
+};
 
 export interface GenerateQuestionsResponse {
   success: boolean;

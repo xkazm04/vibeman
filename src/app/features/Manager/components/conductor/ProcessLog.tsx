@@ -12,7 +12,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Terminal, ChevronDown, AlertCircle,
-  Play, CheckCircle, XCircle, SkipForward, Info,
+  Play, CheckCircle, XCircle, SkipForward, Info, Activity,
 } from 'lucide-react';
 import type { ProcessLogEntry, PipelineStage } from '../../lib/conductor/types';
 
@@ -35,6 +35,7 @@ const EVENT_ICONS: Record<ProcessLogEntry['event'], { icon: typeof Play; classNa
   failed: { icon: XCircle, className: 'text-red-400' },
   skipped: { icon: SkipForward, className: 'text-gray-500' },
   info: { icon: Info, className: 'text-blue-400' },
+  metrics: { icon: Activity, className: 'text-cyan-400' },
 };
 
 function formatTime(timestamp: string): string {

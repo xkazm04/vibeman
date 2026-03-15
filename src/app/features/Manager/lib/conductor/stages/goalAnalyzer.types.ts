@@ -62,6 +62,8 @@ export interface GoalAnalyzerInput {
   };
   config: BalancingConfig;
   abortSignal?: AbortSignal;
+  /** Refined intent from G5 intent refinement (Q&A pairs) */
+  refinedIntent?: string | null;
 }
 
 export interface GoalAnalyzerOutput {

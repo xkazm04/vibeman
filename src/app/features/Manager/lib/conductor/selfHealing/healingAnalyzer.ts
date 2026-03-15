@@ -5,7 +5,7 @@
  * recurring patterns and suggest prompt/config modifications.
  */
 
-import type { ErrorClassification, HealingPatch, HealingTargetType } from '../types';
+import type { ErrorClassification, HealingPatch, HealingTargetType, ErrorType } from '../types';
 import { groupErrorsByType, getErrorDescription } from './errorClassifier';
 
 interface HealingSuggestion {
@@ -70,7 +70,7 @@ async function generateHealingSuggestions(
   errorType: string,
   errors: ErrorClassification[]
 ): Promise<HealingSuggestion[]> {
-  const errorDescription = getErrorDescription(errorType as any);
+  const errorDescription = getErrorDescription(errorType as ErrorType);
   const errorMessages = errors.map((e) => e.errorMessage).slice(0, 5);
   const stages = [...new Set(errors.map((e) => e.stage))];
 

@@ -7,7 +7,7 @@
  * - Simplified structure - techniques are now reusable across the codebase
  */
 
-import { BaseScanStrategy } from '../ScanStrategy';
+import { RefactorScanStrategy } from '../ScanStrategy';
 import type { FileAnalysis } from '@/app/features/RefactorWizard/lib/types';
 import type { RefactorOpportunity } from '@/stores/refactorStore';
 import {
@@ -28,7 +28,7 @@ import {
   checkMetadataAPI,
 } from '../techniques/nextjs';
 
-export class NextJSScanStrategy extends BaseScanStrategy {
+export class NextJSScanStrategy extends RefactorScanStrategy {
   readonly name = 'Next.js Scanner';
   readonly techStack = 'nextjs' as const;
 

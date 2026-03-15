@@ -5,7 +5,7 @@
  * Detects mobile-specific patterns and React Native conventions.
  */
 
-import { BaseScanStrategy } from '../ScanStrategy';
+import { RefactorScanStrategy } from '../ScanStrategy';
 import type { FileAnalysis } from '@/app/features/RefactorWizard/lib/types';
 import type { RefactorOpportunity } from '@/stores/refactorStore';
 import {
@@ -19,7 +19,7 @@ import {
   detectReactHookDeps,
 } from '@/lib/scan/patterns';
 
-export class ReactNativeScanStrategy extends BaseScanStrategy {
+export class ReactNativeScanStrategy extends RefactorScanStrategy {
   readonly name = 'React Native Scanner';
   readonly techStack = 'react-native' as const;
 

@@ -453,25 +453,59 @@ export const AGENT_REGISTRY: Record<ScanType, AgentDefinition> = {
 // ---------------------------------------------------------------------------
 
 /**
+ * Registry class for prompt builders with init-time validation.
+ * Validates that all agent types have registered builders and logs
+ * a clear error for any missing ones rather than failing silently.
+ */
+export class PromptBuilderRegistry {
+  register(scanType: ScanType, builder: AgentPromptBuilder): void {
+    const agent = AGENT_REGISTRY[scanType];
+    if (agent) {
+      agent.buildPrompt = builder;
+    }
+  }
+
+  registerAll(builders: Partial<Record<ScanType, AgentPromptBuilder>>): void {
+    for (const [scanType, builder] of Object.entries(builders)) {
+      if (builder) {
+        this.register(scanType as ScanType, builder);
+      }
+    }
+    this.validateAll();
+  }
+
+  validateAll(): void {
+    const missing = (Object.keys(AGENT_REGISTRY) as ScanType[]).filter(
+      scanType => !AGENT_REGISTRY[scanType].buildPrompt
+    );
+    if (missing.length > 0) {
+      console.error(
+        `[PromptBuilderRegistry] Missing prompt builders for ${missing.length} agent(s): ${missing.join(', ')}`
+      );
+    }
+  }
+
+  get(scanType: ScanType): AgentPromptBuilder | undefined {
+    return AGENT_REGISTRY[scanType]?.buildPrompt;
+  }
+}
+
+export const promptBuilderRegistry = new PromptBuilderRegistry();
+
+/**
  * Register a prompt builder for an agent. Called from prompts/index.ts
  * to avoid circular imports between scanTypes and prompt files.
  */
 export function registerPromptBuilder(scanType: ScanType, builder: AgentPromptBuilder): void {
-  const agent = AGENT_REGISTRY[scanType];
-  if (agent) {
-    agent.buildPrompt = builder;
-  }
+  promptBuilderRegistry.register(scanType, builder);
 }
 
 /**
  * Batch-register prompt builders for multiple agents at once.
+ * Validates that all 21 agent types have builders after registration.
  */
 export function registerPromptBuilders(builders: Partial<Record<ScanType, AgentPromptBuilder>>): void {
-  for (const [scanType, builder] of Object.entries(builders)) {
-    if (builder) {
-      registerPromptBuilder(scanType as ScanType, builder);
-    }
-  }
+  promptBuilderRegistry.registerAll(builders);
 }
 
 // ---------------------------------------------------------------------------

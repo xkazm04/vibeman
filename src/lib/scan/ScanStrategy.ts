@@ -3,13 +3,15 @@
  *
  * CHANGES:
  * - Added selectedGroups parameter to detectOpportunities()
- * - Added shouldRunGroup() helper method to BaseScanStrategy
+ * - Added shouldRunGroup() helper method to RefactorScanStrategy
  *
  * TO APPLY: Copy this file to src/lib/scan/ScanStrategy.ts
  */
 
 import type { FileAnalysis } from '@/app/features/RefactorWizard/lib/types';
 import type { RefactorOpportunity } from '@/stores/refactorStore';
+import { logger } from '@/lib/logger';
+import { globFiles } from './fileWalker';
 
 /**
  * Project type identifier
@@ -56,9 +58,11 @@ export interface ScanStrategy {
 }
 
 /**
- * Base abstract class with common functionality
+ * Base abstract class with common functionality for refactor-wizard scan strategies.
+ * Renamed from BaseScanStrategy to avoid confusion with strategies/baseScanStrategy.ts
+ * which serves the generic scan lifecycle pipeline.
  */
-export abstract class BaseScanStrategy implements ScanStrategy {
+export abstract class RefactorScanStrategy implements ScanStrategy {
   abstract readonly name: string;
   abstract readonly techStack: ProjectType;
 
@@ -122,95 +126,61 @@ export abstract class BaseScanStrategy implements ScanStrategy {
   async scanProjectFiles(projectPath: string, selectedFolders?: string[]): Promise<FileAnalysis[]> {
     const { promises: fs } = await import('fs');
     const path = await import('path');
-    const { glob } = await import('glob');
 
-    const files: FileAnalysis[] = [];
     const scanPatterns = this.getScanPatterns();
     const ignorePatterns = this.getIgnorePatterns();
 
     // Convert absolute paths to relative paths if needed
     const relativeFolders = selectedFolders && selectedFolders.length > 0
       ? selectedFolders.map(folder => {
-          // If folder is absolute, make it relative to projectPath
           if (path.isAbsolute(folder)) {
             return path.relative(projectPath, folder).replace(/\\/g, '/');
           }
-          // Already relative
           return folder.replace(/\\/g, '/');
-        }).filter(f => f.length > 0) // Filter out empty strings (root folder case)
+        }).filter(f => f.length > 0)
       : [];
 
-    console.log('[ScanStrategy] Project path:', projectPath);
-    console.log('[ScanStrategy] Selected folders (relative):', relativeFolders);
-    console.log('[ScanStrategy] Base scan patterns:', scanPatterns);
+    logger.info('[ScanStrategy] Project path:', { projectPath });
+    logger.info('[ScanStrategy] Selected folders (relative):', { relativeFolders });
+    logger.info('[ScanStrategy] Base scan patterns:', { scanPatterns });
 
     // If specific folders are selected, create simple recursive patterns for those folders
-    // instead of trying to combine with existing patterns (which creates incorrect paths)
     const effectiveScanPatterns = relativeFolders.length > 0
-      ? relativeFolders.flatMap(folder => {
-          // For each folder, create patterns that will find all relevant files
-          return [
-            `${folder}/**/*.ts`,
-            `${folder}/**/*.tsx`,
-            `${folder}/**/*.js`,
-            `${folder}/**/*.jsx`,
-            `${folder}/**/*.py`,
-          ];
-        })
+      ? relativeFolders.flatMap(folder => [
+          `${folder}/**/*.ts`,
+          `${folder}/**/*.tsx`,
+          `${folder}/**/*.js`,
+          `${folder}/**/*.jsx`,
+          `${folder}/**/*.py`,
+        ])
       : scanPatterns;
 
-    console.log('[ScanStrategy] Effective scan patterns:', effectiveScanPatterns.slice(0, 5), effectiveScanPatterns.length > 5 ? `... and ${effectiveScanPatterns.length - 5} more` : '');
+    logger.info('[ScanStrategy] Effective scan patterns:', { patterns: effectiveScanPatterns.slice(0, 5), remaining: effectiveScanPatterns.length > 5 ? effectiveScanPatterns.length - 5 : 0 });
 
-    // Use a Set to deduplicate files
-    const seenPaths = new Set<string>();
+    const absolutePaths = await globFiles(projectPath, effectiveScanPatterns, { ignorePatterns });
 
-    for (const pattern of effectiveScanPatterns) {
+    const files: FileAnalysis[] = [];
+    for (const filePath of absolutePaths) {
+      const relativePath = path.relative(projectPath, filePath).replace(/\\/g, '/');
+
+      // Verify file is within selected folders (if specified)
+      if (relativeFolders.length > 0) {
+        const isInSelectedFolder = relativeFolders.some(folder =>
+          relativePath.startsWith(folder + '/') || relativePath === folder
+        );
+        if (!isInSelectedFolder) continue;
+      }
+
       try {
-        const matches = await glob(pattern, {
-          cwd: projectPath,
-          ignore: ignorePatterns,
-          absolute: true,
-          windowsPathsNoEscape: true,
-          nodir: true, // Only match files, not directories
-        });
-
-        const matchArray = Array.isArray(matches) ? matches : [];
-
-        for (const filePath of matchArray) {
-          const relativePath = path.relative(projectPath, filePath).replace(/\\/g, '/');
-
-          // Skip if already seen
-          if (seenPaths.has(relativePath)) continue;
-          seenPaths.add(relativePath);
-
-          // Verify file is within selected folders (if specified)
-          if (relativeFolders.length > 0) {
-            const isInSelectedFolder = relativeFolders.some(folder => {
-              return relativePath.startsWith(folder + '/') ||
-                     relativePath === folder;
-            });
-            if (!isInSelectedFolder) continue;
-          }
-
-          try {
-            const content = await fs.readFile(filePath, 'utf-8');
-            const size = Buffer.byteLength(content, 'utf-8');
-
-            files.push({
-              path: relativePath,
-              content,
-              size,
-            });
-          } catch (error) {
-            // Skip files that can't be read
-          }
-        }
-      } catch (error) {
-        console.error(`[ScanStrategy] Error globbing pattern ${pattern}:`, error);
+        const content = await fs.readFile(filePath, 'utf-8');
+        const size = Buffer.byteLength(content, 'utf-8');
+        files.push({ path: relativePath, content, size });
+      } catch {
+        // Skip files that can't be read
       }
     }
 
-    console.log(`[ScanStrategy] ✅ Scanned ${files.length} files${relativeFolders.length > 0 ? ` in ${relativeFolders.length} folder(s): ${relativeFolders.join(', ')}` : ' in entire project'}`);
+    logger.info(`[ScanStrategy] Scanned ${files.length} files${relativeFolders.length > 0 ? ` in ${relativeFolders.length} folder(s): ${relativeFolders.join(', ')}` : ' in entire project'}`);
 
     return files;
   }

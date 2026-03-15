@@ -31,7 +31,17 @@ export {
   GoalsListResponseSchema,
   GoalResponseSchema,
   GoalMutationResponseSchema,
+  GoalCreateBodySchema,
+  GoalUpdateBodySchema,
 } from './goals';
+
+// Standup API schemas
+export {
+  StandupBlockerSchema,
+  StandupHighlightSchema,
+  StandupFocusAreaSchema,
+  parseStandupJsonArray,
+} from './standup';
 
 // Questions API schemas
 export {

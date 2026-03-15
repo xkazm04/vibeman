@@ -134,16 +134,16 @@ export function useDeleteQuestion() {
         { queryKey: questionsQueryKeys.all },
         (old) => {
           if (!old) return old;
-          const deletedQuestion = old.questions.find((q) => q.id === questionId);
+          const deletedQuestion = old.items.find((q) => q.id === questionId);
           return {
             ...old,
-            questions: old.questions.filter((q) => q.id !== questionId),
+            items: old.items.filter((q) => q.id !== questionId),
             grouped: old.grouped
               .map((g) => ({
                 ...g,
-                questions: g.questions.filter((q) => q.id !== questionId),
+                items: g.items.filter((q) => q.id !== questionId),
               }))
-              .filter((g) => g.questions.length > 0),
+              .filter((g) => g.items.length > 0),
             counts: {
               ...old.counts,
               total: old.counts.total - 1,
@@ -320,7 +320,7 @@ export function useAcceptDirection() {
           if (!old) return old;
           return {
             ...old,
-            directions: old.directions.map((d) =>
+            items: old.items.map((d) =>
               d.id === directionId ? { ...d, status: 'accepted' as const } : d
             ),
             counts: {
@@ -369,7 +369,7 @@ export function useRejectDirection() {
           if (!old) return old;
           return {
             ...old,
-            directions: old.directions.map((d) =>
+            items: old.items.map((d) =>
               d.id === directionId ? { ...d, status: 'rejected' as const } : d
             ),
             counts: {
@@ -416,16 +416,16 @@ export function useDeleteDirection() {
         { queryKey: directionsQueryKeys.all },
         (old) => {
           if (!old) return old;
-          const deletedDirection = old.directions.find((d) => d.id === directionId);
+          const deletedDirection = old.items.find((d) => d.id === directionId);
           return {
             ...old,
-            directions: old.directions.filter((d) => d.id !== directionId),
+            items: old.items.filter((d) => d.id !== directionId),
             grouped: old.grouped
               .map((g) => ({
                 ...g,
-                directions: g.directions.filter((d) => d.id !== directionId),
+                items: g.items.filter((d) => d.id !== directionId),
               }))
-              .filter((g) => g.directions.length > 0),
+              .filter((g) => g.items.length > 0),
             counts: {
               ...old.counts,
               total: old.counts.total - 1,

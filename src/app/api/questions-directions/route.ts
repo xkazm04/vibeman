@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { questionDb, directionDb } from '@/app/db';
 import { withObservability } from '@/lib/observability/middleware';
+import { groupByContextMap } from '@/lib/api-helpers/groupByContextMap';
 
 async function handleGet(request: NextRequest) {
   try {
@@ -38,53 +39,17 @@ async function handleGet(request: NextRequest) {
     const directions = directionDb.getDirectionsByProjects([projectId]);
     const directionCounts = directionDb.getDirectionCountsMultiple([projectId]);
 
-    // Group questions by context_map_id
-    const questionGrouped: Record<string, {
-      contextMapId: string;
-      contextMapTitle: string;
-      questions: typeof questions;
-    }> = {};
-
-    for (const q of questions) {
-      if (!questionGrouped[q.context_map_id]) {
-        questionGrouped[q.context_map_id] = {
-          contextMapId: q.context_map_id,
-          contextMapTitle: q.context_map_title,
-          questions: [],
-        };
-      }
-      questionGrouped[q.context_map_id].questions.push(q);
-    }
-
-    // Group directions by context_map_id
-    const directionGrouped: Record<string, {
-      contextMapId: string;
-      contextMapTitle: string;
-      directions: typeof directions;
-    }> = {};
-
-    for (const d of directions) {
-      if (!directionGrouped[d.context_map_id]) {
-        directionGrouped[d.context_map_id] = {
-          contextMapId: d.context_map_id,
-          contextMapTitle: d.context_map_title,
-          directions: [],
-        };
-      }
-      directionGrouped[d.context_map_id].directions.push(d);
-    }
-
     return NextResponse.json({
       success: true,
       questions: {
-        questions,
-        grouped: Object.values(questionGrouped),
+        items: questions,
+        grouped: groupByContextMap(questions),
         counts: questionCounts,
         maxTreeDepth,
       },
       directions: {
-        directions,
-        grouped: Object.values(directionGrouped),
+        items: directions,
+        grouped: groupByContextMap(directions),
         counts: directionCounts,
       },
     });

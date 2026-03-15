@@ -129,12 +129,6 @@ export default function StyledCheckbox({
     shadow: themeColors.shadow,
   } : colorSchemes[colorScheme];
 
-  const handleClick = () => {
-    if (!disabled) {
-      onChange(!checked);
-    }
-  };
-
   return (
     <label
       className={`inline-flex items-center gap-2 cursor-pointer select-none ${
@@ -143,7 +137,7 @@ export default function StyledCheckbox({
       title={title}
     >
       <div className="relative flex items-center justify-center">
-        {/* Hidden native checkbox for accessibility */}
+        {/* Hidden native checkbox for accessibility — label click forwards here */}
         <input
           type="checkbox"
           checked={checked}
@@ -153,9 +147,8 @@ export default function StyledCheckbox({
           data-testid="styled-checkbox-input"
         />
 
-        {/* Custom checkbox box */}
+        {/* Custom checkbox box — no onClick, label handles forwarding to input */}
         <motion.div
-          onClick={handleClick}
           className={`
             ${sizeClasses.box}
             relative

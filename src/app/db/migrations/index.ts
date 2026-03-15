@@ -67,6 +67,9 @@ import { migrate203ReviewStageColumns } from './203_review_stage_columns';
 import { migrate204TriageDataColumn } from './204_triage_data_column';
 import { migrate205GoalAnalyzerColumns } from './205_goal_analyzer_columns';
 import { migrate206HealingLifecycle } from './206_healing_lifecycle';
+import { migrate207PlannerColumns } from './207_planner_columns';
+import { migrate208LifecycleLocks } from './208_lifecycle_locks';
+import { migrate210SpecLifecycle } from './210_spec_lifecycle';
 
 /**
  * Migration logger utility
@@ -268,6 +271,10 @@ export function runMigrations() {
     once('m204', () => migrate204TriageDataColumn(db as any, migrationLogger));
     once('m205', () => migrate205GoalAnalyzerColumns(db as any, migrationLogger));
     once('m206', () => migrate206HealingLifecycle(db as any, migrationLogger));
+    once('m207', () => migrate207PlannerColumns(db as any, migrationLogger));
+    once('m208', () => migrate208LifecycleLocks(db as any, migrationLogger));
+    once('m209', () => migrateGoalCandidateRejectionReason());
+    once('m210', () => migrate210SpecLifecycle(db as any, migrationLogger));
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
@@ -4418,5 +4425,22 @@ function migrateDropInsightsGeneratedColumn() {
   safeMigration('dropInsightsGeneratedColumn', () => {
     const db = getConnection();
     migrate073DropInsightsGeneratedColumn(db as any, migrationLogger);
+  }, migrationLogger);
+}
+
+/**
+ * Migration 209: Goal Candidate Rejection Reason
+ * Adds rejection_reason column to goal_candidates table so users can record
+ * why they rejected a candidate — feeds back into future generation prompts.
+ */
+function migrateGoalCandidateRejectionReason() {
+  safeMigration('goalCandidateRejectionReason', () => {
+    const db = getConnection();
+    const added = addColumnIfNotExists(db, 'goal_candidates', 'rejection_reason', 'TEXT', migrationLogger);
+    if (!added) {
+      migrationLogger.info('goal_candidates table already has rejection_reason column');
+    } else {
+      migrationLogger.info('rejection_reason column added to goal_candidates table');
+    }
   }, migrationLogger);
 }

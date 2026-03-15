@@ -1,15 +1,12 @@
 /**
  * POST /api/directions/pair/[pairId]/accept
- * Accept one variant from a direction pair
+ * Accept one variant from a direction pair.
+ * Delegates to acceptDirectionPair workflow for all business logic.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { directionDb, insightEffectivenessCache, brainInsightDb, insightInfluenceDb, directionPreferenceDb } from '@/app/db';
 import { logger } from '@/lib/logger';
-import fs from 'fs';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
-import { generatePairedAdr } from '@/lib/directions/adrGenerator';
+import { acceptDirectionPair } from '@/lib/ideas/directionPairAcceptanceWorkflow';
 
 export async function POST(
   request: NextRequest,
@@ -34,145 +31,31 @@ export async function POST(
       );
     }
 
-    // Get both directions in the pair
-    const pair = directionDb.getDirectionPair(pairId);
+    const outcome = acceptDirectionPair({ pairId, variant: variant as 'A' | 'B', projectPath });
 
-    if (!pair.directionA || !pair.directionB) {
-      return NextResponse.json(
-        { error: 'Direction pair not found or incomplete' },
-        { status: 404 }
-      );
-    }
-
-    const selectedDirection = variant === 'A' ? pair.directionA : pair.directionB;
-    const rejectedDirection = variant === 'A' ? pair.directionB : pair.directionA;
-
-    // Atomically claim the selected direction (prevents double-click duplicates)
-    const claimed = directionDb.claimDirectionForProcessing(selectedDirection.id);
-    if (!claimed) {
-      return NextResponse.json(
-        {
-          error: 'Direction pair has already been processed',
-          accepted: selectedDirection,
-          rejected: rejectedDirection,
-        },
-        { status: 409 }
-      );
-    }
-
-    // Create requirement file for the selected direction
-    const normalizedProjectPath = path.normalize(projectPath);
-    const requirementsDir = path.join(normalizedProjectPath, '.claude', 'requirements');
-
-    if (!fs.existsSync(requirementsDir)) {
-      fs.mkdirSync(requirementsDir, { recursive: true });
-    }
-
-    const requirementId = `direction-${uuidv4().slice(0, 8)}`;
-    const requirementPath = path.join(requirementsDir, `${requirementId}.md`);
-
-    // Build requirement content
-    const problemContext = selectedDirection.problem_statement
-      ? `## Problem Statement\n\n${selectedDirection.problem_statement}\n\n`
-      : '';
-
-    const requirementContent = `# Direction: ${selectedDirection.summary}
-
-${problemContext}## Implementation Details
-
-${selectedDirection.direction}
-
----
-
-**Context**: ${selectedDirection.context_map_title}
-**Generated**: ${new Date().toISOString()}
-**Selected Variant**: ${variant} (rejected alternative: ${rejectedDirection.summary})
-`;
-
-    try {
-      fs.writeFileSync(requirementPath, requirementContent, 'utf-8');
-    } catch (fileError) {
-      // Rollback: reset direction from 'processing' back to 'pending' so user can retry
-      directionDb.updateDirection(selectedDirection.id, { status: 'pending' });
-      logger.error('[API] Pair requirement file creation failed, rolled back direction to pending:', {
-        pairId,
-        directionId: selectedDirection.id,
-        requirementId,
-        error: fileError,
-      });
-      return NextResponse.json(
-        { error: 'Failed to create requirement file. Direction has been reset — you can retry.' },
-        { status: 500 }
-      );
-    }
-
-    // Generate Architecture Decision Record with rejected alternative
-    const adr = generatePairedAdr({
-      summary: selectedDirection.summary,
-      direction: selectedDirection.direction,
-      contextMapTitle: selectedDirection.context_map_title,
-      problemStatement: selectedDirection.problem_statement,
-      rejectedSummary: rejectedDirection.summary,
-      rejectedDirection: rejectedDirection.direction,
-      selectedVariant: variant as 'A' | 'B',
-    });
-    const decisionRecordJson = JSON.stringify(adr);
-
-    // Accept the selected direction and reject the other
-    const result = directionDb.acceptPairedDirection(selectedDirection.id, requirementId, requirementPath, decisionRecordJson);
-
-    if (!result.accepted) {
-      // Rollback: clean up orphan file and reset direction
-      try { fs.unlinkSync(requirementPath); } catch { /* best-effort cleanup */ }
-      directionDb.updateDirection(selectedDirection.id, { status: 'pending' });
-      logger.error('[API] Pair DB update failed after file creation, rolled back:', {
-        pairId,
-        directionId: selectedDirection.id,
-        requirementId,
-      });
-      return NextResponse.json(
-        { error: 'Failed to update direction status. Direction has been reset — you can retry.' },
-        { status: 500 }
-      );
+    if (!outcome.success) {
+      if (outcome.code === 'NOT_FOUND') {
+        return NextResponse.json({ error: outcome.message }, { status: 404 });
+      }
+      if (outcome.code === 'ALREADY_PROCESSED') {
+        return NextResponse.json({ error: outcome.message }, { status: 409 });
+      }
+      logger.error('[API] Direction pair accept failed:', { pairId, code: outcome.code, message: outcome.message });
+      return NextResponse.json({ error: outcome.message }, { status: 500 });
     }
 
     logger.info('[API] Direction pair variant accepted:', {
       pairId,
       acceptedVariant: variant,
-      acceptedId: selectedDirection.id,
-      rejectedId: rejectedDirection.id,
-      requirementId,
+      requirementName: outcome.requirementName,
     });
-
-    // Invalidate effectiveness cache since direction data changed
-    try { insightEffectivenessCache.invalidate(selectedDirection.project_id); } catch { /* non-critical */ }
-
-    // Invalidate preference profile cache (pair decision changes preference data)
-    try { directionPreferenceDb.invalidate(selectedDirection.project_id); } catch { /* non-critical */ }
-
-    // Record insight influence for causal validation (both accepted and rejected)
-    try {
-      const activeInsights = brainInsightDb.getForEffectiveness(selectedDirection.project_id);
-      if (activeInsights.length > 0) {
-        const now = new Date().toISOString();
-        const insightBatch = activeInsights.map(i => ({
-          id: i.id,
-          title: i.title,
-          shownAt: i.completed_at || now,
-        }));
-        insightInfluenceDb.recordInfluenceBatch(selectedDirection.project_id, selectedDirection.id, 'accepted', insightBatch);
-        insightInfluenceDb.recordInfluenceBatch(rejectedDirection.project_id, rejectedDirection.id, 'rejected', insightBatch);
-      }
-    } catch {
-      // Influence tracking must never break the main flow
-    }
 
     return NextResponse.json({
       success: true,
-      accepted: result.accepted,
-      rejected: result.rejected,
-      requirementName: requirementId,
-      requirementPath,
+      accepted: outcome.accepted,
+      rejected: outcome.rejected,
+      requirementName: outcome.requirementName,
+      requirementPath: outcome.requirementPath,
     });
   } catch (error) {
     logger.error('[API] Direction pair accept error:', { error });

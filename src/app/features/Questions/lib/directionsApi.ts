@@ -5,6 +5,7 @@
 
 import { DbDirection } from '@/app/db';
 import { safeResponseJson, parseApiResponse, DirectionsResponseSchema, DirectionMutationSchema, AcceptDirectionResponseSchema, SuccessResponseSchema } from '@/lib/apiResponseGuard';
+import type { GenericListResponse } from '@/lib/api-helpers/groupByContextMap';
 
 // In-flight direction accept tracking to prevent double-submission.
 // Stores directionId → Promise so concurrent calls return the same result.
@@ -14,21 +15,9 @@ const inflightAccepts = new Map<string, Promise<AcceptDirectionResponse>>();
 // pattern as the functions below but through a unified engine interface.
 export { createDirectionsEngine } from '@/lib/interrogative-engine';
 
-export interface DirectionsResponse {
-  success: boolean;
-  directions: DbDirection[];
-  grouped: {
-    contextMapId: string;
-    contextMapTitle: string;
-    directions: DbDirection[];
-  }[];
-  counts: {
-    pending: number;
-    accepted: number;
-    rejected: number;
-    total: number;
-  };
-}
+export type DirectionsResponse = GenericListResponse<DbDirection> & {
+  counts: { pending: number; accepted: number; rejected: number; total: number };
+};
 
 export interface GenerateDirectionsResponse {
   success: boolean;

@@ -41,6 +41,21 @@ export const implementationLogRepository = {
   getLogById: (logId: string): DbImplementationLog | null => base.getById(logId),
 
   /**
+   * Get multiple implementation logs by IDs in a single query
+   */
+  getLogsByIds: (logIds: string[]): DbImplementationLog[] => {
+    if (logIds.length === 0) return [];
+    const db = getDatabase();
+    const placeholders = logIds.map(() => '?').join(', ');
+    const stmt = db.prepare(`
+      SELECT * FROM implementation_log
+      WHERE id IN (${placeholders})
+      ORDER BY created_at DESC
+    `);
+    return stmt.all(...logIds) as DbImplementationLog[];
+  },
+
+  /**
    * Get untested implementation logs for a project
    */
   getUntestedLogsByProject: (projectId: string): DbImplementationLog[] => {

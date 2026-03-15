@@ -10,16 +10,9 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle2, XCircle, Clock, ArrowRight } from 'lucide-react';
 import type { ContextGroup } from '@/stores/contextStore';
-
-interface LogEntry {
-  id: string;
-  title: string;
-  requirement_name: string;
-  overview: string;
-  tested: number;
-  created_at: string;
-  context_name: string | null;
-}
+import { CROSS_CONTEXT_LOG_PAGE_SIZE, SUCCESS_RATE_HIGH, SUCCESS_RATE_LOW } from '../lib/config';
+import { toast } from '@/stores/messageStore';
+import type { LogEntry } from '../lib/types';
 
 interface CrossContextDetailProps {
   sourceGroup: ContextGroup | undefined;
@@ -45,20 +38,18 @@ export default function CrossContextDetail({
     const fetchLogs = async () => {
       setLoading(true);
       try {
-        // Fetch individual log details
-        const fetched: LogEntry[] = [];
-        for (const logId of logIds.slice(0, 20)) {
-          const res = await fetch(`/api/implementation-logs/${logId}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success && data.data) {
-              fetched.push(data.data);
-            }
-          }
-        }
-        setLogs(fetched);
+        const ids = logIds.slice(0, CROSS_CONTEXT_LOG_PAGE_SIZE);
+        const res = await fetch('/api/implementation-logs/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids }),
+        });
+        if (!res.ok) throw new Error(`Batch fetch failed: ${res.status}`);
+        const data = await res.json();
+        setLogs(data.success && Array.isArray(data.data) ? data.data : []);
       } catch (err) {
-        console.error('Error fetching cross-context logs:', err);
+        const msg = err instanceof Error ? err.message : String(err);
+        toast.error('Failed to load cross-context logs', msg);
       } finally {
         setLoading(false);
       }
@@ -73,14 +64,14 @@ export default function CrossContextDetail({
   }, [logIds]);
 
   const getSuccessColor = () => {
-    if (successRate > 0.8) return 'text-green-400';
-    if (successRate >= 0.5) return 'text-yellow-400';
+    if (successRate > SUCCESS_RATE_HIGH) return 'text-green-400';
+    if (successRate >= SUCCESS_RATE_LOW) return 'text-yellow-400';
     return 'text-red-400';
   };
 
   const getSuccessBg = () => {
-    if (successRate > 0.8) return 'bg-green-500/10 border-green-500/30';
-    if (successRate >= 0.5) return 'bg-yellow-500/10 border-yellow-500/30';
+    if (successRate > SUCCESS_RATE_HIGH) return 'bg-green-500/10 border-green-500/30';
+    if (successRate >= SUCCESS_RATE_LOW) return 'bg-yellow-500/10 border-yellow-500/30';
     return 'bg-red-500/10 border-red-500/30';
   };
 

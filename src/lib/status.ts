@@ -66,6 +66,22 @@ export type QueueLifecycleStatus = Extract<
   'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
 >;
 
+/** Task lifecycle: idle → queued → running → completed | failed */
+export type TaskLifecycleStatus = Extract<
+  UniversalStatus,
+  'idle' | 'queued' | 'running' | 'completed' | 'failed'
+>;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Domain Aliases
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Domain alias for task lifecycle status — same underlying type as TaskLifecycleStatus */
+export type TaskStatus = TaskLifecycleStatus;
+
+/** Domain alias for session lifecycle status — same underlying type as SessionLifecycleStatus */
+export type SessionStatus = SessionLifecycleStatus;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Status Constants
 // ─────────────────────────────────────────────────────────────────────────────

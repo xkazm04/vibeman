@@ -69,6 +69,7 @@ export async function generateGoalCandidates(options: GoalGenerationOptions): Pr
     const ideasData = includeSources.includes('ideas') ? await scanIdeas(projectId) : '';
     const todosData = includeSources.includes('todos') ? await scanTodos(projectPath) : '';
     const gitHistoryData = includeSources.includes('git_history') ? await scanGitHistory(projectPath) : '';
+    const rejectionFeedback = scanRejectionFeedback(projectId);
 
     // Skip LLM call if no meaningful data was collected
     if (!repoData && !techDebtData && !ideasData && !todosData && !gitHistoryData) {
@@ -101,6 +102,7 @@ export async function generateGoalCandidates(options: GoalGenerationOptions): Pr
       ideasData,
       todosData,
       gitHistoryData,
+      rejectionFeedback,
       contexts: contextSummary,
       maxCandidates
     });
@@ -369,6 +371,21 @@ async function scanGitHistory(projectPath: string): Promise<string> {
 }
 
 /**
+ * Collect previously rejected candidates with reasons to feed back into generation
+ */
+function scanRejectionFeedback(projectId: string): string {
+  try {
+    const rejected = goalCandidateRepository.getRejectedCandidatesWithReasons(projectId);
+    if (rejected.length === 0) return '';
+
+    const lines = rejected.map(r => `- "${r.title}": ${r.rejection_reason}`);
+    return `Previously Rejected Candidates:\n${lines.join('\n')}`;
+  } catch {
+    return '';
+  }
+}
+
+/**
  * Build system prompt for LLM - Strategic Advisor Persona
  */
 function buildSystemPrompt(): string {
@@ -459,6 +476,7 @@ function buildUserPrompt(data: {
   ideasData: string;
   todosData: string;
   gitHistoryData: string;
+  rejectionFeedback: string;
   contexts: Array<{ id: string; name: string; description: string | null; files: string[] }>;
   maxCandidates: number;
 }): string {
@@ -512,6 +530,13 @@ Remember: You are creating NORTH STARS, not backlog items.
   if (data.gitHistoryData) {
     parts.push('=== GIT HISTORY ===');
     parts.push(data.gitHistoryData);
+    parts.push('');
+  }
+
+  if (data.rejectionFeedback) {
+    parts.push('=== USER REJECTION FEEDBACK ===');
+    parts.push(data.rejectionFeedback);
+    parts.push('⚠️ IMPORTANT: Do NOT suggest goals similar to the ones above. The user explicitly rejected them with these reasons. Use this feedback to understand their priorities and avoid repeating these patterns.');
     parts.push('');
   }
 

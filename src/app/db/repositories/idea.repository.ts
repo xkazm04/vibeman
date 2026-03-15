@@ -44,85 +44,120 @@ export const ideaRepository = {
   },
 
   /**
-   * Get ideas by project and status with SQL-level pagination
+   * Get ideas by project and status with keyset cursor pagination.
+   * Pass after_id to page forward; returns nextCursor (last idea id) when more rows exist.
    */
   getIdeasByProjectAndStatus: (
     projectId: string,
     status: string,
     limit: number,
-    offset: number
-  ): { ideas: DbIdea[]; total: number } => {
+    after_id: string | null
+  ): { ideas: DbIdea[]; nextCursor: string | null } => {
     const db = getDatabase();
-    const countStmt = db.prepare(`
-      SELECT COUNT(*) as count FROM ideas
-      WHERE project_id = ? AND status = ?
-    `);
-    const total = (countStmt.get(projectId, status) as { count: number }).count;
 
-    const stmt = db.prepare(`
-      SELECT * FROM ideas
-      WHERE project_id = ? AND status = ?
-      ORDER BY created_at DESC
-      LIMIT ? OFFSET ?
-    `);
-    const ideas = stmt.all(projectId, status, limit, offset) as DbIdea[];
+    let ideas: DbIdea[];
+    if (after_id) {
+      const cursor = db.prepare('SELECT created_at FROM ideas WHERE id = ?').get(after_id) as { created_at: string } | undefined;
+      if (cursor) {
+        ideas = db.prepare(`
+          SELECT * FROM ideas
+          WHERE project_id = ? AND status = ?
+            AND (created_at < ? OR (created_at = ? AND id < ?))
+          ORDER BY created_at DESC, id DESC
+          LIMIT ?
+        `).all(projectId, status, cursor.created_at, cursor.created_at, after_id, limit) as DbIdea[];
+      } else {
+        ideas = [];
+      }
+    } else {
+      ideas = db.prepare(`
+        SELECT * FROM ideas
+        WHERE project_id = ? AND status = ?
+        ORDER BY created_at DESC, id DESC
+        LIMIT ?
+      `).all(projectId, status, limit) as DbIdea[];
+    }
 
-    return { ideas, total };
+    const nextCursor = ideas.length === limit ? ideas[ideas.length - 1].id : null;
+    return { ideas, nextCursor };
   },
 
   /**
-   * Get all ideas by status with SQL-level pagination (cross-project)
+   * Get all ideas by status with keyset cursor pagination (cross-project).
+   * Pass after_id to page forward; returns nextCursor (last idea id) when more rows exist.
    */
   getAllIdeasByStatusPaginated: (
     status: string,
     limit: number,
-    offset: number
-  ): { ideas: DbIdea[]; total: number } => {
+    after_id: string | null
+  ): { ideas: DbIdea[]; nextCursor: string | null } => {
     const db = getDatabase();
-    const countStmt = db.prepare(`
-      SELECT COUNT(*) as count FROM ideas
-      WHERE status = ?
-    `);
-    const total = (countStmt.get(status) as { count: number }).count;
 
-    const stmt = db.prepare(`
-      SELECT * FROM ideas
-      WHERE status = ?
-      ORDER BY created_at DESC
-      LIMIT ? OFFSET ?
-    `);
-    const ideas = stmt.all(status, limit, offset) as DbIdea[];
+    let ideas: DbIdea[];
+    if (after_id) {
+      const cursor = db.prepare('SELECT created_at FROM ideas WHERE id = ?').get(after_id) as { created_at: string } | undefined;
+      if (cursor) {
+        ideas = db.prepare(`
+          SELECT * FROM ideas
+          WHERE status = ?
+            AND (created_at < ? OR (created_at = ? AND id < ?))
+          ORDER BY created_at DESC, id DESC
+          LIMIT ?
+        `).all(status, cursor.created_at, cursor.created_at, after_id, limit) as DbIdea[];
+      } else {
+        ideas = [];
+      }
+    } else {
+      ideas = db.prepare(`
+        SELECT * FROM ideas
+        WHERE status = ?
+        ORDER BY created_at DESC, id DESC
+        LIMIT ?
+      `).all(status, limit) as DbIdea[];
+    }
 
-    return { ideas, total };
+    const nextCursor = ideas.length === limit ? ideas[ideas.length - 1].id : null;
+    return { ideas, nextCursor };
   },
 
   /**
-   * Get ideas by multiple project IDs and status with SQL-level pagination
+   * Get ideas by multiple project IDs and status with keyset cursor pagination.
+   * Pass after_id to page forward; returns nextCursor (last idea id) when more rows exist.
    */
   getIdeasByProjectsAndStatus: (
     projectIds: string[],
     status: string,
     limit: number,
-    offset: number
-  ): { ideas: DbIdea[]; total: number } => {
+    after_id: string | null
+  ): { ideas: DbIdea[]; nextCursor: string | null } => {
     const db = getDatabase();
     const placeholders = projectIds.map(() => '?').join(',');
 
-    const countStmt = db.prepare(`
-      SELECT COUNT(*) as count FROM ideas
-      WHERE project_id IN (${placeholders}) AND status = ?
-    `);
-    const total = (countStmt.get(...projectIds, status) as { count: number }).count;
+    let ideas: DbIdea[];
+    if (after_id) {
+      const cursor = db.prepare('SELECT created_at FROM ideas WHERE id = ?').get(after_id) as { created_at: string } | undefined;
+      if (cursor) {
+        ideas = db.prepare(`
+          SELECT * FROM ideas
+          WHERE project_id IN (${placeholders}) AND status = ?
+            AND (created_at < ? OR (created_at = ? AND id < ?))
+          ORDER BY created_at DESC, id DESC
+          LIMIT ?
+        `).all(...projectIds, status, cursor.created_at, cursor.created_at, after_id, limit) as DbIdea[];
+      } else {
+        ideas = [];
+      }
+    } else {
+      ideas = db.prepare(`
+        SELECT * FROM ideas
+        WHERE project_id IN (${placeholders}) AND status = ?
+        ORDER BY created_at DESC, id DESC
+        LIMIT ?
+      `).all(...projectIds, status, limit) as DbIdea[];
+    }
 
-    const stmt = db.prepare(`
-      SELECT * FROM ideas
-      WHERE project_id IN (${placeholders}) AND status = ?
-      ORDER BY created_at DESC
-      LIMIT ? OFFSET ?
-    `);
-    const ideas = stmt.all(...projectIds, status, limit, offset) as DbIdea[];
-
-    return { ideas, total };
+    const nextCursor = ideas.length === limit ? ideas[ideas.length - 1].id : null;
+    return { ideas, nextCursor };
   },
 
   /**

@@ -362,29 +362,43 @@ export async function deleteDirectionPair(pairId: string): Promise<ActionResult>
 
 /**
  * Fetch pending ideas in batches (ideas-only read path).
+ * Uses keyset cursor pagination via the unified /api/tinder/items endpoint.
  */
 export async function fetchIdeasBatch(
   projectId?: string,
-  offset: number = 0,
+  cursor: string | null = null,
   limit: number = 20
-): Promise<{ ideas: import('@/app/db').DbIdea[]; hasMore: boolean; total: number }> {
+): Promise<{ ideas: import('@/app/db').DbIdea[]; hasMore: boolean; total: number; nextCursor: string | null }> {
   const params = new URLSearchParams({
-    offset: offset.toString(),
     limit: limit.toString(),
-    status: 'pending',
+    itemType: 'ideas',
   });
+
+  if (cursor) {
+    params.append('after_id', cursor);
+  }
 
   if (projectId && projectId !== 'all') {
     params.append('projectId', projectId);
   }
 
-  const response = await fetch(`/api/ideas/tinder?${params.toString()}`);
+  const response = await fetch(`/api/tinder/items?${params.toString()}`);
 
   if (!response.ok) {
     await handleApiError(response, 'Failed to fetch ideas');
   }
 
-  return response.json();
+  const result: TinderItemsResponse = await response.json();
+  const ideas = result.items
+    .filter(isIdeaItem)
+    .map(item => item.data);
+
+  return {
+    ideas,
+    hasMore: result.hasMore,
+    total: result.total,
+    nextCursor: result.nextCursor,
+  };
 }
 
 /**

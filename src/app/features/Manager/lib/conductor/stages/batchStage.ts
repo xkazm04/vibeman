@@ -8,6 +8,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { CLIProvider } from '@/lib/claude-terminal/types';
 import type { BalancingConfig, BatchDescriptor } from '../types';
+import type { CompositeGroup } from './plannerStage.types';
 import { routeModel } from '../balancingEngine';
 
 interface AcceptedIdea {
@@ -32,16 +33,21 @@ interface BatchInput {
   projectId: string;
   projectPath: string;
   projectName: string;
+  /** Composite groups from the Planner stage (G4 task aggregation) */
+  compositeGroups?: CompositeGroup[];
 }
 
 /**
  * Execute the Batch stage: create requirement files and build execution plan.
  */
 export async function executeBatchStage(input: BatchInput): Promise<BatchDescriptor> {
-  const { acceptedIdeas, config, projectPath } = input;
+  const { acceptedIdeas, config, projectPath, compositeGroups } = input;
 
-  // Limit batch size
-  const batch = acceptedIdeas.slice(0, config.maxBatchSize);
+  // Merge composite groups into single ideas before batching
+  const batch = mergeCompositeGroups(
+    acceptedIdeas.slice(0, config.maxBatchSize),
+    compositeGroups
+  );
 
   const requirementNames: string[] = [];
   const modelAssignments: Record<string, { provider: CLIProvider; model: string }> = {};
@@ -203,6 +209,98 @@ function buildRequirementContent(idea: AcceptedIdea): string {
   );
 
   return sections.join('\n');
+}
+
+/**
+ * Merge composite group items into single composite ideas.
+ * Items in the same group get merged into one idea with combined description.
+ * Non-grouped items pass through unchanged.
+ */
+function mergeCompositeGroups(
+  ideas: AcceptedIdea[],
+  compositeGroups?: CompositeGroup[]
+): AcceptedIdea[] {
+  if (!compositeGroups || compositeGroups.length === 0) return ideas;
+
+  // Build a lookup: ideaId -> groupId (approximate match via title since
+  // planner itemIds don't map 1:1 to idea DB IDs)
+  const groupByTitle = new Map<string, CompositeGroup>();
+  for (const group of compositeGroups) {
+    for (const itemId of group.itemIds) {
+      // itemIds from planner are short IDs, but we match by checking if any
+      // idea title is referenced. This is a best-effort match.
+      groupByTitle.set(itemId, group);
+    }
+  }
+
+  // Since planner itemIds don't map to DB idea IDs directly, use index-based matching:
+  // planner backlog items and ideas table entries are in the same order
+  const usedGroups = new Set<string>();
+  const result: AcceptedIdea[] = [];
+  const ideasByGroup = new Map<string, AcceptedIdea[]>();
+
+  for (const idea of ideas) {
+    // Check if this idea belongs to a composite group by matching on idea index
+    let matched = false;
+    for (const group of compositeGroups) {
+      if (group.itemIds.length <= 1) continue; // Skip single-item groups
+      // Match by title substring (planner preserves titles from analyzer)
+      const titleMatch = group.itemIds.some(itemId => {
+        // itemId format is "item-N", try to match by position
+        const idx = parseInt(itemId.replace('item-', ''), 10) - 1;
+        return idx >= 0 && idx < ideas.length && ideas[idx].id === idea.id;
+      });
+      if (titleMatch) {
+        if (!ideasByGroup.has(group.groupId)) ideasByGroup.set(group.groupId, []);
+        ideasByGroup.get(group.groupId)!.push(idea);
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      result.push(idea);
+    }
+  }
+
+  // Merge grouped ideas into composite entries
+  for (const [groupId, groupIdeas] of ideasByGroup) {
+    if (usedGroups.has(groupId)) continue;
+    usedGroups.add(groupId);
+
+    const group = compositeGroups.find(g => g.groupId === groupId)!;
+    const merged: AcceptedIdea = {
+      id: groupIdeas[0].id,
+      title: group.title,
+      description: groupIdeas.map((idea, i) =>
+        `### Sub-task ${i + 1}: ${idea.title}\n\n${idea.description}`
+      ).join('\n\n'),
+      effort: Math.max(...groupIdeas.map(i => i.effort)),
+      impact: Math.max(...groupIdeas.map(i => i.impact)),
+      risk: Math.max(...groupIdeas.map(i => i.risk)),
+      category: groupIdeas[0].category,
+      reasoning: groupIdeas.map(i => i.reasoning).filter(Boolean).join(' | '),
+      scan_type: groupIdeas[0].scan_type,
+      context_id: groupIdeas[0].context_id,
+      context_name: groupIdeas[0].context_name,
+      context_file_paths: mergeFilePaths(groupIdeas),
+    };
+    result.push(merged);
+  }
+
+  return result;
+}
+
+/** Merge file paths from multiple ideas into a single JSON array string */
+function mergeFilePaths(ideas: AcceptedIdea[]): string | null {
+  const allPaths = new Set<string>();
+  for (const idea of ideas) {
+    if (!idea.context_file_paths) continue;
+    try {
+      const paths = JSON.parse(idea.context_file_paths);
+      if (Array.isArray(paths)) paths.forEach((p: string) => allPaths.add(p));
+    } catch { /* skip */ }
+  }
+  return allPaths.size > 0 ? JSON.stringify([...allPaths]) : null;
 }
 
 function getBaseUrl(): string {

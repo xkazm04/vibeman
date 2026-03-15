@@ -2,6 +2,7 @@ import { getDatabase } from '../connection';
 import { DbDirection } from '../models/types';
 import { getCurrentTimestamp, selectOne, selectAll } from './repository.utils';
 import { createGenericRepository } from './generic.repository';
+import { directionTransition, DirectionStatus } from '@/lib/stateMachine';
 
 const base = createGenericRepository<DbDirection>({
   tableName: 'directions',
@@ -367,7 +368,15 @@ export const directionRepository = {
     effort?: number | null;
     impact?: number | null;
     hypothesis_assertions?: string | null;
-  }): DbDirection | null => base.update(id, updates as Record<string, unknown>),
+  }): DbDirection | null => {
+    if (updates.status !== undefined) {
+      const current = base.getById(id);
+      if (current) {
+        directionTransition(current.status as DirectionStatus, updates.status);
+      }
+    }
+    return base.update(id, updates as Record<string, unknown>);
+  },
 
   /**
    * Atomically claim a direction for processing (idempotency protection)

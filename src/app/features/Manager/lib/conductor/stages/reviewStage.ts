@@ -22,6 +22,7 @@ import { extractFileDiffs, reviewFileDiffs } from '../review/diffReviewer';
 import { generateExecutionReport } from '../review/reportGenerator';
 import { canCommit, commitChanges } from '../review/gitCommitter';
 import { recordSignal } from '@/lib/brain/brainService';
+import type { BehavioralSignalType } from '@/types/signals';
 import { classifyError as classifyErrorCanonical } from '../selfHealing/errorClassifier';
 
 /**
@@ -64,7 +65,7 @@ export async function executeReviewStage(input: ReviewStageInput): Promise<{
 
       recordSignal({
         projectId,
-        signalType: 'implementation' as any,
+        signalType: 'implementation' as BehavioralSignalType,
         data: {
           requirementId: spec.id,
           requirementName: spec.title,

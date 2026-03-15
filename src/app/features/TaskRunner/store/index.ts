@@ -15,7 +15,11 @@ export type {
   TaskStatusCompleted,
   TaskStatusFailed,
   TaskStatusType,
+  TaskLifecycleStatus,
 } from '../lib/types';
+
+// Re-export unified status algebra domain aliases
+export type { TaskStatus, SessionStatus } from '@/lib/status';
 
 export {
   // Task status factories

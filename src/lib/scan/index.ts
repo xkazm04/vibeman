@@ -22,7 +22,7 @@ export type {
   ScanStrategyMetadata,
 } from './ScanStrategy';
 
-export { BaseScanStrategy } from './ScanStrategy';
+export { RefactorScanStrategy } from './ScanStrategy';
 
 // Export factory and convenience functions
 export {

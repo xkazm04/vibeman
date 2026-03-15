@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useContextStore } from '@/stores/contextStore';
 import { useThemeStore } from '@/stores/themeStore';
+import { toast } from '@/stores/messageStore';
 
 import { EnrichedImplementationLog } from './lib/types';
 import ImplementationLogDetail from './components/ImplementationLogDetail';
@@ -58,7 +59,8 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
         setImplementationLogs(data.data);
       }
     } catch (error) {
-      console.error('Error fetching implementation logs:', error);
+      const msg = error instanceof Error ? error.message : String(error);
+      toast.error('Failed to load implementation logs', msg);
     } finally {
       setLoading(false);
     }
@@ -81,7 +83,10 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
             setRelationships(data.data || []);
           }
         })
-        .catch(console.error);
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          toast.error('Failed to load context relationships', msg);
+        });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, activeProject?.id]);
@@ -104,10 +109,11 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
         setImplementationLogs(prev => prev.filter(log => log.id !== selectedLog.id));
         setSelectedLog(null);
       } else {
-        console.error('Error accepting implementation:', result.error);
+        toast.error('Failed to accept implementation', result.error);
       }
     } catch (error) {
-      console.error('Error accepting implementation:', error);
+      const msg = error instanceof Error ? error.message : String(error);
+      toast.error('Failed to accept implementation', msg);
     }
   };
 

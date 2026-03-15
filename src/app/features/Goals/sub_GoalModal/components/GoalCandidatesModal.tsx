@@ -148,7 +148,7 @@ export default function GoalCandidatesModal({ isOpen, onClose, onGoalCreated }: 
     }
   };
 
-  const handleReject = async (candidateId: string) => {
+  const handleReject = async (candidateId: string, reason?: string) => {
     setProcessingIds(prev => new Set(prev).add(candidateId));
 
     try {
@@ -157,7 +157,8 @@ export default function GoalCandidatesModal({ isOpen, onClose, onGoalCreated }: 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           candidateId,
-          action: 'reject'
+          action: 'reject',
+          ...(reason ? { rejectionReason: reason } : {})
         })
       });
 
@@ -322,7 +323,7 @@ export default function GoalCandidatesModal({ isOpen, onClose, onGoalCreated }: 
               setEditDescription={setEditDescription}
               isProcessing={processingIds.has(candidate.id)}
               onAccept={() => handleAccept(candidate.id)}
-              onReject={() => handleReject(candidate.id)}
+              onReject={(reason) => handleReject(candidate.id, reason)}
               onStartEdit={() => handleStartEdit(candidate)}
               onSaveEdit={() => handleSaveEdit(candidate.id)}
               onCancelEdit={() => setEditingId(null)}

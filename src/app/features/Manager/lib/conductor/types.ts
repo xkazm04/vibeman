@@ -53,6 +53,17 @@ export interface PipelineRun {
   startedAt: string;
   completedAt?: string;
   metrics: PipelineMetrics;
+  /** Optional triage checkpoint data included by the status API when at triage stage */
+  triage_data?: TriageCheckpointData;
+}
+
+/**
+ * Shape returned by the conductor status API.
+ * Extends PipelineRun with server-side snake_case fields that the store
+ * normalises before storing.
+ */
+export interface ServerRunPayload extends PipelineRun {
+  process_log?: string | ProcessLogEntry[] | null;
 }
 
 export interface PipelineRunSummary {
@@ -94,6 +105,7 @@ export interface BalancingConfig {
   maxIdeasPerCycle: number;
   scanProvider: CLIProvider;
   scanModel: string | null;
+  maxConcurrentScans: number;
 
   // Triage
   autoTriageThreshold: number;
@@ -122,6 +134,18 @@ export interface BalancingConfig {
   healingEnabled: boolean;
   healingThreshold: number;
 
+  // Checkpoints
+  /** Pause pipeline at triage stage for manual review before proceeding */
+  triageCheckpointEnabled: boolean;
+
+  // Planner
+  plannerProvider: CLIProvider;
+  plannerModel: string | null;
+
+  // Intent Refinement
+  /** Pre-pipeline modal where LLM generates clarifying questions about the goal */
+  intentRefinementEnabled: boolean;
+
   // Experimental
   /** [Experimental] Enable Claude Agent Teams for coordinated multi-session work */
   experimentalAgentTeams: boolean;
@@ -136,6 +160,7 @@ export const DEFAULT_BALANCING_CONFIG: BalancingConfig = {
   maxIdeasPerCycle: 10,
   scanProvider: 'claude',
   scanModel: null,
+  maxConcurrentScans: 4,
 
   // Triage defaults
   autoTriageThreshold: 0.7,
@@ -172,6 +197,16 @@ export const DEFAULT_BALANCING_CONFIG: BalancingConfig = {
   // Self-healing defaults
   healingEnabled: true,
   healingThreshold: 3,
+
+  // Checkpoint defaults
+  triageCheckpointEnabled: true,
+
+  // Planner defaults
+  plannerProvider: 'claude',
+  plannerModel: null,
+
+  // Intent Refinement defaults
+  intentRefinementEnabled: false,
 
   // Experimental defaults
   experimentalAgentTeams: false,
@@ -384,7 +419,7 @@ export type StageFn<S extends PipelineStage> = (ctx: PipelineContext, input: Sta
 // Process Log
 // ============================================================================
 
-export type ProcessLogEvent = 'started' | 'completed' | 'failed' | 'skipped' | 'info';
+export type ProcessLogEvent = 'started' | 'completed' | 'failed' | 'skipped' | 'info' | 'metrics';
 
 export interface ProcessLogEntry {
   id: string;
@@ -397,6 +432,7 @@ export interface ProcessLogEntry {
   error?: string;
   durationMs?: number;
   cycle?: number;
+  metrics?: PipelineMetrics;
 }
 
 // ============================================================================

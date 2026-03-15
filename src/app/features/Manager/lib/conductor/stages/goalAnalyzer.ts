@@ -100,7 +100,8 @@ function buildAnalysisPrompt(
   brainSection: string,
   fileTree: string,
   fileContents: Array<{ path: string; content: string }>,
-  contextList: Array<{ id: string; name: string }>
+  contextList: Array<{ id: string; name: string }>,
+  refinedIntent?: string | null
 ): string {
   // Format file contents section
   const filesSection = fileContents
@@ -112,6 +113,10 @@ function buildAnalysisPrompt(
     ? contextList.map(c => `- ID: "${c.id}" -- Name: "${c.name}"`).join('\n')
     : 'No domains defined. Use null for contextId.';
 
+  const refinedIntentSection = refinedIntent
+    ? `\n## Refined Intent\n\nThe user provided additional context and clarifications:\n\n${refinedIntent}\n\n`
+    : '';
+
   return `You are a senior developer analyzing a codebase against a specific goal. Your task is to identify gaps (missing code, tech debt, untested areas, missing docs) relevant to the goal and generate prioritized backlog items.
 
 ## Goal
@@ -119,7 +124,7 @@ function buildAnalysisPrompt(
 **${goal.title}**
 
 ${goal.description}
-
+${refinedIntentSection}
 ${brainSection}
 ## Codebase Context
 
@@ -338,7 +343,7 @@ export async function executeGoalAnalysis(
   const validContextIds = new Set(projectContexts.map(c => c.id));
 
   // 4. Build analysis prompt
-  const prompt = buildAnalysisPrompt(goal, brainSection, fileTree, files, projectContexts);
+  const prompt = buildAnalysisPrompt(goal, brainSection, fileTree, files, projectContexts, input.refinedIntent);
 
   // 5. LLM call via /api/ai/chat proxy
   const model = config.scanModel || 'sonnet';

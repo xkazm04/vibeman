@@ -32,17 +32,60 @@ import { executeBatchStage } from './stages/batchStage';
 import { executeExecuteStage } from './stages/executeStage';
 import { executeReviewStage } from './stages/reviewStage';
 import { executeSpecWriterStage } from './stages/specWriterStage';
-import { specRepository } from './spec/specRepository';
-import { specFileManager } from './spec/specFileManager';
+import { specLifecycleManager } from './spec/specLifecycleManager';
 import type { SpecWriterInput, ApprovedBacklogItem, SpecWriterOutput } from './types';
 import { runBuildValidation } from './execution/buildValidator';
+import { commitPerTask } from './review/gitCommitter';
+import { runSpecQualityGate } from './stages/specQualityGate';
 import { goalRepository } from '@/app/db/repositories/goal.repository';
 import { ideaRepository } from '@/app/db/repositories/idea.repository';
 import { executeGoalAnalysis } from './stages/goalAnalyzer';
 import type { GoalAnalyzerOutput } from './stages/goalAnalyzer.types';
+import { executePlannerStage } from './stages/plannerStage';
+import type { PlannerOutput, CompositeGroup } from './stages/plannerStage.types';
 import { analyzeErrors } from './selfHealing/healingAnalyzer';
 import { buildHealingContext, prunePatches, savePatch, updatePatchStats } from './selfHealing/promptPatcher';
 import { performTaskCleanup } from '@/lib/execution/taskCleanup';
+import type { DbGoal } from '@/app/db/models/types';
+
+// ============================================================================
+// Local Types
+// ============================================================================
+
+/**
+ * Goal record with conductor-specific columns added by migration 200.
+ * These fields are optional because they may not be present on older rows.
+ */
+interface ConductorGoal extends DbGoal {
+  target_paths?: string | null;
+  checkpoint_config?: string | Record<string, boolean> | null;
+  use_brain?: number | boolean | null;
+  auto_commit?: number | null;
+  review_model?: string | null;
+}
+
+/** Raw idea row returned by the /api/ideas endpoint */
+interface IdeaRecord {
+  id: string;
+  title?: string;
+  description?: string;
+  effort?: number;
+  impact?: number;
+  category?: string;
+  context_id?: string | null;
+  context_name?: string | null;
+  context_file_paths?: string | string[] | null;
+  [key: string]: unknown;
+}
+
+// ============================================================================
+// HMR-safe global state
+// ============================================================================
+
+interface ConductorGlobalState {
+  __conductorRecoveryDone?: boolean;
+}
+const conductorGlobal = globalThis as typeof globalThis & ConductorGlobalState;
 
 // ============================================================================
 // Startup Recovery (DB-first, with HMR guard)
@@ -69,7 +112,8 @@ export function startPipeline(
   config: BalancingConfig,
   projectPath?: string,
   projectName?: string,
-  goalId?: string
+  goalId?: string,
+  refinedIntent?: string
 ): void {
   const abortController = new AbortController();
   abortControllers.set(runId, abortController);
@@ -81,6 +125,11 @@ export function startPipeline(
     goalId: goalId || '',
     config,
   });
+
+  // Store refined intent if provided (from G5 intent refinement)
+  if (refinedIntent) {
+    updateRunInDb(runId, { refined_intent: refinedIntent });
+  }
 
   // Run pipeline loop in background (non-blocking)
   runPipelineLoop(runId, projectId, config, abortController, projectPath || '', projectName || 'Project').catch((error) => {
@@ -136,7 +185,7 @@ export function getActiveRun(runId: string) {
  */
 export function recoverOrphanedRuns(): string[] {
   // Reset the guard so recovery can run again
-  (globalThis as any).__conductorRecoveryDone = false;
+  conductorGlobal.__conductorRecoveryDone = false;
   const count = conductorRepository.markInterruptedRuns();
   // Return empty array — the count is returned by markInterruptedRuns
   return [];
@@ -202,6 +251,31 @@ async function runPipelineLoop(
     updateRunInDb(runId, { process_log: JSON.stringify(processLog) });
   };
 
+  // Helper: persist full pipeline state to DB and emit a metrics event in process log
+  const persistMetrics = (stage: PipelineStage) => {
+    // Build current stages state from DB
+    const currentRun = conductorRepository.getRunById(runId);
+    const stages = currentRun?.stages || createEmptyStages();
+
+    conductorRepository.persistFullState(runId, {
+      metrics,
+      stages,
+      processLog,
+      cycle,
+      currentStage: stage,
+    });
+    processLog.push({
+      id: uuidv4(),
+      timestamp: new Date().toISOString(),
+      stage,
+      event: 'metrics',
+      message: 'Metrics snapshot',
+      cycle,
+      metrics: { ...metrics },
+    });
+    updateRunInDb(runId, { process_log: JSON.stringify(processLog) });
+  };
+
   // Load existing patches for this project, pruning expired/ineffective ones
   try {
     activePatches = prunePatches(projectId);
@@ -212,18 +286,28 @@ async function runPipelineLoop(
   // Read checkpoint config from goal
   const goalRun = conductorRepository.getRunById(runId);
   const goalId = goalRun?.goal_id;
-  const goalRecord = goalId ? goalRepository.getGoalById(goalId) : null;
-  const checkpointConfigRaw = (goalRecord as any)?.checkpoint_config;
+  const goalRecord = goalId ? goalRepository.getGoalById(goalId) as ConductorGoal | null : null;
+  const checkpointConfigRaw = goalRecord?.checkpoint_config;
   const checkpointConfig = checkpointConfigRaw
     ? (typeof checkpointConfigRaw === 'string'
         ? JSON.parse(checkpointConfigRaw)
         : checkpointConfigRaw)
     : { triage: false, preExecute: false, postReview: false };
 
+  // Read refined intent from DB (set by G5 intent refinement)
+  const refinedIntentRow = (() => {
+    try {
+      const db = getDatabase();
+      const row = db.prepare('SELECT refined_intent FROM conductor_runs WHERE id = ?').get(runId) as { refined_intent?: string | null } | undefined;
+      return row?.refined_intent || null;
+    } catch { return null; }
+  })();
+
   while (cycle <= (config.maxCyclesPerRun || 3)) {
     // Check for abort between cycles
     if (shouldAbort(runId)) {
       log('review', 'info', 'Pipeline stopped by user');
+      await specLifecycleManager.cleanupRunSpecs(runId);
       conductorRepository.updateRunStatus(runId, 'interrupted', metrics);
       return;
     }
@@ -236,6 +320,7 @@ async function runPipelineLoop(
       // After resume, check if it was stopped instead
       if (shouldAbort(runId)) {
         log('review', 'info', 'Pipeline stopped while paused');
+        await specLifecycleManager.cleanupRunSpecs(runId);
         conductorRepository.updateRunStatus(runId, 'interrupted', metrics);
         return;
       }
@@ -248,69 +333,107 @@ async function runPipelineLoop(
     // Build healing context from active patches
     const healingContext = buildHealingContext(activePatches);
 
-    // ---- GOAL ANALYZER ----
-    // For goal-driven runs, analyze codebase relative to goal and generate backlog
+    // ---- GOAL ANALYZER + PLANNER ----
+    // For goal-driven runs, analyze codebase relative to goal, then structure
+    // the backlog via the Planner. Items flow through the full pipeline.
     let skipScout = false;
+    let plannerIdeaIds: string[] = [];
+    let plannerOutput: PlannerOutput | null = null;
     if (goalRecord && goalRecord.description) {
       const analyzerStart = Date.now();
       log('scout', 'started', 'Running goal analysis against codebase');
 
       try {
+        const goalInput = {
+          id: goalId!,
+          title: goalRecord.title || goalRecord.description.slice(0, 100),
+          description: goalRecord.description,
+          target_paths: goalRecord.target_paths || null,
+          use_brain: goalRecord.use_brain ?? undefined,
+        };
+
         const analyzerResult: GoalAnalyzerOutput = await executeGoalAnalysis({
           runId,
           projectId,
           projectPath,
-          goal: {
-            id: goalId!,
-            title: goalRecord.title || goalRecord.description.slice(0, 100),
-            description: goalRecord.description,
-            target_paths: (goalRecord as any).target_paths || null,
-            use_brain: (goalRecord as any).use_brain,
-          },
+          goal: goalInput,
           config,
           abortSignal: abortController.signal,
+          refinedIntent: refinedIntentRow,
         });
 
         // Store gap report on run
         updateRunInDb(runId, { gap_report: JSON.stringify(analyzerResult.gapReport) });
 
-        // Create backlog items in ideas table
-        for (const item of analyzerResult.backlogItems) {
-          ideaRepository.createIdea({
-            id: uuidv4(),
-            scan_id: `conductor-${runId}`,
-            project_id: projectId,
-            context_id: item.contextId,
-            scan_type: item.sourceScanType || 'zen_architect',
-            category: item.category,
-            title: item.title,
-            description: item.description,
-            reasoning: `[Relevance: ${item.relevanceScore}] ${item.reasoning}`,
-            effort: item.effort,
-            impact: item.impact,
-            risk: item.risk,
-            goal_id: goalId,
-          });
-        }
-
         const analyzerDuration = Date.now() - analyzerStart;
         const gapCount = analyzerResult.gapReport.gaps.length;
         const itemCount = analyzerResult.backlogItems.length;
-        metrics.ideasGenerated += itemCount;
 
         log('scout', 'completed', `Goal analysis found ${gapCount} gaps, generated ${itemCount} backlog items`, {
           itemsOut: itemCount,
           durationMs: analyzerDuration,
         });
 
-        executeStageAndPersist(runId, 'scout', {
-          status: 'completed',
-          completedAt: new Date().toISOString(),
-          itemsIn: 0,
-          itemsOut: itemCount,
-        });
+        if (itemCount > 0) {
+          skipScout = true;
 
-        skipScout = itemCount > 0; // Only skip scout if we generated items
+          // ---- PLANNER ----
+          log('scout', 'started', '[Planner] Structuring backlog with dependencies and composite groups');
+          const plannerStart = Date.now();
+
+          plannerOutput = await executePlannerStage({
+            runId,
+            projectId,
+            projectPath,
+            goal: goalInput,
+            gapReport: analyzerResult.gapReport,
+            backlogItems: analyzerResult.backlogItems,
+            config,
+            refinedIntent: refinedIntentRow,
+            abortSignal: abortController.signal,
+          });
+
+          const plannerDuration = Date.now() - plannerStart;
+          const groupCount = plannerOutput.compositeGroups.length;
+          log('scout', 'completed', `[Planner] Structured ${plannerOutput.backlogItems.length} items, ${groupCount} composite group${groupCount !== 1 ? 's' : ''}`, {
+            itemsOut: plannerOutput.backlogItems.length,
+            durationMs: plannerDuration,
+          });
+
+          // Store planner output on run
+          updateRunInDb(runId, { planner_output: JSON.stringify(plannerOutput) });
+
+          // Create backlog items in ideas table (from planner-refined items)
+          for (const item of plannerOutput.backlogItems) {
+            const ideaId = uuidv4();
+            ideaRepository.createIdea({
+              id: ideaId,
+              scan_id: `conductor-${runId}`,
+              project_id: projectId,
+              context_id: item.contextId,
+              scan_type: item.sourceScanType || 'zen_architect',
+              category: item.category,
+              title: item.title,
+              description: item.description,
+              reasoning: `[Relevance: ${item.relevanceScore}] ${item.reasoning}`,
+              effort: item.effort,
+              impact: item.impact,
+              risk: item.risk,
+              goal_id: goalId,
+            });
+            plannerIdeaIds.push(ideaId);
+          }
+
+          metrics.ideasGenerated += plannerOutput.backlogItems.length;
+
+          executeStageAndPersist(runId, 'scout', {
+            status: 'completed',
+            completedAt: new Date().toISOString(),
+            itemsIn: 0,
+            itemsOut: plannerOutput.backlogItems.length,
+          });
+          persistMetrics('scout');
+        }
       } catch (err) {
         log('scout', 'failed', `Goal analysis failed: ${(err as Error).message}`, {
           error: (err as Error).message,
@@ -349,6 +472,7 @@ async function runPipelineLoop(
         itemsIn: 0,
         itemsOut: ideasGenerated,
       });
+      persistMetrics('scout');
 
       log('scout', 'completed', `Generated ${ideasGenerated} idea${ideasGenerated !== 1 ? 's' : ''}`, {
         itemsOut: ideasGenerated,
@@ -441,21 +565,8 @@ async function runPipelineLoop(
     if (shouldAbort(runId)) break;
     } // end if (!skipScout)
 
-    // When goal analysis produced items and skipped scout, skip triage and go to batch
-    // The backlog items are already in the ideas table; triage is not needed for goal-driven runs
-    if (skipScout) {
-      // Skip triage for goal-driven runs -- items already in ideas table
-      executeStageAndPersist(runId, 'triage', { status: 'skipped', itemsIn: 0, itemsOut: 0 });
-      log('triage', 'info', 'Triage skipped -- goal analysis items go directly to ideas table');
-
-      // Complete without triage/batch/execute since backlog items are written
-      executeStageAndPersist(runId, 'batch', { status: 'skipped', itemsIn: 0, itemsOut: 0 });
-      executeStageAndPersist(runId, 'execute', { status: 'skipped', itemsIn: 0, itemsOut: 0 });
-      executeStageAndPersist(runId, 'review', { status: 'completed', itemsIn: 0, itemsOut: 0 });
-      log('review', 'completed', 'Goal-driven run complete -- backlog items written to ideas table');
-      conductorRepository.updateRunStatus(runId, 'completed', metrics);
-      return;
-    }
+    // Goal-driven runs now fall through to triage (planner items are in the ideas table).
+    // plannerIdeaIds provides the IDs for triage to fetch.
 
     // ---- TRIAGE ----
     const triageStart = Date.now();
@@ -464,7 +575,9 @@ async function runPipelineLoop(
 
     let triageResult: { acceptedIds: string[]; rejectedIds: string[]; skippedIds: string[] } = { acceptedIds: [], rejectedIds: [], skippedIds: [] };
     try {
-      const allIdeaIds = scoutResults!.flatMap((r) => r.ideaIds);
+      const allIdeaIds = plannerIdeaIds.length > 0
+        ? plannerIdeaIds
+        : scoutResults!.flatMap((r) => r.ideaIds);
       const ideas = await fetchIdeas(allIdeaIds, projectId);
 
       log('triage', 'started', `Evaluating ${ideas.length} idea${ideas.length !== 1 ? 's' : ''} via CLI scoring`, {
@@ -486,8 +599,8 @@ async function runPipelineLoop(
 
       log('triage', 'info', `Scored ${scoredItems.length} items`);
 
-      // Step 2: Check skipTriage bypass
-      const skipTriage = checkpointConfig.skipTriage ?? false;
+      // Step 2: Check skipTriage bypass — skip if goal config says so OR if config toggle is off
+      const skipTriage = (checkpointConfig.skipTriage ?? false) || !config.triageCheckpointEnabled;
 
       if (skipTriage) {
         // Bypass checkpoint -- auto-approve all items
@@ -575,6 +688,7 @@ async function runPipelineLoop(
         itemsIn: ideas.length,
         itemsOut: triageResult.acceptedIds.length,
       });
+      persistMetrics('triage');
 
       log('triage', 'completed', `Accepted ${triageResult.acceptedIds.length}, rejected ${triageResult.rejectedIds.length}`, {
         itemsIn: ideas.length,
@@ -625,6 +739,7 @@ async function runPipelineLoop(
           projectId,
           projectPath,
           projectName,
+          compositeGroups: plannerOutput?.compositeGroups,
         });
 
         metrics.tasksCreated += batchDescriptor.requirementNames.length;
@@ -636,6 +751,7 @@ async function runPipelineLoop(
           itemsIn: triageResult.acceptedIds.length,
           itemsOut: batchDescriptor.requirementNames.length,
         });
+        persistMetrics('batch');
 
         log('batch', 'completed', `Batched ${batchDescriptor.requirementNames.length} task${batchDescriptor.requirementNames.length !== 1 ? 's' : ''} with ${config.batchStrategy} strategy`, {
           itemsOut: batchDescriptor.requirementNames.length,
@@ -661,7 +777,7 @@ async function runPipelineLoop(
       try {
         // Build approved items from accepted ideas for spec generation
         const specIdeas = await fetchIdeas(triageResult.acceptedIds, projectId);
-        const approvedItems: ApprovedBacklogItem[] = specIdeas.map((idea: any) => ({
+        const approvedItems: ApprovedBacklogItem[] = specIdeas.map((idea) => ({
           id: idea.id,
           title: idea.title || 'Untitled',
           description: idea.description || '',
@@ -694,9 +810,26 @@ async function runPipelineLoop(
         log('batch', 'info', `Generated ${specWriterOutput.specs.length} spec${specWriterOutput.specs.length !== 1 ? 's' : ''} in ${specWriterOutput.specDir}`);
       } catch (error) {
         log('batch', 'failed', `Spec writer failed: ${String(error)}`, { error: String(error) });
+        await specLifecycleManager.cleanupRunSpecs(runId);
         conductorRepository.updateRunStatus(runId, 'failed', metrics);
         return;
       }
+    }
+
+    // ---- SPEC QUALITY GATE ----
+    if (specWriterOutput && specWriterOutput.specs.length > 0) {
+      log('batch', 'info', 'Running spec quality gate...');
+      const gateResult = runSpecQualityGate(runId, projectPath);
+      if (!gateResult.passed) {
+        const failedSpecs = gateResult.specResults.filter(r => !r.passed);
+        for (const failed of failedSpecs) {
+          log('batch', 'info', `Spec "${failed.title}" issues: ${failed.issues.join('; ')}`);
+        }
+        log('batch', 'info', `Spec quality gate: ${failedSpecs.length} spec(s) have issues (continuing anyway)`);
+      } else {
+        log('batch', 'info', 'Spec quality gate passed');
+      }
+      updateRunInDb(runId, { spec_gate_result: JSON.stringify(gateResult) });
     }
 
     if (shouldAbort(runId)) break;
@@ -758,6 +891,8 @@ async function runPipelineLoop(
           itemsOut: succeeded,
         });
 
+        persistMetrics('execute');
+
         log('execute', 'completed', `${succeeded}/${executeResult.results.length} tasks succeeded${failed > 0 ? `, ${failed} failed` : ''}`, {
           itemsOut: succeeded,
           durationMs: executeDuration,
@@ -778,6 +913,19 @@ async function runPipelineLoop(
                 projectId,
                 baseUrl: getBaseUrl(),
               });
+            }
+
+            // Incremental commit if autoCommit is enabled
+            if (goalRecord?.auto_commit === 1 && result.filesChanged && result.filesChanged.length > 0) {
+              const specMeta = specWriterOutput?.specs.find(s => s.slug === result.requirementName);
+              const commitResult = commitPerTask(
+                projectPath,
+                specMeta?.title || result.requirementName,
+                result.filesChanged
+              );
+              if (commitResult) {
+                log('execute', 'info', `Committed ${result.requirementName} (${commitResult.sha.slice(0, 7)})`);
+              }
             }
           }
         }
@@ -824,9 +972,9 @@ async function runPipelineLoop(
         specs: specWriterOutput?.specs || [],
         buildResult: buildResult || { passed: false, durationMs: 0 },
         goalTitle: goalRecord?.title || 'Untitled Goal',
-        goalDescription: (goalRecord as any)?.description || '',
-        autoCommit: (goalRecord as any)?.auto_commit === 1,
-        reviewModel: (goalRecord as any)?.review_model || null,
+        goalDescription: goalRecord?.description || '',
+        autoCommit: false, // Incremental commits happen per-task in execute stage
+        reviewModel: goalRecord?.review_model || null,
         runId,
       });
 
@@ -914,12 +1062,7 @@ async function runPipelineLoop(
 
       if (!reviewResult.decision.shouldContinue) {
         // Clean up spec artifacts on successful completion
-        try {
-          specRepository.deleteSpecsByRunId(runId);
-          await specFileManager.deleteSpecDir(runId);
-        } catch {
-          // Cleanup failure is non-fatal
-        }
+        await specLifecycleManager.cleanupRunSpecs(runId);
         conductorRepository.updateRunStatus(runId, 'completed', metrics);
         return;
       }
@@ -931,6 +1074,7 @@ async function runPipelineLoop(
         itemsIn: 0,
         itemsOut: 0,
       });
+      await specLifecycleManager.cleanupRunSpecs(runId);
       conductorRepository.updateRunStatus(runId, 'failed', metrics);
       return;
     }
@@ -941,15 +1085,11 @@ async function runPipelineLoop(
   // Max cycles reached or aborted
   if (shouldAbort(runId)) {
     log('review', 'info', 'Pipeline aborted');
+    await specLifecycleManager.cleanupRunSpecs(runId);
     conductorRepository.updateRunStatus(runId, 'interrupted', metrics);
   } else {
     // Clean up spec artifacts on successful completion
-    try {
-      specRepository.deleteSpecsByRunId(runId);
-      await specFileManager.deleteSpecDir(runId);
-    } catch {
-      // Cleanup failure is non-fatal
-    }
+    await specLifecycleManager.cleanupRunSpecs(runId);
     log('review', 'completed', `Max cycles reached (${config.maxCyclesPerRun || 3}) -- pipeline complete`);
     conductorRepository.updateRunStatus(runId, 'completed', metrics);
   }
@@ -998,7 +1138,7 @@ async function waitForResumeWithTimeout(
   }
 }
 
-async function fetchIdeas(ideaIds: string[], projectId: string): Promise<any[]> {
+async function fetchIdeas(ideaIds: string[], projectId: string): Promise<IdeaRecord[]> {
   if (ideaIds.length === 0) return [];
 
   try {
@@ -1007,13 +1147,20 @@ async function fetchIdeas(ideaIds: string[], projectId: string): Promise<any[]> 
     );
     if (!response.ok) return [];
     const data = await response.json();
-    const allIdeas = data.ideas || data.data || [];
+    const allIdeas: IdeaRecord[] = data.ideas || data.data || [];
 
     // Filter to only requested IDs
-    return allIdeas.filter((i: any) => ideaIds.includes(i.id));
+    return allIdeas.filter((i) => ideaIds.includes(i.id));
   } catch {
     return [];
   }
+}
+
+/** Context record shape from /api/contexts */
+interface ContextRecord {
+  id: string;
+  name?: string;
+  file_paths?: string[] | null;
 }
 
 /**
@@ -1021,10 +1168,10 @@ async function fetchIdeas(ideaIds: string[], projectId: string): Promise<any[]> 
  * This bridges the gap between thin idea objects and the rich context data
  * needed for high-quality requirement generation.
  */
-async function enrichIdeasWithContext(ideas: any[], projectId: string): Promise<any[]> {
+async function enrichIdeasWithContext(ideas: IdeaRecord[], projectId: string): Promise<IdeaRecord[]> {
   // Collect unique context IDs
   const contextIds = [...new Set(
-    ideas.map((i: any) => i.context_id).filter(Boolean)
+    ideas.map((i) => i.context_id).filter(Boolean)
   )] as string[];
 
   if (contextIds.length === 0) return ideas;
@@ -1036,16 +1183,16 @@ async function enrichIdeasWithContext(ideas: any[], projectId: string): Promise<
     );
     if (!response.ok) return ideas;
     const data = await response.json();
-    const contexts = data?.data?.contexts || data?.contexts || [];
+    const contexts: ContextRecord[] = data?.data?.contexts || data?.contexts || [];
 
     // Build lookup map
-    const contextMap = new Map<string, any>();
+    const contextMap = new Map<string, ContextRecord>();
     for (const ctx of contexts) {
       contextMap.set(ctx.id, ctx);
     }
 
     // Enrich each idea with context metadata
-    return ideas.map((idea: any) => {
+    return ideas.map((idea) => {
       if (!idea.context_id) return idea;
       const ctx = contextMap.get(idea.context_id);
       if (!ctx) return idea;
@@ -1060,7 +1207,7 @@ async function enrichIdeasWithContext(ideas: any[], projectId: string): Promise<
   }
 }
 
-function updateRunInDb(runId: string, updates: Record<string, any>): void {
+function updateRunInDb(runId: string, updates: Record<string, string | number | null>): void {
   try {
     const db = getDatabase();
     const setClauses = Object.keys(updates)

@@ -5,28 +5,9 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import type { FlowPair, Bottleneck, FlowAnalysisData } from '../lib/types';
 
-export interface FlowPair {
-  source_group_id: string;
-  target_group_id: string;
-  total_count: number;
-  success_count: number;
-  fail_count: number;
-  success_rate: number;
-  log_ids: string[];
-}
-
-export interface Bottleneck {
-  group_id: string;
-  cross_context_fail_count: number;
-}
-
-export interface FlowAnalysisData {
-  pairs: FlowPair[];
-  bottlenecks: Bottleneck[];
-  total_logs: number;
-  cross_context_count: number;
-}
+export type { FlowPair, Bottleneck, FlowAnalysisData };
 
 export function useFlowAnalysis(projectId: string | null | undefined) {
   const [data, setData] = useState<FlowAnalysisData | null>(null);

@@ -8,11 +8,11 @@ import { z } from 'zod';
 
 export const DirectionsResponseSchema = z.object({
   success: z.boolean(),
-  directions: z.array(z.record(z.string(), z.unknown())).default([]),
+  items: z.array(z.record(z.string(), z.unknown())).default([]),
   grouped: z.array(z.object({
     contextMapId: z.string(),
     contextMapTitle: z.string(),
-    directions: z.array(z.record(z.string(), z.unknown())),
+    items: z.array(z.record(z.string(), z.unknown())),
   })).default([]),
   counts: z.object({
     pending: z.number(),

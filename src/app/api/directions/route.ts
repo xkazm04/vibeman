@@ -12,6 +12,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { withObservability } from '@/lib/observability/middleware';
 import { parseProjectIds } from '@/lib/api-helpers/projectFilter';
 import { signalCollector } from '@/lib/brain/signalCollector';
+import { isValidDirectionStatus } from '@/lib/stateMachine';
+import { groupByContextMap } from '@/lib/api-helpers/groupByContextMap';
 
 async function handleGet(request: NextRequest) {
   try {
@@ -26,6 +28,13 @@ async function handleGet(request: NextRequest) {
     if (projectFilter.mode === 'all') {
       return NextResponse.json(
         { error: 'projectId query parameter is required' },
+        { status: 400 }
+      );
+    }
+
+    if (status !== null && !contextId && !contextGroupId && !contextMapId && !isValidDirectionStatus(status)) {
+      return NextResponse.json(
+        { error: `Invalid status '${status}'. Valid values: pending, processing, accepted, rejected` },
         { status: 400 }
       );
     }
@@ -54,30 +63,12 @@ async function handleGet(request: NextRequest) {
       directions = directionDb.getDirectionsByProjects(projectIds);
     }
 
-    // Group directions by context_map_id for UI display
-    const grouped: Record<string, {
-      contextMapId: string;
-      contextMapTitle: string;
-      directions: typeof directions;
-    }> = {};
-
-    for (const d of directions) {
-      if (!grouped[d.context_map_id]) {
-        grouped[d.context_map_id] = {
-          contextMapId: d.context_map_id,
-          contextMapTitle: d.context_map_title,
-          directions: []
-        };
-      }
-      grouped[d.context_map_id].directions.push(d);
-    }
-
     const counts = directionDb.getDirectionCountsMultiple(projectIds);
 
     return NextResponse.json({
       success: true,
-      directions,
-      grouped: Object.values(grouped),
+      items: directions,
+      grouped: groupByContextMap(directions),
       counts
     });
 

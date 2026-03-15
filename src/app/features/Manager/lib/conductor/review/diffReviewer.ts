@@ -15,7 +15,10 @@ import type {
   FileReviewResult,
   ReviewStageResult,
   RubricScores,
+  DeepRubricScores,
+  RubricDimension,
 } from './reviewTypes';
+import { CRITICAL_DIMENSIONS } from './reviewTypes';
 
 const MAX_DIFF_LINES = 500;
 
@@ -155,13 +158,20 @@ export async function reviewFileDiffs(
     })
     .join('\n\n');
 
-  const prompt = `You are a code reviewer. Review each file's changes against this quality rubric:
+  const prompt = `You are a code reviewer. Review each file's changes against this 10-dimension quality rubric. Score each dimension 1-5 (1=terrible, 5=excellent):
 
-1. **Logic Correctness** (pass/fail): Does the code correctly implement the intended behavior? Are there logic errors, edge cases missed, or incorrect algorithms?
-2. **Naming & Conventions** (pass/fail): Do variable names, function names, and code structure follow consistent patterns? Is the code readable?
-3. **Type Safety** (pass/fail): Is TypeScript used properly? Are there any \`any\` types, missing type annotations, or unsafe type assertions?
+1. **structureSize**: Functions/files < 200 LOC, well-decomposed
+2. **noAnyTypes**: No \`any\` usage, proper TypeScript types throughout
+3. **errorHandling**: Try/catch, error boundaries, graceful failures
+4. **security**: OWASP compliance — no injection, XSS, CSRF vulnerabilities
+5. **resilience**: Circuit-breaking, graceful degradation, retry logic
+6. **performance**: No N+1 queries, efficient algorithms, no unnecessary work
+7. **naming**: Consistent, descriptive variable/function/class names
+8. **dependencies**: No circular imports, clean dependency graph
+9. **testing**: Code is testable, edge cases considered
+10. **reversibility**: Changes are safe to roll back, no data loss risk
 
-For each file, provide a pass/fail verdict with a brief rationale.
+For each file, provide scores and a brief rationale.
 
 ${fileSections}
 
@@ -170,18 +180,25 @@ Respond with ONLY valid JSON in this exact shape:
   "files": [
     {
       "filePath": "path/to/file.ts",
-      "passed": true,
       "rationale": "Brief explanation of verdict",
-      "rubricScores": {
-        "logicCorrectness": "pass",
-        "namingConventions": "pass",
-        "typeSafety": "pass"
+      "scores": {
+        "structureSize": 4,
+        "noAnyTypes": 5,
+        "errorHandling": 3,
+        "security": 4,
+        "resilience": 3,
+        "performance": 4,
+        "naming": 5,
+        "dependencies": 4,
+        "testing": 2,
+        "reversibility": 4
       }
     }
   ]
 }`;
 
   // Handle files with extraction errors
+  const failDimension = (critical: boolean): RubricDimension => ({ score: 1, critical, note: 'Diff extraction failed' });
   const errorResults: FileReviewResult[] = fileDiffs
     .filter((fd) => fd.diff === '' && fd.error)
     .map((fd) => ({
@@ -192,6 +209,18 @@ Respond with ONLY valid JSON in this exact shape:
         logicCorrectness: 'fail' as const,
         namingConventions: 'fail' as const,
         typeSafety: 'fail' as const,
+      },
+      deepScores: {
+        structureSize: failDimension(true),
+        noAnyTypes: failDimension(true),
+        errorHandling: failDimension(true),
+        security: failDimension(true),
+        resilience: failDimension(false),
+        performance: failDimension(false),
+        naming: failDimension(false),
+        dependencies: failDimension(false),
+        testing: failDimension(false),
+        reversibility: failDimension(false),
       },
     }));
 
@@ -222,20 +251,10 @@ Respond with ONLY valid JSON in this exact shape:
         llmResults = (
           parsed.files as Array<{
             filePath: string;
-            passed: boolean;
             rationale: string;
-            rubricScores: RubricScores;
+            scores: Record<string, number>;
           }>
-        ).map((f) => ({
-          filePath: f.filePath,
-          passed: f.passed,
-          rationale: f.rationale,
-          rubricScores: {
-            logicCorrectness: f.rubricScores?.logicCorrectness || 'fail',
-            namingConventions: f.rubricScores?.namingConventions || 'fail',
-            typeSafety: f.rubricScores?.typeSafety || 'fail',
-          },
-        }));
+        ).map((f) => parseDeepReviewResult(f));
       } catch {
         // JSON parse failure — create error result
         llmResults = [
@@ -275,5 +294,61 @@ Respond with ONLY valid JSON in this exact shape:
     fileResults,
     reviewModel: model,
     reviewedAt: new Date().toISOString(),
+  };
+}
+
+// ============================================================================
+// Deep Review Parsing Helpers
+// ============================================================================
+
+const DIMENSION_NAMES: (keyof DeepRubricScores)[] = [
+  'structureSize', 'noAnyTypes', 'errorHandling', 'security',
+  'resilience', 'performance', 'naming', 'dependencies',
+  'testing', 'reversibility',
+];
+
+/**
+ * Parse a single file's LLM response into a FileReviewResult with deep scores.
+ *
+ * - Builds DeepRubricScores from the 10-dimension scores
+ * - Marks critical dimensions per CRITICAL_DIMENSIONS
+ * - Derives pass/fail: fails if ANY critical dimension scores < 2
+ * - Backward-compat: maps to legacy RubricScores
+ */
+function parseDeepReviewResult(raw: {
+  filePath: string;
+  rationale: string;
+  scores: Record<string, number>;
+}): FileReviewResult {
+  const scores = raw.scores || {};
+
+  // Build deep rubric scores
+  const deepScores: DeepRubricScores = {} as DeepRubricScores;
+  for (const dim of DIMENSION_NAMES) {
+    const score = Math.max(1, Math.min(5, Math.round(scores[dim] || 1)));
+    const critical = CRITICAL_DIMENSIONS.includes(dim);
+    deepScores[dim] = { score, critical };
+  }
+
+  // A file FAILS if ANY critical dimension has score < 2
+  const hasCriticalFailure = CRITICAL_DIMENSIONS.some(
+    (dim) => deepScores[dim].score < 2
+  );
+  const passed = !hasCriticalFailure;
+
+  // Backward-compat: derive legacy RubricScores
+  const avgLogic = (deepScores.structureSize.score + deepScores.errorHandling.score) / 2;
+  const rubricScores: RubricScores = {
+    logicCorrectness: avgLogic >= 2.5 ? 'pass' : 'fail',
+    namingConventions: deepScores.naming.score >= 3 ? 'pass' : 'fail',
+    typeSafety: deepScores.noAnyTypes.score >= 3 ? 'pass' : 'fail',
+  };
+
+  return {
+    filePath: raw.filePath,
+    passed,
+    rationale: raw.rationale,
+    rubricScores,
+    deepScores,
   };
 }

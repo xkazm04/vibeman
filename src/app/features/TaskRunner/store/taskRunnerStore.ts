@@ -13,6 +13,7 @@ import { create } from 'zustand';
 import type { ProjectRequirement } from '../lib/types';
 import type { TaskStatusUnion, TaskStatusType } from '../lib/types';
 import type { ExternalProcessingState } from '@/lib/supabase/external-types';
+import { taskEventBus } from '@/lib/taskEventBus';
 
 // ============================================================================
 // Types
@@ -100,6 +101,10 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
           },
         },
       }));
+      if (status.type === 'queued') taskEventBus.emit({ type: 'task-queued', taskId });
+      else if (status.type === 'running') taskEventBus.emit({ type: 'task-started', taskId });
+      else if (status.type === 'completed') taskEventBus.emit({ type: 'task-completed', taskId });
+      else if (status.type === 'failed') taskEventBus.emit({ type: 'task-failed', taskId, error: status.error });
     },
 
     setGitConfig: (config) => set({ gitConfig: config }),

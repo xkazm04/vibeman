@@ -11,6 +11,7 @@ import { directionDb, brainInsightDb, insightInfluenceDb, insightEffectivenessCa
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
 import { signalCollector } from '@/lib/brain/signalCollector';
+import { InvalidTransitionError } from '@/lib/stateMachine';
 
 async function handleGet(
   request: NextRequest,
@@ -146,6 +147,9 @@ async function handlePut(
     });
 
   } catch (error) {
+    if (error instanceof InvalidTransitionError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     logger.error('[API] Direction PUT error:', { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unknown error' },

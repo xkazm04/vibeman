@@ -109,8 +109,8 @@ export async function executeSpecWriterStage(
     const slug = generateSlug(item.title);
     const filename = specFileManager.formatFilename(index + 1, slug);
 
-    // i. Write spec file
-    await specFileManager.writeSpec(specDir, filename, markdown);
+    // i. Write spec file — returns the absolute path for lifecycle tracking
+    const filePath = await specFileManager.writeSpec(specDir, filename, markdown);
 
     // j. Persist metadata to DB
     const specMeta = specRepository.createSpec({
@@ -123,6 +123,9 @@ export async function executeSpecWriterStage(
       affectedFiles,
       complexity,
     });
+
+    // k. Record on-disk path so SpecLifecycleManager can target individual files
+    specRepository.updateFilePath(specMeta.id, filePath);
 
     allSpecs.push(specMeta);
   }

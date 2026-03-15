@@ -81,3 +81,63 @@ export function commitChanges(
     return null;
   }
 }
+
+// ============================================================================
+// Incremental Per-Task Commit
+// ============================================================================
+
+/**
+ * Stage and commit files from a single successful spec execution.
+ * Used for incremental commits during execute stage.
+ */
+export function commitPerTask(
+  projectPath: string,
+  specTitle: string,
+  filesChanged: string[]
+): { sha: string } | null {
+  if (filesChanged.length === 0) return null;
+
+  try {
+    for (const file of filesChanged) {
+      const normalized = file.replace(/\\/g, '/');
+      try {
+        execSync(`git add "${normalized}"`, {
+          cwd: projectPath,
+          encoding: 'utf-8',
+          timeout: 10000,
+        });
+      } catch {
+        // File may have been deleted or not exist, skip it
+      }
+    }
+
+    // Check if there are staged changes
+    const staged = execSync('git diff --cached --name-only', {
+      cwd: projectPath,
+      encoding: 'utf-8',
+      timeout: 5000,
+    }).trim();
+
+    if (!staged) return null;
+
+    const safeTitle = specTitle.replace(/"/g, '\\"').slice(0, 72);
+    const message = `feat(conductor): ${safeTitle}`;
+
+    execSync(`git commit -m "${message}"`, {
+      cwd: projectPath,
+      encoding: 'utf-8',
+      timeout: 30000,
+    });
+
+    const sha = execSync('git rev-parse HEAD', {
+      cwd: projectPath,
+      encoding: 'utf-8',
+      timeout: 5000,
+    }).trim();
+
+    return { sha };
+  } catch (error) {
+    console.error('[execute] Incremental commit failed:', error);
+    return null;
+  }
+}

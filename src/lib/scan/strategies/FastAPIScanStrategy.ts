@@ -7,11 +7,11 @@
  * - Removed duplicate fileExists() method (inherited from base)
  */
 
-import { BaseScanStrategy } from '../ScanStrategy';
+import { RefactorScanStrategy } from '../ScanStrategy';
 import type { FileAnalysis } from '@/app/features/RefactorWizard/lib/types';
 import type { RefactorOpportunity } from '@/stores/refactorStore';
 
-export class FastAPIScanStrategy extends BaseScanStrategy {
+export class FastAPIScanStrategy extends RefactorScanStrategy {
   readonly name = 'FastAPI Scanner';
   readonly techStack = 'fastapi' as const;
 

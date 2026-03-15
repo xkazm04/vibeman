@@ -7,6 +7,7 @@ import {
   createMissingFieldError,
   withIdeasErrorHandler,
 } from '@/app/features/Ideas/lib/ideasHandlers';
+import { isValidScanType, ALL_SCAN_TYPES, type ScanType } from '@/app/features/Ideas/lib/scanTypes';
 
 /**
  * GET /api/scans
@@ -30,6 +31,13 @@ async function handleGet(request: NextRequest) {
 
   const parsedLimit = limit ? Math.min(Math.max(1, parseInt(limit, 10) || 50), 100) : undefined;
   const parsedOffset = offset ? parseInt(offset, 10) : 0;
+
+  if (scanType && !isValidScanType(scanType)) {
+    return createIdeasErrorResponse(IdeasErrorCode.INVALID_FILTER, {
+      field: 'scanType',
+      message: `Invalid scan type: ${scanType}. Valid types: ${ALL_SCAN_TYPES.join(', ')}`,
+    });
+  }
 
   // Push filtering and pagination to SQL
   const { scans, total } = scanDb.getScansByProjectFiltered(projectId, {
@@ -69,10 +77,17 @@ async function handlePost(request: NextRequest) {
     });
   }
 
+  if (!isValidScanType(scan_type)) {
+    return createIdeasErrorResponse(IdeasErrorCode.INVALID_FILTER, {
+      field: 'scan_type',
+      message: `Invalid scan type: ${scan_type}. Valid types: ${ALL_SCAN_TYPES.join(', ')}`,
+    });
+  }
+
   const scan = scanDb.createScan({
     id: uuidv4(),
     project_id,
-    scan_type,
+    scan_type: scan_type as ScanType,
     summary,
     input_tokens,
     output_tokens

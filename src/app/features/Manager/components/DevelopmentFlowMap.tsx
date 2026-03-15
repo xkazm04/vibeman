@@ -19,6 +19,13 @@ import FlowArrow from './FlowArrow';
 import BottleneckBadge from './BottleneckBadge';
 import CrossContextDetail from './CrossContextDetail';
 import type { EnrichedLogWithGroup } from './ManagerSystemMap';
+import {
+  MIN_ARROW_THRESHOLD,
+  NODE_POSITION_INITIAL_DELAY_MS,
+  NODE_POSITION_REOBSERVE_DELAY_MS,
+  SUCCESS_RATE_HIGH,
+  SUCCESS_RATE_LOW,
+} from '../lib/config';
 
 interface DevelopmentFlowMapProps {
   logs: EnrichedLogWithGroup[];
@@ -28,9 +35,6 @@ interface DevelopmentFlowMapProps {
   onGroupClick: (groupId: string) => void;
   projectId: string | null | undefined;
 }
-
-// Minimum threshold to show an arrow (avoid clutter)
-const MIN_ARROW_THRESHOLD = 1;
 
 export default function DevelopmentFlowMap({
   logs,
@@ -87,7 +91,7 @@ export default function DevelopmentFlowMap({
 
   // Update positions after mount and on resize
   useEffect(() => {
-    const timer = setTimeout(updateNodePositions, 400);
+    const timer = setTimeout(updateNodePositions, NODE_POSITION_INITIAL_DELAY_MS);
     window.addEventListener('resize', updateNodePositions);
     return () => {
       clearTimeout(timer);
@@ -97,7 +101,7 @@ export default function DevelopmentFlowMap({
 
   // Re-observe when SystemMap finishes rendering
   useEffect(() => {
-    const timer = setTimeout(updateNodePositions, 800);
+    const timer = setTimeout(updateNodePositions, NODE_POSITION_REOBSERVE_DELAY_MS);
     return () => clearTimeout(timer);
   }, [logs, updateNodePositions]);
 
@@ -272,15 +276,15 @@ export default function DevelopmentFlowMap({
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-0.5 bg-green-500 rounded" />
-                <span className="text-[10px] text-gray-400">{'>'}80% success</span>
+                <span className="text-[10px] text-gray-400">{'>'}{SUCCESS_RATE_HIGH * 100}% success</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-6 h-0.5 bg-yellow-500 rounded" />
-                <span className="text-[10px] text-gray-400">50-80% success</span>
+                <span className="text-[10px] text-gray-400">{SUCCESS_RATE_LOW * 100}-{SUCCESS_RATE_HIGH * 100}% success</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-6 h-0.5 bg-red-500 rounded" />
-                <span className="text-[10px] text-gray-400">{'<'}50% success</span>
+                <span className="text-[10px] text-gray-400">{'<'}{SUCCESS_RATE_LOW * 100}% success</span>
               </div>
               <div className="flex items-center gap-2 pt-1 border-t border-gray-800">
                 <div className="w-6 h-1.5 bg-gray-500 rounded" />

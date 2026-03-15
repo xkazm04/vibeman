@@ -21,6 +21,7 @@ import {
   ValidationExecutor,
   DeploymentExecutor,
 } from './executors';
+import { getDatabase } from '@/app/db/connection';
 
 // Generate unique IDs
 function generateId(prefix: string): string {
@@ -51,7 +52,6 @@ class LifecycleOrchestrator {
   private pollTimer: NodeJS.Timeout | null = null;
   private lastCycleAt: string | null = null;
   private nextScheduledAt: string | null = null;
-  private cycleLock: boolean = false;
 
   // Phase executors — instantiated once, reused across cycles
   private readonly executors: {
@@ -82,6 +82,13 @@ class LifecycleOrchestrator {
       created_at: now,
       updated_at: now,
     };
+
+    // Ensure the DB lock row exists for this project so acquireLock() never inserts mid-flight
+    try {
+      this.ensureLockRow(projectId);
+    } catch {
+      // DB may not be available in test environments — non-fatal
+    }
 
     this.logEvent('info', 'idle', 'Lifecycle orchestrator initialized');
   }
@@ -118,7 +125,9 @@ class LifecycleOrchestrator {
     }
 
     this._isRunning = false;
-    this.cycleLock = false;
+    if (this.config) {
+      this.releaseLock(this.config.project_id);
+    }
     this.stopPolling();
 
     this.logEvent('info', 'idle', 'Lifecycle orchestrator stopped');
@@ -135,24 +144,23 @@ class LifecycleOrchestrator {
       throw new Error('Orchestrator not initialized');
     }
 
-    // Atomic lock check — prevents concurrent calls from both passing the guard
-    if (this.cycleLock) {
+    // Atomically acquire DB row-level lock — prevents concurrent calls from both passing the guard
+    const acquired = this.acquireLock(this.config.project_id);
+    if (!acquired) {
       throw new Error('A cycle is already in progress');
     }
 
-    // Check if already running a cycle
+    // Check if already running a cycle (belt-and-suspenders after lock acquired)
     if (this.currentCycle && this.currentCycle.phase !== 'completed' && this.currentCycle.phase !== 'failed') {
+      this.releaseLock(this.config.project_id);
       throw new Error('A cycle is already in progress');
     }
-
-    // Acquire lock before any async work
-    this.cycleLock = true;
 
     // Check rate limiting
     if (this.lastCycleAt) {
       const timeSinceLastCycle = Date.now() - new Date(this.lastCycleAt).getTime();
       if (timeSinceLastCycle < this.config.min_cycle_interval_ms) {
-        this.cycleLock = false;
+        this.releaseLock(this.config.project_id);
         throw new Error(`Rate limited. Wait ${Math.ceil((this.config.min_cycle_interval_ms - timeSinceLastCycle) / 1000)} seconds`);
       }
     }
@@ -194,7 +202,7 @@ class LifecycleOrchestrator {
     } catch (error) {
       await this.handleCycleError(cycle, error as Error);
     } finally {
-      this.cycleLock = false;
+      this.releaseLock(this.config.project_id);
     }
 
     return cycle;
@@ -360,6 +368,68 @@ class LifecycleOrchestrator {
     }
   }
 
+  // ── DB-backed cycle lock ──────────────────────────────────────────────
+
+  /**
+   * Ensure a lock row exists for the given project (idempotent).
+   */
+  private ensureLockRow(projectId: string): void {
+    const db = getDatabase();
+    const now = new Date().toISOString();
+    db.prepare(`
+      INSERT OR IGNORE INTO lifecycle_locks (project_id, locked, updated_at)
+      VALUES (?, 0, ?)
+    `).run(projectId, now);
+  }
+
+  /**
+   * Atomically acquire the lock for a project.
+   * Returns true if the lock was successfully claimed, false if already held.
+   */
+  private acquireLock(projectId: string): boolean {
+    this.ensureLockRow(projectId);
+    const db = getDatabase();
+    const now = new Date().toISOString();
+    const result = db.prepare(`
+      UPDATE lifecycle_locks
+      SET locked = 1, locked_at = ?, updated_at = ?
+      WHERE project_id = ? AND locked = 0
+    `).run(now, now, projectId);
+    return result.changes > 0;
+  }
+
+  /**
+   * Release the lock for a project.
+   */
+  private releaseLock(projectId: string): void {
+    try {
+      const db = getDatabase();
+      const now = new Date().toISOString();
+      db.prepare(`
+        UPDATE lifecycle_locks
+        SET locked = 0, locked_at = NULL, updated_at = ?
+        WHERE project_id = ?
+      `).run(now, projectId);
+    } catch {
+      // Ignore errors during release (e.g. DB not yet available on shutdown)
+    }
+  }
+
+  /**
+   * Check whether the lock is currently held for a project.
+   */
+  private isLocked(projectId: string): boolean {
+    try {
+      const db = getDatabase();
+      const row = db.prepare(`
+        SELECT locked FROM lifecycle_locks WHERE project_id = ?
+      `).get(projectId) as { locked: number } | undefined;
+      return row ? row.locked === 1 : false;
+    } catch {
+      return false;
+    }
+  }
+
   private startPolling(): void {
     if (this.pollTimer) return;
 
@@ -379,7 +449,7 @@ class LifecycleOrchestrator {
   }
 
   private checkScheduledTrigger(): void {
-    if (!this.currentCycle && !this.cycleLock && this.nextScheduledAt) {
+    if (!this.currentCycle && !this.isLocked(this.config!.project_id) && this.nextScheduledAt) {
       const now = Date.now();
       const scheduled = new Date(this.nextScheduledAt).getTime();
 

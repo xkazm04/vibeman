@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X, Edit, Loader2, ChevronRight } from 'lucide-react';
 
 interface GoalCandidate {
@@ -31,7 +31,7 @@ interface CandidateCardProps {
   setEditDescription: (description: string) => void;
   isProcessing: boolean;
   onAccept: () => void;
-  onReject: () => void;
+  onReject: (reason?: string) => void;
   onStartEdit: () => void;
   onSaveEdit: () => void;
   onCancelEdit: () => void;
@@ -66,6 +66,24 @@ export default function CandidateCard({
   onSaveEdit,
   onCancelEdit,
 }: CandidateCardProps) {
+  const [showRejectInput, setShowRejectInput] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+
+  const handleRejectClick = () => {
+    if (showRejectInput) {
+      onReject(rejectReason.trim() || undefined);
+      setRejectReason('');
+      setShowRejectInput(false);
+    } else {
+      setShowRejectInput(true);
+    }
+  };
+
+  const handleCancelReject = () => {
+    setShowRejectInput(false);
+    setRejectReason('');
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -127,6 +145,32 @@ export default function CandidateCard({
           </p>
         </details>
       )}
+
+      {/* Rejection Reason Input */}
+      <AnimatePresence>
+        {showRejectInput && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="pt-2">
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Why are you rejecting this? (optional — helps improve future suggestions)"
+                rows={2}
+                autoFocus
+                className="w-full px-3 py-2 bg-slate-800/60 border border-red-500/30 rounded-lg
+                         text-sm text-slate-300 placeholder-slate-500 focus:outline-none
+                         focus:border-red-500/60 resize-none"
+                data-testid={`reject-reason-${candidate.id}`}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Actions */}
       <div className="flex items-center gap-3 pt-2 border-t border-slate-700/30">
@@ -190,18 +234,33 @@ export default function CandidateCard({
               <Edit className="w-4 h-4" />
               Tweak
             </motion.button>
+            {showRejectInput && (
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleCancelReject}
+                className="px-4 py-2 text-slate-400 hover:text-slate-300 text-sm transition-colors"
+                data-testid={`cancel-reject-${candidate.id}`}
+              >
+                Cancel
+              </motion.button>
+            )}
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={onReject}
+              onClick={handleRejectClick}
               disabled={isProcessing}
               data-testid={`reject-candidate-${candidate.id}`}
               className="flex items-center gap-2 px-4 py-2 bg-red-600/30 hover:bg-red-600/50
                        border border-red-500/50 rounded-md text-red-300 text-sm font-medium
                        transition-all duration-200 disabled:opacity-50"
             >
-              <X className="w-4 h-4" />
-              Reject
+              {isProcessing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <X className="w-4 h-4" />
+              )}
+              {showRejectInput ? 'Confirm Reject' : 'Reject'}
             </motion.button>
           </>
         )}

@@ -190,8 +190,8 @@ export default function QuestionsLayout() {
   }, [deleteQuestionMutation]);
 
   // Derived data - must be defined before handlers that reference them
-  const questions = questionsData?.questions || [];
-  const directions = directionsData?.directions || [];
+  const questions = questionsData?.items || [];
+  const directions = directionsData?.items || [];
   const answeredQuestions = useMemo(() =>
     questions.filter(q => q.status === 'answered'),
     [questions]

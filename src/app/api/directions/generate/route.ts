@@ -134,48 +134,76 @@ function getVibemanApiUrl(): string {
 }
 
 /**
- * Build the Claude Code requirement content for direction generation
+ * Build the Claude Code requirement content for direction generation.
+ * mode='per-context': generates paired A/B directions per selected context
+ * mode='holistic': generates cross-cutting directions across the entire project
  */
-function buildDirectionRequirement(config: {
+function buildRequirementPrompt(config: {
   projectId: string;
   projectName: string;
   projectPath: string;
+  mode: 'per-context' | 'holistic';
   selectedContexts: UnifiedContext[];
   directionsPerContext: number;
   userContext?: string;
   answeredQuestions?: AnsweredQuestion[];
-  brainContext?: string;  // Injected brain decision patterns
+  brainContext?: string;
 }): string {
-  const { projectId, projectName, projectPath, selectedContexts, directionsPerContext, userContext, answeredQuestions = [], brainContext = '' } = config;
+  const { projectId, projectName, projectPath, mode, selectedContexts, directionsPerContext, userContext, answeredQuestions = [], brainContext = '' } = config;
   const apiUrl = getVibemanApiUrl();
 
-  // Build context sections with SQLite metadata
-  const contextSections = selectedContexts.map(ctx => {
-    const allFiles = [
-      ...(ctx.filepaths.ui || []),
-      ...(ctx.filepaths.lib || []),
-      ...(ctx.filepaths.api || []),
-      ...(ctx.filepaths.data || [])
-    ];
+  // Shared template fragments
+  const userContextSection = userContext ? `## User Focus Area
 
-    // Include SQLite-specific info if available
-    const sqliteInfo = ctx.contextId ? `
+The user has provided the following context about their current focus or dilemma:
+
+> ${userContext}
+
+**Use this focus area to prioritize and guide your direction suggestions.** Ensure generated directions align with or address this specific concern.
+
+` : '';
+
+  const answeredQuestionsSection = answeredQuestions.length > 0 ? `## Strategic Input from Answered Questions
+
+The user has answered the following strategic questions about the project. These represent their thinking about the project direction:
+
+${answeredQuestions.map(q => `**Q:** ${q.question}\n**A:** ${q.answer}`).join('\n\n')}
+
+**Consider these answers when generating directions.** They provide valuable insight into the user's priorities and vision.
+
+` : '';
+
+  const hypothesisAssertionsSpec = `**Hypothesis assertions** (JSON array of measurable checks): Machine-verifiable assertions derived from the success criteria. After implementation, these are auto-checked against the git diff outcome.
+   Each assertion has: \`description\` (human label), \`metric\` (one of: lines_added, lines_removed, files_changed, execution_success, was_reverted, file_touched), \`operator\` (<, <=, >, >=, ==, !=, contains), \`expected\` (number, boolean, or string).
+   Example: \`[{"description":"Creates fewer than 10 new files","metric":"files_changed","operator":"<","expected":10},{"description":"Implementation succeeds","metric":"execution_success","operator":"==","expected":true},{"description":"Not reverted","metric":"was_reverted","operator":"==","expected":false}]\``;
+
+  if (mode === 'per-context') {
+    // Build context sections with SQLite metadata
+    const contextSections = selectedContexts.map(ctx => {
+      const allFiles = [
+        ...(ctx.filepaths.ui || []),
+        ...(ctx.filepaths.lib || []),
+        ...(ctx.filepaths.api || []),
+        ...(ctx.filepaths.data || [])
+      ];
+
+      const sqliteInfo = ctx.contextId ? `
 **SQLite Context ID**: \`${ctx.contextId}\`
 **Group**: ${ctx.groupName || 'Ungrouped'} (Layer: ${ctx.layer || 'unknown'})
 **Category**: ${ctx.category || 'unclassified'}
 **Business Feature**: ${ctx.businessFeature || 'General'}
 ` : '';
 
-    return `### ${ctx.title} (${ctx.id})
+      return `### ${ctx.title} (${ctx.id})
 ${sqliteInfo}
 **Summary**: ${ctx.summary}
 
 **Files to analyze**:
 ${allFiles.map(f => `- \`${f}\``).join('\n')}
 `;
-  }).join('\n---\n\n');
+    }).join('\n---\n\n');
 
-  return `# Strategic Development Directions: ${projectName}
+    return `# Strategic Development Directions: ${projectName}
 
 ## Mission
 
@@ -196,24 +224,7 @@ Each direction should be **substantial enough to warrant its own Claude Code ses
 - **Project Path**: ${projectPath}
 - **Directions per Context**: ${directionsPerContext}
 
-${userContext ? `## User Focus Area
-
-The user has provided the following context about their current focus or dilemma:
-
-> ${userContext}
-
-**Use this focus area to prioritize and guide your direction suggestions.** Ensure generated directions align with or address this specific concern.
-
-` : ''}${answeredQuestions.length > 0 ? `## Strategic Input from Answered Questions
-
-The user has answered the following strategic questions about the project. These represent their thinking about the project direction:
-
-${answeredQuestions.map(q => `**Q:** ${q.question}
-**A:** ${q.answer}`).join('\n\n')}
-
-**Consider these answers when generating directions.** They provide valuable insight into the user's priorities and vision.
-
-` : ''}${brainContext}## Context Map Entries to Analyze
+${userContextSection}${answeredQuestionsSection}${brainContext}## Context Map Entries to Analyze
 
 ${contextSections}
 
@@ -281,9 +292,7 @@ This allows users to compare approaches and pick the best one for their situatio
    - **Files to Create/Modify**: Specific paths
    - **Success Criteria**: How do we know when it's done?
    - **Potential Challenges**: What might be tricky?
-3. **Hypothesis assertions** (JSON array of measurable checks): Machine-verifiable assertions derived from the success criteria. After implementation, these are auto-checked against the git diff outcome.
-   Each assertion has: \`description\` (human label), \`metric\` (one of: lines_added, lines_removed, files_changed, execution_success, was_reverted, file_touched), \`operator\` (<, <=, >, >=, ==, !=, contains), \`expected\` (number, boolean, or string).
-   Example: \`[{"description":"Creates fewer than 10 new files","metric":"files_changed","operator":"<","expected":10},{"description":"Implementation succeeds","metric":"execution_success","operator":"==","expected":true},{"description":"Not reverted","metric":"was_reverted","operator":"==","expected":false}]\`
+3. ${hypothesisAssertionsSpec}
 
 ### Step 4: Save Direction Pairs to Database
 
@@ -399,41 +408,24 @@ After generating all directions, summarize:
 
 **Remember**: Each accepted direction will spawn a full Claude Code implementation session. Make them worthy of that investment - ambitious, valuable, and transformative.
 `;
-}
+  } else {
+    // holistic mode: bird's-eye view across the entire project
+    const contextOverview = selectedContexts.map(ctx => {
+      const fileCount = [
+        ...(ctx.filepaths.ui || []),
+        ...(ctx.filepaths.lib || []),
+        ...(ctx.filepaths.api || []),
+        ...(ctx.filepaths.data || [])
+      ].length;
+      const layerInfo = ctx.layer ? ` [${ctx.layer}]` : '';
+      return `- **${ctx.title}** (${ctx.id})${layerInfo}: ${ctx.summary} [${fileCount} files]`;
+    }).join('\n');
 
-/**
- * Build brainstorm requirement - holistic view across entire project
- */
-function buildBrainstormRequirement(config: {
-  projectId: string;
-  projectName: string;
-  projectPath: string;
-  allContexts: UnifiedContext[];
-  directionsCount: number;
-  userContext?: string;
-  answeredQuestions?: AnsweredQuestion[];
-  brainContext?: string;
-}): string {
-  const { projectId, projectName, projectPath, allContexts, directionsCount, userContext, answeredQuestions = [], brainContext = '' } = config;
-  const apiUrl = getVibemanApiUrl();
-
-  // Build condensed context overview with SQLite info if available
-  const contextOverview = allContexts.map(ctx => {
-    const fileCount = [
-      ...(ctx.filepaths.ui || []),
-      ...(ctx.filepaths.lib || []),
-      ...(ctx.filepaths.api || []),
-      ...(ctx.filepaths.data || [])
-    ].length;
-    const layerInfo = ctx.layer ? ` [${ctx.layer}]` : '';
-    return `- **${ctx.title}** (${ctx.id})${layerInfo}: ${ctx.summary} [${fileCount} files]`;
-  }).join('\n');
-
-  return `# Strategic Brainstorm: ${projectName}
+    return `# Strategic Brainstorm: ${projectName}
 
 ## Mission
 
-Generate **${directionsCount} strategic development directions** by analyzing the entire project holistically. Unlike focused context analysis, this is a **bird's-eye view** exercise - look for cross-cutting opportunities, architectural improvements, and strategic initiatives that span multiple areas.
+Generate **${directionsPerContext} strategic development directions** by analyzing the entire project holistically. Unlike focused context analysis, this is a **bird's-eye view** exercise - look for cross-cutting opportunities, architectural improvements, and strategic initiatives that span multiple areas.
 
 **Think like a Principal Engineer reviewing the entire product.** What would move the needle? What opportunities exist at the intersections of different features?
 
@@ -441,27 +433,12 @@ Generate **${directionsCount} strategic development directions** by analyzing th
 
 - **Project ID**: ${projectId}
 - **Project Path**: ${projectPath}
-- **Total Contexts**: ${allContexts.length}
-- **Directions to Generate**: ${directionsCount}
+- **Total Contexts**: ${selectedContexts.length}
+- **Directions to Generate**: ${directionsPerContext}
 
-${userContext ? `## Focus Area
+${userContextSection}${answeredQuestionsSection}${brainContext}## Project Landscape
 
-The user has provided this context about their current thinking:
-
-> ${userContext}
-
-**Let this guide your brainstorming** - but don't limit yourself to only this area.
-
-` : ''}${answeredQuestions.length > 0 ? `## Strategic Input from User
-
-The user has shared these thoughts about the project direction:
-
-${answeredQuestions.map(q => `**Q:** ${q.question}
-**A:** ${q.answer}`).join('\n\n')}
-
-` : ''}${brainContext}## Project Landscape
-
-Here's an overview of all ${allContexts.length} contexts in this project:
+Here's an overview of all ${selectedContexts.length} contexts in this project:
 
 ${contextOverview}
 
@@ -500,7 +477,7 @@ Look for opportunities that span multiple contexts:
 
 ### Step 3: Generate Strategic Directions
 
-Generate exactly **${directionsCount} directions** that:
+Generate exactly **${directionsPerContext} directions** that:
 - Span or benefit multiple contexts
 - Address systemic rather than local issues
 - Would make a visible difference to users or developers
@@ -537,7 +514,7 @@ Each direction should include:
    - **Approach**: High-level implementation strategy
    - **Success Criteria**: How do we know it's done?
    - **Key Risks**: What could go wrong?
-3. **Hypothesis assertions** (JSON array): Machine-verifiable assertions from the success criteria. Each has \`description\`, \`metric\` (lines_added, lines_removed, files_changed, execution_success, was_reverted, file_touched), \`operator\` (<, <=, >, >=, ==, !=, contains), \`expected\` (number/boolean/string).
+3. ${hypothesisAssertionsSpec}
 
 ## Quality Guidelines
 
@@ -555,7 +532,7 @@ Each direction should include:
 ## Output Summary
 
 After generating all directions, provide:
-- List of all ${directionsCount} directions created
+- List of all ${directionsPerContext} directions created
 - Key themes that emerged
 - Recommended implementation order
 - Dependencies between directions
@@ -564,6 +541,7 @@ After generating all directions, provide:
 
 **Remember**: This is strategic thinking time. These directions should represent meaningful investments that improve the product as a whole, not just individual features.
 `;
+  }
 }
 
 async function handlePost(request: NextRequest) {
@@ -705,28 +683,18 @@ async function handlePost(request: NextRequest) {
     // Combine brain, observability, behavioral, architectural, and preference context
     const combinedContext = brainContext + obsSection + behavioralSection + architectureSection + preferenceSection;
 
-    // Build requirement content - use brainstorm builder for holistic mode
-    const requirementContent = brainstormAll
-      ? buildBrainstormRequirement({
-          projectId,
-          projectName,
-          projectPath: normalizedProjectPath,
-          allContexts: unifiedContexts,
-          directionsCount: directionsPerContext,
-          userContext,
-          answeredQuestions,
-          brainContext: combinedContext
-        })
-      : buildDirectionRequirement({
-          projectId,
-          projectName,
-          projectPath: normalizedProjectPath,
-          selectedContexts: unifiedContexts,
-          directionsPerContext,
-          userContext,
-          answeredQuestions,
-          brainContext: combinedContext
-        });
+    // Build requirement content - holistic mode for brainstorm, per-context otherwise
+    const requirementContent = buildRequirementPrompt({
+      projectId,
+      projectName,
+      projectPath: normalizedProjectPath,
+      mode: brainstormAll ? 'holistic' : 'per-context',
+      selectedContexts: unifiedContexts,
+      directionsPerContext,
+      userContext,
+      answeredQuestions,
+      brainContext: combinedContext,
+    });
 
     // Create requirement file with short name
     const timestamp = Date.now();

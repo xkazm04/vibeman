@@ -161,14 +161,13 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
 
     // 8. Create scan record with token tracking
     const scanId = uuidv4();
-    const scanCategory = contextId ? 'context_analysis' : 'project_analysis';
     const scanSummary = `Generated ${parsedIdeas.length} ideas for ${projectName}${contextId ? ` - Context: ${contextId}` : ''}`;
 
     logger.info('Creating scan record');
     scanDb.createScan({
       id: scanId,
       project_id: projectId,
-      scan_type: scanCategory,
+      scan_type: effectiveScanType,
       summary: scanSummary,
       input_tokens: result.usage?.prompt_tokens,
       output_tokens: result.usage?.completion_tokens,

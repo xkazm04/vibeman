@@ -23,6 +23,8 @@ import type {
   PredictedBlocker,
   VelocityComparison,
   VelocityMetrics,
+  GoalTransitionSuggestion,
+  GoalTransitionAction,
 } from '@/app/db/models/standup.types';
 
 // ──────────────────────────────────────────────
@@ -47,6 +49,7 @@ export function generatePredictiveStandup(projectId: string): PredictiveStandupD
       recommendedTaskOrder,
       velocityComparison
     );
+    const goalTransitionSuggestions = generateTransitionSuggestions(goalsAtRisk);
 
     return {
       goalsAtRisk,
@@ -55,6 +58,7 @@ export function generatePredictiveStandup(projectId: string): PredictiveStandupD
       predictedBlockers,
       velocityComparison,
       missionBriefing,
+      goalTransitionSuggestions,
     };
   } catch (error) {
     logger.error('[PredictiveStandup] Error generating predictions:', { error });
@@ -65,6 +69,7 @@ export function generatePredictiveStandup(projectId: string): PredictiveStandupD
       predictedBlockers: [],
       velocityComparison: emptyVelocityComparison(),
       missionBriefing: 'Unable to generate predictions. Check project data.',
+      goalTransitionSuggestions: [],
     };
   }
 }
@@ -501,6 +506,51 @@ function composeMissionBriefing(
   }
 
   return parts.join(' ');
+}
+
+// ──────────────────────────────────────────────
+// Goal Transition Suggestions
+// ──────────────────────────────────────────────
+
+function generateTransitionSuggestions(goalsAtRisk: GoalRiskAssessment[]): GoalTransitionSuggestion[] {
+  const suggestions: GoalTransitionSuggestion[] = [];
+
+  for (const goal of goalsAtRisk) {
+    // 85%+ progress with recent signals (activity within 7 days) → suggest confirm
+    if (goal.progress >= 85 && goal.daysSinceActivity <= 7) {
+      suggestions.push({
+        goalId: goal.goalId,
+        goalTitle: goal.goalTitle,
+        goalStatus: goal.status,
+        progress: goal.progress,
+        daysSinceActivity: goal.daysSinceActivity,
+        reason: `${goal.progress}% complete with recent activity — ready to confirm?`,
+        actions: [{ type: 'confirm_complete', label: 'Mark Complete' }],
+      });
+      continue;
+    }
+
+    // No signals for 5+ days → suggest revert or blocker
+    if (goal.daysSinceActivity >= 5) {
+      const actions: GoalTransitionAction[] = [];
+      if (goal.status === 'in_progress') {
+        actions.push({ type: 'revert_open', label: 'Revert to Open' });
+      }
+      actions.push({ type: 'add_blocker', label: 'Add Blocker Signal' });
+
+      suggestions.push({
+        goalId: goal.goalId,
+        goalTitle: goal.goalTitle,
+        goalStatus: goal.status,
+        progress: goal.progress,
+        daysSinceActivity: goal.daysSinceActivity,
+        reason: `No activity for ${goal.daysSinceActivity} day${goal.daysSinceActivity === 1 ? '' : 's'}`,
+        actions,
+      });
+    }
+  }
+
+  return suggestions;
 }
 
 // ──────────────────────────────────────────────

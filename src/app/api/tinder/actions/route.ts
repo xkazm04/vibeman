@@ -15,15 +15,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   ideaDb,
   directionDb,
-  scanDb,
   insightEffectivenessCache,
   brainInsightDb,
   insightInfluenceDb,
-  directionPreferenceDb,
 } from '@/app/db';
-import { createRequirement, deleteRequirement } from '@/app/Claude/lib/claudeCodeManager';
+import { deleteRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { type WrapperMode } from '@/lib/prompts/requirement_file';
-import { generateAdr, generatePairedAdr } from '@/lib/directions/adrGenerator';
 import { signalCollector } from '@/lib/brain/signalCollector';
 import { withObservability } from '@/lib/observability/middleware';
 import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
@@ -33,9 +30,8 @@ import {
   handleIdeasApiError,
 } from '@/app/features/Ideas/lib/ideasHandlers';
 import { acceptIdea as acceptIdeaWorkflow } from '@/lib/ideas/ideaAcceptanceWorkflow';
-import { v4 as uuidv4 } from 'uuid';
-import fs from 'fs';
-import path from 'path';
+import { acceptDirection as acceptDirectionWorkflow } from '@/lib/ideas/directionAcceptanceWorkflow';
+import { acceptDirectionPair as acceptDirectionPairWorkflow } from '@/lib/ideas/directionPairAcceptanceWorkflow';
 
 // ---------------------------------------------------------------------------
 // Request types
@@ -142,128 +138,27 @@ function deleteIdea(ideaId: string) {
 // Direction actions
 // ---------------------------------------------------------------------------
 
-function createTitleSlug(title: string): string {
-  return title
-    .split(/\s+/)
-    .slice(0, 5)
-    .join('-')
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, '')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-}
-
-function buildImplementationRequirement(direction: {
-  direction: string;
-  summary: string;
-  context_map_title: string;
-}): string {
-  return `# Implementation: ${direction.summary}
-
-## Context Area
-${direction.context_map_title}
-
-## Description
-${direction.summary}
-
-## Implementation Details
-
-${direction.direction}
-
-## Instructions
-
-1. Read and understand the implementation details above
-2. Identify all files that need to be modified
-3. Implement the changes following the guidance provided
-4. Ensure code quality and type safety
-5. Test the changes work as expected
-
-## Notes
-
-This requirement was generated from an accepted Development Direction.
-Focus on implementing exactly what is described above.
-`;
-}
-
 function acceptDirection(directionId: string, projectPath: string) {
-  const claimed = directionDb.claimDirectionForProcessing(directionId);
-  if (!claimed) {
-    const direction = directionDb.getDirectionById(directionId);
-    if (!direction) return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND, { message: 'Direction not found' });
-    return createIdeasErrorResponse(IdeasErrorCode.IDEA_ALREADY_EXISTS, {
-      message: 'Direction has already been processed',
-      details: direction.requirement_id ?? '',
-    });
-  }
+  const result = acceptDirectionWorkflow({ directionId, projectPath });
 
-  const direction = directionDb.getDirectionById(directionId);
-  if (!direction) return createIdeasErrorResponse(IdeasErrorCode.INTERNAL_ERROR, { message: 'Direction not found after claim' });
-
-  const titleSlug = createTitleSlug(direction.summary);
-  const requirementId = `dir-${Date.now()}-${titleSlug}`;
-  const requirementContent = buildImplementationRequirement({
-    direction: direction.direction,
-    summary: direction.summary,
-    context_map_title: direction.context_map_title,
-  });
-
-  const result = createRequirement(projectPath, requirementId, requirementContent, true);
   if (!result.success) {
-    directionDb.updateDirection(directionId, { status: 'pending' });
-    return createIdeasErrorResponse(IdeasErrorCode.FILE_OPERATION_FAILED, { message: result.error || 'Failed to create requirement file' });
+    const codeMap: Record<string, (typeof IdeasErrorCode)[keyof typeof IdeasErrorCode]> = {
+      NOT_FOUND: IdeasErrorCode.IDEA_NOT_FOUND,
+      ALREADY_PROCESSED: IdeasErrorCode.IDEA_ALREADY_EXISTS,
+      INTERNAL_ERROR: IdeasErrorCode.INTERNAL_ERROR,
+      FILE_FAILED: IdeasErrorCode.FILE_OPERATION_FAILED,
+      DB_UPDATE_FAILED: IdeasErrorCode.UPDATE_FAILED,
+    };
+    return createIdeasErrorResponse(
+      codeMap[result.code] || IdeasErrorCode.CREATE_FAILED,
+      { message: result.message, details: result.details },
+    );
   }
-
-  const adr = generateAdr({
-    summary: direction.summary,
-    direction: direction.direction,
-    contextMapTitle: direction.context_map_title,
-    problemStatement: direction.problem_statement,
-  });
-
-  const updatedDirection = directionDb.acceptDirection(directionId, requirementId, result.filePath || '', JSON.stringify(adr));
-  if (!updatedDirection) {
-    return createIdeasErrorResponse(IdeasErrorCode.UPDATE_FAILED, { message: 'Failed to update direction status' });
-  }
-
-  // Create scan + idea records
-  const scanId = uuidv4();
-  scanDb.createScan({ id: scanId, project_id: direction.project_id, scan_type: 'direction_accepted', summary: `Direction accepted: ${direction.summary}` });
-  const ideaId = uuidv4();
-  ideaDb.createIdea({
-    id: ideaId, scan_id: scanId, project_id: direction.project_id,
-    context_id: direction.context_id || null, scan_type: 'direction_accepted',
-    category: 'direction', title: direction.summary, description: direction.direction,
-    reasoning: `Auto-generated from accepted direction in context: ${direction.context_map_title}`,
-    status: 'accepted', requirement_id: requirementId,
-  });
-
-  // Brain signals + effectiveness
-  try {
-    signalCollector.recordImplementation(direction.project_id, {
-      requirementId, requirementName: requirementId, directionId,
-      contextId: direction.context_id || null,
-      filesCreated: [], filesModified: [], filesDeleted: [],
-      success: true, executionTimeMs: 0,
-    });
-  } catch { /* non-critical */ }
-
-  try { insightEffectivenessCache.invalidate(direction.project_id); } catch { /* non-critical */ }
-
-  try {
-    const activeInsights = brainInsightDb.getForEffectiveness(direction.project_id);
-    if (activeInsights.length > 0) {
-      const now = new Date().toISOString();
-      insightInfluenceDb.recordInfluenceBatch(
-        direction.project_id, directionId, 'accepted',
-        activeInsights.map(i => ({ id: i.id, title: i.title, shownAt: i.completed_at || now }))
-      );
-    }
-  } catch { /* non-critical */ }
 
   return NextResponse.json({
     success: true,
-    requirementName: requirementId,
-    requirementPath: result.filePath,
+    requirementName: result.requirementName,
+    requirementPath: result.requirementPath,
   });
 }
 
@@ -316,87 +211,25 @@ function deleteDirection(directionId: string) {
 // ---------------------------------------------------------------------------
 
 function acceptPairVariant(pairId: string, variant: 'A' | 'B', projectPath: string) {
-  const pair = directionDb.getDirectionPair(pairId);
-  if (!pair.directionA || !pair.directionB) {
-    return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND, { message: 'Direction pair not found or incomplete' });
+  const result = acceptDirectionPairWorkflow({ pairId, variant, projectPath });
+
+  if (!result.success) {
+    const codeMap: Record<string, (typeof IdeasErrorCode)[keyof typeof IdeasErrorCode]> = {
+      NOT_FOUND: IdeasErrorCode.IDEA_NOT_FOUND,
+      ALREADY_PROCESSED: IdeasErrorCode.IDEA_ALREADY_EXISTS,
+      FILE_FAILED: IdeasErrorCode.FILE_OPERATION_FAILED,
+      DB_UPDATE_FAILED: IdeasErrorCode.UPDATE_FAILED,
+    };
+    return createIdeasErrorResponse(
+      codeMap[result.code] || IdeasErrorCode.CREATE_FAILED,
+      { message: result.message },
+    );
   }
-
-  const selectedDirection = variant === 'A' ? pair.directionA : pair.directionB;
-  const rejectedDirection = variant === 'A' ? pair.directionB : pair.directionA;
-
-  const claimed = directionDb.claimDirectionForProcessing(selectedDirection.id);
-  if (!claimed) {
-    return createIdeasErrorResponse(IdeasErrorCode.IDEA_ALREADY_EXISTS, { message: 'Direction pair has already been processed' });
-  }
-
-  // Create requirement file
-  const normalizedProjectPath = path.normalize(projectPath);
-  const requirementsDir = path.join(normalizedProjectPath, '.claude', 'requirements');
-  if (!fs.existsSync(requirementsDir)) {
-    fs.mkdirSync(requirementsDir, { recursive: true });
-  }
-
-  const requirementId = `direction-${uuidv4().slice(0, 8)}`;
-  const requirementPath = path.join(requirementsDir, `${requirementId}.md`);
-
-  const problemContext = selectedDirection.problem_statement
-    ? `## Problem Statement\n\n${selectedDirection.problem_statement}\n\n`
-    : '';
-
-  const requirementContent = `# Direction: ${selectedDirection.summary}
-
-${problemContext}## Implementation Details
-
-${selectedDirection.direction}
-
----
-
-**Context**: ${selectedDirection.context_map_title}
-**Generated**: ${new Date().toISOString()}
-**Selected Variant**: ${variant} (rejected alternative: ${rejectedDirection.summary})
-`;
-
-  try {
-    fs.writeFileSync(requirementPath, requirementContent, 'utf-8');
-  } catch {
-    directionDb.updateDirection(selectedDirection.id, { status: 'pending' });
-    return createIdeasErrorResponse(IdeasErrorCode.FILE_OPERATION_FAILED, { message: 'Failed to create requirement file' });
-  }
-
-  const adr = generatePairedAdr({
-    summary: selectedDirection.summary,
-    direction: selectedDirection.direction,
-    contextMapTitle: selectedDirection.context_map_title,
-    problemStatement: selectedDirection.problem_statement,
-    rejectedSummary: rejectedDirection.summary,
-    rejectedDirection: rejectedDirection.direction,
-    selectedVariant: variant,
-  });
-
-  const result = directionDb.acceptPairedDirection(selectedDirection.id, requirementId, requirementPath, JSON.stringify(adr));
-  if (!result.accepted) {
-    try { fs.unlinkSync(requirementPath); } catch { /* best-effort */ }
-    directionDb.updateDirection(selectedDirection.id, { status: 'pending' });
-    return createIdeasErrorResponse(IdeasErrorCode.UPDATE_FAILED, { message: 'Failed to update direction status' });
-  }
-
-  try { insightEffectivenessCache.invalidate(selectedDirection.project_id); } catch { /* non-critical */ }
-  try { directionPreferenceDb.invalidate(selectedDirection.project_id); } catch { /* non-critical */ }
-
-  try {
-    const activeInsights = brainInsightDb.getForEffectiveness(selectedDirection.project_id);
-    if (activeInsights.length > 0) {
-      const now = new Date().toISOString();
-      const insightBatch = activeInsights.map(i => ({ id: i.id, title: i.title, shownAt: i.completed_at || now }));
-      insightInfluenceDb.recordInfluenceBatch(selectedDirection.project_id, selectedDirection.id, 'accepted', insightBatch);
-      insightInfluenceDb.recordInfluenceBatch(rejectedDirection.project_id, rejectedDirection.id, 'rejected', insightBatch);
-    }
-  } catch { /* non-critical */ }
 
   return NextResponse.json({
     success: true,
-    requirementName: requirementId,
-    requirementPath,
+    requirementName: result.requirementName,
+    requirementPath: result.requirementPath,
   });
 }
 

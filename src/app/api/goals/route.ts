@@ -12,6 +12,7 @@ import { signalCollector } from '@/lib/brain/signalCollector';
 import { parseProjectIds } from '@/lib/api-helpers/projectFilter';
 import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
 import type { GoalResponse, GoalsListResponse, GoalMutationResponse, GoalDeleteResponse } from '@/lib/api-types/goals';
+import { GoalCreateBodySchema, GoalUpdateBodySchema } from '@/lib/api/schemas/goals';
 
 // GET /api/goals?projectId=xxx or /api/goals?id=xxx
 async function handleGet(request: NextRequest) {
@@ -57,23 +58,26 @@ async function handleGet(request: NextRequest) {
 // POST /api/goals
 async function handlePost(request: NextRequest) {
   try {
-    const body = await request.json();
+    const rawBody = await request.json();
+    const parsed = GoalCreateBodySchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return createErrorResponse(
+        `Invalid request body: ${parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`,
+        400
+      );
+    }
     const {
       projectId,
       contextId,
       title,
       description,
-      status = 'open',
+      status,
       orderIndex,
-      createAnalysis = true,
-      projectPath: requestProjectPath  // Accept projectPath from frontend (preferred)
-    } = body;
+      createAnalysis,
+      projectPath: requestProjectPath,
+    } = parsed.data;
 
-    if (!projectId || !title) {
-      return createErrorResponse('Project ID and title are required', 400);
-    }
-
-    // Verify project exists and caller has access
+    // Verify caller has access to the project
     const accessDenied = checkProjectAccess(projectId, request);
     if (accessDenied) return accessDenied;
 
@@ -182,12 +186,15 @@ async function handlePost(request: NextRequest) {
 // PUT /api/goals
 async function handlePut(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { id, title, description, status, orderIndex, contextId } = body;
-
-    if (!id) {
-      return createErrorResponse('Goal ID is required', 400);
+    const rawBody = await request.json();
+    const parsed = GoalUpdateBodySchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return createErrorResponse(
+        `Invalid request body: ${parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`,
+        400
+      );
     }
+    const { id, title, description, status, orderIndex, contextId } = parsed.data;
 
     // Verify goal exists and caller has project access
     const existingGoal = goalDb.getGoalById(id);

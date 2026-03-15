@@ -108,6 +108,7 @@ export const goalCandidateRepository = {
     priority_score?: number;
     suggested_status?: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
     user_action?: 'accepted' | 'rejected' | 'tweaked' | 'pending' | null;
+    rejection_reason?: string | null;
     goal_id?: string | null;
     context_id?: string | null;
   }): DbGoalCandidate | null => base.update(id, updates as Record<string, unknown>),
@@ -134,6 +135,21 @@ export const goalCandidateRepository = {
     const stmt = db.prepare(query);
     const result = stmt.run(...params);
     return result.changes;
+  },
+
+  /**
+   * Get rejected candidates that have a rejection_reason (for feedback loop)
+   */
+  getRejectedCandidatesWithReasons: (projectId: string, limit = 20): Array<{ title: string; rejection_reason: string }> => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT title, rejection_reason
+      FROM goal_candidates
+      WHERE project_id = ? AND user_action = 'rejected' AND rejection_reason IS NOT NULL
+      ORDER BY updated_at DESC
+      LIMIT ?
+    `);
+    return stmt.all(projectId, limit) as Array<{ title: string; rejection_reason: string }>;
   },
 
   /**

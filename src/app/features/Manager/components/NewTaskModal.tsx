@@ -10,6 +10,7 @@ import { motion } from 'framer-motion';
 import { X, FolderGit2, FolderTree } from 'lucide-react';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useContextStore } from '@/stores/contextStore';
+import { useFetchResult } from '@/hooks/useFetchResult';
 import NewTaskInputPanel from './NewTaskInputPanel';
 
 interface NewTaskModalProps {
@@ -30,7 +31,6 @@ export default function NewTaskModal({
     // Secondary project for multiproject support
     const [selectedSecondaryProjectId, setSelectedSecondaryProjectId] = useState<string>('');
     const [selectedSecondaryContextId, setSelectedSecondaryContextId] = useState<string>('');
-    const [secondaryContexts, setSecondaryContexts] = useState<any[]>([]);
 
     // Initialize projects on mount
     useEffect(() => {
@@ -45,27 +45,19 @@ export default function NewTaskModal({
         }
     }, [selectedProjectId]);
 
-    // Load contexts when secondary project changes
+    // Load contexts when secondary project changes via useFetchResult (errors surfaced as toasts)
+    const secondaryContextsUrl = selectedSecondaryProjectId
+        ? `/api/contexts?projectId=${selectedSecondaryProjectId}`
+        : null;
+    const { data: secondaryContextsData } = useFetchResult<{ data?: { contexts: { id: string; name: string }[] } }>(
+        secondaryContextsUrl,
+        { errorTitle: 'Failed to load secondary contexts' },
+    );
+    const secondaryContexts = secondaryContextsData?.data?.contexts ?? [];
+
+    // Reset secondary context selection when secondary project changes
     useEffect(() => {
-        const loadSecondaryContexts = async () => {
-            if (selectedSecondaryProjectId) {
-                try {
-                    const response = await fetch(`/api/contexts?projectId=${selectedSecondaryProjectId}`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        setSecondaryContexts(data.data?.contexts || []);
-                        setSelectedSecondaryContextId(''); // Reset context selection
-                    }
-                } catch (error) {
-                    console.error('Failed to load secondary contexts:', error);
-                    setSecondaryContexts([]);
-                }
-            } else {
-                setSecondaryContexts([]);
-                setSelectedSecondaryContextId('');
-            }
-        };
-        loadSecondaryContexts();
+        setSelectedSecondaryContextId('');
     }, [selectedSecondaryProjectId]);
 
     const selectedProject = projects.find(p => p.id === selectedProjectId);

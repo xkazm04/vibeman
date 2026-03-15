@@ -54,6 +54,9 @@ nul
 /database/*.db-wal
 
 
+# Conductor run artifacts
+.conductor/
+
 # Design test output
 .claude-design-tests/
 

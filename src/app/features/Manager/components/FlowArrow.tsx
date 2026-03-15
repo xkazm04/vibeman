@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { SUCCESS_RATE_HIGH, SUCCESS_RATE_LOW } from '../lib/config';
 
 interface FlowArrowProps {
   fromPos: { x: number; y: number };
@@ -20,8 +21,8 @@ interface FlowArrowProps {
 }
 
 function getArrowColor(successRate: number): string {
-  if (successRate > 0.8) return '#22c55e'; // green-500
-  if (successRate >= 0.5) return '#eab308'; // yellow-500
+  if (successRate > SUCCESS_RATE_HIGH) return '#22c55e'; // green-500
+  if (successRate >= SUCCESS_RATE_LOW) return '#eab308'; // yellow-500
   return '#ef4444'; // red-500
 }
 

@@ -6,6 +6,7 @@ import {
   Radar, AlertTriangle, TrendingUp, TrendingDown,
   Clock, Target, Zap, Shield, ChevronDown, ChevronRight,
   Loader2, RefreshCw, Sun, Sunset, Activity, Minus,
+  CheckCircle, RotateCcw, Flame,
 } from 'lucide-react';
 import type {
   PredictiveStandupData,
@@ -14,6 +15,7 @@ import type {
   TaskRecommendation,
   PredictedBlocker,
   VelocityComparison,
+  GoalTransitionSuggestion,
 } from '@/app/db/models/standup.types';
 
 interface PredictiveStandupProps {
@@ -62,10 +64,12 @@ export default function PredictiveStandup({ projectId }: PredictiveStandupProps)
   const [loading, setLoading] = useState(true);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     tasks: true,
+    transitions: true,
     risks: false,
     contexts: false,
     blockers: false,
   });
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
 
   const fetchPredictions = useCallback(async () => {
     setLoading(true);
@@ -106,10 +110,16 @@ export default function PredictiveStandup({ projectId }: PredictiveStandupProps)
 
   if (!data) return null;
 
+  const visibleSuggestions = useMemo(
+    () => (data?.goalTransitionSuggestions ?? []).filter(s => !dismissedSuggestions.has(s.goalId)),
+    [data?.goalTransitionSuggestions, dismissedSuggestions],
+  );
+
   const hasContent = riskyGoals.length > 0 ||
     data.contextDecayAlerts.length > 0 ||
     data.recommendedTaskOrder.length > 0 ||
-    data.predictedBlockers.length > 0;
+    data.predictedBlockers.length > 0 ||
+    visibleSuggestions.length > 0;
 
   if (!hasContent) {
     return (
@@ -147,6 +157,33 @@ export default function PredictiveStandup({ projectId }: PredictiveStandupProps)
 
       {/* Velocity Comparison */}
       <VelocityBar velocity={data.velocityComparison} />
+
+      {/* Goal Transition Suggestions */}
+      {visibleSuggestions.length > 0 && (
+        <CollapsibleSection
+          title="Suggested Actions"
+          icon={<CheckCircle className="w-4 h-4 text-cyan-400" />}
+          badge={`${visibleSuggestions.length}`}
+          badgeColor="bg-cyan-500/20 text-cyan-300 border-cyan-500/30"
+          expanded={expandedSections.transitions}
+          onToggle={() => toggleSection('transitions')}
+        >
+          <div className="space-y-2">
+            {visibleSuggestions.map((suggestion) => (
+              <TransitionSuggestionCard
+                key={suggestion.goalId}
+                suggestion={suggestion}
+                projectId={projectId}
+                onDismiss={() => setDismissedSuggestions(prev => new Set([...prev, suggestion.goalId]))}
+                onActionComplete={() => {
+                  setDismissedSuggestions(prev => new Set([...prev, suggestion.goalId]));
+                  fetchPredictions();
+                }}
+              />
+            ))}
+          </div>
+        </CollapsibleSection>
+      )}
 
       {/* Recommended Tasks */}
       {data.recommendedTaskOrder.length > 0 && (
@@ -406,6 +443,121 @@ function GoalRiskCard({ goal, index }: { goal: GoalRiskAssessment; index: number
           </span>
           <span className="text-[10px] text-slate-500 tabular-nums">
             {goal.daysSinceActivity}d ago
+          </span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function TransitionSuggestionCard({
+  suggestion,
+  projectId,
+  onDismiss,
+  onActionComplete,
+}: {
+  suggestion: GoalTransitionSuggestion;
+  projectId: string;
+  onDismiss: () => void;
+  onActionComplete: () => void;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const handleAction = async (type: GoalTransitionSuggestion['actions'][number]['type']) => {
+    setBusy(type);
+    try {
+      if (type === 'confirm_complete') {
+        const res = await fetch('/api/goals/lifecycle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'confirm_complete', goalId: suggestion.goalId }),
+        });
+        if (res.ok) onActionComplete();
+      } else if (type === 'revert_open') {
+        const res = await fetch('/api/goals', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: suggestion.goalId, status: 'open' }),
+        });
+        if (res.ok) onActionComplete();
+      } else if (type === 'add_blocker') {
+        const res = await fetch('/api/goals/lifecycle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'signal',
+            projectId,
+            signalType: 'manual_update',
+            sourceId: suggestion.goalId,
+            sourceTitle: suggestion.goalTitle,
+            description: 'Blocker flagged from standup suggestions',
+          }),
+        });
+        if (res.ok) onActionComplete();
+      }
+    } catch {
+      // Silent fail
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const isConfirm = suggestion.actions.some(a => a.type === 'confirm_complete');
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 10 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      className={`p-3 rounded-lg border ${isConfirm ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}
+    >
+      <div className="flex items-start gap-2">
+        {isConfirm
+          ? <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-cyan-400" />
+          : <Flame className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-400" />
+        }
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-white/90 truncate">{suggestion.goalTitle}</p>
+          <p className="text-xs text-slate-400 mt-0.5">{suggestion.reason}</p>
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+            {suggestion.actions.map(action => (
+              <motion.button
+                key={action.type}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => handleAction(action.type)}
+                disabled={busy !== null}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border transition-colors disabled:opacity-50 ${
+                  action.type === 'confirm_complete'
+                    ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30'
+                    : action.type === 'revert_open'
+                    ? 'bg-blue-500/20 border-blue-500/40 text-blue-300 hover:bg-blue-500/30'
+                    : 'bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30'
+                }`}
+              >
+                {busy === action.type
+                  ? <Loader2 className="w-3 h-3 animate-spin" />
+                  : action.type === 'confirm_complete'
+                  ? <CheckCircle className="w-3 h-3" />
+                  : action.type === 'revert_open'
+                  ? <RotateCcw className="w-3 h-3" />
+                  : <Flame className="w-3 h-3" />
+                }
+                {action.label}
+              </motion.button>
+            ))}
+            <button
+              onClick={onDismiss}
+              className="text-[10px] text-slate-500 hover:text-slate-300 transition-colors ml-auto"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+        <div className="flex-shrink-0 text-right">
+          <span className={`text-sm font-bold tabular-nums ${isConfirm ? 'text-cyan-400' : 'text-amber-400'}`}>
+            {suggestion.progress}%
           </span>
         </div>
       </div>

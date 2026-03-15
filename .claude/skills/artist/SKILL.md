@@ -1,138 +1,104 @@
 ---
-name: artist
-description: Generate images with Gemini AI, recognize/analyze existing images, and write SVG illustrations. Use for brand identity work, custom illustrations, icon creation, and visual asset generation.
+name: leonardo
+description: Generate images with Leonardo AI (Lucid Origin model), remove backgrounds, analyze with Gemini vision, and write SVG. For brand assets, UI illustrations, backgrounds, and icons.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(node *), Bash(npx *)
-argument-hint: <description of visual asset to create or analyze>
+argument-hint: <description of visual asset to create>
 ---
 
-# Artist — Visual Asset Creation & Analysis
+# Leonardo — AI Image Generation & Visual Assets
 
-You are a visual artist assistant with tools to generate images, analyze existing visuals, and write SVG code. Use these capabilities to create brand-consistent assets for UI projects.
+Generate production-quality images using Leonardo AI's Lucid Origin model, with Gemini vision for analysis and iterative refinement.
 
-## Available Tools
+## Interactive Workflow
 
-### 1. Image Generation (Gemini)
+When the user invokes `/leonardo`, start by asking:
 
-Generate images using Google's Gemini model:
+> **What type of visual do you need?**
+>
+> 1. **Icon** — App icons, logos, brand marks (square, centered, clean edges)
+> 2. **State illustration** — Empty states, onboarding, success/error states (needs transparent bg)
+> 3. **Background** — Ambient textures, atmospheric scenes, decorative backdrops
+> 4. **Other** — Describe freely and I'll choose the best approach
+>
+> Also tell me: where will this be used? (component/page name)
 
+Then follow the matching procedure below.
+
+---
+
+## Procedures by Type
+
+### Icon / Logo
+1. Discuss concept with user, confirm style direction
+2. Generate with Leonardo: `--width 512 --height 512 --style dynamic --contrast 3.5`
+3. Analyze with Gemini vision to verify quality
+4. If user wants theme-adaptive version → analyze structure, write SVG with `currentColor`
+5. Integrate into component
+
+### State Illustration (transparent bg)
+Leonardo's Lucid Origin does not support `--transparent`. Use the remove-bg pipeline:
+1. Generate with solid dark background: `--style vibrant --contrast 3`
+2. Use `remove-bg --id <imageId> --output path.png` (requires `--no-cleanup` on generate)
+3. Clean up cloud generation manually after bg removal
+4. Analyze result with Gemini to verify clean extraction
+5. Integrate with appropriate sizing
+
+### Background
+1. Generate wide format: `--width 1536 --height 512 --style cinematic --contrast 2.5`
+2. Integrate at very low opacity (8-15%) with gradient fade to `var(--background)`
+3. For theme-adaptive version → analyze, write SVG using `currentColor` and CSS custom properties
+
+### Other
+1. Discuss with user to understand requirements
+2. Choose appropriate dimensions, style, and contrast
+3. Generate, analyze, iterate
+
+---
+
+## Tools
+
+### Leonardo Image Generation
 ```bash
-node .claude/skills/artist/tools/gemini-image.mjs generate \
-  --prompt "flat minimal illustration of empty inbox, purple and cyan palette, dark background, geometric style" \
-  --output src/assets/illustrations/empty-inbox.png \
-  --aspect 16:9
+node .claude/skills/leonardo/tools/leonardo-image.mjs generate \
+  --prompt "description" \
+  --output path.png \
+  --width 512 --height 512 \
+  --style dynamic --contrast 3.5 \
+  [--no-cleanup]
 ```
 
-**Options:**
-- `--prompt` (required): Detailed description of the image to generate
-- `--output` (required): File path to save the generated image (PNG)
-- `--aspect`: Aspect ratio — `1:1`, `16:9`, `9:16`, `4:3`, `3:4` (default: `1:1`)
+**Styles:** `bokeh`, `cinematic`, `dynamic`, `fashion`, `portrait`, `vibrant`
+**Contrast:** `1.0`, `1.3`, `1.8`, `2.5`, `3`, `3.5`, `4`, `4.5`
+**Auto-cleanup:** Generations are deleted from Leonardo cloud after download. Use `--no-cleanup` when chaining with `remove-bg`.
 
-**Prompt tips for best results:**
-- Specify style: "flat", "geometric", "line art", "isometric", "minimal", "gradient"
-- Specify palette: reference exact hex colors or describe (e.g., "purple #8b5cf6 and cyan #3b82f6")
-- Specify background: "dark background #0f0f23", "transparent", "white"
-- Specify mood: "friendly", "professional", "playful", "calm"
-- Be specific about composition and subject matter
-
-### 2. Image Recognition / Analysis (Gemini Vision)
-
-Analyze an existing image or screenshot:
-
+### Leonardo Background Removal
 ```bash
-node .claude/skills/artist/tools/gemini-image.mjs recognize \
-  --input screenshot.png \
-  --prompt "Describe the visual style, color palette, typography, and layout of this UI"
+node .claude/skills/leonardo/tools/leonardo-image.mjs remove-bg \
+  --id <imageId> --output path-nobg.png
 ```
 
-**Options:**
-- `--input` (required): Path to the image file to analyze
-- `--prompt` (required): What to analyze or describe about the image
-
-**Use cases:**
-- Analyze existing UI screenshots to understand current visual style
-- Verify generated images match the intended design
-- Extract color palettes from reference images
-- Compare before/after visual changes
-
-### 3. SVG Creation (Direct Write)
-
-You can write SVG files directly using the Write tool. This is preferred for:
-- Icons (24x24, 20x20, 16x16)
-- Simple illustrations and decorative elements
-- Animated loading indicators
-- Geometric patterns and backgrounds
-
-## Brand Guidelines
-
-When creating assets, read the project's `src/app/globals.css` to extract the active brand palette. Common defaults:
-
-```
-Background:  #0f0f23 (deep navy)
-Foreground:  #e2e8f0 (light slate)
-Primary:     #3b82f6 (blue)
-Accent:      #8b5cf6 (purple)
-Border:      #334155 (slate border)
-Muted:       #475569 (muted text)
-```
-
-### SVG Style Guide
-
-**Icons (24x24):**
-- Stroke-based, 1.5-2px stroke width
-- `stroke-linecap="round"` and `stroke-linejoin="round"`
-- Use `currentColor` for stroke to inherit text color
-- Viewbox: `0 0 24 24`
-
-**Illustrations (scalable):**
-- Use viewBox for scalability (e.g., `0 0 400 300`)
-- Prefer geometric shapes and clean paths
-- Use brand colors as fill/stroke values
-- Add subtle CSS animations for interactive states
-
-**Loading Animations:**
-- Use CSS `@keyframes` within `<style>` tags
-- Keep animations subtle (opacity, transform)
-- Duration: 1-2s for loops, ease-in-out timing
-
-## Workflow
-
-### Creating a new visual asset:
-
-1. **Read the brief** — understand what's needed from the backlog idea or user request
-2. **Analyze context** — read the target component to understand layout and existing styles
-3. **Check brand** — read `globals.css` and nearby components for color/typography consistency
-4. **Choose approach:**
-   - **SVG** for icons, simple illustrations, patterns, animations → Write directly
-   - **PNG** for complex illustrations, textures, hero images → Use `generate` command
-5. **Generate/Create** — produce the asset
-6. **Verify** — use `recognize` to validate complex generated images match intent
-7. **Integrate** — import the asset into the target component, add appropriate sizing and alt text
-8. **Test** — verify the component renders correctly with the new asset
-
-### Analyzing existing visuals:
-
-1. **Capture** — identify the screenshot or image to analyze
-2. **Recognize** — use the recognize command with a specific analysis prompt
-3. **Report** — summarize findings about style, palette, typography, or layout
-4. **Recommend** — suggest improvements based on analysis
-
-## Example: Empty State Illustration
-
+### Gemini Image Analysis
 ```bash
-# 1. Generate the illustration
-node .claude/skills/artist/tools/gemini-image.mjs generate \
-  --prompt "minimal flat illustration of a friendly robot holding an empty clipboard, geometric style, purple #8b5cf6 and blue #3b82f6 accents on dark navy #0f0f23 background, clean lines, centered composition" \
-  --output src/assets/illustrations/empty-tasks.png \
-  --aspect 4:3
-
-# 2. Verify the result
-node .claude/skills/artist/tools/gemini-image.mjs recognize \
-  --input src/assets/illustrations/empty-tasks.png \
-  --prompt "Does this illustration use purple and blue colors on a dark background? Is it minimal and geometric? Describe what you see."
+node .claude/skills/leonardo/tools/gemini-recognize.mjs \
+  --input path.png \
+  --prompt "Describe shapes, colors, composition, quality"
 ```
 
-Then integrate into the component:
-```tsx
-import emptyTasksImg from '@/assets/illustrations/empty-tasks.png';
-// Use in empty state with appropriate alt text
-```
+### SVG Conversion Workflow
+1. Generate PNG with Leonardo
+2. Analyze with Gemini: `"Describe every shape, position, color as SVG recreation instructions"`
+3. Hand-write SVG using `currentColor` / `var(--primary)` for theme adaptation
+4. Test across themes
+
+---
+
+## Environment
+Requires in `.env`:
+- `LEONARDO_API_KEY` — from app.leonardo.ai
+- `GEMINI_API_KEY` — for vision analysis
+
+Load env before running (bash): `export $(grep -E '^(LEONARDO_API_KEY|GEMINI_API_KEY)=' .env | xargs)`
+Load env before running (PowerShell): `Get-Content .env | ForEach-Object { if ($_ -match '^(LEONARDO_API_KEY|GEMINI_API_KEY)=(.*)') { [Environment]::SetEnvironmentVariable($matches[1], $matches[2]) } }`
+
+## Brand Direction
+Personas brand identity: **Neon android head** — representing AI agents of the new generation. Futuristic, glowing, geometric, clean. Primary palette from `src/styles/tokens.css` and `src/lib/colors.ts`.

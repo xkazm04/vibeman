@@ -298,6 +298,7 @@ export interface DbGoalCandidate {
   source_metadata: string | null; // JSON string with additional source info
   suggested_status: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
   user_action: 'accepted' | 'rejected' | 'tweaked' | 'pending' | null;
+  rejection_reason: string | null;
   goal_id: string | null; // Reference to created goal if accepted
   created_at: string;
   updated_at: string;

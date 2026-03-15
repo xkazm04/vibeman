@@ -13,8 +13,19 @@ import type {
   BalancingConfig,
   StageState,
   ErrorClassification,
+  ProcessLogEntry,
 } from './types';
 import { createEmptyStages, createEmptyMetrics } from './types';
+
+// ============================================================================
+// HMR-safe global state
+// ============================================================================
+
+/** Typed extension of globalThis for conductor-specific singleton flags */
+interface ConductorGlobalState {
+  __conductorRecoveryDone?: boolean;
+}
+const conductorGlobal = globalThis as typeof globalThis & ConductorGlobalState;
 
 // ============================================================================
 // Types
@@ -51,6 +62,7 @@ export interface DbPipelineRun {
   config: BalancingConfig | Record<string, unknown>;
   stages: Record<PipelineStage, StageState>;
   metrics: PipelineMetrics;
+  process_log: string | null;
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
@@ -99,6 +111,7 @@ function parseRunRow(row: ConductorRunRow): DbPipelineRun {
     config,
     stages,
     metrics,
+    process_log: row.process_log,
     started_at: row.started_at,
     completed_at: row.completed_at,
     created_at: row.created_at,
@@ -237,7 +250,7 @@ export const conductorRepository = {
    * Returns the number of runs marked.
    */
   markInterruptedRuns(): number {
-    if ((globalThis as any).__conductorRecoveryDone) return 0;
+    if (conductorGlobal.__conductorRecoveryDone) return 0;
 
     const db = getDatabase();
     const now = new Date().toISOString();
@@ -245,7 +258,7 @@ export const conductorRepository = {
       "UPDATE conductor_runs SET status = 'interrupted', completed_at = ? WHERE status IN ('running', 'paused')"
     ).run(now);
 
-    (globalThis as any).__conductorRecoveryDone = true;
+    conductorGlobal.__conductorRecoveryDone = true;
     return result.changes;
   },
 
@@ -301,6 +314,32 @@ export const conductorRepository = {
       'SELECT COUNT(*) as cnt FROM conductor_errors WHERE pipeline_run_id = ? AND error_type = ?'
     ).get(runId, errorType) as { cnt: number };
     return row.cnt;
+  },
+
+  /**
+   * Persist full pipeline state atomically for crash recovery.
+   * Saves metrics, stages, process_log, and cycle in one transaction.
+   */
+  persistFullState(runId: string, state: {
+    metrics: PipelineMetrics;
+    stages: Record<PipelineStage, StageState>;
+    processLog: ProcessLogEntry[];
+    cycle: number;
+    currentStage: PipelineStage;
+  }): void {
+    const db = getDatabase();
+    db.prepare(`
+      UPDATE conductor_runs
+      SET metrics = ?, stages_state = ?, process_log = ?, cycle = ?, current_stage = ?
+      WHERE id = ?
+    `).run(
+      JSON.stringify(state.metrics),
+      JSON.stringify(state.stages),
+      JSON.stringify(state.processLog),
+      state.cycle,
+      state.currentStage,
+      runId
+    );
   },
 
   /**
