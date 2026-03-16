@@ -5,13 +5,26 @@ import { logger } from '@/lib/logger';
 import {
   IdeasErrorCode,
   createIdeasErrorResponse,
-  validateIdeasRequired,
   handleIdeasApiError,
   isValidIdeaStatus,
 } from '@/app/features/Ideas/lib/ideasHandlers';
 import { analyticsAggregationService } from '@/lib/services/analyticsAggregation';
 import { withObservability } from '@/lib/observability/middleware';
 import { parseProjectIds, filterByProject } from '@/lib/api-helpers/projectFilter';
+import { validateRequestBody } from '@/lib/validation/apiValidator';
+import {
+  validateUUID,
+  validateIdeaTitle,
+  validateIdeaDescription,
+  validateIdeaReasoning,
+  validateIdeaFeedback,
+  validateIdeaStatus,
+  validateScore,
+  validateScanType,
+  validateCategory,
+  validateBooleanFlag,
+} from '@/lib/validation/inputValidator';
+import { sanitizeString, sanitizeId } from '@/lib/validation/sanitizers';
 
 /**
  * GET /api/ideas
@@ -34,6 +47,14 @@ async function handleGet(request: NextRequest) {
     const limitParam = searchParams.get('limit');
     const limit = limitParam ? Math.min(Math.max(1, parseInt(limitParam, 10) || 50), 100) : null;
     const withColors = searchParams.get('withColors') !== 'false'; // Default to true
+
+    // Validate query params when provided
+    if (status && !isValidIdeaStatus(status)) {
+      return createIdeasErrorResponse(IdeasErrorCode.INVALID_STATUS, {
+        field: 'status',
+        details: `Invalid status value: ${status}`,
+      });
+    }
 
     let ideas: DbIdea[] | DbIdeaWithColor[];
 
@@ -92,53 +113,77 @@ async function handleGet(request: NextRequest) {
 /**
  * POST /api/ideas
  * Create a new idea
+ *
+ * @example Valid request body:
+ * ```json
+ * {
+ *   "scan_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+ *   "project_id": "f1e2d3c4-b5a6-7890-fedc-ba0987654321",
+ *   "category": "functionality",
+ *   "title": "Add user authentication flow",
+ *   "description": "Implement OAuth2 login with Google provider",
+ *   "scan_type": "manual",
+ *   "effort": 5,
+ *   "impact": 8,
+ *   "risk": 3
+ * }
+ * ```
  */
 async function handlePost(request: NextRequest) {
   try {
-    const body = await request.json();
-    const {
-      scan_id,
-      project_id,
-      context_id,
-      scan_type,
-      category,
-      title,
-      description,
-      reasoning,
-      status,
-      user_feedback,
-      user_pattern,
-      effort,
-      impact,
-      risk
-    } = body;
+    const result = await validateRequestBody(request, {
+      required: [
+        { field: 'scan_id', validator: validateUUID },
+        { field: 'project_id', validator: validateUUID },
+        { field: 'category', validator: validateCategory },
+        { field: 'title', validator: validateIdeaTitle },
+      ],
+      optional: [
+        { field: 'context_id', validator: validateUUID },
+        { field: 'scan_type', validator: validateScanType },
+        { field: 'description', validator: validateIdeaDescription },
+        { field: 'reasoning', validator: validateIdeaReasoning },
+        { field: 'status', validator: validateIdeaStatus },
+        { field: 'user_feedback', validator: validateIdeaFeedback },
+        { field: 'user_pattern', validator: validateBooleanFlag },
+        { field: 'effort', validator: validateScore },
+        { field: 'impact', validator: validateScore },
+        { field: 'risk', validator: validateScore },
+      ],
+    });
 
-    const validationError = validateIdeasRequired(
-      { scan_id, project_id, category, title },
-      ['scan_id', 'project_id', 'category', 'title']
-    );
-    if (validationError) return validationError;
+    if (!result.success) return result.error;
+
+    const body = result.data;
+
+    // Sanitize string fields before passing to database
+    const sanitizedTitle = sanitizeString(body.title as string, 500);
+    const sanitizedDescription = body.description ? sanitizeString(body.description as string, 5000) : null;
+    const sanitizedReasoning = body.reasoning ? sanitizeString(body.reasoning as string, 5000) : null;
+    const sanitizedFeedback = body.user_feedback ? sanitizeString(body.user_feedback as string, 2000) : null;
+    const sanitizedCategory = sanitizeString(body.category as string, 100);
+    const sanitizedScanType = body.scan_type ? sanitizeString(body.scan_type as string, 100) : 'manual';
 
     const idea = ideaDb.createIdea({
       id: uuidv4(),
-      scan_id,
-      project_id,
-      context_id: context_id || null,
-      scan_type: scan_type || 'manual',
-      category,
-      title,
-      description,
-      reasoning,
-      status,
-      user_feedback,
-      user_pattern,
-      effort,
-      impact,
-      risk
+      scan_id: sanitizeId(body.scan_id as string),
+      project_id: sanitizeId(body.project_id as string),
+      context_id: body.context_id ? sanitizeId(body.context_id as string) : null,
+      scan_type: sanitizedScanType,
+      category: sanitizedCategory,
+      title: sanitizedTitle,
+      description: sanitizedDescription ?? undefined,
+      reasoning: sanitizedReasoning ?? undefined,
+      status: body.status as 'pending' | 'accepted' | 'rejected' | 'implemented' | undefined,
+      user_feedback: sanitizedFeedback ?? undefined,
+      user_pattern: body.user_pattern != null ? Boolean(body.user_pattern) : undefined,
+      effort: body.effort as number | undefined,
+      impact: body.impact as number | undefined,
+      risk: body.risk as number | undefined,
     });
 
     // Invalidate analytics cache for this project
-    analyticsAggregationService.invalidateCacheForProject(project_id);
+    analyticsAggregationService.invalidateCacheForProject(body.project_id as string);
 
     return NextResponse.json({ idea }, { status: 201 });
   } catch (error) {
@@ -149,49 +194,58 @@ async function handlePost(request: NextRequest) {
 /**
  * PATCH /api/ideas
  * Update an existing idea
+ *
+ * @example Valid request body:
+ * ```json
+ * {
+ *   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+ *   "status": "accepted",
+ *   "user_feedback": "Good suggestion, will implement next sprint",
+ *   "effort": 3,
+ *   "impact": 7
+ * }
+ * ```
  */
 async function handlePatch(request: NextRequest) {
   try {
-    const body = await request.json();
-    const {
-      id,
-      status,
-      user_feedback,
-      user_pattern,
-      title,
-      description,
-      reasoning,
-      effort,
-      impact,
-      risk
-    } = body;
-
-    const validationError = validateIdeasRequired({ id }, ['id']);
-    if (validationError) return validationError;
-
-    // Validate status if provided
-    if (status && !isValidIdeaStatus(status)) {
-      return createIdeasErrorResponse(IdeasErrorCode.INVALID_STATUS, {
-        field: 'status',
-        details: `Invalid status value: ${status}`,
-      });
-    }
-
-    const idea = ideaDb.updateIdea(id, {
-      status,
-      user_feedback,
-      user_pattern,
-      title,
-      description,
-      reasoning,
-      effort,
-      impact,
-      risk
+    const result = await validateRequestBody(request, {
+      required: [
+        { field: 'id', validator: validateUUID },
+      ],
+      optional: [
+        { field: 'status', validator: validateIdeaStatus },
+        { field: 'user_feedback', validator: validateIdeaFeedback },
+        { field: 'user_pattern', validator: validateBooleanFlag },
+        { field: 'title', validator: validateIdeaTitle },
+        { field: 'description', validator: validateIdeaDescription },
+        { field: 'reasoning', validator: validateIdeaReasoning },
+        { field: 'effort', validator: validateScore },
+        { field: 'impact', validator: validateScore },
+        { field: 'risk', validator: validateScore },
+      ],
     });
+
+    if (!result.success) return result.error;
+
+    const body = result.data;
+
+    // Sanitize string fields before passing to database
+    const updates: Record<string, unknown> = {};
+    if (body.status !== undefined) updates.status = body.status;
+    if (body.user_feedback !== undefined) updates.user_feedback = sanitizeString(body.user_feedback as string, 2000);
+    if (body.user_pattern !== undefined) updates.user_pattern = body.user_pattern;
+    if (body.title !== undefined) updates.title = sanitizeString(body.title as string, 500);
+    if (body.description !== undefined) updates.description = sanitizeString(body.description as string, 5000);
+    if (body.reasoning !== undefined) updates.reasoning = sanitizeString(body.reasoning as string, 5000);
+    if (body.effort !== undefined) updates.effort = body.effort;
+    if (body.impact !== undefined) updates.impact = body.impact;
+    if (body.risk !== undefined) updates.risk = body.risk;
+
+    const idea = ideaDb.updateIdea(sanitizeId(body.id as string), updates);
 
     if (!idea) {
       return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND, {
-        details: `No idea found with id: ${id}`,
+        details: `No idea found with id: ${sanitizeId(body.id as string)}`,
       });
     }
 
@@ -240,13 +294,24 @@ async function handleDelete(request: NextRequest) {
       });
     }
 
+    // Validate ID format
+    const idError = validateUUID(id);
+    if (idError) {
+      return createIdeasErrorResponse(IdeasErrorCode.INVALID_ID_FORMAT, {
+        field: 'id',
+        details: `id ${idError}`,
+      });
+    }
+
+    const sanitizedId = sanitizeId(id);
+
     // Get idea before deletion to access project_id
-    const ideaToDelete = ideaDb.getIdeaById(id);
-    const success = ideaDb.deleteIdea(id);
+    const ideaToDelete = ideaDb.getIdeaById(sanitizedId);
+    const success = ideaDb.deleteIdea(sanitizedId);
 
     if (!success) {
       return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND, {
-        details: `No idea found with id: ${id}`,
+        details: `No idea found with id: ${sanitizedId}`,
       });
     }
 
