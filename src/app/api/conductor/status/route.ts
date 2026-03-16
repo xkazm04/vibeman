@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
 
       // Include triage_data when at triage checkpoint
       const triageInfo = getTriageDataIfAtCheckpoint(run.id);
+      const intentQuestions = getIntentQuestions(run.id);
 
       return NextResponse.json({
         success: true,
@@ -54,42 +55,41 @@ export async function GET(request: NextRequest) {
           completedAt: run.completed_at,
           pipelineVersion: run.pipeline_version,
           ...(triageInfo ? { triage_data: triageInfo } : {}),
+          ...(intentQuestions ? { intent_questions: intentQuestions } : {}),
         },
       });
     }
 
-    // Fallback: get the most recent run for the project
-    const runs = conductorRepository.getRunHistory(projectId!, 1);
-    const latestRun = runs[0] || null;
+    // Get all active runs for the project
+    const activeRuns = conductorRepository.getActiveRuns(projectId!);
 
-    if (!latestRun) {
-      return NextResponse.json({
-        success: true,
-        run: null,
-      });
-    }
-
-    // Include triage_data when at triage checkpoint
-    const latestTriageInfo = getTriageDataIfAtCheckpoint(latestRun.id);
+    const formattedRuns = activeRuns.map(run => {
+      const triageInfo = getTriageDataIfAtCheckpoint(run.id);
+      const intentQs = getIntentQuestions(run.id);
+      return {
+        id: run.id,
+        projectId: run.project_id,
+        goalId: run.goal_id,
+        goalTitle: run.goal_title,
+        status: run.status,
+        currentStage: run.current_stage,
+        cycle: run.cycle,
+        config: run.config,
+        stages: run.stages,
+        metrics: run.metrics,
+        process_log: run.process_log,
+        startedAt: run.started_at,
+        completedAt: run.completed_at,
+        pipelineVersion: run.pipeline_version,
+        ...(triageInfo ? { triage_data: triageInfo } : {}),
+        ...(intentQs ? { intent_questions: intentQs } : {}),
+      };
+    });
 
     return NextResponse.json({
       success: true,
-      run: {
-        id: latestRun.id,
-        projectId: latestRun.project_id,
-        goalId: latestRun.goal_id,
-        status: latestRun.status,
-        currentStage: latestRun.current_stage,
-        cycle: latestRun.cycle,
-        config: latestRun.config,
-        stages: latestRun.stages,
-        metrics: latestRun.metrics,
-        process_log: latestRun.process_log,
-        startedAt: latestRun.started_at,
-        completedAt: latestRun.completed_at,
-        pipelineVersion: latestRun.pipeline_version,
-        ...(latestTriageInfo ? { triage_data: latestTriageInfo } : {}),
-      },
+      runs: formattedRuns,
+      run: formattedRuns[0] || null, // backward compat
     });
   } catch (error) {
     console.error('[conductor/status] Error:', error);
@@ -113,6 +113,25 @@ function getTriageDataIfAtCheckpoint(runId: string): unknown | null {
 
     if (row?.checkpoint_type === 'triage' && row.triage_data) {
       return JSON.parse(row.triage_data);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read intent_questions from DB if the run has them (paused at intent phase).
+ */
+function getIntentQuestions(runId: string): unknown | null {
+  try {
+    const db = getDatabase();
+    const row = db.prepare(
+      'SELECT intent_questions FROM conductor_runs WHERE id = ?'
+    ).get(runId) as { intent_questions: string | null } | undefined;
+
+    if (row?.intent_questions) {
+      return JSON.parse(row.intent_questions);
     }
     return null;
   } catch {

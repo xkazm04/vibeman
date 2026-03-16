@@ -17,8 +17,15 @@ import { hasOverlap } from '../execution/domainScheduler';
 import { commitPerTask } from '../review/gitCommitter';
 import { routeModel } from '../balancingEngine';
 import type { CLIProvider, CLIProviderConfig } from '@/lib/claude-terminal/types';
-import type { V3Task, V3TaskResult, V3Config, V3Phase } from './types';
+import type { V3Task, V3TaskResult, V3Config, V3Phase, V3Metrics } from './types';
 import { v3ConfigToBalancing } from './types';
+import {
+  createWorktree,
+  mergeWorktreeBranch,
+  removeWorktree,
+  cleanupRunWorktrees,
+  type WorktreeInfo,
+} from './worktreeManager';
 
 // ============================================================================
 // Input/Output Types
@@ -37,6 +44,7 @@ export interface DispatchPhaseInput {
   abortSignal?: AbortSignal;
   onTaskUpdate?: (tasks: V3Task[]) => void;
   onLog?: (phase: V3Phase, event: string, message: string) => void;
+  metrics?: V3Metrics;
 }
 
 // ============================================================================
@@ -50,16 +58,21 @@ export async function executeDispatchPhase(input: DispatchPhaseInput): Promise<{
   const {
     runId, projectId, projectPath, projectName, tasks, config,
     goalContext, healingContext, autoCommit, abortSignal, onTaskUpdate, onLog,
+    metrics,
   } = input;
 
   const results: V3TaskResult[] = [];
   const maxParallel = config.maxConcurrentTasks || 2;
   const maxRetries = 2;
   const balancingConfig = v3ConfigToBalancing(config);
+  const worktreeMode = config.useWorktrees === true;
 
   // Retry tracking
   const retryCount = new Map<string, number>();
   const retryErrors = new Map<string, string>();
+
+  // Worktree tracking
+  const activeWorktrees = new Map<string, WorktreeInfo>();
 
   // Scheduler state
   const pending = new Set(tasks.map(t => t.id));
@@ -70,104 +83,167 @@ export async function executeDispatchPhase(input: DispatchPhaseInput): Promise<{
   const taskMap = new Map(tasks.map(t => [t.id, t]));
   const emitUpdate = () => onTaskUpdate?.(tasks);
 
-  // Execution loop
-  while (true) {
-    if (abortSignal?.aborted) {
-      for (const taskId of pending) {
-        const task = taskMap.get(taskId)!;
-        task.status = 'failed';
-        task.result = {
-          success: false, error: 'Aborted by user',
-          filesChanged: [], durationMs: 0, provider: '', model: '',
-        };
-        results.push(task.result);
+  try {
+    // Execution loop
+    while (true) {
+      if (abortSignal?.aborted) {
+        for (const taskId of pending) {
+          const task = taskMap.get(taskId)!;
+          task.status = 'failed';
+          task.result = {
+            success: false, error: 'Aborted by user',
+            filesChanged: [], durationMs: 0, provider: '', model: '',
+          };
+          results.push(task.result);
+        }
+        emitUpdate();
+        break;
       }
-      emitUpdate();
-      break;
-    }
 
-    const nextBatch = getNextBatch(tasks, pending, running, completed, failed, maxParallel);
+      const nextBatch = getNextBatch(tasks, pending, running, completed, failed, maxParallel, worktreeMode);
 
-    if (nextBatch.length === 0 && running.size > 0) {
-      await new Promise(r => setTimeout(r, 2000));
-      continue;
-    }
+      if (nextBatch.length === 0 && running.size > 0) {
+        await new Promise(r => setTimeout(r, 2000));
+        continue;
+      }
 
-    if (nextBatch.length === 0) break;
+      if (nextBatch.length === 0) break;
 
-    // Dispatch batch in parallel
-    const dispatched: Promise<{ taskId: string; result: V3TaskResult }>[] = [];
+      // Dispatch batch in parallel
+      const dispatched: Promise<{ taskId: string; result: V3TaskResult }>[] = [];
 
-    for (const task of nextBatch) {
-      pending.delete(task.id);
-      const taskPaths = new Set(task.targetFiles.map(f => f.replace(/\\/g, '/')));
-      running.set(task.id, taskPaths);
+      for (const task of nextBatch) {
+        pending.delete(task.id);
+        const taskPaths = new Set(task.targetFiles.map(f => f.replace(/\\/g, '/')));
+        running.set(task.id, taskPaths);
 
-      task.status = 'running';
-      emitUpdate();
+        task.status = 'running';
+        emitUpdate();
 
-      const errorContext = retryErrors.get(task.id);
+        const errorContext = retryErrors.get(task.id);
 
-      dispatched.push(
-        dispatchTask(task, {
-          projectId, projectPath, projectName, runId,
-          goalContext, healingContext, errorContext,
-          config: balancingConfig, v3Config: config,
-          autoCommit, abortSignal,
-        })
-          .then(result => ({ taskId: task.id, result }))
-          .catch(error => ({
-            taskId: task.id,
-            result: {
-              success: false,
-              error: error instanceof Error ? error.message : String(error),
-              filesChanged: [], durationMs: 0, provider: '', model: '',
-            } as V3TaskResult,
-          }))
-      );
-    }
-
-    const settled = await Promise.all(dispatched);
-
-    let rateLimitDetected = false;
-    for (const { taskId, result } of settled) {
-      running.delete(taskId);
-      const task = taskMap.get(taskId)!;
-
-      if (result.success) {
-        completed.add(taskId);
-        task.status = 'completed';
-        task.result = result;
-        results.push(result);
-        onLog?.('dispatch', 'info', `Task completed: ${task.title}`);
-      } else {
-        const currentRetries = retryCount.get(taskId) || 0;
-        const isAbort = result.error?.includes('Aborted by user');
-        const isRateLimit = result.error && /rate.?limit|429|too many requests|quota.?exceeded/i.test(result.error);
-
-        if (currentRetries < maxRetries && result.error && !isAbort) {
-          retryCount.set(taskId, currentRetries + 1);
-          retryErrors.set(taskId, result.error);
-          pending.add(taskId);
-          task.status = 'pending';
-          onLog?.('dispatch', 'info', `Retrying ${task.title} (${currentRetries + 1}/${maxRetries})`);
-          if (isRateLimit) rateLimitDetected = true;
-          continue;
+        // Determine effective project path (worktree or original)
+        let effectivePath = projectPath;
+        if (worktreeMode) {
+          const wtResult = createWorktree(projectPath, runId, task.id);
+          if (wtResult.success) {
+            effectivePath = wtResult.worktreePath;
+            activeWorktrees.set(task.id, {
+              taskId: task.id,
+              worktreePath: wtResult.worktreePath,
+              branchName: wtResult.branchName,
+              createdAt: Date.now(),
+              status: 'active',
+            });
+            if (metrics) metrics.worktreesCreated++;
+            onLog?.('dispatch', 'info', `Worktree created for: ${task.title}`);
+          } else {
+            // Fall back to non-worktree for this task
+            onLog?.('dispatch', 'info', `Worktree creation failed for ${task.title}, using main tree: ${wtResult.error}`);
+          }
         }
 
-        failed.add(taskId);
-        task.status = 'failed';
-        task.result = result;
-        results.push(result);
-        onLog?.('dispatch', 'failed', `Task failed: ${task.title}: ${result.error}`);
-        if (isRateLimit) rateLimitDetected = true;
+        dispatched.push(
+          dispatchTask(task, {
+            projectId, projectPath: effectivePath, projectName, runId,
+            goalContext, healingContext, errorContext,
+            config: balancingConfig, v3Config: config,
+            autoCommit: worktreeMode ? false : autoCommit, // Don't auto-commit in worktree — merge handles it
+            abortSignal,
+          })
+            .then(result => ({ taskId: task.id, result }))
+            .catch(error => ({
+              taskId: task.id,
+              result: {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                filesChanged: [], durationMs: 0, provider: '', model: '',
+              } as V3TaskResult,
+            }))
+        );
+      }
+
+      const settled = await Promise.all(dispatched);
+
+      // Worktree merge phase: merge successful tasks back to main branch
+      if (worktreeMode) {
+        for (const { taskId, result } of settled) {
+          const wt = activeWorktrees.get(taskId);
+          if (!wt) continue;
+
+          if (result.success) {
+            const task = taskMap.get(taskId)!;
+            const mergeResult = mergeWorktreeBranch(projectPath, wt.branchName, task.title, taskId);
+
+            if (mergeResult.success) {
+              wt.status = 'merged';
+              if (mergeResult.commitSha) result.commitSha = mergeResult.commitSha;
+              onLog?.('dispatch', 'info', `Merged worktree branch for: ${task.title}`);
+            } else {
+              // Merge conflict — mark task as failed for retry with conflict context
+              wt.status = 'conflict';
+              result.success = false;
+              result.error = mergeResult.error || 'Merge conflict';
+              if (metrics) metrics.mergeConflicts++;
+              onLog?.('dispatch', 'info', `Merge conflict for: ${task.title} — ${mergeResult.conflictFiles?.join(', ')}`);
+            }
+          }
+
+          // Clean up worktree regardless of outcome
+          removeWorktree(projectPath, wt.worktreePath, wt.branchName);
+          wt.status = wt.status === 'merged' ? 'cleaned' : wt.status;
+          activeWorktrees.delete(taskId);
+        }
+      }
+
+      let rateLimitDetected = false;
+      for (const { taskId, result } of settled) {
+        running.delete(taskId);
+        const task = taskMap.get(taskId)!;
+
+        if (result.success) {
+          completed.add(taskId);
+          task.status = 'completed';
+          task.result = result;
+          results.push(result);
+          onLog?.('dispatch', 'info', `Task completed: ${task.title}`);
+        } else {
+          const currentRetries = retryCount.get(taskId) || 0;
+          const isAbort = result.error?.includes('Aborted by user');
+          const isRateLimit = result.error && /rate.?limit|429|too many requests|quota.?exceeded/i.test(result.error);
+
+          if (currentRetries < maxRetries && result.error && !isAbort) {
+            retryCount.set(taskId, currentRetries + 1);
+            retryErrors.set(taskId, result.error);
+            pending.add(taskId);
+            task.status = 'pending';
+            onLog?.('dispatch', 'info', `Retrying ${task.title} (${currentRetries + 1}/${maxRetries})`);
+            if (isRateLimit) rateLimitDetected = true;
+            continue;
+          }
+
+          failed.add(taskId);
+          task.status = 'failed';
+          task.result = result;
+          results.push(result);
+          onLog?.('dispatch', 'failed', `Task failed: ${task.title}: ${result.error}`);
+          if (isRateLimit) rateLimitDetected = true;
+        }
+      }
+      emitUpdate();
+
+      if (rateLimitDetected) {
+        onLog?.('dispatch', 'info', 'Rate limit detected, backing off 60s');
+        await new Promise(r => setTimeout(r, 60000));
       }
     }
-    emitUpdate();
-
-    if (rateLimitDetected) {
-      onLog?.('dispatch', 'info', 'Rate limit detected, backing off 60s');
-      await new Promise(r => setTimeout(r, 60000));
+  } finally {
+    // Ensure all worktrees are cleaned up on exit (abort, crash, or normal completion)
+    if (worktreeMode) {
+      const cleanup = cleanupRunWorktrees(projectPath, runId);
+      if (cleanup.cleaned > 0) {
+        onLog?.('dispatch', 'info', `Cleaned up ${cleanup.cleaned} worktree(s)`);
+      }
     }
   }
 
@@ -184,14 +260,17 @@ function getNextBatch(
   running: Map<string, Set<string>>,
   completed: Set<string>,
   _failed: Set<string>,
-  maxParallel: number
+  maxParallel: number,
+  skipOverlapCheck: boolean = false
 ): V3Task[] {
   const available = maxParallel - running.size;
   if (available <= 0) return [];
 
   const runningPaths = new Set<string>();
-  for (const paths of running.values()) {
-    for (const p of paths) runningPaths.add(p);
+  if (!skipOverlapCheck) {
+    for (const paths of running.values()) {
+      for (const p of paths) runningPaths.add(p);
+    }
   }
 
   const batch: V3Task[] = [];
@@ -205,13 +284,15 @@ function getNextBatch(
     const depsReady = task.dependsOn.every(dep => completed.has(dep));
     if (!depsReady) continue;
 
-    // Check file overlap with running tasks
-    const taskPaths = new Set(task.targetFiles.map(f => f.replace(/\\/g, '/')));
-    if (hasOverlap(taskPaths, runningPaths)) continue;
-    if (hasOverlap(taskPaths, batchPaths)) continue;
+    // Check file overlap with running tasks (skipped in worktree mode)
+    if (!skipOverlapCheck) {
+      const taskPaths = new Set(task.targetFiles.map(f => f.replace(/\\/g, '/')));
+      if (hasOverlap(taskPaths, runningPaths)) continue;
+      if (hasOverlap(taskPaths, batchPaths)) continue;
+      for (const p of taskPaths) batchPaths.add(p);
+    }
 
     batch.push(task);
-    for (const p of taskPaths) batchPaths.add(p);
   }
 
   return batch;

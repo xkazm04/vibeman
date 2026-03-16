@@ -30,10 +30,13 @@ export const HealingPostBodySchema = z.object({
   effectiveness: z.number().optional(),
 });
 
-// POST /api/conductor/refine-intent
+// POST /api/conductor/refine-intent — Submit answers to intent questions
 export const RefineIntentPostBodySchema = z.object({
-  goalDescription: z.string().min(1, 'goalDescription is required'),
-  goalTitle: z.string().optional(),
+  runId: z.string().min(1),
+  answers: z.array(z.object({
+    questionId: z.string(),
+    answer: z.string().min(1),
+  })),
 });
 
 export type ConfigPutBody = z.infer<typeof ConfigPutBodySchema>;

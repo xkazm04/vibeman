@@ -4,6 +4,10 @@
  * Zustand store managing autonomous pipeline state, configuration,
  * and self-healing data. Config and run history are persisted to localStorage.
  * Current run state is volatile (rebuilt from server on reconnect).
+ *
+ * Supports multiple concurrent runs via a runs map + selectedRunId pointer.
+ * Backward-compat derived fields (currentRun, isRunning, isPaused, processLog)
+ * are recomputed from selectedRunId so existing selectors keep working.
  */
 
 import { create } from 'zustand';
@@ -34,7 +38,12 @@ import {
 // ============================================================================
 
 interface ConductorStoreState {
-  // Pipeline state (volatile — not persisted)
+  // Multi-run state (volatile — not persisted)
+  runs: Record<string, PipelineRun>;
+  processLogs: Record<string, ProcessLogEntry[]>;
+  selectedRunId: string | null;
+
+  // Derived fields (backward compat — recomputed from selectedRunId)
   currentRun: PipelineRun | null;
   isRunning: boolean;
   isPaused: boolean;
@@ -55,15 +64,20 @@ interface ConductorStoreState {
 
   // Actions — Pipeline Control
   startRun: (projectId: string, configOverrides?: Partial<BalancingConfig>) => string;
-  pauseRun: () => void;
-  resumeRun: () => void;
-  stopRun: () => void;
+  pauseRun: (runId?: string) => void;
+  resumeRun: (runId?: string) => void;
+  stopRun: (runId?: string) => void;
   setRunFromServer: (run: ServerRunPayload) => void;
+  setRunsFromServer: (runs: ServerRunPayload[]) => void;
+
+  // Actions — Run Selection
+  selectRun: (runId: string | null) => void;
+  removeRun: (runId: string) => void;
 
   // Actions — Stage Updates
   advanceStage: (stage: PipelineStage, stageState: Partial<StageState>) => void;
   updateMetrics: (metrics: Partial<PipelineMetrics>) => void;
-  completePipeline: (status: PipelineStatus) => void;
+  completePipeline: (status: PipelineStatus, runId?: string) => void;
 
   // Actions — Configuration
   updateConfig: (partial: Partial<BalancingConfig>) => void;
@@ -87,6 +101,38 @@ interface ConductorStoreState {
 }
 
 // ============================================================================
+// Derive Helper — recomputes backward-compat fields from runs + selectedRunId
+// ============================================================================
+
+function derive(
+  partial: Partial<ConductorStoreState>,
+  current: ConductorStoreState
+): Partial<ConductorStoreState> {
+  const merged = { ...current, ...partial };
+  const selectedRun = merged.selectedRunId
+    ? merged.runs[merged.selectedRunId] ?? null
+    : null;
+
+  return {
+    ...partial,
+    currentRun: selectedRun,
+    isRunning: selectedRun?.status === 'running',
+    isPaused: selectedRun?.status === 'paused',
+    processLog: merged.selectedRunId
+      ? merged.processLogs[merged.selectedRunId] || []
+      : [],
+  };
+}
+
+function parseProcessLog(raw: string | ProcessLogEntry[] | null | undefined): ProcessLogEntry[] {
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw); } catch { return []; }
+  }
+  if (Array.isArray(raw)) return raw;
+  return [];
+}
+
+// ============================================================================
 // Store
 // ============================================================================
 
@@ -95,6 +141,9 @@ export const useConductorStore = create<ConductorStoreState>()(
     persist(
       (set, get) => ({
         // Initial state
+        runs: {},
+        processLogs: {},
+        selectedRunId: null,
         currentRun: null,
         isRunning: false,
         isPaused: false,
@@ -125,84 +174,155 @@ export const useConductorStore = create<ConductorStoreState>()(
             pipelineVersion: isV3 ? 3 : 2,
           };
 
-          set({
-            currentRun: run,
-            isRunning: true,
-            isPaused: false,
-          });
+          set(derive({
+            runs: { ...get().runs, [runId]: run },
+            processLogs: { ...get().processLogs, [runId]: [] },
+            selectedRunId: runId,
+          }, get()));
 
           return runId;
         },
 
-        pauseRun: () => {
-          const { currentRun } = get();
-          if (!currentRun || currentRun.status !== 'running') return;
+        pauseRun: (runId?) => {
+          const targetId = runId || get().selectedRunId;
+          if (!targetId) return;
+          const run = get().runs[targetId];
+          if (!run || run.status !== 'running') return;
 
-          set({
-            currentRun: { ...currentRun, status: 'paused' },
-            isPaused: true,
-          });
+          set(derive({
+            runs: {
+              ...get().runs,
+              [targetId]: { ...run, status: 'paused' as PipelineStatus },
+            },
+          }, get()));
         },
 
-        resumeRun: () => {
-          const { currentRun } = get();
-          if (!currentRun || currentRun.status !== 'paused') return;
+        resumeRun: (runId?) => {
+          const targetId = runId || get().selectedRunId;
+          if (!targetId) return;
+          const run = get().runs[targetId];
+          if (!run || run.status !== 'paused') return;
 
-          set({
-            currentRun: { ...currentRun, status: 'running' },
-            isPaused: false,
-          });
+          set(derive({
+            runs: {
+              ...get().runs,
+              [targetId]: { ...run, status: 'running' as PipelineStatus },
+            },
+          }, get()));
         },
 
-        stopRun: () => {
-          const { currentRun } = get();
-          if (!currentRun) return;
+        stopRun: (runId?) => {
+          const targetId = runId || get().selectedRunId;
+          if (!targetId) return;
+          const run = get().runs[targetId];
+          if (!run) return;
 
-          set({
-            currentRun: { ...currentRun, status: 'stopping' },
-            isRunning: false,
-            isPaused: false,
-          });
+          set(derive({
+            runs: {
+              ...get().runs,
+              [targetId]: { ...run, status: 'stopping' as PipelineStatus },
+            },
+          }, get()));
 
           // Auto-clear after timeout — if server never confirms, don't stay stuck
           setTimeout(() => {
             const state = get();
-            if (state.currentRun?.id === currentRun.id && state.currentRun?.status === 'stopping') {
-              set({
-                currentRun: { ...state.currentRun, status: 'interrupted', completedAt: new Date().toISOString() },
-                isRunning: false,
-                isPaused: false,
-              });
+            const currentRun = state.runs[targetId];
+            if (currentRun?.status === 'stopping') {
+              set(derive({
+                runs: {
+                  ...state.runs,
+                  [targetId]: { ...currentRun, status: 'interrupted' as PipelineStatus, completedAt: new Date().toISOString() },
+                },
+              }, state));
             }
           }, 10_000);
         },
 
         setRunFromServer: (run) => {
-          const { currentRun } = get();
+          const { runs } = get();
           const isTerminal = run.status === 'completed' || run.status === 'failed' || run.status === 'interrupted';
 
-          // Don't restore terminal runs from the server unless we're already
-          // tracking that specific run (prevents completed runs from being
-          // re-loaded after reset or when starting a new run)
-          if (isTerminal && (!currentRun || currentRun.id !== run.id)) {
-            return;
+          // Don't restore terminal runs unless we're tracking them
+          if (isTerminal && !runs[run.id]) return;
+
+          const parsedLog = parseProcessLog(run.process_log);
+
+          if (isTerminal) {
+            // Remove from active runs
+            const { [run.id]: _, ...remaining } = runs;
+            const { [run.id]: __, ...remainingLogs } = get().processLogs;
+            let { selectedRunId } = get();
+            if (selectedRunId === run.id) {
+              const ids = Object.keys(remaining);
+              selectedRunId = ids[0] || null;
+            }
+            set(derive({
+              runs: remaining,
+              processLogs: remainingLogs,
+              selectedRunId,
+            }, get()));
+          } else {
+            set(derive({
+              runs: { ...runs, [run.id]: run },
+              processLogs: { ...get().processLogs, [run.id]: parsedLog },
+            }, get()));
+          }
+        },
+
+        setRunsFromServer: (serverRuns) => {
+          const { runs, processLogs, selectedRunId } = get();
+          const updatedRuns = { ...runs };
+          const updatedLogs = { ...processLogs };
+
+          for (const run of serverRuns) {
+            const isTerminal = run.status === 'completed' || run.status === 'failed' || run.status === 'interrupted';
+            const parsedLog = parseProcessLog(run.process_log);
+
+            if (isTerminal) {
+              if (updatedRuns[run.id]) {
+                delete updatedRuns[run.id];
+                delete updatedLogs[run.id];
+              }
+            } else {
+              updatedRuns[run.id] = run;
+              updatedLogs[run.id] = parsedLog;
+            }
           }
 
-          // Parse process log from server response (comes as raw JSON or already parsed)
-          const rawLog = run.process_log;
-          let parsedLog: ProcessLogEntry[] = [];
-          if (typeof rawLog === 'string') {
-            try { parsedLog = JSON.parse(rawLog); } catch { /* ignore */ }
-          } else if (Array.isArray(rawLog)) {
-            parsedLog = rawLog;
+          // Auto-select if selectedRunId is stale
+          let newSelectedId = selectedRunId;
+          if (!newSelectedId || !updatedRuns[newSelectedId]) {
+            const ids = Object.keys(updatedRuns);
+            newSelectedId = ids[0] || null;
           }
 
-          set({
-            currentRun: run,
-            isRunning: run.status === 'running',
-            isPaused: run.status === 'paused',
-            processLog: parsedLog,
-          });
+          set(derive({
+            runs: updatedRuns,
+            processLogs: updatedLogs,
+            selectedRunId: newSelectedId,
+          }, get()));
+        },
+
+        // ---- Run Selection ----
+
+        selectRun: (runId) => {
+          set(derive({ selectedRunId: runId }, get()));
+        },
+
+        removeRun: (runId) => {
+          const { [runId]: _, ...remaining } = get().runs;
+          const { [runId]: __, ...remainingLogs } = get().processLogs;
+          let { selectedRunId } = get();
+          if (selectedRunId === runId) {
+            const ids = Object.keys(remaining);
+            selectedRunId = ids[0] || null;
+          }
+          set(derive({
+            runs: remaining,
+            processLogs: remainingLogs,
+            selectedRunId,
+          }, get()));
         },
 
         // ---- Stage Updates ----
@@ -217,69 +337,84 @@ export const useConductorStore = create<ConductorStoreState>()(
             ...stageState,
           };
 
-          set({
-            currentRun: {
-              ...currentRun,
-              currentStage: stage,
-              stages: updatedStages,
+          set(derive({
+            runs: {
+              ...get().runs,
+              [currentRun.id]: {
+                ...currentRun,
+                currentStage: stage,
+                stages: updatedStages,
+              },
             },
-          });
+          }, get()));
         },
 
         updateMetrics: (metrics) => {
           const { currentRun } = get();
           if (!currentRun) return;
 
-          set({
-            currentRun: {
-              ...currentRun,
-              metrics: { ...currentRun.metrics, ...metrics },
+          set(derive({
+            runs: {
+              ...get().runs,
+              [currentRun.id]: {
+                ...currentRun,
+                metrics: { ...currentRun.metrics, ...metrics },
+              },
             },
-          });
+          }, get()));
         },
 
-        completePipeline: (status) => {
-          const { currentRun, addToHistory } = get();
-          if (!currentRun) return;
-
-          const completedRun: PipelineRun = {
-            ...currentRun,
-            status,
-            completedAt: new Date().toISOString(),
-            metrics: {
-              ...currentRun.metrics,
-              totalDurationMs: Date.now() - new Date(currentRun.startedAt).getTime(),
-            },
-          };
+        completePipeline: (status, runId?) => {
+          const targetId = runId || get().selectedRunId;
+          if (!targetId) return;
+          const run = get().runs[targetId];
+          if (!run) return;
 
           // Add to history
-          addToHistory({
-            id: completedRun.id,
-            projectId: completedRun.projectId,
-            status: completedRun.status,
-            cycles: completedRun.cycle,
-            metrics: completedRun.metrics,
-            startedAt: completedRun.startedAt,
-            completedAt: completedRun.completedAt,
+          get().addToHistory({
+            id: run.id,
+            projectId: run.projectId,
+            status,
+            cycles: run.cycle,
+            metrics: {
+              ...run.metrics,
+              totalDurationMs: Date.now() - new Date(run.startedAt).getTime(),
+            },
+            startedAt: run.startedAt,
+            completedAt: new Date().toISOString(),
           });
 
-          set({
-            currentRun: null,
-            isRunning: false,
-            isPaused: false,
-            processLog: [],
-          });
+          // Remove from active runs
+          const { [targetId]: _, ...remaining } = get().runs;
+          const { [targetId]: __, ...remainingLogs } = get().processLogs;
+          let { selectedRunId } = get();
+          if (selectedRunId === targetId) {
+            const ids = Object.keys(remaining);
+            selectedRunId = ids[0] || null;
+          }
+
+          set(derive({
+            runs: remaining,
+            processLogs: remainingLogs,
+            selectedRunId,
+          }, get()));
         },
 
         // ---- Run Reset ----
 
         resetRun: () => {
-          set({
-            currentRun: null,
-            isRunning: false,
-            isPaused: false,
-            processLog: [],
-          });
+          const targetId = get().selectedRunId;
+          if (!targetId) return;
+
+          const { [targetId]: _, ...remaining } = get().runs;
+          const { [targetId]: __, ...remainingLogs } = get().processLogs;
+          const ids = Object.keys(remaining);
+
+          set(derive({
+            runs: remaining,
+            processLogs: remainingLogs,
+            selectedRunId: ids[0] || null,
+          }, get()));
         },
 
         // ---- Configuration ----
@@ -296,7 +431,6 @@ export const useConductorStore = create<ConductorStoreState>()(
 
         recordError: (classification) => {
           const { errorClassifications } = get();
-          // Check if same error type + stage already exists — increment count
           const existing = errorClassifications.find(
             (e) =>
               e.errorType === classification.errorType &&
@@ -326,7 +460,6 @@ export const useConductorStore = create<ConductorStoreState>()(
 
         applyHealingPatch: (patch) => {
           const { healingPatches } = get();
-          // Replace existing patch for same targetId, or add new
           const filtered = healingPatches.filter(
             (p) => p.targetId !== patch.targetId || p.reverted
           );

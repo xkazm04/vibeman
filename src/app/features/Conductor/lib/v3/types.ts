@@ -108,6 +108,12 @@ export interface V3Config {
 
   // Experimental
   experimentalAgentTeams: boolean;
+
+  // Worktree isolation
+  useWorktrees: boolean;
+
+  // Intent Refinement
+  intentRefinementEnabled: boolean;
 }
 
 export const DEFAULT_V3_CONFIG: V3Config = {
@@ -156,6 +162,12 @@ export const DEFAULT_V3_CONFIG: V3Config = {
 
   // Experimental
   experimentalAgentTeams: false,
+
+  // Worktree isolation
+  useWorktrees: false,
+
+  // Intent Refinement
+  intentRefinementEnabled: false,
 };
 
 // ============================================================================
@@ -171,6 +183,8 @@ export interface V3Metrics {
   llmCallCount: number;
   estimatedCost: number;
   healingPatchesApplied: number;
+  worktreesCreated: number;
+  mergeConflicts: number;
 }
 
 export function createEmptyV3Metrics(): V3Metrics {
@@ -183,6 +197,8 @@ export function createEmptyV3Metrics(): V3Metrics {
     llmCallCount: 0,
     estimatedCost: 0,
     healingPatchesApplied: 0,
+    worktreesCreated: 0,
+    mergeConflicts: 0,
   };
 }
 

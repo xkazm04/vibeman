@@ -11,7 +11,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   History, ChevronDown, CheckCircle2, XCircle, Clock,
-  Lightbulb, Zap, Wrench, Trash2,
+  Lightbulb, Zap, Wrench, Trash2, FileText,
 } from 'lucide-react';
 import { useConductorStore } from '../lib/conductorStore';
 import type { PipelineRunSummary, PipelineStatus } from '../lib/types';
@@ -46,18 +46,24 @@ const STATUS_STYLES: Record<PipelineStatus, { icon: typeof CheckCircle2; color: 
   queued: { icon: Clock, color: 'indigo' },
 };
 
-function RunSummaryCard({ run }: { run: PipelineRunSummary }) {
+function RunSummaryCard({ run, onViewReport }: { run: PipelineRunSummary; onViewReport?: (runId: string) => void }) {
   const statusConfig = STATUS_STYLES[run.status];
   const StatusIcon = statusConfig.icon;
   const successRate = run.metrics.tasksCompleted + run.metrics.tasksFailed > 0
     ? Math.round((run.metrics.tasksCompleted / (run.metrics.tasksCompleted + run.metrics.tasksFailed)) * 100)
     : 0;
 
+  const isTerminal = ['completed', 'failed', 'interrupted'].includes(run.status);
+
   return (
     <motion.div
-      className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-800/30 hover:bg-gray-800/50 transition-colors"
+      className={`flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-800/30 hover:bg-gray-800/50 transition-colors ${
+        isTerminal && onViewReport ? 'cursor-pointer' : ''
+      }`}
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
+      onClick={() => isTerminal && onViewReport?.(run.id)}
+      title={isTerminal && onViewReport ? 'Click to view report' : undefined}
     >
       {/* Status icon */}
       <StatusIcon className={`w-4 h-4 text-${statusConfig.color}-400 flex-shrink-0`} />
@@ -103,11 +109,16 @@ function RunSummaryCard({ run }: { run: PipelineRunSummary }) {
       <span className="text-[10px] text-gray-500 font-mono w-10 text-right">
         {formatDuration(run.metrics.totalDurationMs)}
       </span>
+
+      {/* Report icon hint */}
+      {isTerminal && onViewReport && (
+        <FileText className="w-3 h-3 text-gray-600 flex-shrink-0" />
+      )}
     </motion.div>
   );
 }
 
-export default function RunHistoryTimeline() {
+export default function RunHistoryTimeline({ onViewReport }: { onViewReport?: (runId: string) => void }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const { runHistory, clearHistory } = useConductorStore();
 
@@ -146,7 +157,7 @@ export default function RunHistoryTimeline() {
           >
             <div className="px-3 pb-3 space-y-1.5 max-h-[250px] overflow-y-auto">
               {runHistory.map((run) => (
-                <RunSummaryCard key={run.id} run={run} />
+                <RunSummaryCard key={run.id} run={run} onViewReport={onViewReport} />
               ))}
             </div>
             <div className="px-3 pb-2 flex justify-end">

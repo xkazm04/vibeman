@@ -74,6 +74,12 @@ export default function StageCard({ stage, state, isCurrentStage, onClick }: Sta
       ? (state.details.executionTasks as ExecutionTaskState[])
       : [];
 
+  // Extract per-task data for v3 dispatch stage
+  const dispatchTasks: Array<{ id: string; title: string; status: string; provider?: string }> =
+    stage === 'dispatch' && Array.isArray(state.details?.tasks)
+      ? (state.details.tasks as Array<{ id: string; title: string; status: string; provider?: string }>)
+      : [];
+
   return (
     <motion.button
       onClick={onClick}
@@ -158,6 +164,35 @@ export default function StageCard({ stage, state, isCurrentStage, onClick }: Sta
           ))}
           {executionTasks.length > 4 && (
             <span className="text-[8px] text-gray-600">+{executionTasks.length - 4} more</span>
+          )}
+        </div>
+      )}
+
+      {/* Per-task dispatch details (v3 dispatch stage) */}
+      {stage === 'dispatch' && dispatchTasks.length > 0 && (
+        <div className="w-full space-y-0.5 mt-1">
+          {dispatchTasks.slice(0, 4).map((task) => (
+            <div key={task.id} className="flex items-center gap-1 text-[9px] font-mono">
+              <span className={
+                task.status === 'running' ? 'text-cyan-400' :
+                task.status === 'completed' ? 'text-emerald-400' :
+                task.status === 'failed' ? 'text-red-400' :
+                'text-gray-600'
+              }>
+                {task.status === 'running' ? '\u25CF' :
+                 task.status === 'completed' ? '\u2713' :
+                 task.status === 'failed' ? '\u2717' : '\u25CB'}
+              </span>
+              <span className="text-gray-400 truncate max-w-[60px]">
+                {task.title.slice(0, 14)}
+              </span>
+              {task.provider && (
+                <span className="text-gray-600 ml-auto">{task.provider.slice(0, 3)}</span>
+              )}
+            </div>
+          ))}
+          {dispatchTasks.length > 4 && (
+            <span className="text-[8px] text-gray-600">+{dispatchTasks.length - 4} more</span>
           )}
         </div>
       )}

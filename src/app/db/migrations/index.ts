@@ -277,6 +277,13 @@ export function runMigrations() {
     once('m209', () => migrateGoalCandidateRejectionReason());
     once('m210', () => migrate210SpecLifecycle(db as any, migrationLogger));
     once('m211', () => migrate211ConductorV3(db as any, migrationLogger));
+    once('m212', () => {
+      addColumnIfNotExists(db, 'conductor_runs', 'decision_ratings', 'TEXT', migrationLogger);
+    });
+    once('m213', () => {
+      addColumnIfNotExists(db, 'conductor_runs', 'intent_questions', 'TEXT', migrationLogger);
+      addColumnIfNotExists(db, 'conductor_runs', 'intent_answers', 'TEXT', migrationLogger);
+    });
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {

@@ -11,7 +11,6 @@ import { useCallback, useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Workflow, Sparkles, Target, ChevronDown } from 'lucide-react';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
-import { useThemeStore } from '@/stores/themeStore';
 import { toast } from '@/stores/messageStore';
 import { useConductorStore } from '../lib/conductorStore';
 import { useConductorStatus } from '../lib/useConductorStatus';
@@ -23,7 +22,7 @@ import HealingPanel from './HealingPanel';
 import BalancingModal from './BalancingModal';
 import RunHistoryTimeline from './RunHistoryTimeline';
 import ConductorNerdView from './ConductorNerdView';
-import IntentRefinementModal from './IntentRefinementModal';
+import RunReportModal from './RunReportModal';
 import type { AnyPipelineStage } from '../lib/types';
 
 interface ConductorViewProps {
@@ -33,19 +32,19 @@ interface ConductorViewProps {
 interface GoalOption {
   id: string;
   title: string;
+  description: string;
   status: string;
 }
 
 export default function ConductorView({ projectId }: ConductorViewProps) {
   const activeProject = useClientProjectStore((state) => state.activeProject);
-  const { getThemeColors } = useThemeStore();
-  const colors = getThemeColors();
   const { currentRun, isRunning, processLog, startRun, nerdMode } = useConductorStore();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [goals, setGoals] = useState<GoalOption[]>([]);
   const [selectedGoalId, setSelectedGoalId] = useState<string>('');
   const [goalDropdownOpen, setGoalDropdownOpen] = useState(false);
-  const [intentModalOpen, setIntentModalOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportRunId, setReportRunId] = useState<string | null>(null);
 
   const goalDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -80,7 +79,7 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
   // even when isRunning was false due to navigation), then polls every 3s
   useConductorStatus(true);
 
-  const handleStart = useCallback(async (refinedIntent?: string) => {
+  const handleStart = useCallback(async () => {
     if (!effectiveProjectId) return;
 
     if (!selectedGoalId) {
@@ -88,16 +87,7 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
       return;
     }
 
-    // Check if intent refinement should be shown first
     const storeConfig = useConductorStore.getState().config;
-    if (
-      storeConfig.intentRefinementEnabled &&
-      refinedIntent === undefined // not yet refined
-    ) {
-      setIntentModalOpen(true);
-      return;
-    }
-
     const runId = startRun(effectiveProjectId);
 
     try {
@@ -112,7 +102,6 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
           projectPath: activeProject?.path || '',
           projectName: activeProject?.name || 'Project',
           goalId: selectedGoalId,
-          ...(refinedIntent ? { refinedIntent } : {}),
         }),
       });
 
@@ -120,19 +109,14 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
         const err = await res.json().catch(() => ({ error: 'Unknown error' }));
         console.error('Failed to start pipeline:', err);
         toast.error(err.error || 'Failed to start pipeline');
-        useConductorStore.getState().completePipeline('failed');
+        useConductorStore.getState().completePipeline('failed', runId);
       }
     } catch (error) {
       console.error('Failed to start pipeline:', error);
       toast.error('Failed to start pipeline');
-      useConductorStore.getState().completePipeline('failed');
+      useConductorStore.getState().completePipeline('failed', runId);
     }
   }, [effectiveProjectId, activeProject, startRun, selectedGoalId]);
-
-  const handleIntentSubmit = useCallback((refinedIntent: string) => {
-    setIntentModalOpen(false);
-    handleStart(refinedIntent || '');
-  }, [handleStart]);
 
   const handleStageClick = useCallback((stage: AnyPipelineStage) => {
     // Future: open stage detail modal
@@ -154,17 +138,35 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
 
   const selectedGoal = goals.find((g) => g.id === selectedGoalId);
 
+  const handleViewReport = useCallback((runIdOverride?: string) => {
+    const id = runIdOverride || currentRun?.id;
+    if (!id) return;
+    setReportRunId(id);
+    setReportOpen(true);
+  }, [currentRun]);
+
+  // Shared props for PipelineControls
+  const controlProps = {
+    projectId: effectiveProjectId,
+    onStart: handleStart,
+    onOpenSettings: () => setSettingsOpen(true),
+    onViewReport: () => handleViewReport(),
+  };
+
   // Nerd mode: stripped-down monospace view, no Framer Motion
   if (nerdMode) {
     return (
       <div className="space-y-4" data-testid="conductor-view">
-        <PipelineControls
-          projectId={effectiveProjectId}
-          onStart={handleStart}
-          onOpenSettings={() => setSettingsOpen(true)}
-        />
+        <PipelineControls {...controlProps} />
         <ConductorNerdView projectId={effectiveProjectId} />
         <BalancingModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        {reportRunId && (
+          <RunReportModal
+            isOpen={reportOpen}
+            onClose={() => setReportOpen(false)}
+            runId={reportRunId}
+          />
+        )}
       </div>
     );
   }
@@ -224,11 +226,7 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
       </motion.div>
 
       {/* Pipeline Controls */}
-      <PipelineControls
-        projectId={effectiveProjectId}
-        onStart={handleStart}
-        onOpenSettings={() => setSettingsOpen(true)}
-      />
+      <PipelineControls {...controlProps} />
 
       {/* Pipeline Flow Visualization */}
       <motion.div
@@ -260,20 +258,18 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
       >
-        <RunHistoryTimeline />
+        <RunHistoryTimeline onViewReport={(id) => handleViewReport(id)} />
       </motion.div>
 
       {/* Settings Modal */}
       <BalancingModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
-      {/* Intent Refinement Modal (G5) */}
-      {selectedGoalId && (
-        <IntentRefinementModal
-          isOpen={intentModalOpen}
-          onClose={() => setIntentModalOpen(false)}
-          onSubmit={handleIntentSubmit}
-          goalTitle={selectedGoal?.title || ''}
-          goalDescription={selectedGoal?.title || ''}
+      {/* Run Report Modal */}
+      {reportRunId && (
+        <RunReportModal
+          isOpen={reportOpen}
+          onClose={() => setReportOpen(false)}
+          runId={reportRunId}
         />
       )}
     </div>

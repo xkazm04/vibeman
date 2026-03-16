@@ -14,6 +14,8 @@ import { conductorRepository } from '../conductor.repository';
 import { executePlanPhase } from './planPhase';
 import { runBuildValidation } from '../execution/buildValidator';
 import { generateBrainQuestions, getBrainWarnings, feedBrainOutcome } from './brainAdvisor';
+import { prunePatches, buildHealingContext } from '../selfHealing/promptPatcher';
+import { cleanupOrphanedWorktrees } from './worktreeManager';
 import type {
   V3Config,
   V3Metrics,
@@ -58,6 +60,8 @@ interface DispatchPhaseInput {
   autoCommit: boolean;
   abortSignal?: AbortSignal;
   onTaskUpdate?: (tasks: V3Task[]) => void;
+  onLog?: (phase: V3Phase, event: string, message: string) => void;
+  metrics?: V3Metrics;
 }
 
 interface DispatchPhaseResult {
@@ -304,9 +308,53 @@ async function runV3Loop(
     }
   }
 
+  // ----- Intent Refinement: CLI codebase scan (always runs) -----
+  {
+    const intentQuestions = await runIntentScan(
+      projectPath, goalRecord.title, goalRecord.description, log, controller?.signal
+    );
+    if (intentQuestions.length > 0) {
+      updateRunField(runId, 'intent_questions', JSON.stringify(intentQuestions));
+      conductorRepository.updateRunStatus(runId, 'paused');
+      log('plan', 'info', `${intentQuestions.length} clarifying question(s) ready — waiting for answers`);
+      await waitForResume(runId);
+      if (shouldAbort(runId)) {
+        abortControllers.delete(runId);
+        return;
+      }
+      // Read answers from run record and build refined intent
+      const intentRefined = readIntentAnswers(runId);
+      if (intentRefined) {
+        refinedIntent = intentRefined;
+      }
+    }
+  }
+
+  // ----- Orphaned worktree cleanup from previous crashed runs -----
+  if (config.useWorktrees) {
+    const orphanCleanup = cleanupOrphanedWorktrees(projectPath);
+    if (orphanCleanup.cleaned > 0) {
+      log('plan', 'info', `Cleaned up ${orphanCleanup.cleaned} orphaned worktree(s) from previous run`);
+    }
+  }
+
   // ----- Main Cycle Loop -----
   while (cycle <= config.maxCyclesPerRun) {
     if (shouldAbort(runId)) break;
+
+    // Build healing context from active patches (Task 4)
+    let healingContext = '';
+    if (config.healingEnabled) {
+      try {
+        const activePatches = prunePatches(projectId);
+        healingContext = buildHealingContext(activePatches);
+        if (healingContext) {
+          log('plan', 'info', `Loaded ${activePatches.length} active healing patch(es)`);
+        }
+      } catch (err) {
+        log('plan', 'info', `Healing context load failed: ${err}`);
+      }
+    }
 
     // ===================== PLAN =====================
     currentPhase = 'plan';
@@ -333,7 +381,7 @@ async function runV3Loop(
         config,
         brainWarnings,
         previousReflection,
-        healingContext: '',
+        healingContext,
         refinedIntent: refinedIntent || null,
         abortSignal: controller?.signal,
       });
@@ -387,12 +435,21 @@ async function runV3Loop(
           title: goalRecord.title,
           description: goalRecord.description,
         },
-        healingContext: '',
+        healingContext,
         autoCommit: config.autoCommit ?? false,
         abortSignal: controller?.signal,
-        onTaskUpdate: () => {
-          // Could emit to store for real-time UI updates
+        onTaskUpdate: (updatedTasks) => {
+          // Persist task states for real-time UI updates
+          phases.dispatch = {
+            ...phases.dispatch,
+            details: { tasks: updatedTasks.map((t) => ({ id: t.id, title: t.title, status: t.status, provider: t.result?.provider })) },
+          };
+          persistState();
         },
+        onLog: (phase, event, message) => {
+          log(phase, event as V3ProcessLogEntry['event'], message);
+        },
+        metrics,
       });
     } catch (err) {
       log('dispatch', 'failed', `Dispatch phase failed: ${err}`);
@@ -565,6 +622,164 @@ function getReflectionHistory(runId: string): ReflectOutput[] {
 }
 
 /**
+ * Run a CLI scan to generate intent-refinement questions for the goal.
+ * Spawns a CLI session, polls until complete, and parses the output.
+ */
+async function runIntentScan(
+  projectPath: string,
+  goalTitle: string,
+  goalDescription: string,
+  log: (phase: V3Phase, event: V3ProcessLogEntry['event'], message: string) => void,
+  abortSignal?: AbortSignal
+): Promise<Array<{ id: string; question: string; context: string }>> {
+  const { startExecution, getExecution } = await import('@/lib/claude-terminal/cli-service');
+
+  const prompt = `You are a senior technical lead preparing to review a development goal before it enters an autonomous pipeline. Your task is to explore this codebase and generate clarifying questions that will help refine the goal.
+
+## Goal
+
+**${goalTitle}**
+
+${goalDescription}
+
+## Instructions
+
+1. Start by reading the project structure — check package.json, directory layout, and key config files to understand the tech stack and architecture.
+2. Identify the parts of the codebase most relevant to this goal — use file search and grep to find related code.
+3. Read those files to understand the current implementation, patterns, and conventions.
+4. Based on your codebase analysis, generate 3-5 clarifying questions that address:
+   - Specific ambiguities you found (e.g., "There are 3 auth middleware files — which should this apply to?")
+   - Technical constraints the codebase reveals (e.g., "The API uses middleware pattern X — should we follow it?")
+   - Scope decisions informed by what exists (e.g., "Component Y already handles partial case Z — extend or replace?")
+   - Potential conflicts with existing patterns you discovered
+
+IMPORTANT: Every question MUST reference something specific you found in the codebase. Do NOT ask generic questions.
+
+## Output Format
+
+When you have your questions ready, output them EXACTLY in this format as the last thing you write:
+
+<INTENT_QUESTIONS>
+{
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Your specific question referencing codebase findings",
+      "context": "What you found in the codebase that prompted this question (include file paths)"
+    }
+  ]
+}
+</INTENT_QUESTIONS>`;
+
+  const executionId = startExecution(projectPath, prompt);
+  log('plan', 'info', 'Intent scan started — exploring codebase...');
+
+  // Poll for completion
+  const POLL_MS = 5000;
+  const MAX_WAIT_MS = 5 * 60 * 1000; // 5 minutes
+  const startWait = Date.now();
+
+  while (Date.now() - startWait < MAX_WAIT_MS) {
+    if (abortSignal?.aborted) return [];
+
+    await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+
+    const execution = getExecution(executionId);
+    if (!execution) return [];
+
+    if (execution.status === 'completed') {
+      const allText = execution.events
+        .filter(e => e.type === 'text')
+        .map(e => (e.data as { content?: string }).content || '')
+        .join('');
+
+      return parseIntentQuestions(allText);
+    }
+
+    if (execution.status === 'error' || execution.status === 'aborted') {
+      log('plan', 'info', `Intent scan ${execution.status}`);
+      return [];
+    }
+  }
+
+  log('plan', 'info', 'Intent scan timed out');
+  return [];
+}
+
+/**
+ * Parse <INTENT_QUESTIONS> block from CLI output.
+ */
+function parseIntentQuestions(text: string): Array<{ id: string; question: string; context: string }> {
+  const match = text.match(/<INTENT_QUESTIONS>\s*([\s\S]*?)\s*<\/INTENT_QUESTIONS>/);
+  if (!match) {
+    const jsonMatch = text.match(/\{[\s\S]*"questions"\s*:\s*\[[\s\S]*?\]\s*\}/);
+    if (!jsonMatch) return [];
+    try {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return sanitizeQuestions(parsed);
+    } catch {
+      return [];
+    }
+  }
+
+  try {
+    let jsonStr = match[1].trim();
+    const fenceMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fenceMatch) jsonStr = fenceMatch[1].trim();
+    return sanitizeQuestions(JSON.parse(jsonStr));
+  } catch {
+    return [];
+  }
+}
+
+function sanitizeQuestions(
+  parsed: unknown
+): Array<{ id: string; question: string; context: string }> {
+  if (!parsed || typeof parsed !== 'object') return [];
+  const obj = parsed as Record<string, unknown>;
+  const raw = Array.isArray(obj.questions) ? obj.questions : [];
+  return raw
+    .filter((q): q is Record<string, unknown> =>
+      q != null && typeof q === 'object' && typeof (q as Record<string, unknown>).question === 'string'
+    )
+    .slice(0, 5)
+    .map((q, i) => ({
+      id: String(q.id || `q${i + 1}`),
+      question: String(q.question),
+      context: String(q.context || ''),
+    }));
+}
+
+/**
+ * Read intent answers from the run record and build a refined intent string.
+ */
+function readIntentAnswers(runId: string): string {
+  try {
+    const db = getDatabase();
+    const row = db
+      .prepare('SELECT intent_questions, intent_answers FROM conductor_runs WHERE id = ?')
+      .get(runId) as { intent_questions?: string; intent_answers?: string } | undefined;
+
+    if (!row?.intent_questions || !row?.intent_answers) return '';
+
+    const questions = JSON.parse(row.intent_questions) as Array<{ id: string; question: string }>;
+    const answers = JSON.parse(row.intent_answers) as Array<{ questionId: string; answer: string }>;
+    const answerMap = new Map(answers.map(a => [a.questionId, a.answer]));
+
+    return questions
+      .map(q => {
+        const answer = answerMap.get(q.id);
+        if (!answer) return null;
+        return `Q: ${q.question}\nA: ${answer}`;
+      })
+      .filter(Boolean)
+      .join('\n\n');
+  } catch {
+    return '';
+  }
+}
+
+/**
  * Update a single field on a conductor_runs row.
  */
 function updateRunField(runId: string, field: string, value: string): void {
@@ -577,6 +792,8 @@ function updateRunField(runId: string, field: string, value: string): void {
       'brain_qa',
       'error_message',
       'current_stage',
+      'intent_questions',
+      'intent_answers',
     ]);
 
     if (!allowedFields.has(field)) {

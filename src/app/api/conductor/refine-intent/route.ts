@@ -1,116 +1,61 @@
 /**
- * Intent Refinement API (G5)
+ * Intent Refinement API
  *
- * POST: Analyzes a goal for ambiguity and returns clarifying questions.
- * The user answers these questions, and the Q&A pairs become the
- * `refinedIntent` that gets passed to Goal Analyzer and Planner.
+ * POST: Submit answers to intent-refinement questions and resume the pipeline.
+ *       The CLI scan now happens server-side in conductorV3.ts.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withValidation } from '@/lib/api/withValidation';
 import { RefineIntentPostBodySchema, type RefineIntentPostBody } from '@/lib/api/schemas/conductor';
+import { getDatabase } from '@/app/db/connection';
+import { resumeV3Pipeline } from '@/app/features/Conductor/lib/v3/conductorV3';
+
+// ============================================================================
+// POST — Submit intent answers and resume pipeline
+// ============================================================================
 
 export const POST = withValidation(
   RefineIntentPostBodySchema,
   async (_request: NextRequest, body: RefineIntentPostBody) => {
-  const { goalTitle, goalDescription } = body;
-  try {
-    const prompt = `You are a senior technical lead reviewing a development goal before it enters an autonomous pipeline. Your job is to identify ambiguities, missing context, or unclear scope that could cause the pipeline to produce poor results.
+    const { runId, answers } = body;
 
-## Goal
-
-**${goalTitle || 'Untitled Goal'}**
-
-${goalDescription}
-
-## Task
-
-Generate 3-5 clarifying questions that would help refine this goal. Focus on:
-- Ambiguous scope (what's in/out of scope?)
-- Missing technical constraints (framework versions, patterns to follow?)
-- Priority conflicts (which aspect matters most if trade-offs are needed?)
-- Success criteria (how will we know this is done correctly?)
-
-Do NOT ask obvious questions or questions answered by the goal description itself.
-
-## Output Format
-
-Respond with ONLY valid JSON (no markdown fences):
-
-{
-  "questions": [
-    {
-      "id": "q1",
-      "question": "The clarifying question",
-      "context": "Brief explanation of why this matters"
-    }
-  ]
-}`;
-
-    const response = await fetch('http://localhost:3000/api/llm/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt,
-        provider: 'anthropic',
-      }),
-    });
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { success: false, error: `LLM call failed: ${response.status}` },
-        { status: 502 }
-      );
-    }
-
-    const llmData = await response.json();
-    if (!llmData.success || !llmData.response) {
-      return NextResponse.json(
-        { success: false, error: llmData.error || 'LLM returned no response' },
-        { status: 502 }
-      );
-    }
-
-    const responseText = llmData.response;
-
-    // Parse response
     try {
-      let cleaned = responseText;
-      const fenceMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (fenceMatch) cleaned = fenceMatch[1];
+      const db = getDatabase();
 
-      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
+      // Verify the run exists and is paused
+      const row = db
+        .prepare('SELECT status FROM conductor_runs WHERE id = ?')
+        .get(runId) as { status: string } | undefined;
+
+      if (!row) {
         return NextResponse.json(
-          { success: false, error: 'Failed to parse LLM response' },
-          { status: 500 }
+          { success: false, error: 'Run not found' },
+          { status: 404 }
         );
       }
 
-      const parsed = JSON.parse(jsonMatch[0]);
-      const questions = Array.isArray(parsed.questions)
-        ? parsed.questions
-            .filter((q: Record<string, unknown>) => q && typeof q.question === 'string')
-            .slice(0, 5)
-            .map((q: Record<string, unknown>, i: number) => ({
-              id: String(q.id || `q${i + 1}`),
-              question: String(q.question),
-              context: String(q.context || ''),
-            }))
-        : [];
+      if (row.status !== 'paused') {
+        return NextResponse.json(
+          { success: false, error: `Run is not paused (status: ${row.status})` },
+          { status: 409 }
+        );
+      }
 
-      return NextResponse.json({ success: true, questions });
-    } catch {
+      // Store answers on the run record
+      db.prepare('UPDATE conductor_runs SET intent_answers = ? WHERE id = ?')
+        .run(JSON.stringify(answers), runId);
+
+      // Resume the pipeline
+      resumeV3Pipeline(runId);
+
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      console.error('[conductor/refine-intent] Error:', error);
       return NextResponse.json(
-        { success: false, error: 'Failed to parse LLM response' },
+        { success: false, error: 'Failed to submit answers' },
         { status: 500 }
       );
     }
-  } catch (error) {
-    console.error('[conductor/refine-intent] Error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
   }
-});
+);

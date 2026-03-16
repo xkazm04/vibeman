@@ -7,11 +7,11 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Lightbulb, ThumbsUp, ThumbsDown, ListChecks,
-  CheckCircle2, XCircle, Wrench, Clock, DollarSign,
+  ListChecks, CheckCircle2, XCircle,
+  RefreshCw, Brain, Wrench, Clock, DollarSign,
+  GitBranch, GitMerge,
 } from 'lucide-react';
 import type { PipelineMetrics, ProcessLogEntry } from '../lib/types';
-import { createEmptyMetrics } from '../lib/types';
 
 interface MetricsBarProps {
   metrics: PipelineMetrics | null;
@@ -20,7 +20,7 @@ interface MetricsBarProps {
 }
 
 interface MetricItemProps {
-  icon: typeof Lightbulb;
+  icon: typeof ListChecks;
   value: number | string;
   color: string;
   delay: number;
@@ -69,9 +69,21 @@ export default function MetricsBar({ metrics, processLog, isRunning }: MetricsBa
     return null;
   }, [processLog]);
 
-  const m = liveMetrics ?? metrics ?? createEmptyMetrics();
-  const successRate = m.tasksCompleted + m.tasksFailed > 0
-    ? Math.round((m.tasksCompleted / (m.tasksCompleted + m.tasksFailed)) * 100)
+  // Cast to Record for v3 field access (runtime data is V3Metrics shape)
+  const raw = (liveMetrics ?? metrics ?? {}) as Record<string, number>;
+  const tasksPlanned = raw.tasksPlanned ?? 0;
+  const tasksCompleted = raw.tasksCompleted ?? 0;
+  const tasksFailed = raw.tasksFailed ?? 0;
+  const totalCycles = raw.totalCycles ?? 0;
+  const llmCallCount = raw.llmCallCount ?? 0;
+  const healingPatchesApplied = raw.healingPatchesApplied ?? 0;
+  const worktreesCreated = raw.worktreesCreated ?? 0;
+  const mergeConflicts = raw.mergeConflicts ?? 0;
+  const totalDurationMs = raw.totalDurationMs ?? 0;
+  const estimatedCost = raw.estimatedCost ?? 0;
+
+  const successRate = tasksCompleted + tasksFailed > 0
+    ? Math.round((tasksCompleted / (tasksCompleted + tasksFailed)) * 100)
     : 0;
 
   return (
@@ -81,17 +93,10 @@ export default function MetricsBar({ metrics, processLog, isRunning }: MetricsBa
       animate={{ opacity: 1 }}
       data-testid="metrics-bar"
     >
-      {/* Ideas */}
-      <MetricItem icon={Lightbulb} value={m.ideasGenerated} color="cyan" delay={0} title="Ideas generated" />
-      <MetricItem icon={ThumbsUp} value={m.ideasAccepted} color="emerald" delay={1} title="Ideas accepted" />
-      <MetricItem icon={ThumbsDown} value={m.ideasRejected} color="gray" delay={2} title="Ideas rejected" />
-
-      <div className="w-px h-5 bg-gray-800 flex-shrink-0" />
-
       {/* Tasks */}
-      <MetricItem icon={ListChecks} value={m.tasksCreated} color="purple" delay={3} title="Tasks created" />
-      <MetricItem icon={CheckCircle2} value={m.tasksCompleted} color="emerald" delay={4} title="Tasks done" />
-      <MetricItem icon={XCircle} value={m.tasksFailed} color="red" delay={5} title="Tasks failed" />
+      <MetricItem icon={ListChecks} value={tasksPlanned} color="cyan" delay={0} title="Tasks planned" />
+      <MetricItem icon={CheckCircle2} value={tasksCompleted} color="emerald" delay={1} title="Tasks completed" />
+      <MetricItem icon={XCircle} value={tasksFailed} color="red" delay={2} title="Tasks failed" />
 
       <div className="w-px h-5 bg-gray-800 flex-shrink-0" />
 
@@ -108,14 +113,31 @@ export default function MetricsBar({ metrics, processLog, isRunning }: MetricsBa
 
       <div className="w-px h-5 bg-gray-800 flex-shrink-0" />
 
+      {/* Cycles + LLM Calls */}
+      <MetricItem icon={RefreshCw} value={totalCycles} color="purple" delay={3} title="Cycles" />
+      <MetricItem icon={Brain} value={llmCallCount} color="indigo" delay={4} title="LLM calls" />
+
+      <div className="w-px h-5 bg-gray-800 flex-shrink-0" />
+
       {/* Healing */}
-      <MetricItem icon={Wrench} value={m.healingPatchesApplied} color="pink" delay={6} title="Healing patches applied" />
+      <MetricItem icon={Wrench} value={healingPatchesApplied} color="pink" delay={5} title="Healing patches applied" />
+
+      {/* Worktree metrics (conditional) */}
+      {worktreesCreated > 0 && (
+        <>
+          <div className="w-px h-5 bg-gray-800 flex-shrink-0" />
+          <MetricItem icon={GitBranch} value={worktreesCreated} color="purple" delay={5.5} title="Worktrees created" />
+          {mergeConflicts > 0 && (
+            <MetricItem icon={GitMerge} value={mergeConflicts} color="red" delay={5.7} title="Merge conflicts" />
+          )}
+        </>
+      )}
 
       {/* Duration */}
-      <MetricItem icon={Clock} value={formatDuration(m.totalDurationMs)} color="gray" delay={7} title="Total duration" />
+      <MetricItem icon={Clock} value={formatDuration(totalDurationMs)} color="gray" delay={6} title="Total duration" />
 
       {/* Cost */}
-      <MetricItem icon={DollarSign} value={formatCost(m.estimatedCost)} color="amber" delay={8} title="Estimated cost" />
+      <MetricItem icon={DollarSign} value={formatCost(estimatedCost)} color="amber" delay={7} title="Estimated cost" />
 
       {/* Running indicator */}
       {isRunning && (

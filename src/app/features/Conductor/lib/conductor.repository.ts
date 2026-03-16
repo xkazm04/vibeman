@@ -266,6 +266,26 @@ export const conductorRepository = {
   },
 
   /**
+   * Get all active (non-terminal) runs for a project, with goal title.
+   */
+  getActiveRuns(projectId: string): (DbPipelineRun & { goal_title: string | null })[] {
+    const db = getDatabase();
+    const rows = db.prepare(`
+      SELECT cr.*, g.title AS goal_title
+      FROM conductor_runs cr
+      LEFT JOIN goals g ON cr.goal_id = g.id
+      WHERE cr.project_id = ?
+        AND cr.status IN ('running', 'paused', 'stopping', 'queued')
+      ORDER BY cr.started_at DESC
+    `).all(projectId) as (ConductorRunRow & { goal_title: string | null })[];
+
+    return rows.map(row => ({
+      ...parseRunRow(row),
+      goal_title: row.goal_title ?? null,
+    }));
+  },
+
+  /**
    * Mark all running/paused runs as interrupted (startup recovery).
    * Uses globalThis guard to prevent HMR re-triggering.
    * Returns the number of runs marked.

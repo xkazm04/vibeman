@@ -2,8 +2,10 @@
  * useConductorStatus — Shared polling hook for conductor pipeline status
  *
  * Fetches once on mount to discover active runs. Then polls every 3s ONLY
- * while a run is active (running/paused). Stops polling when idle to avoid
+ * while any run is active (running/paused). Stops polling when idle to avoid
  * unnecessary network traffic.
+ *
+ * Now supports multiple concurrent runs via the store's runs map.
  */
 
 'use client';
@@ -17,14 +19,15 @@ export function useConductorStatus(enabled = true) {
   const projectId = activeProject?.id || null;
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
+  const runs = useConductorStore((s) => s.runs);
+  const currentRun = useConductorStore((s) => s.currentRun);
   const isRunning = useConductorStore((s) => s.isRunning);
   const isPaused = useConductorStore((s) => s.isPaused);
-  const currentRun = useConductorStore((s) => s.currentRun);
   const processLog = useConductorStore((s) => s.processLog);
 
-  // Pipeline is active if running, paused, or has a non-terminal run status
-  const isActive = isRunning || isPaused || (
-    currentRun?.status === 'running' || currentRun?.status === 'paused' || currentRun?.status === 'stopping'
+  // Pipeline is active if any run has a non-terminal status
+  const hasActiveRuns = Object.values(runs).some(
+    (r) => r.status === 'running' || r.status === 'paused' || r.status === 'stopping'
   );
 
   const fetchStatus = useCallback(async () => {
@@ -33,8 +36,12 @@ export function useConductorStatus(enabled = true) {
       const res = await fetch(`/api/conductor/status?projectId=${projectId}`);
       if (res.ok) {
         const data = await res.json();
-        if (data.success && data.run) {
-          useConductorStore.getState().setRunFromServer(data.run);
+        if (data.success) {
+          if (data.runs) {
+            useConductorStore.getState().setRunsFromServer(data.runs);
+          } else if (data.run) {
+            useConductorStore.getState().setRunFromServer(data.run);
+          }
         }
       }
     } catch {
@@ -50,10 +57,9 @@ export function useConductorStatus(enabled = true) {
     return () => { mountedRef.current = false; };
   }, [enabled, projectId, fetchStatus]);
 
-  // Poll every 3s only while pipeline is active
+  // Poll every 3s only while any pipeline is active
   useEffect(() => {
-    if (!enabled || !projectId || !isActive) {
-      // Clear any existing interval when pipeline goes idle
+    if (!enabled || !projectId || !hasActiveRuns) {
       if (pollRef.current) {
         clearInterval(pollRef.current);
         pollRef.current = null;
@@ -61,7 +67,6 @@ export function useConductorStatus(enabled = true) {
       return;
     }
 
-    // Start polling
     pollRef.current = setInterval(fetchStatus, 3000);
 
     return () => {
@@ -70,7 +75,7 @@ export function useConductorStatus(enabled = true) {
         pollRef.current = null;
       }
     };
-  }, [enabled, projectId, isActive, fetchStatus]);
+  }, [enabled, projectId, hasActiveRuns, fetchStatus]);
 
   return { currentRun, isRunning, isPaused, processLog, projectId };
 }

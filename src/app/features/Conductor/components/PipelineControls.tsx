@@ -9,10 +9,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play, Pause, Square, RotateCcw, Trash2, Activity,
   Settings2, TerminalSquare, AlertTriangle, CheckCircle,
-  XCircle, ShieldAlert, X,
+  XCircle, ShieldAlert, X, FileText, MessageSquare,
 } from 'lucide-react';
 import { useConductorStore } from '../lib/conductorStore';
 import type { PipelineStatus, TriageCheckpointData } from '../lib/types';
+import IntentRefinementModal from './IntentRefinementModal';
 
 const TERMINAL_STATUSES: PipelineStatus[] = ['completed', 'failed', 'interrupted'];
 
@@ -20,6 +21,7 @@ interface PipelineControlsProps {
   projectId: string | null;
   onStart: () => void;
   onOpenSettings?: () => void;
+  onViewReport?: () => void;
 }
 
 const STATUS_BADGES: Record<PipelineStatus, { label: string; className: string }> = {
@@ -251,9 +253,10 @@ function ToolbarBtn({
 // Main Component
 // ============================================================================
 
-export default function PipelineControls({ projectId, onStart, onOpenSettings }: PipelineControlsProps) {
+export default function PipelineControls({ projectId, onStart, onOpenSettings, onViewReport }: PipelineControlsProps) {
   const { currentRun, isRunning, isPaused, nerdMode, toggleNerdMode, resetRun } = useConductorStore();
   const [triageOpen, setTriageOpen] = useState(false);
+  const [intentOpen, setIntentOpen] = useState(false);
 
   const status: PipelineStatus = currentRun?.status ?? 'idle';
   const isTerminal = TERMINAL_STATUSES.includes(status);
@@ -264,6 +267,10 @@ export default function PipelineControls({ projectId, onStart, onOpenSettings }:
   // Detect triage checkpoint
   const triageData = currentRun?.triage_data;
   const isAtTriage = isPaused && triageData && triageData.items?.length > 0;
+
+  // Detect intent questions checkpoint
+  const intentData = currentRun?.intent_questions;
+  const isAtIntent = isPaused && intentData && intentData.length > 0 && !isAtTriage;
 
   const handlePause = async () => {
     if (!currentRun) return;
@@ -376,6 +383,16 @@ export default function PipelineControls({ projectId, onStart, onOpenSettings }:
             <Settings2 className="w-3.5 h-3.5" />
           </ToolbarBtn>
 
+          {/* View Report */}
+          <ToolbarBtn
+            onClick={onViewReport}
+            disabled={!currentRun || !isTerminal}
+            title="View Run Report"
+            testId="pipeline-report-btn"
+          >
+            <FileText className="w-3.5 h-3.5" />
+          </ToolbarBtn>
+
           {/* Nerd Mode */}
           <ToolbarBtn
             onClick={toggleNerdMode}
@@ -387,7 +404,7 @@ export default function PipelineControls({ projectId, onStart, onOpenSettings }:
           </ToolbarBtn>
         </div>
 
-        {/* ---- CENTER: Triage action (when applicable) ---- */}
+        {/* ---- CENTER: Triage / Intent action (when applicable) ---- */}
         <div className="flex-1 flex justify-center">
           <AnimatePresence>
             {isAtTriage && (
@@ -408,6 +425,27 @@ export default function PipelineControls({ projectId, onStart, onOpenSettings }:
                 </motion.div>
                 <span className="text-xs font-medium">
                   Review {triageData!.items.length} triage items
+                </span>
+              </motion.button>
+            )}
+            {isAtIntent && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                onClick={() => setIntentOpen(true)}
+                className="flex items-center gap-2 px-4 py-1.5 rounded-lg
+                  bg-purple-600/15 border border-purple-500/40 text-purple-400
+                  hover:bg-purple-600/25 transition-all"
+              >
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <MessageSquare className="w-4 h-4" />
+                </motion.div>
+                <span className="text-xs font-medium">
+                  Answer {intentData!.length} clarifying questions
                 </span>
               </motion.button>
             )}
@@ -453,6 +491,16 @@ export default function PipelineControls({ projectId, onStart, onOpenSettings }:
           />
         )}
       </AnimatePresence>
+
+      {/* Intent Refinement Modal */}
+      {intentOpen && isAtIntent && (
+        <IntentRefinementModal
+          isOpen={intentOpen}
+          onClose={() => setIntentOpen(false)}
+          questions={intentData!}
+          runId={currentRun!.id}
+        />
+      )}
     </>
   );
 }
