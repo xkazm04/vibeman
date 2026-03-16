@@ -71,7 +71,7 @@ vi.mock('@/app/db/connection', () => ({
 // Imports (after mocks)
 // ============================================================================
 
-import { conductorRepository } from '@/app/features/Manager/lib/conductor/conductor.repository';
+import { conductorRepository } from '@/app/features/Conductor/lib/conductor.repository';
 import { goalRepository } from '@/app/db/repositories/goal.repository';
 
 // ============================================================================

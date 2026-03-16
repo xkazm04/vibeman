@@ -47,12 +47,12 @@ Respond with ONLY valid JSON (no markdown fences):
   ]
 }`;
 
-    const response = await fetch('http://localhost:3000/api/ai/chat', {
+    const response = await fetch('http://localhost:3000/api/llm/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        messages: [{ role: 'user', content: prompt }],
-        model: 'sonnet',
+        prompt,
+        provider: 'anthropic',
       }),
     });
 
@@ -63,7 +63,15 @@ Respond with ONLY valid JSON (no markdown fences):
       );
     }
 
-    const responseText = await response.text();
+    const llmData = await response.json();
+    if (!llmData.success || !llmData.response) {
+      return NextResponse.json(
+        { success: false, error: llmData.error || 'LLM returned no response' },
+        { status: 502 }
+      );
+    }
+
+    const responseText = llmData.response;
 
     // Parse response
     try {

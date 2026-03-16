@@ -4,17 +4,18 @@
  * POST: Start, pause, resume, or stop a pipeline run
  *
  * Uses conductorRepository for all DB state management.
+ * V3-only: 3-phase adaptive pipeline (PLAN → DISPATCH → REFLECT).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import {
-  startPipeline,
-  pausePipeline,
-  resumePipeline,
-  stopPipeline,
-} from '@/app/features/Manager/lib/conductor/conductorOrchestrator';
-import { conductorRepository } from '@/app/features/Manager/lib/conductor/conductor.repository';
+  startV3Pipeline,
+  pauseV3Pipeline,
+  resumeV3Pipeline,
+  stopV3Pipeline,
+} from '@/app/features/Conductor/lib/v3/conductorV3';
+import { conductorRepository } from '@/app/features/Conductor/lib/conductor.repository';
 import { withValidation } from '@/lib/api/withValidation';
 import { RunPostBodySchema, type RunPostBody } from '@/lib/api/schemas/conductor';
 
@@ -32,11 +33,16 @@ export const POST = withValidation(
           );
         }
 
-        const id = runId || uuidv4();
+        if (!goalId) {
+          return NextResponse.json(
+            { success: false, error: 'Conductor requires a goalId' },
+            { status: 400 }
+          );
+        }
 
-        // Launch pipeline orchestrator — goalId is optional (non-goal runs skip goal analysis)
+        const id = runId || uuidv4();
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        startPipeline(id, projectId, (config || {}) as any, projectPath, projectName, goalId || undefined, refinedIntent || undefined);
+        startV3Pipeline(id, projectId, (config || {}) as any, projectPath || '', projectName || 'Project', goalId, refinedIntent || undefined);
 
         return NextResponse.json({
           success: true,
@@ -53,15 +59,13 @@ export const POST = withValidation(
           );
         }
 
-        if (runId) {
-          pausePipeline(runId);
-        } else {
-          // For projectId-based pause, get the latest running run
+        const pauseTargetId = runId || (() => {
           const runs = conductorRepository.getRunHistory(projectId!, 1);
-          const activeRun = runs.find(r => r.status === 'running');
-          if (activeRun) {
-            pausePipeline(activeRun.id);
-          }
+          return runs.find(r => r.status === 'running')?.id;
+        })();
+
+        if (pauseTargetId) {
+          pauseV3Pipeline(pauseTargetId);
         }
 
         return NextResponse.json({ success: true, status: 'paused' });
@@ -75,14 +79,13 @@ export const POST = withValidation(
           );
         }
 
-        if (runId) {
-          resumePipeline(runId);
-        } else {
+        const resumeTargetId = runId || (() => {
           const runs = conductorRepository.getRunHistory(projectId!, 1);
-          const pausedRun = runs.find(r => r.status === 'paused');
-          if (pausedRun) {
-            resumePipeline(pausedRun.id);
-          }
+          return runs.find(r => r.status === 'paused')?.id;
+        })();
+
+        if (resumeTargetId) {
+          resumeV3Pipeline(resumeTargetId);
         }
 
         return NextResponse.json({ success: true, status: 'running' });
@@ -96,14 +99,13 @@ export const POST = withValidation(
           );
         }
 
-        if (runId) {
-          stopPipeline(runId);
-        } else {
+        const stopTargetId = runId || (() => {
           const runs = conductorRepository.getRunHistory(projectId!, 1);
-          const activeRun = runs.find(r => r.status === 'running' || r.status === 'paused');
-          if (activeRun) {
-            stopPipeline(activeRun.id);
-          }
+          return runs.find(r => r.status === 'running' || r.status === 'paused')?.id;
+        })();
+
+        if (stopTargetId) {
+          stopV3Pipeline(stopTargetId);
         }
 
         return NextResponse.json({ success: true, status: 'completed' });

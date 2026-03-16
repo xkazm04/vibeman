@@ -72,7 +72,7 @@ afterAll(() => {
 describe('conductor state persistence (FOUND-01)', () => {
   it('creates a pipeline run in SQLite', async () => {
     const { conductorRepository } = await import(
-      '@/app/features/Manager/lib/conductor/conductor.repository'
+      '@/app/features/Conductor/lib/conductor.repository'
     );
 
     const run = conductorRepository.createRun({
@@ -91,7 +91,7 @@ describe('conductor state persistence (FOUND-01)', () => {
 
   it('persists stage completion to DB', async () => {
     const { conductorRepository } = await import(
-      '@/app/features/Manager/lib/conductor/conductor.repository'
+      '@/app/features/Conductor/lib/conductor.repository'
     );
 
     conductorRepository.createRun({
@@ -118,7 +118,7 @@ describe('conductor state persistence (FOUND-01)', () => {
 
   it('marks interrupted runs on recovery', async () => {
     const { conductorRepository } = await import(
-      '@/app/features/Manager/lib/conductor/conductor.repository'
+      '@/app/features/Conductor/lib/conductor.repository'
     );
 
     // Create two runs in running/paused states
@@ -146,7 +146,7 @@ describe('conductor state persistence (FOUND-01)', () => {
 
   it('does not corrupt other runs during recovery', async () => {
     const { conductorRepository } = await import(
-      '@/app/features/Manager/lib/conductor/conductor.repository'
+      '@/app/features/Conductor/lib/conductor.repository'
     );
 
     // Insert a completed run

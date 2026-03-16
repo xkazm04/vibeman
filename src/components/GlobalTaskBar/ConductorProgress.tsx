@@ -9,11 +9,11 @@
 'use client';
 
 import { Sparkles, Pause, Square, Play, Loader2, AlertTriangle, X } from 'lucide-react';
-import { useConductorStore } from '@/app/features/Manager/lib/conductor/conductorStore';
-import { useConductorStatus } from '@/app/features/Manager/lib/conductor/useConductorStatus';
-import { useConductorRecovery } from '@/app/features/Manager/lib/conductor/useConductorRecovery';
-import { PIPELINE_STAGES } from '@/app/features/Manager/lib/conductor/types';
-import type { StageState } from '@/app/features/Manager/lib/conductor/types';
+import { useConductorStore } from '@/app/features/Conductor/lib/conductorStore';
+import { useConductorStatus } from '@/app/features/Conductor/lib/useConductorStatus';
+import { useConductorRecovery } from '@/app/features/Conductor/lib/useConductorRecovery';
+import { PIPELINE_STAGES } from '@/app/features/Conductor/lib/types';
+import type { StageState } from '@/app/features/Conductor/lib/types';
 
 function stageShort(state: StageState): string {
   switch (state.status) {

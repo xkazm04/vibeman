@@ -11,8 +11,8 @@ import {
   hasOverlap,
   getNextBatch,
   type SchedulerState,
-} from '@/app/features/Manager/lib/conductor/execution/domainScheduler';
-import type { AffectedFiles, SpecMetadata } from '@/app/features/Manager/lib/conductor/types';
+} from '@/app/features/Conductor/lib/execution/domainScheduler';
+import type { AffectedFiles, SpecMetadata } from '@/app/features/Conductor/lib/types';
 
 // ============================================================================
 // Helpers

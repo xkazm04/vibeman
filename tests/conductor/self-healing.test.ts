@@ -16,16 +16,16 @@ import {
   detectErrorType,
   groupErrorsByType,
   mergeError,
-} from '@/app/features/Manager/lib/conductor/selfHealing/errorClassifier';
-import { analyzeErrors } from '@/app/features/Manager/lib/conductor/selfHealing/healingAnalyzer';
+} from '@/app/features/Conductor/lib/selfHealing/errorClassifier';
+import { analyzeErrors } from '@/app/features/Conductor/lib/selfHealing/healingAnalyzer';
 import {
   savePatch,
   prunePatches,
   updatePatchStats,
   buildHealingContext,
-} from '@/app/features/Manager/lib/conductor/selfHealing/promptPatcher';
-import { conductorRepository } from '@/app/features/Manager/lib/conductor/conductor.repository';
-import type { ErrorClassification, HealingPatch } from '@/app/features/Manager/lib/conductor/types';
+} from '@/app/features/Conductor/lib/selfHealing/promptPatcher';
+import { conductorRepository } from '@/app/features/Conductor/lib/conductor.repository';
+import type { ErrorClassification, HealingPatch } from '@/app/features/Conductor/lib/types';
 
 // ============================================================================
 // Test database setup

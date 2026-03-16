@@ -24,7 +24,7 @@ vi.mock('node:fs', async () => {
 import {
   runBuildValidation,
   type BuildResult,
-} from '@/app/features/Manager/lib/conductor/execution/buildValidator';
+} from '@/app/features/Conductor/lib/execution/buildValidator';
 
 beforeEach(() => {
   vi.clearAllMocks();

@@ -15,7 +15,7 @@ import {
 } from '@/app/features/TaskRunner/lib/types';
 import { toast } from 'sonner';
 import ConductorProgress from './ConductorProgress';
-import { useConductorStore } from '@/app/features/Manager/lib/conductor/conductorStore';
+import { useConductorStore } from '@/app/features/Conductor/lib/conductorStore';
 
 interface GlobalTaskBarProps {
   className?: string;

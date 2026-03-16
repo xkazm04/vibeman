@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MoreHorizontal, Component, Activity, Users, Sunrise, HelpCircle, Plug, Brain, Bot, ClipboardList } from 'lucide-react';
+import { MoreHorizontal, Component, Activity, Users, Sunrise, HelpCircle, Plug, Brain, Bot, ClipboardList, Workflow } from 'lucide-react';
 import { useOnboardingStore, type AppModule } from '@/stores/onboardingStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -26,6 +26,7 @@ const mainNavigationItems: NavigationItem[] = [
 const otherNavigationItems: NavigationItem[] = [
   { module: 'commander', label: 'Annette', icon: Bot },
   { module: 'brain', label: 'Brain', icon: Brain },
+  { module: 'conductor', label: 'Conductor', icon: Workflow },
   { module: 'manager', label: 'Manager', icon: ClipboardList },
   { module: 'halloffame', label: 'Hall of Fame', icon: Component },
   { module: 'integrations', label: 'Integrations', icon: Plug },

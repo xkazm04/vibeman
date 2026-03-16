@@ -13,8 +13,8 @@ import {
   snapshotFiles,
   verifyExecution,
   type FileSnapshot,
-} from '@/app/features/Manager/lib/conductor/execution/fileVerifier';
-import type { AffectedFiles } from '@/app/features/Manager/lib/conductor/types';
+} from '@/app/features/Conductor/lib/execution/fileVerifier';
+import type { AffectedFiles } from '@/app/features/Conductor/lib/types';
 
 // ============================================================================
 // Temp directory helpers

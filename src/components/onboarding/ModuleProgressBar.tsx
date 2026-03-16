@@ -30,6 +30,7 @@ const MODULE_STEPS: Record<AppModule, OnboardingStep | null> = {
   integrations: null,
   brain: null,
   commander: null,
+  conductor: null,
 };
 
 const STEP_LABELS: Record<OnboardingStep, string> = {

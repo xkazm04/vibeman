@@ -7,15 +7,15 @@
  */
 
 import { NextResponse } from 'next/server';
-import { recoverOrphanedRuns } from '@/app/features/Manager/lib/conductor/conductorOrchestrator';
+import { conductorRepository } from '@/app/features/Conductor/lib/conductor.repository';
 
 export async function POST() {
   try {
-    const orphanedIds = recoverOrphanedRuns();
+    const count = conductorRepository.markInterruptedRuns();
     return NextResponse.json({
       success: true,
-      recovered: orphanedIds.length,
-      runIds: orphanedIds,
+      recovered: count,
+      runIds: [], // markInterruptedRuns returns count, not IDs
     });
   } catch (error) {
     console.error('[conductor/recovery] Error:', error);

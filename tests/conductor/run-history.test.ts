@@ -72,7 +72,7 @@ afterAll(() => {
 describe('conductor run history (FOUND-03)', () => {
   it('returns empty array for project with no runs', async () => {
     const { conductorRepository } = await import(
-      '@/app/features/Manager/lib/conductor/conductor.repository'
+      '@/app/features/Conductor/lib/conductor.repository'
     );
 
     const history = conductorRepository.getRunHistory('nonexistent-project');
@@ -81,7 +81,7 @@ describe('conductor run history (FOUND-03)', () => {
 
   it('returns runs ordered by started_at DESC', async () => {
     const { conductorRepository } = await import(
-      '@/app/features/Manager/lib/conductor/conductor.repository'
+      '@/app/features/Conductor/lib/conductor.repository'
     );
 
     // Insert runs with different started_at times
@@ -98,7 +98,7 @@ describe('conductor run history (FOUND-03)', () => {
 
   it('includes metrics and stage data in history', async () => {
     const { conductorRepository } = await import(
-      '@/app/features/Manager/lib/conductor/conductor.repository'
+      '@/app/features/Conductor/lib/conductor.repository'
     );
 
     const metrics = JSON.stringify({ ideasGenerated: 10, tasksCompleted: 3, totalDurationMs: 5000 });
@@ -114,7 +114,7 @@ describe('conductor run history (FOUND-03)', () => {
 
   it('respects limit parameter', async () => {
     const { conductorRepository } = await import(
-      '@/app/features/Manager/lib/conductor/conductor.repository'
+      '@/app/features/Conductor/lib/conductor.repository'
     );
 
     // Insert 5 runs

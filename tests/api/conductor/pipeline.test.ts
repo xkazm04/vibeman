@@ -284,10 +284,10 @@ describe('Conductor Pipeline Stages', () => {
   describe('Scout Stage', () => {
     it('should generate ideas by calling the ideas API', async () => {
       const { executeScoutStage } = await import(
-        '@/app/features/Manager/lib/conductor/stages/scoutStage'
+        '@/app/features/Conductor/lib/stages/scoutStage'
       );
       const { DEFAULT_BALANCING_CONFIG } = await import(
-        '@/app/features/Manager/lib/conductor/types'
+        '@/app/features/Conductor/lib/types'
       );
 
       const results = await executeScoutStage({
@@ -314,10 +314,10 @@ describe('Conductor Pipeline Stages', () => {
       ];
 
       const { executeScoutStage } = await import(
-        '@/app/features/Manager/lib/conductor/stages/scoutStage'
+        '@/app/features/Conductor/lib/stages/scoutStage'
       );
       const { DEFAULT_BALANCING_CONFIG } = await import(
-        '@/app/features/Manager/lib/conductor/types'
+        '@/app/features/Conductor/lib/types'
       );
 
       const progressEvents: string[] = [];
@@ -368,10 +368,10 @@ describe('Conductor Pipeline Stages', () => {
       });
 
       const { executeScoutStage } = await import(
-        '@/app/features/Manager/lib/conductor/stages/scoutStage'
+        '@/app/features/Conductor/lib/stages/scoutStage'
       );
       const { DEFAULT_BALANCING_CONFIG } = await import(
-        '@/app/features/Manager/lib/conductor/types'
+        '@/app/features/Conductor/lib/types'
       );
 
       const results = await executeScoutStage({
@@ -390,10 +390,10 @@ describe('Conductor Pipeline Stages', () => {
   describe('Triage Stage', () => {
     it('should accept ideas that meet thresholds and reject others', async () => {
       const { executeTriageStage } = await import(
-        '@/app/features/Manager/lib/conductor/stages/triageStage'
+        '@/app/features/Conductor/lib/stages/triageStage'
       );
       const { DEFAULT_BALANCING_CONFIG } = await import(
-        '@/app/features/Manager/lib/conductor/types'
+        '@/app/features/Conductor/lib/types'
       );
 
       const ideas = [
@@ -427,10 +427,10 @@ describe('Conductor Pipeline Stages', () => {
   describe('Batch Stage', () => {
     it('should create requirement files and assign models', async () => {
       const { executeBatchStage } = await import(
-        '@/app/features/Manager/lib/conductor/stages/batchStage'
+        '@/app/features/Conductor/lib/stages/batchStage'
       );
       const { DEFAULT_BALANCING_CONFIG } = await import(
-        '@/app/features/Manager/lib/conductor/types'
+        '@/app/features/Conductor/lib/types'
       );
 
       const acceptedIdeas = [
@@ -466,10 +466,10 @@ describe('Conductor Pipeline Stages', () => {
   describe('Execute Stage', () => {
     it('should dispatch tasks and collect results', async () => {
       const { executeExecuteStage } = await import(
-        '@/app/features/Manager/lib/conductor/stages/executeStage'
+        '@/app/features/Conductor/lib/stages/executeStage'
       );
       const { DEFAULT_BALANCING_CONFIG } = await import(
-        '@/app/features/Manager/lib/conductor/types'
+        '@/app/features/Conductor/lib/types'
       );
       const cliService = await import('@/lib/claude-terminal/cli-service');
 
@@ -504,10 +504,10 @@ describe('Conductor Pipeline Stages', () => {
   describe('Review Stage', () => {
     it('should aggregate metrics and make continue/stop decisions', async () => {
       const { executeReviewStage } = await import(
-        '@/app/features/Manager/lib/conductor/stages/reviewStage'
+        '@/app/features/Conductor/lib/stages/reviewStage'
       );
       const { DEFAULT_BALANCING_CONFIG, createEmptyMetrics } = await import(
-        '@/app/features/Manager/lib/conductor/types'
+        '@/app/features/Conductor/lib/types'
       );
 
       const result = await executeReviewStage({
@@ -539,10 +539,10 @@ describe('Conductor Pipeline Stages', () => {
 
     it('should stop when max cycles reached', async () => {
       const { executeReviewStage } = await import(
-        '@/app/features/Manager/lib/conductor/stages/reviewStage'
+        '@/app/features/Conductor/lib/stages/reviewStage'
       );
       const { DEFAULT_BALANCING_CONFIG, createEmptyMetrics } = await import(
-        '@/app/features/Manager/lib/conductor/types'
+        '@/app/features/Conductor/lib/types'
       );
 
       const result = await executeReviewStage({
@@ -576,7 +576,7 @@ describe('Conductor Pipeline E2E', () => {
   it('should execute all 5 stages in sequence: Scout → Triage → Batch → Execute → Review', async () => {
     const { v4: uuidv4 } = await import('uuid');
     const { DEFAULT_BALANCING_CONFIG } = await import(
-      '@/app/features/Manager/lib/conductor/types'
+      '@/app/features/Conductor/lib/types'
     );
 
     const runId = uuidv4();
@@ -608,7 +608,7 @@ describe('Conductor Pipeline E2E', () => {
 
     // Import and start the pipeline
     const { startPipeline } = await import(
-      '@/app/features/Manager/lib/conductor/conductorOrchestrator'
+      '@/app/features/Conductor/lib/conductorOrchestrator'
     );
 
     // Start the pipeline and wait for it to complete
@@ -697,10 +697,10 @@ describe('Conductor Pipeline E2E', () => {
 
     const { v4: uuidv4 } = await import('uuid');
     const { DEFAULT_BALANCING_CONFIG } = await import(
-      '@/app/features/Manager/lib/conductor/types'
+      '@/app/features/Conductor/lib/types'
     );
     const { startPipeline } = await import(
-      '@/app/features/Manager/lib/conductor/conductorOrchestrator'
+      '@/app/features/Conductor/lib/conductorOrchestrator'
     );
 
     const runId = uuidv4();
@@ -768,7 +768,7 @@ describe('Conductor Pipeline E2E', () => {
 describe('Conductor Self-Healing', () => {
   it('should classify errors from execution failures', async () => {
     const { classifyError } = await import(
-      '@/app/features/Manager/lib/conductor/selfHealing/errorClassifier'
+      '@/app/features/Conductor/lib/selfHealing/errorClassifier'
     );
 
     const timeoutErr = classifyError(
@@ -806,7 +806,7 @@ describe('Conductor Self-Healing', () => {
 
   it('should build healing context from active patches', async () => {
     const { buildHealingContext } = await import(
-      '@/app/features/Manager/lib/conductor/selfHealing/promptPatcher'
+      '@/app/features/Conductor/lib/selfHealing/promptPatcher'
     );
 
     const patches = [
@@ -845,7 +845,7 @@ describe('Conductor Self-Healing', () => {
 
   it('should measure patch effectiveness correctly', async () => {
     const { measureEffectiveness, shouldAutoRevert } = await import(
-      '@/app/features/Manager/lib/conductor/selfHealing/promptPatcher'
+      '@/app/features/Conductor/lib/selfHealing/promptPatcher'
     );
 
     // 10 errors before, 2 after → 80% effective
@@ -877,10 +877,10 @@ describe('Conductor Self-Healing', () => {
 describe('Balancing Engine', () => {
   it('should route models based on idea effort and category', async () => {
     const { routeModel } = await import(
-      '@/app/features/Manager/lib/conductor/balancingEngine'
+      '@/app/features/Conductor/lib/balancingEngine'
     );
     const { DEFAULT_BALANCING_CONFIG } = await import(
-      '@/app/features/Manager/lib/conductor/types'
+      '@/app/features/Conductor/lib/types'
     );
 
     // High effort → opus
@@ -902,10 +902,10 @@ describe('Balancing Engine', () => {
 
   it('should check quota limits', async () => {
     const { checkQuota } = await import(
-      '@/app/features/Manager/lib/conductor/balancingEngine'
+      '@/app/features/Conductor/lib/balancingEngine'
     );
     const { DEFAULT_BALANCING_CONFIG, createEmptyMetrics } = await import(
-      '@/app/features/Manager/lib/conductor/types'
+      '@/app/features/Conductor/lib/types'
     );
 
     // With quota disabled, always allowed

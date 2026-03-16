@@ -39,13 +39,13 @@ vi.stubGlobal('fetch', mockFetch);
 
 import { execSync } from 'child_process';
 import { readFileSync } from 'node:fs';
-import { extractFileDiffs, reviewFileDiffs } from '@/app/features/Manager/lib/conductor/review/diffReviewer';
-import { generateExecutionReport } from '@/app/features/Manager/lib/conductor/review/reportGenerator';
-import { canCommit, commitChanges } from '@/app/features/Manager/lib/conductor/review/gitCommitter';
+import { extractFileDiffs, reviewFileDiffs } from '@/app/features/Conductor/lib/review/diffReviewer';
+import { generateExecutionReport } from '@/app/features/Conductor/lib/review/reportGenerator';
+import { canCommit, commitChanges } from '@/app/features/Conductor/lib/review/gitCommitter';
 import { recordSignal } from '@/lib/brain/brainService';
-import type { ReviewStageInput, ReviewStageResult } from '@/app/features/Manager/lib/conductor/review/reviewTypes';
-import type { ExecutionResult, SpecMetadata } from '@/app/features/Manager/lib/conductor/types';
-import type { BuildResult } from '@/app/features/Manager/lib/conductor/execution/buildValidator';
+import type { ReviewStageInput, ReviewStageResult } from '@/app/features/Conductor/lib/review/reviewTypes';
+import type { ExecutionResult, SpecMetadata } from '@/app/features/Conductor/lib/types';
+import type { BuildResult } from '@/app/features/Conductor/lib/execution/buildValidator';
 
 const mockedExecSync = vi.mocked(execSync);
 const mockedReadFileSync = vi.mocked(readFileSync);

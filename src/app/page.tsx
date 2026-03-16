@@ -25,6 +25,7 @@ import QuestionsLayout from './features/Questions/QuestionsLayout';
 import IntegrationsLayout from './features/Integrations/IntegrationsLayout';
 import { BrainLayout } from './features/Brain';
 import { CommanderLayout } from './features/Commander';
+import ConductorLayout from './features/Conductor/ConductorLayout';
 import { OverviewLayout } from './features/Overview';
 
 
@@ -78,6 +79,8 @@ export default function Home() {
         return <BrainLayout key="brain" />;
       case 'commander':
         return <CommanderLayout key="commander" />;
+      case 'conductor':
+        return <ConductorLayout key="conductor" projectId={projectId} />;
       default:
         return <OverviewLayout key="overview" />;
     }

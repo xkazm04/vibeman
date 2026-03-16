@@ -70,6 +70,7 @@ import { migrate206HealingLifecycle } from './206_healing_lifecycle';
 import { migrate207PlannerColumns } from './207_planner_columns';
 import { migrate208LifecycleLocks } from './208_lifecycle_locks';
 import { migrate210SpecLifecycle } from './210_spec_lifecycle';
+import { migrate211ConductorV3 } from './211_conductor_v3';
 
 /**
  * Migration logger utility
@@ -275,6 +276,7 @@ export function runMigrations() {
     once('m208', () => migrate208LifecycleLocks(db as any, migrationLogger));
     once('m209', () => migrateGoalCandidateRejectionReason());
     once('m210', () => migrate210SpecLifecycle(db as any, migrationLogger));
+    once('m211', () => migrate211ConductorV3(db as any, migrationLogger));
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {

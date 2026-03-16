@@ -24,7 +24,7 @@ import type {
   ReviewDecision,
   PipelineRun,
   PipelineStatus,
-} from '@/app/features/Manager/lib/conductor/types';
+} from '@/app/features/Conductor/lib/types';
 
 describe('Stage Contract Types (FOUND-02)', () => {
   it('StageInput type resolves correctly per stage', () => {

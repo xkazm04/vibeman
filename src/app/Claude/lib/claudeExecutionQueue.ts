@@ -15,9 +15,9 @@ import { signalCollector } from '@/lib/brain/signalCollector';
 import { invalidateContextCache } from '@/lib/brain/brainService';
 import { onTaskCompleted, resolveTaskApplications } from '@/lib/collective-memory/taskCompletionHook';
 import { emitTaskChange } from './taskChangeEmitter';
-import { detectErrorType, getErrorDescription } from '@/app/features/Manager/lib/conductor/selfHealing/errorClassifier';
-import { buildHealingContext } from '@/app/features/Manager/lib/conductor/selfHealing/promptPatcher';
-import type { ErrorType, HealingPatch } from '@/app/features/Manager/lib/conductor/types';
+import { detectErrorType, getErrorDescription } from '@/app/features/Conductor/lib/selfHealing/errorClassifier';
+import { buildHealingContext } from '@/app/features/Conductor/lib/selfHealing/promptPatcher';
+import type { ErrorType, HealingPatch } from '@/app/features/Conductor/lib/types';
 
 export interface GitExecutionConfig {
   enabled: boolean;

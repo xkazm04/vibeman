@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { conductorRepository } from '@/app/features/Manager/lib/conductor/conductor.repository';
+import { conductorRepository } from '@/app/features/Conductor/lib/conductor.repository';
 import { getDatabase } from '@/app/db/connection';
 
 export async function GET(request: NextRequest) {
@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
           process_log: run.process_log,
           startedAt: run.started_at,
           completedAt: run.completed_at,
+          pipelineVersion: run.pipeline_version,
           ...(triageInfo ? { triage_data: triageInfo } : {}),
         },
       });
@@ -86,6 +87,7 @@ export async function GET(request: NextRequest) {
         process_log: latestRun.process_log,
         startedAt: latestRun.started_at,
         completedAt: latestRun.completed_at,
+        pipelineVersion: latestRun.pipeline_version,
         ...(latestTriageInfo ? { triage_data: latestTriageInfo } : {}),
       },
     });

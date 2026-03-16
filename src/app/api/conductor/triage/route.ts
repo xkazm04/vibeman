@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/app/db/connection';
-import { conductorRepository } from '@/app/features/Manager/lib/conductor/conductor.repository';
+import { conductorRepository } from '@/app/features/Conductor/lib/conductor.repository';
 
 export async function POST(request: NextRequest) {
   try {
