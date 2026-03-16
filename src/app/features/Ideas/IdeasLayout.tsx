@@ -49,26 +49,26 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
     initializeProjects();
   }, [initializeProjects]);
 
-  const handleIdeaUpdate = React.useCallback(async (updatedIdea: DbIdea) => {
+  const handleIdeaUpdate = React.useCallback(async (updatedIdea: DbIdea): Promise<void> => {
     setSelectedIdea(updatedIdea);
     // Cache invalidation is handled by IdeaDetailModal via useInvalidateIdeas
   }, []);
 
-  const handleIdeaDelete = React.useCallback(async (deletedIdeaId: string) => {
+  const handleIdeaDelete = React.useCallback(async (_deletedIdeaId: string): Promise<void> => {
     setSelectedIdea(null);
     // Cache invalidation is handled by IdeaDetailModal via useInvalidateIdeas
   }, []);
 
-  const handleIdeaClose = React.useCallback(() => {
+  const handleIdeaClose = React.useCallback((): void => {
     setSelectedIdea(null);
   }, []);
 
-  const handleScanComplete = React.useCallback(() => {
+  const handleScanComplete = React.useCallback((): void => {
     // Invalidate React Query cache to refetch ideas
     invalidateIdeas();
   }, [invalidateIdeas]);
 
-  const handleProjectSelect = React.useCallback((projectId: string) => {
+  const handleProjectSelect = React.useCallback((projectId: string): void => {
     // Update unified store
     setSelectedProjectId(projectId);
     setFilterContextIds([]); // Reset context filter when project changes
@@ -83,16 +83,13 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
     }
   }, [setSelectedProjectId, getProject, setActiveProject]);
 
-  // Get selected project details
-  const selectedProject = selectedProjectId !== 'all' ? getProject(selectedProjectId) : null;
-
   // Helper function to get context name using React Query cached data
-  const getContextNameCallback = React.useCallback((contextId: string) => {
+  const getContextNameCallback = React.useCallback((contextId: string): string => {
     return getContextName(contextId, contextsData?.contexts || []);
   }, [contextsData?.contexts]);
 
   // Memoize getProjectName callback to prevent re-creating on every render
-  const getProjectNameCallback = React.useCallback((projectId: string) => {
+  const getProjectNameCallback = React.useCallback((projectId: string): string => {
     return projects.find(p => p.id === projectId)?.name || projectId;
   }, [projects]);
 

@@ -21,6 +21,7 @@ import DevelopmentFlowMap from './components/DevelopmentFlowMap';
 import TabEmptyState from './components/TabEmptyStates';
 import { acceptImplementation } from '@/lib/tools';
 import type { ContextGroupRelationship } from '@/lib/queries/contextQueries';
+import type { ApiResponse } from '@/types/api';
 
 interface ManagerLayoutProps {
   projectId?: string | null;
@@ -53,7 +54,7 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
         : '/api/implementation-logs/untested';
 
       const response = await fetch(url);
-      const data = await response.json();
+      const data: ApiResponse<EnrichedImplementationLog[]> = await response.json();
       if (data.success) {
         setImplementationLogs(data.data);
       }
@@ -76,7 +77,7 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
     if (pid) {
       loadProjectData(pid);
       fetch(`/api/context-group-relationships?projectId=${pid}`)
-        .then(res => res.json())
+        .then(res => res.json() as Promise<ApiResponse<ContextGroupRelationship[]>>)
         .then(data => {
           if (data.success) {
             setRelationships(data.data || []);
@@ -116,16 +117,17 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
     }
   };
 
-  const handleLogsAccepted = () => {
+  const handleLogsAccepted = (): void => {
     setImplementationLogs([]);
     setSelectedGroupId(null);
   };
 
-  const handleRequirementCreated = (requirementName: string) => {
-    console.log('Requirement created:', requirementName);
+  const handleRequirementCreated = (_requirementName: string): void => {
+    // Requirement creation is handled by the detail modal;
+    // this callback is available for future UI feedback (e.g., toast).
   };
 
-  const handleGroupClick = (groupId: string) => {
+  const handleGroupClick = (groupId: string): void => {
     setSelectedGroupId(prev => prev === groupId ? null : groupId);
   };
 

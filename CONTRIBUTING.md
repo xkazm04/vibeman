@@ -92,6 +92,46 @@ npm run build:mcp    # Compile MCP server
 - Prefer `interface` for object shapes, `type` for unions and intersections.
 - Export types alongside their implementations, not from separate files.
 
+### Type Conventions
+
+Vibeman enforces strict TypeScript throughout the codebase. Follow these conventions when adding or modifying types:
+
+**Where types live:**
+
+| Kind | Location |
+|------|----------|
+| Database models (snake_case) | `src/app/db/models/types.ts` |
+| Frontend domain types (camelCase) | `src/types/index.ts` |
+| API request/response shapes | `src/types/api.ts` |
+| Domain-specific API types | `src/lib/api-types/{domain}.ts` |
+| Zod validation schemas | `src/lib/api/schemas/{domain}.ts` |
+| Feature-local types | `src/app/features/{Feature}/lib/types.ts` |
+
+**Rules:**
+
+1. **No `any`** — use `unknown` with type guards instead. The only exception is third-party library interop where the upstream type is genuinely untyped.
+2. **All exported functions must have explicit return types.** This prevents accidental API surface changes and improves IDE support.
+   ```typescript
+   // Good
+   export function getGoals(projectId: string): Promise<DbGoal[]> { ... }
+   // Bad
+   export function getGoals(projectId: string) { ... }
+   ```
+3. **Prefer `interface` for object shapes, `type` for unions/intersections.**
+   ```typescript
+   interface GoalFilter { status?: string; projectId: string }
+   type GoalStatus = 'open' | 'in_progress' | 'done' | 'rejected';
+   ```
+4. **Database types use `snake_case`; frontend types use `camelCase`.** Map between them at the API boundary (route handlers and query functions).
+5. **API response types** — import from `@/types/api` for the standard envelope:
+   ```typescript
+   import type { ApiResponse } from '@/types/api';
+   const data: ApiResponse<Goal[]> = await res.json();
+   if (data.success) { /* data.data is Goal[] */ }
+   ```
+6. **Avoid type assertions (`as`)** unless narrowing from `unknown` after a runtime check. Never use `as any`.
+7. **Mark unused callback parameters** with an underscore prefix (`_id`) rather than omitting them, to preserve the function signature contract.
+
 ### React Components
 
 - Use **functional components** with hooks exclusively.

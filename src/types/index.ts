@@ -2,6 +2,23 @@
 export type { IdeaCategory } from './ideaCategory';
 export { IDEA_CATEGORIES, isStandardCategory, getStandardCategories } from './ideaCategory';
 
+// API Types — canonical request/response shapes for frontend consumers
+export type {
+  ApiSuccessResponse,
+  ApiErrorResponse,
+  ApiResponse,
+  PaginationParams,
+  PaginationMeta,
+  PaginatedResponse,
+  ProjectScopedParams,
+  ContextScopedParams,
+  ResourceIdParams,
+  BatchOperationRequest,
+  BatchOperationResult,
+  DeleteResult,
+  CountResult,
+} from './api';
+
 // ============================================================================
 // Rich Progress Types
 // ============================================================================
