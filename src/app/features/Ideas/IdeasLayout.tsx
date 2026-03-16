@@ -1,4 +1,22 @@
+/**
+ * Ideas Layout Component
+ *
+ * Discovery and triage interface for code-improvement ideas.
+ * Supports two workflows:
+ *   - **Scan** — run configurable scans across selected contexts to discover ideas
+ *   - **Review** — triage ideas in buffer (flat list) or kanban (status columns) view
+ *
+ * Key state flows:
+ * - Project selection sets the active project and resets context filters.
+ * - Scan completion invalidates the React Query cache so new ideas appear.
+ * - Idea detail modal handles updates/deletes and invalidates cache internally.
+ *
+ * Views:
+ * - **Buffer** — grouped card list with project/context metadata
+ * - **Kanban** — status-based column layout for drag-based triage
+ */
 'use client';
+
 import React from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { LayoutGrid, Columns3 } from 'lucide-react';
@@ -7,7 +25,6 @@ import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useProjectContexts } from '@/lib/queries/contextsQueries';
 
-// Components
 import IdeasHeaderWithFilter from '@/app/features/Ideas/components/IdeasHeaderWithFilter';
 import BufferView, { useInvalidateIdeas } from '@/app/features/Ideas/sub_Buffer/BufferView';
 import KanbanBoard from '@/app/features/Ideas/sub_Kanban/KanbanBoard';
@@ -15,13 +32,12 @@ import IdeaDetailModal from '@/app/features/Ideas/components/IdeaDetailModal';
 import { ScanType } from '@/app/features/Ideas/sub_IdeasSetup/ScanTypeSelector';
 import ScanInitiator from '@/app/features/Ideas/sub_IdeasSetup/ScanInitiator';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
-
-// Handlers and utilities
 import { getContextName } from '@/app/features/Ideas/lib/contextLoader';
 
 type IdeasViewMode = 'buffer' | 'kanban';
 
 interface IdeasLayoutProps {
+  /** Optional project ID override; falls back to the client project store. */
   selectedProjectId?: string;
 }
 
@@ -68,13 +84,18 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
     invalidateIdeas();
   }, [invalidateIdeas]);
 
+  /**
+   * Handle project selection from the header filter.
+   *
+   * Resets context/group filters to avoid stale selections from the
+   * previous project. The special value 'all' shows ideas across
+   * every project without setting an active project.
+   */
   const handleProjectSelect = React.useCallback((projectId: string): void => {
-    // Update unified store
     setSelectedProjectId(projectId);
-    setFilterContextIds([]); // Reset context filter when project changes
+    setFilterContextIds([]);
     setFilterGroupIds([]);
 
-    // Update active project in store (skip if 'all' is selected)
     if (projectId !== 'all') {
       const project = getProject(projectId);
       if (project) {

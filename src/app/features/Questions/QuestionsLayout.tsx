@@ -1,8 +1,26 @@
+/**
+ * Questions & Directions Layout
+ *
+ * Orchestrates the strategic questioning workflow:
+ *   1. **Select** — pick context maps to explore
+ *   2. **Generate** — create questions and/or direction proposals via LLM
+ *   3. **Review** — triage results in table / matrix / carousel / tree views
+ *
+ * Key state flows:
+ * - Context selection drives which areas are explored during generation.
+ * - Answering a question triggers auto-deepening, which may create follow-up
+ *   questions if ambiguity is detected (see `handleSaveAnswer`).
+ * - Directions can be accepted (creates a requirement) or rejected.
+ *
+ * Sub-components extracted for readability:
+ * - `ViewModeToggle` — segmented control for switching review views
+ * - `AutoDeepenToast` — floating notification for auto-deepen results
+ */
 'use client';
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { HelpCircle, Compass, RefreshCw, GitBranch, Table2, Grid3X3, Layers, Sparkles, X, AlertTriangle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { HelpCircle, Compass, RefreshCw } from 'lucide-react';
 import LiquidStepRail from '@/components/ui/LiquidStepRail';
 import { DbQuestion } from '@/app/db';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
@@ -13,6 +31,9 @@ import DirectionMatrix from './components/DirectionMatrix';
 import QuestionTree from './components/QuestionTree';
 import DirectionCarousel from '@/app/features/Proposals/components/DirectionCarousel';
 import AnswerQuestionModal from './components/AnswerQuestionModal';
+import AutoDeepenToast from './components/AutoDeepenToast';
+import ViewModeToggle from './components/ViewModeToggle';
+import type { QuestionsViewMode } from './components/ViewModeToggle';
 import {
   groupContextsByGroup,
   generateQuestionRequirement,
@@ -52,8 +73,8 @@ export default function QuestionsLayout() {
   // Answer modal state
   const [answerModalQuestion, setAnswerModalQuestion] = useState<DbQuestion | null>(null);
 
-  // View toggle: 'table', 'tree', 'matrix', or 'carousel'
-  const [viewMode, setViewMode] = useState<'table' | 'tree' | 'matrix' | 'carousel'>('table');
+  // View toggle for the review section
+  const [viewMode, setViewMode] = useState<QuestionsViewMode>('table');
 
   // React Query hooks for data fetching
   const {
@@ -171,14 +192,20 @@ export default function QuestionsLayout() {
     setAnswerModalQuestion(null);
   }, []);
 
+  /**
+   * Save an answer and trigger auto-deepening.
+   *
+   * After persisting the answer, the system analyzes it for ambiguity.
+   * If gaps are found, follow-up questions are generated automatically
+   * and a toast notification is shown (auto-dismissed after 6 seconds).
+   */
   const handleSaveAnswer = useCallback(async (questionId: string, answer: string) => {
     await answerQuestionMutation.mutateAsync({ questionId, answer });
-    // Trigger auto-deepening in background after answer is saved
+    // Fire-and-forget: auto-deepen runs in background after save completes
     autoDeepenMutation.mutate(questionId, {
       onSuccess: (result) => {
         if (result.deepened || result.analysis.gapCount > 0) {
           setAutoDeepenResult(result);
-          // Auto-dismiss after 6 seconds
           setTimeout(() => setAutoDeepenResult(null), 6000);
         }
       },
@@ -197,7 +224,13 @@ export default function QuestionsLayout() {
     [questions]
   );
 
-  // Directions handlers
+  /**
+   * Generate direction proposals from selected contexts.
+   *
+   * In brainstorm mode, all contexts are used regardless of selection.
+   * Answered questions (filtered by `selectedQuestionIds`) are included
+   * as additional input to ground the LLM's direction proposals.
+   */
   const handleGenerateDirections = async (
     directionsPerContext: number,
     userContext: string,
@@ -419,62 +452,12 @@ export default function QuestionsLayout() {
                   <h2 className="text-lg font-semibold text-white">
                     Generated Items
                   </h2>
-                  <div className="flex items-center gap-1 bg-gray-800/60 rounded-lg p-0.5 border border-gray-700/40">
-                    <button
-                      onClick={() => setViewMode('table')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                        viewMode === 'table'
-                          ? 'bg-zinc-600/30 text-zinc-200 shadow-sm border border-zinc-500/20'
-                          : 'text-gray-400 hover:text-gray-300'
-                      }`}
-                    >
-                      <Table2 className="w-3.5 h-3.5" />
-                      Table
-                    </button>
-                    <button
-                      onClick={() => setViewMode('matrix')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                        viewMode === 'matrix'
-                          ? 'bg-cyan-600/30 text-cyan-300 shadow-sm border border-cyan-500/20'
-                          : 'text-gray-400 hover:text-gray-300'
-                      }`}
-                    >
-                      <Grid3X3 className="w-3.5 h-3.5" />
-                      Matrix
-                    </button>
-                    <button
-                      onClick={() => setViewMode('carousel')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                        viewMode === 'carousel'
-                          ? 'bg-emerald-600/30 text-emerald-300 shadow-sm border border-emerald-500/20'
-                          : 'text-gray-400 hover:text-gray-300'
-                      }`}
-                    >
-                      <Layers className="w-3.5 h-3.5" />
-                      Carousel
-                      {(directionsData?.counts.pending ?? 0) > 0 && (
-                        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px]">
-                          {directionsData?.counts.pending}
-                        </span>
-                      )}
-                    </button>
-                    <button
-                      onClick={() => setViewMode('tree')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                        viewMode === 'tree'
-                          ? 'bg-purple-600/30 text-purple-300 shadow-sm border border-purple-500/20'
-                          : 'text-gray-400 hover:text-gray-300'
-                      }`}
-                    >
-                      <GitBranch className="w-3.5 h-3.5" />
-                      Tree
-                      {(treeData?.totalTrees ?? 0) > 0 && (
-                        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 text-[10px]">
-                          {treeData?.totalTrees}
-                        </span>
-                      )}
-                    </button>
-                  </div>
+                  <ViewModeToggle
+                    viewMode={viewMode}
+                    onViewModeChange={setViewMode}
+                    pendingDirections={directionsData?.counts.pending ?? 0}
+                    totalTrees={treeData?.totalTrees ?? 0}
+                  />
                 </div>
 
                 {viewMode === 'table' && (
@@ -531,54 +514,10 @@ export default function QuestionsLayout() {
       />
 
       {/* Auto-Deepen Notification Toast */}
-      <AnimatePresence>
-        {autoDeepenResult && (
-          <motion.div
-            initial={{ opacity: 0, y: 40, x: '-50%' }}
-            animate={{ opacity: 1, y: 0, x: '-50%' }}
-            exit={{ opacity: 0, y: 40, x: '-50%' }}
-            className="fixed bottom-6 left-1/2 z-50 max-w-md w-full"
-          >
-            <div className={`rounded-xl border px-4 py-3 shadow-2xl backdrop-blur-sm ${
-              autoDeepenResult.deepened
-                ? 'bg-cyan-950/90 border-cyan-500/30'
-                : 'bg-amber-950/90 border-amber-500/30'
-            }`}>
-              <div className="flex items-start gap-3">
-                <div className={`mt-0.5 p-1.5 rounded-lg ${
-                  autoDeepenResult.deepened
-                    ? 'bg-cyan-500/15'
-                    : 'bg-amber-500/15'
-                }`}>
-                  {autoDeepenResult.deepened ? (
-                    <Sparkles className="w-4 h-4 text-cyan-400" />
-                  ) : (
-                    <AlertTriangle className="w-4 h-4 text-amber-400" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium ${
-                    autoDeepenResult.deepened ? 'text-cyan-300' : 'text-amber-300'
-                  }`}>
-                    {autoDeepenResult.deepened
-                      ? `Auto-deepened: ${autoDeepenResult.questions.length} follow-up${autoDeepenResult.questions.length !== 1 ? 's' : ''} generated`
-                      : 'Ambiguity detected'}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {autoDeepenResult.analysis.summary}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setAutoDeepenResult(null)}
-                  className="p-1 text-gray-500 hover:text-gray-300 transition-colors"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <AutoDeepenToast
+        result={autoDeepenResult}
+        onDismiss={() => setAutoDeepenResult(null)}
+      />
     </div>
   );
 }

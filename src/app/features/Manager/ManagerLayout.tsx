@@ -1,6 +1,17 @@
 /**
  * Manager Layout Component
- * Implementation review and management interface
+ *
+ * Review interface for implementation logs produced by CLI sessions.
+ * Provides three views:
+ *   - **Cards** — flat grid of pending implementation logs
+ *   - **Map** — system map grouped by context, with a filtered card panel
+ *   - **Flow** — development flow graph showing cross-context relationships
+ *
+ * Key workflows:
+ * - Logs can be accepted (marks as tested) or inspected via a detail modal.
+ * - Filtering by active project is on by default; can be toggled globally.
+ * - Context group relationships are loaded alongside logs to power the
+ *   map and flow views.
  */
 
 'use client';
@@ -24,6 +35,7 @@ import type { ContextGroupRelationship } from '@/lib/queries/contextQueries';
 import type { ApiResponse } from '@/types/api';
 
 interface ManagerLayoutProps {
+  /** Optional project ID override; defaults to the active project from the store. */
   projectId?: string | null;
 }
 
@@ -91,7 +103,8 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, activeProject?.id]);
 
-  // Filter logs by selected group in map view
+  // In map view, clicking a context group narrows the card panel to that group.
+  // In cards/flow views, all logs are shown regardless of group selection.
   const filteredLogs = useMemo(() => {
     if (viewMode === 'cards' || !selectedGroupId) {
       return implementationLogs;
