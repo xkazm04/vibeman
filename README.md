@@ -23,9 +23,32 @@
 
 ---
 
+## Table of Contents
+
+- [What is Vibeman?](#what-is-vibeman)
+- [Screenshots](#screenshots)
+- [Quick Start](#quick-start)
+- [Prerequisites](#prerequisites)
+- [Environment Variables](#environment-variables)
+- [Your First Project](#your-first-project)
+- [CLI Providers](#cli-providers)
+- [Feature Overview](#feature-overview)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Available Scripts](#available-scripts)
+- [Documentation](#documentation)
+- [Cross-Platform Notes](#cross-platform-notes)
+- [Security Notice](#security-notice)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
 ## What is Vibeman?
 
 Vibeman is a **localhost-first** application that orchestrates your entire software development lifecycle through AI. It connects feedback capture, requirement planning, idea generation, implementation, and testing into a single automated pipeline.
+
+Instead of manually writing code, reviewing diffs, and managing backlogs in separate tools, Vibeman gives you a unified dashboard where AI agents handle the heavy lifting. You define goals and direction — Vibeman plans, executes, and reports back.
 
 ### Key Features
 
@@ -39,8 +62,12 @@ Vibeman is a **localhost-first** application that orchestrates your entire softw
 - **Brain Dashboard** — Behavioral learning with anomaly detection, correlation analysis, and activity heatmaps
 - **Voice Assistant (Annette)** — AI-powered voice companion with chat, voice lab, and autonomous agent modes
 - **Multi-Project Support** — Manage up to 20 projects in parallel
+- **Refactor Wizard** — Multi-step refactoring pipeline with AI-guided execution
+- **Daily Standup Reports** — Auto-generated standup summaries based on activity
 
-### Screenshots
+---
+
+## Screenshots
 
 | Goals | Ideas | Task Runner |
 |-------|-------|-------------|
@@ -48,7 +75,7 @@ Vibeman is a **localhost-first** application that orchestrates your entire softw
 
 | Tinder Evaluation | Feedback | Contexts |
 |-------------------|----------|----------|
-| ![Tinder](public/screenshots/readme/readme_tinder.png) | ![Feedback](public/screenshots/readme/readme_directions.png) | ![Contexts](public/screenshots/screen_contexts.png) |
+| ![Tinder](public/screenshots/readme/readme_tinder.png) | ![Feedback](public/screenshots/readme/readme_directions.png) | ![Contexts](public/screenshots/readme/readme_contexts.png) |
 
 ---
 
@@ -151,6 +178,42 @@ See [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) for the complete variable referen
 
 ---
 
+## Your First Project
+
+After starting the app, here's how to get up and running:
+
+### 1. Add a Project
+
+Navigate to the project selector in the top bar and click **Add Project**. Point it at any local repository — Vibeman works with any codebase.
+
+| Setting | Description |
+|---------|-------------|
+| **Name** | Display name for the project |
+| **Path** | Absolute path to the local repository |
+| **Port** | (Optional) Dev server port for screenshot validation |
+
+### 2. Define Goals
+
+Switch to the **Goals** module and create your first requirement. Goals represent what you want to achieve — features, bug fixes, or refactors. Each goal flows through a lifecycle: `open` -> `in_progress` -> `done`.
+
+### 3. Scan for Ideas
+
+Use the **Ideas** module to run AI-powered codebase scans. Vibeman analyzes your code across multiple dimensions (structure, build quality, alignment with goals) and generates actionable improvement suggestions.
+
+### 4. Evaluate with Tinder
+
+The **Tinder** module presents ideas one at a time. Swipe right to accept, left to reject. Accepted ideas become tasks ready for execution.
+
+### 5. Execute Tasks
+
+Open the **Task Runner** to execute accepted tasks. Select a CLI provider (Claude, Gemini, etc.), configure batch size, and let AI implement the changes. Monitor progress via real-time streaming output.
+
+### 6. Review and Iterate
+
+The **Manager** module shows implementation results for review. The **Brain** dashboard tracks patterns across runs. Use **Feedback** to capture observations that feed back into the next cycle.
+
+---
+
 ## CLI Providers
 
 The Task Runner dispatches work to multiple AI CLI providers. Each is optional — install only what you need.
@@ -188,6 +251,93 @@ Leverages GitHub Copilot subscription models through a VS Code extension. See `v
 
 ---
 
+## Feature Overview
+
+| Module | Description |
+|--------|-------------|
+| **Conductor** | Adaptive AI pipeline with 3-phase cycle (Plan -> Dispatch -> Reflect) and self-healing error recovery |
+| **Task Runner** | Multi-provider batch execution with real-time SSE streaming and auto-commit |
+| **Goals** | Requirement lifecycle tracking with optional GitHub Projects sync |
+| **Ideas** | AI-generated improvement suggestions from multi-dimensional codebase scans |
+| **Tinder** | Swipe-based idea evaluation — accept or reject suggestions one at a time |
+| **Contexts** | Organize code into business feature sections that flow through the entire pipeline |
+| **Brain** | Behavioral learning dashboard with anomaly detection and activity heatmaps |
+| **Annette** | Voice assistant with chat, voice lab, and autonomous agent modes |
+| **Social** | Multi-channel feedback aggregation from GitHub, Slack, and more |
+| **Manager** | Implementation review and oversight dashboard |
+| **Refactor Wizard** | Multi-step refactoring pipeline with AI-guided execution |
+| **Daily Standup** | Auto-generated standup reports based on recent activity |
+| **Proposals** | Feature proposal system for tracking and evaluating new ideas |
+| **Overview** | Architecture visualization and project health dashboard |
+| **Commander** | Command center for quick actions and navigation |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Framework** | Next.js 16 (App Router, Turbopack) |
+| **Language** | TypeScript 5.9 (strict mode) |
+| **UI** | React 19, Tailwind CSS 4, Framer Motion |
+| **State** | Zustand with persist middleware |
+| **Database** | SQLite via better-sqlite3 (WAL mode) |
+| **Data Fetching** | TanStack React Query v5 |
+| **AI Providers** | Anthropic, Google Gemini, GitHub Copilot, Ollama |
+| **Visualization** | Recharts, D3, React Flow |
+| **Testing** | Vitest, fast-check (property-based) |
+| **Drag & Drop** | dnd-kit |
+| **Code Editor** | Monaco Editor |
+
+---
+
+## Project Structure
+
+```
+vibeman/
+├── src/
+│   ├── app/
+│   │   ├── api/                # API routes (50+ endpoint groups)
+│   │   ├── db/
+│   │   │   ├── connection.ts   # Database singleton
+│   │   │   ├── schema.ts       # Table initialization
+│   │   │   ├── migrations/     # 100+ sequential migrations
+│   │   │   └── repositories/   # Data access layer (60+ repositories)
+│   │   ├── features/           # Feature modules
+│   │   │   ├── Conductor/      # Adaptive AI pipeline (Plan -> Dispatch -> Reflect)
+│   │   │   ├── TaskRunner/     # Multi-provider task execution
+│   │   │   ├── Goals/          # Requirement lifecycle tracking
+│   │   │   ├── Ideas/          # AI-generated improvement suggestions
+│   │   │   ├── Context/        # Code section management
+│   │   │   ├── Brain/          # Behavioral learning dashboard
+│   │   │   ├── Annette/        # Voice assistant
+│   │   │   ├── Social/         # Multi-channel feedback
+│   │   │   ├── Manager/        # Implementation review
+│   │   │   ├── RefactorWizard/ # Multi-step refactoring pipeline
+│   │   │   └── ...             # More features
+│   │   ├── layout.tsx          # Root layout (providers, navbar)
+│   │   └── page.tsx            # Home page (module router)
+│   ├── components/             # Shared UI components
+│   ├── hooks/                  # Custom React hooks (30+)
+│   ├── lib/                    # Business logic and utilities
+│   ├── stores/                 # Zustand state stores
+│   ├── types/                  # TypeScript type definitions
+│   ├── prompts/                # LLM prompt templates
+│   └── mcp-server/             # Model Context Protocol server
+├── database/                   # SQLite database files (auto-created)
+├── docs/                       # Extended documentation
+├── public/                     # Static assets
+├── tests/                      # Test setup and utilities
+├── .env.example                # Environment variable template
+├── ARCHITECTURE.md             # Technical architecture deep-dive
+├── CONTRIBUTING.md             # Contributing guidelines
+└── LICENSE                     # MIT License
+```
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for a detailed technical deep-dive.
+
+---
+
 ## Available Scripts
 
 | Script | Description |
@@ -202,63 +352,16 @@ Leverages GitHub Copilot subscription models through a VS Code extension. See `v
 
 ---
 
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| **Framework** | Next.js 16 (App Router, Turbopack) |
-| **Language** | TypeScript 5.9 (strict mode) |
-| **UI** | React 19, Tailwind CSS 4, Framer Motion |
-| **State** | Zustand with persist middleware |
-| **Database** | SQLite via better-sqlite3 (WAL mode) |
-| **Data Fetching** | TanStack React Query |
-| **AI Providers** | Anthropic, Google Gemini, GitHub Copilot, Ollama |
-| **Visualization** | Recharts, D3, React Flow |
-| **Testing** | Vitest, fast-check (property-based) |
-| **Drag & Drop** | dnd-kit |
-
----
-
-## Project Structure
-
-```
-src/
-├── app/
-│   ├── api/                # API routes (50+ endpoint groups)
-│   ├── db/                 # Database layer (connection, migrations, repositories)
-│   └── features/           # Feature modules (22 features)
-│       ├── Conductor/      # Adaptive AI pipeline (Plan → Dispatch → Reflect)
-│       ├── TaskRunner/     # Multi-provider task execution
-│       ├── Goals/          # Requirement lifecycle tracking
-│       ├── Ideas/          # AI-generated improvement suggestions
-│       ├── Context/        # Code section management
-│       ├── Brain/          # Behavioral learning dashboard
-│       ├── Annette/        # Voice assistant
-│       ├── Social/         # Multi-channel feedback
-│       ├── Manager/        # Implementation review
-│       ├── RefactorWizard/ # Multi-step refactoring pipeline
-│       └── ...             # More features
-├── components/             # Shared UI components
-├── hooks/                  # Custom React hooks
-├── lib/                    # Business logic and utilities
-├── stores/                 # Zustand state stores
-├── types/                  # TypeScript type definitions
-└── prompts/                # LLM prompt templates
-```
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for a detailed technical deep-dive.
-
----
-
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
 | [docs/SETUP.md](docs/SETUP.md) | Step-by-step local development setup |
 | [docs/API.md](docs/API.md) | API endpoint reference with curl examples |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions |
-| [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) | Complete environment variable reference |
 | [docs/FEATURES.md](docs/FEATURES.md) | Feature documentation |
+| [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) | Complete environment variable reference |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions |
+| [docs/DATABASE.md](docs/DATABASE.md) | Database schema and utilities |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Technical architecture deep-dive |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contributing guidelines |
 
@@ -285,6 +388,13 @@ Vibeman is a **localhost-only application** designed for local development workf
 ## Contributing
 
 We welcome contributions! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding standards, and the pull request process.
+
+Quick overview:
+
+1. Fork the repo and create a branch from `master`
+2. Make changes following the [code style guidelines](CONTRIBUTING.md#code-style-guidelines)
+3. Run `npm test`, `npm run lint`, and `npx tsc --noEmit`
+4. Open a pull request with a clear description
 
 ---
 
