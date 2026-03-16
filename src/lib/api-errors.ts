@@ -476,3 +476,39 @@ export const errorResponse = (error: unknown, defaultMessage: string, status = 5
     }
   );
 };
+
+// ── Generic route-level error boundary ──────────────────────────────
+
+/**
+ * Wraps a Next.js route handler with centralized error handling.
+ *
+ * Any uncaught exception is caught and converted into a consistent
+ * `ApiErrorResponse` via `handleApiError`. This eliminates the need
+ * for try/catch in every route handler.
+ *
+ * @param handler - The async route handler function
+ * @param operation - Label for logging (e.g. 'questions.GET')
+ * @param defaultCode - Fallback error code for unclassified errors
+ *
+ * @example
+ * async function handleGet(request: NextRequest) {
+ *   const data = db.getAll();
+ *   return NextResponse.json({ data });
+ * }
+ * export const GET = withApiErrorHandler(handleGet, 'myResource.GET');
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function withApiErrorHandler<T extends (...args: any[]) => Promise<NextResponse<any>>>(
+  handler: T,
+  operation: string,
+  defaultCode: ApiErrorCode = ApiErrorCode.INTERNAL_ERROR,
+): T {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (async (...args: any[]) => {
+    try {
+      return await handler(...args);
+    } catch (error) {
+      return handleApiError(error, operation, defaultCode);
+    }
+  }) as T;
+}
