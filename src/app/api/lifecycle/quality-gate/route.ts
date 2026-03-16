@@ -7,8 +7,13 @@ import { NextRequest } from 'next/server';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { QualityGateType } from '@/app/features/Ideas/sub_Lifecycle/lib/lifecycleTypes';
-import { successResponse } from '@/lib/api/responseFormatter';
-import { handleApiError, ValidationError } from '@/lib/api/errorHandler';
+import {
+  createApiSuccessResponse,
+  createApiErrorResponse,
+  ApiErrorCode,
+  handleApiError as handleApiErrorCentral,
+  extractRequestContext,
+} from '@/lib/api-errors';
 
 const execAsync = promisify(exec);
 
@@ -29,20 +34,26 @@ export async function POST(request: NextRequest) {
     const { gate, projectId, timeout = 300000 } = body;
 
     if (!gate) {
-      throw new ValidationError('gate is required');
+      return createApiErrorResponse(
+        ApiErrorCode.MISSING_REQUIRED_FIELD,
+        'gate is required',
+        { fieldErrors: { gate: 'gate is required' }, logError: false }
+      );
     }
 
     if (!VALID_GATES.includes(gate as QualityGateType)) {
-      throw new ValidationError(
-        `Invalid gate: ${gate}. Valid gates: ${VALID_GATES.join(', ')}`
+      return createApiErrorResponse(
+        ApiErrorCode.INVALID_FIELD_VALUE,
+        `Invalid gate: ${gate}. Valid gates: ${VALID_GATES.join(', ')}`,
+        { fieldErrors: { gate: `Must be one of: ${VALID_GATES.join(', ')}` }, logError: false }
       );
     }
 
     const result = await runGate(gate as QualityGateType, timeout);
 
-    return successResponse(result);
+    return createApiSuccessResponse(result);
   } catch (error) {
-    return handleApiError(error, 'POST /api/lifecycle/quality-gate');
+    return handleApiErrorCentral(error, 'POST /api/lifecycle/quality-gate', ApiErrorCode.INTERNAL_ERROR, extractRequestContext(request));
   }
 }
 

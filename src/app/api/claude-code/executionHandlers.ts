@@ -18,6 +18,7 @@ import {
   createApiErrorResponse,
   ApiErrorCode,
   handleApiError,
+  type ErrorRequestContext,
 } from '@/lib/api-errors';
 
 const log = logger.child('execution');
@@ -101,7 +102,8 @@ export async function queueExecution(
   requirementName: string,
   projectId?: string,
   gitConfig?: GitExecutionConfig,
-  sessionConfig?: SessionConfig
+  sessionConfig?: SessionConfig,
+  requestContext?: ErrorRequestContext
 ): Promise<NextResponse> {
   const elapsed = logger.startTimer();
 
@@ -167,7 +169,7 @@ export async function queueExecution(
   } catch (error) {
     const { durationMs } = elapsed();
     log.warn('Failed to queue execution', { requirementName: sanitizeString(requirementName), durationMs, error });
-    return handleApiError(error, 'queueExecution');
+    return handleApiError(error, 'queueExecution', ApiErrorCode.INTERNAL_ERROR, requestContext);
   }
 }
 
@@ -184,7 +186,8 @@ export async function queueExecution(
 export async function executeSync(
   projectPath: string,
   requirementName: string,
-  projectId?: string
+  projectId?: string,
+  requestContext?: ErrorRequestContext
 ): Promise<NextResponse> {
   const elapsed = logger.startTimer();
 
@@ -269,7 +272,7 @@ export async function executeSync(
   } catch (error) {
     const { durationMs } = elapsed();
     log.warn('Sync execution error', { requirementName: sanitizeString(requirementName), durationMs, error });
-    return handleApiError(error, 'executeSync');
+    return handleApiError(error, 'executeSync', ApiErrorCode.INTERNAL_ERROR, requestContext);
   }
 }
 

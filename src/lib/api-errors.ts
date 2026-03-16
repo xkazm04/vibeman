@@ -5,9 +5,44 @@
  * and consistent error handling utilities for all API routes.
  */
 import { NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { randomBytes } from 'crypto';
 import { logger } from '@/lib/logger';
 import { sanitizeErrorDetails, sanitizeErrorMessage } from '@/lib/api-helpers/errorSanitizer';
 import { ErrorClassifier, ErrorType, type RecoveryAction } from '@/lib/errorClassifier';
+
+/**
+ * Generate a short unique error ID for correlating client errors with server logs.
+ * Format: "err_" + 12 hex chars (e.g. "err_a1b2c3d4e5f6")
+ */
+function generateErrorId(): string {
+  return `err_${randomBytes(6).toString('hex')}`;
+}
+
+/**
+ * Request context captured for error diagnostics
+ */
+export interface ErrorRequestContext {
+  /** HTTP method */
+  method: string;
+  /** Request path */
+  path: string;
+  /** Approximate request body size in bytes (from Content-Length header) */
+  bodySize?: number;
+}
+
+/**
+ * Extract request context from a NextRequest for error reporting.
+ */
+export function extractRequestContext(request: NextRequest): ErrorRequestContext {
+  const url = new URL(request.url);
+  const contentLength = request.headers.get('content-length');
+  return {
+    method: request.method,
+    path: url.pathname,
+    ...(contentLength != null && { bodySize: parseInt(contentLength, 10) }),
+  };
+}
 
 /**
  * API Error Codes - Typed enum for all possible API error conditions
@@ -113,6 +148,12 @@ export interface ApiErrorResponse {
   error: string;
   /** Machine-readable error code */
   code: ApiErrorCode;
+  /** Unique error ID for correlating with server logs */
+  errorId: string;
+  /** ISO-8601 timestamp of when the error occurred */
+  timestamp: string;
+  /** Request context for debugging */
+  context?: ErrorRequestContext;
   /** Optional additional details about the error */
   details?: string | Record<string, unknown>;
   /** Optional field-specific errors for validation */
@@ -160,11 +201,14 @@ export class ApiError extends Error {
   /**
    * Convert to API error response
    */
-  toResponse(): ApiErrorResponse {
+  toResponse(requestContext?: ErrorRequestContext): ApiErrorResponse {
     return {
       success: false,
       error: this.message,
       code: this.code,
+      errorId: generateErrorId(),
+      timestamp: new Date().toISOString(),
+      ...(requestContext && { context: requestContext }),
       ...(this.details && { details: this.details }),
       ...(this.fieldErrors && { fieldErrors: this.fieldErrors }),
     };
@@ -183,17 +227,21 @@ export function createApiErrorResponse(
     status?: number;
     logError?: boolean;
     logContext?: Record<string, unknown>;
+    requestContext?: ErrorRequestContext;
   }
 ): NextResponse<ApiErrorResponse> {
   const status = options?.status ?? ERROR_CODE_STATUS_MAP[code];
+  const errorId = generateErrorId();
 
   // Log error if requested (default: true for 5xx errors)
   const shouldLog = options?.logError ?? status >= 500;
   if (shouldLog) {
-    logger.error(`API Error [${code}]: ${message}`, {
+    logger.error(`API Error [${code}] ${errorId}: ${message}`, {
+      errorId,
       code,
       status,
       details: options?.details,
+      requestContext: options?.requestContext,
       ...options?.logContext,
     });
   }
@@ -205,6 +253,9 @@ export function createApiErrorResponse(
     success: false,
     error: sanitizeErrorMessage(message),
     code,
+    errorId,
+    timestamp: new Date().toISOString(),
+    ...(options?.requestContext && { context: options.requestContext }),
     ...(safeDetails && { details: safeDetails }),
     ...(options?.fieldErrors && { fieldErrors: options.fieldErrors }),
   };
@@ -285,11 +336,21 @@ function classifiedTypeToApiCode(type: ErrorType): ApiErrorCode {
 export function handleApiError(
   error: unknown,
   operation: string,
-  defaultCode: ApiErrorCode = ApiErrorCode.INTERNAL_ERROR
+  defaultCode: ApiErrorCode = ApiErrorCode.INTERNAL_ERROR,
+  requestContext?: ErrorRequestContext
 ): NextResponse<ApiErrorResponse> {
+  const errorId = generateErrorId();
+
   // Handle ApiError instances
   if (error instanceof ApiError) {
-    return NextResponse.json(error.toResponse(), { status: error.getStatus() });
+    const response = error.toResponse(requestContext);
+    response.errorId = errorId;
+    logger.error(`[handleApiError] ${operation} ${errorId}: ${error.message}`, {
+      errorId,
+      operation,
+      requestContext,
+    });
+    return NextResponse.json(response, { status: error.getStatus() });
   }
 
   // Classify the error for actionable user messaging
@@ -297,16 +358,20 @@ export function handleApiError(
 
   // Log full details server-side only
   if (error instanceof Error) {
-    logger.error(`[handleApiError] ${operation}: ${error.message}`, {
+    logger.error(`[handleApiError] ${operation} ${errorId}: ${error.message}`, {
+      errorId,
       stack: error.stack,
       operation,
       classifiedType: classified.type,
+      requestContext,
     });
   } else {
-    logger.error(`[handleApiError] ${operation}: Unknown error`, {
+    logger.error(`[handleApiError] ${operation} ${errorId}: Unknown error`, {
+      errorId,
       error: String(error),
       operation,
       classifiedType: classified.type,
+      requestContext,
     });
   }
 
@@ -321,6 +386,9 @@ export function handleApiError(
     success: false,
     error: sanitizeErrorMessage(classified.userMessage),
     code,
+    errorId,
+    timestamp: new Date().toISOString(),
+    ...(requestContext && { context: requestContext }),
     userMessage: classified.userMessage,
     recoveryActions: classified.recoveryActions,
   };
@@ -508,7 +576,11 @@ export function withApiErrorHandler<T extends (...args: any[]) => Promise<NextRe
     try {
       return await handler(...args);
     } catch (error) {
-      return handleApiError(error, operation, defaultCode);
+      // Extract request context if the first arg is a NextRequest
+      const requestContext = args[0] instanceof NextRequest
+        ? extractRequestContext(args[0])
+        : undefined;
+      return handleApiError(error, operation, defaultCode, requestContext);
     }
   }) as T;
 }

@@ -8,6 +8,7 @@ import {
   createApiSuccessResponse,
   ApiErrorCode,
   handleApiError,
+  extractRequestContext,
 } from '@/lib/api-errors';
 
 /**
@@ -72,6 +73,6 @@ export async function POST(request: NextRequest) {
       message: result.message,
     });
   } catch (error) {
-    return handleApiError(error, 'POST /api/structure-scan/analyze');
+    return handleApiError(error, 'POST /api/structure-scan/analyze', ApiErrorCode.INTERNAL_ERROR, extractRequestContext(request));
   }
 }

@@ -9,6 +9,7 @@ import {
   createApiSuccessResponse,
   ApiErrorCode,
   handleApiError,
+  extractRequestContext,
 } from '@/lib/api-errors';
 
 /**
@@ -84,6 +85,6 @@ export async function POST(request: NextRequest) {
       requirementFiles: result.requirementFiles,
     });
   } catch (error) {
-    return handleApiError(error, 'POST /api/structure-scan/save');
+    return handleApiError(error, 'POST /api/structure-scan/save', ApiErrorCode.INTERNAL_ERROR, extractRequestContext(request));
   }
 }

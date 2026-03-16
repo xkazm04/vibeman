@@ -4,6 +4,7 @@ import {
   handleApiError,
   ApiErrorCode,
   createApiErrorResponse,
+  extractRequestContext,
 } from '@/lib/api-errors';
 import { queueExecution, executeSync } from '../executionHandlers';
 import { withObservability } from '@/lib/observability/middleware';
@@ -52,6 +53,8 @@ async function handlePost(request: NextRequest) {
     );
     if (missingError) return missingError;
 
+    const reqCtx = extractRequestContext(request);
+
     // Default to async mode (queued execution)
     if (asyncMode) {
       return queueExecution(
@@ -59,7 +62,8 @@ async function handlePost(request: NextRequest) {
         requirementName as string,
         projectId as string | undefined,
         gitConfig as Parameters<typeof queueExecution>[3],
-        sessionConfig as Parameters<typeof queueExecution>[4]
+        sessionConfig as Parameters<typeof queueExecution>[4],
+        reqCtx
       );
     }
 
@@ -67,10 +71,11 @@ async function handlePost(request: NextRequest) {
     return executeSync(
       projectPath as string,
       requirementName as string,
-      projectId as string | undefined
+      projectId as string | undefined,
+      reqCtx
     );
   } catch (error) {
-    return handleApiError(error, 'POST /api/claude-code/execute');
+    return handleApiError(error, 'POST /api/claude-code/execute', ApiErrorCode.INTERNAL_ERROR, extractRequestContext(request));
   }
 }
 
