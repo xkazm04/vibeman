@@ -194,7 +194,11 @@ function templateToDbRow(template: DefaultProjectTemplate, now: string): unknown
 }
 
 /**
- * Seed database with default projects if empty
+ * Seed database with a starter project if empty.
+ *
+ * Seeds a single project pointing at the current working directory so new
+ * users have something to see immediately. The project can be edited or
+ * removed from the Manager UI.
  */
 function seedDefaultProjects(): void {
   if (!db) return;
@@ -214,37 +218,22 @@ function seedDefaultProjects(): void {
 
   const now = new Date().toISOString();
 
+  // Seed a single project using the current working directory.
+  // Users can add their own projects through the UI.
+  const cwd = process.cwd();
+  const projectName = path.basename(cwd);
+
   const defaultProjects: DefaultProjectTemplate[] = [
     {
-      id: 'vibeman-main',
-      name: 'Vibeman',
-      path: path.join(WORKSPACE_BASE_PATH, 'vibeman'),
+      id: 'default-project',
+      name: projectName,
+      path: cwd,
       port: 3000,
-      type: 'nextjs',
+      type: 'other',
       relatedProjectId: null,
-      gitRepo: 'https://github.com/user/vibeman.git',
+      gitRepo: '',
       runScript: 'npm run dev'
     },
-    {
-      id: 'pikselplay-char-ui',
-      name: 'PikselPlay Char UI',
-      path: path.join(WORKSPACE_BASE_PATH, 'pikselplay', 'char-ui'),
-      port: 3001,
-      type: 'nextjs',
-      relatedProjectId: 'pikselplay-char-service',
-      gitRepo: 'https://github.com/user/pikselplay.git',
-      runScript: 'npm run dev'
-    },
-    {
-      id: 'pikselplay-char-service',
-      name: 'PikselPlay Char Service',
-      path: path.join(WORKSPACE_BASE_PATH, 'pikselplay', 'char-service'),
-      port: 8000,
-      type: 'fastapi',
-      relatedProjectId: 'pikselplay-char-ui',
-      gitRepo: 'https://github.com/user/pikselplay.git',
-      runScript: 'uvicorn main:app --reload --host 0.0.0.0 --port 8000'
-    }
   ];
 
   defaultProjects.forEach(project => {

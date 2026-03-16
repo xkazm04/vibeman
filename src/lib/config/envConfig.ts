@@ -344,7 +344,7 @@ export const env = {
   observabilityEnabled: () => readBool('OBSERVABILITY_ENABLED', true),
 
   vibemanProjectId: () =>
-    readOr('VIBEMAN_PROJECT_ID', 'c32769af-72ed-4764-bd27-550d46f14bc5'),
+    readOr('VIBEMAN_PROJECT_ID', ''),
 
   vibemanUrl: () => {
     serverOnly('VIBEMAN_URL');
