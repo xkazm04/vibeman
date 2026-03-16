@@ -53,6 +53,7 @@ export enum ApiErrorCode {
   INVALID_FIELD_VALUE = 'INVALID_FIELD_VALUE',
   INVALID_ACTION = 'INVALID_ACTION',
   INVALID_FORMAT = 'INVALID_FORMAT',
+  INVALID_ID = 'INVALID_ID',
   VALIDATION_ERROR = 'VALIDATION_ERROR',
 
   // Authentication & Authorization Errors (401, 403)
@@ -100,6 +101,7 @@ export const ERROR_CODE_STATUS_MAP: Record<ApiErrorCode, number> = {
   [ApiErrorCode.INVALID_FIELD_VALUE]: 400,
   [ApiErrorCode.INVALID_ACTION]: 400,
   [ApiErrorCode.INVALID_FORMAT]: 400,
+  [ApiErrorCode.INVALID_ID]: 400,
   [ApiErrorCode.VALIDATION_ERROR]: 400,
 
   // 401 Unauthorized
@@ -480,9 +482,9 @@ export function handleOperationResult<T extends Record<string, unknown>>(
   errorMessage?: string
 ): NextResponse {
   if (!result.success) {
-    return NextResponse.json(
-      { error: result.error || errorMessage || 'Operation failed' },
-      { status: 500 }
+    return createApiErrorResponse(
+      ApiErrorCode.OPERATION_FAILED,
+      result.error || errorMessage || 'Operation failed',
     );
   }
 
