@@ -1,5 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { validateRequired, errorResponse } from '@/lib/api-errors';
+import { NextRequest } from 'next/server';
+import {
+  validateRequiredFields,
+  handleApiError,
+  ApiErrorCode,
+  createApiErrorResponse,
+} from '@/lib/api-errors';
 import { queueExecution, executeSync } from '../executionHandlers';
 import { withObservability } from '@/lib/observability/middleware';
 import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
@@ -20,7 +25,17 @@ import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
  */
 async function handlePost(request: NextRequest) {
   try {
-    const body = await request.json();
+    let body: Record<string, unknown>;
+    try {
+      body = await request.json();
+    } catch {
+      return createApiErrorResponse(
+        ApiErrorCode.INVALID_FORMAT,
+        'Request body must be valid JSON',
+        { logError: false }
+      );
+    }
+
     const {
       projectPath,
       requirementName,
@@ -30,21 +45,32 @@ async function handlePost(request: NextRequest) {
       sessionConfig
     } = body;
 
-    const validationError = validateRequired(
+    // Check required fields are present before deeper validation in handlers
+    const missingError = validateRequiredFields(
       { projectPath, requirementName },
       ['projectPath', 'requirementName']
     );
-    if (validationError) return validationError;
+    if (missingError) return missingError;
 
     // Default to async mode (queued execution)
     if (asyncMode) {
-      return queueExecution(projectPath, requirementName, projectId, gitConfig, sessionConfig);
+      return queueExecution(
+        projectPath as string,
+        requirementName as string,
+        projectId as string | undefined,
+        gitConfig as Parameters<typeof queueExecution>[3],
+        sessionConfig as Parameters<typeof queueExecution>[4]
+      );
     }
 
     // Synchronous execution (blocking)
-    return executeSync(projectPath, requirementName, projectId);
+    return executeSync(
+      projectPath as string,
+      requirementName as string,
+      projectId as string | undefined
+    );
   } catch (error) {
-    return errorResponse(error, 'Error in POST /api/claude-code/execute');
+    return handleApiError(error, 'POST /api/claude-code/execute');
   }
 }
 
