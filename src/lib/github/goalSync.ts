@@ -5,6 +5,7 @@
 
 import { createLogger } from '@/lib/utils/logger';
 import { goalDb } from '@/app/db';
+import { env } from '@/lib/config/envConfig';
 import {
   isGitHubConfigured,
   getGitHubToken,
@@ -178,8 +179,8 @@ function logGitHubSyncError(syncError: GitHubSyncErrorInfo, operation: string): 
  */
 export function getGitHubProjectConfig(): GitHubProjectConfig | null {
   const token = getGitHubToken();
-  const projectId = process.env.GITHUB_PROJECT_ID;
-  const owner = process.env.GITHUB_PROJECT_OWNER;
+  const projectId = env.githubProjectId();
+  const owner = env.githubProjectOwner();
 
   if (!token || !projectId || !owner) {
     return null;
@@ -189,15 +190,13 @@ export function getGitHubProjectConfig(): GitHubProjectConfig | null {
     token,
     projectId,
     owner,
-    projectNumber: process.env.GITHUB_PROJECT_NUMBER
-      ? parseInt(process.env.GITHUB_PROJECT_NUMBER, 10)
-      : undefined,
-    statusFieldId: process.env.GITHUB_STATUS_FIELD_ID,
-    targetDateFieldId: process.env.GITHUB_TARGET_DATE_FIELD_ID,
+    projectNumber: env.githubProjectNumber(),
+    statusFieldId: env.githubStatusFieldId(),
+    targetDateFieldId: env.githubTargetDateFieldId(),
     statusMapping: {
-      open: process.env.GITHUB_STATUS_TODO_ID,
-      in_progress: process.env.GITHUB_STATUS_IN_PROGRESS_ID,
-      done: process.env.GITHUB_STATUS_DONE_ID,
+      open: env.githubStatusTodoId(),
+      in_progress: env.githubStatusInProgressId(),
+      done: env.githubStatusDoneId(),
     },
   };
 }

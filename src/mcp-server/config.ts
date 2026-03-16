@@ -3,6 +3,8 @@
  * Parses environment variables for Vibeman integration
  */
 
+import { env } from '@/lib/config/envConfig';
+
 export interface McpConfig {
   /** Base URL for Vibeman Next.js API (default: http://localhost:3000) */
   baseUrl: string;
@@ -31,14 +33,12 @@ export interface McpConfig {
  */
 export function parseConfig(): McpConfig {
   const config: McpConfig = {
-    baseUrl: process.env.VIBEMAN_BASE_URL || 'http://localhost:3000',
-    projectId: process.env.VIBEMAN_PROJECT_ID || '',
-    contextId: process.env.VIBEMAN_CONTEXT_ID || undefined,
-    taskId: process.env.VIBEMAN_TASK_ID || undefined,
-    projectPort: process.env.VIBEMAN_PROJECT_PORT
-      ? parseInt(process.env.VIBEMAN_PROJECT_PORT, 10)
-      : undefined,
-    runScript: process.env.VIBEMAN_RUN_SCRIPT || undefined,
+    baseUrl: env.mcpBaseUrl(),
+    projectId: env.mcpProjectId(),
+    contextId: env.mcpContextId(),
+    taskId: env.mcpTaskId(),
+    projectPort: env.mcpProjectPort(),
+    runScript: env.mcpRunScript(),
   };
 
   // ProjectId is required for meaningful operations

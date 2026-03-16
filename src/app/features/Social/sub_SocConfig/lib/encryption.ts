@@ -7,6 +7,7 @@
  */
 
 import crypto from 'crypto';
+import { env } from '@/lib/config/envConfig';
 
 // Encryption algorithm
 const ALGORITHM = 'aes-256-gcm';
@@ -18,7 +19,7 @@ const SALT_LENGTH = 32;
 function deriveKey(projectId: string): Buffer {
   // Use project ID + a fixed secret as the base for key derivation
   // In production, you might want to use environment variables for the secret
-  const secret = process.env.SOCIAL_ENCRYPTION_SECRET || 'vibeman-social-config-2024';
+  const secret = env.socialEncryptionSecret();
   const salt = crypto.createHash('sha256').update(projectId).digest();
 
   return crypto.pbkdf2Sync(secret, salt, 100000, 32, 'sha256');

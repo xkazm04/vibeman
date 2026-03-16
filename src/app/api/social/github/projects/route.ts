@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { env } from '@/lib/config/envConfig';
 
 // GitHub Projects V2 configuration
-const GITHUB_PROJECT_NUMBER = 1;
-const GITHUB_PROJECT_OWNER = process.env.GITHUB_OWNER || 'xkazm04';
+const GITHUB_PROJECT_NUMBER = env.githubProjectNumber() ?? 1;
+const GITHUB_PROJECT_OWNER = env.githubOwner();
 const GITHUB_GRAPHQL_API = 'https://api.github.com/graphql';
 
 interface AddToProjectRequest {
@@ -183,7 +184,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const githubToken = process.env.GITHUB_TOKEN;
+    const githubToken = env.githubToken();
     if (!githubToken) {
       console.error('[GitHub Projects] GITHUB_TOKEN not configured');
       return NextResponse.json(
@@ -235,7 +236,7 @@ export async function POST(request: NextRequest) {
  * Check GitHub Projects integration status
  */
 export async function GET() {
-  const hasToken = !!process.env.GITHUB_TOKEN;
+  const hasToken = !!env.githubToken();
 
   return NextResponse.json({
     status: hasToken ? 'configured' : 'not_configured',

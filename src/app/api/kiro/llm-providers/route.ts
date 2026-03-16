@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { env } from '@/lib/config/envConfig';
 import { llmManager } from '../../../../lib/llm';
 
 function getConfiguredProviders(): Record<string, boolean> {
   return {
     ollama: true,
-    openai: !!process.env.OPENAI_API_KEY,
-    anthropic: !!process.env.ANTHROPIC_API_KEY,
-    gemini: !!process.env.GEMINI_API_KEY,
-    internal: !!process.env.INTERNAL_API_BASE_URL
+    openai: !!env.openaiApiKey(),
+    anthropic: !!env.anthropicApiKey(),
+    gemini: !!env.geminiApiKey(),
+    internal: !!env.internalApiBaseUrl()
   };
 }
 

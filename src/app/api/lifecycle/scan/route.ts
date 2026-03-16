@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { env } from '@/lib/config/envConfig';
 import { executeLlmScan as executeContextScan } from '@/app/features/Ideas/sub_IdeasSetup/lib/ideaExecutor';
 import { ScanType, isValidScanType, ALL_SCAN_TYPES } from '@/app/features/Ideas/lib/scanTypes';
 import { SupportedProvider } from '@/lib/llm/types';
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
 
       // Try to fetch from projects API
       try {
-        const projectResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/projects/${projectId}`);
+        const projectResponse = await fetch(`${env.baseUrl()}/api/projects/${projectId}`);
         if (projectResponse.ok) {
           const projectData = await projectResponse.json();
           if (projectData.project) {

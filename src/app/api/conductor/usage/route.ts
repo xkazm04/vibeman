@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/app/db/connection';
+import { env } from '@/lib/config/envConfig';
 
 export async function GET(request: NextRequest) {
   const provider = request.nextUrl.searchParams.get('provider');
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
  * Every Anthropic API response includes `anthropic-ratelimit-*` headers.
  */
 async function getClaudeUsage(): Promise<Record<string, unknown>> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = env.anthropicApiKey();
   if (!apiKey) return {};
 
   try {
@@ -104,7 +105,7 @@ async function getClaudeUsage(): Promise<Record<string, unknown>> {
  * Copilot: Use GitHub billing API for premium request usage.
  */
 async function getCopilotUsage(): Promise<Record<string, unknown>> {
-  const token = process.env.GITHUB_TOKEN;
+  const token = env.githubToken();
   if (!token) return {};
 
   try {

@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { SupportedProvider } from '@/lib/llm/types';
+import { env } from '@/lib/config/envConfig';
 
 export interface ProviderStatus {
   configured: boolean;
@@ -22,7 +23,7 @@ function checkApiKey(envVar: string | undefined, envName: string, providerName: 
 }
 
 async function checkOllamaAvailability(): Promise<ProviderStatus> {
-  const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+  const ollamaUrl = env.ollamaBaseUrl();
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 2000);
@@ -74,12 +75,12 @@ export async function GET(request: NextRequest) {
     };
 
     if (typeof window === 'undefined') {
-      providers.openai = checkApiKey(process.env.OPENAI_API_KEY, 'OPENAI_API_KEY', 'OpenAI');
-      providers.anthropic = checkApiKey(process.env.ANTHROPIC_API_KEY, 'ANTHROPIC_API_KEY', 'Anthropic');
-      providers.gemini = checkApiKey(process.env.GEMINI_API_KEY, 'GEMINI_API_KEY', 'Gemini');
-      providers.groq = checkApiKey(process.env.GROQ_API_KEY, 'GROQ_API_KEY', 'Groq');
+      providers.openai = checkApiKey(env.openaiApiKey(), 'OPENAI_API_KEY', 'OpenAI');
+      providers.anthropic = checkApiKey(env.anthropicApiKey(), 'ANTHROPIC_API_KEY', 'Anthropic');
+      providers.gemini = checkApiKey(env.geminiApiKey(), 'GEMINI_API_KEY', 'Gemini');
+      providers.groq = checkApiKey(env.groqApiKey(), 'GROQ_API_KEY', 'Groq');
       providers.ollama = await checkOllamaAvailability();
-      providers.internal = checkApiKey(process.env.INTERNAL_API_BASE_URL, 'INTERNAL_API_BASE_URL', 'Internal');
+      providers.internal = checkApiKey(env.internalApiBaseUrl(), 'INTERNAL_API_BASE_URL', 'Internal');
     }
 
     // Backward-compatible: include both `providers` (new) and `configured` (legacy boolean map)

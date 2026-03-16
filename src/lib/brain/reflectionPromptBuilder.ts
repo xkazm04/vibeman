@@ -6,6 +6,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { env } from '@/lib/config/envConfig';
 import { directionDb, directionOutcomeDb, behavioralSignalDb, brainReflectionDb, brainInsightDb, contextDb } from '@/app/db';
 import type { DbDirection, DbDirectionOutcome } from '@/app/db';
 import type { LearningInsight } from '@/app/db/models/brain.types';
@@ -256,7 +257,7 @@ export function buildReflectionRequirement(config: {
 }): string {
   const { projectId, projectName, projectPath, reflectionId, data } = config;
 
-  const apiUrl = process.env.VIBEMAN_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+  const apiUrl = env.vibemanApiUrl();
 
   const acceptedSection = formatDirectionsForPrompt(data.acceptedDirections, 'accepted');
   const rejectedSection = formatDirectionsForPrompt(data.rejectedDirections, 'rejected');
@@ -616,7 +617,7 @@ export function buildGlobalReflectionRequirement(config: {
 }): string {
   const { reflectionId, data, workspacePath } = config;
 
-  const apiUrl = process.env.VIBEMAN_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+  const apiUrl = env.vibemanApiUrl();
 
   const projectsSummary = data.projects.map(p =>
     `### ${p.name}

@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { env } from '@/lib/config/envConfig';
 import { monitorDb } from '@/lib/monitor_database';
 import { AnthropicClient } from '@/lib/llm/providers/anthropic-client';
 import { handleApiError } from '@/lib/api-errors';
@@ -73,7 +74,7 @@ function buildEvaluationPrompt(message: Message, existingClassesText: string): s
 
 async function callLLMForEvaluation(prompt: string): Promise<EvaluationResult> {
   const anthropic = new AnthropicClient({
-    apiKey: process.env.ANTHROPIC_API_KEY
+    apiKey: env.anthropicApiKey()
   });
 
   const response = await anthropic.generate({

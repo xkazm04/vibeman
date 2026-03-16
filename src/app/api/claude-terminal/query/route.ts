@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { env } from '@/lib/config/envConfig';
 import {
   startExecution,
   abortExecution,
@@ -33,7 +34,7 @@ interface QueryRequestBody {
 async function checkOllamaCloudAuth(model: string): Promise<{ error: string; signinUrl?: string } | null> {
   if (!model.includes('cloud')) return null; // Only check cloud models
 
-  const baseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+  const baseUrl = env.ollamaBaseUrl();
   try {
     const res = await fetch(`${baseUrl}/api/chat`, {
       method: 'POST',

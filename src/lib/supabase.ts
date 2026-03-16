@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
+import { env } from '@/lib/config/envConfig';
 
-// These should be environment variables in production
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://your-project.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'your-anon-key';
+const supabaseUrl = env.supabaseUrl();
+const supabaseAnonKey = env.supabaseAnonKey();
 
 // Client-side Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

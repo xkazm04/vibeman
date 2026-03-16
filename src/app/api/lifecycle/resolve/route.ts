@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { env } from '@/lib/config/envConfig';
 import { ideaDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     // Call the Claude Code requirement API to implement the idea
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/claude-code/requirement`, {
+      const response = await fetch(`${env.baseUrl()}/api/claude-code/requirement`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -5,6 +5,7 @@
 
 import { createLogger } from '@/lib/utils/logger';
 import type { GitHubProjectConfig, GitHubProject, GitHubProjectItem } from './types';
+import { env } from '@/lib/config/envConfig';
 
 const logger = createLogger('GitHubClient');
 
@@ -18,14 +19,14 @@ const GITHUB_GRAPHQL_ENDPOINT = 'https://api.github.com/graphql';
  * Check if GitHub is configured via environment variables
  */
 export function isGitHubConfigured(): boolean {
-  return !!process.env.GITHUB_TOKEN;
+  return env.isGitHubConfigured();
 }
 
 /**
  * Get GitHub token from environment
  */
 export function getGitHubToken(): string | null {
-  return process.env.GITHUB_TOKEN || null;
+  return env.githubToken() || null;
 }
 
 // ============================================================================

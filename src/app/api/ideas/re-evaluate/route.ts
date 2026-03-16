@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { env } from '@/lib/config/envConfig';
 import { ideaDb } from '@/app/db';
 import { getDatabase } from '@/app/db/connection';
 import { withObservability } from '@/lib/observability/middleware';
@@ -85,7 +86,7 @@ async function handlePost(request: NextRequest) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-api-key': process.env.ANTHROPIC_API_KEY || '',
+            'x-api-key': env.anthropicApiKey() || '',
             'anthropic-version': '2023-06-01',
           },
           body: JSON.stringify({

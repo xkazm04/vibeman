@@ -10,6 +10,7 @@ import { randomUUID } from 'crypto';
 import { EventEmitter } from 'events';
 import * as fs from 'fs';
 import * as path from 'path';
+import { env as envConfig } from '@/lib/config/envConfig';
 import type { CLIProvider, CLIProviderConfig } from './types';
 
 // Stream-json message types from Claude CLI
@@ -262,7 +263,7 @@ function buildSpawnConfig(
     // must be 'ollama' — these are required by Claude CLI but ignored by Ollama.
     // For cloud models (e.g. qwen3.5:cloud), run `ollama signin` first so the
     // local server can proxy requests to ollama.com.
-    const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    const ollamaBaseUrl = envConfig.ollamaBaseUrl();
 
     const args = [
       '-p', '-', // Read from stdin

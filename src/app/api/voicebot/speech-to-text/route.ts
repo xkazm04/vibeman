@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { env } from '@/lib/config/envConfig';
 
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+const ELEVENLABS_API_KEY = env.elevenLabsApiKey();
 const ELEVENLABS_STT_URL = 'https://api.elevenlabs.io/v1/speech-to-text';
 
 export async function POST(request: NextRequest) {

@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/app/db/connection';
 import { getGlobalCache } from '@/lib/api-cache';
+import { env } from '@/lib/config/envConfig';
 
 // ============================================================================
 // Type Definitions
@@ -236,11 +237,11 @@ function collectQueueStatus(): QueueStatus {
 function collectLLMStatus(): LLMStatus {
   try {
     const providerChecks: { name: string; envVar: string | undefined; envName: string }[] = [
-      { name: 'Anthropic Claude', envVar: process.env.ANTHROPIC_API_KEY, envName: 'ANTHROPIC_API_KEY' },
-      { name: 'Google Gemini', envVar: process.env.GEMINI_API_KEY, envName: 'GEMINI_API_KEY' },
-      { name: 'OpenAI GPT', envVar: process.env.OPENAI_API_KEY, envName: 'OPENAI_API_KEY' },
-      { name: 'Groq', envVar: process.env.GROQ_API_KEY, envName: 'GROQ_API_KEY' },
-      { name: 'Ollama (Local)', envVar: process.env.OLLAMA_BASE_URL, envName: 'OLLAMA_BASE_URL' },
+      { name: 'Anthropic Claude', envVar: env.anthropicApiKey(), envName: 'ANTHROPIC_API_KEY' },
+      { name: 'Google Gemini', envVar: env.geminiApiKey(), envName: 'GEMINI_API_KEY' },
+      { name: 'OpenAI GPT', envVar: env.openaiApiKey(), envName: 'OPENAI_API_KEY' },
+      { name: 'Groq', envVar: env.groqApiKey(), envName: 'GROQ_API_KEY' },
+      { name: 'Ollama (Local)', envVar: env.ollamaBaseUrl(), envName: 'OLLAMA_BASE_URL' },
     ];
 
     const providers = providerChecks.map((p) => ({

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { env } from '@/lib/config/envConfig';
 import { v4 as uuidv4 } from 'uuid';
 import {
   dependencyScanDb,
@@ -195,7 +196,7 @@ async function fetchRegistryVersionsForScan(
       });
 
       if (npmPackages.length > 0) {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/dependencies/registry-versions`, {
+        const response = await fetch(`${env.baseUrl()}/api/dependencies/registry-versions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -219,7 +220,7 @@ async function fetchRegistryVersionsForScan(
       });
 
       if (pythonPackages.length > 0) {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/dependencies/registry-versions`, {
+        const response = await fetch(`${env.baseUrl()}/api/dependencies/registry-versions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

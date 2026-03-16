@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { env } from '@/lib/config/envConfig';
 import {
   isGitHubProjectConfigured,
   batchSyncGoalsToGitHub,
@@ -83,9 +84,9 @@ async function handlePost(request: NextRequest) {
 async function handleGet() {
   try {
     const configured = isGitHubProjectConfigured();
-    const hasToken = !!process.env.GITHUB_TOKEN;
-    const hasProjectId = !!process.env.GITHUB_PROJECT_ID;
-    const hasOwner = !!process.env.GITHUB_PROJECT_OWNER;
+    const hasToken = !!env.githubToken();
+    const hasProjectId = !!env.githubProjectId();
+    const hasOwner = !!env.githubProjectOwner();
 
     return NextResponse.json({
       configured,
@@ -93,11 +94,11 @@ async function handleGet() {
         hasToken,
         hasProjectId,
         hasOwner,
-        hasStatusField: !!process.env.GITHUB_STATUS_FIELD_ID,
+        hasStatusField: !!env.githubStatusFieldId(),
         hasStatusMapping: !!(
-          process.env.GITHUB_STATUS_TODO_ID &&
-          process.env.GITHUB_STATUS_IN_PROGRESS_ID &&
-          process.env.GITHUB_STATUS_DONE_ID
+          env.githubStatusTodoId() &&
+          env.githubStatusInProgressId() &&
+          env.githubStatusDoneId()
         ),
       },
       message: configured

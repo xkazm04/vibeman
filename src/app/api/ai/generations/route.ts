@@ -59,7 +59,8 @@ async function handleDelete(request: NextRequest) {
     }
 
     // Get Leonardo API key from environment
-    const leonardoApiKey = process.env.LEONARDO_API_KEY
+    const { env } = await import('@/lib/config/envConfig');
+    const leonardoApiKey = env.leonardoApiKey()
     if (!leonardoApiKey) {
       logger.error('LEONARDO_API_KEY is not configured', {
         requestedIds: validIds.length,

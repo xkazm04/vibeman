@@ -5,6 +5,7 @@
 
 import { chromium } from 'playwright-core';
 import { logger } from '@/lib/logger';
+import { env } from '@/lib/config/envConfig';
 
 export interface BrowserbaseConfig {
   apiKey: string;
@@ -16,8 +17,8 @@ export interface BrowserbaseConfig {
  * Get Browserbase configuration from environment variables
  */
 export function getBrowserbaseConfig(): BrowserbaseConfig {
-  const apiKey = process.env.BROWSERBASE_API_KEY;
-  const projectId = process.env.BROWSERBASE_PROJECT_ID;
+  const apiKey = env.browserbaseApiKey();
+  const projectId = env.browserbaseProjectId();
 
   if (!apiKey) {
     throw new Error('BROWSERBASE_API_KEY is not configured in environment variables');
@@ -26,7 +27,7 @@ export function getBrowserbaseConfig(): BrowserbaseConfig {
   return {
     apiKey,
     projectId,
-    enableDebug: process.env.NODE_ENV === 'development',
+    enableDebug: env.isDevelopment(),
   };
 }
 
@@ -55,7 +56,7 @@ export async function connectToBrowserbase(config: BrowserbaseConfig) {
  * Check if Browserbase is configured
  */
 export function isBrowserbaseConfigured(): boolean {
-  return !!process.env.BROWSERBASE_API_KEY;
+  return !!env.browserbaseApiKey();
 }
 
 /**

@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'query is required' }, { status: 400 });
     }
 
-    const grokApiKey = process.env.GROK_API_KEY || process.env.XAI_API_KEY;
+    const { env } = await import('@/lib/config/envConfig');
+    const grokApiKey = env.grokApiKey();
     if (!grokApiKey) {
       return NextResponse.json(
         { error: 'Grok API key not configured. Set GROK_API_KEY or XAI_API_KEY.' },

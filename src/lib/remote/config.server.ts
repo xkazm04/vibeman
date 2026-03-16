@@ -9,6 +9,7 @@
 import type { RemoteConfig, RemoteConnectionStatus } from './types';
 import { remoteEvents } from './eventPublisher';
 import { commandProcessor } from './commandProcessor';
+import { env } from '@/lib/config/envConfig';
 
 // In-memory config cache
 let cachedConfig: RemoteConfig | null = null;
@@ -136,8 +137,8 @@ export function initializeRemoteServices(url: string, serviceRoleKey: string): v
  */
 export function isRemoteConfigured(): boolean {
   // Check env vars first
-  const envUrl = process.env.REMOTE_SUPABASE_URL;
-  const envKey = process.env.REMOTE_SUPABASE_SERVICE_ROLE_KEY;
+  const envUrl = env.remoteSupabaseUrl();
+  const envKey = env.remoteSupabaseServiceRoleKey();
 
   if (envUrl && envKey) {
     return true;
@@ -153,9 +154,9 @@ export function isRemoteConfigured(): boolean {
  */
 export function getActiveRemoteConfig(): { url: string; anonKey: string; serviceRoleKey: string } | null {
   // Check env vars first
-  const envUrl = process.env.REMOTE_SUPABASE_URL;
-  const envAnonKey = process.env.REMOTE_SUPABASE_ANON_KEY;
-  const envServiceKey = process.env.REMOTE_SUPABASE_SERVICE_ROLE_KEY;
+  const envUrl = env.remoteSupabaseUrl();
+  const envAnonKey = env.remoteSupabaseAnonKey();
+  const envServiceKey = env.remoteSupabaseServiceRoleKey();
 
   if (envUrl && envServiceKey) {
     return {

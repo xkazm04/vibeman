@@ -10,6 +10,7 @@ import { OllamaClient } from './providers/ollama-client';
 import { InternalClient } from './providers/internal-client';
 import { GroqClient } from './providers/groq-client';
 import { logger } from '@/lib/logger';
+import { env } from '@/lib/config/envConfig';
 
 export class LLMManager {
   private providers: Map<SupportedProvider, LLMProvider> = new Map();
@@ -28,48 +29,48 @@ export class LLMManager {
     // Server-side: Use environment variables
     if (typeof window === 'undefined') {
       // Initialize OpenAI client
-      const openaiApiKey = process.env.OPENAI_API_KEY;
+      const openaiApiKey = env.openaiApiKey();
       if (openaiApiKey) {
         this.providers.set('openai', new OpenAIClient({
           apiKey: openaiApiKey,
-          baseUrl: process.env.OPENAI_BASE_URL
+          baseUrl: env.openaiBaseUrl()
         }));
       }
 
       // Initialize Anthropic client
-      const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+      const anthropicApiKey = env.anthropicApiKey();
       if (anthropicApiKey) {
         this.providers.set('anthropic', new AnthropicClient({
           apiKey: anthropicApiKey,
-          baseUrl: process.env.ANTHROPIC_BASE_URL
+          baseUrl: env.anthropicBaseUrl()
         }));
       }
 
       // Initialize Gemini client
-      const geminiApiKey = process.env.GEMINI_API_KEY;
+      const geminiApiKey = env.geminiApiKey();
       if (geminiApiKey) {
         this.providers.set('gemini', new GeminiClient({
           apiKey: geminiApiKey,
-          baseUrl: process.env.GEMINI_BASE_URL
+          baseUrl: env.geminiBaseUrl()
         }));
       }
 
       // Initialize Ollama client (always available)
       this.providers.set('ollama', new OllamaClient({
-        baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434'
+        baseUrl: env.ollamaBaseUrl()
       }));
 
       // Initialize Groq client
-      const groqApiKey = process.env.GROQ_API_KEY;
+      const groqApiKey = env.groqApiKey();
       if (groqApiKey) {
         this.providers.set('groq', new GroqClient({
           apiKey: groqApiKey,
-          baseUrl: process.env.GROQ_BASE_URL
+          baseUrl: env.groqBaseUrl()
         }));
       }
 
       // Initialize Internal client
-      const internalBaseUrl = process.env.INTERNAL_API_BASE_URL;
+      const internalBaseUrl = env.internalApiBaseUrl();
       if (internalBaseUrl) {
         this.providers.set('internal', new InternalClient({
           baseUrl: internalBaseUrl

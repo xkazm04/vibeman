@@ -6,13 +6,14 @@ import {
 import { NodeHttp2Handler } from '@smithy/node-http-handler';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/lib/logger';
+import { env } from '@/lib/config/envConfig';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const AWS_REGION = process.env.AWS_NOVA_REGION || 'eu-north-1';
-const AWS_ACCESS_KEY_ID = process.env.AWS_NOVA_ACCESS_KEY_ID;
-const AWS_SECRET_ACCESS_KEY = process.env.AWS_NOVA_SECRET_ACCESS_KEY;
+const AWS_REGION = env.awsNovaRegion();
+const AWS_ACCESS_KEY_ID = env.awsNovaAccessKeyId();
+const AWS_SECRET_ACCESS_KEY = env.awsNovaSecretAccessKey();
 const MODEL_ID = 'amazon.nova-2-sonic-v1:0';
 const DEFAULT_VOICE = 'tiffany';
 

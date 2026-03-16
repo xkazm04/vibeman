@@ -7,6 +7,7 @@
 
 import type { ScanConfig, ScanFinding, CodebaseFile, ScanRepository } from '../types';
 import { BaseScanStrategy } from './baseScanStrategy';
+import { env } from '@/lib/config/envConfig';
 import type { FileGatherer } from '../types';
 
 /**
@@ -25,7 +26,7 @@ export class AgentScanStrategy extends BaseScanStrategy {
     if (!config.scanType) {
       throw new Error('Agent scan requires scanType (e.g., "zen_architect", "bug_hunter")');
     }
-    if (!config.provider && !process.env.ANTHROPIC_API_KEY && !process.env.GEMINI_API_KEY) {
+    if (!config.provider && !env.anthropicApiKey() && !env.geminiApiKey()) {
       throw new Error('No LLM provider configured for agent scanning');
     }
   }

@@ -16,6 +16,7 @@ import { formatBrainForPrompt } from './brainInjector';
 import { buildRapportPromptContext, analyzeAndUpdateRapport } from './rapportEngine';
 import { contextualRecaller } from '@/app/features/Annette/lib/contextualRecaller';
 import { unifiedKnowledgeStore } from '@/app/features/Annette/lib/unifiedKnowledgeStore';
+import { env } from '@/lib/config/envConfig';
 import { logger } from '@/lib/logger';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
@@ -179,7 +180,7 @@ async function recallConversationMemories(
  * Sends message to Claude with tools, executes any tool calls, loops until text response
  */
 export async function orchestrate(input: OrchestratorInput): Promise<OrchestratorOutput> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = env.anthropicApiKey();
   if (!apiKey) {
     throw new Error('ANTHROPIC_API_KEY is required for Annette');
   }

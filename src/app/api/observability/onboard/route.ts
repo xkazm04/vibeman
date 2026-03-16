@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { env } from '@/lib/config/envConfig';
 import { observabilityDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 import * as fs from 'fs';
@@ -1176,7 +1177,7 @@ export async function POST(request: NextRequest) {
     const framework = detectFramework(project_path);
 
     // Get Vibeman URL from environment or use default
-    const vibemanUrl = process.env.VIBEMAN_URL || 'http://localhost:3000';
+    const vibemanUrl = env.vibemanUrl() || 'http://localhost:3000';
 
     // Generate requirement content
     const content = generateOnboardingContent(

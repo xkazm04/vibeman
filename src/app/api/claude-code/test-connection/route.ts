@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { env } from '@/lib/config/envConfig';
 import { AnthropicClient } from '@/lib/llm/providers/anthropic-client';
 
 interface ConnectionCheck {
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // 1. Check if API key is configured
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = env.anthropicApiKey();
     results.checks.push({
       name: 'API Key Configuration',
       status: apiKey ? 'PASS' : 'FAIL',

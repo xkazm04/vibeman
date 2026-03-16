@@ -111,23 +111,29 @@ For other distros, install `gcc`, `g++`, `make`, and `python3`.
 
 ## Environment Variables
 
-Copy `.env.example` to `.env.local` and configure:
+```bash
+cp .env.example .env.local
+# Edit .env.local — at minimum, set one LLM provider API key
+```
+
+All environment variables are read through a centralized config module (`src/lib/config/envConfig.ts`) with validation, typed getters, and server-only guards for secrets.
 
 ### LLM Providers (at least one required)
 
 | Variable | Description |
 |----------|-------------|
 | `ANTHROPIC_API_KEY` | Anthropic API key for Claude models |
-| `GEMINI_API_KEY` | Google Gemini API key |
 | `OPENAI_API_KEY` | OpenAI API key |
+| `GEMINI_API_KEY` | Google Gemini API key |
+| `GROQ_API_KEY` | Groq API key |
 | `OLLAMA_BASE_URL` | Ollama server URL (default: `http://localhost:11434`) |
 
 ### Database
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | `./database/vibeman.db` | SQLite database file path |
-| `DB_DRIVER` | `sqlite` | Database driver |
+| `DB_PATH` | `./database/goals.db` | SQLite database file path |
+| `DB_WAL_MODE` | `true` | Enable WAL mode for better concurrency |
 
 ### Optional Integrations
 
@@ -135,11 +141,13 @@ Copy `.env.example` to `.env.local` and configure:
 |----------|-------------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (cloud sync) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-only) |
 | `GITHUB_TOKEN` | GitHub PAT for Projects sync (`project:read`, `project:write` scopes) |
 | `ELEVENLABS_API_KEY` | ElevenLabs API key (voice assistant) |
 | `BROWSERBASE_API_KEY` | BrowserBase API key (automated screenshots) |
+| `LEONARDO_API_KEY` | Leonardo.ai image generation |
 
-See `.env.example` for the full list with descriptions.
+See [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) for the complete variable reference with defaults and descriptions.
 
 ---
 

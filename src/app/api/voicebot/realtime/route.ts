@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { llmManager } from '@/lib/llm/llm-manager';
 import { logger } from '@/lib/logger';
+import { env } from '@/lib/config/envConfig';
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_API_KEY = env.openaiApiKey();
 
 export const dynamic = 'force-dynamic';
 

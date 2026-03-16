@@ -6,6 +6,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { env } from '@/lib/config/envConfig';
 import { getDbDriver } from '@/app/db/drivers';
 import { logger } from '@/lib/logger';
 
@@ -144,7 +145,7 @@ export async function GET(): Promise<NextResponse<HealthStatus>> {
     status: overallStatus,
     timestamp: new Date().toISOString(),
     uptime: Math.round((Date.now() - startTime) / 1000),
-    version: process.env.npm_package_version || '1.0.0',
+    version: env.packageVersion(),
     checks,
   };
 

@@ -5,6 +5,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { env } from '@/lib/config/envConfig';
 import { architectureAnalysisAgent } from '@/lib/architecture/analysisAgent';
 import { architectureAnalysisDb } from '@/app/db';
 import type { AnalysisTriggerType } from '@/app/db/models/cross-project-architecture.types';
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
       return validationError('Projects array is required for workspace analysis');
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${process.env.PORT || 3000}`;
+    const baseUrl = env.appUrl();
 
     if (scope === 'workspace') {
       const result = await architectureAnalysisAgent.analyzeWorkspace({

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'crypto';
 import { logger } from '@/lib/logger';
+import { env } from '@/lib/config/envConfig';
 
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+const ELEVENLABS_API_KEY = env.elevenLabsApiKey();
 const VOICE_ID = "WAhoMTNdLdMoq1j3wf3I";
 
 /**

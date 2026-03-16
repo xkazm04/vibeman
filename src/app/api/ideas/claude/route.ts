@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { env } from '@/lib/config/envConfig';
 import { ScanType, SCAN_TYPE_CONFIGS, getScanTypeAbbr } from '@/app/features/Ideas/lib/scanTypes';
 import { buildPrompt, PromptOptions } from '@/app/projects/ProjectAI/ScanIdeas/prompts';
 import { IMPLEMENTATION_PROCEDURE_EXTENSION } from '@/app/projects/ProjectAI/ScanIdeas/prompts/schemaTemplate';
@@ -42,16 +43,7 @@ interface GroupData {
  * This allows the URL to be configured for different environments
  */
 function getVibemanApiUrl(): string {
-  // Check environment variable first (for production/staging)
-  if (process.env.VIBEMAN_API_URL) {
-    return process.env.VIBEMAN_API_URL;
-  }
-  // Check if we have a public URL configured
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-  // Default to localhost:3000 for local development
-  return 'http://localhost:3000';
+  return env.vibemanApiUrl();
 }
 
 /**

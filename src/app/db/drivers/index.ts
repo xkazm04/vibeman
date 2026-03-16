@@ -3,9 +3,9 @@
  * Provides a unified interface for database operations with driver selection
  */
 
-import * as path from 'path';
 import type { DbDriver, DbConfig, DbConnection } from './types';
 import { createSqliteDriver } from './sqlite.driver';
+import { env } from '@/lib/config/envConfig';
 
 // Export all types
 export * from './types';
@@ -24,8 +24,8 @@ function loadDbConfig(): DbConfig {
   return {
     driver: 'sqlite',
     sqlite: {
-      path: process.env.DB_PATH || path.join(process.cwd(), 'database', 'goals.db'),
-      walMode: process.env.DB_WAL_MODE !== 'false'
+      path: env.dbPath(),
+      walMode: env.dbWalMode()
     }
   };
 }

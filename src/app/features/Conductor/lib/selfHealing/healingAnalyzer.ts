@@ -7,6 +7,7 @@
 
 import type { ErrorClassification, HealingPatch, HealingTargetType, ErrorType } from '../types';
 import { groupErrorsByType, getErrorDescription } from './errorClassifier';
+import { env } from '@/lib/config/envConfig';
 
 interface HealingSuggestion {
   targetType: HealingTargetType;
@@ -266,5 +267,5 @@ Write ONLY the instruction text, nothing else.`;
 }
 
 function getBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  return env.appUrl();
 }

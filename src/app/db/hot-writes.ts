@@ -16,6 +16,7 @@
 import Database from 'better-sqlite3';
 import * as path from 'path';
 import * as fs from 'fs';
+import { env } from '@/lib/config/envConfig';
 
 let hotDb: Database.Database | null = null;
 
@@ -31,7 +32,7 @@ export function getHotWritesDatabase(): Database.Database {
     fs.mkdirSync(dbDir, { recursive: true });
   }
 
-  const dbPath = process.env.HOT_WRITES_DB_PATH || path.join(dbDir, 'hot-writes.db');
+  const dbPath = env.hotWritesDbPath() || path.join(dbDir, 'hot-writes.db');
   hotDb = new Database(dbPath);
 
   // WAL mode is critical for append-heavy workloads — allows concurrent reads

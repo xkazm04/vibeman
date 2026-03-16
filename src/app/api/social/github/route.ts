@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { env } from '@/lib/config/envConfig';
 import type { GitHubIssueData } from '@/app/features/Social/lib/types/aiTypes';
 import { generateGitHubIssueMarkdown } from '@/app/features/Social/lib/types/aiTypes';
 
-// GitHub API configuration - can be overridden via environment variables
-const GITHUB_OWNER = process.env.GITHUB_OWNER || 'xkazm04';
-const GITHUB_REPO = process.env.GITHUB_REPO || 'vibeman';
+// GitHub API configuration
+const GITHUB_OWNER = env.githubOwner();
+const GITHUB_REPO = env.githubRepo();
 const GITHUB_API_BASE = 'https://api.github.com';
 
 interface CreateIssueRequest {
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const githubToken = process.env.GITHUB_TOKEN;
+    const githubToken = env.githubToken();
     if (!githubToken) {
       console.error('[GitHub API] GITHUB_TOKEN not configured');
       return NextResponse.json(
@@ -125,7 +126,7 @@ export async function POST(request: NextRequest) {
  * Check GitHub integration status
  */
 export async function GET() {
-  const hasToken = !!process.env.GITHUB_TOKEN;
+  const hasToken = !!env.githubToken();
 
   return NextResponse.json({
     status: hasToken ? 'configured' : 'not_configured',

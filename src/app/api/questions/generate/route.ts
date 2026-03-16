@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { env } from '@/lib/config/envConfig';
 import fs from 'fs';
 import path from 'path';
 import { contextDb, contextGroupDb, DbContext, DbContextGroup } from '@/app/db';
@@ -80,13 +81,7 @@ function jsonContextToUnified(ctx: ContextMapEntry): UnifiedContext {
  * Get the Vibeman API base URL for Claude Code to use
  */
 function getVibemanApiUrl(): string {
-  if (process.env.VIBEMAN_API_URL) {
-    return process.env.VIBEMAN_API_URL;
-  }
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-  return 'http://localhost:3000';
+  return env.vibemanApiUrl();
 }
 
 /**
