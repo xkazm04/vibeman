@@ -25,22 +25,22 @@ What you expected to happen.
 
 What actually happened.
 
-## Screenshots
-
-If applicable, add screenshots to help explain the problem.
-
-## Error Messages
-
-```
-Paste any error messages or stack traces here
-```
-
 ## Environment
 
 - **OS:** [e.g., Windows 11, macOS 14, Ubuntu 24.04]
 - **Node.js version:** [e.g., 20.11.0]
 - **Browser:** [e.g., Chrome 120, Firefox 121]
 - **Vibeman version/commit:** [e.g., commit hash or version]
+
+## Relevant Logs or Error Messages
+
+```
+Paste any error messages, stack traces, or relevant log output here
+```
+
+## Screenshots
+
+If applicable, add screenshots to help explain the problem.
 
 ## CLI Provider (if applicable)
 

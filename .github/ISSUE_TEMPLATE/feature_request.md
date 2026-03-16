@@ -6,7 +6,7 @@ labels: enhancement
 assignees: ''
 ---
 
-## Problem
+## Problem Statement
 
 A clear description of the problem you're trying to solve. Ex: "I'm always frustrated when..."
 
@@ -18,7 +18,11 @@ A clear description of what you'd like to happen.
 
 Any alternative solutions or features you've considered.
 
-## Which area does this affect?
+## Additional Context
+
+Add any mockups, diagrams, or references that help explain the feature.
+
+### Which area does this affect?
 
 - [ ] Conductor (AI pipeline)
 - [ ] Task Runner (execution)
@@ -26,13 +30,8 @@ Any alternative solutions or features you've considered.
 - [ ] Ideas / Scanning
 - [ ] Context System
 - [ ] Brain / Analytics
-- [ ] Annette (voice assistant)
 - [ ] Database / Migrations
 - [ ] CLI Providers
 - [ ] UI / Theming
 - [ ] API
 - [ ] Other: ___
-
-## Additional Context
-
-Add any mockups, diagrams, or references that help explain the feature.
