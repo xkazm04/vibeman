@@ -250,6 +250,20 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for a detailed technical deep-dive.
 
 ---
 
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [docs/SETUP.md](docs/SETUP.md) | Step-by-step local development setup |
+| [docs/API.md](docs/API.md) | API endpoint reference with curl examples |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions |
+| [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) | Complete environment variable reference |
+| [docs/FEATURES.md](docs/FEATURES.md) | Feature documentation |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Technical architecture deep-dive |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contributing guidelines |
+
+---
+
 ## Cross-Platform Notes
 
 Vibeman runs on **Windows**, **macOS**, and **Linux**.
