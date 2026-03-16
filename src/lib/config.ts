@@ -34,6 +34,10 @@ import { env } from '@/lib/config/envConfig';
 // Application Constants
 // ---------------------------------------------------------------------------
 
+/**
+ * Default port ranges for different execution environments.
+ * Used by the project manager to assign non-conflicting ports.
+ */
 export const DEFAULT_PORT_RANGES = {
   /** Local development servers (Next.js, Vite, etc.). */
   development: { start: 3000, end: 3999 },
@@ -43,12 +47,19 @@ export const DEFAULT_PORT_RANGES = {
   testing: { start: 5000, end: 5999 },
 };
 
+/**
+ * Sensible defaults applied when creating a new project.
+ * Can be overridden per-project via the project settings UI.
+ */
 export const DEFAULT_PROJECT_SETTINGS = {
   allowMultipleInstances: false,
   gitBranch: 'main',
   gitAutoSync: false,
 };
 
+/**
+ * Application-wide limits and timeouts.
+ */
 export const APP_CONSTANTS = {
   maxProjectNameLength: 50,
   maxDescriptionLength: 200,
@@ -59,6 +70,7 @@ export const APP_CONSTANTS = {
 // Configuration Validation
 // ---------------------------------------------------------------------------
 
+/** A single validation finding from {@link validateConfig}. */
 interface ValidationIssue {
   variable: string;
   level: 'error' | 'warning';
@@ -80,6 +92,23 @@ interface ValidationIssue {
  *
  * Recommended env vars (warnings if missing):
  *   At least one LLM API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.)
+ *
+ * @returns Object containing any non-fatal warnings found during validation.
+ * @throws {Error} If any critical configuration variable is invalid.
+ *
+ * @example
+ * ```ts
+ * import { validateConfig } from '@/lib/config';
+ *
+ * // At server startup:
+ * try {
+ *   const { warnings } = validateConfig();
+ *   if (warnings.length) console.log('Config warnings:', warnings);
+ * } catch (err) {
+ *   console.error('Invalid config — cannot start:', err.message);
+ *   process.exit(1);
+ * }
+ * ```
  */
 export function validateConfig(): { warnings: ValidationIssue[] } {
   const issues: ValidationIssue[] = [];
@@ -231,14 +260,22 @@ export interface AppConfig {
   projectDefaults: typeof DEFAULT_PROJECT_SETTINGS;
 }
 
+/**
+ * Returns `true` when running on the server (Node.js) rather than in a browser.
+ * Used to gate server-only config sections like `db` and `llm`.
+ */
 function isServer(): boolean {
   return typeof window === 'undefined';
 }
 
 /**
- * Build the config object. Server-only sections use getters to defer
- * the serverOnly() check until actual access, preventing client-side
- * import errors.
+ * Constructs the singleton {@link AppConfig} object.
+ *
+ * Server-only sections (`db`, `llm`, `integrations`) use property getters
+ * so that importing the config module on the client does not throw — the
+ * error is deferred until a server-only property is actually read.
+ *
+ * @returns Fully populated config object.
  */
 function buildConfig(): AppConfig {
   const base = {

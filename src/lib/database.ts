@@ -23,9 +23,20 @@
  * ```
  */
 
-// Application database — goals, ideas, questions, sessions, etc.
+/**
+ * Application database — goals, ideas, questions, sessions, etc.
+ *
+ * `getDatabase()` returns a singleton `better-sqlite3` instance.
+ * `closeDatabase()` releases the connection and file lock.
+ *
+ * @see {@link @/app/db/connection} for connection implementation.
+ */
 export { getDatabase, closeDatabase } from '@/app/db/connection';
 
-// Project registry database — project CRUD with port/workspace management
+/**
+ * Project registry database — project CRUD with port/workspace management.
+ *
+ * @see {@link @/lib/project_database} for the full API surface.
+ */
 export { projectDb } from '@/lib/project_database';
 export type { DbProject } from '@/lib/project_database';

@@ -89,9 +89,11 @@ function addColumnIfNotExists(columnDef: string): void {
 }
 
 /**
- * Create the projects table schema
- * Note: port is no longer UNIQUE at DB level - uniqueness is enforced per-workspace in validation
- * Note: port is now nullable for projects that don't need a dev server
+ * Creates the `projects` table if it does not already exist.
+ *
+ * Port uniqueness is enforced at the application layer (per-workspace)
+ * rather than via a UNIQUE constraint, and port is nullable for projects
+ * that don't run a dev server.
  */
 function createProjectsTable(): void {
   if (!db) return;
@@ -119,7 +121,10 @@ function createProjectsTable(): void {
 }
 
 /**
- * Column definitions for backward compatibility
+ * Column definitions added via migrations for backward compatibility.
+ *
+ * Each entry is a full `ALTER TABLE ADD COLUMN` definition. New columns
+ * MUST be nullable or have a DEFAULT to avoid breaking existing rows.
  */
 const MIGRATION_COLUMNS = [
   `type TEXT DEFAULT 'other'`,
@@ -134,14 +139,17 @@ const MIGRATION_COLUMNS = [
 ] as const;
 
 /**
- * Add any missing columns for backward compatibility
+ * Adds any columns from {@link MIGRATION_COLUMNS} that are not yet present
+ * on the `projects` table. Safe to call repeatedly — existing columns
+ * are silently skipped.
  */
 function addMissingColumns(): void {
   MIGRATION_COLUMNS.forEach(columnDef => addColumnIfNotExists(columnDef));
 }
 
 /**
- * Index definitions for query optimization
+ * SQL statements that create indexes for common query patterns.
+ * Each is idempotent (`IF NOT EXISTS`).
  */
 const INDEX_DEFINITIONS = [
   'CREATE INDEX IF NOT EXISTS idx_projects_path ON projects(path)',
@@ -150,7 +158,8 @@ const INDEX_DEFINITIONS = [
 ] as const;
 
 /**
- * Create database indexes
+ * Creates all indexes defined in {@link INDEX_DEFINITIONS}.
+ * Safe to call repeatedly — uses `IF NOT EXISTS`.
  */
 function createIndexes(): void {
   if (!db) return;
@@ -287,7 +296,10 @@ function migrateStaleWorkspacePaths(): void {
 }
 
 /**
- * Initialize all database tables and schemas
+ * Runs the full database bootstrap sequence: schema creation, column
+ * migrations, index creation, stale-path migration, and default seeding.
+ *
+ * Called once by {@link getProjectDatabase} on first connection.
  */
 function initializeProjectTables() {
   if (!db) return;
