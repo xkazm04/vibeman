@@ -1,3 +1,26 @@
+/**
+ * @module contextAutoUpdate
+ *
+ * Automatically keeps project "contexts" (curated file groupings) in sync
+ * with filesystem changes that occur during Claude Code execution sessions.
+ *
+ * ### Workflow
+ * 1. Before execution, call {@link createProjectSnapshot} to capture file mtimes.
+ * 2. After execution, call {@link autoUpdateContexts} which:
+ *    - Detects created / modified / deleted files via {@link detectFileChanges}.
+ *    - Determines whether changes map to existing contexts or represent a new feature
+ *      via {@link analyzeChanges}.
+ *    - Creates or updates contexts accordingly, using an LLM to generate descriptions.
+ *
+ * @example
+ * ```ts
+ * import { createProjectSnapshot, autoUpdateContexts } from '@/app/Claude/lib/contextAutoUpdate';
+ *
+ * const snapshot = createProjectSnapshot('/path/to/project');
+ * // ... run Claude Code execution ...
+ * const results = await autoUpdateContexts('proj-id', '/path/to/project', snapshot);
+ * ```
+ */
 import * as fs from 'fs';
 import * as path from 'path';
 import { contextDb, DbContext } from '@/app/db';
@@ -7,27 +30,45 @@ import { SupportedProvider } from '@/lib/llm/types';
 import { logger } from '@/lib/logger';
 import { signalCollector } from '@/lib/brain/signalCollector';
 
+/** Represents a single file-level change detected between two snapshots. */
 export interface FileChange {
+  /** Absolute path to the file. */
   path: string;
+  /** The type of change. */
   status: 'created' | 'modified' | 'deleted';
+  /** Path relative to the project root (forward-slash separated). */
   relativePath: string;
 }
 
+/** Outcome of a single context create/update operation. */
 export interface ContextUpdateResult {
+  /** Whether the operation completed without error. */
   success: boolean;
+  /** The context ID, if a context was created or updated. */
   contextId?: string;
+  /** What action was taken. */
   action: 'created' | 'updated' | 'none';
+  /** Human-readable summary. */
   message?: string;
+  /** Error description on failure. */
   error?: string;
 }
 
 /**
- * Detect file changes in a project directory by comparing current state
- * with a snapshot taken before execution
+ * Detects file changes in a project directory by comparing the current
+ * filesystem state with a snapshot captured before execution.
+ *
+ * Scans source-code file extensions (`.ts`, `.tsx`, `.js`, `.jsx`, `.css`,
+ * `.scss`, `.md`, `.json`, `.py`) and ignores common build artifacts
+ * (`node_modules`, `.git`, `.next`, `dist`, `build`).
+ *
+ * @param projectPath - Absolute path to the project root.
+ * @param beforeSnapshot - Map of `relativePath → mtimeMs` from {@link createProjectSnapshot}.
+ * @returns Array of detected file changes (may be empty).
  */
 export async function detectFileChanges(
   projectPath: string,
-  beforeSnapshot: Map<string, number> // file path -> modified time
+  beforeSnapshot: Map<string, number>
 ): Promise<FileChange[]> {
   const changes: FileChange[] = [];
   const currentFiles = new Map<string, number>();
@@ -114,7 +155,13 @@ export async function detectFileChanges(
 }
 
 /**
- * Create a snapshot of file modification times in a project
+ * Creates a snapshot of file modification times for all tracked source files
+ * in a project. Used as the "before" state for {@link detectFileChanges}.
+ *
+ * Skips the same directories and file types as {@link detectFileChanges}.
+ *
+ * @param projectPath - Absolute path to the project root.
+ * @returns Map of `relativePath → mtimeMs`.
  */
 export function createProjectSnapshot(projectPath: string): Map<string, number> {
   const snapshot = new Map<string, number>();
@@ -164,7 +211,17 @@ export function createProjectSnapshot(projectPath: string): Map<string, number> 
 }
 
 /**
- * Determine if file changes represent a new feature or updates to existing feature
+ * Analyzes file changes to determine whether they represent a new feature
+ * or updates to one or more existing contexts.
+ *
+ * Heuristic: if all created files fall outside every known context's file list,
+ * the change set is classified as a new feature and a name is inferred from
+ * the directory structure (e.g. `app/features/<name>/`).
+ *
+ * @param changes - File changes from {@link detectFileChanges}.
+ * @param projectId - The project's database ID (used to look up contexts).
+ * @param projectPath - Absolute path to the project root.
+ * @returns Analysis result with `isNewFeature` flag and affected contexts.
  */
 export async function analyzeChanges(
   changes: FileChange[],
@@ -246,7 +303,16 @@ export async function analyzeChanges(
 }
 
 /**
- * Generate a context description using LLM based on file contents
+ * Uses an LLM to generate a concise 1-2 sentence description of what a
+ * code context represents, based on sampled file contents.
+ *
+ * Falls back to a generic string if the LLM call fails or returns nothing.
+ *
+ * @param contextName - Human-readable name for the context.
+ * @param filePaths - Relative (or absolute) file paths belonging to the context.
+ * @param projectPath - Project root used to resolve relative paths.
+ * @param provider - LLM provider to use. Defaults to `'ollama'`.
+ * @returns A short description string.
  */
 export async function generateContextDescription(
   contextName: string,
@@ -309,7 +375,17 @@ export async function generateContextDescription(
 }
 
 /**
- * Helper: Create a new context from detected feature
+ * Creates a new context record from a detected feature.
+ *
+ * Generates an LLM description, inserts via `contextQueries`, and returns
+ * a {@link ContextUpdateResult} indicating success or failure.
+ *
+ * @param projectId - Owning project ID.
+ * @param projectPath - Absolute project root path.
+ * @param featureName - Inferred feature name (used as context name).
+ * @param featureFiles - Relative file paths belonging to the feature.
+ * @param provider - LLM provider for description generation.
+ * @returns Result with `action: 'created'`.
  */
 async function createNewFeatureContext(
   projectId: string,
@@ -357,7 +433,17 @@ async function createNewFeatureContext(
 }
 
 /**
- * Helper: Update an existing context with file changes
+ * Updates an existing context's file list based on detected changes.
+ *
+ * - Removes deleted files from the context.
+ * - Adds newly created files that share a parent directory with existing files.
+ * - Regenerates the LLM description if the file list changed.
+ *
+ * @param context - The existing context database row to update.
+ * @param changes - File changes from {@link detectFileChanges}.
+ * @param projectPath - Absolute project root path.
+ * @param provider - LLM provider for description regeneration.
+ * @returns Result with `action: 'updated'` or `'none'` if unchanged.
  */
 async function updateExistingContext(
   context: DbContext,
@@ -450,7 +536,26 @@ async function updateExistingContext(
 }
 
 /**
- * Main function: Auto-update or create contexts based on file changes
+ * Main entry point: detects file changes since a snapshot and automatically
+ * creates or updates project contexts to reflect those changes.
+ *
+ * This is the function you typically call after a Claude Code execution
+ * session completes. It orchestrates the full pipeline:
+ * detect → analyze → create/update.
+ *
+ * @param projectId - The project's database ID.
+ * @param projectPath - Absolute path to the project root.
+ * @param beforeSnapshot - Snapshot from {@link createProjectSnapshot} taken before execution.
+ * @param provider - LLM provider for generating context descriptions. Defaults to `'ollama'`.
+ * @returns Array of results, one per context that was created, updated, or left unchanged.
+ *
+ * @example
+ * ```ts
+ * const snapshot = createProjectSnapshot(projectPath);
+ * await executeRequirement(projectId, requirementId);
+ * const results = await autoUpdateContexts(projectId, projectPath, snapshot, 'ollama');
+ * console.log(results.filter(r => r.action !== 'none'));
+ * ```
  */
 export async function autoUpdateContexts(
   projectId: string,

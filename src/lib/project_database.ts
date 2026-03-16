@@ -1,13 +1,39 @@
+/**
+ * @module project_database
+ *
+ * SQLite-backed project registry for managing local development projects.
+ *
+ * Provides CRUD operations for projects including port management, workspace
+ * scoping, and instance tracking. Uses better-sqlite3 with WAL mode for
+ * concurrent read access.
+ *
+ * The database file is stored at `<cwd>/database/projects.db` and is
+ * automatically created on first access.
+ *
+ * @example
+ * ```ts
+ * import { projectDb } from '@/lib/project_database';
+ *
+ * // High-level API (camelCase, returns Project types)
+ * const projects = projectDb.projects.getAll();
+ * projectDb.projects.add({ id: 'my-app', name: 'My App', path: '/path/to/app', port: 3000 });
+ *
+ * // Low-level API (snake_case columns, returns DbProject rows)
+ * const row = projectDb.getProject('my-app');
+ * ```
+ */
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import type { Project, ProjectType } from '@/types';
 
-// Database path - store in the database directory
+/** Absolute path to the SQLite database file. */
 const DB_PATH = path.join(process.cwd(), 'database', 'projects.db');
 
-// Workspace base path - parent of the current working directory (e.g., C:\Users\kazim\dac)
-// All project paths are derived from this base path
+/**
+ * Workspace base path — parent of the current working directory.
+ * All project paths are resolved relative to this base.
+ */
 const WORKSPACE_BASE_PATH = path.resolve(process.cwd(), '..');
 
 // Ensure database directory exists
@@ -19,22 +45,33 @@ if (!fs.existsSync(dbDir)) {
 // Initialize database connection
 let db: Database.Database | null = null;
 
+/**
+ * Returns the singleton database connection, creating it on first call.
+ *
+ * On first invocation this enables WAL journal mode and runs all table
+ * initialization (schema creation, migrations, seeding).
+ *
+ * @returns The active better-sqlite3 database instance.
+ */
 function getProjectDatabase(): Database.Database {
   if (!db) {
     db = new Database(DB_PATH);
-    
+
     // Enable WAL mode for better concurrent access
     db.pragma('journal_mode = WAL');
-    
+
     // Initialize tables
     initializeProjectTables();
   }
-  
+
   return db;
 }
 
 /**
- * Attempt to add a column to the projects table if it doesn't exist
+ * Attempts to add a column to the projects table. Silently ignores the
+ * error if the column already exists.
+ *
+ * @param columnDef - Full column definition, e.g. `"workspace_id TEXT"`.
  */
 function addColumnIfNotExists(columnDef: string): void {
   if (!db) return;
@@ -116,7 +153,7 @@ function createIndexes(): void {
 }
 
 /**
- * Default project template
+ * Template used to seed the database with default projects on first run.
  */
 interface DefaultProjectTemplate {
   id: string;
@@ -130,7 +167,12 @@ interface DefaultProjectTemplate {
 }
 
 /**
- * Convert template to database row format
+ * Converts a {@link DefaultProjectTemplate} into the ordered parameter array
+ * expected by the seed INSERT statement.
+ *
+ * @param template - The project template to convert.
+ * @param now - ISO-8601 timestamp for created_at / updated_at.
+ * @returns Positional values matching the INSERT column order.
  */
 function templateToDbRow(template: DefaultProjectTemplate, now: string): unknown[] {
   return [
@@ -266,7 +308,16 @@ function initializeProjectTables() {
 }
 
 /**
- * Helper function to add a field to update query
+ * Conditionally appends a column assignment to the dynamic UPDATE builder.
+ *
+ * If `value` is `undefined` the field is skipped. An optional `transform`
+ * function can convert the value before it is pushed (e.g. boolean → 0/1).
+ *
+ * @param fieldName - Database column name.
+ * @param value - Value to set, or `undefined` to skip.
+ * @param updateFields - Accumulator for `"column = ?"` fragments.
+ * @param values - Accumulator for bound parameter values.
+ * @param transform - Optional value transformer (e.g. `(v) => v ? 1 : 0`).
  */
 function addUpdateField(
   fieldName: string,
@@ -282,7 +333,12 @@ function addUpdateField(
 }
 
 /**
- * Helper function to build dynamic update query
+ * Builds the SET clause and parameter list for a dynamic project UPDATE.
+ *
+ * Only fields that are explicitly provided (not `undefined`) are included.
+ *
+ * @param updates - Partial project fields to update.
+ * @returns Object with `updateFields` (SQL fragments) and `values` (bound params).
  */
 function buildUpdateQuery(updates: {
   name?: string;
@@ -320,7 +376,12 @@ function buildUpdateQuery(updates: {
 }
 
 /**
- * Helper function to check field availability
+ * Checks whether a unique field value (port or path) is available.
+ *
+ * @param field - Column name to check (`"port"` or `"path"`).
+ * @param value - The value to test for uniqueness.
+ * @param excludeProjectId - Optional project ID to exclude (for updates).
+ * @returns `true` if no other project uses this value.
  */
 function checkFieldAvailability(
   field: string,
@@ -342,27 +403,61 @@ function checkFieldAvailability(
   return result.count === 0;
 }
 
-// Project database operations
+/**
+ * Raw database row shape for the `projects` table.
+ *
+ * Column names use snake_case to match SQLite. Use {@link projectDb.toProject}
+ * to convert to the camelCase {@link Project} type used by the rest of the app.
+ */
 export interface DbProject {
+  /** Unique project identifier (user-defined slug). */
   id: string;
+  /** Human-readable project name. */
   name: string;
+  /** Absolute filesystem path to the project root. */
   path: string;
+  /** Dev-server port, or `null` if the project doesn't need one. */
   port: number | null;
+  /** Optional workspace grouping ID. */
   workspace_id: string | null;
+  /** Project type discriminator (e.g. `"nextjs"`, `"fastapi"`, `"other"`). */
   type: string;
+  /** Foreign key to a related project (e.g. frontend ↔ backend pair). */
   related_project_id: string | null;
+  /** Git remote URL, or `null` if not tracked. */
   git_repository: string | null;
+  /** Git branch name. Defaults to `"main"`. */
   git_branch: string;
+  /** Shell command to start the dev server. Defaults to `"npm run dev"`. */
   run_script: string;
-  allow_multiple_instances: number; // SQLite boolean (0/1)
+  /** SQLite boolean (0/1) — whether the project supports multiple running instances. */
+  allow_multiple_instances: number;
+  /** Base port for multi-instance projects. */
   base_port: number | null;
+  /** If this project is an instance, the ID of the base project it was cloned from. */
   instance_of: string | null;
+  /** ISO-8601 creation timestamp. */
   created_at: string;
+  /** ISO-8601 last-updated timestamp. */
   updated_at: string;
 }
 
+/**
+ * Primary API for project CRUD operations.
+ *
+ * Provides two API surfaces:
+ * - **Low-level** (`getAllProjects`, `getProject`, `createProject`, etc.) —
+ *   returns raw {@link DbProject} rows with snake_case columns.
+ * - **High-level** (`projects.getAll`, `projects.add`, etc.) —
+ *   returns app-level {@link Project} objects with validation and camelCase fields.
+ *
+ * The database connection is lazily initialized on first use.
+ */
 export const projectDb = {
-  // Get all projects
+  /**
+   * Returns all projects ordered by creation date (newest first).
+   * @returns Array of raw database rows.
+   */
   getAllProjects: (): DbProject[] => {
     const db = getProjectDatabase();
     const stmt = db.prepare(`
@@ -372,28 +467,47 @@ export const projectDb = {
     return stmt.all() as DbProject[];
   },
 
-  // Get project by ID
+  /**
+   * Fetches a single project by its unique ID.
+   * @param id - The project identifier.
+   * @returns The project row, or `null` if not found.
+   */
   getProject: (id: string): DbProject | null => {
     const db = getProjectDatabase();
     const stmt = db.prepare('SELECT * FROM projects WHERE id = ?');
     return stmt.get(id) as DbProject | null;
   },
 
-  // Get project by path
+  /**
+   * Looks up a project by its filesystem path.
+   * @param path - Absolute path to the project root.
+   * @returns The project row, or `null` if not found.
+   */
   getProjectByPath: (path: string): DbProject | null => {
     const db = getProjectDatabase();
     const stmt = db.prepare('SELECT * FROM projects WHERE path = ?');
     return stmt.get(path) as DbProject | null;
   },
 
-  // Get project by port
+  /**
+   * Looks up a project by its assigned dev-server port.
+   * @param port - The port number to search for.
+   * @returns The project row, or `null` if not found.
+   */
   getProjectByPort: (port: number): DbProject | null => {
     const db = getProjectDatabase();
     const stmt = db.prepare('SELECT * FROM projects WHERE port = ?');
     return stmt.get(port) as DbProject | null;
   },
 
-  // Create a new project
+  /**
+   * Inserts a new project into the database.
+   *
+   * @param project - Project fields. Only `id`, `name`, and `path` are required;
+   *   all other fields fall back to sensible defaults.
+   * @returns The newly created {@link DbProject} row.
+   * @throws If the INSERT violates a UNIQUE constraint (e.g. duplicate path).
+   */
   createProject: (project: {
     id: string;
     name: string;
@@ -443,7 +557,13 @@ export const projectDb = {
     return selectStmt.get(project.id) as DbProject;
   },
 
-  // Update a project
+  /**
+   * Partially updates a project. Only provided fields are modified.
+   *
+   * @param id - The project ID to update.
+   * @param updates - Fields to change. Omitted fields are left untouched.
+   * @returns The updated {@link DbProject} row, or `null` if the project was not found.
+   */
   updateProject: (id: string, updates: {
     name?: string;
     path?: string;
@@ -490,7 +610,11 @@ export const projectDb = {
     return selectStmt.get(id) as DbProject;
   },
 
-  // Delete a project
+  /**
+   * Deletes a project by ID.
+   * @param id - The project ID to remove.
+   * @returns `true` if a row was deleted, `false` if the ID was not found.
+   */
   deleteProject: (id: string): boolean => {
     const db = getProjectDatabase();
     const stmt = db.prepare('DELETE FROM projects WHERE id = ?');
@@ -498,7 +622,11 @@ export const projectDb = {
     return result.changes > 0;
   },
 
-  // Get project instances (projects that are instances of a base project)
+  /**
+   * Returns all instance projects cloned from a given base project.
+   * @param baseProjectId - The base project's ID.
+   * @returns Array of instance rows, newest first.
+   */
   getProjectInstances: (baseProjectId: string): DbProject[] => {
     const db = getProjectDatabase();
     const stmt = db.prepare(`
@@ -509,17 +637,31 @@ export const projectDb = {
     return stmt.all(baseProjectId) as DbProject[];
   },
 
-  // Check if port is available
+  /**
+   * Checks if a port number is not yet claimed by any project.
+   * @param port - Port to check.
+   * @param excludeProjectId - Optional project to ignore (useful during updates).
+   * @returns `true` if the port is free.
+   */
   isPortAvailable: (port: number, excludeProjectId?: string): boolean => {
     return checkFieldAvailability('port', port, excludeProjectId);
   },
 
-  // Check if path is available
+  /**
+   * Checks if a filesystem path is not yet claimed by any project.
+   * @param path - Path to check.
+   * @param excludeProjectId - Optional project to ignore (useful during updates).
+   * @returns `true` if the path is free.
+   */
   isPathAvailable: (path: string, excludeProjectId?: string): boolean => {
     return checkFieldAvailability('path', path, excludeProjectId);
   },
 
-  // Get next available port starting from a base port
+  /**
+   * Finds the lowest unused port starting from a given base.
+   * @param basePort - Port number to start searching from.
+   * @returns The first port number not already assigned to a project.
+   */
   getNextAvailablePort: (basePort: number): number => {
     const db = getProjectDatabase();
     const stmt = db.prepare('SELECT port FROM projects ORDER BY port ASC');
@@ -533,14 +675,23 @@ export const projectDb = {
     return port;
   },
 
-  // Get all used ports
+  /**
+   * Returns all port numbers currently assigned to projects, sorted ascending.
+   * @returns Array of port numbers.
+   */
   getUsedPorts: (): number[] => {
     const db = getProjectDatabase();
     const stmt = db.prepare('SELECT port FROM projects WHERE port IS NOT NULL ORDER BY port ASC');
     return (stmt.all() as { port: number }[]).map(p => p.port);
   },
 
-  // Get projects by workspace
+  /**
+   * Returns projects belonging to a specific workspace.
+   * Pass `null` to get projects with no workspace assignment.
+   *
+   * @param workspaceId - Workspace ID, or `null` for unassigned projects.
+   * @returns Array of matching project rows.
+   */
   getProjectsByWorkspace: (workspaceId: string | null): DbProject[] => {
     const db = getProjectDatabase();
     const stmt = workspaceId
@@ -549,7 +700,17 @@ export const projectDb = {
     return (workspaceId ? stmt.all(workspaceId) : stmt.all()) as DbProject[];
   },
 
-  // Check if port is available within a workspace (null workspace = check all unassigned projects)
+  /**
+   * Checks port availability scoped to a workspace.
+   *
+   * When `workspaceId` is `null`, falls back to a global uniqueness check
+   * (backward-compatible behavior).
+   *
+   * @param port - Port number to check.
+   * @param workspaceId - Workspace scope, or `null` for global check.
+   * @param excludeProjectId - Optional project to exclude from the check.
+   * @returns `true` if the port is available in the given scope.
+   */
   isPortAvailableInWorkspace: (port: number, workspaceId: string | null, excludeProjectId?: string): boolean => {
     const db = getProjectDatabase();
     let stmt;
@@ -577,7 +738,13 @@ export const projectDb = {
     return result.count === 0;
   },
 
-  // Get next available port within a workspace
+  /**
+   * Finds the lowest unused port within a workspace, starting from a given base.
+   *
+   * @param basePort - Port number to start searching from.
+   * @param workspaceId - Workspace scope, or `null` for global search.
+   * @returns The first available port number.
+   */
   getNextAvailablePortInWorkspace: (basePort: number, workspaceId: string | null): number => {
     const db = getProjectDatabase();
     const stmt = workspaceId
@@ -595,7 +762,13 @@ export const projectDb = {
     return port;
   },
 
-  // Update project's workspace assignment
+  /**
+   * Moves a project into (or out of) a workspace.
+   *
+   * @param projectId - The project to reassign.
+   * @param workspaceId - Target workspace ID, or `null` to unassign.
+   * @returns `true` if the project was found and updated.
+   */
   setProjectWorkspace: (projectId: string, workspaceId: string | null): boolean => {
     const db = getProjectDatabase();
     const now = new Date().toISOString();
@@ -606,6 +779,15 @@ export const projectDb = {
 
   // ============= CAMELCASE API (used by API routes) =============
 
+  /**
+   * Converts a raw {@link DbProject} row into the app-level {@link Project} type.
+   *
+   * Handles snake_case → camelCase mapping, normalizes `"other"` type to `"generic"`,
+   * and restructures git fields into the nested `git` object.
+   *
+   * @param dbProject - Raw database row.
+   * @returns Normalized {@link Project} object.
+   */
   toProject: (dbProject: DbProject): Project => {
     const type = dbProject.type;
     const normalizedType: ProjectType = (!type || type === 'other') ? 'generic' : type as ProjectType;
@@ -629,14 +811,30 @@ export const projectDb = {
     };
   },
 
+  /**
+   * High-level project API returning app-level {@link Project} objects.
+   *
+   * Includes validation (path/port uniqueness) and throws on constraint violations.
+   */
   projects: {
+    /** Returns all projects as {@link Project} objects. */
     getAll: (): Project[] => projectDb.getAllProjects().map(projectDb.toProject),
 
+    /**
+     * Fetches a single project by ID.
+     * @param projectId - The project identifier.
+     * @returns The project, or `undefined` if not found.
+     */
     get: (projectId: string): Project | undefined => {
       const row = projectDb.getProject(projectId);
       return row ? projectDb.toProject(row) : undefined;
     },
 
+    /**
+     * Adds a new project with path and port uniqueness validation.
+     * @param project - The project to create.
+     * @throws {Error} If the path is already registered or the port is taken in the workspace.
+     */
     add: (project: Project): void => {
       const existingByPath = projectDb.getProjectByPath(project.path);
       if (existingByPath) {
@@ -661,6 +859,12 @@ export const projectDb = {
       });
     },
 
+    /**
+     * Partially updates a project with validation.
+     * @param projectId - The project to update.
+     * @param updates - Fields to change.
+     * @throws {Error} If the project is not found, or path/port conflicts exist.
+     */
     update: (projectId: string, updates: Partial<Project>): void => {
       const existing = projectDb.getProject(projectId);
       if (!existing) throw new Error('Project not found');
@@ -699,13 +903,26 @@ export const projectDb = {
       if (!result) throw new Error('Project not found');
     },
 
+    /**
+     * Deletes a project by ID.
+     * @param projectId - The project to remove.
+     * @throws {Error} If the project is not found.
+     */
     remove: (projectId: string): void => {
       if (!projectDb.deleteProject(projectId)) throw new Error('Project not found');
     },
 
+    /**
+     * Returns all instances of a multi-instance base project.
+     * @param baseProjectId - The base project's ID.
+     */
     getInstances: (baseProjectId: string): Project[] =>
       projectDb.getProjectInstances(baseProjectId).map(projectDb.toProject),
 
+    /**
+     * Deletes all projects from the database.
+     * Intended for development/testing reset scenarios.
+     */
     resetToDefaults: (): void => {
       for (const p of projectDb.getAllProjects()) {
         projectDb.deleteProject(p.id);
@@ -713,7 +930,10 @@ export const projectDb = {
     },
   },
 
-  // Close database connection (for cleanup)
+  /**
+   * Closes the database connection and releases the file lock.
+   * Automatically called on process exit / SIGINT / SIGTERM.
+   */
   close: () => {
     if (db) {
       db.close();
