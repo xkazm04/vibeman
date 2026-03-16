@@ -11,15 +11,14 @@ import {
   validateProjectPath,
   validateRequirementName,
   validateProjectId,
-  validate,
 } from '@/lib/validation/inputValidator';
+import { validateBody } from '@/lib/validation/apiValidator';
 import { sanitizePath, sanitizeFilename, sanitizeString } from '@/lib/validation/sanitizers';
 import {
   createApiErrorResponse,
   ApiErrorCode,
   handleApiError,
 } from '@/lib/api-errors';
-import { ValidationError } from '@/lib/api/errorHandler';
 
 const log = logger.child('execution');
 
@@ -86,7 +85,16 @@ function validateSessionConfig(value: unknown): string | null {
 }
 
 /**
- * Queues a requirement for async execution
+ * Queues a requirement for async execution.
+ *
+ * Validation runs before any processing via `validateBody()`.
+ *
+ * @param projectPath     - Absolute path to the project directory.
+ * @param requirementName - Filename-safe requirement identifier.
+ * @param projectId       - Optional UUID of the project record.
+ * @param gitConfig       - Optional git operations config.
+ * @param sessionConfig   - Optional session tracking identifiers.
+ * @returns JSON response with `{ success, taskId, mode }` or an error envelope.
  */
 export async function queueExecution(
   projectPath: string,
@@ -98,24 +106,24 @@ export async function queueExecution(
   const elapsed = logger.startTimer();
 
   try {
-    // Validate required inputs
-    validate([
-      { field: 'projectPath', value: projectPath, validator: validateProjectPath },
-      { field: 'requirementName', value: requirementName, validator: validateRequirementName },
-    ]);
-
-    // Validate optional inputs
-    if (projectId) {
-      validate([{ field: 'projectId', value: projectId, validator: validateProjectId }]);
-    }
-    const gitError = validateGitConfig(gitConfig);
-    if (gitError) {
-      return createApiErrorResponse(ApiErrorCode.VALIDATION_ERROR, gitError, { logError: false });
-    }
-    const sessionError = validateSessionConfig(sessionConfig);
-    if (sessionError) {
-      return createApiErrorResponse(ApiErrorCode.VALIDATION_ERROR, sessionError, { logError: false });
-    }
+    // Validate all inputs before any processing
+    const validation = validateBody(
+      { projectPath, requirementName, projectId, gitConfig, sessionConfig },
+      {
+        required: [
+          { field: 'projectPath', validator: validateProjectPath },
+          { field: 'requirementName', validator: validateRequirementName },
+        ],
+        optional: [
+          { field: 'projectId', validator: validateProjectId },
+        ],
+        custom: [
+          (body) => validateGitConfig(body.gitConfig),
+          (body) => validateSessionConfig(body.sessionConfig),
+        ],
+      },
+    );
+    if (!validation.success) return validation.error;
 
     // Sanitize inputs
     const cleanPath = sanitizePath(projectPath);
@@ -146,15 +154,19 @@ export async function queueExecution(
   } catch (error) {
     const { durationMs } = elapsed();
     log.warn('Failed to queue execution', { requirementName, durationMs, error });
-    if (error instanceof ValidationError) {
-      return createApiErrorResponse(ApiErrorCode.VALIDATION_ERROR, error.message, { logError: false });
-    }
     return handleApiError(error, 'queueExecution');
   }
 }
 
 /**
- * Executes requirement synchronously and performs context auto-update
+ * Executes requirement synchronously and performs context auto-update.
+ *
+ * Validation runs before any processing via `validateBody()`.
+ *
+ * @param projectPath     - Absolute path to the project directory.
+ * @param requirementName - Filename-safe requirement identifier.
+ * @param projectId       - Optional UUID of the project record.
+ * @returns JSON response with execution result or an error envelope.
  */
 export async function executeSync(
   projectPath: string,
@@ -164,16 +176,20 @@ export async function executeSync(
   const elapsed = logger.startTimer();
 
   try {
-    // Validate required inputs
-    validate([
-      { field: 'projectPath', value: projectPath, validator: validateProjectPath },
-      { field: 'requirementName', value: requirementName, validator: validateRequirementName },
-    ]);
-
-    // Validate optional projectId
-    if (projectId) {
-      validate([{ field: 'projectId', value: projectId, validator: validateProjectId }]);
-    }
+    // Validate all inputs before any processing
+    const validation = validateBody(
+      { projectPath, requirementName, projectId },
+      {
+        required: [
+          { field: 'projectPath', validator: validateProjectPath },
+          { field: 'requirementName', validator: validateRequirementName },
+        ],
+        optional: [
+          { field: 'projectId', validator: validateProjectId },
+        ],
+      },
+    );
+    if (!validation.success) return validation.error;
 
     // Sanitize inputs
     const cleanPath = sanitizePath(projectPath);
@@ -239,9 +255,6 @@ export async function executeSync(
   } catch (error) {
     const { durationMs } = elapsed();
     log.warn('Sync execution error', { requirementName, durationMs, error });
-    if (error instanceof ValidationError) {
-      return createApiErrorResponse(ApiErrorCode.VALIDATION_ERROR, error.message, { logError: false });
-    }
     return handleApiError(error, 'executeSync');
   }
 }

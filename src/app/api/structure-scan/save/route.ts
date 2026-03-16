@@ -1,45 +1,86 @@
 import { NextRequest } from 'next/server';
 import { saveRequirements } from '../lib/scanOrchestrator';
 import type { StructureViolation } from '../violationRequirementTemplate';
-import { successResponse, errorResponse } from '@/lib/api/responseFormatter';
-import { handleApiError, ValidationError } from '@/lib/api/errorHandler';
-import { validate, validateProjectPath, validateProjectId } from '@/lib/validation/inputValidator';
+import { validateRequestBody } from '@/lib/validation/apiValidator';
+import { validateProjectPath, validateProjectId } from '@/lib/validation/inputValidator';
 import { sanitizePath } from '@/lib/validation/sanitizers';
+import {
+  createApiErrorResponse,
+  createApiSuccessResponse,
+  ApiErrorCode,
+  handleApiError,
+} from '@/lib/api-errors';
 
 /**
  * POST /api/structure-scan/save
  *
  * Step 2 of structure scan workflow:
- * Saves requirement files after user accepts
+ * Saves requirement files after user accepts violations.
+ *
+ * Validation must happen before any processing.
  *
  * Request body:
+ * ```json
  * {
- *   violations: StructureViolation[];
- *   projectPath: string;
- *   projectId: string;
+ *   "violations": StructureViolation[],  // Non-empty array of violations to save
+ *   "projectPath": string,               // Absolute path to project directory
+ *   "projectId": string                  // UUID of the project record
  * }
+ * ```
+ *
+ * Success response:
+ * ```json
+ * {
+ *   "success": true,
+ *   "data": { "requirementFiles": string[] }
+ * }
+ * ```
+ *
+ * Error response:
+ * ```json
+ * {
+ *   "success": false,
+ *   "error": string,
+ *   "code": string,
+ *   "fieldErrors"?: Record<string, string>
+ * }
+ * ```
  */
 export async function POST(request: NextRequest) {
   try {
-    const { violations, projectPath, projectId } = await request.json();
+    // Validate request body before any processing
+    const validation = await validateRequestBody(request, {
+      required: [
+        { field: 'projectPath', validator: validateProjectPath },
+        { field: 'projectId', validator: validateProjectId },
+      ],
+      custom: [
+        (body) => {
+          if (!Array.isArray(body.violations) || body.violations.length === 0) {
+            return 'violations must be a non-empty array';
+          }
+          return null;
+        },
+      ],
+    });
+    if (!validation.success) return validation.error;
 
-    if (!Array.isArray(violations) || violations.length === 0) {
-      throw new ValidationError('violations must be a non-empty array');
-    }
-
-    validate([
-      { field: 'projectPath', value: projectPath, validator: validateProjectPath },
-      { field: 'projectId', value: projectId, validator: validateProjectId },
-    ]);
-
+    const { violations, projectPath, projectId } = validation.data;
     const safePath = sanitizePath(projectPath as string);
-    const result = await saveRequirements(violations as StructureViolation[], safePath, projectId);
+    const result = await saveRequirements(
+      violations as StructureViolation[],
+      safePath,
+      projectId as string,
+    );
 
     if (!result.success) {
-      return errorResponse(result.error || 'Save failed', 500);
+      return createApiErrorResponse(
+        ApiErrorCode.OPERATION_FAILED,
+        result.error || 'Save failed',
+      );
     }
 
-    return successResponse({
+    return createApiSuccessResponse({
       requirementFiles: result.requirementFiles,
     });
   } catch (error) {
