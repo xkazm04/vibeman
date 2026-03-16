@@ -84,7 +84,7 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
     if (!effectiveProjectId) return;
 
     if (!selectedGoalId) {
-      toast('Please select a goal before starting the pipeline', 'error');
+      toast.error('Please select a goal before starting the pipeline');
       return;
     }
 
@@ -119,12 +119,12 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Unknown error' }));
         console.error('Failed to start pipeline:', err);
-        toast(err.error || 'Failed to start pipeline', 'error');
+        toast.error(err.error || 'Failed to start pipeline');
         useConductorStore.getState().completePipeline('failed');
       }
     } catch (error) {
       console.error('Failed to start pipeline:', error);
-      toast('Failed to start pipeline', 'error');
+      toast.error('Failed to start pipeline');
       useConductorStore.getState().completePipeline('failed');
     }
   }, [effectiveProjectId, activeProject, startRun, selectedGoalId]);
@@ -199,20 +199,13 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
             >
               <Target className="w-3.5 h-3.5 text-purple-400" />
               <span className={selectedGoal ? 'text-gray-200' : 'text-gray-500'}>
-                {selectedGoal ? selectedGoal.title : 'No goal (free scan)'}
+                {selectedGoal ? selectedGoal.title : 'Select a goal'}
               </span>
               <ChevronDown className={`w-3.5 h-3.5 text-gray-500 transition-transform ${goalDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
             {goalDropdownOpen && (
               <div className="absolute right-0 top-full mt-1 w-72 rounded-lg border border-gray-700
                 bg-gray-900 shadow-xl z-50 py-1 max-h-60 overflow-y-auto">
-                <button
-                  onClick={() => { setSelectedGoalId(''); setGoalDropdownOpen(false); }}
-                  className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-800 transition-colors
-                    ${!selectedGoalId ? 'text-cyan-400' : 'text-gray-400'}`}
-                >
-                  No goal (free scan)
-                </button>
                 {goals.map((goal) => (
                   <button
                     key={goal.id}
