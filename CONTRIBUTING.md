@@ -7,6 +7,7 @@ Thank you for your interest in contributing to Vibeman! This guide covers everyt
 - [Development Setup](#development-setup)
 - [Development Workflow](#development-workflow)
 - [Code Style Guidelines](#code-style-guidelines)
+  - [Logging](#logging)
 - [Commit Conventions](#commit-conventions)
 - [Running Tests](#running-tests)
 - [Database Migrations](#database-migrations)
@@ -127,6 +128,67 @@ npm run build:mcp    # Compile MCP server
 - API routes: `route.ts` inside the appropriate directory
 - Test files: `*.test.ts` or `*.test.tsx` alongside the source file
 - Store files: `camelCaseStore.ts` (e.g., `themeStore.ts`)
+
+### Logging
+
+Vibeman uses a centralized logger (`src/lib/logger.ts`) for all server-side logging. **Never use `console.log`/`console.error` directly** — always use the logger.
+
+#### Quick Start
+
+```typescript
+import { logger } from '@/lib/logger';
+
+// Create a child logger scoped to your module
+const log = logger.child('my-feature');
+
+// Log with structured context objects
+log.info('Operation started', { projectId, mode: 'async' });
+log.warn('Retrying after failure', { attempt: 2, maxRetries: 3 });
+log.error('Operation failed', { error, projectId });
+```
+
+#### Log Levels
+
+| Level | When to use |
+|-------|-------------|
+| `debug` | Granular details useful during development (loop iterations, intermediate values) |
+| `info` | Key lifecycle events: operation start, completion, important decisions |
+| `warn` | Recoverable issues: retries, fallbacks, degraded behavior |
+| `error` | Failures requiring attention: unhandled errors, data corruption, external service failures |
+
+Control via `LOG_LEVEL` environment variable (e.g., `LOG_LEVEL=debug`). Defaults: `debug` in development, `warn` in production.
+
+#### Patterns to Follow
+
+**Use child loggers** for module-scoped prefixes:
+```typescript
+const log = logger.child('conductor', { runId });
+log.info('Phase started'); // [INFO] [conductor] Phase started {"runId":"abc"}
+```
+
+**Track duration** for operations that may be slow:
+```typescript
+const elapsed = logger.startTimer();
+await doExpensiveWork();
+const { durationMs } = elapsed();
+log.info('Work completed', { durationMs });
+```
+
+**Log at these points in API routes / operations:**
+1. Start — what was requested and key parameters
+2. Key decisions — which branch/mode was chosen and why
+3. Errors — what failed, with the error object as context
+4. Completion — success/failure, duration, and result summary
+
+#### Sensitive Data
+
+The logger automatically redacts fields matching common sensitive key names (`password`, `token`, `secret`, `api_key`, `authorization`, `credential`, etc.) and values that look like API keys or long base64 strings.
+
+**Rules:**
+- Never log raw request bodies that may contain credentials
+- Never log file contents or full database rows
+- Use specific fields: log `{ userId, action }` not the entire user object
+- When in doubt, log less — you can always add more logging later
 
 ---
 

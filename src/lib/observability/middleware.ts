@@ -1,15 +1,20 @@
 /**
  * API Observability Middleware for Vibeman
  * Automatically tracks API route usage metrics with X-Ray context mapping
+ * and structured console logging for debugging and auditing.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { observabilityDb, xrayDb } from '@/app/db';
 import { mapPathToContext, determineSourceLayer, type ContextMapping } from './contextMapper';
+import { logger } from '@/lib/logger';
+import { env } from '@/lib/config/envConfig';
 
-const OBSERVABILITY_ENABLED = process.env.OBSERVABILITY_ENABLED !== 'false'; // Enabled by default for Vibeman
+const log = logger.child('obs');
+
+const OBSERVABILITY_ENABLED = env.observabilityEnabled();
 // Use actual Vibeman project ID from the database for dashboard integration
-const VIBEMAN_PROJECT_ID = process.env.VIBEMAN_PROJECT_ID || 'c32769af-72ed-4764-bd27-550d46f14bc5';
+const VIBEMAN_PROJECT_ID = env.vibemanProjectId();
 
 // Endpoints to exclude from tracking (health checks, status endpoints, etc.)
 // These typically have high frequency but low business value
@@ -23,9 +28,6 @@ const EXCLUDED_ENDPOINTS = [
 ];
 
 /**
- * Middleware wrapper that tracks API call metrics
- */
-/**
  * Check if endpoint should be excluded from tracking
  */
 function shouldExcludeEndpoint(endpoint: string): boolean {
@@ -34,6 +36,10 @@ function shouldExcludeEndpoint(endpoint: string): boolean {
   );
 }
 
+/**
+ * Middleware wrapper that tracks API call metrics and adds structured logging.
+ * Logs request start, completion with duration, and errors.
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function withObservability<T extends (request: NextRequest, ...args: any[]) => Promise<NextResponse<any>>>(
   handler: T,
@@ -46,9 +52,12 @@ export function withObservability<T extends (request: NextRequest, ...args: any[
       return handler(request, ...args);
     }
 
-    const startTime = Date.now();
+    const elapsed = logger.startTimer();
+    const method = request.method;
     let response: NextResponse;
     let errorMessage: string | undefined;
+
+    log.debug('Request started', { method, endpoint });
 
     // Perform context lookup for X-Ray visualization
     const contextMapping = mapPathToContext(endpoint);
@@ -58,18 +67,42 @@ export function withObservability<T extends (request: NextRequest, ...args: any[
       response = await handler(request, ...args);
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const { durationMs } = elapsed();
+      log.error('Request failed with unhandled error', {
+        method,
+        endpoint,
+        error: errorMessage,
+        durationMs,
+      });
       response = NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 
-    const responseTime = Date.now() - startTime;
+    const { durationMs } = elapsed();
     const requestSize = parseInt(request.headers.get('content-length') || '0');
+
+    if (response.status >= 400) {
+      log.warn('Request completed with error status', {
+        method,
+        endpoint,
+        status: response.status,
+        durationMs,
+        error: errorMessage,
+      });
+    } else {
+      log.debug('Request completed', {
+        method,
+        endpoint,
+        status: response.status,
+        durationMs,
+      });
+    }
 
     // Log to database asynchronously with X-Ray context (don't block response)
     logApiCall({
       endpoint,
-      method: request.method as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
+      method: method as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
       status_code: response.status,
-      response_time_ms: responseTime,
+      response_time_ms: durationMs,
       request_size_bytes: requestSize,
       user_agent: request.headers.get('user-agent') || undefined,
       error_message: errorMessage,
@@ -129,12 +162,12 @@ function logApiCall(data: {
             timestamp: Date.now(),
           });
         } catch (xrayError) {
-          console.error('[Observability] Failed to log X-Ray event:', xrayError);
+          log.error('Failed to log X-Ray event', { error: xrayError });
         }
       }
     } catch (error) {
-      // Silently fail - don't break the app
-      console.error('[Observability] Failed to log API call:', error);
+      // Don't break the app for observability failures
+      log.error('Failed to log API call', { error });
     }
   });
 }
@@ -155,7 +188,10 @@ export function createObservabilityMiddleware() {
       return next();
     }
 
-    const startTime = Date.now();
+    const elapsed = logger.startTimer();
+    const method = request.method;
+
+    log.debug('Request started', { method, endpoint });
 
     // Perform context lookup for X-Ray visualization
     const contextMapping = mapPathToContext(endpoint);
@@ -168,16 +204,39 @@ export function createObservabilityMiddleware() {
       response = await next();
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const { durationMs } = elapsed();
+      log.error('Request failed with unhandled error', {
+        method,
+        endpoint,
+        error: errorMessage,
+        durationMs,
+      });
       throw error;
     }
 
-    const responseTime = Date.now() - startTime;
+    const { durationMs } = elapsed();
+
+    if (response.status >= 400) {
+      log.warn('Request completed with error status', {
+        method,
+        endpoint,
+        status: response.status,
+        durationMs,
+      });
+    } else {
+      log.debug('Request completed', {
+        method,
+        endpoint,
+        status: response.status,
+        durationMs,
+      });
+    }
 
     logApiCall({
       endpoint,
-      method: request.method as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
+      method: method as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
       status_code: response.status,
-      response_time_ms: responseTime,
+      response_time_ms: durationMs,
       request_size_bytes: parseInt(request.headers.get('content-length') || '0'),
       user_agent: request.headers.get('user-agent') || undefined,
       error_message: errorMessage,

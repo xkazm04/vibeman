@@ -8,6 +8,8 @@ import {
 } from '@/app/Claude/lib/contextAutoUpdate';
 import { logger } from '@/lib/logger';
 
+const log = logger.child('execution');
+
 interface ExecutionResult {
   success: boolean;
   output?: string;
@@ -37,7 +39,9 @@ export async function queueExecution(
   gitConfig?: GitExecutionConfig,
   sessionConfig?: SessionConfig
 ): Promise<NextResponse> {
-  logger.info('Queuing requirement for execution', {
+  const elapsed = logger.startTimer();
+
+  log.info('Queuing requirement for execution', {
     requirementName,
     projectId,
     gitEnabled: gitConfig?.enabled,
@@ -48,7 +52,8 @@ export async function queueExecution(
   const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
   const taskId = executionQueue.addTask(projectPath, requirementName, projectId, gitConfig, sessionConfig);
 
-  logger.info('Task queued successfully', { taskId });
+  const { durationMs } = elapsed();
+  log.info('Task queued successfully', { taskId, requirementName, durationMs });
 
   // Return data at root level for pipeline compatibility
   // (successResponse wraps data in a "data" property which breaks consumers)
@@ -68,12 +73,25 @@ export async function executeSync(
   requirementName: string,
   projectId?: string
 ): Promise<NextResponse> {
+  const elapsed = logger.startTimer();
+
+  log.info('Starting sync execution', { requirementName, projectId });
+
   // Create snapshot before execution for context auto-update
   const beforeSnapshot = projectId ? createProjectSnapshot(projectPath) : null;
 
   const result: ExecutionResult = await executeRequirement(projectPath, requirementName);
 
   if (!result.success) {
+    const { durationMs } = elapsed();
+    log.warn('Sync execution failed', {
+      requirementName,
+      projectId,
+      error: result.error,
+      sessionLimitReached: result.sessionLimitReached,
+      durationMs,
+    });
+
     return NextResponse.json(
       {
         error: result.error || 'Failed to execute requirement',
@@ -89,6 +107,9 @@ export async function executeSync(
   if (projectId && beforeSnapshot) {
     contextUpdateResults = await performContextAutoUpdate(projectId, projectPath, beforeSnapshot);
   }
+
+  const { durationMs } = elapsed();
+  log.info('Sync execution completed', { requirementName, projectId, durationMs });
 
   // Return data at root level for consistency
   return NextResponse.json({
@@ -109,13 +130,16 @@ async function performContextAutoUpdate(
   projectPath: string,
   beforeSnapshot: Map<string, number>
 ): Promise<unknown> {
+  const elapsed = logger.startTimer();
   try {
-    logger.info('Starting context auto-update');
+    log.info('Starting context auto-update', { projectId });
     const results = await autoUpdateContexts(projectId, projectPath, beforeSnapshot);
-    logger.info('Context auto-update completed', { results });
+    const { durationMs } = elapsed();
+    log.info('Context auto-update completed', { projectId, durationMs, results });
     return results;
   } catch (error) {
-    logger.error('Context auto-update failed', { error });
+    const { durationMs } = elapsed();
+    log.error('Context auto-update failed', { projectId, durationMs, error });
     // Don't fail the whole request if context update fails
     return null;
   }
