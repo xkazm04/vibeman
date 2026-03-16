@@ -1,413 +1,268 @@
 ![Vibeman](public/logo/vibeman_logo.png)
 
+# Vibeman
+
 **AI-Driven End-to-End Software Development Lifecycle Automation**
 
-> Boost personal developer productivity 100x through intelligent automation at every stage of the development lifecycle.
+> Transform from a code writer into a high-level technical manager. Let AI handle the volume of development work while you make decisions based on results.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
+[![Node.js 20+](https://img.shields.io/badge/Node.js-20%2B-green.svg)](https://nodejs.org/)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌──────────────┐    ┌─────────────┐
-│  FEEDBACK   │───▶│ REQUIREMENT │───▶│   BACKLOG   │───▶│IMPLEMENTATION│───▶│    TEST     │
+│  FEEDBACK   │───>│ REQUIREMENT │───>│   BACKLOG   │───>│IMPLEMENTATION│───>│    TEST     │
 │             │    │             │    │    IDEA     │    │              │    │             │
 └─────────────┘    └─────────────┘    └─────────────┘    └──────────────┘    └─────────────┘
-     ▲                                                                              │
+     ^                                                                              │
      └──────────────────────────────────────────────────────────────────────────────┘
                               Continuous Feedback Loop
 ```
 
 ---
 
-## Vision
+## What is Vibeman?
 
-Transform the developer from a code writer into a **high-level technical manager** who:
-- Makes decisions based on **results**, not implementation details
-- Relies on AI to handle the volume of development work
-- Maintains quality through automated validation and oversight
+Vibeman is a **localhost-first** application that orchestrates your entire software development lifecycle through AI. It connects feedback capture, requirement planning, idea generation, implementation, and testing into a single automated pipeline.
 
----
+### Key Features
 
-## Lifecycle Stages
+- **Multi-Provider AI Execution** — Run tasks across Claude, Gemini, Copilot, and Ollama simultaneously with 4 concurrent CLI sessions
+- **Conductor Pipeline** — Adaptive 3-phase cycle (Plan -> Dispatch -> Reflect) with self-healing error recovery
+- **Codebase Scanning** — AI agents analyze your code for improvements across structure, build, context, and vision dimensions
+- **Tinder-Style Idea Evaluation** — Swipe to accept/reject AI-generated improvement suggestions
+- **Goal & Requirement Tracking** — Full lifecycle management with optional GitHub Projects sync
+- **Task Runner** — Batch execution with real-time SSE streaming, auto-commit, and screenshot validation
+- **Context System** — Organize code into business feature "contexts" that flow through the entire lifecycle
+- **Brain Dashboard** — Behavioral learning with anomaly detection, correlation analysis, and activity heatmaps
+- **Voice Assistant (Annette)** — AI-powered voice companion with chat, voice lab, and autonomous agent modes
+- **Multi-Project Support** — Manage up to 20 projects in parallel
 
-### 1. FEEDBACK — Capturing User & Stakeholder Input
+### Screenshots
 
-**Vision:** Aggregate feedback from all channels into a unified queue for AI processing.
+| Goals | Ideas | Task Runner |
+|-------|-------|-------------|
+| ![Goals](public/screenshots/readme/readme_goals.png) | ![Ideas](public/screenshots/readme/readme_ideas.png) | ![Task Runner](public/screenshots/readme/readme_tasker.png) |
 
-**Current State:**
-
-- Multiproject support - Develop up to 20 projects in parallel
-
-![Projects](public/screenshots/readme/readme_project.png)
-
-
-**Halfway there:**
-- Social Kanban Board with multi-channel support (chat, email, Facebook, Instagram, X/Twitter, reviews)
-- Twitter/X discovery integration for relevant discussions
-- Activity timeline with SLA tracking and aging indicators
-- AI-generated clarifying questions and proposed directons for ambiguous feedback
-
-![Feedback](public/screenshots/readme/readme_directions.png)
-
-**Future Directions:**
-- Helpdesk integrations (Zendesk, Intercom)
-- Automated feedback from technical monitoring
-- App store review aggregation (iOS/Android)
-- Slack/Discord bot for real-time capture
+| Tinder Evaluation | Feedback | Contexts |
+|-------------------|----------|----------|
+| ![Tinder](public/screenshots/readme/readme_tinder.png) | ![Feedback](public/screenshots/readme/readme_directions.png) | ![Contexts](public/screenshots/screen_contexts.png) |
 
 ---
 
-### 2. REQUIREMENT — Translating Feedback into Actionable Work
+## Quick Start
 
-**Vision:** Transform raw feedback into structured, validated requirements with clear acceptance criteria.
+```bash
+# 1. Clone the repository
+git clone https://github.com/your-username/vibeman.git
+cd vibeman
 
-**Current State:**
-- Goals Management with full lifecycle tracking (open → in_progress → done)
-- Goal Hub dashboard with hypothesis testing and activity feeds
+# 2. Install dependencies
+npm install
 
-![Goals](public/screenshots/readme/readme_goals.png)
-- Claude Code requirement files for AI implementation
+# 3. Configure environment
+cp .env.example .env.local
+# Edit .env.local — at minimum, set one LLM provider API key
 
-**Halfway there:**
-- Strategic Roadmap for milestone visualization
+# 4. Start the development server
+npm run dev
+```
 
-**Future Directions:**
-- AI-generated acceptance criteria
-- GitHub Issues bi-directional sync
-
----
-
-### 3. BACKLOG IDEA — Generating & Evaluating Improvements
-
-**Vision:** Continuous AI analysis surfacing improvement opportunities, prioritized by effort/impact.
-
-
-
-
-**Current State:**
-- **Specialized AI Agents** generating ideas:
-
-![Agents](public/screenshots/readme/readme_ideas.png)
-
-- **Tinder-Style Evaluation** — Swipe to accept/reject with LLM suggestions
-
-![Agents](public/screenshots/readme/readme_tinder.png)
-
-- **Blueprint Scanning** — Multi-type codebase analysis:
-  - Structure, Build, Context, Vision scans
-  - Unused file detection
-  - Per-feature deep analysis
-
-![Blueprint](public/screenshots/screen_blueprint.png)
-
-- **Refactor Wizard** — Multi-step pipeline:
-  - Scan → Review → Plan → Package → Execute
-  - Map-Reduce pattern for large-scale analysis
-
-![Wizzard](public/screenshots/screen_wizzard.png)
-
-- **Tech Debt Radar** — Severity scoring with remediation planning
-- **Debt Prediction** — ROI simulation for refactoring decisions
-
-**Future Directions:**
-- ML-based quality scoring from accept/reject patterns
-- Semantic deduplication
-- Context-aware generation (only for modified files)
+Open [http://localhost:3000](http://localhost:3000). The SQLite database is created automatically on first run — no manual setup required.
 
 ---
 
-### 4. IMPLEMENTATION — Executing the Work
+## Prerequisites
 
-**Vision:** Zero-friction implementation through AI coding with automatic context updates.
-
-![Code Batch](public/screenshots/screen_codebatch.png)
-
-**Current State:**
-- **Claude Code Execution** — Headless integration:
-  - Requirement file management (`.claude/requirements/`)
-  - Execution queue with session management
-  - Auto-update contexts from file changes
-
-- **Task Runner** — Batch execution:
-  - Dual panel UI (selection + status)
-  - States: queued → running → completed/failed
-  - Git auto-commit after tasks
-  - Screenshot capture for validation
-  - Remote delegation for distributed execution
-  - CLI mode with session management to batch tasks in one memory context
-
-![Task Runner](public/screenshots/readme/readme_tasker.png)
-
----
-
-### 5. TEST — Validating the Implementation
-
-**Vision:** Automated validation at every level with self-healing capabilities.
-
-**Current State:**
-- **Context Testing** — Screenshot-based validation:
-  - Test scenario editor
-  - BrowserBase integration for automation
-  - Visual comparison capabilities
-
-- **Blueprint Test Scans**:
-  - AI-generated test scenarios
-  - Visual regression detection
-  - Per-context code review
-
-- **Autonomous CI Dashboard**:
-  - Pipeline monitoring
-  - Build predictions
-  - Flaky test detection
-
-- **Project Health Metrics**:
-  - Health score gauges
-  - Trend analysis
-  - Security vulnerability breakdown
-
-- **Build Fixer** — AI-assisted error resolution
-
-**Future Directions:**
-- E2E test generation from context definitions
-- Visual regression baseline management
-- Test impact analysis (which tests for which changes)
-- Accessibility automation (WCAG compliance)
-- Self-healing UI locators
-- SAST/DAST security scanning integration
-
----
-
-## Supporting Infrastructure
-
-### Context System
-The foundation — organizing code into business feature "contexts" that flow through the entire lifecycle.
-
-![Contexts](public/screenshots/screen_contexts.png)
-
-- **Context Cards** — Visual representation of code areas
-- **Context Groups** — Color-coded organization by layer
-- **Context Auto-Update** — Automatic mapping after implementations
-
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Frontend | Next.js 16, React 19, TypeScript |
-| Styling | Tailwind CSS, Framer Motion |
-| State | Zustand (21 stores) |
-| Database | SQLite (WAL mode) |
-| AI | OpenAI, Anthropic, Gemini, Ollama |
-| Testing | Vitest, BrowserBase |
-
-
-### Database
-SQLite databases are created automatically on first run. No manual setup required.
-
----
-
-## Local Setup
-
-### Platform Prerequisites
-
-Vibeman runs on **Windows**, **macOS**, and **Linux**. The core app (Next.js + SQLite) is fully cross-platform. CLI providers spawn as subprocesses with piped I/O (no PTY/terminal emulation), so they work on all platforms where the CLI binaries are available in PATH.
-
-#### Common (all platforms)
+### Required
 
 | Requirement | Notes |
 |-------------|-------|
-| Node.js 20+ | Required for Next.js and `better-sqlite3` native compilation |
-| npm | Comes with Node.js |
-| C/C++ build tools | Required by `better-sqlite3` native addon (see platform-specific below) |
+| **Node.js 20+** | Required for Next.js 16 and `better-sqlite3` native compilation |
+| **npm** | Comes with Node.js |
+| **C/C++ build tools** | Required by `better-sqlite3` native addon (see platform-specific below) |
 
-#### Windows
+### Platform-Specific Build Tools
+
+**Windows:**
 
 | Requirement | Install |
 |-------------|---------|
 | Build Tools | `npm install -g windows-build-tools` or install Visual Studio Build Tools with "Desktop development with C++" workload |
 | Python 3 | Required by `node-gyp` (included with Visual Studio Build Tools) |
 
-CLI binaries resolve through `cmd.exe` shell (`shell: true` in spawn). Both `.exe` and `.cmd` installs are supported automatically.
+**macOS:**
 
-#### macOS
+```bash
+xcode-select --install
+```
 
-| Requirement | Install |
-|-------------|---------|
-| Xcode Command Line Tools | `xcode-select --install` |
+**Linux (Debian/Ubuntu):**
 
-No additional build tools needed. `better-sqlite3` compiles out of the box with Xcode CLT.
-
-#### Linux (Debian/Ubuntu)
-
-| Requirement | Install |
-|-------------|---------|
-| Build essentials | `sudo apt install build-essential python3` |
+```bash
+sudo apt install build-essential python3
+```
 
 For other distros, install `gcc`, `g++`, `make`, and `python3`.
 
-### Quick Start
+---
 
-```bash
-npm install
-npm run dev        # Start the development server on http://localhost:3000
-```
+## Environment Variables
+
+Copy `.env.example` to `.env.local` and configure:
+
+### LLM Providers (at least one required)
+
+| Variable | Description |
+|----------|-------------|
+| `ANTHROPIC_API_KEY` | Anthropic API key for Claude models |
+| `GEMINI_API_KEY` | Google Gemini API key |
+| `OPENAI_API_KEY` | OpenAI API key |
+| `OLLAMA_BASE_URL` | Ollama server URL (default: `http://localhost:11434`) |
+
+### Database
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | `./database/vibeman.db` | SQLite database file path |
+| `DB_DRIVER` | `sqlite` | Database driver |
+
+### Optional Integrations
+
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (cloud sync) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous key |
+| `GITHUB_TOKEN` | GitHub PAT for Projects sync (`project:read`, `project:write` scopes) |
+| `ELEVENLABS_API_KEY` | ElevenLabs API key (voice assistant) |
+| `BROWSERBASE_API_KEY` | BrowserBase API key (automated screenshots) |
+
+See `.env.example` for the full list with descriptions.
 
 ---
 
-### CLI Providers
+## CLI Providers
 
-The Task Runner supports multiple CLI providers for executing implementation tasks. Each provider uses a different AI backend but integrates through the same SSE-based streaming UI.
+The Task Runner dispatches work to multiple AI CLI providers. Each is optional — install only what you need.
 
-| Provider | Invocation | How It Works |
-|----------|-----------|--------------|
-| **Claude** | `spawn('claude')` subprocess | Headless CLI with `--output-format stream-json`, piped stdio |
-| **Gemini** | `spawn('gemini')` subprocess | Headless CLI with `-o stream-json`, piped stdio |
-| **Ollama** | `spawn('claude')` subprocess | Claude CLI routed to local Ollama via env vars |
-| **Copilot** | In-process Node.js SDK | `@github/copilot-sdk` npm package, no subprocess |
-
-#### Claude Code CLI (Default)
-
-The primary provider. Uses Anthropic's Claude models via the `claude` CLI.
+### Claude Code CLI (Primary)
 
 ```bash
-# Install Claude Code CLI
 npm install -g @anthropic-ai/claude-code
-
-# Verify installation
 claude --version
-
-# Auth: uses web-based subscription auth by default.
-# For API key auth, set ANTHROPIC_API_KEY in .env
 ```
 
-**Models:** Opus, Sonnet
+Uses Anthropic's Claude models via headless CLI with `--output-format stream-json`.
 
----
-
-#### Gemini CLI
-
-Uses Google's Gemini models via the `gemini` CLI.
+### Gemini CLI
 
 ```bash
-# Install Gemini CLI
 npm install -g @google/gemini-cli
-
-# Verify installation
 gemini --version
-
-# Auth: run 'gemini' once interactively to complete OAuth login,
-# or set GEMINI_API_KEY in .env
+# Run 'gemini' once interactively to complete OAuth login, or set GEMINI_API_KEY
 ```
 
-**Models:** Gemini 3.1 Pro Preview
+### Ollama (via Claude CLI)
 
----
-
-#### Ollama (via Claude CLI)
-
-Routes Claude CLI through a local Ollama instance. Ollama exposes an Anthropic-compatible Messages API at `/v1/messages`, so Claude CLI works transparently with Ollama-hosted models.
-
-**Requires:** Both `claude` CLI and `ollama` installed.
+Routes Claude CLI through a local Ollama instance. Requires both `claude` CLI and `ollama` installed.
 
 ```bash
-# Install Ollama
-#   macOS/Linux: curl -fsSL https://ollama.com/install.sh | sh
-#   Windows:     download from https://ollama.com/download
-
-# Start Ollama (runs on http://localhost:11434 by default)
+# Install Ollama: https://ollama.com/download
 ollama serve
-
-# Pull the cloud model
 ollama pull qwen3.5:cloud
-
-# For cloud models, authenticate:
-ollama login
-# Or visit the signin URL shown when accessing a cloud model
-
-# Optional: configure in .env
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_API_KEY=ollama
 ```
 
-**Models:** Qwen 3.5 Cloud
+### VS Code Copilot Bridge
 
-**How it works:** When you select "Ollama" as the provider, Vibeman spawns `claude` CLI with `ANTHROPIC_BASE_URL` pointed at your Ollama instance and `--model qwen3.5:cloud`. The Claude CLI handles the agentic loop while Ollama serves the model.
+Leverages GitHub Copilot subscription models through a VS Code extension. See `vibeman-bridge/README.md` for setup instructions.
 
 ---
 
-#### VS Code Copilot Bridge
+## Available Scripts
 
-Leverages GitHub Copilot subscription models (GPT-5.3 Codex, Claude Opus 4.6, GPT-4.1) through a lightweight VS Code extension that exposes Copilot's `vscode.lm` API over HTTP. This provider uses the `@github/copilot-sdk` npm package (in-process, no CLI binary needed).
-
-```bash
-# 1. Build the extension
-cd vibeman-bridge
-npm install
-npm run compile
-
-# 2. Package as .vsix
-npx @vscode/vsce package --allow-missing-repository
-
-# 3. Install in VS Code / VS Code Insiders
-code --install-extension vibeman-bridge-0.1.0.vsix
-# or for Insiders:
-code-insiders --install-extension vibeman-bridge-0.1.0.vsix
-
-# 4. Reload VS Code (Ctrl+Shift+P -> "Developer: Reload Window")
-
-# 5. Verify: the extension auto-starts and runs on port 9876
-curl http://localhost:9876/health
-```
-
-**Models:** GPT 5.3 Codex (1x), Claude Opus 4.6 (3x), GPT 4.1 (0x)
-
-**Requires:** Active GitHub Copilot subscription in VS Code.
-
-**Updating after code changes:**
-```bash
-cd vibeman-bridge
-npm run compile
-npx @vscode/vsce package --allow-missing-repository
-code-insiders --install-extension vibeman-bridge-0.1.0.vsix
-```
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start dev server with Turbopack |
+| `npm run build` | Production build |
+| `npm start` | Start production server |
+| `npm test` | Run test suite (Vitest) |
+| `npm run lint` | Run ESLint |
+| `npm run build:mcp` | Compile MCP server |
+| `npm run security:audit` | Run dependency security audit |
 
 ---
 
-### Cross-Platform Notes
+## Tech Stack
 
-- **Process spawning:** On Windows, CLI subprocesses use `shell: true` to resolve `.cmd`/`.exe` wrappers. On macOS/Linux, `shell: false` resolves binaries directly from PATH.
-- **Process management:** Port checks use `lsof` (macOS/Linux) or `netstat` (Windows). Process termination uses `kill` (macOS/Linux) or `taskkill` (Windows). All branched via `process.platform`.
-- **Database:** SQLite via `better-sqlite3` compiles native bindings on `npm install`. The DB file is created at `database/goals.db` relative to project root using `path.join()`.
-- **File paths:** All server-side path construction uses Node.js `path.join()` / `path.resolve()`. No hardcoded separators.
-- **Logs:** CLI execution logs go to `.claude/logs/` within the project directory.
-- **Copilot SDK:** Pure Node.js, no platform-specific behavior.
+| Layer | Technology |
+|-------|------------|
+| **Framework** | Next.js 16 (App Router, Turbopack) |
+| **Language** | TypeScript 5.9 (strict mode) |
+| **UI** | React 19, Tailwind CSS 4, Framer Motion |
+| **State** | Zustand with persist middleware |
+| **Database** | SQLite via better-sqlite3 (WAL mode) |
+| **Data Fetching** | TanStack React Query |
+| **AI Providers** | Anthropic, Google Gemini, GitHub Copilot, Ollama |
+| **Visualization** | Recharts, D3, React Flow |
+| **Testing** | Vitest, fast-check (property-based) |
+| **Drag & Drop** | dnd-kit |
 
 ---
 
-## Architecture
+## Project Structure
 
 ```
 src/
 ├── app/
-│   ├── api/              # 158+ API routes
-│   ├── db/               # Database layer
-│   ├── Claude/           # Claude Code integration
-│   └── features/         # Feature modules
-│       ├── Social/           # FEEDBACK
-│       ├── Manager/          # REQUIREMENT
-│       ├── Ideas/            # BACKLOG IDEA
-│       ├── TaskRunner/       # IMPLEMENTATION
-│       ├── AutonomousCI/     # TEST
-│       └── Context/          # Cross-cutting
-├── stores/               # 21 Zustand stores
-└── lib/
-    └── llm/              # LLM provider clients
+│   ├── api/                # API routes (50+ endpoint groups)
+│   ├── db/                 # Database layer (connection, migrations, repositories)
+│   └── features/           # Feature modules (22 features)
+│       ├── Conductor/      # Adaptive AI pipeline (Plan → Dispatch → Reflect)
+│       ├── TaskRunner/     # Multi-provider task execution
+│       ├── Goals/          # Requirement lifecycle tracking
+│       ├── Ideas/          # AI-generated improvement suggestions
+│       ├── Context/        # Code section management
+│       ├── Brain/          # Behavioral learning dashboard
+│       ├── Annette/        # Voice assistant
+│       ├── Social/         # Multi-channel feedback
+│       ├── Manager/        # Implementation review
+│       ├── RefactorWizard/ # Multi-step refactoring pipeline
+│       └── ...             # More features
+├── components/             # Shared UI components
+├── hooks/                  # Custom React hooks
+├── lib/                    # Business logic and utilities
+├── stores/                 # Zustand state stores
+├── types/                  # TypeScript type definitions
+└── prompts/                # LLM prompt templates
 ```
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for a detailed technical deep-dive.
 
 ---
 
-## Warning
+## Cross-Platform Notes
 
-Vibeman is a **localhost-only application** designed for local development workflows. It performs direct file system operations and database queries.
+Vibeman runs on **Windows**, **macOS**, and **Linux**.
+
+- **Process spawning:** On Windows, CLI subprocesses use `shell: true` to resolve `.cmd`/`.exe` wrappers. On macOS/Linux, `shell: false` resolves binaries directly from PATH.
+- **Database:** SQLite via `better-sqlite3` compiles native bindings on `npm install`. The DB file is created automatically relative to project root.
+- **File paths:** All server-side path construction uses Node.js `path.join()` / `path.resolve()`. No hardcoded separators.
+
+---
+
+## Security Notice
+
+Vibeman is a **localhost-only application** designed for local development workflows. It performs direct file system operations, spawns subprocesses, and runs database queries with full local access.
 
 **Never deploy to production environments accessible over the internet.**
+
+---
+
+## Contributing
+
+We welcome contributions! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding standards, and the pull request process.
 
 ---
 
