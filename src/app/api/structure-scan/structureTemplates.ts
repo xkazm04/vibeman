@@ -5,6 +5,7 @@
 
 import { logger } from '@/lib/logger';
 
+/** A single rule defining an expected file/folder pattern in a project */
 export interface StructureRule {
   pattern: string; // Glob pattern to match files
   description: string; // What should be in this location (for LLMs)
@@ -13,6 +14,7 @@ export interface StructureRule {
   context?: boolean; // Whether this pattern defines a context (for scripted context scanning)
 }
 
+/** Template defining the expected structure for a specific project type */
 export interface ProjectStructureTemplate {
   type: 'nextjs' | 'fastapi';
   name: string;
@@ -20,10 +22,7 @@ export interface ProjectStructureTemplate {
   rules: StructureRule[];
 }
 
-/**
- * Directory-level enforcement rules
- * Defines what folders and files are allowed at each directory level
- */
+/** Directory-level enforcement rule defining allowed folders and files at a specific path */
 export interface DirectoryRule {
   path: string; // Relative path (e.g., "src", "src/app", "src/app/features")
   description: string; // What this directory is for
@@ -40,9 +39,7 @@ export interface DirectoryRule {
   strictMode?: boolean; // If true, only explicitly allowed items are permitted
 }
 
-/**
- * Enforced project structure with hierarchical rules
- */
+/** Enforced project structure with hierarchical directory rules and anti-pattern detection */
 export interface EnforcedStructure {
   projectType: 'nextjs' | 'fastapi';
   name: string;
@@ -78,7 +75,7 @@ export const NEXTJS_STRUCTURE: ProjectStructureTemplate = {
       examples: ['src/app/api/goals/route.ts', 'src/app/api/contexts/route.ts'],
     },
 
-    // Feature-based organization - TBD critical to rewrite and test
+    // Feature-based organization
     {
       pattern: 'src/app/[feature]/**/*.tsx',
       description: 'Feature-specific components should be co-located with their feature pages. Example: src/app/goals/GoalsList.tsx',

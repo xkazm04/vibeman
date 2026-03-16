@@ -12,6 +12,7 @@ const log = logger.child('scan-orchestrator');
  * Coordinates the complete structure scan workflow
  */
 
+/** Result of a structure analysis scan */
 export interface ScanResult {
   success: boolean;
   violations: StructureViolation[];
@@ -20,6 +21,7 @@ export interface ScanResult {
   error?: string;
 }
 
+/** Result of saving violation requirements to disk */
 export interface SaveResult {
   success: boolean;
   requirementFiles: string[];
@@ -165,6 +167,10 @@ export function logRejection(projectId: string, violationCount: number): void {
 /**
  * Get a preview of requirements (for decision UI)
  */
-export function getRequirementPreview(violations: StructureViolation[]) {
+export function getRequirementPreview(violations: StructureViolation[]): {
+  count: number;
+  groupedByType: Record<string, number>;
+  summary: string;
+} {
   return previewRequirements(violations);
 }

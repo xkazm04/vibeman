@@ -18,12 +18,14 @@ interface ExecutionResult {
   sessionLimitReached?: boolean;
 }
 
+/** Configuration for git operations after execution */
 export interface GitExecutionConfig {
   enabled: boolean;
   commands: string[];
   commitMessage: string;
 }
 
+/** Session identifiers for tracking execution context */
 export interface SessionConfig {
   sessionId?: string;
   claudeSessionId?: string;
