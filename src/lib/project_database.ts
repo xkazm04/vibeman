@@ -27,8 +27,14 @@ import path from 'path';
 import fs from 'fs';
 import type { Project, ProjectType } from '@/types';
 
-/** Absolute path to the SQLite database file. */
-const DB_PATH = path.join(process.cwd(), 'database', 'projects.db');
+/**
+ * Absolute path to the SQLite database file.
+ * Configurable via the `PROJECTS_DB_PATH` environment variable.
+ * Defaults to `<cwd>/database/projects.db`.
+ */
+const DB_PATH = process.env.PROJECTS_DB_PATH
+  ? path.resolve(process.env.PROJECTS_DB_PATH)
+  : path.join(process.cwd(), 'database', 'projects.db');
 
 /**
  * Workspace base path — parent of the current working directory.
@@ -244,9 +250,9 @@ function seedDefaultProjects(): void {
 /**
  * Migrate stale /workspace/ paths to use the actual workspace base path.
  * Catches all variations:
- *   /workspace/vibeman          (original hardcoded Linux path)
- *   C:\workspace\vibeman        (Windows resolution of /workspace/ on C: drive)
- *   C:/workspace/vibeman        (forward-slash variant)
+ *   /workspace/<project>        (hardcoded Linux container path)
+ *   C:\workspace\<project>      (Windows resolution of /workspace/ on C: drive)
+ *   C:/workspace/<project>      (forward-slash variant)
  */
 function migrateStaleWorkspacePaths(): void {
   if (!db) return;
