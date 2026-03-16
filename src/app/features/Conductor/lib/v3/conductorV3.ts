@@ -40,7 +40,6 @@ interface GoalRow {
   title: string;
   description: string;
   target_paths: string | null;
-  auto_commit: number;
 }
 
 // ============================================================================
@@ -229,7 +228,7 @@ async function runV3Loop(
   // Load goal record from DB
   const db = getDatabase();
   const goalRecord = db
-    .prepare('SELECT * FROM goal_candidates WHERE id = ?')
+    .prepare('SELECT id, title, description, target_paths FROM goals WHERE id = ?')
     .get(goalId) as GoalRow | undefined;
 
   if (!goalRecord) {
@@ -389,7 +388,7 @@ async function runV3Loop(
           description: goalRecord.description,
         },
         healingContext: '',
-        autoCommit: goalRecord.auto_commit === 1,
+        autoCommit: config.autoCommit ?? false,
         abortSignal: controller?.signal,
         onTaskUpdate: () => {
           // Could emit to store for real-time UI updates

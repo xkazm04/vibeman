@@ -103,6 +103,9 @@ export interface V3Config {
   // Batch (for dispatch scheduling)
   maxBatchSize: number;
 
+  // Git
+  autoCommit: boolean;
+
   // Experimental
   experimentalAgentTeams: boolean;
 }
@@ -147,6 +150,9 @@ export const DEFAULT_V3_CONFIG: V3Config = {
 
   // Batch
   maxBatchSize: 5,
+
+  // Git
+  autoCommit: false,
 
   // Experimental
   experimentalAgentTeams: false,
