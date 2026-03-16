@@ -14,6 +14,7 @@ import {
 } from '../violationRequirementTemplate';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { logger } from '@/lib/logger';
+import { sanitizePath } from '@/lib/validation/sanitizers';
 
 /**
  * Structure Scan Helpers
@@ -53,7 +54,8 @@ export function validateScanRequest(
   return {
     valid: true,
     data: {
-      projectPath: body.projectPath as string,
+      // Sanitize path before passing to downstream consumers
+      projectPath: sanitizePath(body.projectPath as string),
       projectType: body.projectType as 'nextjs' | 'fastapi',
       projectId: body.projectId as string | undefined,
     },
@@ -126,6 +128,9 @@ export async function checkSharedComponents(
   allFiles: string[],
   violations: StructureViolation[]
 ): Promise<void> {
+  // Defence-in-depth: sanitize path even though callers should have already done so
+  const safePath = sanitizePath(projectPath);
+
   const sharedComponents = matchPattern(allFiles, 'src/components/**/*.tsx')
     .filter(file => !file.startsWith('src/components/ui/'));
 
@@ -137,7 +142,7 @@ export async function checkSharedComponents(
 
     if (featureMatch) {
       const featureName = featureMatch[1].toLowerCase();
-      const featurePath = path.join(projectPath, 'src', 'app', featureName);
+      const featurePath = path.join(safePath, 'src', 'app', featureName);
 
       try {
         await fs.access(featurePath);
@@ -171,9 +176,10 @@ export async function scanForViolations(
   projectPath: string,
   template: ProjectStructureTemplate
 ): Promise<StructureViolation[]> {
+  const safePath = sanitizePath(projectPath);
   const violations: StructureViolation[] = [];
 
-  const allFiles = await getAllFiles(projectPath, getDefaultIgnorePatterns());
+  const allFiles = await getAllFiles(safePath, getDefaultIgnorePatterns());
   if (allFiles.length === 0) return violations;
 
   // Check anti-pattern rules (those with 'AVOID' in description)
@@ -196,7 +202,7 @@ export async function scanForViolations(
 
   // Next.js-specific: check for misplaced shared components
   if (template.type === 'nextjs') {
-    await checkSharedComponents(projectPath, allFiles, violations);
+    await checkSharedComponents(safePath, allFiles, violations);
   }
 
   return violations;
@@ -240,7 +246,8 @@ export async function generateRequirementFiles(
   projectType: 'nextjs' | 'fastapi',
   violations: StructureViolation[]
 ): Promise<string[]> {
-  const commandsDir = path.join(projectPath, '.claude', 'commands');
+  const safePath = sanitizePath(projectPath);
+  const commandsDir = path.join(safePath, '.claude', 'commands');
 
   try {
     await fs.mkdir(commandsDir, { recursive: true });
@@ -262,14 +269,14 @@ export async function generateRequirementFiles(
     const batchNumber = i + 1;
     const content = generateViolationRequirement({
       projectType,
-      projectPath,
+      projectPath: safePath,
       violations: batches[i],
       batchNumber,
       totalBatches,
     });
 
     const fileName = generateRequirementFileName(projectType, batchNumber, totalBatches);
-    const result = createRequirement(projectPath, fileName, content);
+    const result = createRequirement(safePath, fileName, content);
 
     if (result.success) {
       requirementFiles.push(fileName);

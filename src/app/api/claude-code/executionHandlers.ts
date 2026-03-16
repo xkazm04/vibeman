@@ -13,7 +13,7 @@ import {
   validateProjectId,
 } from '@/lib/validation/inputValidator';
 import { validateBody } from '@/lib/validation/apiValidator';
-import { sanitizePath, sanitizeFilename, sanitizeString } from '@/lib/validation/sanitizers';
+import { sanitizePath, sanitizeFilename, sanitizeString, sanitizeShellArg, sanitizeId } from '@/lib/validation/sanitizers';
 import {
   createApiErrorResponse,
   ApiErrorCode,
@@ -125,20 +125,33 @@ export async function queueExecution(
     );
     if (!validation.success) return validation.error;
 
-    // Sanitize inputs
+    // Sanitize inputs — strip shell metacharacters from values that may
+    // reach child processes (git commit messages, command strings)
     const cleanPath = sanitizePath(projectPath);
     const cleanName = sanitizeFilename(requirementName);
+    const cleanProjectId = projectId ? sanitizeId(projectId) : undefined;
+
+    const cleanGitConfig = gitConfig ? {
+      enabled: gitConfig.enabled,
+      commands: gitConfig.commands.map(cmd => sanitizeShellArg(cmd)),
+      commitMessage: sanitizeShellArg(gitConfig.commitMessage),
+    } : undefined;
+
+    const cleanSessionConfig = sessionConfig ? {
+      sessionId: sessionConfig.sessionId ? sanitizeId(sessionConfig.sessionId) : undefined,
+      claudeSessionId: sessionConfig.claudeSessionId ? sanitizeId(sessionConfig.claudeSessionId) : undefined,
+    } : undefined;
 
     log.info('Queuing requirement for execution', {
       requirementName: cleanName,
-      projectId,
-      gitEnabled: gitConfig?.enabled,
-      sessionId: sessionConfig?.sessionId,
-      claudeSessionId: sessionConfig?.claudeSessionId,
+      projectId: cleanProjectId,
+      gitEnabled: cleanGitConfig?.enabled,
+      sessionId: cleanSessionConfig?.sessionId,
+      claudeSessionId: cleanSessionConfig?.claudeSessionId,
     });
 
     const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
-    const taskId = executionQueue.addTask(cleanPath, cleanName, projectId, gitConfig, sessionConfig);
+    const taskId = executionQueue.addTask(cleanPath, cleanName, cleanProjectId, cleanGitConfig, cleanSessionConfig);
 
     const { durationMs } = elapsed();
     log.info('Task queued successfully', { taskId, requirementName: cleanName, durationMs });
@@ -153,7 +166,7 @@ export async function queueExecution(
     });
   } catch (error) {
     const { durationMs } = elapsed();
-    log.warn('Failed to queue execution', { requirementName, durationMs, error });
+    log.warn('Failed to queue execution', { requirementName: sanitizeString(requirementName), durationMs, error });
     return handleApiError(error, 'queueExecution');
   }
 }
@@ -194,11 +207,12 @@ export async function executeSync(
     // Sanitize inputs
     const cleanPath = sanitizePath(projectPath);
     const cleanName = sanitizeFilename(requirementName);
+    const cleanProjectId = projectId ? sanitizeId(projectId) : undefined;
 
-    log.info('Starting sync execution', { requirementName: cleanName, projectId });
+    log.info('Starting sync execution', { requirementName: cleanName, projectId: cleanProjectId });
 
     // Create snapshot before execution for context auto-update
-    const beforeSnapshot = projectId ? createProjectSnapshot(cleanPath) : null;
+    const beforeSnapshot = cleanProjectId ? createProjectSnapshot(cleanPath) : null;
 
     const result: ExecutionResult = await executeRequirement(cleanPath, cleanName);
 
@@ -206,7 +220,7 @@ export async function executeSync(
       const { durationMs } = elapsed();
       log.warn('Sync execution failed', {
         requirementName: cleanName,
-        projectId,
+        projectId: cleanProjectId,
         error: result.error,
         sessionLimitReached: result.sessionLimitReached,
         durationMs,
@@ -236,12 +250,12 @@ export async function executeSync(
 
     // Auto-update contexts after successful execution
     let contextUpdateResults = null;
-    if (projectId && beforeSnapshot) {
-      contextUpdateResults = await performContextAutoUpdate(projectId, cleanPath, beforeSnapshot);
+    if (cleanProjectId && beforeSnapshot) {
+      contextUpdateResults = await performContextAutoUpdate(cleanProjectId, cleanPath, beforeSnapshot);
     }
 
     const { durationMs } = elapsed();
-    log.info('Sync execution completed', { requirementName: cleanName, projectId, durationMs });
+    log.info('Sync execution completed', { requirementName: cleanName, projectId: cleanProjectId, durationMs });
 
     // Return data at root level for consistency
     return NextResponse.json({
@@ -254,7 +268,7 @@ export async function executeSync(
     });
   } catch (error) {
     const { durationMs } = elapsed();
-    log.warn('Sync execution error', { requirementName, durationMs, error });
+    log.warn('Sync execution error', { requirementName: sanitizeString(requirementName), durationMs, error });
     return handleApiError(error, 'executeSync');
   }
 }
