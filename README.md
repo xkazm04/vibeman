@@ -31,8 +31,11 @@
 - [Prerequisites](#prerequisites)
 - [Environment Variables](#environment-variables)
 - [Your First Project](#your-first-project)
+- [Architecture Overview](#architecture-overview)
+- [Key Concepts](#key-concepts)
 - [CLI Providers](#cli-providers)
 - [Feature Overview](#feature-overview)
+- [Example Workflows](#example-workflows)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
 - [Available Scripts](#available-scripts)
@@ -214,6 +217,139 @@ The **Manager** module shows implementation results for review. The **Brain** da
 
 ---
 
+## Architecture Overview
+
+Vibeman is built as a localhost-first Next.js application. The browser talks to API routes backed by SQLite; AI execution happens through CLI subprocesses. Here's how the major components connect:
+
+```
+                        ┌─────────────────────────────────────────────────┐
+                        │              Browser (React 19)                  │
+                        │                                                 │
+                        │  ┌──────────┐  ┌──────────┐  ┌──────────────┐  │
+                        │  │  Goals   │  │  Ideas   │  │  Contexts    │  │
+                        │  │ (define) │  │ (scan)   │  │ (organize)   │  │
+                        │  └────┬─────┘  └────┬─────┘  └──────┬───────┘  │
+                        │       │             │               │          │
+                        │       ▼             ▼               ▼          │
+                        │  ┌──────────┐  ┌──────────┐  ┌──────────────┐  │
+                        │  │  Tinder  │  │ Manager  │  │    Brain     │  │
+                        │  │(evaluate)│  │ (review) │  │  (analyze)   │  │
+                        │  └────┬─────┘  └──────────┘  └──────────────┘  │
+                        │       │                                        │
+                        │       ▼                                        │
+                        │  ┌─────────────────────────────────────┐       │
+                        │  │          Task Runner                 │       │
+                        │  │  (batch execution, SSE streaming)    │       │
+                        │  └────────────────┬────────────────────┘       │
+                        │                   │                            │
+                        │       ┌───────────┼───────────┐                │
+                        │       ▼           ▼           ▼                │
+                        │  ┌─────────┐ ┌─────────┐ ┌─────────┐          │
+                        │  │Conductor│ │Questions│ │Refactor │          │
+                        │  │(auto    │ │(clarify)│ │ Wizard  │          │
+                        │  │pipeline)│ │         │ │         │          │
+                        │  └─────────┘ └─────────┘ └─────────┘          │
+                        └──────────────────┬─────────────────────────────┘
+                                           │ API Routes
+                        ┌──────────────────┼─────────────────────────────┐
+                        │    Next.js API    │    (70+ endpoint groups)    │
+                        └────┬─────────────┼────────────────┬────────────┘
+                             │             │                │
+                    ┌────────▼──┐  ┌───────▼──────┐  ┌─────▼──────────┐
+                    │  SQLite   │  │  File System  │  │ CLI Providers  │
+                    │  (DB)     │  │  (codebase)   │  │ (subprocesses) │
+                    └───────────┘  └──────────────┘  └────┬───────────┘
+                                                          │
+                                           ┌──────────────┼──────────────┐
+                                           │              │              │
+                                     ┌─────▼──┐    ┌─────▼──┐    ┌─────▼──┐
+                                     │ Claude │    │ Gemini │    │ Ollama │
+                                     └────────┘    └────────┘    └────────┘
+```
+
+### Data Flow
+
+1. **Goals** define what you want to build. **Contexts** organize which code sections are involved.
+2. **Ideas** scans the codebase and generates improvement suggestions linked to goals and contexts.
+3. **Tinder** lets you evaluate ideas one-by-one (accept/reject).
+4. Accepted ideas flow to the **Task Runner**, which dispatches them to CLI providers for execution.
+5. The **Conductor** can automate this entire cycle: it plans, dispatches, and reflects autonomously.
+6. **Brain** collects signals from all activity and surfaces patterns, anomalies, and insights.
+7. **Manager** gives you a review dashboard; **Questions** captures clarification needed from human input.
+
+---
+
+## Key Concepts
+
+### Contexts
+
+Contexts are the foundational organizational unit. A context represents a **business feature or code section** — a group of related files that implement a specific capability.
+
+Each context can have:
+- **File paths** — the source files that make up the feature
+- **Target functionality** — what the code should do
+- **Progress tracking** — how many tasks have been implemented
+- **Preview image** — a screenshot of the feature in action
+
+Contexts flow through the entire lifecycle: goals reference them, ideas target them, and the Task Runner scopes execution to their files.
+
+### Goals (Requirements)
+
+Goals represent work to be done. They follow a lifecycle:
+
+```
+open  ──>  in_progress  ──>  done
+                │
+                └──>  rejected
+```
+
+Goals can be created manually, promoted from accepted ideas, or synced from GitHub Projects. Each goal tracks priority, effort estimates, target dates, and progress percentage.
+
+### Ideas
+
+Ideas are AI-generated improvement suggestions. When you run a codebase scan, Vibeman analyzes your code across multiple dimensions and produces scored suggestions:
+
+| Dimension | What it evaluates |
+|-----------|-------------------|
+| **Structure** | Code organization, modularity, duplication |
+| **Quality** | Bug risks, error handling, type safety |
+| **Performance** | Bottlenecks, unnecessary computation |
+| **UX/UI** | Consistency, accessibility, polish |
+
+Each idea includes effort, impact, and risk scores (1-10), plus the AI's reasoning. The Tinder evaluation step lets you quickly triage ideas before they become tasks.
+
+### Conductor Pipeline
+
+The Conductor is the autonomous orchestration engine. It runs a 3-phase adaptive cycle:
+
+```
+┌────────┐     ┌──────────┐     ┌──────────┐
+│  PLAN  │────>│ DISPATCH │────>│ REFLECT  │
+│        │     │          │     │          │
+│ Analyze│     │ Route to │     │ Evaluate │
+│ goal & │     │ CLI      │     │ results, │
+│ create │     │ providers│     │ trigger  │
+│ tasks  │     │          │     │ healing  │
+└────────┘     └──────────┘     └────┬─────┘
+     ^                               │
+     └───────────────────────────────┘
+              Self-healing loop
+```
+
+- **Plan** — Breaks a goal into structured tasks with dependencies
+- **Dispatch** — Routes tasks to available CLI providers (Claude, Gemini, Ollama)
+- **Reflect** — Evaluates execution results; on failure, the self-healing chain (error classifier -> healing analyzer -> prompt patcher) adjusts and retries
+
+### CLI Sessions
+
+Vibeman manages up to 4 concurrent CLI sessions. Each session wraps a subprocess (e.g., `claude`, `gemini`) and tracks:
+- Real-time output via SSE streaming
+- Token usage and cost
+- Tool approval flow (pause execution for human approval of file changes)
+- Lifecycle states: `idle` -> `running` -> `completed` | `error`
+
+---
+
 ## CLI Providers
 
 The Task Runner dispatches work to multiple AI CLI providers. Each is optional — install only what you need.
@@ -270,6 +406,42 @@ Leverages GitHub Copilot subscription models through a VS Code extension. See `v
 | **Proposals** | Feature proposal system for tracking and evaluating new ideas |
 | **Overview** | Architecture visualization and project health dashboard |
 | **Commander** | Command center for quick actions and navigation |
+
+---
+
+## Example Workflows
+
+### Workflow 1: Automated Code Improvement Cycle
+
+This is the core loop most users run regularly:
+
+1. **Scan** — Open Ideas, run a scan against your project. Vibeman's AI analyzes the codebase and generates 10-50 improvement ideas.
+2. **Triage** — Open Tinder. Swipe through ideas: right to accept, left to reject. Each accepted idea gets a reason note.
+3. **Execute** — Open Task Runner. Accepted ideas appear as pending tasks. Click "Run Batch" to dispatch them to your configured CLI providers.
+4. **Review** — Watch real-time streaming output as AI implements changes. Approve or deny tool calls (file writes, shell commands) when prompted.
+5. **Commit** — Task Runner auto-commits successful implementations. Review the diff in Manager.
+
+### Workflow 2: Goal-Driven Development with Conductor
+
+For larger initiatives where you want hands-off orchestration:
+
+1. **Define** — Create a goal in Goals (e.g., "Add dark mode support").
+2. **Configure** — Open Conductor, select the goal, and choose your execution strategy.
+3. **Launch** — Start the pipeline. Conductor autonomously:
+   - Plans the implementation (breaks goal into tasks)
+   - Dispatches tasks to CLI providers
+   - Reflects on results and self-heals failures
+4. **Monitor** — Watch pipeline progress in the Conductor dashboard. Review the run report when complete.
+
+### Workflow 3: Feedback-Driven Iteration
+
+For teams collecting feedback from users or stakeholders:
+
+1. **Collect** — Social module aggregates feedback from GitHub issues, Slack channels, or manual input.
+2. **Synthesize** — Brain dashboard correlates feedback signals with codebase patterns.
+3. **Prioritize** — Create goals from high-signal feedback. Link them to relevant contexts.
+4. **Execute** — Use Task Runner or Conductor to implement.
+5. **Validate** — Daily Standup auto-generates a summary of what was done. Manager shows implementation review.
 
 ---
 
@@ -356,14 +528,10 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for a detailed technical deep-dive.
 
 | Document | Description |
 |----------|-------------|
-| [docs/SETUP.md](docs/SETUP.md) | Step-by-step local development setup |
-| [docs/API.md](docs/API.md) | API endpoint reference with curl examples |
-| [docs/FEATURES.md](docs/FEATURES.md) | Feature documentation |
+| [SETUP.md](SETUP.md) | Step-by-step local development setup and troubleshooting |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Technical architecture deep-dive (database, state, CLI integration) |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contributing guidelines, code style, PR process |
 | [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) | Complete environment variable reference |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions |
-| [docs/DATABASE.md](docs/DATABASE.md) | Database schema and utilities |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Technical architecture deep-dive |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Contributing guidelines |
 
 ---
 
