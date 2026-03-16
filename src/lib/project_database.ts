@@ -283,10 +283,7 @@ function migrateStaleWorkspacePaths(): void {
     // Split on both separators and join with platform-correct path
     const correctedPath = path.join(WORKSPACE_BASE_PATH, ...relativePath.split(/[\\\/]/));
     updateStmt.run(correctedPath, now, project.id);
-    console.log(`[ProjectDB] Migrated project path: "${project.path}" -> "${correctedPath}"`);
   }
-
-  console.log(`[ProjectDB] Migrated ${staleProjects.length} project path(s) to workspace base: ${WORKSPACE_BASE_PATH}`);
 }
 
 /**

@@ -64,8 +64,16 @@ import type { AutoDeepenResponse } from './lib/questionsApi';
 // the same pattern for non-UI consumers (tests, automation, CLI tools).
 export { createQuestionsEngine, createDirectionsEngine } from '@/lib/interrogative-engine';
 
-export default function QuestionsLayout() {
+interface QuestionsLayoutProps {
+  /** Optional project ID override; falls back to the active project from the store. */
+  projectId?: string | null;
+}
+
+export default function QuestionsLayout({ projectId: propProjectId }: QuestionsLayoutProps) {
   const { activeProject } = useClientProjectStore();
+
+  // Use prop override for project ID in data queries; fall back to store project
+  const effectiveProjectId = propProjectId || activeProject?.id;
 
   // Context selection state (local UI state)
   const [selectedContextIds, setSelectedContextIds] = useState<string[]>([]);
@@ -81,12 +89,12 @@ export default function QuestionsLayout() {
     data: contextsData,
     isLoading: contextLoading,
     error: contextError,
-  } = useSqliteContexts(activeProject?.id);
+  } = useSqliteContexts(effectiveProjectId);
 
   const {
     data: combinedData,
     isLoading: combinedLoading,
-  } = useQuestionsAndDirections(activeProject?.id);
+  } = useQuestionsAndDirections(effectiveProjectId);
   const questionsData = combinedData?.questions;
   const directionsData = combinedData?.directions;
 
@@ -99,7 +107,7 @@ export default function QuestionsLayout() {
   const invalidateAll = useInvalidateQuestionsDirections();
 
   // Tree data & mutations
-  const { data: treeData } = useQuestionTrees(activeProject?.id, viewMode === 'tree');
+  const { data: treeData } = useQuestionTrees(effectiveProjectId, viewMode === 'tree');
   const generateFollowUpMutation = useGenerateFollowUp();
   const generateBriefMutation = useGenerateStrategicBrief();
   const autoDeepenMutation = useAutoDeepen();
@@ -124,8 +132,8 @@ export default function QuestionsLayout() {
 
   useEffect(() => {
     // Reset initialization when project changes
-    if (activeProject?.id !== lastProjectIdRef.current) {
-      lastProjectIdRef.current = activeProject?.id;
+    if (effectiveProjectId !== lastProjectIdRef.current) {
+      lastProjectIdRef.current = effectiveProjectId;
       hasInitializedRef.current = false;
       // Clear selection when switching projects to avoid stale selections
       setSelectedContextIds([]);
@@ -136,7 +144,7 @@ export default function QuestionsLayout() {
       hasInitializedRef.current = true;
       setSelectedContextIds(contexts.map(c => c.id));
     }
-  }, [contexts, activeProject?.id]);
+  }, [contexts, effectiveProjectId]);
 
   const handleToggleContext = (contextId: string) => {
     setSelectedContextIds(prev =>
