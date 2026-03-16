@@ -1,7 +1,9 @@
 import { NextRequest } from 'next/server';
 import { analyzeStructure } from '../lib/scanOrchestrator';
 import { successResponse, errorResponse } from '@/lib/api/responseFormatter';
-import { handleApiError, ValidationError } from '@/lib/api/errorHandler';
+import { handleApiError } from '@/lib/api/errorHandler';
+import { validate, validateProjectPath, validateProjectType } from '@/lib/validation/inputValidator';
+import { sanitizePath } from '@/lib/validation/sanitizers';
 
 /**
  * POST /api/structure-scan/analyze
@@ -19,11 +21,13 @@ export async function POST(request: NextRequest) {
   try {
     const { projectPath, projectType } = await request.json();
 
-    if (!projectPath || !projectType) {
-      throw new ValidationError('projectPath and projectType are required');
-    }
+    validate([
+      { field: 'projectPath', value: projectPath, validator: validateProjectPath },
+      { field: 'projectType', value: projectType, validator: validateProjectType },
+    ]);
 
-    const result = await analyzeStructure(projectPath, projectType);
+    const safePath = sanitizePath(projectPath as string);
+    const result = await analyzeStructure(safePath, projectType);
 
     if (!result.success) {
       return errorResponse(result.error || 'Analysis failed', 500);

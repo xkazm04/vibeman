@@ -3,6 +3,8 @@ import { saveRequirements } from '../lib/scanOrchestrator';
 import type { StructureViolation } from '../violationRequirementTemplate';
 import { successResponse, errorResponse } from '@/lib/api/responseFormatter';
 import { handleApiError, ValidationError } from '@/lib/api/errorHandler';
+import { validate, validateProjectPath, validateProjectId } from '@/lib/validation/inputValidator';
+import { sanitizePath } from '@/lib/validation/sanitizers';
 
 /**
  * POST /api/structure-scan/save
@@ -21,11 +23,17 @@ export async function POST(request: NextRequest) {
   try {
     const { violations, projectPath, projectId } = await request.json();
 
-    if (!violations || !projectPath || !projectId) {
-      throw new ValidationError('violations, projectPath, and projectId are required');
+    if (!Array.isArray(violations) || violations.length === 0) {
+      throw new ValidationError('violations must be a non-empty array');
     }
 
-    const result = await saveRequirements(violations as StructureViolation[], projectPath, projectId);
+    validate([
+      { field: 'projectPath', value: projectPath, validator: validateProjectPath },
+      { field: 'projectId', value: projectId, validator: validateProjectId },
+    ]);
+
+    const safePath = sanitizePath(projectPath as string);
+    const result = await saveRequirements(violations as StructureViolation[], safePath, projectId);
 
     if (!result.success) {
       return errorResponse(result.error || 'Save failed', 500);

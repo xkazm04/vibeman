@@ -8,6 +8,8 @@ import {
 import { logger } from '@/lib/logger';
 import { successResponse } from '@/lib/api/responseFormatter';
 import { handleApiError, ValidationError } from '@/lib/api/errorHandler';
+import { validate, validateProjectPath, validateProjectId, validateProjectType } from '@/lib/validation/inputValidator';
+import { sanitizePath, sanitizeString } from '@/lib/validation/sanitizers';
 
 
 interface InitializationResult {
@@ -29,23 +31,6 @@ interface InitializeResponseData {
   contextScanRequirement: InitializationResult;
   structureRules: InitializationResult;
   skills: SkillsCopyResult;
-}
-
-/**
- * Validate request body
- */
-function validateRequest(body: unknown): { valid: boolean; error?: string; projectPath?: string } {
-  if (!body || typeof body !== 'object') {
-    return { valid: false, error: 'Invalid request body' };
-  }
-
-  const { projectPath } = body as { projectPath?: string };
-
-  if (!projectPath) {
-    return { valid: false, error: 'Project path is required' };
-  }
-
-  return { valid: true, projectPath };
 }
 
 /**
@@ -118,21 +103,36 @@ function handleSkillsCopy(projectPath: string): SkillsCopyResult {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const validation = validateRequest(body);
 
-    if (!validation.valid || !validation.projectPath) {
-      throw new ValidationError(validation.error || 'Validation failed');
+    if (!body || typeof body !== 'object') {
+      throw new ValidationError('Invalid request body');
     }
 
-    const { projectPath, projectName, projectId, projectType } = body as {
-      projectPath: string;
+    const { projectPath: rawPath, projectName, projectId, projectType } = body as {
+      projectPath?: string;
       projectName?: string;
       projectId?: string;
       projectType?: string;
     };
 
+    // Required field
+    validate([
+      { field: 'projectPath', value: rawPath, validator: validateProjectPath },
+    ]);
+
+    // Optional fields — validate only when present
+    if (projectId) {
+      validate([{ field: 'projectId', value: projectId, validator: validateProjectId }]);
+    }
+    if (projectType) {
+      validate([{ field: 'projectType', value: projectType, validator: validateProjectType }]);
+    }
+
+    const projectPath = sanitizePath(rawPath as string);
+    const safeName = projectName ? sanitizeString(projectName, 255) : undefined;
+
     // Initialize Claude Code folder structure
-    const result = initializeClaudeFolder(projectPath, projectName);
+    const result = initializeClaudeFolder(projectPath, safeName);
 
     if (!result.success) {
       return handleApiError(
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create optional files
-    const requirementResult = handleContextScanRequirement(projectId, projectPath, projectName);
+    const requirementResult = handleContextScanRequirement(projectId, projectPath, safeName);
     const structureRulesResult = handleStructureRulesFile(projectType, projectPath);
     const skillsResult = handleSkillsCopy(projectPath);
 

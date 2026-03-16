@@ -155,6 +155,47 @@ Vibeman enforces strict TypeScript throughout the codebase. Follow these convent
   ```
 - Use Zod schemas for request validation where applicable.
 
+### Input Validation & Sanitization
+
+All API routes that accept user input **must** validate and sanitise before performing any file-system or database operations. The shared utilities live in `src/lib/validation/`:
+
+| Module | Purpose |
+|--------|---------|
+| `inputValidator.ts` | Pure validators — return `null` on success or an error string on failure |
+| `sanitizers.ts` | Sanitisers — strip dangerous characters, normalise paths, truncate strings |
+| `@/lib/pathSecurity` | Low-level path traversal / containment checks (used internally by validators) |
+
+**Validation rules available:**
+
+| Validator | Checks |
+|-----------|--------|
+| `validateProjectPath` | Non-empty, absolute, no traversal, exists as a readable directory |
+| `validateProjectType` | Must be `'nextjs'` or `'fastapi'` |
+| `validateProjectId` | UUID v4 format |
+| `validateRequirementName` | Filename-safe (alphanumeric, hyphens, underscores, dots; max 255 chars) |
+
+**How to use in a route handler:**
+
+```typescript
+import { validate, validateProjectPath, validateProjectType } from '@/lib/validation/inputValidator';
+import { sanitizePath } from '@/lib/validation/sanitizers';
+
+// 1. Validate — throws ValidationError (400) on first failure
+validate([
+  { field: 'projectPath', value: body.projectPath, validator: validateProjectPath },
+  { field: 'projectType', value: body.projectType, validator: validateProjectType },
+]);
+
+// 2. Sanitise — normalise paths before fs operations
+const safePath = sanitizePath(body.projectPath);
+```
+
+**Rules:**
+1. **Validate at the boundary** — every API route that reads `request.json()` must validate before acting.
+2. **Sanitise paths** — always pass user-provided paths through `sanitizePath()` before any `fs` call.
+3. **Sanitise display strings** — use `sanitizeString()` for user-provided names that will appear in logs or responses.
+4. **Never trust array contents** — validate array fields are actually arrays and check individual items when they contain paths or IDs.
+
 ### Styling
 
 - Use **Tailwind CSS** utility classes. Avoid inline styles.
