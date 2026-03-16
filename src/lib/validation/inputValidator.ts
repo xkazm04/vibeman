@@ -262,6 +262,162 @@ export function validateBooleanFlag(value: unknown): string | null {
   return null;
 }
 
+// ── Project validators ───────────────────────────────────────────────
+
+/** Max lengths for project text fields. */
+const PROJECT_NAME_MAX = 255;
+const PROJECT_DESCRIPTION_MAX = 2000;
+const RUN_SCRIPT_MAX = 500;
+const GIT_REPO_MAX = 500;
+const GIT_BRANCH_MAX = 255;
+
+/** Valid project types matching the ProjectType union. */
+const VALID_PROJECT_TYPES: ReadonlySet<string> = new Set([
+  'nextjs', 'react', 'express', 'fastapi', 'django', 'rails', 'generic', 'combined',
+]);
+
+/**
+ * Validate a project name: non-empty string, max 255 chars, no control chars.
+ */
+export function validateProjectName(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return 'name must be a string';
+  }
+  if (value.trim().length === 0) {
+    return 'name must not be empty';
+  }
+  if (value.length > PROJECT_NAME_MAX) {
+    return `name must be ${PROJECT_NAME_MAX} characters or fewer`;
+  }
+  return null;
+}
+
+/**
+ * Validate a project description: optional string, max 2000 chars.
+ */
+export function validateProjectDescription(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return 'description must be a string';
+  }
+  if (value.length > PROJECT_DESCRIPTION_MAX) {
+    return `description must be ${PROJECT_DESCRIPTION_MAX} characters or fewer`;
+  }
+  return null;
+}
+
+/**
+ * Validate a project type: must be one of the recognised ProjectType values.
+ */
+export function validateProjectTypeEnum(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return 'type must be a string';
+  }
+  if (!VALID_PROJECT_TYPES.has(value)) {
+    return `type must be one of: ${[...VALID_PROJECT_TYPES].join(', ')}`;
+  }
+  return null;
+}
+
+/**
+ * Validate a port number: integer between 1 and 65535.
+ */
+export function validatePort(value: unknown): string | null {
+  if (typeof value !== 'number' || !Number.isInteger(value)) {
+    return 'port must be an integer';
+  }
+  if (value < 1 || value > 65535) {
+    return 'port must be between 1 and 65535';
+  }
+  return null;
+}
+
+/**
+ * Validate a run script: non-empty string, max 500 chars, no shell metacharacters.
+ */
+export function validateRunScript(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return 'runScript must be a string';
+  }
+  if (value.trim().length === 0) {
+    return 'runScript must not be empty';
+  }
+  if (value.length > RUN_SCRIPT_MAX) {
+    return `runScript must be ${RUN_SCRIPT_MAX} characters or fewer`;
+  }
+  return null;
+}
+
+/**
+ * Validate a git repository identifier: non-empty string, max 500 chars.
+ * Accepts "owner/repo" shorthand or full URLs.
+ */
+export function validateGitRepository(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return 'git repository must be a string';
+  }
+  if (value.trim().length === 0) {
+    return 'git repository must not be empty';
+  }
+  if (value.length > GIT_REPO_MAX) {
+    return `git repository must be ${GIT_REPO_MAX} characters or fewer`;
+  }
+  return null;
+}
+
+/**
+ * Validate a git branch name: non-empty string, max 255 chars,
+ * no spaces or shell metacharacters.
+ */
+export function validateGitBranch(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return 'git branch must be a string';
+  }
+  if (value.trim().length === 0) {
+    return 'git branch must not be empty';
+  }
+  if (value.length > GIT_BRANCH_MAX) {
+    return `git branch must be ${GIT_BRANCH_MAX} characters or fewer`;
+  }
+  if (/\s/.test(value)) {
+    return 'git branch must not contain whitespace';
+  }
+  return null;
+}
+
+/**
+ * Validate a generic non-empty string with configurable max length.
+ * Used for task content, requirement content, etc.
+ */
+export function validateNonEmptyString(maxLength: number, fieldName: string) {
+  return (value: unknown): string | null => {
+    if (typeof value !== 'string') {
+      return `${fieldName} must be a string`;
+    }
+    if (value.trim().length === 0) {
+      return `${fieldName} must not be empty`;
+    }
+    if (value.length > maxLength) {
+      return `${fieldName} must be ${maxLength} characters or fewer`;
+    }
+    return null;
+  };
+}
+
+/**
+ * Validate an optional string with configurable max length.
+ */
+export function validateOptionalString(maxLength: number, fieldName: string) {
+  return (value: unknown): string | null => {
+    if (typeof value !== 'string') {
+      return `${fieldName} must be a string`;
+    }
+    if (value.length > maxLength) {
+      return `${fieldName} must be ${maxLength} characters or fewer`;
+    }
+    return null;
+  };
+}
+
 // ── Composition helper ──────────────────────────────────────────────
 
 export interface ValidationRule {
