@@ -4,8 +4,10 @@ Thank you for your interest in contributing to Vibeman! This guide covers everyt
 
 ## Table of Contents
 
+- [Getting Started](#getting-started)
 - [Development Setup](#development-setup)
 - [Development Workflow](#development-workflow)
+- [Branch Naming Conventions](#branch-naming-conventions)
 - [Code Style Guidelines](#code-style-guidelines)
   - [Logging](#logging)
 - [Commit Conventions](#commit-conventions)
@@ -13,6 +15,30 @@ Thank you for your interest in contributing to Vibeman! This guide covers everyt
 - [Database Migrations](#database-migrations)
 - [Pull Request Process](#pull-request-process)
 - [Issue Guidelines](#issue-guidelines)
+- [Getting Help](#getting-help)
+
+---
+
+## Getting Started
+
+### Fork and Clone
+
+1. **Fork** the repository on GitHub by clicking the "Fork" button.
+2. **Clone** your fork locally:
+   ```bash
+   git clone https://github.com/<your-username>/vibeman.git
+   cd vibeman
+   ```
+3. **Add the upstream remote** so you can pull future changes:
+   ```bash
+   git remote add upstream https://github.com/vibeman/vibeman.git
+   ```
+4. **Keep your fork up to date** before starting new work:
+   ```bash
+   git fetch upstream
+   git checkout master
+   git merge upstream/master
+   ```
 
 ---
 
@@ -24,25 +50,23 @@ Thank you for your interest in contributing to Vibeman! This guide covers everyt
 - **C/C++ build tools** for `better-sqlite3` native compilation (see [README.md](README.md#prerequisites) for platform-specific instructions)
 - At least one AI CLI provider installed (Claude Code CLI recommended)
 
-### Getting Started
+### Environment Setup
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/vibeman.git
-cd vibeman
-
 # Install dependencies
 npm install
 
 # Set up environment variables
 cp .env.example .env.local
-# Edit .env.local with your API keys
+# Edit .env.local — at minimum, set one LLM provider API key (e.g. ANTHROPIC_API_KEY)
 
 # Start the development server
 npm run dev
 ```
 
-The app runs at [http://localhost:3000](http://localhost:3000). The SQLite database is created automatically on first start.
+The app runs at [http://localhost:3000](http://localhost:3000). The SQLite database is created automatically on first start — no manual database setup required.
+
+See [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) for the complete environment variable reference.
 
 ### Useful Commands
 
@@ -51,6 +75,7 @@ npm run dev          # Start dev server (Turbopack)
 npm run build        # Production build
 npm test             # Run all tests
 npm run lint         # Run ESLint
+npx tsc --noEmit     # Type-check without emitting
 npm run build:mcp    # Compile MCP server
 ```
 
@@ -58,23 +83,40 @@ npm run build:mcp    # Compile MCP server
 
 ## Development Workflow
 
-1. **Create a branch** from `master` for your work:
+1. **Create a branch** from `master` for your work (see [naming conventions](#branch-naming-conventions)):
    ```bash
    git checkout -b feature/your-feature-name
    ```
 
-2. **Make your changes** following the code style guidelines below.
+2. **Make your changes** following the [code style guidelines](#code-style-guidelines) below.
 
-3. **Run tests and lint** before committing:
+3. **Run checks** before committing:
    ```bash
    npm test
    npm run lint
-   npx tsc --noEmit    # Type-check without emitting
+   npx tsc --noEmit
    ```
 
 4. **Commit** with a descriptive message following our [commit conventions](#commit-conventions).
 
-5. **Open a pull request** against `master`.
+5. **Push** to your fork and **open a pull request** against `master`.
+
+---
+
+## Branch Naming Conventions
+
+Use a descriptive prefix followed by a short kebab-case summary:
+
+| Prefix | Use for |
+|--------|---------|
+| `feature/` | New features (`feature/voice-search`) |
+| `fix/` | Bug fixes (`fix/duplicate-goal-creation`) |
+| `refactor/` | Code restructuring (`refactor/extract-scan-utils`) |
+| `docs/` | Documentation changes (`docs/api-reference`) |
+| `test/` | Adding or fixing tests (`test/conductor-retries`) |
+| `chore/` | Tooling, deps, CI (`chore/upgrade-vitest`) |
+
+Keep branch names short and lowercase. Use the related issue number when applicable: `fix/123-null-project-path`.
 
 ---
 
@@ -437,6 +479,13 @@ For a detailed overview of the codebase architecture, feature organization, and 
 
 ---
 
-## Questions?
+## Getting Help
 
-If you're unsure about anything, open a [Discussion](https://github.com/your-username/vibeman/discussions) or an issue. We're happy to help!
+If you're unsure about anything or need guidance:
+
+- **Questions about the codebase or how to contribute** — open a [Discussion](https://github.com/vibeman/vibeman/discussions)
+- **Bug reports** — file an [issue](https://github.com/vibeman/vibeman/issues) using the Bug Report template
+- **Feature ideas** — file an [issue](https://github.com/vibeman/vibeman/issues) using the Feature Request template
+- **Architecture and design** — see [ARCHITECTURE.md](ARCHITECTURE.md) for a technical deep-dive
+
+We're happy to help newcomers get oriented. No question is too small.
