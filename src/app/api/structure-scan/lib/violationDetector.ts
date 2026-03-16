@@ -14,6 +14,14 @@ import {
  *
  * Detects structure violations by comparing the project's file tree
  * against a set of enforced directory rules and anti-pattern definitions.
+ *
+ * The detection pipeline:
+ * 1. Scans the project file tree via {@link getProjectDirectories}
+ * 2. Checks for missing top-level structure (e.g. `src/`)
+ * 3. Walks every item against hierarchical {@link DirectoryRule} definitions
+ * 4. Matches files against anti-pattern glob patterns
+ *
+ * @module violationDetector
  */
 
 /** Standard top-level folders expected in a Next.js project. */

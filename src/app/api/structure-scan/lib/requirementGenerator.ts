@@ -3,17 +3,34 @@ import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 
 /**
  * Requirement Generator Module
- * Handles generation and saving of requirement files from violations
+ *
+ * Converts {@link StructureViolation} objects into Markdown requirement
+ * files that can be fed to Claude Code or reviewed by developers.
+ *
+ * Violations are grouped by type (misplaced, anti-pattern, missing-structure)
+ * and each group produces a separate requirement file.
+ *
+ * @module requirementGenerator
  */
 
+/** Result of generating and saving requirement files from violations. */
 export interface RequirementGenerationResult {
+  /** Whether all files were generated successfully. */
   success: boolean;
+  /** Filenames of created requirement files. */
   requirementFiles: string[];
+  /** Error description (present on failure). */
   error?: string;
 }
 
 /**
- * Generate a simple requirement file content from violations
+ * Generate Markdown content for a requirement file from a set of violations.
+ *
+ * Each violation is rendered as a numbered subsection with file path,
+ * current/expected locations, reason, and rule reference.
+ *
+ * @param violations - Non-empty array of violations to include
+ * @returns Markdown string ready to be written to a `.md` file
  */
 function generateSimpleRequirement(violations: StructureViolation[]): string {
   const violationsList = violations
@@ -43,7 +60,13 @@ Please review each violation and move/refactor the affected files according to t
 }
 
 /**
- * Generate a simple filename for the requirement
+ * Generate a unique filename for a requirement file.
+ *
+ * Format: `fix-structure-{type}-{count}-items-{timestamp}.md`
+ *
+ * @param violationType - The violation type (e.g. `'misplaced'`, `'anti-pattern'`)
+ * @param count - Number of violations in this group
+ * @returns A sanitized filename string
  */
 function generateSimpleFileName(violationType: string, count: number): string {
   const timestamp = Date.now();
@@ -52,7 +75,24 @@ function generateSimpleFileName(violationType: string, count: number): string {
 }
 
 /**
- * Generate and save requirement files from violations
+ * Generate and save requirement files from detected violations.
+ *
+ * Violations are grouped by type and each group is written as a separate
+ * Markdown requirement file via {@link createRequirement}. Returns early
+ * with an empty list when no violations are provided.
+ *
+ * @param violations - Array of violations to convert into requirements
+ * @param projectPath - Absolute path to the project root (used for file creation)
+ * @param projectId - Optional project identifier (reserved for future use)
+ * @returns A {@link RequirementGenerationResult} with the list of created files
+ *
+ * @example
+ * ```ts
+ * const result = await generateAndSaveRequirements(violations, '/my-app', 'proj-1');
+ * if (result.success) {
+ *   console.log('Created files:', result.requirementFiles);
+ * }
+ * ```
  */
 export async function generateAndSaveRequirements(
   violations: StructureViolation[],
@@ -98,7 +138,10 @@ export async function generateAndSaveRequirements(
 }
 
 /**
- * Group violations by type for better organization
+ * Group violations by their `violationType` field.
+ *
+ * @param violations - Array of violations to group
+ * @returns A record mapping each violation type to its violations
  */
 function groupViolationsByType(violations: StructureViolation[]): Record<string, StructureViolation[]> {
   const grouped: Record<string, StructureViolation[]> = {};
@@ -117,7 +160,19 @@ function groupViolationsByType(violations: StructureViolation[]): Record<string,
 }
 
 /**
- * Preview requirements without saving (for decision UI)
+ * Preview requirement breakdown without persisting to disk.
+ *
+ * Useful for rendering a decision UI where the user reviews
+ * violation counts before accepting or rejecting.
+ *
+ * @param violations - Array of violations to summarize
+ * @returns An object with total count, per-type counts, and a summary string
+ *
+ * @example
+ * ```ts
+ * const preview = previewRequirements(violations);
+ * // { count: 5, groupedByType: { misplaced: 3, 'anti-pattern': 2 }, summary: '3 misplaced, 2 anti-pattern' }
+ * ```
  */
 export function previewRequirements(violations: StructureViolation[]): {
   count: number;

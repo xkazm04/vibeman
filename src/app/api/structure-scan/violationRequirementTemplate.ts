@@ -1,11 +1,34 @@
 /**
- * Template for generating Claude Code requirement files for structure violations
+ * Violation Requirement Template Module
  *
- * IMPORTANT: To modify structure rules, edit the EnforcedStructure definitions in
- * structureTemplates.ts. The getNextJSGuidelines() and getFastAPIGuidelines()
- * functions in this file dynamically parse those structures.
+ * Generates Markdown requirement files from detected structure violations.
+ * These files are designed to be consumed by Claude Code or reviewed by
+ * developers during refactoring.
  *
- * Do NOT hardcode structure rules here - they should come from structureTemplates.ts
+ * ## How to Add or Modify Structure Rules
+ *
+ * Structure rules are defined in `structureTemplates.ts`, NOT in this file.
+ * This file only formats violations into readable requirement documents.
+ *
+ * To add a new rule:
+ * 1. Open `structureTemplates.ts`
+ * 2. Find the `EnforcedStructure` for your project type (e.g. `NEXTJS_ENFORCED_STRUCTURE`)
+ * 3. Add a `DirectoryRule` to `directoryRules` for folder-level enforcement, or
+ *    add an entry to `antiPatterns` for glob-based pattern detection
+ * 4. For `DirectoryRule`:
+ *    - Set `path` to the directory being enforced (e.g. `'src/app'`)
+ *    - List allowed folders/files with name patterns and descriptions
+ *    - Set `strictMode: true` to disallow anything not explicitly listed
+ *    - Nest rules via `subdirectoryRules` for deeper enforcement
+ * 5. For `antiPatterns`:
+ *    - Set `pattern` to a glob (e.g. `'src/utils/**'`)
+ *    - Provide `description` explaining why it's an anti-pattern
+ *    - Set `suggestedLocation` to guide the developer
+ *
+ * The `getNextJSGuidelines()` and `getFastAPIGuidelines()` functions in this
+ * file dynamically parse those structures — do NOT hardcode rules here.
+ *
+ * @module violationRequirementTemplate
  */
 
 import {
@@ -13,25 +36,51 @@ import {
   generateGuidelinesFromEnforcedStructure,
 } from './structureTemplates';
 
+/**
+ * A single structure violation detected during a project scan.
+ *
+ * Used throughout the scanning pipeline — from detection in
+ * `violationDetector` through to requirement generation.
+ */
 export interface StructureViolation {
+  /** Relative path to the violating file or directory. */
   filePath: string;
+  /** Classification of the violation. */
   violationType: 'misplaced' | 'anti-pattern' | 'missing-structure';
+  /** Where the item currently lives. */
   currentLocation: string;
+  /** Where the item should be moved or what structure should be created. */
   expectedLocation: string;
+  /** Human-readable explanation of why this is a violation. */
   reason: string;
+  /** The rule or pattern that triggered this violation. */
   rule: string;
 }
 
+/**
+ * Configuration for generating a batched requirement file.
+ *
+ * When many violations are found, they can be split into batches
+ * so each requirement file stays focused and manageable.
+ */
 export interface RequirementFileConfig {
+  /** The project framework type. */
   projectType: 'nextjs' | 'fastapi';
+  /** Absolute path to the project root. */
   projectPath: string;
+  /** Violations included in this batch. */
   violations: StructureViolation[];
+  /** 1-based index of this batch. */
   batchNumber: number;
+  /** Total number of batches. */
   totalBatches: number;
 }
 
 /**
- * Helper: Get issue type label
+ * Map a violation type to a human-readable label for requirement files.
+ *
+ * @param violationType - The violation type string
+ * @returns A descriptive label (e.g. `'File in wrong location'`)
  */
 function getIssueTypeLabel(violationType: string): string {
   switch (violationType) {
@@ -45,7 +94,10 @@ function getIssueTypeLabel(violationType: string): string {
 }
 
 /**
- * Helper: Get action required text based on violation type
+ * Generate actionable Markdown instructions for resolving a violation.
+ *
+ * @param violation - The violation to generate instructions for
+ * @returns A Markdown bullet list describing the required actions
  */
 function getActionRequiredText(violation: StructureViolation): string {
   switch (violation.violationType) {
@@ -64,7 +116,11 @@ function getActionRequiredText(violation: StructureViolation): string {
 }
 
 /**
- * Helper: Format a single violation for the requirement file
+ * Format a single violation as a numbered Markdown section.
+ *
+ * @param violation - The violation to format
+ * @param index - Zero-based index (rendered as 1-based in output)
+ * @returns A Markdown string with issue details and action items
  */
 function formatViolation(violation: StructureViolation, index: number): string {
   return `
@@ -84,7 +140,24 @@ ${getActionRequiredText(violation)}
 }
 
 /**
- * Generate a Claude Code requirement file for structure violations
+ * Generate a complete Markdown requirement file for a batch of violations.
+ *
+ * The output includes an overview, detailed violation sections, project-type-
+ * specific guidelines, step-by-step instructions, and success criteria.
+ *
+ * @param config - Configuration specifying the project, violations, and batch info
+ * @returns A full Markdown document string ready to be written to disk
+ *
+ * @example
+ * ```ts
+ * const md = generateViolationRequirement({
+ *   projectType: 'nextjs',
+ *   projectPath: '/home/user/my-app',
+ *   violations: detectedViolations,
+ *   batchNumber: 1,
+ *   totalBatches: 1,
+ * });
+ * ```
  */
 export function generateViolationRequirement(config: RequirementFileConfig): string {
   const { projectType, projectPath, violations, batchNumber, totalBatches } = config;
@@ -210,7 +283,24 @@ function getFastAPIGuidelines(): string {
 }
 
 /**
- * Generate a filename for the requirement file
+ * Generate a dated filename for a requirement file.
+ *
+ * Single-batch format: `refactor-structure-{type}-{YYYYMMDD}`
+ * Multi-batch format:  `refactor-structure-{type}-{YYYYMMDD}-batch-{n}-of-{total}`
+ *
+ * @param projectType - The project type slug (e.g. `'nextjs'`)
+ * @param batchNumber - 1-based batch index
+ * @param totalBatches - Total number of batches
+ * @returns A filename string (without extension)
+ *
+ * @example
+ * ```ts
+ * generateRequirementFileName('nextjs', 1, 1);
+ * // => 'refactor-structure-nextjs-20250315'
+ *
+ * generateRequirementFileName('nextjs', 2, 3);
+ * // => 'refactor-structure-nextjs-20250315-batch-2-of-3'
+ * ```
  */
 export function generateRequirementFileName(
   projectType: string,
