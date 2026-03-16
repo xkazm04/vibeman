@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import {
   initializeClaudeFolder,
   createContextScanRequirement,
@@ -6,6 +6,8 @@ import {
   copyDefaultSkills,
 } from '@/app/Claude/lib/claudeCodeManager';
 import { logger } from '@/lib/logger';
+import { successResponse } from '@/lib/api/responseFormatter';
+import { handleApiError, ValidationError } from '@/lib/api/errorHandler';
 
 
 interface InitializationResult {
@@ -21,7 +23,7 @@ interface SkillsCopyResult {
   errors?: Array<{ file: string; error: string }>;
 }
 
-interface InitializeResponse {
+interface InitializeResponseData {
   message: string;
   structure?: unknown;
   contextScanRequirement: InitializationResult;
@@ -119,10 +121,7 @@ export async function POST(request: NextRequest) {
     const validation = validateRequest(body);
 
     if (!validation.valid || !validation.projectPath) {
-      return NextResponse.json(
-        { error: validation.error || 'Validation failed' },
-        { status: 400 }
-      );
+      throw new ValidationError(validation.error || 'Validation failed');
     }
 
     const { projectPath, projectName, projectId, projectType } = body as {
@@ -136,9 +135,9 @@ export async function POST(request: NextRequest) {
     const result = initializeClaudeFolder(projectPath, projectName);
 
     if (!result.success) {
-      return NextResponse.json(
-        { error: result.error || 'Failed to initialize Claude Code' },
-        { status: 500 }
+      return handleApiError(
+        new Error(result.error || 'Failed to initialize Claude Code'),
+        'POST /api/claude-code/initialize',
       );
     }
 
@@ -147,7 +146,7 @@ export async function POST(request: NextRequest) {
     const structureRulesResult = handleStructureRulesFile(projectType, projectPath);
     const skillsResult = handleSkillsCopy(projectPath);
 
-    const response: InitializeResponse = {
+    const data: InitializeResponseData = {
       message: 'Claude Code initialized successfully',
       structure: result.structure,
       contextScanRequirement: requirementResult,
@@ -155,12 +154,8 @@ export async function POST(request: NextRequest) {
       skills: skillsResult,
     };
 
-    return NextResponse.json(response);
+    return successResponse(data);
   } catch (error) {
-    logger.error('Error initializing Claude Code:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to initialize' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'POST /api/claude-code/initialize');
   }
 }

@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { saveRequirements } from '../lib/scanOrchestrator';
 import type { StructureViolation } from '../violationRequirementTemplate';
+import { successResponse, errorResponse } from '@/lib/api/responseFormatter';
+import { handleApiError, ValidationError } from '@/lib/api/errorHandler';
 
 /**
  * POST /api/structure-scan/save
@@ -14,32 +16,25 @@ import type { StructureViolation } from '../violationRequirementTemplate';
  *   projectPath: string;
  *   projectId: string;
  * }
- *
- * Response:
- * {
- *   success: boolean;
- *   requirementFiles: string[];
- *   error?: string;
- * }
  */
 export async function POST(request: NextRequest) {
   try {
     const { violations, projectPath, projectId } = await request.json();
 
     if (!violations || !projectPath || !projectId) {
-      return NextResponse.json(
-        { success: false, error: 'violations, projectPath, and projectId are required' },
-        { status: 400 }
-      );
+      throw new ValidationError('violations, projectPath, and projectId are required');
     }
 
     const result = await saveRequirements(violations as StructureViolation[], projectPath, projectId);
 
-    return NextResponse.json(result);
+    if (!result.success) {
+      return errorResponse(result.error || 'Save failed', 500);
+    }
+
+    return successResponse({
+      requirementFiles: result.requirementFiles,
+    });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'POST /api/structure-scan/save');
   }
 }

@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { analyzeStructure } from '../lib/scanOrchestrator';
+import { successResponse, errorResponse } from '@/lib/api/responseFormatter';
+import { handleApiError, ValidationError } from '@/lib/api/errorHandler';
 
 /**
  * POST /api/structure-scan/analyze
@@ -12,34 +14,27 @@ import { analyzeStructure } from '../lib/scanOrchestrator';
  *   projectPath: string;
  *   projectType: 'nextjs' | 'fastapi';
  * }
- *
- * Response:
- * {
- *   success: boolean;
- *   violations: StructureViolation[];
- *   violationCount: number;
- *   message?: string;
- *   error?: string;
- * }
  */
 export async function POST(request: NextRequest) {
   try {
     const { projectPath, projectType } = await request.json();
 
     if (!projectPath || !projectType) {
-      return NextResponse.json(
-        { success: false, error: 'projectPath and projectType are required' },
-        { status: 400 }
-      );
+      throw new ValidationError('projectPath and projectType are required');
     }
 
     const result = await analyzeStructure(projectPath, projectType);
 
-    return NextResponse.json(result);
+    if (!result.success) {
+      return errorResponse(result.error || 'Analysis failed', 500);
+    }
+
+    return successResponse({
+      violations: result.violations,
+      violationCount: result.violationCount,
+      message: result.message,
+    });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'POST /api/structure-scan/analyze');
   }
 }

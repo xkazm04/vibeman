@@ -3,11 +3,12 @@
  * POST: Run a quality gate check
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { QualityGateType } from '@/app/features/Ideas/sub_Lifecycle/lib/lifecycleTypes';
-import { logger } from '@/lib/logger';
+import { successResponse } from '@/lib/api/responseFormatter';
+import { handleApiError, ValidationError } from '@/lib/api/errorHandler';
 
 const execAsync = promisify(exec);
 
@@ -28,32 +29,20 @@ export async function POST(request: NextRequest) {
     const { gate, projectId, timeout = 300000 } = body;
 
     if (!gate) {
-      return NextResponse.json(
-        { error: 'gate is required' },
-        { status: 400 }
-      );
+      throw new ValidationError('gate is required');
     }
 
     if (!VALID_GATES.includes(gate as QualityGateType)) {
-      return NextResponse.json(
-        { error: `Invalid gate: ${gate}. Valid gates: ${VALID_GATES.join(', ')}` },
-        { status: 400 }
+      throw new ValidationError(
+        `Invalid gate: ${gate}. Valid gates: ${VALID_GATES.join(', ')}`
       );
     }
 
     const result = await runGate(gate as QualityGateType, timeout);
 
-    return NextResponse.json(result);
+    return successResponse(result);
   } catch (error) {
-    logger.error('Error running quality gate:', { error });
-    return NextResponse.json(
-      {
-        passed: false,
-        message: 'Quality gate failed with error',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, 'POST /api/lifecycle/quality-gate');
   }
 }
 
