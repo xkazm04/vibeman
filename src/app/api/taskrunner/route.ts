@@ -7,6 +7,8 @@ import {
   validateRequirementName,
   validateProjectId,
   validateOptionalString,
+  validateGitConfig,
+  validateSessionConfig,
 } from '@/lib/validation/inputValidator';
 import { sanitizePath, sanitizeFilename, sanitizeId, sanitizeShellArg } from '@/lib/validation/sanitizers';
 import {
@@ -15,53 +17,6 @@ import {
   ApiErrorCode,
   extractRequestContext,
 } from '@/lib/api-errors';
-
-/**
- * Validate the optional gitConfig parameter shape.
- * Returns an error message or null if valid.
- */
-function validateGitConfig(value: unknown): string | null {
-  if (value === undefined || value === null) return null;
-  if (typeof value !== 'object' || Array.isArray(value)) {
-    return 'gitConfig must be an object';
-  }
-  const cfg = value as Record<string, unknown>;
-  if (typeof cfg.enabled !== 'boolean') {
-    return 'gitConfig.enabled must be a boolean';
-  }
-  if (!Array.isArray(cfg.commands) || !cfg.commands.every((c: unknown) => typeof c === 'string')) {
-    return 'gitConfig.commands must be an array of strings';
-  }
-  if (cfg.commands.length > 20) {
-    return 'gitConfig.commands must have 20 or fewer entries';
-  }
-  if (typeof cfg.commitMessage !== 'string' || cfg.commitMessage.trim().length === 0) {
-    return 'gitConfig.commitMessage must be a non-empty string';
-  }
-  if (cfg.commitMessage.length > 1000) {
-    return 'gitConfig.commitMessage must be 1000 characters or fewer';
-  }
-  return null;
-}
-
-/**
- * Validate the optional sessionConfig parameter shape.
- * Returns an error message or null if valid.
- */
-function validateSessionConfig(value: unknown): string | null {
-  if (value === undefined || value === null) return null;
-  if (typeof value !== 'object' || Array.isArray(value)) {
-    return 'sessionConfig must be an object';
-  }
-  const cfg = value as Record<string, unknown>;
-  if (cfg.sessionId !== undefined && typeof cfg.sessionId !== 'string') {
-    return 'sessionConfig.sessionId must be a string';
-  }
-  if (cfg.claudeSessionId !== undefined && typeof cfg.claudeSessionId !== 'string') {
-    return 'sessionConfig.claudeSessionId must be a string';
-  }
-  return null;
-}
 
 /**
  * GET /api/taskrunner
