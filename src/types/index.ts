@@ -1,3 +1,8 @@
+// Goal Status Types
+import type { GoalStatus } from './goalStatus';
+export type { GoalStatus };
+export { GOAL_STATUSES } from './goalStatus';
+
 // Idea Category Types
 export type { IdeaCategory } from './ideaCategory';
 export { IDEA_CATEGORIES, isStandardCategory, getStandardCategories } from './ideaCategory';
@@ -270,7 +275,7 @@ export interface Goal {
   order: number;
   title: string;
   description?: string;
-  status: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
+  status: GoalStatus;
   // Extended fields
   progress?: number;
   targetDate?: string | null;
@@ -312,7 +317,7 @@ export interface DatabaseGoal {
   order_index: number;
   title: string;
   description: string | null;
-  status: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
+  status: GoalStatus;
   created_at: string;
   updated_at: string;
 }

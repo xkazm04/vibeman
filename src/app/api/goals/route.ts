@@ -12,6 +12,7 @@ import { signalCollector } from '@/lib/brain/signalCollector';
 import { parseProjectIds } from '@/lib/api-helpers/projectFilter';
 import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
 import type { GoalResponse, GoalsListResponse, GoalMutationResponse, GoalDeleteResponse } from '@/lib/api-types/goals';
+import type { GoalStatus } from '@/types/goalStatus';
 import { GoalCreateBodySchema, GoalUpdateBodySchema } from '@/lib/api/schemas/goals';
 
 // GET /api/goals?projectId=xxx or /api/goals?id=xxx
@@ -207,7 +208,7 @@ async function handlePut(request: NextRequest) {
     const updateData: {
       title?: string;
       description?: string;
-      status?: 'open' | 'in_progress' | 'done';
+      status?: GoalStatus;
       order_index?: number;
       context_id?: string | null;
     } = {};
