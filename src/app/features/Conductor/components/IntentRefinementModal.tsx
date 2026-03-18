@@ -7,8 +7,8 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import { MessageSquare, Sparkles } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { MessageSquare, Sparkles, ChevronDown, ChevronRight } from 'lucide-react';
 import { UniversalModal } from '@/components/UniversalModal';
 
 export interface Question {
@@ -32,23 +32,20 @@ export default function IntentRefinementModal({
 }: IntentRefinementModalProps) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [expandedContext, setExpandedContext] = useState<Record<string, boolean>>({});
 
-  // Reinitialize answers when questions change
-  useEffect(() => {
-    const initial: Record<string, string> = {};
-    for (const q of questions) {
-      initial[q.id] = '';
-    }
-    setAnswers(initial);
-  }, [questions]);
+  // Stable question IDs string — only reinitialize answers when actual questions change
+  const questionIds = useMemo(() => questions.map(q => q.id).join(','), [questions]);
 
-  // Clear answers when modal closes
   useEffect(() => {
-    if (!isOpen) {
-      setAnswers({});
-      setSubmitting(false);
-    }
-  }, [isOpen]);
+    setAnswers(prev => {
+      const next: Record<string, string> = {};
+      for (const q of questions) {
+        next[q.id] = prev[q.id] || '';
+      }
+      return next;
+    });
+  }, [questionIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const allAnswered = questions.length > 0 &&
     questions.every((q) => (answers[q.id] || '').trim().length > 0);
@@ -101,30 +98,58 @@ export default function IntentRefinementModal({
       icon={MessageSquare}
       iconBgColor="from-purple-900/60 to-cyan-900/60"
       iconColor="text-purple-400"
-      maxWidth="max-w-2xl"
+      maxWidth="max-w-3xl"
       footerActions={footerActions}
     >
-      <div className="space-y-4">
+      {/* Progress indicator */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="flex gap-1">
+          {questions.map((q) => (
+            <div
+              key={q.id}
+              className={`w-2 h-2 rounded-full transition-colors ${
+                (answers[q.id] || '').trim().length > 0
+                  ? 'bg-purple-400'
+                  : 'bg-gray-700'
+              }`}
+            />
+          ))}
+        </div>
+        <span className="text-[11px] text-gray-500">
+          {answeredCount}/{questions.length} answered
+        </span>
+      </div>
+
+      <div className="space-y-3">
         {questions.map((q, i) => (
-          <div key={q.id} className="space-y-1.5">
-            <div className="flex items-start gap-2">
-              <span className="text-xs text-purple-400 font-mono font-bold mt-0.5">
+          <div key={q.id} className="bg-gray-800/30 border border-gray-700/50 rounded-xl p-4">
+            <div className="flex items-start gap-2 mb-2">
+              <span className="text-xs text-purple-400 font-mono font-bold mt-0.5 shrink-0">
                 Q{i + 1}
               </span>
-              <div>
-                <div className="text-sm text-gray-200">{q.question}</div>
-                {q.context && (
-                  <div className="text-[11px] text-gray-500 mt-0.5">{q.context}</div>
-                )}
-              </div>
+              <div className="text-sm text-gray-200">{q.question}</div>
             </div>
+            {q.context && (
+              <button
+                onClick={() => setExpandedContext(prev => ({ ...prev, [q.id]: !prev[q.id] }))}
+                className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-400 transition-colors mb-2 ml-5"
+              >
+                {expandedContext[q.id] ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                Codebase context
+              </button>
+            )}
+            {q.context && expandedContext[q.id] && (
+              <div className="ml-5 mb-2 px-3 py-2 bg-gray-900/60 border border-gray-700/30 rounded-lg text-[11px] text-gray-400 font-mono whitespace-pre-wrap">
+                {q.context}
+              </div>
+            )}
             <textarea
               value={answers[q.id] || ''}
               onChange={(e) => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
               placeholder="Your answer..."
-              rows={2}
+              rows={3}
               className="w-full px-3 py-2 text-sm bg-gray-800/50 border border-gray-700 rounded-lg
-                text-gray-200 placeholder-gray-600 resize-none
+                text-gray-200 placeholder-gray-600 resize-y min-h-[72px]
                 focus:outline-none focus:border-purple-600 transition-colors"
             />
           </div>

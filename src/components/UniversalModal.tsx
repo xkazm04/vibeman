@@ -134,36 +134,38 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
   if (!mounted || !isOpen) return null;
 
   const modalContent = (
-    <AnimatePresence mode="wait">
-      {/* Enhanced Backdrop with Gradient */}
-      {showBackdrop && (
-        <motion.div
-          key="modal-backdrop"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className={`fixed inset-0 z-[9999] ${backdropBlur
-            ? 'bg-gradient-to-br from-black/70 via-black/60 to-slate-900/50 backdrop-blur-md'
-            : 'bg-black/60'
-            }`}
-          onClick={onClose}
-        />
-      )}
-
-      {/* Enhanced Modal Container */}
+    <AnimatePresence>
+      {/* Enhanced Modal Container with Backdrop Inside */}
       <motion.div
         key="modal-container"
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        transition={{
-          type: "spring",
-          damping: 25,
-          stiffness: 300,
-          mass: 0.8
-        }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
         className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       >
+        {/* Backdrop */}
+        {showBackdrop && (
+          <div
+            className={`absolute inset-0 ${backdropBlur
+              ? 'bg-gradient-to-br from-black/70 via-black/60 to-slate-900/50 backdrop-blur-md'
+              : 'bg-black/60'
+              }`}
+            onClick={onClose}
+          />
+        )}
+
+        <motion.div
+          initial={{ scale: 0.9, y: 20 }}
+          animate={{ scale: 1, y: 0 }}
+          exit={{ scale: 0.9, y: 20 }}
+          transition={{
+            type: "spring",
+            damping: 25,
+            stiffness: 300,
+            mass: 0.8
+          }}
+          className="relative"
+        >
         <div 
           className={`relative w-full ${maxWidth} ${maxHeight} overflow-hidden`}
           onClick={(e) => e.stopPropagation()}
@@ -297,6 +299,7 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
             </div>
           </div>
         </div>
+        </motion.div>
       </motion.div>
     </AnimatePresence>
   );

@@ -310,24 +310,40 @@ async function runV3Loop(
 
   // ----- Intent Refinement: CLI codebase scan (always runs) -----
   {
-    const intentQuestions = await runIntentScan(
+    const scanResult = await runIntentScan(
       projectPath, goalRecord.title, goalRecord.description, log, controller?.signal
     );
-    if (intentQuestions.length > 0) {
-      updateRunField(runId, 'intent_questions', JSON.stringify(intentQuestions));
+
+    if (scanResult.status === 'success' && scanResult.questions.length === 0) {
+      log('plan', 'info', 'No clarifying questions needed — proceeding with pipeline');
+    } else if (scanResult.status === 'success' && scanResult.questions.length > 0) {
+      // Questions ready — pause for user answers
+      updateRunField(runId, 'intent_questions', JSON.stringify(scanResult.questions));
       conductorRepository.updateRunStatus(runId, 'paused');
-      log('plan', 'info', `${intentQuestions.length} clarifying question(s) ready — waiting for answers`);
+      log('plan', 'info', `${scanResult.questions.length} clarifying question(s) ready — waiting for answers`);
       await waitForResume(runId);
       if (shouldAbort(runId)) {
         abortControllers.delete(runId);
         return;
       }
-      // Read answers from run record and build refined intent
       const intentRefined = readIntentAnswers(runId);
       if (intentRefined) {
         refinedIntent = intentRefined;
       }
+    } else if (scanResult.status === 'timeout' || scanResult.status === 'error') {
+      // Scan failed — pause and let user decide (retry / abort / continue)
+      updateRunField(runId, 'intent_scan_failure', scanResult.status);
+      conductorRepository.updateRunStatus(runId, 'paused');
+      log('plan', 'info', `Intent scan ${scanResult.status} — waiting for user decision (resume to continue without, or stop to abort)`);
+      await waitForResume(runId);
+      if (shouldAbort(runId)) {
+        abortControllers.delete(runId);
+        return;
+      }
+      // User chose to resume — continue without refined intent
+      log('plan', 'info', 'Continuing without intent refinement');
     }
+    // status === 'aborted' falls through silently (pipeline is stopping)
   }
 
   // ----- Orphaned worktree cleanup from previous crashed runs -----
@@ -621,9 +637,15 @@ function getReflectionHistory(runId: string): ReflectOutput[] {
   }
 }
 
+interface IntentScanResult {
+  status: 'success' | 'timeout' | 'error' | 'aborted';
+  questions: Array<{ id: string; question: string; context: string }>;
+}
+
 /**
  * Run a CLI scan to generate intent-refinement questions for the goal.
  * Spawns a CLI session, polls until complete, and parses the output.
+ * Returns a result object so the caller can distinguish success from failure.
  */
 async function runIntentScan(
   projectPath: string,
@@ -631,7 +653,7 @@ async function runIntentScan(
   goalDescription: string,
   log: (phase: V3Phase, event: V3ProcessLogEntry['event'], message: string) => void,
   abortSignal?: AbortSignal
-): Promise<Array<{ id: string; question: string; context: string }>> {
+): Promise<IntentScanResult> {
   const { startExecution, getExecution } = await import('@/lib/claude-terminal/cli-service');
 
   const prompt = `You are a senior technical lead preparing to review a development goal before it enters an autonomous pipeline. Your task is to explore this codebase and generate clarifying questions that will help refine the goal.
@@ -676,16 +698,16 @@ When you have your questions ready, output them EXACTLY in this format as the la
 
   // Poll for completion
   const POLL_MS = 5000;
-  const MAX_WAIT_MS = 5 * 60 * 1000; // 5 minutes
+  const MAX_WAIT_MS = 15 * 60 * 1000; // 15 minutes
   const startWait = Date.now();
 
   while (Date.now() - startWait < MAX_WAIT_MS) {
-    if (abortSignal?.aborted) return [];
+    if (abortSignal?.aborted) return { status: 'aborted', questions: [] };
 
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
 
     const execution = getExecution(executionId);
-    if (!execution) return [];
+    if (!execution) return { status: 'error', questions: [] };
 
     if (execution.status === 'completed') {
       const allText = execution.events
@@ -693,17 +715,31 @@ When you have your questions ready, output them EXACTLY in this format as the la
         .map(e => (e.data as { content?: string }).content || '')
         .join('');
 
-      return parseIntentQuestions(allText);
+      return { status: 'success', questions: parseIntentQuestions(allText) };
     }
 
     if (execution.status === 'error' || execution.status === 'aborted') {
       log('plan', 'info', `Intent scan ${execution.status}`);
-      return [];
+      return { status: 'error', questions: [] };
+    }
+  }
+
+  // Try to extract partial results before reporting timeout
+  const execution = getExecution(executionId);
+  if (execution) {
+    const partialText = execution.events
+      .filter(e => e.type === 'text')
+      .map(e => (e.data as { content?: string }).content || '')
+      .join('');
+    const partialQuestions = parseIntentQuestions(partialText);
+    if (partialQuestions.length > 0) {
+      log('plan', 'info', `Intent scan timed out but recovered ${partialQuestions.length} partial question(s)`);
+      return { status: 'success', questions: partialQuestions };
     }
   }
 
   log('plan', 'info', 'Intent scan timed out');
-  return [];
+  return { status: 'timeout', questions: [] };
 }
 
 /**
@@ -794,6 +830,7 @@ function updateRunField(runId: string, field: string, value: string): void {
       'current_stage',
       'intent_questions',
       'intent_answers',
+      'intent_scan_failure',
     ]);
 
     if (!allowedFields.has(field)) {

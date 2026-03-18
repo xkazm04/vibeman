@@ -149,7 +149,19 @@ export default function RunSidebar({ onNewRun }: RunSidebarProps) {
                 whileTap={{ scale: 0.98 }}
               >
                 <div className="flex items-center gap-2">
-                  <Icon className={`w-3.5 h-3.5 ${cfg.iconClass} flex-shrink-0`} />
+                  <div className="relative flex-shrink-0">
+                    <Icon className={`w-3.5 h-3.5 ${cfg.iconClass}`} />
+                    {run.status === 'running' && (
+                      <motion.span
+                        className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400"
+                        animate={{ opacity: [1, 0.3, 1] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                      />
+                    )}
+                    {run.status === 'paused' && (
+                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400" />
+                    )}
+                  </div>
                   <span className="text-xs text-gray-200 truncate flex-1">{title}</span>
                 </div>
                 <div className="flex items-center gap-2 mt-1 pl-[22px]">
