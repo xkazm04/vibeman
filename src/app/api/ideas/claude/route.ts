@@ -29,6 +29,7 @@ interface ClaudeIdeasRequest {
   groupId?: string;
   goalId?: string; // Focus scan on a specific goal
   detailed?: boolean; // Include implementation procedure steps
+  youtubeUrl?: string; // YouTube URL for youtube_scout scan type
 }
 
 /** Group data with all contexts and aggregated file paths */
@@ -57,8 +58,9 @@ function buildClaudeIdeaRequirement(config: {
   context: DbContext | null;
   goalId?: string;
   detailed?: boolean;
+  youtubeUrl?: string;
 }): string {
-  const { projectId, projectName, scanType, context, goalId, detailed } = config;
+  const { projectId, projectName, scanType, context, goalId, detailed, youtubeUrl } = config;
   const apiUrl = getVibemanApiUrl();
 
   const scanConfig = SCAN_TYPE_CONFIGS.find(s => s.value === scanType);
@@ -69,8 +71,31 @@ function buildClaudeIdeaRequirement(config: {
   // Claude Code can read the project documentation directly if needed
   const aiDocsSection = '';
 
-  // Build context section
-  const contextSection = buildContextSection(context);
+  // Build context section — for youtube_scout, inject transcript fetch instructions
+  let contextSection = buildContextSection(context);
+  if (scanType === 'youtube_scout' && youtubeUrl) {
+    const encodedUrl = encodeURIComponent(youtubeUrl);
+    contextSection = `## YouTube Video Analysis
+
+**Source Video**: ${youtubeUrl}
+
+### Step 0: Fetch the Transcript (do this FIRST before any codebase analysis)
+
+Run this command to get the video transcript, then use it throughout your analysis:
+
+\`\`\`bash
+TRANSCRIPT=$(curl -s "${apiUrl}/api/youtube/transcript?url=${encodedUrl}" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); console.log('TITLE: ' + d.title + '\\n\\nTRANSCRIPT:\\n' + d.transcript)")
+echo "$TRANSCRIPT"
+\`\`\`
+
+The transcript contains the full spoken content of the video. Use it to:
+- Identify features, workflows, and patterns discussed
+- Extract user pain points and complaints mentioned
+- Find best practices and techniques referenced
+- Compare what's shown against this codebase
+
+${contextSection}`;
+  }
 
   // Load existing ideas to prevent duplicates
   const existingIdeas = context
@@ -101,7 +126,7 @@ function buildClaudeIdeaRequirement(config: {
     contextSection,
     existingIdeasSection,
     codeSection: '', // Claude Code will analyze files directly
-    hasContext: context !== null,
+    hasContext: context !== null || (scanType === 'youtube_scout' && !!youtubeUrl),
     behavioralSection: buildBehavioralSection(projectId),
     goalsSection,
     feedbackSection: '',
@@ -174,7 +199,7 @@ curl -s -X POST ${apiUrl}/api/scans \\
   -H "Content-Type: application/json" \\
   -d '{
     "project_id": "${projectId}",
-    "scan_type": "claude_code_${scanType}",
+    "scan_type": "${scanType}",
     "summary": "Claude Code idea generation - ${scanLabel}"
   }'
 \`\`\`
@@ -260,7 +285,7 @@ SCAN_RESPONSE=$(curl -s -X POST ${apiUrl}/api/scans \\
   -H "Content-Type: application/json" \\
   -d '{
     "project_id": "${projectId}",
-    "scan_type": "claude_code_${scanType}",
+    "scan_type": "${scanType}",
     "summary": "Claude Code idea generation - ${scanLabel}"
   }')
 
@@ -344,8 +369,9 @@ function buildClaudeIdeaRequirementForGroup(config: {
   groupData: GroupData;
   goalId?: string;
   detailed?: boolean;
+  youtubeUrl?: string;
 }): string {
-  const { projectId, projectName, scanType, groupData, goalId, detailed } = config;
+  const { projectId, projectName, scanType, groupData, goalId, detailed, youtubeUrl } = config;
   const { group, contexts, allFilePaths } = groupData;
   const apiUrl = getVibemanApiUrl();
 
@@ -353,8 +379,23 @@ function buildClaudeIdeaRequirementForGroup(config: {
   const scanLabel = scanConfig?.label ?? scanType;
   const scanEmoji = scanConfig?.emoji ?? '💡';
 
-  // Build context group section
-  const contextGroupSection = buildContextGroupSection(groupData);
+  // Build context group section, prepend YouTube fetch instructions if applicable
+  let contextGroupSection = buildContextGroupSection(groupData);
+  if (scanType === 'youtube_scout' && youtubeUrl) {
+    const encodedUrl = encodeURIComponent(youtubeUrl);
+    contextGroupSection = `## YouTube Video Analysis
+
+**Source Video**: ${youtubeUrl}
+
+### Step 0: Fetch the Transcript (do this FIRST before any codebase analysis)
+
+\`\`\`bash
+TRANSCRIPT=$(curl -s "${apiUrl}/api/youtube/transcript?url=${encodedUrl}" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); console.log('TITLE: ' + d.title + '\\n\\nTRANSCRIPT:\\n' + d.transcript)")
+echo "$TRANSCRIPT"
+\`\`\`
+
+${contextGroupSection}`;
+  }
 
   // Load existing ideas for this group's contexts to prevent duplicates
   const existingIdeas = contexts.flatMap(ctx => ideaDb.getIdeasByContext(ctx.id));
@@ -485,7 +526,7 @@ curl -s -X POST ${apiUrl}/api/scans \\
   -H "Content-Type: application/json" \\
   -d '{
     "project_id": "${projectId}",
-    "scan_type": "claude_code_${scanType}",
+    "scan_type": "${scanType}",
     "summary": "Claude Code idea generation - ${scanLabel} (Group: ${group.name})"
   }'
 \`\`\`
@@ -551,7 +592,7 @@ SCAN_RESPONSE=$(curl -s -X POST ${apiUrl}/api/scans \\
   -H "Content-Type: application/json" \\
   -d '{
     "project_id": "${projectId}",
-    "scan_type": "claude_code_${scanType}",
+    "scan_type": "${scanType}",
     "summary": "Claude Code idea generation - ${scanLabel} (Group: ${group.name})"
   }')
 
@@ -657,7 +698,7 @@ export async function POST(request: NextRequest) {
   try {
     const body: ClaudeIdeasRequest = await request.json();
 
-    const { projectId, projectName, projectPath, scanType, contextId, groupId, goalId, detailed } = body;
+    const { projectId, projectName, projectPath, scanType, contextId, groupId, goalId, detailed, youtubeUrl } = body;
 
     // Validate required fields
     if (!projectId || !projectName || !projectPath || !scanType) {
@@ -704,6 +745,7 @@ export async function POST(request: NextRequest) {
         groupData,
         goalId,
         detailed,
+        youtubeUrl,
       });
       requirementSuffix = `-grp-${groupId.slice(0, 8)}`;
     } else {
@@ -717,6 +759,7 @@ export async function POST(request: NextRequest) {
         context,
         goalId,
         detailed,
+        youtubeUrl,
       });
       requirementSuffix = contextId ? `-${contextId.slice(0, 8)}` : '-all';
     }

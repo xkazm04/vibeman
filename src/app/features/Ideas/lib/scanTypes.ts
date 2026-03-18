@@ -32,7 +32,9 @@ export type ScanType =
   | 'pragmatic_integrator'
   // Observability & Brand
   | 'observability_scout'
-  | 'brand_artist';
+  | 'brand_artist'
+  // External Intelligence
+  | 'youtube_scout';
 
 export type ScanState = 'idle' | 'scanning' | 'success' | 'error';
 
@@ -444,6 +446,23 @@ export const AGENT_REGISTRY: Record<ScanType, AgentDefinition> = {
       'Design illustrated empty state for task runner',
       'Create custom SVG icon set for navigation',
       'Establish consistent typography scale across dashboard',
+    ],
+  },
+
+  // External Intelligence
+  youtube_scout: {
+    id: 'youtube_scout',
+    label: 'YouTube Scout',
+    abbr: 'yt',
+    emoji: '▶️',
+    color: 'bg-gradient-to-r from-red-600/20 to-red-800/20 border-red-600/40 text-red-400',
+    description: 'Extract backlog ideas from YouTube videos',
+    category: 'business',
+    agentFile: 'youtube_scout.md',
+    examples: [
+      'Add feature demonstrated in competitor tutorial',
+      'Fix UX pain point highlighted in user feedback video',
+      'Implement workflow shown in productivity channel',
     ],
   },
 };

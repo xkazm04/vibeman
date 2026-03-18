@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
       screenshot,
       provider,
       model,
+      metadata,
     } = body;
 
     // Validate required fields
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
       screenshot: screenshot || null,
       provider: provider || undefined,
       model: model || undefined,
+      metadata: metadata ? JSON.stringify(metadata) : undefined,
     });
 
     logger.info('Implementation log created via simplified API', {

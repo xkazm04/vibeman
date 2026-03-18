@@ -44,10 +44,18 @@ export function registerImplementationLogTool(
           .string()
           .optional()
           .describe('Key implementation points separated by newlines (e.g., "Created ThemeProvider\\nUpdated components\\nAdded toggle")'),
+        category: z
+          .enum(['feature', 'bugfix', 'refactor', 'performance', 'security', 'infrastructure', 'ui', 'docs', 'test'])
+          .optional()
+          .describe('Category of work performed'),
+        patternsApplied: z
+          .string()
+          .optional()
+          .describe('Comma-separated list of patterns or techniques used (e.g., "repository pattern, LRU cache, debounce")'),
       }),
       annotations: { readOnlyHint: false },
     },
-    async ({ requirementName, title, overview, overviewBullets }) => {
+    async ({ requirementName, title, overview, overviewBullets, category, patternsApplied }) => {
       if (!config.projectId) {
         return {
           content: [
@@ -60,6 +68,12 @@ export function registerImplementationLogTool(
         };
       }
 
+      // Build metadata object from optional structured fields
+      const metadata: Record<string, unknown> = {};
+      if (category) metadata.category = category;
+      if (patternsApplied) metadata.patterns_applied = patternsApplied.split(',').map(s => s.trim()).filter(Boolean);
+      const hasMetadata = Object.keys(metadata).length > 0;
+
       const result = await client.post<LogResponse>('/api/implementation-log', {
         projectId: config.projectId,
         contextId: config.contextId || null,
@@ -67,6 +81,7 @@ export function registerImplementationLogTool(
         title,
         overview,
         overviewBullets: overviewBullets || null,
+        ...(hasMetadata ? { metadata } : {}),
       });
 
       if (!result.success) {

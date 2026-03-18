@@ -72,6 +72,23 @@ export function buildExecutionPrompt(config: ExecutionPromptConfig): ExecutionPr
     enhancedContent = `${enhancedContent}\n${config.healingContext}`;
   }
 
+  // Inject task-aware context from Brain knowledge system
+  if (config.projectId) {
+    try {
+      const { assembleTaskContext } = require('@/lib/brain/taskContextAssembler');
+      const taskContext = assembleTaskContext({
+        projectId: config.projectId,
+        requirementContent: config.requirementContent,
+        contextId: config.contextId,
+      });
+      if (taskContext) {
+        enhancedContent = `${enhancedContent}\n\n${taskContext}`;
+      }
+    } catch {
+      // Task context assembly is non-critical
+    }
+  }
+
   // Map to wrapper config (omit deprecated dbPath)
   // vibemanBaseUrl defaults to http://localhost:3000 via rule variable defaults,
   // ensuring CLI in other projects always calls the correct Vibeman server

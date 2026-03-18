@@ -16,6 +16,7 @@ import {
   Wrench,
   Link2,
   Target,
+  Youtube,
   type LucideIcon
 } from 'lucide-react';
 
@@ -204,6 +205,14 @@ export const SCAN_TYPE_CONFIG: Record<ScanType, ScanTypeConfig> = {
     borderColor: 'border-rose-500/40',
     bgGradient: 'from-rose-500/5 to-amber-500/2',
     description: 'Brand identity, visuals & typography'
+  },
+  youtube_scout: {
+    label: 'YouTube Scout',
+    icon: Youtube,
+    color: 'text-red-400',
+    borderColor: 'border-red-600/40',
+    bgGradient: 'from-red-600/5 to-red-800/2',
+    description: 'Extract backlog ideas from YouTube videos'
   }
 };
 

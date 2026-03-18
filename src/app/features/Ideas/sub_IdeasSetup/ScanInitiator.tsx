@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Target, ChevronDown, Zap } from 'lucide-react';
+import { Target, ChevronDown, Zap, Youtube } from 'lucide-react';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { toast } from '@/stores/messageStore';
 import { ScanType } from '../lib/scanTypes';
@@ -38,6 +38,11 @@ export default function ScanInitiator({
   // Generated Ideas state
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [isDetailedProcessing, setIsDetailedProcessing] = React.useState(false);
+
+  // YouTube Scout state
+  const [youtubeUrl, setYoutubeUrl] = React.useState('');
+  const isYoutubeSelected = selectedScanTypes.includes('youtube_scout');
+  const isYoutubeValid = !isYoutubeSelected || youtubeUrl.trim().length > 0;
 
   // Goal-driven scan state
   const [goals, setGoals] = React.useState<GoalOption[]>([]);
@@ -178,6 +183,7 @@ export default function ScanInitiator({
         scanTypes: selectedScanTypes,
         contextIds: currentSelectedContextIds,
         groupIds: propSelectedGroupIds,
+        youtubeUrl: isYoutubeSelected ? youtubeUrl.trim() : undefined,
       });
 
       if (result.success) {
@@ -225,6 +231,7 @@ export default function ScanInitiator({
         contextIds: currentSelectedContextIds,
         groupIds: propSelectedGroupIds,
         detailed: true,
+        youtubeUrl: isYoutubeSelected ? youtubeUrl.trim() : undefined,
       });
 
       if (result.success) {
@@ -255,13 +262,27 @@ export default function ScanInitiator({
           />
         )}
 
+        {/* YouTube URL Input — shown when youtube_scout is selected */}
+        {isYoutubeSelected && (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-red-600/40 bg-red-950/20">
+            <Youtube className="w-4 h-4 text-red-400 shrink-0" />
+            <input
+              type="url"
+              value={youtubeUrl}
+              onChange={e => setYoutubeUrl(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=..."
+              className="flex-1 bg-transparent text-sm text-red-100 placeholder-red-700/60 outline-none min-w-0 w-64"
+            />
+          </div>
+        )}
+
         {/* Action Buttons Row */}
         <div className="flex items-center gap-3 pt-2 border-t border-gray-700/20">
           {/* Generated Ideas Button */}
           {activeProject && (
             <ClaudeIdeasButton
               onClick={handleGeneratedIdeasClick}
-              disabled={isProcessing || isDetailedProcessing || !activeProject}
+              disabled={isProcessing || isDetailedProcessing || !activeProject || !isYoutubeValid}
               isProcessing={isProcessing}
               scanTypesCount={selectedScanTypes.length}
               contextsCount={currentSelectedContextIds.length}
@@ -272,7 +293,7 @@ export default function ScanInitiator({
           {activeProject && (
             <DetailedIdeasButton
               onClick={handleDetailedScanClick}
-              disabled={isDetailedProcessing || isProcessing || !activeProject}
+              disabled={isDetailedProcessing || isProcessing || !activeProject || !isYoutubeValid}
               isProcessing={isDetailedProcessing}
               scanTypesCount={selectedScanTypes.length}
               contextsCount={currentSelectedContextIds.length}

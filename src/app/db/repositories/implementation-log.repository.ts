@@ -138,13 +138,14 @@ export const implementationLogRepository = {
     screenshot?: string;
     provider?: string;
     model?: string;
+    metadata?: string;
   }): DbImplementationLog => {
     const db = getDatabase();
     const now = new Date().toISOString();
 
     const stmt = db.prepare(`
-      INSERT INTO implementation_log (id, project_id, context_id, requirement_name, title, overview, overview_bullets, tested, screenshot, provider, model, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO implementation_log (id, project_id, context_id, requirement_name, title, overview, overview_bullets, tested, screenshot, provider, model, metadata, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -159,6 +160,7 @@ export const implementationLogRepository = {
       log.screenshot || null,
       log.provider || null,
       log.model || null,
+      log.metadata || null,
       now
     );
 
@@ -208,6 +210,30 @@ export const implementationLogRepository = {
     `);
     const result = stmt.get(projectId, startDate, endDate) as { count: number };
     return result.count;
+  },
+
+  /**
+   * Get the most recent implementation log by requirement name within a project
+   */
+  getLogByRequirementName: (projectId: string, requirementName: string): DbImplementationLog | null => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT * FROM implementation_log
+      WHERE project_id = ? AND requirement_name = ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `);
+    return (stmt.get(projectId, requirementName) as DbImplementationLog) || null;
+  },
+
+  /**
+   * Update the metadata JSON column for an implementation log
+   */
+  updateMetadata: (id: string, metadata: string): DbImplementationLog | null => {
+    const db = getDatabase();
+    db.prepare('UPDATE implementation_log SET metadata = ? WHERE id = ?').run(metadata, id);
+    const selectStmt = db.prepare('SELECT * FROM implementation_log WHERE id = ?');
+    return (selectStmt.get(id) as DbImplementationLog) || null;
   },
 
   /**

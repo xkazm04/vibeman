@@ -103,6 +103,7 @@ async function ensureImplementationLog(
         title: `Implementation: ${requirementName}`,
         overview: 'Auto-generated after successful CLI execution (no MCP log_implementation call detected).',
         contextId: contextId || undefined,
+        metadata: { category: 'unknown' },
       }),
     });
   } catch {

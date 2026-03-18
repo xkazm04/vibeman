@@ -1,0 +1,105 @@
+# Implementation Guidelines
+
+When implementing development tasks or requirements, follow these guidelines to ensure high-quality, maintainable code:
+
+## Core Principles
+
+### 1. Fulfill Requirements
+- Carefully read and understand the full requirement specification
+- Address all aspects mentioned in the description and reasoning
+- Ensure the solution solves the stated problem completely
+- Don't add unnecessary features beyond the scope
+
+### 2. Code Quality
+- Write clean, readable, and well-organized code
+- Follow DRY (Don't Repeat Yourself) principles
+- Use meaningful variable and function names
+- Add comments for complex logic, but prefer self-documenting code
+- Maintain or improve existing code quality standards
+
+### 3. Testing
+- Write tests for new functionality
+- Ensure existing tests still pass
+- Consider edge cases and error scenarios
+- Add integration tests where appropriate
+- Manual testing should verify the user-facing behavior
+
+### 4. Project Conventions
+- Follow the existing code style and patterns in the project
+- Use the same libraries and frameworks already in use
+- Respect the project's architectural decisions
+- Match the naming conventions used throughout the codebase
+- Keep consistency with existing similar features
+
+## Technical Guidelines
+
+### TypeScript/JavaScript
+- Use TypeScript types properly (avoid `any` unless necessary)
+- Leverage type inference where appropriate
+- Handle async operations with proper error handling
+- Use modern ES6+ syntax consistently
+
+### React/Next.js
+- Follow React best practices (hooks, composition, etc.)
+- Optimize for performance (memoization, lazy loading when needed)
+- Use Next.js App Router conventions
+- Maintain proper component hierarchy
+- Handle loading and error states
+
+### Database Operations
+- Use transactions for multi-step database operations
+- Handle database errors gracefully
+- Consider data migration needs
+- Validate data before database operations
+- Use proper indexing for queries
+
+### API Routes
+- Validate all inputs at the beginning
+- Return consistent error formats
+- Use proper HTTP status codes
+- Add appropriate logging
+- Handle edge cases and error scenarios
+
+### State Management
+- Use Zustand stores following existing patterns
+- Keep state minimal and derived data computed
+- Avoid unnecessary re-renders
+- Consider state persistence needs
+
+## Quality Checklist
+
+Before considering the task complete:
+
+- [ ] All requirements from the specification are implemented
+- [ ] Code follows project conventions and patterns
+- [ ] TypeScript types are properly defined
+- [ ] Error handling is comprehensive
+- [ ] Tests are written and passing
+- [ ] No console errors or warnings
+- [ ] Performance is acceptable
+- [ ] Code is well-documented where needed
+- [ ] UI is responsive and accessible (if applicable)
+- [ ] Database operations are safe and efficient (if applicable)
+
+## Don't Overlook
+
+- **Error states**: How does the feature handle failures?
+- **Loading states**: What does the user see while waiting?
+- **Empty states**: What if there's no data?
+- **Edge cases**: What about unusual inputs or scenarios?
+- **Performance**: Will this scale with more data?
+- **Accessibility**: Can keyboard users navigate this?
+- **Mobile**: Does this work on smaller screens?
+
+## Integration Points
+
+When your code interacts with other parts of the system:
+
+- Understand the existing data flow
+- Respect existing interfaces and contracts
+- Add proper error boundaries
+- Consider backward compatibility
+- Document integration points
+- Test the integration thoroughly
+
+Remember: The goal is to add value to the project while maintaining its quality and consistency.

@@ -222,7 +222,29 @@ export interface DbImplementationLog {
   screenshot: string | null; // Relative path from project/public to screenshot image
   provider: string | null; // CLI provider that executed this task
   model: string | null; // Model used for execution
+  metadata: string | null; // JSON object with structured implementation details (category, patterns, etc.)
   created_at: string;
+}
+
+/** Structured metadata for implementation logs (stored as JSON in metadata column) */
+export interface ImplementationLogMetadata {
+  category?: 'feature' | 'bugfix' | 'refactor' | 'performance' | 'security' | 'infrastructure' | 'ui' | 'docs' | 'test';
+  patterns_applied?: string[];
+  technologies_used?: string[];
+  key_decisions?: string[];
+  files_created?: string[];
+  files_modified?: string[];
+  /** Post-implementation review results (from post-review skill) */
+  review?: {
+    qualityScore: number;
+    qualityNotes: string;
+    testsPassed: boolean;
+    testsRun: number;
+    testsFailed: number;
+    regressions: string[];
+    fixes: string[];
+    reviewedAt: string;
+  };
 }
 
 

@@ -5,9 +5,9 @@
  * for specific types of tasks. Users can toggle skills before starting a session.
  */
 
-import { Microscope, Palette, LucideIcon } from 'lucide-react';
+import { Microscope, Palette, ClipboardCheck, LucideIcon } from 'lucide-react';
 
-export type SkillId = 'deep-analysis' | 'ui-mastery';
+export type SkillId = 'deep-analysis' | 'ui-mastery' | 'post-review';
 
 export interface CLISkill {
   id: SkillId;
@@ -107,11 +107,81 @@ You are operating in UI Mastery mode. Apply these principles:
 };
 
 /**
+ * Post-Implementation Review Skill
+ * Language/framework agnostic test, evaluation, and quality scoring
+ */
+const postReviewSkill: CLISkill = {
+  id: 'post-review',
+  name: 'Post Review',
+  shortName: 'Review',
+  description: 'Auto-test, evaluate, and score implementation quality after each task',
+  icon: ClipboardCheck,
+  color: 'emerald',
+  prompt: `## Post-Implementation Review Mode
+
+After completing ALL implementation work for this task, perform a mandatory review phase.
+
+### Step 1: Detect Test Framework
+Check these indicators and use whichever exists:
+- **Node/JS**: package.json scripts.test, jest.config, vitest.config → run: npm test or npx vitest run
+- **Python**: pytest.ini, pyproject.toml [tool.pytest] → run: pytest
+- **Rust**: Cargo.toml → run: cargo test
+- **Go**: go.mod → run: go test ./...
+- **Makefile**: test target → run: make test
+If no test framework is detected, note "no tests configured" and skip to Step 2.
+
+### Step 2: Run Scoped Tests
+Prefer scoped execution targeting modified files:
+- jest --findRelatedTests <modified-files>
+- pytest <modified-test-files>
+- cargo test <modified-module>
+If scoping is unavailable, run the full suite.
+
+### Step 3: Regression Check
+Run the appropriate type/lint check:
+- TypeScript: npx tsc --noEmit (filter errors to modified files only)
+- Python: mypy or ruff check on modified files
+- Rust: cargo clippy
+- Go: go vet ./...
+**If regressions are found, FIX THEM before continuing to Step 4.**
+
+### Step 4: Quality Assessment
+Score the implementation 1-10:
+- **Requirement fulfillment** (3 pts): Does it satisfy all stated requirements?
+- **Code quality** (3 pts): Consistent patterns, proper error handling, type safety?
+- **No regressions** (2 pts): Zero new type/lint errors? Existing tests still pass?
+- **Test coverage** (2 pts): Relevant tests pass? New tests added for new functionality?
+
+### Step 5: Report Results
+After assessment, report via curl (replace placeholders):
+
+\`\`\`bash
+curl -s -X POST http://localhost:3000/api/implementation-log/review \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "projectId": "<PROJECT_ID>",
+    "requirementName": "<REQUIREMENT_NAME>",
+    "qualityScore": <1-10>,
+    "qualityNotes": "<brief assessment summary>",
+    "testsPassed": <true|false>,
+    "testsRun": <number>,
+    "testsFailed": <number>,
+    "regressions": ["<regression1>", "<regression2>"],
+    "fixes": ["<fix1>", "<fix2>"]
+  }'
+\`\`\`
+
+If the curl fails, continue — review reporting is non-blocking.
+`,
+};
+
+/**
  * All available skills
  */
 export const CLI_SKILLS: Record<SkillId, CLISkill> = {
   'deep-analysis': deepAnalysisSkill,
   'ui-mastery': uiMasterySkill,
+  'post-review': postReviewSkill,
 };
 
 /**

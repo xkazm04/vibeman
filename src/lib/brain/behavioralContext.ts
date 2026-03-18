@@ -103,6 +103,32 @@ export function getBehavioralContext(
   // Get top insights (high-confidence, proven helpful)
   const topInsights = getTopEffectiveInsights(projectId);
 
+  // Supplement with cross-project best practices (similarity-weighted transfer)
+  try {
+    const { computeTechFingerprint, computeSimilarity } = require('@/lib/brain/projectSimilarity');
+    const currentFP = computeTechFingerprint(projectId);
+
+    const globalPractices = brainInsightDb.getAllInsightsGlobal(50)
+      .filter(i => i.type === 'best_practice' && i.confidence >= 50)
+      .filter(gp => !topInsights.some(ti => ti.title === gp.title))
+      .map(i => {
+        const sourceFP = computeTechFingerprint(i.project_id);
+        const sim = computeSimilarity(currentFP, sourceFP);
+        return {
+          title: i.title,
+          type: i.type as LearningInsight['type'],
+          description: i.description,
+          confidence: Math.round(i.confidence * Math.max(sim, 0.3)),
+        };
+      })
+      .filter(i => i.confidence >= 50)
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, 5);
+    topInsights.push(...globalPractices);
+  } catch {
+    // Cross-project lookup is non-critical
+  }
+
   return {
     hasData: true,
     currentFocus: {
@@ -197,9 +223,21 @@ export function formatBehavioralForPrompt(ctx: BehavioralContext): string {
     sections.push(`### Lower Activity Areas\n${areas} (consider if improvements needed)`);
   }
 
+  // Best Practices (proven implementation practices — propagated across projects)
+  const bestPractices = ctx.topInsights.filter(i => i.type === 'best_practice');
+  const otherInsights = ctx.topInsights.filter(i => i.type !== 'best_practice');
+
+  if (bestPractices.length > 0) {
+    const practiceList = bestPractices
+      .map(i => `- **${i.title}** (${i.confidence}% confidence): ${i.description}`)
+      .join('\n');
+
+    sections.push(`### Best Practices (Proven by Implementation)\n\nThese practices were extracted from successful implementations and validated across projects. **Apply these when implementing:**\n\n${practiceList}`);
+  }
+
   // Learned Insights (proven helpful by effectiveness scoring)
-  if (ctx.topInsights.length > 0) {
-    const insightList = ctx.topInsights
+  if (otherInsights.length > 0) {
+    const insightList = otherInsights
       .map(i => `- **${i.title}** (${i.type}, ${i.confidence}% confidence): ${i.description}`)
       .join('\n');
 

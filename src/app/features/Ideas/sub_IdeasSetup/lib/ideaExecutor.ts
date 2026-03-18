@@ -26,6 +26,8 @@ export interface ExecutionConfig {
   groupIds?: string[];
   goalId?: string;
   detailed?: boolean;
+  /** YouTube URL for the youtube_scout scan type */
+  youtubeUrl?: string;
 }
 
 export interface ExecutionResult {
@@ -144,6 +146,7 @@ export async function executeClaudeCodeScan(config: ExecutionConfig): Promise<Ex
             groupId: target.groupId,
             goalId: config.goalId,
             detailed: config.detailed,
+            youtubeUrl: config.youtubeUrl,
           }),
         });
 
