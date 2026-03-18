@@ -284,6 +284,9 @@ export function runMigrations() {
       addColumnIfNotExists(db, 'conductor_runs', 'intent_questions', 'TEXT', migrationLogger);
       addColumnIfNotExists(db, 'conductor_runs', 'intent_answers', 'TEXT', migrationLogger);
     });
+    once('m214', () => {
+      addColumnIfNotExists(db, 'conductor_runs', 'intent_scan_failure', 'TEXT', migrationLogger);
+    });
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
