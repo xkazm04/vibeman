@@ -31,6 +31,8 @@ export interface CompactWrapperConfig {
   gitEnabled?: boolean;
   /** Git commit message template */
   gitCommitMessage?: string;
+  /** Pre-assembled task-specific knowledge section (from taskContextAssembler) */
+  taskContext?: string;
 }
 
 /**
@@ -64,7 +66,7 @@ export function wrapRequirementForMCP(config: CompactWrapperConfig): string {
  * Wrap requirement and return metadata including token estimate
  */
 export function wrapRequirementForMCPWithMetadata(config: CompactWrapperConfig): CompactWrapResult {
-  const { requirementContent, projectId, contextId, gitEnabled, gitCommitMessage } = config;
+  const { requirementContent, projectId, contextId, gitEnabled, gitCommitMessage, taskContext } = config;
 
   const sections: string[] = [
     'Execute this requirement immediately without asking questions.',
@@ -73,6 +75,7 @@ export function wrapRequirementForMCPWithMetadata(config: CompactWrapperConfig):
     '',
     requirementContent,
     '',
+    ...(taskContext ? [taskContext, ''] : []),
     '## DURING IMPLEMENTATION',
     '',
     '- Use `get_memory` MCP tool when you encounter unfamiliar code or need context about patterns/files',
@@ -90,6 +93,8 @@ export function wrapRequirementForMCPWithMetadata(config: CompactWrapperConfig):
       `   - requirementName: the requirement filename (without .md)`,
       `   - title: 2-6 word summary`,
       `   - overview: 1-2 paragraphs describing what was done`,
+      `   - category: one of feature/bugfix/refactor/performance/security/infrastructure/ui/docs/test`,
+      `   - patternsApplied: comma-separated patterns used (e.g. "repository pattern, debounce, memoization")`,
       ''
     );
   }

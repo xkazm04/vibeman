@@ -472,6 +472,21 @@ export function validateUUID(value: unknown): string | null {
 }
 
 /**
+ * Validate an entity ID: accepts UUID format OR prefixed IDs like ctx_*, grp_*, etc.
+ * Use this for fields where IDs may not be standard UUIDs (e.g., context_id).
+ */
+const ENTITY_ID_RE = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[a-z]{2,6}_[a-z0-9_]+)$/i;
+export function validateEntityId(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return 'must be a string';
+  }
+  if (!ENTITY_ID_RE.test(value)) {
+    return 'must be a valid ID (UUID or entity ID format)';
+  }
+  return null;
+}
+
+/**
  * Validate user_pattern: must be 0 or 1 (SQLite boolean convention).
  *
  * For JavaScript `true`/`false` booleans, use `validateBoolean()` instead.

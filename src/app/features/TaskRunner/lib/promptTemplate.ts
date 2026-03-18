@@ -130,6 +130,7 @@ INSERT INTO implementation_log (
   requirement_name,
   title,
   overview,
+  metadata,
   tested,
   created_at
 ) VALUES (
@@ -138,6 +139,7 @@ INSERT INTO implementation_log (
   '<requirement-name>',
   '<short-descriptive-title>',
   '<detailed-overview-of-changes>',
+  '<json-metadata>',
   0,
   datetime('now')
 );
@@ -153,6 +155,10 @@ INSERT INTO implementation_log (
   - Key files created or modified
   - Major functionality added
   - Any important patterns or decisions made
+- \`metadata\`: JSON string with structured details:
+  - \`category\`: one of feature, bugfix, refactor, performance, security, infrastructure, ui, docs, test
+  - \`patterns_applied\`: array of patterns used (e.g., ["repository pattern", "memoization"])
+  - \`key_decisions\`: array of key decisions made during implementation
 - \`tested\`: Always set to 0 (false) initially
 - \`created_at\`: Use \`datetime('now')\` for current timestamp
 
@@ -165,6 +171,7 @@ INSERT INTO implementation_log (
   requirement_name,
   title,
   overview,
+  metadata,
   tested,
   created_at
 ) VALUES (
@@ -172,7 +179,8 @@ INSERT INTO implementation_log (
   'project-abc-123',
   'implement-user-login',
   'User Login System',
-  'Implemented complete user authentication system with login form, JWT token management, and session persistence. Created LoginForm.tsx component, authService.ts for API calls, and useAuth hook for state management. Added protected route wrapper and login/logout functionality. Integrated with existing theme using glassmorphism design.',
+  'Implemented complete user authentication system with login form, JWT token management, and session persistence. Created LoginForm.tsx component, authService.ts for API calls, and useAuth hook for state management.',
+  '{"category":"feature","patterns_applied":["repository pattern","JWT auth"],"key_decisions":["Used HTTP-only cookies for session storage"]}',
   0,
   datetime('now')
 );
@@ -190,9 +198,9 @@ Or in Node.js/TypeScript:
 import Database from 'better-sqlite3';
 const db = new Database('${dbPath}');
 db.prepare(\`
-  INSERT INTO implementation_log (id, project_id, requirement_name, title, overview, tested, created_at)
-  VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-\`).run(id, projectId, requirementName, title, overview, 0);
+  INSERT INTO implementation_log (id, project_id, requirement_name, title, overview, metadata, tested, created_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+\`).run(id, projectId, requirementName, title, JSON.stringify({category, patterns_applied}), 0);
 db.close();
 \`\`\`
 

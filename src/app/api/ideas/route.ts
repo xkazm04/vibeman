@@ -14,6 +14,7 @@ import { parseProjectIds, filterByProject } from '@/lib/api-helpers/projectFilte
 import { validateRequestBody } from '@/lib/validation/apiValidator';
 import {
   validateUUID,
+  validateEntityId,
   validateIdeaTitle,
   validateIdeaDescription,
   validateIdeaReasoning,
@@ -139,7 +140,7 @@ async function handlePost(request: NextRequest) {
         { field: 'title', validator: validateIdeaTitle },
       ],
       optional: [
-        { field: 'context_id', validator: validateUUID },
+        { field: 'context_id', validator: validateEntityId },
         { field: 'scan_type', validator: validateScanType },
         { field: 'description', validator: validateIdeaDescription },
         { field: 'reasoning', validator: validateIdeaReasoning },

@@ -506,6 +506,7 @@ export function CLISession({
                 const colorClasses = {
                   violet: isActive ? 'bg-violet-500/20 text-violet-400 border-violet-500/50' : 'text-gray-500 hover:text-violet-400 hover:bg-violet-500/10',
                   pink: isActive ? 'bg-pink-500/20 text-pink-400 border-pink-500/50' : 'text-gray-500 hover:text-pink-400 hover:bg-pink-500/10',
+                  emerald: isActive ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : 'text-gray-500 hover:text-emerald-400 hover:bg-emerald-500/10',
                 };
                 return (
                   <button

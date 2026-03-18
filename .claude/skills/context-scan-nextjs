@@ -1,0 +1,243 @@
+# Context Scan for Next.js Projects
+
+This skill guides you through scanning a Next.js codebase and creating feature-based contexts in the SQLite database.
+
+## Core Principles
+
+1. **Structure-Based Boundaries**: Use folder structure as natural context boundaries
+2. **Optimal Size**: Target 10-20 files per context (5-25 acceptable)
+3. **No Duplicates**: Each file appears in exactly ONE context
+4. **Update-Friendly**: Modify existing contexts instead of creating duplicates
+
+## Quick Start
+
+### 1. Check Existing Contexts
+
+**Always fetch existing contexts first:**
+
+```bash
+curl -X GET "http://localhost:3000/api/contexts?projectId=PROJECT_ID"
+```
+
+If contexts exist → Update mode (modify existing + add new)
+If no contexts → Create mode (scan from scratch)
+
+### 2. Map Project Structure
+
+```bash
+# Find all Next.js structural folders
+find "PROJECT_PATH/src/app" -maxdepth 1 -type d -name "*-page"
+find "PROJECT_PATH/src/app/features" -maxdepth 1 -type d -name "sub_*"
+ls -d "PROJECT_PATH/src/app/api"/*/
+ls -d "PROJECT_PATH/src/lib"/*/
+```
+
+Create a plan table:
+
+| Folder | Files | Context Name | Action |
+|--------|-------|-------------|---------|
+| src/app/goals-page | 12 | Goals Management | Create |
+| src/app/features/sub_auth | 8 | Auth Module | Create |
+
+### 3. Create Contexts
+
+Use the folder structure to define boundaries:
+
+**Page Contexts** (`src/app/*-page/`):
+- Each page folder = 1 context
+- Include page files + related API routes
+- Target: 10-20 files
+
+**Subfeature Contexts** (`src/app/features/sub_*/`):
+- EACH subfeature = separate context
+- Never mix sub_* folders
+- Target: 5-12 files
+
+**API Contexts** (`src/app/api/*/`):
+- One context per resource
+- Target: 3-8 files
+
+**Library Contexts** (`src/lib/*/`, `src/stores/*`):
+- Group by functional domain
+- Target: 8-15 files
+
+## Context Creation API
+
+```bash
+curl -X POST http://localhost:3000/api/contexts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "projectId": "PROJECT_ID",
+    "groupId": null,
+    "name": "Feature Name",
+    "description": "## Overview\n...(see description template below)...",
+    "filePaths": ["src/path/file1.tsx", "src/path/file2.ts"]
+  }'
+```
+
+## Required Description Structure
+
+Every context must follow this exact template:
+
+```markdown
+## Overview
+[2-3 sentences describing the feature]
+
+## Key Capabilities
+- Capability 1: [description]
+- Capability 2: [description]
+- Capability 3: [description]
+
+## Architecture
+
+### Component Breakdown
+| Component/File | Purpose | Layer |
+|----------------|---------|-------|
+| `path/to/file1.tsx` | [Short description] | UI |
+| `path/to/file2.ts` | [Short description] | Service |
+
+### Data Flow
+[Describe: User action → API → Database → State → UI]
+
+### Key Dependencies
+- External: [packages used]
+- Internal: [related contexts]
+
+## Technical Details
+
+### State Management
+[Zustand, hooks, etc.]
+
+### API Endpoints
+[List endpoints if applicable]
+
+### Database Tables
+[List tables if applicable]
+
+## Usage Examples
+[1-2 code examples]
+
+## Future Improvements
+- [ ] [Enhancement 1]
+- [ ] [Enhancement 2]
+```
+
+## Update Existing Contexts
+
+For existing contexts, decide:
+
+- **KEEP**: Up-to-date, no changes needed
+- **UPDATE**: Files added/removed or description outdated
+- **DELETE**: Feature removed or incorrectly created
+
+```bash
+# Update context
+curl -X PUT http://localhost:3000/api/contexts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "contextId": "CONTEXT_ID",
+    "updates": {
+      "name": "Updated Name",
+      "filePaths": ["new/file/list.ts"]
+    }
+  }'
+
+# Delete context
+curl -X DELETE "http://localhost:3000/api/contexts?contextId=CONTEXT_ID"
+```
+
+## Optional: Dependency Analysis
+
+Only use when structure-based boundaries are insufficient:
+
+```bash
+curl -X POST http://localhost:3000/api/file-dependencies \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filePath": "C:/path/to/file.ts",
+    "projectPath": "C:/path/to/project",
+    "maxDepth": 3
+  }'
+```
+
+**Note**: Use forward slashes (/) or escape backslashes (\\\\) on Windows.
+
+## Quality Checklist
+
+Before finishing, verify each context:
+
+- [ ] 10-20 files (5-25 acceptable with warning)
+- [ ] Respects folder boundaries (no mixed sub_* or *-page)
+- [ ] Follows description template exactly
+- [ ] Files exist and are correctly grouped
+- [ ] Description is accurate and complete
+
+## Final Report
+
+After all contexts are created/updated:
+
+```markdown
+# Context Scan Complete
+
+## Summary
+- Total Contexts: X (Y created, Z updated)
+- Total Files Covered: N
+- Coverage: M% of codebase
+
+## Contexts Created
+1. **Context Name** (N files)
+   - Description
+   - Key files: file1.ts, file2.tsx
+
+## Contexts Updated
+1. **Context Name**
+   - Added: file3.ts
+   - Removed: old-file.ts
+
+## Files Not Included
+[List uncovered files with reasons]
+```
+
+## Create Markdown Report
+
+**IMPORTANT**: After storing contexts in the database, generate a summary report:
+
+```bash
+# Create docs/contexts directory if it doesn't exist
+mkdir -p "PROJECT_PATH/docs/contexts"
+
+# Write the report
+cat > "PROJECT_PATH/docs/contexts/scan-report-TIMESTAMP.md" << 'EOF'
+# Context Scan Report
+Date: TIMESTAMP
+
+## Summary
+- Total Contexts: X
+- Files Covered: Y
+
+## Created Contexts
+| Context Name | Files | Status |
+|--------------|-------|--------|
+| Goals Page | 12 | ✓ Stored in DB |
+| Auth Module | 8 | ✓ Stored in DB |
+
+## Details
+[Full details of each context]
+EOF
+```
+
+This report helps debug contexts that were identified but not saved.
+
+## Common Pitfalls
+
+❌ **Don't**: Mix files from different sub_* folders
+✅ **Do**: Create separate context for each subfeature
+
+❌ **Don't**: Create contexts larger than 25 files
+✅ **Do**: Split large features into smaller contexts
+
+❌ **Don't**: Skip the description template
+✅ **Do**: Follow the exact structure for consistency
+
+❌ **Don't**: Create duplicates of existing contexts
+✅ **Do**: Update existing contexts when possible

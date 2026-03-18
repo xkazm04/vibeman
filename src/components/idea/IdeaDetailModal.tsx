@@ -404,6 +404,12 @@ export default function IdeaDetailModal({ idea, onClose, onUpdate, onDelete }: I
                 <VariantCarousel
                   ideaId={idea.id}
                   ideaCategory={idea.category}
+                  ideaTitle={idea.title}
+                  ideaDescription={idea.description ?? null}
+                  ideaEffort={idea.effort ?? null}
+                  ideaImpact={idea.impact ?? null}
+                  ideaRisk={idea.risk ?? null}
+                  projectPath={projects.find(p => p.id === idea.project_id)?.path ?? ''}
                   onSelectVariant={handleSelectVariant}
                   onClose={() => setShowVariants(false)}
                 />

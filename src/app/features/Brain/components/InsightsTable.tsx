@@ -45,6 +45,7 @@ const TYPE_CONFIG: Record<InsightType, { icon: React.ReactNode; label: string; c
   pattern_detected: { icon: <TrendingUp className="w-3.5 h-3.5" />, label: 'Pattern', color: 'text-purple-400' },
   warning: { icon: <AlertTriangle className="w-3.5 h-3.5" />, label: 'Warning', color: 'text-amber-400' },
   recommendation: { icon: <Lightbulb className="w-3.5 h-3.5" />, label: 'Recommend', color: 'text-green-400' },
+  best_practice: { icon: <Zap className="w-3.5 h-3.5" />, label: 'Practice', color: 'text-emerald-400' },
 };
 
 const ROW_HEIGHT = 52;

@@ -24,7 +24,12 @@ export interface IdeaVariant {
 
 interface GenerateVariantsRequest {
   ideaId: string;
+  /** Pre-generated variants from CLI — skip LLM, store and return directly */
+  pregenerated?: IdeaVariant[];
 }
+
+/** In-memory cache: ideaId → variants (survives within server process lifetime) */
+const variantCache = new Map<string, IdeaVariant[]>();
 
 const VARIANT_SYSTEM_PROMPT = `You are an expert software architect. Given an idea for a software project, generate exactly 3 variants at different scope levels. Each variant should be a practical, actionable version of the same core idea.
 
@@ -97,8 +102,25 @@ function parseVariantsResponse(response: string): IdeaVariant[] {
 }
 
 /**
+ * GET /api/ideas/variants?ideaId=...
+ * Retrieve cached variants (set by CLI-generated pregenerated POST)
+ */
+export async function GET(request: NextRequest) {
+  const ideaId = new URL(request.url).searchParams.get('ideaId');
+  if (!ideaId) {
+    return NextResponse.json({ error: 'ideaId required' }, { status: 400 });
+  }
+  const cached = variantCache.get(ideaId);
+  if (!cached) {
+    return NextResponse.json({ ready: false, variants: [] });
+  }
+  return NextResponse.json({ ready: true, variants: cached });
+}
+
+/**
  * POST /api/ideas/variants
- * Generate 3 scope variants (MVP, Standard, Ambitious) for an idea
+ * Generate 3 scope variants (MVP, Standard, Ambitious) for an idea.
+ * When `pregenerated` is provided, store and return without LLM call.
  */
 async function handlePost(request: NextRequest) {
   try {
@@ -122,6 +144,22 @@ async function handlePost(request: NextRequest) {
       if (accessDenied) return accessDenied;
     }
 
+    // CLI pre-generated path: store and return immediately, no LLM needed
+    if (body.pregenerated && Array.isArray(body.pregenerated) && body.pregenerated.length > 0) {
+      const variants = body.pregenerated.map((v: Partial<IdeaVariant>) => ({
+        scope: v.scope as IdeaVariant['scope'],
+        label: String(v.label || ''),
+        title: String(v.title || ''),
+        description: String(v.description || ''),
+        effort: Math.max(1, Math.min(10, Number(v.effort) || 5)),
+        impact: Math.max(1, Math.min(10, Number(v.impact) || 5)),
+        risk: Math.max(1, Math.min(10, Number(v.risk) || 5)),
+        reasoning: String(v.reasoning || ''),
+      }));
+      variantCache.set(body.ideaId, variants);
+      return NextResponse.json({ success: true, ideaId: body.ideaId, variants, cached: true });
+    }
+
     const prompt = buildVariantPrompt(idea);
 
     const result = await generateWithLLM(prompt, {
@@ -143,6 +181,7 @@ async function handlePost(request: NextRequest) {
     }
 
     const variants = parseVariantsResponse(result.response);
+    variantCache.set(idea.id, variants);
 
     return NextResponse.json({
       success: true,

@@ -58,6 +58,11 @@ const CACHE_TTL_MS = 60 * 1000; // 60 seconds
  */
 export function invalidateContextCache(projectId: string): void {
   contextCache.deleteMatching(key => key.startsWith(`${projectId}:`));
+  // Also invalidate tech fingerprint cache for cross-project similarity
+  try {
+    const { invalidateFingerprintCache } = require('@/lib/brain/projectSimilarity');
+    invalidateFingerprintCache(projectId);
+  } catch { /* projectSimilarity module unavailable — skip */ }
 }
 
 // ---------------------------------------------------------------------------

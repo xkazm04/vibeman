@@ -14,6 +14,8 @@ import {
 import { signalCollector } from '@/lib/brain/signalCollector';
 import { invalidateContextCache } from '@/lib/brain/brainService';
 import { onTaskCompleted, resolveTaskApplications } from '@/lib/collective-memory/taskCompletionHook';
+import { performTaskCleanup } from '@/lib/execution/taskCleanup';
+import { env } from '@/lib/config/envConfig';
 import { emitTaskChange } from './taskChangeEmitter';
 import { detectErrorType, getErrorDescription } from '@/app/features/Conductor/lib/selfHealing/errorClassifier';
 import { buildHealingContext } from '@/app/features/Conductor/lib/selfHealing/promptPatcher';
@@ -259,6 +261,22 @@ class ClaudeExecutionQueue {
       // Resolve collective memory applications as success (closes feedback loop)
       if (task.memoryApplicationIds?.length) {
         resolveTaskApplications(task.memoryApplicationIds, 'success');
+      }
+
+      // Ensure implementation log exists + cleanup requirement file + update idea status
+      try {
+        const baseUrl = env.vibemanApiUrl();
+        performTaskCleanup({
+          projectPath: task.projectPath,
+          requirementName: task.requirementName,
+          projectId: task.projectId,
+          contextId: null,
+          baseUrl,
+        }).catch(() => {
+          // Non-critical: cleanup failure must never break the main flow
+        });
+      } catch {
+        // Must never break the main flow
       }
     }
   }

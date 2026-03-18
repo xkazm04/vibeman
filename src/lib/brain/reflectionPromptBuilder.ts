@@ -7,7 +7,7 @@
 import fs from 'fs';
 import path from 'path';
 import { env } from '@/lib/config/envConfig';
-import { directionDb, directionOutcomeDb, behavioralSignalDb, brainReflectionDb, brainInsightDb, contextDb } from '@/app/db';
+import { directionDb, directionOutcomeDb, behavioralSignalDb, brainReflectionDb, brainInsightDb, contextDb, implementationLogDb } from '@/app/db';
 import type { DbDirection, DbDirectionOutcome } from '@/app/db';
 import type { LearningInsight } from '@/app/db/models/brain.types';
 import { GitManager } from '@/lib/gitManager';
@@ -21,6 +21,15 @@ export interface GitCommitInfo {
   message: string;
   date: string;
   filesChanged: string[];
+}
+
+export interface ImplementationLogEntry {
+  title: string;
+  overview: string;
+  category: string | null;
+  patterns_applied: string[];
+  key_decisions: string[];
+  created_at: string;
 }
 
 export interface ReflectionData {
@@ -39,6 +48,7 @@ export interface ReflectionData {
   gitRepoUrl: string | null;
   ideaDecisions: Array<{ ideaTitle: string; category: string; accepted: boolean; contextName: string | null; timestamp: string }>;
   implementationHistory: Array<{ requirementName: string; success: boolean; filesModified: string[]; executionTimeMs: number; timestamp: string }>;
+  implementationLogs: ImplementationLogEntry[];
 }
 
 export interface GlobalReflectionData {
@@ -175,6 +185,37 @@ export async function gatherReflectionData(
     } catch { return null; }
   }).filter(Boolean) as ReflectionData['implementationHistory'];
 
+  // Gather implementation logs with structured metadata for practice extraction
+  const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const nowISO = new Date().toISOString();
+  let implementationLogs: ImplementationLogEntry[] = [];
+  try {
+    const rawLogs = implementationLogDb.getLogsByProjectInRange(projectId, thirtyDaysAgoISO, nowISO);
+    implementationLogs = rawLogs.map(log => {
+      let category: string | null = null;
+      let patterns_applied: string[] = [];
+      let key_decisions: string[] = [];
+      if (log.metadata) {
+        try {
+          const meta = JSON.parse(log.metadata);
+          category = meta.category || null;
+          patterns_applied = meta.patterns_applied || [];
+          key_decisions = meta.key_decisions || [];
+        } catch { /* ignore malformed metadata */ }
+      }
+      return {
+        title: log.title,
+        overview: log.overview,
+        category,
+        patterns_applied,
+        key_decisions,
+        created_at: log.created_at,
+      };
+    });
+  } catch {
+    // Implementation logs unavailable — non-critical
+  }
+
   return {
     acceptedDirections,
     rejectedDirections,
@@ -186,6 +227,7 @@ export async function gatherReflectionData(
     gitRepoUrl: detectedRepoUrl,
     ideaDecisions,
     implementationHistory,
+    implementationLogs,
   };
 }
 
@@ -327,6 +369,24 @@ ${data.implementationHistory.slice(0, 15).map(t =>
 ---`
     : '';
 
+  // Build implementation logs section (with structured metadata for practice extraction)
+  const logsWithMetadata = data.implementationLogs.filter(l => l.patterns_applied.length > 0 || l.key_decisions.length > 0 || l.category);
+  const implementationLogsSection = logsWithMetadata.length > 0
+    ? `## Implementation Log Details (for Practice Extraction)
+
+${logsWithMetadata.length} implementation logs with structured metadata:
+
+${logsWithMetadata.slice(0, 20).map(l => {
+  const parts = [`- **${l.title}**`];
+  if (l.category) parts.push(`  Category: ${l.category}`);
+  if (l.patterns_applied.length) parts.push(`  Patterns: ${l.patterns_applied.join(', ')}`);
+  if (l.key_decisions.length) parts.push(`  Decisions: ${l.key_decisions.join('; ')}`);
+  return parts.join('\n');
+}).join('\n')}
+
+---`
+    : '';
+
   // Build context architecture section from active contexts
   const contextArchitectureSection = buildContextArchitectureSection(projectId);
 
@@ -372,6 +432,7 @@ Analyze patterns in accepted vs rejected directions to understand what resonates
 - **Behavioral signals**: ${Object.values(data.signalCounts).reduce((a, b) => a + b, 0)} total
 - **Idea decisions reviewed**: ${data.ideaDecisions.length} (${data.ideaDecisions.filter(d => d.accepted).length} accepted, ${data.ideaDecisions.filter(d => !d.accepted).length} rejected)
 - **Task executions**: ${data.implementationHistory.length} (${data.implementationHistory.filter(t => t.success).length} successful)
+- **Implementation logs with metadata**: ${logsWithMetadata.length}
 - **Git commits analyzed**: ${data.gitHistory.length}
 - **Previous insights on record**: ${data.previousInsights.length}
 
@@ -386,6 +447,8 @@ ${gitSection}
 ${ideaPreferencesSection}
 
 ${implementationSection}
+
+${implementationLogsSection}
 
 ## Accepted Directions (Last 30 Days)
 
@@ -447,6 +510,19 @@ Compare git commits with direction decisions:
 - **Were any commits made in areas where directions were rejected?**
 - **Is there implementation activity in areas not covered by the direction system?**
 - **Are commit messages consistent with direction summaries?**
+` : ''}
+${logsWithMetadata.length > 0 ? `### ${data.gitHistory.length > 0 ? '5' : '4'}. Best Practice Extraction
+
+From implementation logs with structured metadata, identify:
+
+- **Successful patterns**: Code patterns or architectural approaches that succeeded across multiple implementations
+- **Technology practices**: Effective ways of using specific libraries/tools in this codebase
+- **Avoidance patterns**: Approaches that consistently failed or were reverted
+
+For each practice found, submit a \`best_practice\` insight with:
+- title: The practice name (e.g., "Use useShallow for Zustand store subscriptions")
+- description: What to do, when to apply it, and why. Include evidence from the logs.
+- confidence: Based on how many implementations used this pattern successfully
 ` : ''}
 ---
 
@@ -519,6 +595,7 @@ Insight types:
 - \`pattern_detected\`: A pattern in acceptance/rejection
 - \`warning\`: Something concerning (high revert rate, etc.)
 - \`recommendation\`: Suggested action based on analysis
+- \`best_practice\`: A proven implementation practice (from successful implementations — propagated across projects)
 
 Confidence levels:
 - 80-100: Strong evidence (5+ examples)
@@ -705,6 +782,15 @@ Higher-level observations:
 - **Are some projects getting more attention than others?**
 - **Are there neglected areas that might need direction?**
 - **Do different projects show different maturity patterns?**
+
+### 4. Universal Practice Detection
+
+Identify best practices that appear across 3+ projects regardless of tech stack:
+- These are **universal practices** that transcend specific technologies
+- Examples: "Always validate inputs at write time", "Run type checks after each refactoring step"
+- For each universal practice found, submit a \`best_practice\` insight with high confidence (80+)
+- Include "Universal practice (found in N projects)" in the description
+- These will be propagated to all managed projects with high priority
 
 ---
 

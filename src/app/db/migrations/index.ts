@@ -286,6 +286,7 @@ export function runMigrations() {
     });
     once('m214', () => {
       addColumnIfNotExists(db, 'conductor_runs', 'intent_scan_failure', 'TEXT', migrationLogger);
+      addColumnIfNotExists(db, 'implementation_log', 'metadata', 'TEXT', migrationLogger);
     });
 
     migrationLogger.success('Database migrations completed successfully');

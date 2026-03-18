@@ -32,6 +32,8 @@ import { buildPragmaticIntegratorPrompt } from './pragmaticIntegratorPrompt';
 // Observability & Brand
 import { buildObservabilityScoutPrompt } from './observabilityScoutPrompt';
 import { buildBrandArtistPrompt } from './brandArtistPrompt';
+// External Intelligence
+import { buildYoutubeScoutPrompt } from './youtubeScoutPrompt';
 
 import { ScanType, registerPromptBuilders, getAgent } from '@/app/features/Ideas/lib/scanTypes';
 
@@ -82,6 +84,8 @@ export const PROMPT_BUILDERS: Partial<Record<ScanType, PromptBuilder>> = {
   // Observability & Brand
   observability_scout: buildObservabilityScoutPrompt,
   brand_artist: buildBrandArtistPrompt,
+  // External Intelligence
+  youtube_scout: buildYoutubeScoutPrompt,
 };
 
 // Register all prompt builders into the unified AGENT_REGISTRY
@@ -135,4 +139,6 @@ export {
   // Observability & Brand
   buildObservabilityScoutPrompt,
   buildBrandArtistPrompt,
+  // External Intelligence
+  buildYoutubeScoutPrompt,
 };

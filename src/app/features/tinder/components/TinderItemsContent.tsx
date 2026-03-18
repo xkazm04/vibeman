@@ -431,6 +431,12 @@ export default function TinderItemsContent({
             <VariantCarousel
               ideaId={currentItem.data.id}
               ideaCategory={currentItem.data.category}
+              ideaTitle={currentItem.data.title}
+              ideaDescription={currentItem.data.description ?? null}
+              ideaEffort={currentItem.data.effort ?? null}
+              ideaImpact={currentItem.data.impact ?? null}
+              ideaRisk={currentItem.data.risk ?? null}
+              projectPath={getProject(selectedProjectId ?? '')?.path ?? ''}
               onSelectVariant={handleSelectVariant}
               onClose={() => setShowVariants(false)}
             />
