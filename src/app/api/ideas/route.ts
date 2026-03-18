@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ideaDb, DbIdea, DbIdeaWithColor } from '@/app/db';
+import { ideaDb, contextDb, scanDb, DbIdea, DbIdeaWithColor } from '@/app/db';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/lib/logger';
 import {
@@ -165,11 +165,33 @@ async function handlePost(request: NextRequest) {
     const sanitizedCategory = sanitizeString(body.category as string, 100);
     const sanitizedScanType = body.scan_type ? sanitizeString(body.scan_type as string, 100) : 'manual';
 
+    // Validate FK references exist before inserting to prevent opaque FK constraint errors
+    const sanitizedScanId = sanitizeId(body.scan_id as string);
+    if (!scanDb.getScanById(sanitizedScanId)) {
+      return createIdeasErrorResponse(IdeasErrorCode.CREATE_FAILED, {
+        message: `scan_id "${sanitizedScanId}" does not exist in scans table`,
+        field: 'scan_id',
+        status: 400,
+      });
+    }
+
+    let resolvedContextId: string | null = null;
+    if (body.context_id) {
+      const sanitizedCtxId = sanitizeId(body.context_id as string);
+      if (contextDb.getContextById(sanitizedCtxId)) {
+        resolvedContextId = sanitizedCtxId;
+      } else {
+        logger.warn('[Ideas API] context_id not found in contexts table, setting to null', {
+          context_id: sanitizedCtxId,
+        });
+      }
+    }
+
     const idea = ideaDb.createIdea({
       id: uuidv4(),
-      scan_id: sanitizeId(body.scan_id as string),
+      scan_id: sanitizedScanId,
       project_id: sanitizeId(body.project_id as string),
-      context_id: body.context_id ? sanitizeId(body.context_id as string) : null,
+      context_id: resolvedContextId,
       scan_type: sanitizedScanType,
       category: sanitizedCategory,
       title: sanitizedTitle,

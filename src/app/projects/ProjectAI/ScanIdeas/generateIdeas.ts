@@ -224,11 +224,11 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
           }
         }
 
-        // Validate context_id if provided (might be passed incorrectly)
+        // Validate context_id exists in the database before inserting
         let validatedContextId: string | null = contextId || null;
-        if (validatedContextId && validatedContextId !== contextId) {
-          logger.warn('Context ID mismatch detected, using provided contextId', { contextId });
-          validatedContextId = contextId || null;
+        if (validatedContextId && !context) {
+          logger.warn('Context ID not found in database, setting to null to prevent FK constraint failure', { contextId: validatedContextId });
+          validatedContextId = null;
         }
 
         return ideaDb.createIdea({
