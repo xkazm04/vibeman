@@ -23,6 +23,7 @@ import path from 'path';
 import { validatePathTraversal } from '@/lib/pathSecurity';
 import { ValidationError } from '@/lib/api/errorHandler';
 import { VALID_IDEA_STATUSES } from '@/app/features/Ideas/lib/ideasHandlers';
+import { IDEA_CATEGORIES } from '@/types/ideaCategory';
 
 // ── Generic validators ──────────────────────────────────────────────
 
@@ -439,20 +440,25 @@ export function validateScanType(value: unknown): string | null {
   return null;
 }
 
+/** Allowed category values (lowercased) for fast lookup. */
+const VALID_CATEGORIES: ReadonlySet<string> = new Set(IDEA_CATEGORIES);
+
 /**
- * Validate category: non-empty string, max 100 chars.
+ * Validate category: must be one of the canonical IdeaCategory values.
+ * Normalizes to lowercase before checking.
  *
- * @returns `null` if valid, or an error message.
+ * @returns `null` if valid, or an error message listing allowed categories.
  */
 export function validateCategory(value: unknown): string | null {
   if (typeof value !== 'string') {
     return 'category must be a string';
   }
-  if (value.trim().length === 0) {
+  const normalized = value.trim().toLowerCase();
+  if (normalized.length === 0) {
     return 'category must not be empty';
   }
-  if (value.length > IDEA_CATEGORY_MAX) {
-    return `category must be ${IDEA_CATEGORY_MAX} characters or fewer`;
+  if (!VALID_CATEGORIES.has(normalized)) {
+    return `category must be one of: ${IDEA_CATEGORIES.join(', ')}`;
   }
   return null;
 }

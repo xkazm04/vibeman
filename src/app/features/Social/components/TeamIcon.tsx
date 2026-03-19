@@ -67,8 +67,8 @@ const sizeClasses = {
 };
 
 const badgeSizeClasses = {
-  xs: 'text-[9px] px-1 py-0.5',
-  sm: 'text-[10px] px-1.5 py-0.5',
+  xs: 'text-micro px-1 py-0.5',
+  sm: 'text-2xs px-1.5 py-0.5',
   md: 'text-xs px-2 py-1',
   lg: 'text-sm px-2.5 py-1',
 };
@@ -106,7 +106,7 @@ export function TeamIcon({
       title={label}
     >
       <IconComponent className={sizeClasses[size]} />
-      {showLabel && <span className="text-[10px]">{label}</span>}
+      {showLabel && <span className="text-2xs">{label}</span>}
     </span>
   );
 }

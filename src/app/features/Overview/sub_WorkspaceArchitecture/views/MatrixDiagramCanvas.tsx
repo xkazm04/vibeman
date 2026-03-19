@@ -15,6 +15,7 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Zap } from 'lucide-react';
+import { transitions } from '@/lib/design-tokens';
 import type { IntegrationType } from '../lib/types';
 import { useMatrixCanvasData } from '../lib/useMatrixCanvasData';
 import { computeBlastRadius, type BlastRadiusResult } from '../lib/blastRadiusEngine';
@@ -224,15 +225,15 @@ export default function MatrixDiagramCanvas({
         {/* Impact Mode toggle button */}
         <button
           onClick={handleToggleImpactMode}
-          className={`absolute bottom-4 right-4 z-10 flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all duration-200 shadow-lg backdrop-blur-sm focus:outline-none focus-visible:ring-2 group ${
+          className={`absolute bottom-4 right-4 z-10 flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${transitions.normal} shadow-lg backdrop-blur-sm focus:outline-none focus-visible:ring-2 group ${
             impactMode
               ? 'bg-red-950/80 border-red-500/40 text-red-300 hover:bg-red-900/80 shadow-red-500/10 focus-visible:ring-red-400/50'
               : 'bg-zinc-900/90 border-zinc-700/50 text-zinc-400 hover:bg-zinc-800/90 hover:text-zinc-200 hover:border-zinc-600/50 focus-visible:ring-zinc-400/50'
           }`}
           title={impactMode ? 'Exit Impact Mode' : 'Enter Impact Mode — click a node to see its blast radius'}
         >
-          <Zap className={`w-4 h-4 ${impactMode ? 'text-red-400' : 'group-hover:text-amber-400'} transition-colors duration-200`} />
-          <span className="group-hover:text-white transition-colors duration-200">
+          <Zap className={`w-4 h-4 ${impactMode ? 'text-red-400' : 'group-hover:text-amber-400'} ${transitions.colors}`} />
+          <span className={`group-hover:text-white ${transitions.colors}`}>
             {impactMode ? 'Impact Mode' : 'Impact'}
           </span>
         </button>

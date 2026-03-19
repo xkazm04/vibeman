@@ -108,7 +108,7 @@ export default function RemoteMonitorPanel({
           <p className="text-xs text-red-400 flex-1">{batchError}</p>
           <button
             onClick={clearError}
-            className="text-[10px] text-red-400/60 hover:text-red-400"
+            className="text-2xs text-red-400/60 hover:text-red-400"
           >
             Dismiss
           </button>
@@ -150,7 +150,7 @@ export default function RemoteMonitorPanel({
           <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide">Event Feed</h4>
           <button
             onClick={refreshEvents}
-            className="text-[10px] text-gray-500 hover:text-gray-400"
+            className="text-2xs text-gray-500 hover:text-gray-400"
           >
             Refresh
           </button>
@@ -159,7 +159,7 @@ export default function RemoteMonitorPanel({
       </div>
 
       {/* Target info */}
-      <div className="text-center text-[10px] text-gray-600">
+      <div className="text-center text-2xs text-gray-600">
         Monitoring <span className="text-green-400">{targetDeviceName}</span>
       </div>
     </div>
@@ -328,7 +328,7 @@ function CompactBatchCard({ batch }: { batch: RemoteBatchInfo }) {
         {batch.completed_tasks}/{batch.total_tasks}
       </span>
       {batch.failed_tasks > 0 && (
-        <span className="text-[10px] text-red-400">
+        <span className="text-2xs text-red-400">
           {batch.failed_tasks} failed
         </span>
       )}

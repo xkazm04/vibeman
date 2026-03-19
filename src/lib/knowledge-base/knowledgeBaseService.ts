@@ -14,8 +14,11 @@ import type {
   CreateKnowledgeEntryInput,
   KnowledgeQuery,
   KnowledgeDomain,
+  KnowledgeLayer,
+  KnowledgeLanguage,
   KnowledgeExportEntry,
 } from '@/app/db/models/knowledge.types';
+import { CATEGORY_TO_LAYER } from '@/app/db/models/knowledge.types';
 
 // ---------------------------------------------------------------------------
 // Domain inference from file paths
@@ -32,6 +35,46 @@ function inferDomains(filePaths: string[]): KnowledgeDomain[] {
     if (fp.includes('/lib/') && !fp.includes('/db/')) domains.add('architecture');
   }
   return Array.from(domains);
+}
+
+/** Infer architectural layers from file paths */
+function inferLayers(filePaths: string[]): KnowledgeLayer[] {
+  const layers = new Set<KnowledgeLayer>();
+  for (const fp of filePaths) {
+    if (fp.includes('/components/') || fp.includes('.tsx') || fp.includes('/stores/') || fp.includes('Store.ts')) {
+      layers.add('frontend');
+    }
+    if (fp.includes('/api/') || fp.includes('route.ts') || fp.includes('/middleware')) {
+      layers.add('backend');
+    }
+    if (fp.includes('/db/') || fp.includes('.repository.') || fp.includes('migration') || fp.includes('/cache')) {
+      layers.add('data');
+    }
+    if (fp.includes('/tests/') || fp.includes('.test.') || fp.includes('.spec.')) {
+      layers.add('cross_cutting');
+    }
+    if (fp.includes('/lib/') && !fp.includes('/db/')) {
+      layers.add('cross_cutting');
+    }
+    if (fp.includes('ci') || fp.includes('deploy') || fp.includes('docker') || fp.includes('monitoring')) {
+      layers.add('infrastructure');
+    }
+  }
+  return Array.from(layers);
+}
+
+/** Infer language from file extensions */
+function inferLanguage(filePaths: string[]): KnowledgeLanguage | undefined {
+  for (const fp of filePaths) {
+    if (fp.endsWith('.ts') || fp.endsWith('.tsx')) return 'typescript';
+    if (fp.endsWith('.js') || fp.endsWith('.jsx')) return 'javascript';
+    if (fp.endsWith('.py')) return 'python';
+    if (fp.endsWith('.rs')) return 'rust';
+    if (fp.endsWith('.go')) return 'go';
+    if (fp.endsWith('.java')) return 'java';
+    if (fp.endsWith('.cs')) return 'csharp';
+  }
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -107,14 +150,18 @@ export const knowledgeBaseService = {
     taskDescription: string;
     targetFiles?: string[];
     projectId?: string;
+    language?: KnowledgeLanguage;
+    layer?: KnowledgeLayer;
     limit?: number;
   }): KnowledgeExportEntry[] {
     const { taskTitle, taskDescription, targetFiles = [], projectId, limit = 7 } = params;
 
     const domains = inferDomains(targetFiles);
+    const layers = params.layer ? [params.layer] : inferLayers(targetFiles);
+    const language = params.language || inferLanguage(targetFiles);
     const keywords = extractKeywords(`${taskTitle} ${taskDescription}`);
 
-    // Gather candidate entries from inferred domains
+    // Gather candidate entries from inferred domains + layers
     let entries: DbKnowledgeEntry[] = [];
 
     if (domains.length > 0) {
@@ -123,9 +170,24 @@ export const knowledgeBaseService = {
           domain,
           min_confidence: 40,
           project_id: projectId,
-          limit: limit * 2, // over-fetch for scoring
+          language,
+          limit: limit * 2,
         });
         entries.push(...domainEntries);
+      }
+    }
+
+    // Also query by layer (catches entries in new categories not in inferDomains)
+    if (layers.length > 0) {
+      for (const layer of layers) {
+        const layerEntries = knowledgeRepository.query({
+          layer,
+          min_confidence: 40,
+          project_id: projectId,
+          language,
+          limit: limit * 2,
+        });
+        entries.push(...layerEntries);
       }
     }
 
@@ -148,13 +210,16 @@ export const knowledgeBaseService = {
     const scored = entries.map(entry => {
       let score = 0;
 
-      // Domain match (0.35)
-      if (domains.includes(entry.domain)) score += 0.35;
+      // Domain/category match (0.25)
+      if (domains.includes(entry.domain)) score += 0.25;
 
-      // Keyword overlap (0.25)
+      // Layer match (0.15)
+      if (layers.includes(entry.layer)) score += 0.15;
+
+      // Keyword overlap (0.20)
       const entryWords = extractKeywords(`${entry.title} ${entry.pattern} ${entry.rationale || ''}`);
       const overlap = keywords.filter(k => entryWords.includes(k)).length;
-      score += Math.min(0.25, (overlap / Math.max(keywords.length, 1)) * 0.25);
+      score += Math.min(0.20, (overlap / Math.max(keywords.length, 1)) * 0.20);
 
       // Confidence (0.20)
       score += (entry.confidence / 100) * 0.20;
@@ -179,12 +244,14 @@ export const knowledgeBaseService = {
 
     return scored.slice(0, limit).map(({ entry }) => ({
       domain: entry.domain,
+      layer: entry.layer,
       pattern_type: entry.pattern_type,
       title: entry.title,
       pattern: entry.pattern,
       rationale: entry.rationale || undefined,
       code_example: entry.code_example || undefined,
       anti_pattern: entry.anti_pattern || undefined,
+      language: entry.language || 'universal',
       confidence: entry.confidence,
       tags: safeParseJsonArray(entry.tags),
       times_applied: entry.times_applied,
@@ -206,7 +273,8 @@ export const knowledgeBaseService = {
 
     for (const entry of entries) {
       const typeLabel = entry.pattern_type.replace(/_/g, ' ');
-      lines.push(`**[${entry.domain}] ${capitalize(typeLabel)}**: ${entry.title}`);
+      const layerLabel = entry.layer !== 'cross_cutting' ? `${entry.layer}/` : '';
+      lines.push(`**[${layerLabel}${entry.domain}] ${capitalize(typeLabel)}**: ${entry.title}`);
       lines.push(
         `  -> ${entry.pattern.slice(0, 150)}${entry.pattern.length > 150 ? '...' : ''}`
         + ` -- ${entry.confidence}% confidence`
@@ -284,5 +352,7 @@ export const knowledgeBaseService = {
   },
 
   inferDomains,
+  inferLayers,
+  inferLanguage,
   getStats: () => knowledgeRepository.getStats(),
 };

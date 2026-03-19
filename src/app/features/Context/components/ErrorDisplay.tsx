@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, X, RefreshCw, AlertCircle, XCircle } from 'lucide-react';
+import { buttonVariants } from '@/lib/design-tokens';
 
 export type ErrorSeverity = 'error' | 'warning' | 'info';
 
@@ -163,7 +164,7 @@ export function ErrorFallback({
         {onRetry && (
           <motion.button
             onClick={onRetry}
-            className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-medium transition-colors border border-red-500/30 mx-auto"
+            className={`flex items-center gap-2 ${buttonVariants.ghost} bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 text-sm mx-auto`}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             data-testid="error-fallback-retry-btn"

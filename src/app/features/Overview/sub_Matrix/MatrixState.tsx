@@ -26,7 +26,7 @@ const MatrixState = forwardRef<HTMLDivElement, MatrixStateProps>((props, ref) =>
       >
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
-          <span className="text-sm text-zinc-500">
+          <span className="text-sm text-zinc-400">
             {props.message ?? 'Loading architecture data...'}
           </span>
         </div>
@@ -41,7 +41,7 @@ const MatrixState = forwardRef<HTMLDivElement, MatrixStateProps>((props, ref) =>
         className="relative w-full h-full flex items-center justify-center"
         style={{ backgroundColor: archTheme.surface.canvas }}
       >
-        <div className="flex flex-col items-center gap-4 max-w-md text-center px-6">
+        <div role="alert" className="flex flex-col items-center gap-4 max-w-md text-center px-6">
           <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center">
             <AlertCircle className="w-8 h-8 text-red-400" />
           </div>
@@ -49,7 +49,7 @@ const MatrixState = forwardRef<HTMLDivElement, MatrixStateProps>((props, ref) =>
             <h3 className="text-lg font-medium text-zinc-300 mb-2">
               Failed to Load Architecture
             </h3>
-            <p className="text-sm text-zinc-500 mb-4">{props.error}</p>
+            <p className="text-sm text-zinc-400 mb-4">{props.error}</p>
             <button
               onClick={props.onRetry}
               className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg transition-colors"
@@ -87,7 +87,7 @@ const MatrixState = forwardRef<HTMLDivElement, MatrixStateProps>((props, ref) =>
             <h3 className="text-lg font-medium text-zinc-300 mb-2">
               Batch Add Projects to {activeWorkspace.name}
             </h3>
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-zinc-400">
               Select folders to add as projects using Claude Code
             </p>
           </div>
@@ -111,13 +111,13 @@ const MatrixState = forwardRef<HTMLDivElement, MatrixStateProps>((props, ref) =>
     >
       <div className="flex flex-col items-center gap-4 max-w-md text-center px-6">
         <div className="w-16 h-16 rounded-full bg-zinc-800/50 flex items-center justify-center">
-          <Network className="w-8 h-8 text-zinc-500" />
+          <Network className="w-8 h-8 text-zinc-400" />
         </div>
         <div>
           <h3 className="text-lg font-medium text-zinc-300 mb-2">
             No Projects in Workspace
           </h3>
-          <p className="text-sm text-zinc-500 mb-4">
+          <p className="text-sm text-zinc-400 mb-4">
             Add projects to this workspace to visualize their architecture and
             discover cross-project connections.
           </p>
@@ -127,15 +127,15 @@ const MatrixState = forwardRef<HTMLDivElement, MatrixStateProps>((props, ref) =>
           <div className="flex items-center justify-center gap-8 mb-6">
             <div className="flex flex-col items-center">
               <div className="w-12 h-12 rounded-lg bg-cyan-500/20 border border-cyan-500/30" />
-              <span className="text-xs text-zinc-600 mt-1">Frontend</span>
+              <span className="text-xs text-zinc-400 mt-1">Frontend</span>
             </div>
             <div className="w-8 h-0.5 bg-zinc-700" />
             <div className="flex flex-col items-center">
               <div className="w-12 h-12 rounded-lg bg-violet-500/20 border border-violet-500/30" />
-              <span className="text-xs text-zinc-600 mt-1">Backend</span>
+              <span className="text-xs text-zinc-400 mt-1">Backend</span>
             </div>
           </div>
-          <p className="text-xs text-zinc-600 text-center">
+          <p className="text-xs text-zinc-400 text-center">
             Architecture visualization will appear here
           </p>
         </div>

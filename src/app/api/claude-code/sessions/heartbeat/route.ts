@@ -10,6 +10,12 @@ import { logger } from '@/lib/logger';
 /**
  * POST /api/claude-code/sessions/heartbeat
  * Update heartbeat timestamp for a session to prevent orphan detection
+ *
+ * Returns:
+ * - 200: heartbeat updated successfully
+ * - 400: missing sessionId
+ * - 404: session not found (possibly orphaned)
+ * - 409: session exists but is in a terminal/inactive state
  */
 export async function POST(request: NextRequest) {
   try {
@@ -20,14 +26,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'sessionId is required' }, { status: 400 });
     }
 
-    const success = sessionRepository.updateHeartbeat(sessionId);
+    const result = sessionRepository.updateHeartbeat(sessionId);
 
-    if (!success) {
-      logger.warn('Failed to update heartbeat - session not found', { sessionId });
+    if (result === 'not_found') {
+      logger.warn('Heartbeat failed - session not found', { sessionId });
+      return NextResponse.json(
+        { error: 'Session not found', sessionId },
+        { status: 404 }
+      );
+    }
+
+    if (result === 'inactive') {
+      logger.warn('Heartbeat failed - session is inactive', { sessionId });
+      return NextResponse.json(
+        { error: 'Session is in an inactive state', sessionId },
+        { status: 409 }
+      );
     }
 
     return NextResponse.json({
-      success,
+      success: true,
       updatedAt: new Date(),
     });
   } catch (error) {

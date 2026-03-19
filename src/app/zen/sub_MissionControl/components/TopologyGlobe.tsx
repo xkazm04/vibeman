@@ -172,7 +172,7 @@ export default function TopologyGlobe({ nodes, edges, className = '' }: Topology
                 x={pos.cx}
                 y={pos.cy + radius + 14}
                 textAnchor="middle"
-                className="fill-gray-400 text-[9px] font-mono"
+                className="fill-gray-400 text-micro font-mono"
               >
                 {node.label}
               </text>
@@ -181,7 +181,7 @@ export default function TopologyGlobe({ nodes, edges, className = '' }: Topology
                 x={pos.cx}
                 y={pos.cy + 3}
                 textAnchor="middle"
-                className="fill-white text-[10px] font-mono font-medium"
+                className="fill-white text-2xs font-mono font-medium"
               >
                 {node.sessions}/{node.maxSessions}
               </text>

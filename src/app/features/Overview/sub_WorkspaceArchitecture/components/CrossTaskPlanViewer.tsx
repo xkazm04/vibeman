@@ -169,7 +169,7 @@ export default function CrossTaskPlanViewer({
 
           <div className="flex items-center gap-3">
             {plan?.completed_at && (
-              <div className="flex items-center gap-1.5 text-[10px] text-zinc-500">
+              <div className="flex items-center gap-1.5 text-2xs text-zinc-500">
                 <Clock className="w-3 h-3" />
                 {new Date(plan.completed_at).toLocaleDateString()}
               </div>
@@ -222,7 +222,7 @@ export default function CrossTaskPlanViewer({
                     <Eye className="w-4 h-4" />
                     <div>
                       <div className="text-sm font-medium">Current Behavior</div>
-                      <div className="text-[10px] opacity-70">Analysis of existing code</div>
+                      <div className="text-2xs opacity-70">Analysis of existing code</div>
                     </div>
                   </button>
 
@@ -237,7 +237,7 @@ export default function CrossTaskPlanViewer({
                     <FileText className="w-4 h-4" />
                     <div>
                       <div className="text-sm font-medium">Implementation Options</div>
-                      <div className="text-[10px] opacity-70">3 approaches to choose</div>
+                      <div className="text-2xs opacity-70">3 approaches to choose</div>
                     </div>
                   </button>
                 </div>
@@ -246,7 +246,7 @@ export default function CrossTaskPlanViewer({
               {/* Options list (when in options view) */}
               {viewMode === 'options' && (
                 <div className="flex-1 overflow-y-auto p-3">
-                  <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2 px-2">
+                  <div className="text-2xs text-zinc-500 uppercase tracking-wide mb-2 px-2">
                     Choose an option
                   </div>
                   <div className="space-y-2">
@@ -278,7 +278,7 @@ export default function CrossTaskPlanViewer({
                                 <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                               )}
                             </div>
-                            <div className={`text-[10px] ${isSelected ? 'opacity-80' : 'text-zinc-500'}`}>
+                            <div className={`text-2xs ${isSelected ? 'opacity-80' : 'text-zinc-500'}`}>
                               {opt.description}
                             </div>
                           </div>
@@ -292,7 +292,7 @@ export default function CrossTaskPlanViewer({
               {/* Notes input (when option selected) */}
               {viewMode === 'options' && selectedOption && (
                 <div className="p-3 border-t border-zinc-800/30">
-                  <label className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1.5 block">
+                  <label className="text-2xs text-zinc-500 uppercase tracking-wide mb-1.5 block">
                     Notes (optional)
                   </label>
                   <input

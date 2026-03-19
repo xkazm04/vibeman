@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Download, FileText } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { ScanType } from '../../lib/scanTypes';
+import { SimpleSpinner } from '@/components/ui';
 
 interface PromptEditorModalProps {
   isOpen: boolean;
@@ -190,7 +191,7 @@ export default function PromptEditorModal({
                 >
                   {isSaving ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <SimpleSpinner size="sm" color="white" />
                       <span>Saving...</span>
                     </>
                   ) : (

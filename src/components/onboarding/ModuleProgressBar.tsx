@@ -162,7 +162,7 @@ export default function ModuleProgressBar({
           </motion.div>
           <span className="text-gray-300">{STEP_LABELS[nextStep]}</span>
           {currentModuleStep === nextStep && (
-            <span className="px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 rounded text-[10px]">
+            <span className="px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 rounded text-2xs">
               CURRENT MODULE
             </span>
           )}
@@ -260,7 +260,7 @@ export function ModuleProgressRing({
         </defs>
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-[10px] font-medium text-cyan-400">
+        <span className="text-2xs font-medium text-cyan-400">
           {completedSteps.length}/{STEP_ORDER.length}
         </span>
       </div>

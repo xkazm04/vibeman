@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server';
 import { crossTaskPlanDb } from '@/app/db';
 import { signalCollector } from '@/lib/brain/signalCollector';
+import { safeParseJson } from '@/lib/cross-task/safeParseJson';
 
 interface CompleteRequest {
   requirement_summary: string;
@@ -80,8 +81,14 @@ export async function POST(request: Request, { params }: RouteParams) {
     });
 
     // Emit Brain signal for cross_task_analysis
-    const projectIds = JSON.parse(plan.project_ids) as string[];
-    if (projectIds.length > 0) {
+    const { value: projectIds, warning: projectIdsWarning } = safeParseJson<string[]>(plan.project_ids, [], {
+      field: 'project_ids',
+      recordId: id,
+    });
+    if (projectIdsWarning) {
+      console.warn(`[cross-task] Completing plan ${id} with corrupt project_ids — brain signal skipped`);
+    }
+    if (projectIds.length > 0 && !projectIdsWarning) {
       signalCollector.recordCrossTaskAnalysis(projectIds[0], {
         planId: id,
         workspaceId: plan.workspace_id,

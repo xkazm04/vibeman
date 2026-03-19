@@ -13,6 +13,7 @@ import { mapSignalsToEvents } from '../sub_MemoryCanvas/lib/signalMapper';
 import { resolveLaneCollisions } from '../sub_MemoryCanvas/lib/canvasLayout';
 import { executeTimelineRenderPipeline, TIMELINE_MARGIN } from './timelineRenderPipeline';
 import { SIGNAL_METADATA } from '@/types/signals';
+import { TIMELINE_WINDOW_DAYS, MAX_CANVAS_SIGNALS } from '@/lib/brain/config';
 
 // ─── Local Types ────────────────────────────────────────────────────────────
 
@@ -85,7 +86,7 @@ export default function EventCanvasTimeline() {
     const plotW = w - MARGIN.left - MARGIN.right;
     const plotH = h - MARGIN.top - MARGIN.bottom;
     const now = Date.now();
-    const span = 7 * 24 * 60 * 60 * 1000;
+    const span = TIMELINE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
     const start = now - span;
     const laneH = plotH / SIGNAL_TYPES.length;
     const inset = laneH * 0.15;
@@ -270,10 +271,10 @@ export default function EventCanvasTimeline() {
 
       if (activeProject?.id) {
         try {
-          const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          const since = new Date(Date.now() - TIMELINE_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
           const params = new URLSearchParams({
             projectId: activeProject.id,
-            limit: '200',
+            limit: String(MAX_CANVAS_SIGNALS),
             since,
           });
           const res = await fetch(`/api/brain/signals?${params.toString()}`, {
@@ -282,7 +283,7 @@ export default function EventCanvasTimeline() {
           const data = await res.json();
 
           if (data.success && data.signals?.length > 0) {
-            events = mapSignalsToEvents(data.signals, 200);
+            events = mapSignalsToEvents(data.signals, MAX_CANVAS_SIGNALS);
             setIsEmpty(false);
           }
         } catch (err) {
@@ -407,8 +408,8 @@ export default function EventCanvasTimeline() {
                 <div className="w-14 h-1.5 rounded-sm bg-zinc-600/30" />
               </div>
               <div>
-                <div className="text-zinc-300 text-[11px] font-medium">Zoom in for card view</div>
-                <div className="text-zinc-500 text-[9px]">Scroll to 3x for event details</div>
+                <div className="text-zinc-300 text-caption font-medium">Zoom in for card view</div>
+                <div className="text-zinc-500 text-micro">Scroll to 3x for event details</div>
               </div>
             </div>
           </div>
@@ -418,23 +419,23 @@ export default function EventCanvasTimeline() {
           <div className="absolute z-50 pointer-events-none" style={{ left: tooltip.screenX + 14, top: tooltip.screenY - 10 }}>
             <div className="bg-zinc-800 border border-zinc-600 rounded-lg shadow-2xl p-3 min-w-[170px] max-w-[220px]">
               <div className="flex items-center gap-2 mb-1.5">
-                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold text-white"
+                <span className="px-1.5 py-0.5 rounded text-micro font-bold text-white"
                   style={{ backgroundColor: COLORS[tooltip.event.type] }}>
                   {LANE_LABELS[tooltip.event.type]}
                 </span>
               </div>
               <div className="text-zinc-100 text-xs font-medium">{tooltip.event.context_name}</div>
-              <div className="text-zinc-400 text-[10px] mt-0.5">{relTime(tooltip.event.timestamp)}</div>
-              <div className="text-zinc-300 text-[10px] mt-1">{tooltip.event.summary}</div>
+              <div className="text-zinc-400 text-2xs mt-0.5">{relTime(tooltip.event.timestamp)}</div>
+              <div className="text-zinc-300 text-2xs mt-1">{tooltip.event.summary}</div>
               <div className="flex items-center gap-2 mt-1.5">
-                <span className="text-zinc-500 text-[9px]">Weight</span>
+                <span className="text-zinc-500 text-micro">Weight</span>
                 <div className="flex-1 h-1.5 bg-zinc-700 rounded-full overflow-hidden">
                   <div className="h-full rounded-full" style={{
                     width: `${(tooltip.event.weight / 2) * 100}%`,
                     backgroundColor: COLORS[tooltip.event.type],
                   }} />
                 </div>
-                <span className="text-zinc-400 text-[9px]">{tooltip.event.weight.toFixed(1)}</span>
+                <span className="text-zinc-400 text-micro">{tooltip.event.weight.toFixed(1)}</span>
               </div>
             </div>
           </div>

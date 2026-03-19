@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import type { TaskStatusUnion } from '../lib/types';
 import { getTheme } from '../lib/taskStatusUtils';
 

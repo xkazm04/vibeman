@@ -165,7 +165,7 @@ function ExampleReviewCard() {
             Modified 3 files, +47 -12 lines
           </p>
           {/* Diff preview */}
-          <div className="font-mono text-[10px] bg-gray-900/50 rounded p-2 space-y-0.5">
+          <div className="font-mono text-2xs bg-gray-900/50 rounded p-2 space-y-0.5">
             <div className="text-green-400/50">+ const [theme, setTheme] = useState('dark');</div>
             <div className="text-green-400/50">+ const toggleTheme = () =&gt; ...</div>
             <div className="text-red-400/50">- // TODO: implement theme</div>

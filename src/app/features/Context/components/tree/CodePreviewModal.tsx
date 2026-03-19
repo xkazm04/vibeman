@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Loader2, FileCode, Eye } from 'lucide-react';
 import MonacoEditor from '@/components/editor/LazyMonacoEditor';
+import { buttonVariants } from '@/lib/design-tokens';
 import FileErrorDisplay from './FileErrorDisplay';
 import { classifyFileError } from './fileOperationErrors';
 import { FilePath } from '../../../../../utils/pathUtils';
@@ -243,7 +244,7 @@ export default function CodePreviewModal({
                       data-testid="code-preview-save-button"
                       onClick={handleSave}
                       disabled={!hasChanges || isSaving}
-                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                      className={`flex items-center gap-2 ${buttonVariants.primary} disabled:opacity-50 disabled:cursor-not-allowed text-sm`}
                     >
                       {isSaving ? (
                         <>

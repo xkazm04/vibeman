@@ -88,7 +88,7 @@ export default function XRayModeToggle({
               <WifiOff className="w-3 h-3 text-amber-400" />
             )}
             {eventCount > 0 && (
-              <span className="text-[10px] text-cyan-400 font-mono">
+              <span className="text-2xs text-cyan-400 font-mono">
                 {eventCount > 999 ? '999+' : eventCount}
               </span>
             )}

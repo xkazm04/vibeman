@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 
 interface ShortcutEntry {
   keys: string[];
@@ -66,7 +67,7 @@ export default function KeyboardShortcutOverlay({ open, onClose }: KeyboardShort
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
+          transition={transition.snappy}
           className="fixed inset-0 z-50 flex items-center justify-center"
           onClick={onClose}
         >
@@ -78,7 +79,7 @@ export default function KeyboardShortcutOverlay({ open, onClose }: KeyboardShort
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ duration: 0.15 }}
+            transition={transition.snappy}
             onClick={(e) => e.stopPropagation()}
             className="relative bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700/50 rounded-2xl shadow-2xl shadow-black/40 p-6 max-w-md w-full mx-4"
           >

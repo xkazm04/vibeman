@@ -382,7 +382,7 @@ export default function TopologyMap({
           />
 
           {/* Legend */}
-          <div className="absolute bottom-2 left-2 flex flex-col gap-1 p-2 bg-gray-900/80 rounded-lg text-[10px]">
+          <div className="absolute bottom-2 left-2 flex flex-col gap-1 p-2 bg-gray-900/80 rounded-lg text-2xs">
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-green-500" />
               <span className="text-gray-400">Online</span>
@@ -425,7 +425,7 @@ export default function TopologyMap({
                           {selectedNode.name}
                         </span>
                         {selectedNode.isLocal && (
-                          <span className="px-1 py-0.5 bg-cyan-500/20 text-cyan-400 text-[9px] rounded">
+                          <span className="px-1 py-0.5 bg-cyan-500/20 text-cyan-400 text-micro rounded">
                             LOCAL
                           </span>
                         )}
@@ -452,7 +452,7 @@ export default function TopologyMap({
                     {/* Connections */}
                     {selectedEdges && selectedEdges.length > 0 && (
                       <div className="space-y-1">
-                        <h5 className="text-[10px] text-gray-500 uppercase">Connections</h5>
+                        <h5 className="text-2xs text-gray-500 uppercase">Connections</h5>
                         {selectedEdges.map((edge) => {
                           const otherNodeId =
                             edge.source === selectedNodeId ? edge.target : edge.source;
@@ -533,7 +533,7 @@ export default function TopologyMap({
 
       {/* Stats bar */}
       {topology && (
-        <div className="flex items-center justify-between px-4 py-2 border-t border-gray-700 text-[10px] text-gray-500">
+        <div className="flex items-center justify-between px-4 py-2 border-t border-gray-700 text-2xs text-gray-500">
           <div className="flex items-center gap-4">
             <span>
               Connections: {topology.stats.activeConnections}/{topology.stats.totalConnections}

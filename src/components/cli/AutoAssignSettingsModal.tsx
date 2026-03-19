@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { X, Save, Zap } from 'lucide-react';
 import {
   fetchAutoAssignConfig,
@@ -61,7 +62,7 @@ export function AutoAssignSettingsModal({ isOpen, onClose }: AutoAssignSettingsM
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ duration: 0.2 }}
+            transition={transition.normal}
             className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[420px] bg-gray-900 border border-gray-700/60 rounded-xl shadow-2xl overflow-hidden"
           >
             {/* Header */}
@@ -100,12 +101,12 @@ export function AutoAssignSettingsModal({ isOpen, onClose }: AutoAssignSettingsM
 
                 {config.geminiRule.enabled && (
                   <div className="space-y-2 pl-2 border-l-2 border-purple-500/30">
-                    <p className="text-[10px] text-gray-500">
+                    <p className="text-2xs text-gray-500">
                       Route low-effort, low-risk tasks to a different provider.
                     </p>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[10px] text-gray-400 block mb-1">Max Effort</label>
+                        <label className="text-2xs text-gray-400 block mb-1">Max Effort</label>
                         <input
                           type="number"
                           min={1}
@@ -125,7 +126,7 @@ export function AutoAssignSettingsModal({ isOpen, onClose }: AutoAssignSettingsM
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] text-gray-400 block mb-1">Max Risk</label>
+                        <label className="text-2xs text-gray-400 block mb-1">Max Risk</label>
                         <input
                           type="number"
                           min={1}
@@ -146,7 +147,7 @@ export function AutoAssignSettingsModal({ isOpen, onClose }: AutoAssignSettingsM
                       </div>
                     </div>
                     <div>
-                      <label className="text-[10px] text-gray-400 block mb-1">Provider Override</label>
+                      <label className="text-2xs text-gray-400 block mb-1">Provider Override</label>
                       <select
                         value={config.geminiRule.provider || 'gemini'}
                         onChange={(e) => setConfig({
@@ -185,7 +186,7 @@ export function AutoAssignSettingsModal({ isOpen, onClose }: AutoAssignSettingsM
                     }`} />
                   </button>
                 </div>
-                <p className="text-[10px] text-gray-500">
+                <p className="text-2xs text-gray-500">
                   Assign remaining tasks (not matched by gemini rule) to free sessions using their current provider.
                 </p>
               </section>
@@ -202,8 +203,8 @@ export function AutoAssignSettingsModal({ isOpen, onClose }: AutoAssignSettingsM
                 {/* Consolidate before assign */}
                 <div className="flex items-center justify-between">
                   <div className="flex-1 mr-3">
-                    <label className="text-[10px] text-gray-400 block">Consolidate before assign</label>
-                    <p className="text-[10px] text-gray-500">
+                    <label className="text-2xs text-gray-400 block">Consolidate before assign</label>
+                    <p className="text-2xs text-gray-500">
                       Aggregate same-role idea files across contexts before distributing to sessions.
                     </p>
                   </div>
@@ -220,7 +221,7 @@ export function AutoAssignSettingsModal({ isOpen, onClose }: AutoAssignSettingsM
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-gray-400 block mb-1">Max Tasks per Session</label>
+                  <label className="text-2xs text-gray-400 block mb-1">Max Tasks per Session</label>
                   <input
                     type="number"
                     min={1}
@@ -232,7 +233,7 @@ export function AutoAssignSettingsModal({ isOpen, onClose }: AutoAssignSettingsM
                     })}
                     className="w-full px-2 py-1 text-xs bg-gray-800 border border-gray-700 rounded text-gray-300 focus:border-purple-500/50 focus:outline-none"
                   />
-                  <p className="text-[10px] text-gray-500 mt-1">
+                  <p className="text-2xs text-gray-500 mt-1">
                     When more tasks exceed this limit, they split into the next free session.
                   </p>
                 </div>

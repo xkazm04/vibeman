@@ -27,6 +27,7 @@ import { EnrichedImplementationLog } from './lib/types';
 import ImplementationLogDetail from './components/ImplementationLogDetail';
 import ManagerHeader, { ViewMode } from './components/ManagerHeader';
 import ManagerCardGrid from './components/ManagerCardGrid';
+import { SimpleSpinner } from '@/components/ui/Spinner';
 import ManagerSystemMap from './components/ManagerSystemMap';
 import DevelopmentFlowMap from './components/DevelopmentFlowMap';
 import TabEmptyState from './components/TabEmptyStates';
@@ -162,7 +163,7 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
       {loading && (
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <div className={`w-12 h-12 border-4 ${colors.border} border-t-current ${colors.textDark} rounded-full animate-spin mx-auto mb-4`} />
+            <SimpleSpinner size="xl" color="cyan" className="mx-auto mb-4" />
             <p className="text-gray-400">Loading implementation logs...</p>
           </div>
         </div>

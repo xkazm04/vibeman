@@ -9,6 +9,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  ResponsiveContainer,
 } from 'recharts';
 import { Calendar, TrendingUp, MousePointerClick } from 'lucide-react';
 import { DailyStats } from '../lib/types';
@@ -157,7 +158,7 @@ export default function DailyActivityChart({ dailyBreakdown, onBarClick }: Daily
           {onBarClick && (
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-cyan-500/20 bg-cyan-500/5">
               <MousePointerClick className="w-3 h-3 text-cyan-500/60" />
-              <span className="text-[9px] font-mono text-cyan-500/60">CLICK_TO_DRILL</span>
+              <span className="text-micro font-mono text-cyan-500/60">CLICK_TO_DRILL</span>
             </div>
           )}
           <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/60 rounded-lg border border-gray-700/50">
@@ -174,12 +175,10 @@ export default function DailyActivityChart({ dailyBreakdown, onBarClick }: Daily
 
       {/* Chart */}
       <div className="relative z-10 h-72">
-        <BarChart
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
             data={chartData}
             margin={{ top: 10, right: 10, left: -10, bottom: 5 }}
-            responsive
-            width="100%"
-            height="100%"
           >
             <defs>
               {/* Gradient definitions */}
@@ -257,6 +256,7 @@ export default function DailyActivityChart({ dailyBreakdown, onBarClick }: Daily
               onClick={(data: any) => handleBarClick(data, 'pending')}
             />
           </BarChart>
+        </ResponsiveContainer>
       </div>
 
       {/* Day stats footer */}
@@ -275,7 +275,7 @@ export default function DailyActivityChart({ dailyBreakdown, onBarClick }: Daily
               }`}>
                 {day.total}
               </div>
-              <div className={`text-[10px] font-mono ${
+              <div className={`text-2xs font-mono ${
                 day.acceptanceRate >= 70 ? 'text-emerald-400' : 
                 day.acceptanceRate >= 40 ? 'text-amber-400' : 
                 day.total > 0 ? 'text-red-400' : 'text-gray-600'

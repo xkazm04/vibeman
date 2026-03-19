@@ -39,7 +39,7 @@ export default function MatrixFilterChips({
             key={type}
             onClick={() => onToggle(type)}
             aria-pressed={isActive}
-            className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] rounded-md border transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 ${isActive
+            className={`inline-flex items-center gap-1 px-2 py-1 text-2xs rounded-md border transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 ${isActive
                 ? 'border-transparent shadow-sm'
                 : 'border-zinc-700/50 text-zinc-500 hover:border-zinc-600 hover:text-zinc-400 hover:bg-zinc-800/30'
               }`}

@@ -39,7 +39,7 @@ export const ConductorQABanner = memo(function ConductorQABanner({ qaCount }: Co
         </div>
         <div className="text-left">
           <span className="text-xs font-semibold text-amber-400">Conductor Q&A</span>
-          <span className="ml-2 text-[10px] text-amber-500/70">
+          <span className="ml-2 text-2xs text-amber-500/70">
             {qaCount} question{qaCount !== 1 ? 's' : ''} waiting for your input
           </span>
         </div>

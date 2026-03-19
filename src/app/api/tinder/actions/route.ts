@@ -259,6 +259,9 @@ function rejectPair(pairId: string) {
 
 function deletePair(pairId: string) {
   const pair = directionDb.getDirectionPair(pairId);
+  if (!pair.directionA && !pair.directionB) {
+    return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND, { message: 'Direction pair not found' });
+  }
   const projectId = pair.directionA?.project_id || pair.directionB?.project_id;
 
   const deletedCount = directionDb.deleteDirectionPair(pairId);

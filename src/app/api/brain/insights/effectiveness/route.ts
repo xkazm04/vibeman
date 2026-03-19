@@ -25,6 +25,7 @@ import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
 import { logger } from '@/lib/logger';
 import { parseQueryInt } from '@/lib/api-helpers/parseQueryInt';
 import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
+import { EFFECTIVENESS_HELPFUL_THRESHOLD, EFFECTIVENESS_MISLEADING_THRESHOLD } from '@/lib/brain/config';
 
 export interface InsightEffectiveness {
   insightTitle: string;
@@ -89,7 +90,7 @@ async function handleGet(request: NextRequest) {
     // Check cache first (unless explicitly bypassed)
     if (!noCache) {
       try {
-        const cached = insightEffectivenessCache.get(projectId, minDirections);
+        const cached = insightEffectivenessCache.get(projectId, minDirections, windowDays);
         if (cached) {
           logger.debug('[Effectiveness] Cache hit', { projectId, cachedAt: cached.cachedAt, version: cached.version });
           return buildSuccessResponse(
@@ -194,9 +195,9 @@ async function handleGet(request: NextRequest) {
       let verdict: 'helpful' | 'neutral' | 'misleading';
       if (!reliable) {
         verdict = 'neutral';
-      } else if (score > 10) {
+      } else if (score > EFFECTIVENESS_HELPFUL_THRESHOLD) {
         verdict = 'helpful';
-      } else if (score < -10) {
+      } else if (score < EFFECTIVENESS_MISLEADING_THRESHOLD) {
         verdict = 'misleading';
       } else {
         verdict = 'neutral';
@@ -237,11 +238,12 @@ async function handleGet(request: NextRequest) {
       insightEffectivenessCache.set(
         projectId,
         minDirections,
+        windowDays,
         JSON.stringify(results),
         JSON.stringify(summary)
       );
       // Retrieve the version that was just written
-      const freshCache = insightEffectivenessCache.get(projectId, minDirections);
+      const freshCache = insightEffectivenessCache.get(projectId, minDirections, windowDays);
       cacheVersion = freshCache?.version || 1;
       logger.debug('[Effectiveness] Cached results', { projectId, insightCount: results.length, version: cacheVersion });
     } catch {

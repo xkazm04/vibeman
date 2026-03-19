@@ -44,7 +44,7 @@ export default function EmailCardContent({ item }: EmailCardContentProps) {
             e.stopPropagation();
             setExpanded(!expanded);
           }}
-          className="text-[11px] text-cyan-400 hover:underline"
+          className="text-caption text-cyan-400 hover:underline"
         >
           {expanded ? 'Show less' : 'Read more'}
         </button>

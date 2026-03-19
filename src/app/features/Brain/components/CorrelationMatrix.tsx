@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Network,
@@ -18,33 +18,14 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
-import { useAbortableFetch } from '@/hooks/useAbortableFetch';
+import { useBehavioralCorrelations } from '../lib/queries';
 import GlowCard from './GlowCard';
 import BrainPanelHeader from './BrainPanelHeader';
 import type { BehavioralSignalType } from '@/app/db/models/brain.types';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-interface SignalCorrelation {
-  sourceType: BehavioralSignalType;
-  targetType: BehavioralSignalType;
-  coefficient: number;
-  strength: 'strong' | 'moderate' | 'weak' | 'none';
-  avgLagMinutes: number;
-  sampleCount: number;
-  followRate: number;
-  description: string;
-}
-
-interface CorrelationResponse {
-  success: boolean;
-  projectId: string;
-  windowDays: number;
-  matrix: SignalCorrelation[];
-  topCorrelations: SignalCorrelation[];
-  signalsAnalyzed: number;
-  generatedAt: string;
-}
+import type { SignalCorrelation } from '../lib/queries/apiClient';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -86,36 +67,11 @@ interface Props {
 
 export default function CorrelationMatrix({ scope = 'project' }: Props) {
   const activeProject = useClientProjectStore((s) => s.activeProject);
-  const [data, setData] = useState<CorrelationResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const { data, isLoading, refetch } = useBehavioralCorrelations(
+    scope === 'global' ? undefined : activeProject?.id
+  );
   const [expanded, setExpanded] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<{ src: string; tgt: string } | null>(null);
-  const abortableFetch = useAbortableFetch();
-
-  const fetchCorrelations = useCallback(async (projectId: string) => {
-    setIsLoading(true);
-    try {
-      const res = await abortableFetch(
-        `/api/brain/correlations?projectId=${encodeURIComponent(projectId)}&windowDays=14&topN=5`
-      );
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success) {
-          setData(json);
-        }
-      }
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
-      // Non-critical
-    } finally {
-      setIsLoading(false);
-    }
-  }, [abortableFetch]);
-
-  useEffect(() => {
-    if (scope === 'global' || !activeProject?.id) return;
-    fetchCorrelations(activeProject.id);
-  }, [scope, activeProject?.id, fetchCorrelations]);
 
   if (scope === 'global') {
     return (
@@ -205,7 +161,7 @@ export default function CorrelationMatrix({ scope = 'project' }: Props) {
           }
           right={
             <button
-              onClick={() => activeProject?.id && fetchCorrelations(activeProject.id)}
+              onClick={() => refetch()}
               className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors"
               title="Refresh correlations"
             >

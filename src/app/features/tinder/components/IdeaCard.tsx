@@ -189,7 +189,7 @@ export default function IdeaCard({
                     {idea.category.replace('_', ' ')}{idea.scan_type ? ` · ${idea.scan_type.replace('_', ' ')}` : ''}
                   </span>
                   {idea.detailed === 1 && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-semibold uppercase tracking-wide">
+                    <span className="text-2xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-semibold uppercase tracking-wide">
                       Detailed
                     </span>
                   )}
@@ -204,7 +204,7 @@ export default function IdeaCard({
               <div className="flex items-center gap-2 px-3 py-2 bg-purple-900/20 border border-purple-500/30 rounded-lg transition-all duration-200 hover:bg-purple-900/30 hover:border-purple-500/50 hover:shadow-md hover:shadow-purple-500/10">
                 <Target className="w-4 h-4 text-purple-400 transition-transform duration-200" />
                 <div>
-                  <div className="text-[10px] text-purple-400 uppercase tracking-wide">Related Goal</div>
+                  <div className="text-2xs text-purple-400 uppercase tracking-wide">Related Goal</div>
                   <div className="text-sm font-semibold text-purple-300">{goalTitle}</div>
                 </div>
               </div>
@@ -243,7 +243,7 @@ export default function IdeaCard({
               {idea.provider && (
                 <>
                   <span className="text-sm text-gray-500">•</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-700/50 text-gray-400 font-medium uppercase">
+                  <span className="text-2xs px-1.5 py-0.5 rounded bg-gray-700/50 text-gray-400 font-medium uppercase">
                     {idea.provider}{idea.model ? ` · ${idea.model}` : ''}
                   </span>
                 </>

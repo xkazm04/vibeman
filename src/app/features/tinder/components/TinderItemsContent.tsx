@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { Loader2, Sparkles, Trash2, RefreshCw, Link2, AlertTriangle, Zap, X, Check } from 'lucide-react';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
@@ -59,7 +60,7 @@ function RejectionReasonPicker({
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -10, scale: 0.95 }}
-      transition={{ duration: 0.2 }}
+      transition={transition.normal}
       className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-2xl"
     >
       <div className="bg-gray-900/95 border border-gray-700/50 rounded-xl p-4 mx-4 max-w-sm w-full shadow-2xl">

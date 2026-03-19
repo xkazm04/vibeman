@@ -185,7 +185,7 @@ export const ConductorQuickStart = memo(function ConductorQuickStart({ onRunStar
             <div className="p-3 space-y-3">
               {/* Project selector */}
               <div className="space-y-1.5">
-                <label className="flex items-center gap-1.5 text-[10px] font-medium text-gray-500 uppercase tracking-wider">
+                <label className="flex items-center gap-1.5 text-2xs font-medium text-gray-500 uppercase tracking-wider">
                   <FolderOpen className="w-3 h-3" />
                   Project
                   <span className="text-red-400">*</span>
@@ -203,7 +203,7 @@ export const ConductorQuickStart = memo(function ConductorQuickStart({ onRunStar
                   {projectDropdownOpen && (
                     <div className="absolute left-0 right-0 top-full mt-1 rounded-md border border-gray-700/50 bg-gray-900 shadow-xl z-50 py-0.5 max-h-48 overflow-y-auto">
                       {projects.length === 0 ? (
-                        <div className="px-3 py-2 text-[11px] text-gray-500 italic">No projects found</div>
+                        <div className="px-3 py-2 text-caption text-gray-500 italic">No projects found</div>
                       ) : (
                         projects.map((p) => (
                           <button
@@ -217,7 +217,7 @@ export const ConductorQuickStart = memo(function ConductorQuickStart({ onRunStar
                             }`}
                           >
                             <div className="truncate font-medium">{p.name}</div>
-                            <div className="text-[10px] text-gray-600 truncate">{p.path}</div>
+                            <div className="text-2xs text-gray-600 truncate">{p.path}</div>
                           </button>
                         ))
                       )}
@@ -228,7 +228,7 @@ export const ConductorQuickStart = memo(function ConductorQuickStart({ onRunStar
 
               {/* Goal selector */}
               <div className="space-y-1.5">
-                <label className="flex items-center gap-1.5 text-[10px] font-medium text-gray-500 uppercase tracking-wider">
+                <label className="flex items-center gap-1.5 text-2xs font-medium text-gray-500 uppercase tracking-wider">
                   <Target className="w-3 h-3" />
                   Goal
                   <span className="text-red-400">*</span>
@@ -274,7 +274,7 @@ export const ConductorQuickStart = memo(function ConductorQuickStart({ onRunStar
                         >
                           <div className="truncate">{g.title}</div>
                           {g.description && (
-                            <div className="text-[10px] text-gray-600 truncate">{g.description}</div>
+                            <div className="text-2xs text-gray-600 truncate">{g.description}</div>
                           )}
                         </button>
                       ))}

@@ -50,19 +50,19 @@ function EffortImpactBadge({ effort, impact }: { effort: number | null; impact: 
   return (
     <div className="flex items-center gap-2.5 mt-1.5">
       {effort != null && (
-        <span className={`inline-flex items-center gap-1 text-[10px] font-mono ${effortColor}`} title={`Effort: ${effort}/10`}>
+        <span className={`inline-flex items-center gap-1 text-2xs font-mono ${effortColor}`} title={`Effort: ${effort}/10`}>
           <Clock className="w-3 h-3" />
           E:{effort}
         </span>
       )}
       {impact != null && (
-        <span className={`inline-flex items-center gap-1 text-[10px] font-mono ${impactColor}`} title={`Impact: ${impact}/10`}>
+        <span className={`inline-flex items-center gap-1 text-2xs font-mono ${impactColor}`} title={`Impact: ${impact}/10`}>
           <TrendingUp className="w-3 h-3" />
           I:{impact}
         </span>
       )}
       {effort != null && impact != null && (
-        <span className="text-[10px] text-zinc-500 font-mono" title="Impact/Effort ratio">
+        <span className="text-2xs text-zinc-500 font-mono" title="Impact/Effort ratio">
           ({(impact / effort).toFixed(1)}x)
         </span>
       )}
@@ -114,7 +114,7 @@ function HypothesisBadge({ directionId, assertionsJson }: { directionId: string;
   return (
     <button
       onClick={handleClick}
-      className={`inline-flex items-center gap-1 text-[10px] font-mono ${scoreColor} hover:brightness-125 transition-colors`}
+      className={`inline-flex items-center gap-1 text-2xs font-mono ${scoreColor} hover:brightness-125 transition-colors`}
       title={title}
     >
       <FlaskConical className="w-3 h-3" />
@@ -466,12 +466,12 @@ export function QuestionDirectionRow({
         {/* Keyboard shortcut hints - visible on row focus */}
         <div className="hidden group-focus-within/row:flex items-center justify-end gap-2 mt-1.5">
           {isDirection && isPending && onAccept && (
-            <kbd className="px-1 py-0.5 text-[10px] font-mono bg-green-500/10 text-green-400 border border-green-500/20 rounded">a</kbd>
+            <kbd className="px-1 py-0.5 text-2xs font-mono bg-green-500/10 text-green-400 border border-green-500/20 rounded">a</kbd>
           )}
           {isDirection && isPending && onReject && (
-            <kbd className="px-1 py-0.5 text-[10px] font-mono bg-red-500/10 text-red-400 border border-red-500/20 rounded">r</kbd>
+            <kbd className="px-1 py-0.5 text-2xs font-mono bg-red-500/10 text-red-400 border border-red-500/20 rounded">r</kbd>
           )}
-          <kbd className="px-1 py-0.5 text-[10px] font-mono bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 rounded">d</kbd>
+          <kbd className="px-1 py-0.5 text-2xs font-mono bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 rounded">d</kbd>
         </div>
       </td>
     </TableRow>

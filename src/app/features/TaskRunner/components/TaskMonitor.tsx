@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, memo, useCallback, useRef, useMemo } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
   Activity,
   AlertTriangle,
@@ -158,19 +159,19 @@ const TaskItem = memo(function TaskItem({ task }: { task: ExecutionTask }) {
             <div className="text-xs font-medium text-gray-300 truncate flex items-center gap-1.5">
               {task.requirementName}
               {isHealing && (
-                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium bg-violet-500/20 text-violet-400 border border-violet-500/30">
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-micro font-medium bg-violet-500/20 text-violet-400 border border-violet-500/30">
                   <Zap className="w-2.5 h-2.5" />
                   Healing {task.healing!.healingAttempt}/{task.healing!.maxHealingAttempts}
                 </span>
               )}
               {wasHealed && (
-                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-micro font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                   <Zap className="w-2.5 h-2.5" />
                   Self-healed
                 </span>
               )}
             </div>
-            <div className={`text-[10px] flex items-center gap-2 ${isStuck ? 'text-amber-400/80' : 'text-gray-500'}`}>
+            <div className={`text-2xs flex items-center gap-2 ${isStuck ? 'text-amber-400/80' : 'text-gray-500'}`}>
               <span>{isStuck ? 'stuck' : task.status}</span>
               <span>|</span>
               <span>{progressCount} lines</span>
@@ -203,7 +204,7 @@ const TaskItem = memo(function TaskItem({ task }: { task: ExecutionTask }) {
             transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-2 pb-2 text-[10px] font-mono text-gray-500 max-h-40 overflow-y-auto bg-gray-900/50">
+            <div className="px-2 pb-2 text-2xs font-mono text-gray-500 max-h-40 overflow-y-auto bg-gray-900/50">
               {/* Self-healing classification panel */}
               {task.healing && (
                 <div className="mb-2 p-1.5 rounded border border-violet-500/20 bg-violet-500/5">
@@ -211,7 +212,7 @@ const TaskItem = memo(function TaskItem({ task }: { task: ExecutionTask }) {
                     <Zap className="w-3 h-3" />
                     <span>Error Classification</span>
                   </div>
-                  <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[9px]">
+                  <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-micro">
                     <span className="text-gray-500">Type:</span>
                     <span className="text-violet-300">{task.healing.errorType}</span>
                     <span className="text-gray-500">Cause:</span>
@@ -384,7 +385,7 @@ export const TaskMonitor = memo(function TaskMonitor({
           <span className={`text-xs font-medium ${labelColor}`}>
             Session Health
           </span>
-          <div className="flex items-center gap-1.5 text-[10px] tabular-nums">
+          <div className="flex items-center gap-1.5 text-2xs tabular-nums">
             {/* Idle / all-clear state */}
             {isIdle && (
               <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500/70">
@@ -459,7 +460,7 @@ export const TaskMonitor = memo(function TaskMonitor({
                 handleCleanupAll();
               }}
               disabled={isCleaning}
-              className="px-2 py-0.5 text-[10px] font-medium bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded text-amber-400 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-2 py-0.5 text-2xs font-medium bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded text-amber-400 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isCleaning ? 'Cleaning...' : 'Clean All'}
             </button>
@@ -511,7 +512,7 @@ export const TaskMonitor = memo(function TaskMonitor({
               {/* Orphaned Sessions Section */}
               {showOrphanCleanup && orphanCount > 0 && (
                 <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 text-[10px] text-amber-400 font-medium">
+                  <div className="flex items-center gap-2 text-2xs text-amber-400 font-medium">
                     <AlertTriangle className="w-3 h-3" />
                     <span>Orphaned Sessions</span>
                   </div>
@@ -530,7 +531,7 @@ export const TaskMonitor = memo(function TaskMonitor({
               {tasks.length > 0 && (
                 <div className="space-y-1.5">
                   {orphanCount > 0 && (
-                    <div className="flex items-center gap-2 text-[10px] text-gray-400 font-medium">
+                    <div className="flex items-center gap-2 text-2xs text-gray-400 font-medium">
                       <Activity className="w-3 h-3" />
                       <span>Execution Tasks</span>
                     </div>
@@ -544,7 +545,7 @@ export const TaskMonitor = memo(function TaskMonitor({
               {/* Live Activity Theater — shows real-time tool invocations for running tasks */}
               {runningCount > 0 && (
                 <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 text-[10px] text-gray-400 font-medium">
+                  <div className="flex items-center gap-2 text-2xs text-gray-400 font-medium">
                     <Play className="w-3 h-3" />
                     <span>Live Activity</span>
                   </div>
@@ -561,7 +562,7 @@ export const TaskMonitor = memo(function TaskMonitor({
               )}
             </div>
             {lastRefresh && (
-              <div className="px-2.5 pb-2 text-[9px] text-gray-600">
+              <div className="px-2.5 pb-2 text-micro text-gray-600">
                 Last updated: {lastRefresh.toLocaleTimeString()}
               </div>
             )}

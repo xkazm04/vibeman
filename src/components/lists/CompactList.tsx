@@ -88,7 +88,7 @@ export default function CompactList({
             {titleExtra}
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-gray-500 font-mono">
+            <span className="text-2xs text-gray-500 font-mono">
               {items.length}
             </span>
             {items.length > 0 && onDeleteAll && (
@@ -115,7 +115,7 @@ export default function CompactList({
         }}
       >
         {items.length === 0 ? (
-          <div className="flex items-center justify-center h-20 text-[10px] text-gray-600">
+          <div className="flex items-center justify-center h-20 text-2xs text-gray-600">
             {emptyMessage}
           </div>
         ) : (

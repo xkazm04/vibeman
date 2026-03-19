@@ -46,11 +46,11 @@ const ProgressSegment = ({ count, total, delay, bgColor, borderColor, textColor,
       title={`${count} ${label}`}
     >
       {count > 0 && (
-        <span className={`text-[10px] font-mono font-bold ${textColor}`}>
+        <span className={`text-2xs font-mono font-bold ${textColor}`}>
           {count}
         </span>
       )}
-      <div className={`absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-gray-900 border ${borderColor} rounded text-[10px] ${textColor} whitespace-nowrap opacity-0 group-hover/segment:opacity-100 transition-opacity pointer-events-none`}>
+      <div className={`absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-gray-900 border ${borderColor} rounded text-2xs ${textColor} whitespace-nowrap opacity-0 group-hover/segment:opacity-100 transition-opacity pointer-events-none`}>
         {count} {label}
       </div>
     </motion.div>

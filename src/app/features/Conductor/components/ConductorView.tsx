@@ -187,7 +187,7 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
           </div>
           <div>
             <h2 className="text-sm font-semibold text-gray-200">Conductor Pipeline</h2>
-            <p className="text-[11px] text-gray-500">Autonomous development with self-healing</p>
+            <p className="text-caption text-gray-500">Autonomous development with self-healing</p>
           </div>
         </div>
 
@@ -216,7 +216,7 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
                       ${selectedGoalId === goal.id ? 'text-purple-400' : 'text-gray-300'}`}
                   >
                     <div className="truncate">{goal.title}</div>
-                    <div className="text-[10px] text-gray-600 capitalize">{goal.status}</div>
+                    <div className="text-2xs text-gray-600 capitalize">{goal.status}</div>
                   </button>
                 ))}
               </div>

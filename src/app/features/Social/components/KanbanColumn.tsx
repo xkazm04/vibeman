@@ -145,11 +145,11 @@ export default function KanbanColumn({
             {column.title}
           </h3>
           {column.id !== 'new' && selectedInColumn > 0 && (
-            <span className="px-1 py-0.5 text-[9px] font-medium text-white bg-cyan-500 rounded">
+            <span className="px-1 py-0.5 text-micro font-medium text-white bg-cyan-500 rounded">
               {selectedInColumn}
             </span>
           )}
-          <span className="ml-auto text-[10px] font-mono text-gray-500">
+          <span className="ml-auto text-2xs font-mono text-gray-500">
             {items.length}
           </span>
         </div>
@@ -231,7 +231,7 @@ export default function KanbanColumn({
 
         {/* Column full indicator */}
         {column.maxItems && items.length >= column.maxItems && (
-          <div className="text-center py-2 text-[10px] text-yellow-400">
+          <div className="text-center py-2 text-2xs text-yellow-400">
             Queue full ({column.maxItems} max)
           </div>
         )}
@@ -241,11 +241,11 @@ export default function KanbanColumn({
       {teamDistribution.length > 0 && (
         <div className="p-2 border-t border-gray-700/40 bg-gray-800/60 backdrop-blur-sm">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[9px] text-gray-500 mr-1">Teams:</span>
+            <span className="text-micro text-gray-500 mr-1">Teams:</span>
             {teamDistribution.map(([team, count]) => (
               <div key={team} className="flex items-center gap-0.5">
                 <TeamIcon team={team as DevTeam} size="xs" />
-                <span className="text-[9px] text-gray-500">
+                <span className="text-micro text-gray-500">
                   {count}
                 </span>
               </div>

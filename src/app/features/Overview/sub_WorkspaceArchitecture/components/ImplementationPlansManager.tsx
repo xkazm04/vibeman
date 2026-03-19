@@ -201,7 +201,7 @@ export default function ImplementationPlansManager({
             <FileText className="w-3.5 h-3.5 text-emerald-400" />
           </div>
           <span className="text-sm font-medium text-zinc-200">Implementation Plans</span>
-          <span className="px-1.5 py-0.5 text-[10px] bg-zinc-800 text-zinc-400 rounded">
+          <span className="px-1.5 py-0.5 text-2xs bg-zinc-800 text-zinc-400 rounded">
             {plans.length}
           </span>
         </div>
@@ -209,13 +209,13 @@ export default function ImplementationPlansManager({
         {/* Bulk actions */}
         {selectedIds.size > 0 && (
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-zinc-500">
+            <span className="text-2xs text-zinc-500">
               {selectedIds.size} selected
             </span>
             <button
               onClick={handleBulkDelete}
               disabled={deletingIds.size > 0}
-              className="flex items-center gap-1 px-2 py-1 text-[10px] text-red-400 hover:bg-red-500/10 rounded transition-colors"
+              className="flex items-center gap-1 px-2 py-1 text-2xs text-red-400 hover:bg-red-500/10 rounded transition-colors"
             >
               <Trash2 className="w-3 h-3" />
               Delete
@@ -242,7 +242,7 @@ export default function ImplementationPlansManager({
         <div className="flex items-center gap-1">
           <button
             onClick={() => setStatusFilter(null)}
-            className={`px-2 py-1 text-[10px] rounded-full transition-colors ${
+            className={`px-2 py-1 text-2xs rounded-full transition-colors ${
               !statusFilter
                 ? 'bg-zinc-700 text-zinc-200'
                 : 'text-zinc-500 hover:text-zinc-300'
@@ -253,7 +253,7 @@ export default function ImplementationPlansManager({
           {counts.completed > 0 && (
             <button
               onClick={() => setStatusFilter('completed')}
-              className={`px-2 py-1 text-[10px] rounded-full transition-colors ${
+              className={`px-2 py-1 text-2xs rounded-full transition-colors ${
                 statusFilter === 'completed'
                   ? 'bg-emerald-500/20 text-emerald-400'
                   : 'text-zinc-500 hover:text-zinc-300'
@@ -265,7 +265,7 @@ export default function ImplementationPlansManager({
           {counts.running > 0 && (
             <button
               onClick={() => setStatusFilter('running')}
-              className={`px-2 py-1 text-[10px] rounded-full transition-colors ${
+              className={`px-2 py-1 text-2xs rounded-full transition-colors ${
                 statusFilter === 'running'
                   ? 'bg-amber-500/20 text-amber-400'
                   : 'text-zinc-500 hover:text-zinc-300'
@@ -277,7 +277,7 @@ export default function ImplementationPlansManager({
           {counts.failed > 0 && (
             <button
               onClick={() => setStatusFilter('failed')}
-              className={`px-2 py-1 text-[10px] rounded-full transition-colors ${
+              className={`px-2 py-1 text-2xs rounded-full transition-colors ${
                 statusFilter === 'failed'
                   ? 'bg-red-500/20 text-red-400'
                   : 'text-zinc-500 hover:text-zinc-300'
@@ -308,7 +308,7 @@ export default function ImplementationPlansManager({
           <div className="divide-y divide-zinc-800/30">
             {/* Select all header */}
             {selectablePlans.length > 0 && (
-              <div className="px-3 py-1.5 bg-zinc-800/30 text-[10px] text-zinc-500 flex items-center gap-2">
+              <div className="px-3 py-1.5 bg-zinc-800/30 text-2xs text-zinc-500 flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={selectedIds.size === selectablePlans.length && selectablePlans.length > 0}
@@ -345,20 +345,20 @@ export default function ImplementationPlansManager({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       {/* Status badge */}
-                      <span className={`flex items-center gap-1 px-1.5 py-0.5 text-[9px] rounded-full border ${getStatusColor(plan.status)}`}>
+                      <span className={`flex items-center gap-1 px-1.5 py-0.5 text-micro rounded-full border ${getStatusColor(plan.status)}`}>
                         {getStatusIcon(plan.status)}
                         {plan.status}
                       </span>
 
                       {/* Selected plan indicator */}
                       {plan.selected_plan && (
-                        <span className="px-1.5 py-0.5 text-[9px] bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">
+                        <span className="px-1.5 py-0.5 text-micro bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">
                           Plan {plan.selected_plan}
                         </span>
                       )}
 
                       {/* Projects count */}
-                      <span className="text-[9px] text-zinc-500">
+                      <span className="text-micro text-zinc-500">
                         {plan.project_ids.length} project{plan.project_ids.length !== 1 ? 's' : ''}
                       </span>
                     </div>
@@ -369,7 +369,7 @@ export default function ImplementationPlansManager({
                     </p>
 
                     {/* Timestamp */}
-                    <p className="text-[10px] text-zinc-500 mt-0.5">
+                    <p className="text-2xs text-zinc-500 mt-0.5">
                       {formatDistanceToNow(new Date(plan.created_at))}
                     </p>
                   </div>

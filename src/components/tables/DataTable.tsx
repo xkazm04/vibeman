@@ -2,9 +2,10 @@
 
 import React, { ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Inbox, LucideIcon } from 'lucide-react';
+import { transition, fadeSlideUp, easing } from '@/lib/motion';
 import { TableColumn, TableStat, statColors } from './types';
-import { TableEmptyState } from './TableEmptyState';
+import EmptyState from '@/components/ui/EmptyState';
 
 interface DataTableProps<T> {
   /** Array of data items */
@@ -21,7 +22,7 @@ interface DataTableProps<T> {
   stats?: TableStat[];
   /** Empty state configuration */
   emptyState?: {
-    icons?: React.ComponentType<{ className?: string }>[];
+    icons?: LucideIcon[];
     title: string;
     description?: string;
   };
@@ -71,11 +72,12 @@ export function DataTable<T>({
 
   // Empty state
   if (items.length === 0 && emptyState) {
+    const icon = emptyState.icons?.[0] ?? Inbox;
     return (
-      <TableEmptyState
-        icons={emptyState.icons as any}
+      <EmptyState
+        icon={icon}
         title={emptyState.title}
-        description={emptyState.description}
+        description={emptyState.description ?? ''}
       />
     );
   }
@@ -88,7 +90,7 @@ export function DataTable<T>({
           className="flex items-center gap-4 text-xs text-gray-400"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
+          transition={transition.deliberate}
         >
           {stats.map((stat, idx) => (
             <motion.span
@@ -109,9 +111,9 @@ export function DataTable<T>({
       {/* Table container */}
       <motion.div
         className="bg-gray-800/40 backdrop-blur-sm rounded-xl border border-gray-700/40 overflow-hidden shadow-lg"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        variants={fadeSlideUp}
+        initial="hidden"
+        animate="visible"
       >
         <div className="overflow-x-auto">
           <table className="w-full">

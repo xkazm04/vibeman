@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ImageOff, Images, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import ScreenThumbnail from './ScreenThumbnail';
+import { SimpleSpinner } from '@/components/ui/Spinner';
 
 interface ContextWithPreview {
   id: string;
@@ -123,7 +124,7 @@ export default function ScreenGallery({ projectId }: ScreenGalleryProps) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <div className="w-8 h-8 mx-auto mb-3 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+          <SimpleSpinner size="lg" color="cyan" className="mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">Loading screenshots...</p>
         </div>
       </div>

@@ -153,7 +153,7 @@ export function KeyboardHintCompact({
         return (
           <kbd
             key={hint.key}
-            className={`inline-flex items-center justify-center w-5 h-5 text-[10px] font-mono font-bold rounded border ${keyBgClasses[color]} shadow-sm`}
+            className={`inline-flex items-center justify-center w-5 h-5 text-2xs font-mono font-bold rounded border ${keyBgClasses[color]} shadow-sm`}
             title={hint.label}
           >
             {hint.key}

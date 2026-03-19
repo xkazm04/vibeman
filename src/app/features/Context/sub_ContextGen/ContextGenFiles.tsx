@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import { AlertCircle } from 'lucide-react';
+import { SimpleSpinner } from '@/components/ui';
 import { GlowCard } from '@/components/GlowCard';
 import FileTreeSelector from '../sub_ContextMenu/FileTreeSelector';
 import SelectedFilesList from './SelectedFilesList';
@@ -59,7 +60,7 @@ export default function ContextGenFiles({
             {fileStructureLoading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
-                  <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                  <SimpleSpinner size="lg" color="cyan" className="mx-auto mb-2" />
                   <p className="text-sm text-gray-400">Loading project files...</p>
                   {projectName && (
                     <p className="text-sm text-gray-500 mt-1">Project: {projectName}</p>

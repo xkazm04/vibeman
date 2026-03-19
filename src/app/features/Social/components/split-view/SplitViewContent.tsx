@@ -98,7 +98,7 @@ export function SplitViewContent({ item, onAction }: SplitViewContentProps) {
 
         {/* Status info */}
         <div className="p-3 rounded-lg bg-gray-800/60 border border-gray-700/40">
-          <div className="text-[10px] text-gray-500 uppercase mb-1">Status</div>
+          <div className="text-2xs text-gray-500 uppercase mb-1">Status</div>
           <div className="text-sm font-medium capitalize text-gray-200">
             {item.status}
           </div>
@@ -132,7 +132,7 @@ export function SplitViewContent({ item, onAction }: SplitViewContentProps) {
             {item.tags.map(tag => (
               <span
                 key={tag}
-                className="px-2 py-0.5 text-[10px] rounded-full bg-gray-800/60
+                className="px-2 py-0.5 text-2xs rounded-full bg-gray-800/60
                   text-gray-400 border border-gray-700/40"
               >
                 #{tag}

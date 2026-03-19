@@ -163,7 +163,7 @@ async function handlePost(request: NextRequest) {
     const sanitizedDescription = body.description ? sanitizeString(body.description as string, 5000) : null;
     const sanitizedReasoning = body.reasoning ? sanitizeString(body.reasoning as string, 5000) : null;
     const sanitizedFeedback = body.user_feedback ? sanitizeString(body.user_feedback as string, 2000) : null;
-    const sanitizedCategory = sanitizeString(body.category as string, 100);
+    const sanitizedCategory = sanitizeString((body.category as string).trim().toLowerCase(), 100);
     const sanitizedScanType = body.scan_type ? sanitizeString(body.scan_type as string, 100) : 'manual';
 
     // Validate FK references exist before inserting to prevent opaque FK constraint errors

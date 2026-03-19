@@ -6,7 +6,8 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Zap,
@@ -21,7 +22,7 @@ import {
 } from 'lucide-react';
 import GlowCard from './GlowCard';
 import BrainPanelHeader from './BrainPanelHeader';
-import { useAbortableFetch } from '@/hooks/useAbortableFetch';
+import { usePredictions, brainKeys } from '../lib/queries';
 import type { IntentPrediction } from '@/lib/brain/predictiveIntentEngine';
 
 const ACCENT_COLOR = '#10b981'; // Emerald
@@ -47,37 +48,19 @@ interface Props {
 }
 
 export default function NextUpCard({ projectId, scope = 'project' }: Props) {
-  const [data, setData] = useState<PredictionData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const predictionsQuery = usePredictions(projectId);
+  const data = predictionsQuery.data as PredictionData | undefined;
+  const isLoading = predictionsQuery.isLoading;
+
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [resolvedIds, setResolvedIds] = useState<Set<string>>(new Set());
-  const abortableFetch = useAbortableFetch();
-
-  const fetchPredictions = useCallback(async () => {
-    if (!projectId) return;
-    setIsLoading(true);
-    try {
-      const res = await abortableFetch(`/api/brain/predictions?projectId=${encodeURIComponent(projectId)}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success) {
-          setData(json);
-          setResolvedIds(new Set());
-        }
-      }
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
-      // Non-critical
-    } finally {
-      setIsLoading(false);
-    }
-  }, [projectId, abortableFetch]);
 
   const handleRefresh = useCallback(async () => {
     if (!projectId || isRefreshing) return;
     setIsRefreshing(true);
     try {
-      const res = await abortableFetch('/api/brain/predictions', {
+      const res = await fetch('/api/brain/predictions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId }),
@@ -85,35 +68,29 @@ export default function NextUpCard({ projectId, scope = 'project' }: Props) {
       if (res.ok) {
         const json = await res.json();
         if (json.success) {
-          setData(json);
+          queryClient.setQueryData(brainKeys.predictionsList(projectId), json);
           setResolvedIds(new Set());
         }
       }
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
+    } catch {
       // Non-critical
     } finally {
       setIsRefreshing(false);
     }
-  }, [projectId, isRefreshing, abortableFetch]);
+  }, [projectId, isRefreshing, queryClient]);
 
   const handleResolve = useCallback(async (predictionId: string, action: 'accepted' | 'dismissed') => {
     try {
-      await abortableFetch('/api/brain/predictions', {
+      await fetch('/api/brain/predictions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ predictionId, action }),
       });
       setResolvedIds(prev => new Set(prev).add(predictionId));
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
+    } catch {
       // Non-critical
     }
-  }, [abortableFetch]);
-
-  useEffect(() => {
-    fetchPredictions();
-  }, [fetchPredictions]);
+  }, []);
 
   if (scope === 'global') {
     return (

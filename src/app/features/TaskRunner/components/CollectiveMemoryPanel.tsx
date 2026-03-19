@@ -3,6 +3,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Maximize2, X } from 'lucide-react';
+import { SimpleSpinner } from '@/components/ui';
 import { useCollectiveMemoryStore } from '@/stores/collectiveMemoryStore';
 
 const CollectiveMemoryDashboard = lazy(() => import('./CollectiveMemoryDashboard'));
@@ -43,7 +44,7 @@ export function CollectiveMemoryPanel({ projectId, isOpen, onToggle }: Props) {
         <span className="text-cyan-500">{'\u2B21'}</span>
         <span>Memory</span>
         {stats && stats.total > 0 && (
-          <span className="ml-1 px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 text-[10px] font-semibold">
+          <span className="ml-1 px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 text-2xs font-semibold">
             {stats.total}
           </span>
         )}
@@ -68,7 +69,7 @@ export function CollectiveMemoryPanel({ projectId, isOpen, onToggle }: Props) {
                 </div>
                 <div className="flex items-center gap-2">
                   {stats && (
-                    <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                    <div className="flex items-center gap-2 text-2xs text-gray-500">
                       <span>{stats.total} memories</span>
                       <span className="text-gray-600">|</span>
                       <span className="text-cyan-500">{Math.round(stats.avgEffectiveness * 100)}% effective</span>
@@ -101,14 +102,14 @@ export function CollectiveMemoryPanel({ projectId, isOpen, onToggle }: Props) {
                       return (
                         <span
                           key={type}
-                          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-gray-700/50 ${cfg.color}`}
+                          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs bg-gray-700/50 ${cfg.color}`}
                         >
                           {cfg.icon} {cfg.label}: {count}
                         </span>
                       );
                     })}
                     {stats.recentCount > 0 && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-green-500/10 text-green-400">
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs bg-green-500/10 text-green-400">
                         +{stats.recentCount} this week
                       </span>
                     )}
@@ -122,7 +123,7 @@ export function CollectiveMemoryPanel({ projectId, isOpen, onToggle }: Props) {
                   {memories.length === 0 ? (
                     <div className="px-3 py-6 text-center">
                       <p className="text-xs text-gray-500">No memories yet.</p>
-                      <p className="text-[10px] text-gray-600 mt-1">
+                      <p className="text-2xs text-gray-600 mt-1">
                         Memories are captured as tasks complete.
                       </p>
                     </div>
@@ -146,7 +147,7 @@ export function CollectiveMemoryPanel({ projectId, isOpen, onToggle }: Props) {
                                   <span className="text-xs text-gray-200 font-medium truncate">
                                     {mem.title}
                                   </span>
-                                  <span className={`text-[9px] px-1 py-px rounded ${
+                                  <span className={`text-micro px-1 py-px rounded ${
                                     score >= 70 ? 'bg-green-500/10 text-green-400' :
                                     score >= 40 ? 'bg-yellow-500/10 text-yellow-400' :
                                     'bg-gray-700/50 text-gray-500'
@@ -154,10 +155,10 @@ export function CollectiveMemoryPanel({ projectId, isOpen, onToggle }: Props) {
                                     {score}%
                                   </span>
                                 </div>
-                                <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                                <p className="text-2xs text-gray-500 truncate mt-0.5">
                                   {mem.description}
                                 </p>
-                                <div className="flex items-center gap-2 mt-0.5 text-[9px] text-gray-600">
+                                <div className="flex items-center gap-2 mt-0.5 text-micro text-gray-600">
                                   <span>{mem.success_count}{'\u2713'} {mem.failure_count}{'\u2717'}</span>
                                   {mem.last_applied_at && (
                                     <span>Last: {new Date(mem.last_applied_at).toLocaleDateString()}</span>
@@ -201,7 +202,7 @@ export function CollectiveMemoryPanel({ projectId, isOpen, onToggle }: Props) {
                   <span className="text-cyan-400 text-lg">{'\u2B21'}</span>
                   <h2 className="text-sm font-semibold text-zinc-200">Collective Memory Dashboard</h2>
                   {stats && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400">
+                    <span className="text-2xs px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400">
                       {stats.total} memories | {Math.round(stats.avgEffectiveness * 100)}% effective
                     </span>
                   )}
@@ -218,7 +219,7 @@ export function CollectiveMemoryPanel({ projectId, isOpen, onToggle }: Props) {
               <div className="flex-1 overflow-hidden">
                 <Suspense fallback={
                   <div className="flex items-center justify-center h-full">
-                    <div className="w-6 h-6 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
+                    <SimpleSpinner size="md" color="cyan" />
                   </div>
                 }>
                   <CollectiveMemoryDashboard projectId={projectId} />

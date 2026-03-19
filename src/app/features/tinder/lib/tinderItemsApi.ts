@@ -16,6 +16,7 @@ import {
   getTinderItemId,
 } from './tinderTypes';
 import type { CategoryCount, ScanTypeCount, ContextCountItem } from './tinderTypes';
+import { TINDER_FILTER_SPEC, appendFilterParams } from './filterAlgebra';
 
 // ---------------------------------------------------------------------------
 // In-flight dedup (prevents double-submission on rapid clicks)
@@ -161,17 +162,15 @@ export async function fetchTinderItems(
     params.append('projectId', projectId);
   }
 
-  if (category && itemType === 'ideas') {
-    params.append('category', category);
-  }
-
-  if (scanType) {
-    params.append('scanType', scanType);
-  }
-
-  if (contextId) {
-    params.append('contextId', contextId);
-  }
+  // Use filter algebra to append dimension params (XOR rules already resolved by caller)
+  // The caller passes pre-resolved values (null for suppressed dimensions), so we
+  // determine the active dimension from which value is set and let the algebra handle it.
+  const activeDim = scanType ? 'scanType' : 'category';
+  appendFilterParams(params, TINDER_FILTER_SPEC, activeDim, {
+    category: (category && itemType === 'ideas') ? category : null,
+    scanType: scanType ?? null,
+    context: contextId ?? null,
+  }, { context: 'contextId' });
 
   if (effortRange) {
     params.append('effortMin', effortRange[0].toString());

@@ -86,7 +86,7 @@ export default function ViewModeToggle({
             <Icon className="w-3.5 h-3.5" />
             {label}
             {badgeCount > 0 && badgeClass && (
-              <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${badgeClass}`}>
+              <span className={`ml-1 px-1.5 py-0.5 rounded-full text-2xs ${badgeClass}`}>
                 {badgeCount}
               </span>
             )}

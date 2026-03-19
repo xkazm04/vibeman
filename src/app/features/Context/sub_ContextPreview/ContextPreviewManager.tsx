@@ -6,6 +6,7 @@ import ContextPreviewActions from './components/ContextPreviewActions';
 import ImagePathInput from './ImagePathInput';
 import PreviewDisplay from './components/PreviewDisplay';
 import ErrorDisplay from '@/app/features/Context/components/ErrorDisplay';
+import { inputStyle } from '@/lib/design-tokens';
 
 interface ContextPreviewManagerProps {
   contextId: string;
@@ -198,10 +199,10 @@ export default function ContextPreviewManager({
             value={target}
             onChange={(e) => setTarget(e.target.value)}
             placeholder="Describe the target functionality or goal of this context..."
-            className={`w-full px-3 py-2 bg-gray-900/50 border rounded-lg text-sm text-gray-300 font-mono placeholder-gray-600 focus:outline-none focus:ring-1 transition-all resize-y min-h-[60px] ${
+            className={`w-full ${inputStyle} font-mono resize-y min-h-[60px] ${
               target.length > MAX_TARGET_LENGTH
                 ? 'border-red-500/50 focus:border-red-500/50 focus:ring-red-500/30'
-                : 'border-gray-700/50 focus:border-cyan-500/50 focus:ring-cyan-500/30'
+                : ''
             }`}
             data-testid="context-target-input"
           />
@@ -226,10 +227,10 @@ export default function ContextPreviewManager({
             value={targetFulfillment}
             onChange={(e) => setTargetFulfillment(e.target.value)}
             placeholder="Describe the current progress toward the target..."
-            className={`w-full px-3 py-2 bg-gray-900/50 border rounded-lg text-sm text-gray-300 font-mono placeholder-gray-600 focus:outline-none focus:ring-1 transition-all resize-y min-h-[60px] ${
+            className={`w-full ${inputStyle} font-mono resize-y min-h-[60px] ${
               targetFulfillment.length > MAX_FULFILLMENT_LENGTH
                 ? 'border-red-500/50 focus:border-red-500/50 focus:ring-red-500/30'
-                : 'border-gray-700/50 focus:border-cyan-500/50 focus:ring-cyan-500/30'
+                : ''
             }`}
             data-testid="context-target-fulfillment-input"
           />

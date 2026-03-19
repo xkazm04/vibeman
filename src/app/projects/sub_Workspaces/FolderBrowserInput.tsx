@@ -204,13 +204,13 @@ export default function FolderBrowserInput({
 
             {/* Quick access */}
             <div className="flex items-center gap-1 px-3 py-2 border-b border-gray-700/30 bg-gray-900/20">
-              <span className="text-[10px] text-gray-600 mr-1">Quick:</span>
+              <span className="text-2xs text-gray-600 mr-1">Quick:</span>
               {quickPaths.map(path => (
                 <button
                   key={path}
                   type="button"
                   onClick={() => handleNavigate(path)}
-                  className={`px-2 py-0.5 text-[10px] rounded ${
+                  className={`px-2 py-0.5 text-2xs rounded ${
                     currentPath === path
                       ? 'bg-blue-500/20 text-blue-400'
                       : 'bg-gray-700/40 text-gray-400 hover:text-gray-200 hover:bg-gray-700/60'
@@ -265,13 +265,13 @@ export default function FolderBrowserInput({
             {/* Select current folder */}
             {currentPath && (
               <div className="flex items-center justify-between px-3 py-2 border-t border-gray-700/40 bg-gray-900/40">
-                <span className="text-[10px] text-gray-500 truncate flex-1 mr-2 font-mono">
+                <span className="text-2xs text-gray-500 truncate flex-1 mr-2 font-mono">
                   {currentPath}
                 </span>
                 <button
                   type="button"
                   onClick={() => handleSelect(currentPath)}
-                  className="flex items-center gap-1 px-2 py-1 text-[10px] bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 text-2xs bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors"
                 >
                   <Check className="w-3 h-3" />
                   Select

@@ -16,6 +16,24 @@ import type {
 } from '@/app/db/models/brain.types';
 import { SignalType } from '@/types/signals';
 import { LRUCache } from '@/lib/brain/lruCache';
+import {
+  DEFAULT_DECAY_FACTOR, DEFAULT_RETENTION_DAYS, DECAY_START_FRACTION, DECAY_START_MIN_DAYS,
+  SIGNAL_DEDUP_WINDOW_MS, CONTEXT_TRANSITION_MAX_GAP_MS,
+  WEIGHT_IDEA_ACCEPTED, WEIGHT_IDEA_REJECTED,
+  WEIGHT_GOAL_TRANSITION, WEIGHT_GOAL_NO_TRANSITION,
+  WEIGHT_CROSS_TASK_SUCCESS, WEIGHT_CROSS_TASK_FAILURE, WEIGHT_CROSS_TASK_SELECTION,
+  WEIGHT_GIT_HEAVY, WEIGHT_GIT_MODERATE, WEIGHT_GIT_LIGHT,
+  GIT_HEAVY_FILES_THRESHOLD, GIT_HEAVY_LINES_THRESHOLD, GIT_MODERATE_FILES_THRESHOLD, GIT_MODERATE_LINES_THRESHOLD,
+  WEIGHT_API_HIGH_ERROR, WEIGHT_API_HEAVY_USAGE, WEIGHT_API_MODERATE_USAGE, WEIGHT_API_LIGHT,
+  API_ERROR_RATE_THRESHOLD, API_HEAVY_CALL_THRESHOLD, API_MODERATE_CALL_THRESHOLD,
+  API_BATCH_HEAVY_THRESHOLD, API_BATCH_MODERATE_THRESHOLD,
+  WEIGHT_API_BATCH_HEAVY, WEIGHT_API_BATCH_MODERATE, WEIGHT_API_BATCH_LIGHT,
+  WEIGHT_CONTEXT_HEAVY, WEIGHT_CONTEXT_MODERATE, WEIGHT_CONTEXT_LIGHT,
+  CONTEXT_HEAVY_DURATION_MINUTES, CONTEXT_MODERATE_DURATION_MINUTES,
+  WEIGHT_IMPL_MANY_FILES, WEIGHT_IMPL_MODERATE_FILES, WEIGHT_IMPL_SUCCESS, WEIGHT_IMPL_FAILURE,
+  IMPL_MANY_FILES_THRESHOLD, IMPL_MODERATE_FILES_THRESHOLD,
+  WEIGHT_CLI_DECISION, WEIGHT_CLI_PATTERN, WEIGHT_CLI_INSIGHT, WEIGHT_CLI_LESSON, WEIGHT_CLI_CONTEXT, WEIGHT_CLI_DEFAULT,
+} from '@/lib/brain/config';
 
 /**
  * Generate a unique signal ID
@@ -30,7 +48,7 @@ function generateSignalId(): string {
  * Gracefully evicts oldest entries instead of cliff-edge Map.clear().
  */
 const recentSignalHashes = new LRUCache<string, number>(1000);
-const DEDUP_WINDOW_MS = 60_000; // 60 seconds
+const DEDUP_WINDOW_MS = SIGNAL_DEDUP_WINDOW_MS;
 
 function createSignalHash(projectId: string, signalType: string, data: string): string {
   // Simple hash: first 100 chars of data + type + project
@@ -56,7 +74,7 @@ function isDuplicate(projectId: string, signalType: string, data: string): boole
  * Tracks { contextId, contextName, timestamp } so we can detect context switches.
  */
 const lastContextPerProject = new Map<string, { contextId: string; contextName: string; timestamp: number }>();
-const TRANSITION_MAX_GAP_MS = 3600000; // 1 hour max gap
+const TRANSITION_MAX_GAP_MS = CONTEXT_TRANSITION_MAX_GAP_MS;
 
 function recordContextTransition(
   projectId: string,
@@ -248,7 +266,7 @@ export const signalCollector = {
         context_id: data.contextId || null,
         context_name: data.contextName || 'General',
         data: dataStr,
-        weight: data.accepted ? 0.8 : 0.3,
+        weight: data.accepted ? WEIGHT_IDEA_ACCEPTED : WEIGHT_IDEA_REJECTED,
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
@@ -281,7 +299,7 @@ export const signalCollector = {
         context_id: data.contextId || null,
         context_name: data.contextName || 'General',
         data: dataStr,
-        weight: data.transition ? 1.0 : 0.5,
+        weight: data.transition ? WEIGHT_GOAL_TRANSITION : WEIGHT_GOAL_NO_TRANSITION,
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
@@ -306,7 +324,7 @@ export const signalCollector = {
         context_id: null,
         context_name: null,
         data: dataStr,
-        weight: data.success ? 2.0 : 1.0, // Successful analysis is high signal
+        weight: data.success ? WEIGHT_CROSS_TASK_SUCCESS : WEIGHT_CROSS_TASK_FAILURE,
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
@@ -331,7 +349,7 @@ export const signalCollector = {
         context_id: null,
         context_name: null,
         data: dataStr,
-        weight: 1.5, // Plan selection is a high-signal user decision
+        weight: WEIGHT_CROSS_TASK_SELECTION,
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
@@ -398,7 +416,7 @@ export const signalCollector = {
             avgResponseTime: ep.avgResponseTime,
             errorRate: ep.errorRate,
           }),
-          weight: ep.callCount > 100 ? 2.0 : ep.callCount > 10 ? 1.5 : 1.0,
+          weight: ep.callCount > API_BATCH_HEAVY_THRESHOLD ? WEIGHT_API_BATCH_HEAVY : ep.callCount > API_BATCH_MODERATE_THRESHOLD ? WEIGHT_API_BATCH_MODERATE : WEIGHT_API_BATCH_LIGHT,
           timestamp: new Date().toISOString(),
         });
         recorded++;
@@ -449,16 +467,19 @@ export const signalCollector = {
   },
 
   /**
-   * Apply decay to old signals (call periodically)
+   * Apply decay to old signals (call periodically).
+   * Decay window is derived from retentionDays to ensure signals are
+   * gradually decayed before hard-deletion at the retention boundary.
    */
-  applyDecay: (projectId: string): number => {
-    return behavioralSignalDb.applyDecay(projectId, 0.9, 7);
+  applyDecay: (projectId: string, decayFactor: number = DEFAULT_DECAY_FACTOR, retentionDays: number = DEFAULT_RETENTION_DAYS): number => {
+    const decayStartDays = Math.max(DECAY_START_MIN_DAYS, Math.floor(retentionDays * DECAY_START_FRACTION));
+    return behavioralSignalDb.applyDecay(projectId, decayFactor, decayStartDays);
   },
 
   /**
    * Clean up old signals beyond retention
    */
-  cleanup: (projectId: string, retentionDays: number = 30): number => {
+  cleanup: (projectId: string, retentionDays: number = DEFAULT_RETENTION_DAYS): number => {
     return behavioralSignalDb.deleteOld(projectId, retentionDays);
   },
 };
@@ -470,21 +491,19 @@ function calculateGitWeight(data: GitActivitySignalData): number {
   const filesChanged = data.filesChanged.length;
   const totalLines = data.linesAdded + data.linesRemoved;
 
-  // More files or more lines = higher weight
-  if (filesChanged > 10 || totalLines > 500) return 2.0;
-  if (filesChanged > 5 || totalLines > 100) return 1.5;
-  return 1.0;
+  if (filesChanged > GIT_HEAVY_FILES_THRESHOLD || totalLines > GIT_HEAVY_LINES_THRESHOLD) return WEIGHT_GIT_HEAVY;
+  if (filesChanged > GIT_MODERATE_FILES_THRESHOLD || totalLines > GIT_MODERATE_LINES_THRESHOLD) return WEIGHT_GIT_MODERATE;
+  return WEIGHT_GIT_LIGHT;
 }
 
 /**
  * Calculate weight for API focus based on usage
  */
 function calculateApiWeight(data: ApiFocusSignalData): number {
-  // High call count or high error rate = more important
-  if (data.errorRate > 10) return 2.0; // Problematic endpoint
-  if (data.callCount > 100) return 1.8; // Heavy usage
-  if (data.callCount > 50) return 1.5;
-  return 1.0;
+  if (data.errorRate > API_ERROR_RATE_THRESHOLD) return WEIGHT_API_HIGH_ERROR;
+  if (data.callCount > API_HEAVY_CALL_THRESHOLD) return WEIGHT_API_HEAVY_USAGE;
+  if (data.callCount > API_MODERATE_CALL_THRESHOLD) return WEIGHT_API_MODERATE_USAGE;
+  return WEIGHT_API_LIGHT;
 }
 
 /**
@@ -496,25 +515,22 @@ function calculateContextWeight(data: ContextFocusSignalData): number {
     a === 'edit_files' || a === 'run_scan' || a === 'accept_direction'
   );
 
-  // Longer engagement or edit actions = higher weight
-  if (hasEditActions && durationMinutes > 5) return 2.0;
-  if (hasEditActions || durationMinutes > 10) return 1.5;
-  return 1.0;
+  if (hasEditActions && durationMinutes > CONTEXT_HEAVY_DURATION_MINUTES) return WEIGHT_CONTEXT_HEAVY;
+  if (hasEditActions || durationMinutes > CONTEXT_MODERATE_DURATION_MINUTES) return WEIGHT_CONTEXT_MODERATE;
+  return WEIGHT_CONTEXT_LIGHT;
 }
 
 /**
  * Calculate weight for implementation based on result
  */
 function calculateImplementationWeight(data: ImplementationSignalData): number {
-  // Successful implementations with many files = high signal
   if (data.success) {
     const totalFiles = data.filesCreated.length + data.filesModified.length;
-    if (totalFiles > 10) return 2.5;
-    if (totalFiles > 5) return 2.0;
-    return 1.5;
+    if (totalFiles > IMPL_MANY_FILES_THRESHOLD) return WEIGHT_IMPL_MANY_FILES;
+    if (totalFiles > IMPL_MODERATE_FILES_THRESHOLD) return WEIGHT_IMPL_MODERATE_FILES;
+    return WEIGHT_IMPL_SUCCESS;
   }
-  // Failed implementations are also informative
-  return 1.0;
+  return WEIGHT_IMPL_FAILURE;
 }
 
 /**
@@ -523,11 +539,11 @@ function calculateImplementationWeight(data: ImplementationSignalData): number {
  */
 function calculateCliMemoryWeight(data: CliMemorySignalData): number {
   switch (data.category) {
-    case 'decision': return 2.0;  // Architectural decisions most valuable
-    case 'pattern': return 1.8;   // Patterns inform future work
-    case 'insight': return 1.5;   // Codebase knowledge
-    case 'lesson': return 1.5;    // Implementation learnings
-    case 'context': return 1.2;   // General context
-    default: return 1.5;
+    case 'decision': return WEIGHT_CLI_DECISION;
+    case 'pattern': return WEIGHT_CLI_PATTERN;
+    case 'insight': return WEIGHT_CLI_INSIGHT;
+    case 'lesson': return WEIGHT_CLI_LESSON;
+    case 'context': return WEIGHT_CLI_CONTEXT;
+    default: return WEIGHT_CLI_DEFAULT;
   }
 }

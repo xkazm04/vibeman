@@ -1,18 +1,20 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Lightbulb, Filter, RefreshCw, AlertOctagon, Search, Zap, Sparkles } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import BrainPanelHeader from './BrainPanelHeader';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
-import { useBrainStore } from '@/stores/brainStore';
 import { InsightsTable } from './InsightsTable';
 import type { InsightWithMeta, InsightType, SortField, SortDir } from './InsightsTable';
 import GlowCard from './GlowCard';
 import { useReflectionTrigger } from '@/hooks/useReflectionTrigger';
-import { useAbortableFetch } from '@/hooks/useAbortableFetch';
 import { subscribeToReflectionCompletion } from '@/stores/reflectionCompletionEmitter';
+import { brainKeys, useInvalidateBrain } from '../lib/queries';
+import { CACHE_PRESETS } from '@/lib/cache/cache-config';
 
 interface Props {
   scope?: 'project' | 'global';
@@ -178,8 +180,6 @@ function InsightsEmptyState({ scope }: { scope: 'project' | 'global' }) {
 }
 
 export default function InsightsPanel({ scope = 'project' }: Props) {
-  const [insights, setInsights] = useState<InsightWithMeta[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [sortField, setSortField] = useState<SortField>('confidence');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [typeFilter, setTypeFilter] = useState<InsightType | 'all' | 'conflicts'>('all');
@@ -200,7 +200,8 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
 
   const activeProject = useClientProjectStore((state) => state.activeProject);
   const projects = useServerProjectStore((state) => state.projects);
-  const abortableFetch = useAbortableFetch();
+  const queryClient = useQueryClient();
+  const { invalidateInsights } = useInvalidateBrain();
 
   const projectNameMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -208,48 +209,49 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
     return map;
   }, [projects]);
 
-  const fetchInsights = useCallback(async () => {
-    setIsLoading(true);
-    try {
+  // Use useQuery directly to handle global scope (no projectId) correctly
+  const insightsQuery = useQuery({
+    queryKey: brainKeys.insightsList(activeProject?.id ?? '', scope),
+    queryFn: async () => {
       const params = scope === 'global'
         ? 'scope=global'
         : `projectId=${activeProject?.id}`;
-      const response = await abortableFetch(`/api/brain/insights?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        setInsights(data.insights || []);
+      const res = await fetch(`/api/brain/insights?${params}`);
+      if (!res.ok) {
+        const error = new Error(`Brain API error: ${res.status}`) as Error & { status: number };
+        error.status = res.status;
+        throw error;
       }
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
-      console.error('Failed to fetch insights:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [scope, activeProject?.id, abortableFetch]);
+      const json = await res.json();
+      if (json.success === false) {
+        throw new Error(json.error || 'Brain API request failed');
+      }
+      return json as { success: boolean; insights: InsightWithMeta[] };
+    },
+    enabled: scope === 'global' || !!activeProject?.id,
+    ...CACHE_PRESETS.brainInsights,
+  });
 
-  useEffect(() => {
-    if (scope === 'global' || activeProject?.id) {
-      fetchInsights();
-    }
-  }, [scope, activeProject?.id, fetchInsights]);
+  const insights = insightsQuery.data?.insights ?? [];
+  const isLoading = insightsQuery.isLoading;
 
   // Subscribe to reflection completion events for auto-refresh
   useEffect(() => {
-    const unsubscribe = subscribeToReflectionCompletion((reflectionId, projectId, completionScope) => {
+    const unsubscribe = subscribeToReflectionCompletion((_reflectionId, projectId, completionScope) => {
       // Refresh insights when a reflection completes for this project/scope
       if (scope === 'global' && completionScope === 'global') {
-        fetchInsights();
+        invalidateInsights();
       } else if (scope === 'project' && completionScope === 'project' && projectId === activeProject?.id) {
-        fetchInsights();
+        invalidateInsights();
       }
     });
 
     return unsubscribe;
-  }, [scope, activeProject?.id, fetchInsights]);
+  }, [scope, activeProject?.id, invalidateInsights]);
 
   const handleDelete = async (insight: InsightWithMeta) => {
     try {
-      const response = await abortableFetch('/api/brain/insights', {
+      const response = await fetch('/api/brain/insights', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -258,12 +260,21 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
         }),
       });
       if (response.ok) {
-        setInsights(prev => prev.filter(i =>
-          !(i.title === insight.title && i.reflection_id === insight.reflection_id)
-        ));
+        // Optimistically remove from cache, then invalidate
+        queryClient.setQueryData(
+          brainKeys.insightsList(activeProject?.id ?? '', scope),
+          (old: { success: boolean; insights: InsightWithMeta[] } | undefined) => {
+            if (!old) return old;
+            return {
+              ...old,
+              insights: old.insights.filter(i =>
+                !(i.title === insight.title && i.reflection_id === insight.reflection_id)
+              ),
+            };
+          }
+        );
       }
     } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
       console.error('Failed to delete insight:', err);
     }
   };
@@ -273,7 +284,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
     resolution: 'keep_both' | 'keep_this' | 'keep_other'
   ) => {
     try {
-      const response = await abortableFetch('/api/brain/insights', {
+      const response = await fetch('/api/brain/insights', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -285,10 +296,9 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
       });
       if (response.ok) {
         // Refresh insights to get updated state
-        fetchInsights();
+        invalidateInsights();
       }
     } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
       console.error('Failed to resolve conflict:', err);
     }
   };
@@ -420,7 +430,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
               </div>
 
               <button
-                onClick={fetchInsights}
+                onClick={() => insightsQuery.refetch()}
                 disabled={isLoading}
                 className="p-2 rounded-lg transition-all focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none"
                 style={{

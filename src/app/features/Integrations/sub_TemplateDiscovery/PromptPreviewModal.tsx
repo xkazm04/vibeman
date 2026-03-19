@@ -8,6 +8,7 @@
 import { useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import UnifiedButton from '@/components/ui/buttons/UnifiedButton';
+import { SimpleSpinner } from '@/components/ui';
 
 // Lazy load Monaco Editor to avoid initial bundle bloat
 const MonacoEditor = dynamic(() => import('@/components/editor/LazyMonacoEditor'), {
@@ -15,7 +16,7 @@ const MonacoEditor = dynamic(() => import('@/components/editor/LazyMonacoEditor'
   loading: () => (
     <div className="flex items-center justify-center h-[500px] bg-gray-900">
       <div className="flex flex-col items-center space-y-3">
-        <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+        <SimpleSpinner size="lg" color="cyan" />
         <span className="text-sm text-gray-400">Loading editor...</span>
       </div>
     </div>

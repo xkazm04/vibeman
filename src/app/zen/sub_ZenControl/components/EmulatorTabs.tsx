@@ -102,7 +102,7 @@ export default function EmulatorTabs({
               {badgeCount !== null && (
                 <span
                   className={`
-                    min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold flex items-center justify-center
+                    min-w-[16px] h-4 px-1 rounded-full text-2xs font-bold flex items-center justify-center
                     ${isActive
                       ? 'bg-purple-500 text-white'
                       : 'bg-gray-600 text-gray-300'

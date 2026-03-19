@@ -16,7 +16,7 @@ interface SpinnerProps {
 }
 
 const sizeConfig: Record<SpinnerSize, { container: string; ring: string; dot: string; text: string }> = {
-  xs: { container: 'w-4 h-4', ring: 'w-4 h-4', dot: 'w-1 h-1', text: 'text-[10px]' },
+  xs: { container: 'w-4 h-4', ring: 'w-4 h-4', dot: 'w-1 h-1', text: 'text-2xs' },
   sm: { container: 'w-6 h-6', ring: 'w-6 h-6', dot: 'w-1.5 h-1.5', text: 'text-xs' },
   md: { container: 'w-10 h-10', ring: 'w-10 h-10', dot: 'w-2 h-2', text: 'text-sm' },
   lg: { container: 'w-14 h-14', ring: 'w-14 h-14', dot: 'w-2.5 h-2.5', text: 'text-base' },
@@ -268,6 +268,53 @@ export function FeatureSpinner({
     >
       <Spinner size="lg" variant="orbital" label={featureName ? `Loading ${featureName}...` : 'Loading...'} />
     </motion.div>
+  );
+}
+
+// =============================================================================
+// SimpleSpinner — lightweight CSS-only spinner for replacing inline spinners
+// =============================================================================
+
+type SimpleSpinnerSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+type SimpleSpinnerColor = 'cyan' | 'purple' | 'gray' | 'white' | 'green' | 'amber' | 'red';
+
+interface SimpleSpinnerProps {
+  size?: SimpleSpinnerSize;
+  color?: SimpleSpinnerColor;
+  className?: string;
+}
+
+const simpleSizeClasses: Record<SimpleSpinnerSize, string> = {
+  xs: 'w-3.5 h-3.5 border',
+  sm: 'w-4 h-4 border-2',
+  md: 'w-6 h-6 border-2',
+  lg: 'w-8 h-8 border-2',
+  xl: 'w-12 h-12 border-4',
+};
+
+const simpleColorClasses: Record<SimpleSpinnerColor, string> = {
+  cyan: 'border-cyan-500/30 border-t-cyan-400',
+  purple: 'border-purple-500/30 border-t-purple-400',
+  gray: 'border-gray-600/30 border-t-gray-500',
+  white: 'border-white/30 border-t-white',
+  green: 'border-green-500/30 border-t-green-400',
+  amber: 'border-amber-500/30 border-t-amber-400',
+  red: 'border-red-500/30 border-t-red-400',
+};
+
+/**
+ * SimpleSpinner — Pure CSS spinner, no Framer Motion.
+ *
+ * Drop-in replacement for inline `<div className="w-X h-X border-2 ... animate-spin" />` patterns.
+ * Uses `animate-spin` for rotation and consistent color/size tokens.
+ */
+export function SimpleSpinner({ size = 'md', color = 'cyan', className = '' }: SimpleSpinnerProps) {
+  return (
+    <div
+      className={`${simpleSizeClasses[size]} ${simpleColorClasses[color]} rounded-full animate-spin ${className}`}
+      role="status"
+      aria-label="Loading"
+    />
   );
 }
 

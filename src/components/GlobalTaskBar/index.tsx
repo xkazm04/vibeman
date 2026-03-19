@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { ChevronUp, ChevronDown, Zap, CheckCircle, XCircle, Terminal, Clock } from 'lucide-react';
 import { useTaskRunnerStore } from '@/app/features/TaskRunner/store/taskRunnerStore';
 import { useAllSessions, type CLISessionId } from '@/components/cli/store';
@@ -353,7 +354,7 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3 }}
+              transition={transition.deliberate}
               className="relative overflow-hidden"
             >
               {/* Header */}
@@ -502,7 +503,7 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
                                   </span>
                                 )}
                                 {session.isRunning && (
-                                  <span className="px-1.5 py-0.5 text-[10px] bg-cyan-500/20 text-cyan-400 rounded">
+                                  <span className="px-1.5 py-0.5 text-2xs bg-cyan-500/20 text-cyan-400 rounded">
                                     running
                                   </span>
                                 )}

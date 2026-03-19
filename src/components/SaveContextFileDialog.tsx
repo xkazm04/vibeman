@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { X, Save, Folder, FileText, AlertCircle } from 'lucide-react';
 import FolderSelector from './FolderSelector';
 import { useClientProjectStore } from '../stores/clientProjectStore';
 import { useThemeStore } from '@/stores/themeStore';
+import { SimpleSpinner } from '@/components/ui/Spinner';
 
 interface SaveContextFileDialogProps {
   isOpen: boolean;
@@ -87,7 +89,7 @@ export default function SaveContextFileDialog({
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ duration: 0.2 }}
+          transition={transition.normal}
           className="bg-gray-900 border border-gray-700 rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
@@ -192,7 +194,7 @@ export default function SaveContextFileDialog({
                 >
                   {saving ? (
                     <>
-                      <div className={`w-4 h-4 border-2 ${colors.text} border-t-transparent rounded-full animate-spin`}></div>
+                      <SimpleSpinner size="sm" color="cyan" />
                       <span>Saving...</span>
                     </>
                   ) : (

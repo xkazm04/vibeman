@@ -51,8 +51,10 @@ export interface PersistenceStrategy<T extends BaseSession> {
   getById: (id: string) => T | null | Promise<T | null>;
   save: (session: T) => void | Promise<void>;
   delete: (id: string) => boolean | Promise<boolean>;
-  updateHeartbeat: (id: string) => void | Promise<void>;
+  updateHeartbeat: (id: string) => HeartbeatResult | Promise<HeartbeatResult>;
 }
+
+export type HeartbeatResult = 'updated' | 'not_found' | 'inactive' | 'error';
 
 // ============================================================================
 // LIFECYCLE HOOKS

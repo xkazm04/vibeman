@@ -79,7 +79,7 @@ const ExternalRequirementItem = React.memo(function ExternalRequirementItem({
       {/* Top row: priority + title */}
       <div className="flex items-start gap-2 mb-1.5">
         <span
-          className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0 ${priorityColor}`}
+          className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded text-2xs font-bold border flex-shrink-0 ${priorityColor}`}
           title={`Priority: ${requirement.priority}/10`}
         >
           P{requirement.priority}
@@ -93,7 +93,7 @@ const ExternalRequirementItem = React.memo(function ExternalRequirementItem({
       </div>
 
       {/* Metadata row */}
-      <div className="flex items-center gap-2 text-[10px] text-gray-500 mb-1.5">
+      <div className="flex items-center gap-2 text-2xs text-gray-500 mb-1.5">
         <span className="truncate max-w-[80px]" title={requirement.source_app}>
           {requirement.source_app}
         </span>
@@ -110,7 +110,7 @@ const ExternalRequirementItem = React.memo(function ExternalRequirementItem({
       {/* Status badge + processing state */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] ${statusStyle.bg} ${statusStyle.text}`}>
+          <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-2xs ${statusStyle.bg} ${statusStyle.text}`}>
             <StatusIcon className={`w-2.5 h-2.5 ${isBusy ? 'animate-spin' : ''}`} />
             <span>
               {isProcessing ? processingState?.status : requirement.status.replace('_', ' ')}
@@ -155,7 +155,7 @@ const ExternalRequirementItem = React.memo(function ExternalRequirementItem({
 
       {/* Error message */}
       {isFailed && (requirement.error_message || processingState?.error) && (
-        <div className="mt-1.5 text-[10px] text-red-400/80 leading-tight line-clamp-2">
+        <div className="mt-1.5 text-2xs text-red-400/80 leading-tight line-clamp-2">
           {processingState?.error || requirement.error_message}
         </div>
       )}

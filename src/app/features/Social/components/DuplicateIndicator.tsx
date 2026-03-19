@@ -30,7 +30,7 @@ export default function DuplicateIndicator({
     if (duplicateGroup && duplicateGroup.duplicates.length > 0) {
       return (
         <span
-          className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 text-amber-400 rounded text-[10px] cursor-pointer hover:bg-amber-500/20"
+          className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 text-amber-400 rounded text-2xs cursor-pointer hover:bg-amber-500/20"
           title={`${duplicateGroup.duplicates.length} duplicate${duplicateGroup.duplicates.length !== 1 ? 's' : ''} found`}
           onClick={() => setExpanded(!expanded)}
         >
@@ -43,7 +43,7 @@ export default function DuplicateIndicator({
     if (duplicateOf) {
       return (
         <span
-          className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-zinc-500/10 text-zinc-400 rounded text-[10px] cursor-pointer hover:bg-zinc-500/20"
+          className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-zinc-500/10 text-zinc-400 rounded text-2xs cursor-pointer hover:bg-zinc-500/20"
           title={`Duplicate of another item (${Math.round(duplicateOf.similarity * 100)}% similar)`}
           onClick={() => onViewItem?.(duplicateOf.item)}
         >
@@ -79,7 +79,7 @@ export default function DuplicateIndicator({
                 <p className="text-xs text-zinc-300 line-clamp-2">
                   {dup.content.subject || dup.content.body}
                 </p>
-                <div className="flex items-center gap-2 mt-1 text-[10px] text-zinc-500">
+                <div className="flex items-center gap-2 mt-1 text-2xs text-zinc-500">
                   <span>{Math.round(duplicateGroup.scores[idx] * 100)}% match</span>
                   <span>{dup.channel}</span>
                 </div>
@@ -89,7 +89,7 @@ export default function DuplicateIndicator({
           ))}
         </div>
 
-        <p className="text-[10px] text-zinc-500 mt-2">
+        <p className="text-2xs text-zinc-500 mt-2">
           These items appear to be duplicates based on content similarity.
         </p>
       </div>

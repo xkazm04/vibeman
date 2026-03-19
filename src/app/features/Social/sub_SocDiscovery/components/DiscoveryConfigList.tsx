@@ -4,6 +4,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Trash2, Clock, Hash, Plus } from 'lucide-react';
 import type { DiscoveryConfig } from '../lib/types';
+import { SimpleSpinner } from '@/components/ui/Spinner';
 
 interface DiscoveryConfigListProps {
   configs: DiscoveryConfig[];
@@ -33,7 +34,7 @@ export function DiscoveryConfigList({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8 text-gray-500">
-        <div className="animate-spin w-5 h-5 border-2 border-gray-600 border-t-cyan-500 rounded-full" />
+        <SimpleSpinner size="sm" color="cyan" />
       </div>
     );
   }

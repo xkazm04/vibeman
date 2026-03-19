@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import {
   Ear, Radio, MicOff, Mic, Volume2, VolumeX, Zap, X, Trash2,
   MessageSquare, AlertTriangle, HelpCircle, Sparkles, ChevronDown,
@@ -79,7 +80,7 @@ function StateBadge({ state }: { state: string }) {
   const cfg = configs[state] || configs.idle;
 
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${cfg.color}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-medium border ${cfg.color}`}>
       {cfg.pulse && (
         <span className="relative flex h-1.5 w-1.5">
           <span className="absolute inline-flex h-full w-full rounded-full bg-current opacity-75 animate-ping" />
@@ -252,7 +253,7 @@ export default function AmbientVoicePanel() {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.15 }}
+            transition={transition.snappy}
             className="overflow-hidden border-b border-slate-800/30"
           >
             <div className="px-4 py-2 space-y-2">
@@ -262,7 +263,7 @@ export default function AmbientVoicePanel() {
                 <div className="flex items-center gap-1 bg-slate-800/50 rounded-lg p-0.5">
                   <button
                     onClick={() => setPipeline('annette')}
-                    className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 outline-none ${
+                    className={`px-2 py-0.5 rounded-md text-2xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 outline-none ${
                       pipeline === 'annette'
                         ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
                         : 'text-slate-500 hover:text-slate-300'
@@ -272,7 +273,7 @@ export default function AmbientVoicePanel() {
                   </button>
                   <button
                     onClick={() => setPipeline('simple')}
-                    className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 outline-none ${
+                    className={`px-2 py-0.5 rounded-md text-2xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 outline-none ${
                       pipeline === 'simple'
                         ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
                         : 'text-slate-500 hover:text-slate-300'
@@ -287,7 +288,7 @@ export default function AmbientVoicePanel() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={toggleTts}
-                  className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 outline-none ${
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-2xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 outline-none ${
                     ttsEnabled
                       ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                       : 'text-slate-500 bg-slate-800/40 border border-slate-700/30'
@@ -299,7 +300,7 @@ export default function AmbientVoicePanel() {
                 {ttsEnabled && (
                   <button
                     onClick={toggleAutoPlay}
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 outline-none ${
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-2xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 outline-none ${
                       autoPlay
                         ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
                         : 'text-slate-500 bg-slate-800/40 border border-slate-700/30'
@@ -312,7 +313,7 @@ export default function AmbientVoicePanel() {
               </div>
 
               {/* Wake words info */}
-              <div className="text-[10px] text-slate-600">
+              <div className="text-2xs text-slate-600">
                 Wake words: <span className="text-slate-500">&quot;Hey Annette&quot;, &quot;Annette&quot;</span>
               </div>
             </div>
@@ -360,7 +361,7 @@ export default function AmbientVoicePanel() {
                   <Zap className="w-3 h-3 text-amber-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-amber-300">{s.suggestion}</p>
-                    <p className="text-[10px] text-slate-600 truncate mt-0.5">
+                    <p className="text-2xs text-slate-600 truncate mt-0.5">
                       Heard: &quot;{s.trigger.slice(0, 60)}{s.trigger.length > 60 ? '...' : ''}&quot;
                     </p>
                   </div>
@@ -386,7 +387,7 @@ export default function AmbientVoicePanel() {
             <p className="text-xs">
               {mode === 'ambient' ? 'Listening for speech...' : 'Press and hold to speak'}
             </p>
-            <p className="text-[10px] mt-1 text-slate-700">
+            <p className="text-2xs mt-1 text-slate-700">
               Say &quot;Hey Annette&quot; to talk to me
             </p>
           </div>
@@ -396,7 +397,7 @@ export default function AmbientVoicePanel() {
           <div className="flex flex-col items-center justify-center py-8 text-slate-600">
             <MicOff className="w-6 h-6 mb-2 opacity-40" />
             <p className="text-xs">Voice companion is off</p>
-            <p className="text-[10px] mt-1 text-slate-700">Click Start to begin</p>
+            <p className="text-2xs mt-1 text-slate-700">Click Start to begin</p>
           </div>
         )}
 
@@ -418,10 +419,10 @@ export default function AmbientVoicePanel() {
                   {t.text}
                 </span>
                 {t.isDirected && (
-                  <span className="ml-1.5 text-[10px] text-cyan-500/60 font-medium">DIRECTED</span>
+                  <span className="ml-1.5 text-2xs text-cyan-500/60 font-medium">DIRECTED</span>
                 )}
               </div>
-              <span className="text-[10px] text-slate-600 flex-shrink-0">
+              <span className="text-2xs text-slate-600 flex-shrink-0">
                 {new Date(t.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </span>
             </motion.div>
@@ -451,12 +452,12 @@ export default function AmbientVoicePanel() {
       {/* ── Footer ── */}
       {recentTranscripts.length > 0 && (
         <div className="border-t border-slate-800/50 px-4 py-1.5 flex items-center justify-between">
-          <span className="text-[10px] text-slate-600">
+          <span className="text-2xs text-slate-600">
             {transcripts.length} transcript{transcripts.length !== 1 ? 's' : ''}
           </span>
           <button
             onClick={clearTranscripts}
-            className="flex items-center gap-1 text-[10px] text-slate-600 hover:text-slate-400 transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 outline-none rounded"
+            className="flex items-center gap-1 text-2xs text-slate-600 hover:text-slate-400 transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 outline-none rounded"
           >
             <Trash2 className="w-2.5 h-2.5" />
             Clear

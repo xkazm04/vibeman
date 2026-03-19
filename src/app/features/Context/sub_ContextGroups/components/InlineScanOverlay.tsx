@@ -223,19 +223,19 @@ ${'='.repeat(40)}
 
           {/* Stats badge */}
           {toolUseCount > 0 && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-400 font-mono">
+            <span className="text-2xs px-1.5 py-0.5 rounded bg-gray-800 text-gray-400 font-mono">
               {editCount > 0 ? `${editCount}E` : ''} {toolUseCount}T
             </span>
           )}
 
           {isComplete && activeScan.summary && (
-            <span className="text-[10px] text-green-400 font-mono">
+            <span className="text-2xs text-green-400 font-mono">
               {activeScan.summary.filesFixed} fixed
             </span>
           )}
 
           {isFailed && (
-            <span className="text-[10px] text-red-400 font-mono">
+            <span className="text-2xs text-red-400 font-mono">
               failed
             </span>
           )}
@@ -304,7 +304,7 @@ ${'='.repeat(40)}
             <div
               ref={terminalRef}
               onScroll={handleScroll}
-              className="h-full overflow-y-auto font-mono text-[11px] leading-relaxed"
+              className="h-full overflow-y-auto font-mono text-caption leading-relaxed"
               style={{ maxHeight: 'calc(100% - 32px)' }}
             >
               {messages.length === 0 ? (
@@ -327,7 +327,7 @@ ${'='.repeat(40)}
 
               {/* Streaming indicator */}
               {isRunning && messages.length > 0 && (
-                <div className="px-2 py-1 text-[10px] text-gray-500 flex items-center gap-1">
+                <div className="px-2 py-1 text-2xs text-gray-500 flex items-center gap-1">
                   <div className="w-1 h-1 bg-cyan-400 rounded-full animate-pulse" />
                   Scanning...
                 </div>
@@ -355,7 +355,7 @@ ${'='.repeat(40)}
 
       {/* Minimized status bar */}
       {isMinimized && (
-        <div className="px-3 py-1.5 text-[10px] text-gray-400 font-mono flex items-center justify-between">
+        <div className="px-3 py-1.5 text-2xs text-gray-400 font-mono flex items-center justify-between">
           <span>
             {isRunning ? (
               <>Processing {messages.length} lines...</>

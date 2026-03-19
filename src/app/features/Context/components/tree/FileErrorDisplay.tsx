@@ -21,6 +21,7 @@ import {
   classifyFileError,
   getFileOperationErrorDetails,
 } from './fileOperationErrors';
+import { buttonVariants } from '@/lib/design-tokens';
 
 interface FileErrorDisplayProps {
   errorMessage: string;
@@ -181,7 +182,7 @@ export default function FileErrorDisplay({
             onClick={onRetry}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className={`flex items-center gap-2 px-4 py-2.5 ${colors.buttonBg} ${colors.buttonBorder} border rounded-lg ${colors.text} font-semibold transition-all shadow-lg`}
+            className={`flex items-center gap-2 ${buttonVariants.secondary} ${colors.text} font-semibold`}
             data-testid="file-error-retry-btn"
           >
             <RefreshCw className="w-4 h-4" />
@@ -195,7 +196,7 @@ export default function FileErrorDisplay({
             onClick={onSwitchToReadOnly}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/40 rounded-lg text-blue-300 font-semibold transition-all shadow-lg"
+            className={`flex items-center gap-2 ${buttonVariants.secondary} text-blue-300 font-semibold`}
             data-testid="file-error-readonly-btn"
           >
             <Eye className="w-4 h-4" />
@@ -209,7 +210,7 @@ export default function FileErrorDisplay({
             onClick={onDiscardChanges}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gray-500/20 hover:bg-gray-500/30 border border-gray-500/40 rounded-lg text-gray-300 font-semibold transition-all shadow-lg"
+            className={`flex items-center gap-2 ${buttonVariants.secondary} font-semibold`}
             data-testid="file-error-discard-btn"
           >
             <Trash2 className="w-4 h-4" />

@@ -14,6 +14,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Compass, Activity, RefreshCw, Calendar, Settings, Grid3X3, List, Database } from 'lucide-react';
+import { useTabNavigation } from '@/hooks/useTabNavigation';
 
 // Architecture components from Docs
 import SystemMap from '@/app/features/Docs/sub_DocsAnalysis/components/SystemMap';
@@ -82,6 +83,8 @@ export default function ObservatoryDashboard() {
   const projectId = activeProject?.id || clientProject?.id || '';
   const projectPath = activeProject?.path || clientProject?.path || '';
   const projectName = activeProject?.name || clientProject?.name || 'Unknown Project';
+
+  const { tablistRef: obsTablistRef, handleKeyDown: handleObsTabKeyDown } = useTabNavigation();
 
   // View state
   const [viewMode, setViewMode] = useState<ViewMode>('architecture');
@@ -353,10 +356,19 @@ export default function ObservatoryDashboard() {
 
         <div className="flex items-center gap-3">
           {/* View Mode Toggle */}
-          <div className="flex items-center gap-1 bg-gray-800/50 rounded-lg p-1">
+          <div
+            ref={obsTablistRef}
+            role="tablist"
+            aria-label="Observatory view mode"
+            onKeyDown={handleObsTabKeyDown}
+            className="flex items-center gap-1 bg-gray-800/50 rounded-lg p-1"
+          >
             <button
+              role="tab"
+              aria-selected={viewMode === 'architecture'}
+              tabIndex={viewMode === 'architecture' ? 0 : -1}
               onClick={() => setViewMode('architecture')}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-2 ${
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
                 viewMode === 'architecture'
                   ? 'bg-cyan-500/20 text-cyan-300'
                   : 'text-gray-400 hover:text-gray-200'
@@ -366,8 +378,11 @@ export default function ObservatoryDashboard() {
               Architecture
             </button>
             <button
+              role="tab"
+              aria-selected={viewMode === 'metrics'}
+              tabIndex={viewMode === 'metrics' ? 0 : -1}
               onClick={() => setViewMode('metrics')}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-2 ${
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
                 viewMode === 'metrics'
                   ? 'bg-cyan-500/20 text-cyan-300'
                   : 'text-gray-400 hover:text-gray-200'
@@ -377,8 +392,11 @@ export default function ObservatoryDashboard() {
               Metrics
             </button>
             <button
+              role="tab"
+              aria-selected={viewMode === 'database'}
+              tabIndex={viewMode === 'database' ? 0 : -1}
               onClick={() => setViewMode('database')}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-2 ${
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
                 viewMode === 'database'
                   ? 'bg-cyan-500/20 text-cyan-300'
                   : 'text-gray-400 hover:text-gray-200'
@@ -397,7 +415,9 @@ export default function ObservatoryDashboard() {
                 <button
                   key={opt.value}
                   onClick={() => setDays(opt.value)}
-                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                  aria-label={`Show last ${opt.label}`}
+                  aria-pressed={days === opt.value}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 ${
                     days === opt.value
                       ? 'bg-cyan-500/20 text-cyan-300'
                       : 'text-gray-400 hover:text-gray-200'
@@ -431,7 +451,8 @@ export default function ObservatoryDashboard() {
           {/* Settings */}
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className={`p-2 rounded-lg transition-colors ${
+            aria-label={showSettings ? 'Close settings' : 'Open settings'}
+            className={`p-2 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
               showSettings ? 'bg-gray-700 text-gray-200' : 'bg-gray-800/50 text-gray-400 hover:text-gray-200'
             }`}
           >
@@ -441,7 +462,8 @@ export default function ObservatoryDashboard() {
           {/* Refresh */}
           <button
             onClick={loadData}
-            className="p-2 rounded-lg bg-gray-800/50 text-gray-400 hover:text-gray-200 transition-colors"
+            aria-label="Refresh data"
+            className="p-2 rounded-lg bg-gray-800/50 text-gray-400 hover:text-gray-200 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
           >
             <RefreshCw className="w-5 h-5" />
           </button>
@@ -458,7 +480,8 @@ export default function ObservatoryDashboard() {
             </div>
             <button
               onClick={handleToggleEnabled}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              aria-pressed={state.config.enabled}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
                 state.config.enabled
                   ? 'bg-green-500/20 text-green-300 border border-green-500/40'
                   : 'bg-gray-700 text-gray-400'
@@ -484,7 +507,7 @@ export default function ObservatoryDashboard() {
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/30 bg-gray-900/40 backdrop-blur-sm">
             <div className="flex items-center gap-3">
               <div>
-                <p className="text-[10px] text-gray-500">{currentLevelLabel}</p>
+                <p className="text-2xs text-gray-500">{currentLevelLabel}</p>
               </div>
             </div>
 
@@ -620,7 +643,7 @@ export default function ObservatoryDashboard() {
               </div>
               <button
                 onClick={() => setSelectedGroupId(null)}
-                className="px-3 py-1 text-sm text-cyan-300 hover:text-cyan-200 bg-cyan-500/20 rounded-lg"
+                className="px-3 py-1 text-sm text-cyan-300 hover:text-cyan-200 bg-cyan-500/20 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50"
               >
                 Clear Filter
               </button>

@@ -33,8 +33,8 @@ export function EventDetailDrawer({ selectedEvent, onDelete, onClose }: EventDet
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs font-semibold text-zinc-200">{LABELS[selectedEvent.type]}</span>
-                  <span className="text-[10px] text-zinc-500">{relTime(selectedEvent.timestamp)}</span>
-                  <span className="text-[10px] text-zinc-500 ml-auto">{selectedEvent.context_name}</span>
+                  <span className="text-2xs text-zinc-500">{relTime(selectedEvent.timestamp)}</span>
+                  <span className="text-2xs text-zinc-500 ml-auto">{selectedEvent.context_name}</span>
                 </div>
                 <div className="text-sm font-medium text-zinc-100 mb-2">{selectedEvent.summary}</div>
                 <div className="flex items-center gap-3">
@@ -45,12 +45,12 @@ export function EventDetailDrawer({ selectedEvent, onDelete, onClose }: EventDet
                         backgroundColor: COLORS[selectedEvent.type],
                       }} />
                     </div>
-                    <span className="text-[10px] text-zinc-500">{selectedEvent.weight.toFixed(1)}</span>
+                    <span className="text-2xs text-zinc-500">{selectedEvent.weight.toFixed(1)}</span>
                   </div>
                   <button
                     onClick={() => onDelete(selectedEvent)}
                     aria-label="Delete event"
-                    className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-500/10 border border-red-500/30 text-red-400 text-[10px] font-medium hover:bg-red-500/20 transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/50 outline-none"
+                    className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-500/10 border border-red-500/30 text-red-400 text-2xs font-medium hover:bg-red-500/20 transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/50 outline-none"
                   >
                     <Trash2 size={10} />
                     Delete

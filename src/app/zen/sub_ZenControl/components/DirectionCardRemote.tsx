@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { Calendar, Compass, MapPin, Wifi } from 'lucide-react';
+import { SimpleSpinner } from '@/components/ui';
 import type { RemoteDirection } from '@/stores/remoteWorkStore';
 import { stripMarkdownListPrefix } from '@/lib/stringUtils';
 
@@ -91,13 +92,13 @@ function CompactMarkdown({ content }: { content: string }) {
         elements.push(
           <ul key={i} className="space-y-0.5 ml-2">
             {listItems.slice(0, 5).map((item, idx) => (
-              <li key={idx} className="text-[11px] text-gray-300 flex items-start gap-1">
+              <li key={idx} className="text-caption text-gray-300 flex items-start gap-1">
                 <span className="text-purple-400 mt-0.5">-</span>
                 <span className="line-clamp-1">{renderInline(item)}</span>
               </li>
             ))}
             {listItems.length > 5 && (
-              <li className="text-[10px] text-gray-500 ml-3">+{listItems.length - 5} more...</li>
+              <li className="text-2xs text-gray-500 ml-3">+{listItems.length - 5} more...</li>
             )}
           </ul>
         );
@@ -105,7 +106,7 @@ function CompactMarkdown({ content }: { content: string }) {
       // Regular paragraphs
       else {
         elements.push(
-          <p key={i} className="text-[11px] text-gray-300 leading-relaxed line-clamp-2">
+          <p key={i} className="text-caption text-gray-300 leading-relaxed line-clamp-2">
             {renderInline(line)}
           </p>
         );
@@ -249,7 +250,7 @@ export default function DirectionCardRemote({
         {/* Processing overlay */}
         {isProcessing && (
           <div className="absolute inset-0 bg-gray-900/60 z-20 flex items-center justify-center">
-            <div className="w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+            <SimpleSpinner size="md" color="purple" />
           </div>
         )}
 
@@ -266,7 +267,7 @@ export default function DirectionCardRemote({
               </h3>
               <div className="flex items-center gap-1.5 mt-1">
                 <Wifi className="w-3 h-3 text-purple-400" />
-                <span className="text-[10px] text-purple-400 uppercase tracking-wide">
+                <span className="text-2xs text-purple-400 uppercase tracking-wide">
                   Remote Direction
                 </span>
               </div>
@@ -278,7 +279,7 @@ export default function DirectionCardRemote({
             <div className="flex items-center gap-1.5 mb-2 px-2 py-1.5 bg-gray-800/60 border border-gray-700/40 rounded-md">
               <MapPin className="w-3 h-3 text-purple-400 shrink-0" />
               <div className="min-w-0">
-                <div className="text-[9px] text-gray-500 uppercase">Context</div>
+                <div className="text-micro text-gray-500 uppercase">Context</div>
                 <div className="text-xs font-medium text-gray-300 truncate">
                   {direction.context_map_title}
                 </div>

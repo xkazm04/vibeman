@@ -6,6 +6,7 @@ import { Context, ContextGroup, useContextStore } from '@/stores/contextStore';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import { normalizePath } from '@/utils/pathUtils';
+import { buttonVariants } from '@/lib/design-tokens';
 import ContextGenForm from './ContextGenForm';
 import ContextGenFiles from './ContextGenFiles';
 
@@ -200,14 +201,14 @@ export default function ContextEditModal({
           <button
             onClick={handleSave}
             disabled={loading || !contextName.trim() || contextFilePaths.length === 0}
-            className="flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 rounded-xl hover:from-cyan-500/30 hover:to-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium border border-cyan-500/30 whitespace-nowrap shadow-lg"
+            className={`flex items-center justify-center space-x-2 ${buttonVariants.primary} disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap shadow-lg`}
           >
             <Save className="w-4 h-4" />
             <span>{loading ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Context'}</span>
           </button>
           <button
             onClick={handleCancel}
-            className="px-6 py-3 text-sm text-gray-400 hover:text-gray-300 transition-colors border border-gray-700/30 rounded-xl hover:bg-gray-800/20"
+            className={`${buttonVariants.ghost} text-sm`}
           >
             Cancel
           </button>

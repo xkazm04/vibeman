@@ -216,7 +216,7 @@ export default function MonitorReviewTable() {
                         <td key={call.callId} className="px-2 py-2 border-l border-gray-800/30">
                           <div className={`${roleColors.bg} ${roleColors.border} border rounded p-2 text-sm relative`}>
                             <div className="flex items-center justify-between mb-1">
-                              <span className={`${roleColors.text} font-semibold uppercase text-[10px]`}>
+                              <span className={`${roleColors.text} font-semibold uppercase text-2xs`}>
                                 {message.role}
                               </span>
                               <div className="flex gap-1">
@@ -232,7 +232,7 @@ export default function MonitorReviewTable() {
                               {truncateText(message.content, 80)}
                             </div>
                             {message.evalClass && (
-                              <div className="mt-1 text-[10px] text-cyan-400 font-mono">
+                              <div className="mt-1 text-2xs text-cyan-400 font-mono">
                                 {message.evalClass}
                               </div>
                             )}

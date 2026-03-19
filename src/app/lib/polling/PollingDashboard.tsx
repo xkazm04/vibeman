@@ -168,7 +168,7 @@ function PollerCard({ poller }: { poller: PollerMetadata }) {
             <div className="text-sm font-medium text-gray-200 truncate max-w-[150px]">
               {poller.name}
             </div>
-            <div className="text-[10px] text-gray-500 capitalize">
+            <div className="text-2xs text-gray-500 capitalize">
               {poller.type.replace('-', ' ')}
             </div>
           </div>
@@ -181,13 +181,13 @@ function PollerCard({ poller }: { poller: PollerMetadata }) {
       {/* Metrics */}
       <div className="grid grid-cols-2 gap-2 mb-2">
         <div>
-          <div className="text-[10px] text-gray-500">Success Rate</div>
+          <div className="text-2xs text-gray-500">Success Rate</div>
           <div className={`text-sm font-mono ${getStatusColor()}`}>
             {successRate.toFixed(1)}%
           </div>
         </div>
         <div>
-          <div className="text-[10px] text-gray-500">Avg Latency</div>
+          <div className="text-2xs text-gray-500">Avg Latency</div>
           <div className="text-sm font-mono text-gray-300">
             {poller.stats.averageLatency.toFixed(0)}ms
           </div>
@@ -196,7 +196,7 @@ function PollerCard({ poller }: { poller: PollerMetadata }) {
 
       {/* Sparkline */}
       <div className="flex items-center justify-between">
-        <div className="text-[10px] text-gray-500">
+        <div className="text-2xs text-gray-500">
           {poller.stats.totalPolls} polls
         </div>
         <Sparkline
@@ -209,14 +209,14 @@ function PollerCard({ poller }: { poller: PollerMetadata }) {
 
       {/* Interval indicator */}
       <div className="mt-2 pt-2 border-t border-gray-700/50">
-        <div className="flex items-center justify-between text-[10px]">
+        <div className="flex items-center justify-between text-2xs">
           <span className="text-gray-500">Interval</span>
           <span className="text-gray-400 font-mono">
             {(poller.config.interval / 1000).toFixed(1)}s
           </span>
         </div>
         {poller.config.adaptive?.enabled && (
-          <div className="flex items-center gap-1 mt-1 text-[10px] text-blue-400">
+          <div className="flex items-center gap-1 mt-1 text-2xs text-blue-400">
             {poller.stats.consecutiveSuccesses > poller.stats.consecutiveFailures ? (
               <TrendingUp className="w-3 h-3" />
             ) : (
@@ -320,13 +320,13 @@ export default function PollingDashboard({
                 <div className="bg-gray-800/30 px-3 py-2 border-b border-gray-700/50">
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
-                      <div className="text-[10px] text-gray-500 mb-1">Total Pollers</div>
+                      <div className="text-2xs text-gray-500 mb-1">Total Pollers</div>
                       <div className="text-lg font-mono text-gray-200">
                         {pollers.length}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-gray-500 mb-1">Success Rate</div>
+                      <div className="text-2xs text-gray-500 mb-1">Success Rate</div>
                       <div className={`text-lg font-mono ${
                         overallSuccessRate >= 90 ? 'text-green-400' :
                         overallSuccessRate >= 70 ? 'text-yellow-400' :
@@ -336,7 +336,7 @@ export default function PollingDashboard({
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-gray-500 mb-1">Total Polls</div>
+                      <div className="text-2xs text-gray-500 mb-1">Total Polls</div>
                       <div className="text-lg font-mono text-gray-200">
                         {totalPolls}
                       </div>

@@ -1,10 +1,18 @@
 'use client';
 
 import React, { useMemo, useCallback, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { HelpCircle, Compass } from 'lucide-react';
 import { DbQuestion, DbDirection } from '@/app/db';
 import { DataTable, TableColumn, TableStat } from '@/components/tables';
 import { QuestionDirectionRow, UnifiedItem } from './QuestionDirectionRow';
+
+const countVariants = {
+  initial: { scale: 0.8, opacity: 0 },
+  animate: { scale: 1, opacity: 1 },
+  exit: { scale: 0.8, opacity: 0 },
+};
+const countTransition = { duration: 0.1 };
 
 type TypeFilter = 'all' | 'questions' | 'directions';
 type StatusFilter = 'all' | 'pending' | 'accepted' | 'rejected' | 'answered';
@@ -213,10 +221,22 @@ export default function UnifiedTable({
                   >
                     {Icon && <Icon className="w-3 h-3" />}
                     {seg.label}
-                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono leading-none ${
+                    <span className={`px-1.5 py-0.5 rounded-full text-2xs font-mono leading-none ${
                       isActive ? 'bg-white/10' : 'bg-zinc-800/80'
                     }`}>
-                      {count}
+                      <AnimatePresence mode="wait">
+                        <motion.span
+                          key={count}
+                          variants={countVariants}
+                          initial="initial"
+                          animate="animate"
+                          exit="exit"
+                          transition={countTransition}
+                          className="inline-block"
+                        >
+                          {count}
+                        </motion.span>
+                      </AnimatePresence>
                     </span>
                   </button>
                 );
@@ -236,17 +256,29 @@ export default function UnifiedTable({
                   key={pill.id}
                   onClick={() => setStatusFilter(pill.id)}
                   aria-pressed={isActive}
-                  className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] font-medium transition-all ${
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-caption font-medium transition-all ${
                     isActive
                       ? pill.activeColor
                       : `${pill.color} hover:bg-zinc-800/60`
                   }`}
                 >
                   {pill.label}
-                  <span className={`px-1 py-0.5 rounded-full text-[10px] font-mono leading-none ${
+                  <span className={`px-1 py-0.5 rounded-full text-2xs font-mono leading-none ${
                     isActive ? 'bg-white/10' : 'bg-zinc-800/80'
                   }`}>
-                    {count}
+                    <AnimatePresence mode="wait">
+                      <motion.span
+                        key={count}
+                        variants={countVariants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        transition={countTransition}
+                        className="inline-block"
+                      >
+                        {count}
+                      </motion.span>
+                    </AnimatePresence>
                   </span>
                 </button>
               );
@@ -254,6 +286,12 @@ export default function UnifiedTable({
           </div>
         </div>
       )}
+
+      {/* Screen reader announcement for filter changes */}
+      <div aria-live="polite" className="sr-only">
+        {items.length} {typeFilter === 'all' ? 'items' : typeFilter} shown
+        {statusFilter !== 'all' ? `, filtered by ${statusFilter}` : ''}
+      </div>
 
       <DataTable
         items={items}

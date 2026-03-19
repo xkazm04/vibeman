@@ -152,29 +152,29 @@ export default function ContextIndicatorBar({
         {/* Pills */}
         <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-hidden">
           {isLoading && !summary && (
-            <span className="text-[11px] text-slate-500">Loading context...</span>
+            <span className="text-caption text-slate-500">Loading context...</span>
           )}
 
           {!isLoading && !hasContext && (
-            <span className="text-[11px] text-slate-500">No context loaded</span>
+            <span className="text-caption text-slate-500">No context loaded</span>
           )}
 
           {hasContext && (
             <>
               {memoryCount > 0 && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 text-[10px] font-medium shrink-0">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 text-2xs font-medium shrink-0">
                   <Database className="w-2.5 h-2.5" />
                   {memoryCount} {memoryCount === 1 ? 'memory' : 'memories'}
                 </span>
               )}
               {nodeCount > 0 && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 text-[10px] font-medium shrink-0">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 text-2xs font-medium shrink-0">
                   <Network className="w-2.5 h-2.5" />
                   {nodeCount} {nodeCount === 1 ? 'node' : 'nodes'}
                 </span>
               )}
               {dismissedMemories.size + dismissedNodes.size > 0 && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px] font-medium shrink-0">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 text-2xs font-medium shrink-0">
                   <X className="w-2.5 h-2.5" />
                   {dismissedMemories.size + dismissedNodes.size} hidden
                 </span>
@@ -223,10 +223,10 @@ export default function ContextIndicatorBar({
                 <div>
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <Database className="w-3 h-3 text-purple-400" />
-                    <span className="text-[11px] font-medium text-purple-300">
+                    <span className="text-caption font-medium text-purple-300">
                       Active Memories
                     </span>
-                    <span className="text-[10px] text-slate-500">
+                    <span className="text-2xs text-slate-500">
                       ({summary.memories.total} total)
                     </span>
                   </div>
@@ -238,10 +238,10 @@ export default function ContextIndicatorBar({
                         data-testid={`context-memory-${mem.id}`}
                       >
                         <ImportanceDot score={mem.importance} />
-                        <span className="text-[10px] text-slate-500 uppercase tracking-wider w-12 shrink-0">
+                        <span className="text-2xs text-slate-500 uppercase tracking-wider w-12 shrink-0">
                           {MEMORY_TYPE_LABELS[mem.type] || mem.type}
                         </span>
-                        <span className="text-[11px] text-slate-300 truncate flex-1 min-w-0">
+                        <span className="text-caption text-slate-300 truncate flex-1 min-w-0">
                           {mem.content}
                         </span>
                         <button
@@ -263,10 +263,10 @@ export default function ContextIndicatorBar({
                 <div>
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <Network className="w-3 h-3 text-cyan-400" />
-                    <span className="text-[11px] font-medium text-cyan-300">
+                    <span className="text-caption font-medium text-cyan-300">
                       Knowledge Graph
                     </span>
-                    <span className="text-[10px] text-slate-500">
+                    <span className="text-2xs text-slate-500">
                       ({summary.knowledge.totalNodes} nodes, {summary.knowledge.totalEdges} edges)
                     </span>
                   </div>
@@ -278,10 +278,10 @@ export default function ContextIndicatorBar({
                         data-testid={`context-node-${node.id}`}
                       >
                         <ImportanceDot score={node.importance} />
-                        <span className="text-[10px] text-slate-500 uppercase tracking-wider w-12 shrink-0">
+                        <span className="text-2xs text-slate-500 uppercase tracking-wider w-12 shrink-0">
                           {NODE_TYPE_LABELS[node.type] || node.type}
                         </span>
-                        <span className="text-[11px] text-slate-300 truncate flex-1 min-w-0">
+                        <span className="text-caption text-slate-300 truncate flex-1 min-w-0">
                           {node.name}
                         </span>
                         <button
@@ -302,7 +302,7 @@ export default function ContextIndicatorBar({
               {visibleMemories.length === 0 && visibleNodes.length === 0 && (
                 <div className="flex flex-col items-center py-3 text-center">
                   <Sparkles className="w-5 h-5 text-slate-600 mb-1.5" />
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-caption text-slate-500">
                     {dismissedMemories.size + dismissedNodes.size > 0
                       ? 'All context items hidden. Annette will use fresh context.'
                       : 'No memories or knowledge yet. Start chatting to build context.'}
@@ -310,7 +310,7 @@ export default function ContextIndicatorBar({
                   {dismissedMemories.size + dismissedNodes.size > 0 && (
                     <button
                       onClick={() => { setDismissedMemories(new Set()); setDismissedNodes(new Set()); }}
-                      className="mt-1.5 text-[10px] text-cyan-400 hover:text-cyan-300"
+                      className="mt-1.5 text-2xs text-cyan-400 hover:text-cyan-300"
                     >
                       Restore all hidden items
                     </button>

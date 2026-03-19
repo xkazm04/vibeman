@@ -57,7 +57,7 @@ export default function ContextCard({
           {/* File count badge - subtle by default, prominent on hover */}
           {fileCount > 0 && (
             <span
-              className="flex-shrink-0 px-1.5 py-0.5 text-[9px] font-medium rounded-full
+              className="flex-shrink-0 px-1.5 py-0.5 text-micro font-medium rounded-full
                 bg-gray-600/50 text-gray-400
                 opacity-60 group-hover:opacity-100
                 scale-95 group-hover:scale-100

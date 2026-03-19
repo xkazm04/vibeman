@@ -4,7 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus, Target, Trophy, AlertTriangle, Users } from 'lucide-react';
 import { WeeklySpecialistStats } from '../lib/types';
-import { getScanTypeConfig } from '@/app/features/Ideas/lib/scanTypes';
+import { getAgent, isValidScanType } from '@/app/features/Ideas/lib/scanTypes';
 
 interface SpecialistBreakdownProps {
   specialists: WeeklySpecialistStats[];
@@ -13,7 +13,7 @@ interface SpecialistBreakdownProps {
 }
 
 function SpecialistRow({ spec, index }: { spec: WeeklySpecialistStats; index: number }) {
-  const config = getScanTypeConfig(spec.scanType);
+  const config = isValidScanType(spec.scanType) ? getAgent(spec.scanType) : null;
   const emoji = config?.emoji || '🔧';
   const label = config?.label || spec.scanType;
 
@@ -133,7 +133,7 @@ export default function SpecialistBreakdown({ specialists, topPerformers, needsA
             </div>
             <div className="space-y-2">
               {topPerformers.map((p, i) => {
-                const config = getScanTypeConfig(p.scanType as any);
+                const config = isValidScanType(p.scanType) ? getAgent(p.scanType) : null;
                 return (
                   <motion.div 
                     key={p.scanType}
@@ -172,7 +172,7 @@ export default function SpecialistBreakdown({ specialists, topPerformers, needsA
             </div>
             <div className="space-y-2">
               {needsAttention.slice(0, 3).map((p, i) => {
-                const config = getScanTypeConfig(p.scanType as any);
+                const config = isValidScanType(p.scanType) ? getAgent(p.scanType) : null;
                 return (
                   <motion.div 
                     key={p.scanType}

@@ -121,7 +121,7 @@ export default function ClassificationBadge({
 
   // Size classes
   const sizeClasses = {
-    xs: { icon: 'w-2.5 h-2.5', text: 'text-[10px]', padding: 'px-1.5 py-0.5' },
+    xs: { icon: 'w-2.5 h-2.5', text: 'text-2xs', padding: 'px-1.5 py-0.5' },
     sm: { icon: 'w-3 h-3', text: 'text-xs', padding: 'px-2 py-0.5' },
     md: { icon: 'w-4 h-4', text: 'text-sm', padding: 'px-2.5 py-1' },
     lg: { icon: 'w-5 h-5', text: 'text-base', padding: 'px-3 py-1.5' },
@@ -159,7 +159,7 @@ export default function ClassificationBadge({
             <div>
               <div className={`text-sm font-medium ${styles.text}`}>{label}</div>
               {displayConfidence !== undefined && (
-                <div className={`text-[10px] ${getConfidenceColor(displayConfidence)}`}>
+                <div className={`text-2xs ${getConfidenceColor(displayConfidence)}`}>
                   {Math.round(displayConfidence * 100)}% confidence
                 </div>
               )}
@@ -167,7 +167,7 @@ export default function ClassificationBadge({
           </div>
 
           {needsReview && (
-            <div className="px-2 py-0.5 text-[10px] bg-yellow-500/20 text-yellow-400 rounded-full">
+            <div className="px-2 py-0.5 text-2xs bg-yellow-500/20 text-yellow-400 rounded-full">
               Needs Review
             </div>
           )}
@@ -176,12 +176,12 @@ export default function ClassificationBadge({
         {/* Signals */}
         {displaySignals && displaySignals.length > 0 && (
           <div className="mb-2">
-            <div className="text-[10px] text-gray-500 mb-1">Detected Signals</div>
+            <div className="text-2xs text-gray-500 mb-1">Detected Signals</div>
             <div className="flex flex-wrap gap-1">
               {displaySignals.slice(0, 6).map((signal, i) => (
                 <span
                   key={i}
-                  className={`text-[10px] px-1.5 py-0.5 rounded ${styles.bg} ${styles.text}`}
+                  className={`text-2xs px-1.5 py-0.5 rounded ${styles.bg} ${styles.text}`}
                 >
                   {signal}
                 </span>
@@ -191,7 +191,7 @@ export default function ClassificationBadge({
         )}
 
         {/* Team and Tags */}
-        <div className="flex items-center gap-3 text-[10px]">
+        <div className="flex items-center gap-3 text-2xs">
           {displayTeam && (
             <div className="flex items-center gap-1 text-gray-400">
               <Users className="w-3 h-3" />
@@ -211,7 +211,7 @@ export default function ClassificationBadge({
           <div className="mt-2 pt-2 border-t border-gray-800">
             <button
               onClick={() => setShowCorrectMenu(!showCorrectMenu)}
-              className="text-[10px] text-gray-500 hover:text-gray-400"
+              className="text-2xs text-gray-500 hover:text-gray-400"
             >
               Correct classification...
             </button>
@@ -225,7 +225,7 @@ export default function ClassificationBadge({
                         onCorrect(c as ExtendedClassification);
                         setShowCorrectMenu(false);
                       }}
-                      className={`text-[10px] px-2 py-1 rounded border ${
+                      className={`text-2xs px-2 py-1 rounded border ${
                         CLASSIFICATION_STYLES[c as ExtendedClassification].border
                       } ${CLASSIFICATION_STYLES[c as ExtendedClassification].text} hover:opacity-80`}
                     >
@@ -290,7 +290,7 @@ export default function ClassificationBadge({
             {/* Confidence meter */}
             {displayConfidence !== undefined && (
               <div className="mb-3">
-                <div className="flex items-center justify-between text-[10px] mb-1">
+                <div className="flex items-center justify-between text-2xs mb-1">
                   <span className="text-gray-400 flex items-center gap-1">
                     <Gauge className="w-3 h-3" />
                     Confidence
@@ -318,7 +318,7 @@ export default function ClassificationBadge({
             {/* Signals */}
             {displaySignals && displaySignals.length > 0 && (
               <div className="mb-2">
-                <div className="text-[10px] text-gray-400 mb-1.5 flex items-center gap-1">
+                <div className="text-2xs text-gray-400 mb-1.5 flex items-center gap-1">
                   <Target className="w-3 h-3" />
                   Signals
                 </div>
@@ -326,7 +326,7 @@ export default function ClassificationBadge({
                   {displaySignals.map((signal, i) => (
                     <span
                       key={i}
-                      className={`text-[10px] px-1.5 py-0.5 rounded ${styles.bg} ${styles.text} border ${styles.border}`}
+                      className={`text-2xs px-1.5 py-0.5 rounded ${styles.bg} ${styles.text} border ${styles.border}`}
                     >
                       "{signal}"
                     </span>
@@ -337,7 +337,7 @@ export default function ClassificationBadge({
 
             {/* Team */}
             {displayTeam && (
-              <div className="flex items-center gap-1.5 text-[10px] text-gray-400 mb-2">
+              <div className="flex items-center gap-1.5 text-2xs text-gray-400 mb-2">
                 <Users className="w-3 h-3" />
                 <span>Suggested team:</span>
                 <span className="text-gray-300 capitalize">{displayTeam}</span>
@@ -352,7 +352,7 @@ export default function ClassificationBadge({
                   {displayTags.map((tag, i) => (
                     <span
                       key={i}
-                      className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-400"
+                      className="text-2xs px-1.5 py-0.5 rounded bg-gray-800 text-gray-400"
                     >
                       {tag}
                     </span>

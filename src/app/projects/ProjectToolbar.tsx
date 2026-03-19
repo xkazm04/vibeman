@@ -13,6 +13,7 @@ import { useApplicationSession, useSessionActions } from '@/lib/session/hooks';
 import { deleteProject } from './sub_ProjectSetting/lib/projectApi';
 import ProjectSelectionModal from './sub_ProjectSetting/components/ProjectSelectionModal';
 import { useActiveOnboardingStep } from '@/app/features/Onboarding/lib/useOnboardingConditions';
+import { getFocusRingStyles } from '@/lib/ui/focusRing';
 import type { Project } from '@/types';
 
 interface ToolbarAction {
@@ -44,8 +45,9 @@ export default function ProjectToolbar() {
     setShowWorkspaceManager,
   } = useProjectsToolbarStore();
   const { showFullScreenModal, hideModal } = useGlobalModal();
-  const { getThemeColors } = useThemeStore();
+  const { getThemeColors, theme } = useThemeStore();
   const colors = getThemeColors();
+  const focusRingClasses = getFocusRingStyles(theme);
   const { notifyProjectDeleted } = useProjectUpdatesStore();
 
   // Fetch projects from API instead of store
@@ -292,13 +294,14 @@ export default function ProjectToolbar() {
           whileHover={!action.disabled ? { scale: 1.05, y: -2 } : {}}
           whileTap={!action.disabled ? { scale: 0.95 } : {}}
           className={`
-            group relative p-3 rounded-xl
+            group relative p-3 min-w-[44px] min-h-[44px] rounded-xl
             bg-gradient-to-br ${scheme.bg} ${scheme.hover}
             border ${scheme.border}
             transition-all duration-300
             disabled:opacity-40 disabled:cursor-not-allowed
             shadow-lg ${scheme.glow}
             backdrop-blur-sm
+            ${focusRingClasses}
           `}
         >
           {/* Glow effect on hover */}
@@ -313,7 +316,7 @@ export default function ProjectToolbar() {
         </motion.button>
 
         {/* Label below icon */}
-        <span className={`text-[10px] font-medium ${scheme.text} ${action.disabled ? 'opacity-40' : ''}`}>
+        <span className={`text-2xs font-medium ${scheme.text} ${action.disabled ? 'opacity-40' : ''}`}>
           {action.label}
         </span>
       </motion.div>
@@ -345,7 +348,7 @@ export default function ProjectToolbar() {
               </h2>
             </div>
             {activeProject.type && (
-              <span className={`px-2 py-0.5 ${colors.bg} border ${colors.border} rounded text-[10px] font-medium ${colors.textDark} uppercase tracking-wider`}>
+              <span className={`px-2 py-0.5 ${colors.bg} border ${colors.border} rounded text-2xs font-medium ${colors.textDark} uppercase tracking-wider`}>
                 {activeProject.type}
               </span>
             )}

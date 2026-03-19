@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { ContextGroup, useContextStore } from '@/stores/contextStore';
 import { CONTEXT_GROUP_COLORS } from '@/lib/constants/contextColors';
+import { buttonVariants } from '@/lib/design-tokens';
 import ModalHeader from './CG_modalHeader';
 import CreateGroupSection from './CG_createSection';
 import GroupListSection from './CG_section';
@@ -166,7 +167,7 @@ export default function GroupManagementModal({ isOpen, onClose, projectId, group
             
             <motion.button
               onClick={handleClose}
-              className="px-6 py-3 bg-gray-700/50 text-gray-300 hover:text-white rounded-xl transition-all font-mono border border-gray-600/50 hover:border-gray-500/50"
+              className={`${buttonVariants.secondary} font-mono hover:text-white`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >

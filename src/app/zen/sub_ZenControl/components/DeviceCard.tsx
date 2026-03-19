@@ -78,7 +78,7 @@ export default function DeviceCard({
               {device.device_name}
             </h3>
             {device.hostname && (
-              <p className="text-[10px] text-gray-500 truncate max-w-[120px]">
+              <p className="text-2xs text-gray-500 truncate max-w-[120px]">
                 {device.hostname}
               </p>
             )}
@@ -88,15 +88,15 @@ export default function DeviceCard({
         {/* Status Badge */}
         <div className="flex items-center gap-1.5">
           <div className={`w-2 h-2 rounded-full ${getStatusColor(device.status)}`} />
-          <span className="text-[10px] text-gray-400">{getStatusText(device.status)}</span>
+          <span className="text-2xs text-gray-400">{getStatusText(device.status)}</span>
         </div>
       </div>
 
       {/* Session Slots */}
       <div className="mb-3">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] text-gray-500">Sessions</span>
-          <span className="text-[10px] text-gray-400">
+          <span className="text-2xs text-gray-500">Sessions</span>
+          <span className="text-2xs text-gray-400">
             {activeSessions}/{sessionSlots}
           </span>
         </div>
@@ -114,7 +114,7 @@ export default function DeviceCard({
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between text-[10px]">
+      <div className="flex items-center justify-between text-2xs">
         <span className="text-gray-500">
           {isLocalDevice ? 'This device' : formatLastSeen(device.last_heartbeat_at)}
         </span>

@@ -307,7 +307,7 @@ const ContextCard = React.memo(function ContextCard({ context, groupColor, avail
             </div>
             {/* File Count Badge */}
             <div
-              className={`${compact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs'} rounded-md font-bold font-mono`}
+              className={`${compact ? 'px-1.5 py-0.5 text-2xs' : 'px-2 py-0.5 text-xs'} rounded-md font-bold font-mono`}
               style={{ color: groupColor || '#8B5CF6', backgroundColor: `${groupColor || '#8B5CF6'}15` }}
             >
               {context.filePaths.length} files

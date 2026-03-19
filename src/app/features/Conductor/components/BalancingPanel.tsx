@@ -125,7 +125,7 @@ function ToggleGroup<T extends string>({
           <button
             key={opt.value}
             onClick={() => onChange(opt.value)}
-            className={`flex-1 px-2 py-1.5 text-[11px] font-medium transition-all
+            className={`flex-1 px-2 py-1.5 text-caption font-medium transition-all
               ${value === opt.value
                 ? 'bg-cyan-600/30 text-cyan-300 border-cyan-600/50'
                 : 'bg-gray-800/50 text-gray-500 hover:bg-gray-700/50'
@@ -183,15 +183,15 @@ function ModelRoutingRow({
 
   if (editing && !disabled) {
     return (
-      <div className="flex items-center gap-1.5 text-[11px] p-1.5 rounded-lg bg-gray-800/60 border border-cyan-800/40">
-        <span className="text-gray-500 w-16 truncate text-[10px]">
+      <div className="flex items-center gap-1.5 text-caption p-1.5 rounded-lg bg-gray-800/60 border border-cyan-800/40">
+        <span className="text-gray-500 w-16 truncate text-2xs">
           {CONDITION_LABELS[rule.condition]}
         </span>
         <span className="text-gray-600">&rarr;</span>
         <select
           value={editProvider}
           onChange={(e) => handleProviderChange(e.target.value as CLIProvider)}
-          className="bg-gray-700 text-gray-200 text-[10px] rounded px-1 py-0.5 border border-gray-600 outline-none focus:border-cyan-600"
+          className="bg-gray-700 text-gray-200 text-2xs rounded px-1 py-0.5 border border-gray-600 outline-none focus:border-cyan-600"
         >
           {PROVIDERS.map((p) => (
             <option key={p} value={p}>{p}</option>
@@ -201,7 +201,7 @@ function ModelRoutingRow({
         <select
           value={editModel}
           onChange={(e) => setEditModel(e.target.value)}
-          className="bg-gray-700 text-gray-200 text-[10px] rounded px-1 py-0.5 border border-gray-600 outline-none focus:border-cyan-600 max-w-[100px]"
+          className="bg-gray-700 text-gray-200 text-2xs rounded px-1 py-0.5 border border-gray-600 outline-none focus:border-cyan-600 max-w-[100px]"
         >
           {models.map((m) => (
             <option key={m.id} value={m.id}>{m.label}</option>
@@ -221,18 +221,18 @@ function ModelRoutingRow({
     <button
       onClick={() => !disabled && setEditing(true)}
       disabled={disabled}
-      className="flex items-center gap-2 text-[11px] w-full p-1.5 rounded-lg hover:bg-gray-800/40
+      className="flex items-center gap-2 text-caption w-full p-1.5 rounded-lg hover:bg-gray-800/40
         transition-colors cursor-pointer disabled:cursor-default disabled:opacity-50 group"
       data-testid={`routing-row-${rule.condition}`}
     >
-      <span className="text-gray-500 w-16 truncate text-[10px]">
+      <span className="text-gray-500 w-16 truncate text-2xs">
         {CONDITION_LABELS[rule.condition]}
       </span>
       <span className="text-gray-600">&rarr;</span>
       <span className="text-cyan-400 font-mono">
         {rule.provider}/{rule.model}
       </span>
-      <span className="text-gray-700 text-[9px] ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+      <span className="text-gray-700 text-micro ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
         click to edit
       </span>
     </button>
@@ -327,7 +327,7 @@ function SubscriptionUsage() {
           <Activity className="w-3 h-3 text-gray-600" />
           <span className="text-xs text-gray-500">Usage</span>
         </div>
-        <p className="text-[10px] text-gray-600 italic">
+        <p className="text-2xs text-gray-600 italic">
           No usage data available — configure API keys for tracking
         </p>
       </div>
@@ -343,7 +343,7 @@ function SubscriptionUsage() {
       </div>
       <div className="space-y-1">
         {usage.map((u) => (
-          <div key={u.provider} className="flex items-center gap-2 text-[10px]">
+          <div key={u.provider} className="flex items-center gap-2 text-2xs">
             <span className={`font-medium w-14 ${u.color}`}>{u.label}</span>
             <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
               <div
@@ -391,7 +391,7 @@ export default function BalancingPanel() {
         <button
           onClick={resetConfig}
           disabled={isRunning}
-          className="text-[10px] text-gray-500 hover:text-gray-300 flex items-center gap-1 transition-colors disabled:opacity-30"
+          className="text-2xs text-gray-500 hover:text-gray-300 flex items-center gap-1 transition-colors disabled:opacity-30"
           title="Reset to defaults"
         >
           <RotateCcw className="w-3 h-3" />

@@ -94,13 +94,13 @@ export default function ContextItemSelector({
                   style={{ backgroundColor: group.color }}
                 />
                 <span
-                  className="text-[10px] font-semibold uppercase tracking-wider"
+                  className="text-2xs font-semibold uppercase tracking-wider"
                   style={{ color: group.color }}
                   data-testid={`context-item-group-header-${group.id}`}
                 >
                   {group.name}
                 </span>
-                <span className="text-[10px] text-gray-500">
+                <span className="text-2xs text-gray-500">
                   {counts.selected > 0 ? `${counts.selected}/${counts.total}` : counts.total}
                 </span>
                 <div

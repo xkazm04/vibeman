@@ -347,7 +347,7 @@ export default function QuestionsLayout({ projectId: propProjectId }: QuestionsL
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="flex items-center justify-center w-14 h-14 rounded-2xl border shadow-lg bg-gradient-to-br from-purple-500/20 via-cyan-500/10 to-teal-500/20 border-purple-500/30 shadow-purple-500/10">
+              <div className="flex items-center justify-center w-14 h-14 rounded-xl border shadow-lg bg-gradient-to-br from-purple-500/20 via-cyan-500/10 to-teal-500/20 border-purple-500/30 shadow-purple-500/10">
                 <div className="flex items-center gap-0.5">
                   <HelpCircle className="w-5 h-5 text-purple-400" />
                   <Compass className="w-5 h-5 text-cyan-400" />

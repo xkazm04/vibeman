@@ -10,6 +10,7 @@ import ContextDescription from './components/ContextDescription';
 import ContextPreviewManager from '@/app/features/Context/sub_ContextPreview/ContextPreviewManager';
 import TestingTab from './components/TestingTab';
 import FilesTab from './components/FilesTab';
+import { buttonVariants } from '@/lib/design-tokens';
 
 interface ContextOverviewProps {
   mode?: 'modal' | 'embedded';
@@ -258,7 +259,7 @@ const ContextOverview = ({
 
                     <motion.button
                       onClick={handleClose}
-                      className="px-6 py-2 bg-gray-700/50 text-gray-300 hover:text-white rounded-xl transition-all font-mono border border-gray-600/50 hover:border-gray-500/50"
+                      className={`${buttonVariants.secondary} font-mono hover:text-white`}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >

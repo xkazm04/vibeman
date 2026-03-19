@@ -119,7 +119,7 @@ export function StackedBarChartPreview({ props }: PreviewProps) {
                   className="bg-gradient-to-b from-amber-400 to-amber-600"
                 />
               </motion.div>
-              <span className="text-[10px] font-mono text-gray-500 mt-1">{d.name}</span>
+              <span className="text-2xs font-mono text-gray-500 mt-1">{d.name}</span>
             </div>
           );
         })}
@@ -127,15 +127,15 @@ export function StackedBarChartPreview({ props }: PreviewProps) {
       <div className="flex justify-center gap-4 mt-3 pt-2 border-t border-gray-800/30">
         <div className="flex items-center gap-1">
           <div className="w-2 h-2 rounded-sm bg-gradient-to-b from-emerald-400 to-emerald-600" />
-          <span className="text-[10px] font-mono text-gray-500">ACC</span>
+          <span className="text-2xs font-mono text-gray-500">ACC</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-2 h-2 rounded-sm bg-gradient-to-b from-red-400 to-red-600" />
-          <span className="text-[10px] font-mono text-gray-500">REJ</span>
+          <span className="text-2xs font-mono text-gray-500">REJ</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-2 h-2 rounded-sm bg-gradient-to-b from-amber-400 to-amber-600" />
-          <span className="text-[10px] font-mono text-gray-500">PND</span>
+          <span className="text-2xs font-mono text-gray-500">PND</span>
         </div>
       </div>
     </div>

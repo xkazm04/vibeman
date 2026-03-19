@@ -120,7 +120,7 @@ export default function EntityLink({
       {showIcon && <Icon className="w-3.5 h-3.5" />}
       <span className="truncate max-w-[150px]">{entity.name}</span>
       {showType && (
-        <span className="text-[10px] opacity-60 capitalize">({entity.type})</span>
+        <span className="text-2xs opacity-60 capitalize">({entity.type})</span>
       )}
     </motion.button>
   );
@@ -171,7 +171,7 @@ export function EntityList({
   return (
     <div className={className}>
       {title && (
-        <div className="text-[10px] font-medium uppercase tracking-wider text-gray-500 mb-1.5">
+        <div className="text-2xs font-medium uppercase tracking-wider text-gray-500 mb-1.5">
           {title}
         </div>
       )}

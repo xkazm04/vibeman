@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { AlertCircle, Sparkles } from 'lucide-react';
+import { SimpleSpinner } from '@/components/ui';
 import EmulatorHeader from './EmulatorHeader';
 import EmulatorTabs from './EmulatorTabs';
 import DeviceGrid from './DeviceGrid';
@@ -260,7 +261,7 @@ function DevicesTab({
   if (isConnecting) {
     return (
       <div className="text-center py-12">
-        <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <SimpleSpinner size="lg" color="cyan" className="mx-auto mb-3" />
         <p className="text-sm text-gray-400">Connecting to mesh network...</p>
       </div>
     );

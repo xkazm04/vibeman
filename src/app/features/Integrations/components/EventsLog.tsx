@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import type { DbIntegrationEvent, IntegrationEventType } from '@/app/db/models/integration.types';
+import { SimpleSpinner } from '@/components/ui/Spinner';
 
 interface ParsedEvent extends Omit<DbIntegrationEvent, 'payload' | 'response'> {
   payload: Record<string, unknown>;
@@ -82,7 +83,7 @@ export function EventsLog({ projectId, integrationId }: EventsLogProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8" data-testid="events-loading">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500" />
+        <SimpleSpinner size="lg" color="purple" />
       </div>
     );
   }

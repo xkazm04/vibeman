@@ -103,7 +103,7 @@ export default function BreakpointGuide({
               {/* Label inside bar */}
               {widthPercent > 5 && (
                 <span
-                  className={`absolute inset-0 flex items-center justify-center text-[10px] font-medium ${
+                  className={`absolute inset-0 flex items-center justify-center text-2xs font-medium ${
                     isActive ? 'text-white' : 'text-gray-400'
                   }`}
                 >
@@ -143,7 +143,7 @@ export default function BreakpointGuide({
       </div>
 
       {/* Width scale */}
-      <div className="flex justify-between mt-1 text-[9px] text-gray-600">
+      <div className="flex justify-between mt-1 text-micro text-gray-600">
         <span>0</span>
         <span>640</span>
         <span>768</span>
@@ -190,7 +190,7 @@ export function BreakpointGuideInline({
 
       {/* Label */}
       <span
-        className="text-[10px] font-medium"
+        className="text-2xs font-medium"
         style={{ color: activeBreakpoint.color }}
       >
         {activeBreakpoint.label}

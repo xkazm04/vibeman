@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ExternalLink,
@@ -9,18 +9,9 @@ import {
   Radio,
   RotateCcw,
 } from 'lucide-react';
-import { useAbortableFetch } from '@/hooks/useAbortableFetch';
 import type { EvidenceRef } from '@/app/db/models/brain.types';
-
-export interface ResolvedEvidence {
-  refType: EvidenceRef['type'];
-  id: string;
-  summary: string;
-  status?: string;
-  contextName?: string | null;
-  contextMapTitle?: string;
-  createdAt: string;
-}
+import { useEvidenceRefs } from '../lib/queries';
+import type { ResolvedEvidence } from '../lib/queries';
 
 interface Props {
   evidence: EvidenceRef[];
@@ -103,18 +94,17 @@ function EvidencePlaceholder({ count }: { count: number }) {
 
 /**
  * Renders typed evidence refs as a compact stacked list.
- * Uses IntersectionObserver to defer fetching until scrolled into view,
- * and releases data when scrolled out to reduce memory pressure.
+ * Uses IntersectionObserver to defer fetching until scrolled into view.
+ * React Query handles caching automatically.
  * Click any row to expand full details.
  */
 export default function InsightEvidenceLinks({ evidence }: Props) {
-  const [resolved, setResolved] = useState<Record<string, ResolvedEvidence | null>>({});
-  const [isLoading, setIsLoading] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const abortableFetch = useAbortableFetch();
+
+  const { data: evidenceData, isLoading } = useEvidenceRefs(evidence, isVisible);
+  const resolved = evidenceData?.evidence ?? {};
 
   // IntersectionObserver: track visibility
   useEffect(() => {
@@ -132,49 +122,13 @@ export default function InsightEvidenceLinks({ evidence }: Props) {
     return () => observer.disconnect();
   }, []);
 
-  // Fetch when visible, release when not visible
-  const fetchEvidence = useCallback(async () => {
-    if (evidence.length === 0) return;
-    setIsLoading(true);
-    try {
-      const res = await abortableFetch('/api/brain/insights', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ evidenceRefs: evidence }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setResolved(data.evidence);
-      }
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
-      // Silent failure — evidence links are non-critical
-    } finally {
-      setIsLoading(false);
-      setHasFetchedOnce(true);
-    }
-  }, [evidence, abortableFetch]);
-
-  useEffect(() => {
-    if (!isVisible) {
-      if (hasFetchedOnce && Object.keys(resolved).length > 0) {
-        setResolved({});
-      }
-      return;
-    }
-
-    if (Object.keys(resolved).length === 0 && !isLoading) {
-      fetchEvidence();
-    }
-  }, [isVisible, hasFetchedOnce, resolved, isLoading, fetchEvidence]);
-
   if (evidence.length === 0) {
     return <span className="text-xs text-zinc-600 italic">No evidence linked</span>;
   }
 
   return (
     <div ref={containerRef}>
-      {!isVisible && !hasFetchedOnce ? (
+      {!isVisible && !evidenceData ? (
         <EvidencePlaceholder count={evidence.length} />
       ) : isLoading ? (
         <div className="flex items-center gap-1.5 text-xs text-zinc-500">
@@ -183,7 +137,7 @@ export default function InsightEvidenceLinks({ evidence }: Props) {
         </div>
       ) : (
         <div>
-          <div className="text-[10px] text-zinc-500 mb-1">
+          <div className="text-2xs text-zinc-500 mb-1">
             Evidence ({evidence.length})
           </div>
           <div className="space-y-px">
@@ -196,7 +150,7 @@ export default function InsightEvidenceLinks({ evidence }: Props) {
                 return (
                   <div
                     key={ref.id}
-                    className="flex items-center gap-1.5 px-2 py-1 border-l-2 border-l-zinc-700 bg-zinc-800/10 text-[11px] text-zinc-600 italic"
+                    className="flex items-center gap-1.5 px-2 py-1 border-l-2 border-l-zinc-700 bg-zinc-800/10 text-caption text-zinc-600 italic"
                   >
                     <Icon className="w-2.5 h-2.5 flex-shrink-0" />
                     <span>Deleted ({ref.id.slice(0, 8)})</span>
@@ -208,10 +162,10 @@ export default function InsightEvidenceLinks({ evidence }: Props) {
                 return (
                   <div
                     key={ref.id}
-                    className="flex items-center gap-1.5 px-2 py-1 border-l-2 border-l-zinc-700 bg-zinc-800/10 text-[11px] text-zinc-500 font-mono"
+                    className="flex items-center gap-1.5 px-2 py-1 border-l-2 border-l-zinc-700 bg-zinc-800/10 text-caption text-zinc-500 font-mono"
                   >
                     <Icon className="w-2.5 h-2.5 flex-shrink-0 opacity-50" />
-                    <span className="text-[9px] uppercase text-zinc-600">{ref.type}</span>
+                    <span className="text-micro uppercase text-zinc-600">{ref.type}</span>
                     <span>{ref.id.slice(0, 12)}…</span>
                   </div>
                 );
@@ -229,11 +183,11 @@ export default function InsightEvidenceLinks({ evidence }: Props) {
                     className={`w-full flex items-center gap-1.5 px-2 py-1 border-l-2 ${colors.border} bg-zinc-800/20 hover:bg-zinc-800/40 transition-colors text-left cursor-pointer`}
                   >
                     <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${colors.dot}`} />
-                    <span className="flex-1 min-w-0 text-[11px] text-zinc-300 truncate">
+                    <span className="flex-1 min-w-0 text-caption text-zinc-300 truncate">
                       {truncate(item.summary, 40)}
                     </span>
-                    <span className="text-[9px] uppercase text-zinc-600 flex-shrink-0">{ref.type}</span>
-                    <span className="text-[10px] text-zinc-600 flex-shrink-0">
+                    <span className="text-micro uppercase text-zinc-600 flex-shrink-0">{ref.type}</span>
+                    <span className="text-2xs text-zinc-600 flex-shrink-0">
                       {relativeTime(item.createdAt)}
                     </span>
                     <ChevronDown
@@ -254,7 +208,7 @@ export default function InsightEvidenceLinks({ evidence }: Props) {
                           <p className="text-xs text-zinc-300 leading-relaxed">
                             {item.summary}
                           </p>
-                          <div className="flex items-center gap-2 text-[10px] text-zinc-500">
+                          <div className="flex items-center gap-2 text-2xs text-zinc-500">
                             {item.contextName && <span>{item.contextName}</span>}
                             {item.contextMapTitle && !item.contextName && <span>{item.contextMapTitle}</span>}
                             {item.status && (

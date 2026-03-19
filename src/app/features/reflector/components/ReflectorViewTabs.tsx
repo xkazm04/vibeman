@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Calendar, BarChart3, Network, Activity, GitBranch } from 'lucide-react';
+import { useTabNavigation } from '@/hooks/useTabNavigation';
 
 export type ViewMode = 'weekly' | 'ideas_stats' | 'dependencies' | 'cross_context' | 'observability';
 
@@ -25,8 +26,16 @@ const TABS: TabConfig[] = [
 ];
 
 export default function ReflectorViewTabs({ viewMode, onViewModeChange }: ReflectorViewTabsProps) {
+  const { tablistRef, handleKeyDown } = useTabNavigation();
+
   return (
-    <div className="flex items-center gap-2">
+    <div
+      ref={tablistRef}
+      role="tablist"
+      aria-label="Reflector views"
+      onKeyDown={handleKeyDown}
+      className="flex items-center gap-2"
+    >
       {TABS.map((tab) => {
         const Icon = tab.icon;
         const isActive = viewMode === tab.id;
@@ -34,8 +43,11 @@ export default function ReflectorViewTabs({ viewMode, onViewModeChange }: Reflec
         return (
           <button
             key={tab.id}
+            role="tab"
+            aria-selected={isActive}
+            tabIndex={isActive ? 0 : -1}
             onClick={() => onViewModeChange(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 outline-none ${
               isActive
                 ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40'
                 : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60'
@@ -50,17 +62,3 @@ export default function ReflectorViewTabs({ viewMode, onViewModeChange }: Reflec
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

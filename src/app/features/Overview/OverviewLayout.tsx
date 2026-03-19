@@ -6,6 +6,7 @@ import { ViewToggleHeader, type OverviewView } from './sub_WorkspaceArchitecture
 import ArchitectureBottomBar from './sub_WorkspaceArchitecture/components/ArchitectureBottomBar';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
+import { SimpleSpinner } from '@/components/ui';
 import { getWorkspaceProjects } from '@/lib/workspaceProjects';
 
 // Lazy load views
@@ -17,7 +18,7 @@ function LoadingFallback() {
   return (
     <div className="flex items-center justify-center w-full h-full bg-[#0a0a0c]">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
+        <SimpleSpinner size="lg" color="cyan" />
         <span className="text-sm text-zinc-500">Loading view...</span>
       </div>
     </div>

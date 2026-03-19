@@ -624,7 +624,7 @@ function SeverityBadge({ severity }: { severity: 'critical' | 'high' | 'medium' 
     low: 'bg-gray-500/20 text-gray-300 border-gray-500/30',
   };
   return (
-    <span className={`px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded border ${styles[severity]}`}>
+    <span className={`px-1.5 py-0.5 text-2xs font-semibold uppercase rounded border ${styles[severity]}`}>
       {severity}
     </span>
   );
@@ -638,7 +638,7 @@ function HotnessBadge({ hotness }: { hotness: 'critical' | 'high' | 'medium' | '
     medium: 'bg-yellow-500/20 text-yellow-300',
   };
   return (
-    <span className={`px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded ${styles[hotness]}`}>
+    <span className={`px-1.5 py-0.5 text-2xs font-semibold uppercase rounded ${styles[hotness]}`}>
       {hotness}
     </span>
   );

@@ -161,8 +161,26 @@ function computeGoalVelocityTrend(
 // Context Decay Detection
 // ──────────────────────────────────────────────
 
+/**
+ * Dual-axis context decay detection.
+ *
+ * Axis 1 — Relative trend: compares daily activity rate over 3 days vs 14 days.
+ *   Normalises both windows to daily rates so the comparison is fair.
+ * Axis 2 — Absolute activity: catches contexts with negligible activity in both
+ *   windows (the old formula reported these as 0% decay / "healthy").
+ *
+ * Classifications:
+ *   stale    — absolute 14-day weight below threshold (nearly zero activity)
+ *   decaying — recent daily rate significantly lower than historical daily rate
+ *   growing  — recent daily rate exceeds historical (acceleration)
+ *   healthy  — adequate activity, stable trend
+ */
 function detectContextDecay(projectId: string): ContextDecayAlert[] {
   const alerts: ContextDecayAlert[] = [];
+
+  // Minimum 14-day total weight to consider a context "active at all".
+  // Below this the context is classified as stale regardless of trend.
+  const STALE_WEIGHT_THRESHOLD = 3;
 
   try {
     const contextActivity = behavioralSignalDb.getContextActivity(projectId, 14);
@@ -193,31 +211,34 @@ function detectContextDecay(projectId: string): ContextDecayAlert[] {
       const weight3d = recentMap.get(ctx.id) || 0;
       const linkedToActiveGoals = activeGoalContextIds.has(ctx.id);
 
-      // Compute decay: if 14-day weight is high but 3-day weight is low, context is decaying
-      const decayPercent = weight14d > 0
-        ? Math.round(Math.max(0, 100 - (weight3d / weight14d) * 100))
-        : 0;
+      // ── Dual-axis classification ──
+      const { decayPercent, decayStatus } = classifyContextHealth(weight14d, weight3d, STALE_WEIGHT_THRESHOLD);
 
       let urgency: ContextDecayAlert['urgency'] = 'info';
       let suggestion = '';
 
-      if (decayPercent >= 80 && linkedToActiveGoals) {
+      if (decayStatus === 'stale' && linkedToActiveGoals) {
         urgency = 'critical';
-        suggestion = `This context has active goals but no recent activity. Resume work here.`;
-      } else if (decayPercent >= 60 && linkedToActiveGoals) {
+        suggestion = 'This context has active goals but negligible activity. Resume work here.';
+      } else if (decayStatus === 'stale') {
         urgency = 'warning';
-        suggestion = `Activity is declining in this context. Consider scheduling focused time.`;
-      } else if (decayPercent >= 80) {
-        urgency = 'warning';
-        suggestion = `No recent work here. Check if this area needs attention.`;
+        suggestion = 'Negligible activity detected. Check if this area still needs attention.';
+      } else if (decayStatus === 'decaying' && linkedToActiveGoals) {
+        urgency = decayPercent >= 80 ? 'critical' : 'warning';
+        suggestion = 'Activity is declining in this context. Consider scheduling focused time.';
+      } else if (decayStatus === 'decaying') {
+        urgency = decayPercent >= 80 ? 'warning' : 'info';
+        suggestion = 'Recent work has dropped off. Check if this area needs attention.';
       } else {
-        continue; // Skip low-decay contexts
+        // healthy or growing — no alert needed
+        continue;
       }
 
       alerts.push({
         contextId: ctx.id,
         contextName: ctx.name,
         decayPercent,
+        decayStatus,
         lastActivityDate: null, // Would need per-context signal lookup
         linkedToActiveGoals,
         urgency,
@@ -232,6 +253,53 @@ function detectContextDecay(projectId: string): ContextDecayAlert[] {
     const urgencyOrder = { critical: 0, warning: 1, info: 2 };
     return urgencyOrder[a.urgency] - urgencyOrder[b.urgency];
   });
+}
+
+/**
+ * Classify context health using dual-axis analysis.
+ *
+ * Returns a decayPercent (0-100) and a status classification.
+ *
+ * The daily-rate normalisation fixes the old formula's flaw where comparing
+ * raw 3-day vs 14-day totals penalised the shorter window unfairly.
+ */
+function classifyContextHealth(
+  weight14d: number,
+  weight3d: number,
+  staleThreshold: number
+): { decayPercent: number; decayStatus: ContextDecayAlert['decayStatus'] } {
+  // Axis 2: Absolute activity check — catch negligible-activity-in-both-periods
+  if (weight14d < staleThreshold) {
+    // Even equal low weights (e.g. 1/1) are correctly flagged as stale
+    return { decayPercent: 95, decayStatus: 'stale' };
+  }
+
+  // Normalise to daily rates for fair comparison
+  const rate3d = weight3d / 3;
+  const rate14d = weight14d / 14;
+
+  // Axis 1: Relative trend
+  if (rate14d === 0) {
+    // Shouldn't happen given staleThreshold check, but guard against it
+    return { decayPercent: 95, decayStatus: 'stale' };
+  }
+
+  const trendRatio = rate3d / rate14d;
+
+  if (trendRatio >= 1.3) {
+    // Recent activity exceeds historical — context is accelerating
+    return { decayPercent: 0, decayStatus: 'growing' };
+  }
+
+  if (trendRatio >= 0.7) {
+    // Stable — recent rate within 30% of historical
+    return { decayPercent: Math.round((1 - trendRatio) * 100), decayStatus: 'healthy' };
+  }
+
+  // Decaying: recent rate significantly below historical
+  // Map trendRatio 0..0.7 → decayPercent 100..30
+  const decayPercent = Math.round(Math.min(100, (1 - trendRatio) * 100));
+  return { decayPercent, decayStatus: 'decaying' };
 }
 
 // ──────────────────────────────────────────────

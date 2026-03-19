@@ -129,7 +129,7 @@ const TIER_META: { condition: ModelRoutingRule['condition']; label: string; effo
   { condition: 'complexity_3', label: 'Effort 7+', effort: 'High', color: 'text-red-400' },
 ];
 
-const selectClass = "bg-gray-800 text-gray-200 text-[11px] rounded-md px-1.5 py-1 border border-gray-700 outline-none focus:border-cyan-600 transition-colors cursor-pointer w-full";
+const selectClass = "bg-gray-800 text-gray-200 text-caption rounded-md px-1.5 py-1 border border-gray-700 outline-none focus:border-cyan-600 transition-colors cursor-pointer w-full";
 
 function ProviderModelSelect({
   provider,
@@ -198,7 +198,7 @@ function ComplexityRoutingTable({
             className="flex items-center gap-2 px-1 py-1 rounded-lg hover:bg-gray-800/30 transition-colors"
             data-testid={`routing-row-${tier.condition}`}
           >
-            <span className={`text-[11px] font-mono font-bold w-[52px] flex-shrink-0 ${tier.color}`}>
+            <span className={`text-caption font-mono font-bold w-[52px] flex-shrink-0 ${tier.color}`}>
               {tier.label}
             </span>
             <select
@@ -269,7 +269,7 @@ export default function BalancingModal({ isOpen, onClose }: BalancingModalProps)
               {/* PLAN Phase Settings */}
               <div className="space-y-3 p-4 rounded-xl bg-gray-800/20 border border-gray-800/50">
                 <SectionHeader icon={Brain} label="Plan Phase" colorClass="text-cyan-400" />
-                <div className="text-[11px] text-gray-500 mb-2">
+                <div className="text-caption text-gray-500 mb-2">
                   Single LLM call analyzes goal + context → generates task list with dependencies.
                 </div>
                 <div className="space-y-1.5">
@@ -286,7 +286,7 @@ export default function BalancingModal({ isOpen, onClose }: BalancingModalProps)
               {/* REFLECT Phase Settings */}
               <div className="space-y-3 p-4 rounded-xl bg-gray-800/20 border border-gray-800/50">
                 <SectionHeader icon={Sparkles} label="Reflect Phase" colorClass="text-pink-400" />
-                <div className="text-[11px] text-gray-500 mb-2">
+                <div className="text-caption text-gray-500 mb-2">
                   Single LLM call reviews results → decides done, continue (adaptive), or needs input.
                 </div>
                 <div className="space-y-1.5">
@@ -347,7 +347,7 @@ export default function BalancingModal({ isOpen, onClose }: BalancingModalProps)
                 {config.useWorktrees && (
                   <div className="flex items-center gap-1.5 mt-1">
                     <GitBranch className="w-3 h-3 text-purple-500" />
-                    <span className="text-[10px] text-gray-500">
+                    <span className="text-2xs text-gray-500">
                       Each task gets an isolated git worktree. Branches merged after completion.
                     </span>
                   </div>

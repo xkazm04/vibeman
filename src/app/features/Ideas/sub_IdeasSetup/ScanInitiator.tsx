@@ -331,7 +331,7 @@ export default function ScanInitiator({
                       >
                         <div className="truncate">{goal.title}</div>
                         {goal.context_id && (
-                          <div className="text-[10px] text-gray-500 mt-0.5">Has linked context</div>
+                          <div className="text-2xs text-gray-500 mt-0.5">Has linked context</div>
                         )}
                       </button>
                     ))}

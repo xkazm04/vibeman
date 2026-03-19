@@ -75,7 +75,7 @@ function LogEntry({ entry }: { entry: ProcessLogEntry }) {
       `}
     >
       {/* Timestamp */}
-      <span className="text-[10px] text-gray-600 font-mono w-14 shrink-0 pt-0.5 text-right">
+      <span className="text-2xs text-gray-600 font-mono w-14 shrink-0 pt-0.5 text-right">
         {formatTime(entry.timestamp)}
       </span>
 
@@ -83,7 +83,7 @@ function LogEntry({ entry }: { entry: ProcessLogEntry }) {
       <EventIcon className={`w-3 h-3 shrink-0 mt-0.5 ${eventConfig.className}`} />
 
       {/* Stage Badge */}
-      <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded border shrink-0 ${stageColor}`}>
+      <span className={`text-micro font-semibold uppercase px-1.5 py-0.5 rounded border shrink-0 ${stageColor}`}>
         {entry.stage}
       </span>
 
@@ -95,12 +95,12 @@ function LogEntry({ entry }: { entry: ProcessLogEntry }) {
       {/* Metrics */}
       <div className="flex items-center gap-2 shrink-0">
         {entry.itemsOut !== undefined && entry.itemsOut > 0 && (
-          <span className="text-[10px] text-gray-500 font-mono">
+          <span className="text-2xs text-gray-500 font-mono">
             {entry.itemsOut} out
           </span>
         )}
         {entry.durationMs !== undefined && (
-          <span className="text-[10px] text-gray-600 font-mono">
+          <span className="text-2xs text-gray-600 font-mono">
             {formatDuration(entry.durationMs)}
           </span>
         )}
@@ -163,7 +163,7 @@ export default function ProcessLog({ entries, isRunning }: ProcessLogProps) {
         <div className="flex flex-col items-center justify-center py-10 text-center">
           <Terminal className="w-8 h-8 text-gray-700 mb-2" />
           <p className="text-xs text-gray-500">Pipeline log will appear here when running</p>
-          <p className="text-[10px] text-gray-600 mt-1">
+          <p className="text-2xs text-gray-600 mt-1">
             Each stage transition is logged in real-time
           </p>
         </div>
@@ -183,7 +183,7 @@ export default function ProcessLog({ entries, isRunning }: ProcessLogProps) {
         <div className="flex items-center gap-2">
           <Terminal className="w-4 h-4 text-gray-400" />
           <span className="text-sm font-medium text-gray-300">Process Log</span>
-          <span className="text-[10px] text-gray-600 font-mono">{entries.length} entries</span>
+          <span className="text-2xs text-gray-600 font-mono">{entries.length} entries</span>
           {isRunning && (
             <motion.div
               className="w-1.5 h-1.5 rounded-full bg-emerald-400"
@@ -216,7 +216,7 @@ export default function ProcessLog({ entries, isRunning }: ProcessLogProps) {
             exit={{ opacity: 0, y: 10 }}
             onClick={scrollToBottom}
             className="absolute bottom-2 right-3 flex items-center gap-1 px-2 py-1 rounded-full
-              bg-gray-800/90 border border-gray-700 text-[10px] text-gray-400
+              bg-gray-800/90 border border-gray-700 text-2xs text-gray-400
               hover:bg-gray-700/90 hover:text-gray-300 transition-colors shadow-lg backdrop-blur-sm"
           >
             <ChevronDown className="w-3 h-3" />

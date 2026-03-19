@@ -6,8 +6,8 @@
 
 import { NextRequest } from 'next/server';
 import { knowledgeRepository } from '@/app/db/repositories/knowledge.repository';
-import { KNOWLEDGE_DOMAINS } from '@/app/db/models/knowledge.types';
-import type { KnowledgeDomain, KnowledgePatternType } from '@/app/db/models/knowledge.types';
+import { KNOWLEDGE_DOMAINS, KNOWLEDGE_LANGUAGES } from '@/app/db/models/knowledge.types';
+import type { KnowledgeDomain, KnowledgePatternType, KnowledgeLanguage } from '@/app/db/models/knowledge.types';
 import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
 import { withObservability } from '@/lib/observability/middleware';
 import { generateId } from '@/app/db/repositories/repository.utils';
@@ -21,6 +21,7 @@ interface IngestEntry {
   tags?: string[];
   confidence?: number;
   pattern_type?: string;
+  language?: string;
 }
 
 interface ImprovementProposal {
@@ -95,6 +96,11 @@ async function handlePost(request: NextRequest) {
         : body.source === 'cli_session' ? 'cli_session' as const
         : 'manual' as const;
 
+      const language: KnowledgeLanguage =
+        (entry.language && KNOWLEDGE_LANGUAGES.includes(entry.language as KnowledgeLanguage))
+          ? entry.language as KnowledgeLanguage
+          : 'universal';
+
       const result = knowledgeRepository.create({
         domain,
         pattern_type: patternType,
@@ -103,6 +109,7 @@ async function handlePost(request: NextRequest) {
         code_example: entry.codePattern || undefined,
         file_patterns: entry.filePaths,
         tags: entry.tags,
+        language,
         confidence: entry.confidence ?? 60,
         source_project_id: body.projectId,
         source_type: sourceType,

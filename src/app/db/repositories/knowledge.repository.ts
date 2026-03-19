@@ -9,13 +9,20 @@ import type {
   CreateKnowledgeEntryInput,
   KnowledgeQuery,
   KnowledgeDomain,
+  KnowledgeLayer,
 } from '../models/knowledge.types';
+import { CATEGORY_TO_LAYER } from '../models/knowledge.types';
 import { getCurrentTimestamp, selectOne, selectAll, generateId } from './repository.utils';
 import { createHash } from 'crypto';
 
 function computeCanonicalId(domain: string, title: string): string {
   const normalized = `${domain}:${title.toLowerCase().trim().replace(/\s+/g, ' ')}`;
   return createHash('sha256').update(normalized).digest('hex').slice(0, 16);
+}
+
+function resolveLayer(input: CreateKnowledgeEntryInput): KnowledgeLayer {
+  if (input.layer) return input.layer;
+  return CATEGORY_TO_LAYER[input.domain] || 'cross_cutting';
 }
 
 export const knowledgeRepository = {
@@ -38,20 +45,22 @@ export const knowledgeRepository = {
     const appliesTo = JSON.stringify(input.applies_to || []);
     const filePatterns = input.file_patterns ? JSON.stringify(input.file_patterns) : null;
     const tags = JSON.stringify(input.tags || []);
+    const language = input.language || 'universal';
+    const layer = resolveLayer(input);
 
     db.prepare(`
       INSERT INTO knowledge_entries (
-        id, domain, pattern_type, title, pattern, rationale, code_example, anti_pattern,
-        applies_to, file_patterns, tags, confidence,
+        id, domain, layer, pattern_type, title, pattern, rationale, code_example, anti_pattern,
+        applies_to, file_patterns, tags, language, confidence,
         source_project_id, source_type, source_insight_id,
         times_applied, times_helpful, status, canonical_id,
         created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 'active', ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 'active', ?, ?, ?)
     `).run(
-      id, input.domain, input.pattern_type, input.title, input.pattern,
+      id, input.domain, layer, input.pattern_type, input.title, input.pattern,
       input.rationale || null, input.code_example || null, input.anti_pattern || null,
-      appliesTo, filePatterns, tags,
+      appliesTo, filePatterns, tags, language,
       input.confidence ?? 50,
       input.source_project_id || null,
       input.source_type || 'manual',
@@ -60,12 +69,13 @@ export const knowledgeRepository = {
     );
 
     return {
-      id, domain: input.domain, pattern_type: input.pattern_type,
+      id, domain: input.domain, layer, pattern_type: input.pattern_type,
       title: input.title, pattern: input.pattern,
       rationale: input.rationale || null,
       code_example: input.code_example || null,
       anti_pattern: input.anti_pattern || null,
       applies_to: appliesTo, file_patterns: filePatterns, tags,
+      language,
       confidence: input.confidence ?? 50,
       source_project_id: input.source_project_id || null,
       source_type: input.source_type || 'manual',
@@ -103,6 +113,11 @@ export const knowledgeRepository = {
       params.push(q.domain);
     }
 
+    if (q.layer) {
+      conditions.push('layer = ?');
+      params.push(q.layer);
+    }
+
     if (q.tags?.length) {
       const tagConditions = q.tags.map(() => 'tags LIKE ?');
       conditions.push(`(${tagConditions.join(' OR ')})`);
@@ -113,6 +128,11 @@ export const knowledgeRepository = {
       const techConditions = q.applies_to.map(() => 'applies_to LIKE ?');
       conditions.push(`(${techConditions.join(' OR ')})`);
       params.push(...q.applies_to.map(t => `%"${t}"%`));
+    }
+
+    if (q.language) {
+      conditions.push("(language = ? OR language = 'universal')");
+      params.push(q.language);
     }
 
     if (q.search) {
@@ -142,17 +162,24 @@ export const knowledgeRepository = {
     );
   },
 
-  getForFilePaths: (filePaths: string[], limit: number = 10): DbKnowledgeEntry[] => {
+  getForFilePaths: (filePaths: string[], options?: { layer?: KnowledgeLayer; limit?: number }): DbKnowledgeEntry[] => {
     const db = getDatabase();
     if (filePaths.length === 0) return [];
 
-    const conditions = filePaths.map(() => 'file_patterns LIKE ?');
-    const params = filePaths.map(fp => `%${fp.split('/').slice(0, 3).join('/')}%`);
-    params.push(limit as any);
+    const limit = options?.limit ?? 10;
+    const fpConditions = filePaths.map(() => 'file_patterns LIKE ?');
+    const params: unknown[] = filePaths.map(fp => `%${fp.split('/').slice(0, 3).join('/')}%`);
+
+    let layerClause = '';
+    if (options?.layer) {
+      layerClause = ' AND layer = ?';
+      params.push(options.layer);
+    }
+    params.push(limit);
 
     return selectAll<DbKnowledgeEntry>(
       db,
-      `SELECT * FROM knowledge_entries WHERE status = 'active' AND file_patterns IS NOT NULL AND (${conditions.join(' OR ')}) ORDER BY confidence DESC LIMIT ?`,
+      `SELECT * FROM knowledge_entries WHERE status = 'active' AND file_patterns IS NOT NULL AND (${fpConditions.join(' OR ')})${layerClause} ORDER BY confidence DESC LIMIT ?`,
       ...params
     );
   },
@@ -225,5 +252,33 @@ export const knowledgeRepository = {
       byDomain,
       avgConfidence: totals?.avg_conf ?? 0,
     };
+  },
+
+  getByLayer: (layer: KnowledgeLayer, limit: number = 50): DbKnowledgeEntry[] => {
+    const db = getDatabase();
+    return selectAll<DbKnowledgeEntry>(
+      db,
+      `SELECT * FROM knowledge_entries WHERE layer = ? AND status = 'active' ORDER BY confidence DESC LIMIT ?`,
+      layer, limit
+    );
+  },
+
+  /** Returns tree structure: { language → { layer → { category → count } } } */
+  getTreeStructure: (): Record<string, Record<string, Record<string, number>>> => {
+    const db = getDatabase();
+    const rows = selectAll<{ language: string; layer: string; domain: string; count: number }>(
+      db,
+      `SELECT language, layer, domain, COUNT(*) as count
+       FROM knowledge_entries WHERE status = 'active'
+       GROUP BY language, layer, domain
+       ORDER BY language, layer, domain`
+    );
+    const tree: Record<string, Record<string, Record<string, number>>> = {};
+    for (const row of rows) {
+      if (!tree[row.language]) tree[row.language] = {};
+      if (!tree[row.language][row.layer]) tree[row.language][row.layer] = {};
+      tree[row.language][row.layer][row.domain] = row.count;
+    }
+    return tree;
   },
 };

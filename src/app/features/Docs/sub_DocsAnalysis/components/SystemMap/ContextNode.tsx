@@ -45,11 +45,11 @@ export default function ContextNode({
         className="w-3 h-3 shrink-0"
         style={{ color: `${color}cc` }}
       />
-      <span className="text-[10px] text-gray-300 truncate max-w-[80px] leading-tight">
+      <span className="text-2xs text-gray-300 truncate max-w-[80px] leading-tight">
         {context.name}
       </span>
       {fileCount > 0 && (
-        <span className="text-[9px] text-gray-600 font-mono shrink-0">
+        <span className="text-micro text-gray-600 font-mono shrink-0">
           {fileCount}
         </span>
       )}

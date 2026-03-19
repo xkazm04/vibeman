@@ -277,7 +277,7 @@ export function TemplateVariableForm({
                   />
                 )}
                 {errors[v.name] && (
-                  <p className="mt-0.5 text-[10px] text-red-400">{errors[v.name]}</p>
+                  <p className="mt-0.5 text-2xs text-red-400">{errors[v.name]}</p>
                 )}
               </div>
             </div>

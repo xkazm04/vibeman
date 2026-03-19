@@ -105,7 +105,7 @@ const BufferColumn = React.memo(function BufferColumn({
             </h3>
           </div>
           <div className="flex items-center gap-2">
-            <motion.span key={ideas.length} className="text-[10px] text-gray-500 font-mono" initial={{ scale: 1.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+            <motion.span key={ideas.length} className="text-2xs text-gray-500 font-mono" initial={{ scale: 1.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
               {ideas.length}
             </motion.span>
             {/* Show delete button for any column with ideas (including General/no-context) */}
@@ -135,11 +135,11 @@ const BufferColumn = React.memo(function BufferColumn({
               className="overflow-hidden"
             >
               <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-2 mt-1">
-                <p className="text-[11px] text-red-300 mb-2">
+                <p className="text-caption text-red-300 mb-2">
                   Delete {ideas.length} idea{ideas.length !== 1 ? 's' : ''} in &quot;{contextName}&quot;? This cannot be undone.
                 </p>
                 {deleteError && (
-                  <p className="text-[10px] text-red-400 mb-1.5 flex items-center gap-1">
+                  <p className="text-2xs text-red-400 mb-1.5 flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3 flex-shrink-0" />
                     {deleteError}
                   </p>
@@ -148,14 +148,14 @@ const BufferColumn = React.memo(function BufferColumn({
                   <button
                     onClick={handleConfirmDelete}
                     disabled={isDeleting}
-                    className="px-2 py-1 text-[11px] font-medium bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 rounded text-red-300 transition-colors disabled:opacity-50"
+                    className="px-2 py-1 text-caption font-medium bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 rounded text-red-300 transition-colors disabled:opacity-50"
                   >
                     {isDeleting ? 'Deleting...' : 'Confirm'}
                   </button>
                   <button
                     onClick={handleCancelDelete}
                     disabled={isDeleting}
-                    className="px-2 py-1 text-[11px] font-medium bg-gray-700/50 hover:bg-gray-700/70 border border-gray-600/40 rounded text-gray-400 transition-colors disabled:opacity-50"
+                    className="px-2 py-1 text-caption font-medium bg-gray-700/50 hover:bg-gray-700/70 border border-gray-600/40 rounded text-gray-400 transition-colors disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -176,7 +176,7 @@ const BufferColumn = React.memo(function BufferColumn({
           WebkitMaskImage: `linear-gradient(to bottom, ${scrolledTop ? 'transparent' : 'black'}, black 8px, black calc(100% - 8px), ${canScrollDown ? 'transparent' : 'black'})`,
         }}>
         {sortedIdeas.length === 0 ? (
-          <div className="flex items-center justify-center h-20 text-[10px] text-gray-600">
+          <div className="flex items-center justify-center h-20 text-2xs text-gray-600">
             No ideas
           </div>
         ) : (

@@ -164,7 +164,7 @@ export default function SignalDecayCurve({ decayFactor, retentionDays, actualSig
                 <text
                   x={x1 + 2}
                   y={PADDING.top + 8}
-                  className={`text-[9px] font-medium ${zone.severity === 'critical' ? 'fill-red-400' : 'fill-amber-400'}`}
+                  className={`text-micro font-medium ${zone.severity === 'critical' ? 'fill-red-400' : 'fill-amber-400'}`}
                 >
                   {zone.label}
                 </text>

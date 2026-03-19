@@ -65,7 +65,7 @@ export const OrphanedSessionItem = memo(function OrphanedSessionItem({
           <div className="text-xs font-medium text-gray-300 truncate">
             {session.name}
           </div>
-          <div className="text-[10px] text-gray-500 flex items-center gap-2">
+          <div className="text-2xs text-gray-500 flex items-center gap-2">
             <span>{getReasonText(session.reason)}</span>
             <span>|</span>
             <span>{formatRelativeTime(session.lastActivity)}</span>

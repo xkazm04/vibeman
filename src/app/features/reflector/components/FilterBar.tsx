@@ -379,7 +379,8 @@ export default function FilterBar({
                 </h2>
                 <button
                   onClick={() => setIsPanelOpen(false)}
-                  className="text-gray-400 hover:text-gray-300 transition-colors"
+                  className="text-gray-400 hover:text-gray-300 transition-colors focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 outline-none rounded"
+                  aria-label="Close filter panel"
                   data-testid="filter-bar-close-panel-btn"
                 >
                   <X className="w-5 h-5" />

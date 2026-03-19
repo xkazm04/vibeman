@@ -66,7 +66,7 @@ export function IdeaCard({ idea, index, accentColor }: IdeaCardProps) {
             </>
           )}
           {idea.provider && (
-            <span className="text-[10px] px-1 py-0.5 rounded bg-gray-700/50 text-gray-500 font-medium uppercase">
+            <span className="text-2xs px-1 py-0.5 rounded bg-gray-700/50 text-gray-500 font-medium uppercase">
               {idea.provider}
             </span>
           )}

@@ -218,8 +218,16 @@ export function useSessionCleanup(
  */
 export async function sendSessionHeartbeat(sessionId: string): Promise<boolean> {
   try {
-    await getLifecycle().heartbeat(sessionId);
-    return true;
+    const result = await getLifecycle().heartbeat(sessionId);
+    if (result === 'not_found') {
+      console.warn(`Heartbeat failed: session ${sessionId} not found (orphaned?)`);
+      return false;
+    }
+    if (result === 'inactive') {
+      console.warn(`Heartbeat failed: session ${sessionId} is inactive`);
+      return false;
+    }
+    return result === 'updated';
   } catch (err) {
     console.error('Failed to send session heartbeat:', err);
     return false;

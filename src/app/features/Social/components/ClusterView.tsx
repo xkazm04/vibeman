@@ -30,7 +30,7 @@ function SentimentBadge({ sentiment }: { sentiment: string | null }) {
   };
 
   return (
-    <span className={`px-1.5 py-0.5 rounded text-[10px] ${colors[sentiment] || colors.neutral}`}>
+    <span className={`px-1.5 py-0.5 rounded text-2xs ${colors[sentiment] || colors.neutral}`}>
       {sentiment}
     </span>
   );
@@ -80,7 +80,7 @@ function ClusterCard({
               {cluster.centroidKeywords.slice(0, 4).map((kw) => (
                 <span
                   key={kw}
-                  className="px-1.5 py-0.5 bg-zinc-700/50 text-zinc-400 rounded text-[10px]"
+                  className="px-1.5 py-0.5 bg-zinc-700/50 text-zinc-400 rounded text-2xs"
                 >
                   {kw}
                 </span>
@@ -107,7 +107,7 @@ function ClusterCard({
                   <p className="text-xs text-zinc-300 line-clamp-2">
                     {item.content.subject || item.content.body}
                   </p>
-                  <div className="flex items-center gap-2 mt-1 text-[10px] text-zinc-500">
+                  <div className="flex items-center gap-2 mt-1 text-2xs text-zinc-500">
                     <span>{item.channel}</span>
                     <span>{item.priority}</span>
                     {item.tags.slice(0, 2).map((tag) => (

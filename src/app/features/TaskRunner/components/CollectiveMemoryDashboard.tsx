@@ -37,7 +37,7 @@ function ScoreBar({ score }: { score: number }) {
       <div className="w-16 h-1.5 rounded-full bg-gray-800 overflow-hidden">
         <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
       </div>
-      <span className={`text-[10px] font-mono ${pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-gray-500'}`}>
+      <span className={`text-2xs font-mono ${pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-gray-500'}`}>
         {pct}%
       </span>
     </div>
@@ -73,7 +73,7 @@ function TrendChart({ trends }: { trends: { date: string; score: number; memoryC
                 {t.date.slice(5)}
               </span>
             )}
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 hidden group-hover:block bg-gray-800 border border-gray-700 rounded px-1.5 py-0.5 text-[9px] text-gray-300 whitespace-nowrap z-10">
+            <div className="absolute -top-8 left-1/2 -translate-x-1/2 hidden group-hover:block bg-gray-800 border border-gray-700 rounded px-1.5 py-0.5 text-micro text-gray-300 whitespace-nowrap z-10">
               {Math.round(t.score * 100)}% ({t.memoryCount} new)
             </div>
           </div>
@@ -122,16 +122,16 @@ function MemoryRow({
             </span>
             <ScoreBar score={memory.effectiveness_score} />
           </div>
-          <p className="text-[10px] text-gray-500 truncate mt-0.5">{memory.description}</p>
+          <p className="text-2xs text-gray-500 truncate mt-0.5">{memory.description}</p>
           <div className="flex items-center gap-2 mt-1">
-            <span className={`text-[9px] px-1 py-px rounded ${meta.bg} ${meta.color}`}>
+            <span className={`text-micro px-1 py-px rounded ${meta.bg} ${meta.color}`}>
               {meta.label}
             </span>
-            <span className="text-[9px] text-gray-600">
+            <span className="text-micro text-gray-600">
               {memory.success_count}OK {memory.failure_count}FAIL
             </span>
             {tags.slice(0, 3).map(tag => (
-              <span key={tag} className="text-[9px] px-1 py-px rounded bg-gray-800 text-gray-500">
+              <span key={tag} className="text-micro px-1 py-px rounded bg-gray-800 text-gray-500">
                 {tag}
               </span>
             ))}
@@ -168,7 +168,7 @@ function MemoryDetail({ memory }: { memory: DbCollectiveMemoryEntry }) {
         </div>
         <div className="flex-1">
           <h3 className="text-sm font-semibold text-gray-200">{memory.title}</h3>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded ${meta.bg} ${meta.color}`}>
+          <span className={`text-2xs px-1.5 py-0.5 rounded ${meta.bg} ${meta.color}`}>
             {meta.label}
           </span>
         </div>
@@ -176,14 +176,14 @@ function MemoryDetail({ memory }: { memory: DbCollectiveMemoryEntry }) {
 
       {/* Description */}
       <div>
-        <h4 className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Description</h4>
+        <h4 className="text-2xs uppercase tracking-wider text-gray-500 mb-1">Description</h4>
         <p className="text-xs text-gray-400 leading-relaxed">{memory.description}</p>
       </div>
 
       {/* Code Pattern */}
       {memory.code_pattern && (
         <div>
-          <h4 className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Pattern Detected</h4>
+          <h4 className="text-2xs uppercase tracking-wider text-gray-500 mb-1">Pattern Detected</h4>
           <code className="block text-xs text-cyan-400 bg-gray-900 rounded px-2 py-1 font-mono">
             {memory.code_pattern}
           </code>
@@ -193,15 +193,15 @@ function MemoryDetail({ memory }: { memory: DbCollectiveMemoryEntry }) {
       {/* Effectiveness */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-gray-800/50 rounded-lg p-2">
-          <div className="text-[10px] text-gray-500">Score</div>
+          <div className="text-2xs text-gray-500">Score</div>
           <div className="text-lg font-bold text-cyan-400">{Math.round(memory.effectiveness_score * 100)}%</div>
         </div>
         <div className="bg-gray-800/50 rounded-lg p-2">
-          <div className="text-[10px] text-gray-500">Successes</div>
+          <div className="text-2xs text-gray-500">Successes</div>
           <div className="text-lg font-bold text-emerald-400">{memory.success_count}</div>
         </div>
         <div className="bg-gray-800/50 rounded-lg p-2">
-          <div className="text-[10px] text-gray-500">Failures</div>
+          <div className="text-2xs text-gray-500">Failures</div>
           <div className="text-lg font-bold text-red-400">{memory.failure_count}</div>
         </div>
       </div>
@@ -209,10 +209,10 @@ function MemoryDetail({ memory }: { memory: DbCollectiveMemoryEntry }) {
       {/* Tags */}
       {tags.length > 0 && (
         <div>
-          <h4 className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Tags</h4>
+          <h4 className="text-2xs uppercase tracking-wider text-gray-500 mb-1">Tags</h4>
           <div className="flex flex-wrap gap-1">
             {tags.map(tag => (
-              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-400 border border-gray-700/50">
+              <span key={tag} className="text-2xs px-1.5 py-0.5 rounded bg-gray-800 text-gray-400 border border-gray-700/50">
                 {tag}
               </span>
             ))}
@@ -223,10 +223,10 @@ function MemoryDetail({ memory }: { memory: DbCollectiveMemoryEntry }) {
       {/* File Patterns */}
       {filePatterns.length > 0 && (
         <div>
-          <h4 className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">File Patterns</h4>
+          <h4 className="text-2xs uppercase tracking-wider text-gray-500 mb-1">File Patterns</h4>
           <div className="flex flex-wrap gap-1">
             {filePatterns.map(fp => (
-              <span key={fp} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-900 text-gray-500 font-mono">
+              <span key={fp} className="text-2xs px-1.5 py-0.5 rounded bg-gray-900 text-gray-500 font-mono">
                 {fp}
               </span>
             ))}
@@ -235,7 +235,7 @@ function MemoryDetail({ memory }: { memory: DbCollectiveMemoryEntry }) {
       )}
 
       {/* Timestamps */}
-      <div className="text-[9px] text-gray-600 space-y-0.5 pt-2 border-t border-gray-800/50">
+      <div className="text-micro text-gray-600 space-y-0.5 pt-2 border-t border-gray-800/50">
         <div>Created: {new Date(memory.created_at).toLocaleString()}</div>
         {memory.last_applied_at && (
           <div>Last applied: {new Date(memory.last_applied_at).toLocaleString()}</div>
@@ -303,21 +303,21 @@ export default function CollectiveMemoryDashboard({ projectId }: Props) {
       {/* Stats Row */}
       {stats && (
         <div className="px-4 py-3 border-b border-gray-800/50 flex-shrink-0">
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="bg-gray-800/40 rounded-lg px-3 py-2">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Total Memories</div>
+              <div className="text-2xs text-gray-500 uppercase tracking-wider">Total Memories</div>
               <div className="text-xl font-bold text-gray-200">{stats.total}</div>
             </div>
             <div className="bg-gray-800/40 rounded-lg px-3 py-2">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Avg. Effectiveness</div>
+              <div className="text-2xs text-gray-500 uppercase tracking-wider">Avg. Effectiveness</div>
               <div className="text-xl font-bold text-cyan-400">{Math.round(stats.avgEffectiveness * 100)}%</div>
             </div>
             <div className="bg-gray-800/40 rounded-lg px-3 py-2">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">This Week</div>
+              <div className="text-2xs text-gray-500 uppercase tracking-wider">This Week</div>
               <div className="text-xl font-bold text-emerald-400">+{stats.recentCount}</div>
             </div>
             <div className="bg-gray-800/40 rounded-lg px-3 py-2">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Applications</div>
+              <div className="text-2xs text-gray-500 uppercase tracking-wider">Applications</div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-emerald-400">{stats.recentApplications.success}OK</span>
                 <span className="text-sm font-bold text-red-400">{stats.recentApplications.failure}F</span>
@@ -333,7 +333,7 @@ export default function CollectiveMemoryDashboard({ projectId }: Props) {
         <div className="px-4 py-3 border-b border-gray-800/50 flex-shrink-0">
           <div className="flex items-center gap-2 mb-2">
             <BarChart3 className="w-3.5 h-3.5 text-gray-500" />
-            <span className="text-[10px] uppercase tracking-wider text-gray-500">Effectiveness Trend (30d)</span>
+            <span className="text-2xs uppercase tracking-wider text-gray-500">Effectiveness Trend (30d)</span>
           </div>
           <TrendChart trends={trends} />
         </div>
@@ -359,7 +359,7 @@ export default function CollectiveMemoryDashboard({ projectId }: Props) {
               <button
                 key={type || 'all'}
                 onClick={() => setTypeFilter(type)}
-                className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
+                className={`px-2 py-0.5 rounded text-2xs font-medium transition-all ${
                   isActive
                     ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
                     : 'text-gray-500 hover:text-gray-300 bg-gray-800/30 hover:bg-gray-800/60'
@@ -373,16 +373,16 @@ export default function CollectiveMemoryDashboard({ projectId }: Props) {
       </div>
 
       {/* Content: List + Detail */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Memory List */}
-        <div className="w-1/2 border-r border-gray-800/50 overflow-y-auto">
+        <div className="w-full lg:w-1/2 max-h-[50vh] lg:max-h-none lg:border-r border-b lg:border-b-0 border-gray-800/50 overflow-y-auto">
           {isLoading ? (
             <div className="p-4 text-center text-xs text-gray-500">Loading...</div>
           ) : memories.length === 0 ? (
             <div className="p-8 text-center">
               <Database className="w-8 h-8 text-gray-700 mx-auto mb-2" />
               <p className="text-xs text-gray-500">No memories yet.</p>
-              <p className="text-[10px] text-gray-600 mt-1">
+              <p className="text-2xs text-gray-600 mt-1">
                 Memories are captured automatically as tasks complete.
               </p>
             </div>
@@ -404,7 +404,7 @@ export default function CollectiveMemoryDashboard({ projectId }: Props) {
         </div>
 
         {/* Detail Panel */}
-        <div className="w-1/2 overflow-y-auto">
+        <div className="w-full lg:w-1/2 overflow-y-auto">
           {selectedMemory ? (
             <MemoryDetail memory={selectedMemory} />
           ) : (

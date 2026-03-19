@@ -3,6 +3,7 @@ import { Loader2, StopCircle, Zap, Plus } from 'lucide-react';
 import MarkdownViewer from '../markdown/MarkdownViewer';
 import { MonacoEditor } from '../editor';
 import { useThemeStore } from '@/stores/themeStore';
+import { SimpleSpinner } from './Spinner';
 
 interface ModalContentProps {
   loading?: boolean;
@@ -93,7 +94,7 @@ export default function ModalContent({
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <div className={`w-8 h-8 border-2 ${colors.text} border-t-transparent rounded-full animate-spin mx-auto mb-4`}></div>
+          <SimpleSpinner size="lg" color="cyan" className="mx-auto mb-4" />
           <p className="text-gray-400">{loadingMessage}</p>
         </div>
       </div>

@@ -61,7 +61,7 @@ export default function SimulationModeToggle({
             animate={{ opacity: 1, x: 0 }}
           >
             <Zap className="w-3 h-3 text-amber-400" />
-            <span className="text-[10px] text-amber-400">Analyzing...</span>
+            <span className="text-2xs text-amber-400">Analyzing...</span>
           </motion.div>
         )}
 

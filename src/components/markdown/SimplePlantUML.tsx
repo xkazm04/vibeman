@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Download, Maximize2 } from 'lucide-react';
+import { SimpleSpinner } from '@/components/ui/Spinner';
 
 interface SimplePlantUMLProps {
   content: string;
@@ -196,7 +197,7 @@ export default function SimplePlantUML({ content, title }: SimplePlantUMLProps) 
         animate={{ opacity: 1 }}
         className="flex items-center justify-center h-32 bg-gray-900/50 rounded-xl border border-gray-700/50 backdrop-blur-sm"
       >
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-400"></div>
+        <SimpleSpinner size="md" color="cyan" />
         <span className="ml-3 text-gray-400 text-sm">Generating diagram...</span>
       </motion.div>
     );

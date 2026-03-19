@@ -16,7 +16,7 @@ import {
   useDeleteContextIdeas,
   useInvalidateIdeas,
 } from '@/lib/queries/ideaQueries';
-import EmptyStateIllustration from '@/components/ui/EmptyStateIllustration';
+import EmptyState from '@/components/ui/EmptyState';
 import IdeasLoadingState from '@/app/features/Ideas/components/IdeasLoadingState';
 import { getCategoryConfig } from '@/app/features/Ideas/lib/ideaConfig';
 
@@ -249,14 +249,13 @@ export default function BufferView({
 
   if (filteredIdeas.length === 0) {
     return (
-      <EmptyStateIllustration
-        type="ideas"
-        headline="Your idea buffer is empty"
+      <EmptyState
+        icon={Sparkles}
+        title="Your idea buffer is empty"
         description="Generate AI-powered insights by scanning your codebase. Our specialized agents will analyze your code and suggest improvements, optimizations, and new features."
-        action={{
+        actions={[{
           label: 'Generate Ideas',
           onClick: () => {
-            // Scroll to or focus the scan initiator button
             const scanBtn = document.querySelector('[data-testid="ideas-scan-btn"]');
             if (scanBtn instanceof HTMLElement) {
               scanBtn.focus();
@@ -264,7 +263,8 @@ export default function BufferView({
             }
           },
           icon: Sparkles,
-        }}
+          variant: 'primary',
+        }]}
         testId="buffer-empty"
       />
     );

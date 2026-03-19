@@ -65,18 +65,26 @@ export default function WorkspaceManager({ isOpen, onClose }: WorkspaceManagerPr
       exit={{ opacity: 0, scale: 0.95 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={onClose}
+      role="presentation"
     >
       <motion.div
         initial={{ y: 20 }}
         animate={{ y: 0 }}
+        role="dialog"
+        aria-labelledby="workspace-manager-title"
+        aria-describedby="workspace-manager-desc"
+        aria-modal="true"
         className="w-full max-w-md bg-gray-900 border border-gray-700/50 rounded-xl shadow-2xl overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
+        <p id="workspace-manager-desc" className="sr-only">
+          Manage your workspaces: create, edit, delete, and assign projects.
+        </p>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
           <div className="flex items-center gap-2">
             <Layers className="w-4 h-4 text-blue-400" />
-            <h2 className="text-sm font-semibold text-gray-200">Workspaces</h2>
+            <h2 id="workspace-manager-title" className="text-sm font-semibold text-gray-200">Workspaces</h2>
           </div>
           <div className="flex items-center gap-2">
             {view === 'list' && (
@@ -88,7 +96,7 @@ export default function WorkspaceManager({ isOpen, onClose }: WorkspaceManagerPr
                 New
               </button>
             )}
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-300">
+            <button onClick={onClose} aria-label="Close workspace manager" className="text-gray-500 hover:text-gray-300">
               <X className="w-4 h-4" />
             </button>
           </div>

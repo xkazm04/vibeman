@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Folder, FileText, AlertCircle } from 'lucide-react';
 import FolderSelector from '../FolderSelector';
 import { useThemeStore } from '@/stores/themeStore';
+import { SimpleSpinner } from './Spinner';
 
 interface SaveFileDialogProps {
   isOpen: boolean;
@@ -224,7 +225,7 @@ export default function SaveFileDialog({
                 >
                   {saving ? (
                     <>
-                      <div className={`w-4 h-4 border-2 ${colors.text} border-t-transparent rounded-full animate-spin`}></div>
+                      <SimpleSpinner size="sm" color="cyan" />
                       <span>Saving...</span>
                     </>
                   ) : (

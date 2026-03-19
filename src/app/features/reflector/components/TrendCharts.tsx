@@ -14,6 +14,7 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  ResponsiveContainer,
 } from 'recharts';
 import {
   TrendingUp,
@@ -57,7 +58,9 @@ export default function TrendCharts({
       const date = new Date(idea.created_at);
       // Get week start (Monday)
       const weekStart = new Date(date);
-      weekStart.setDate(date.getDate() - date.getDay() + 1);
+      const dayOfWeek = date.getDay();
+      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      weekStart.setDate(date.getDate() - daysFromMonday);
       const weekKey = weekStart.toISOString().split('T')[0];
 
       const current = weekMap.get(weekKey) || { total: 0, accepted: 0, rejected: 0 };
@@ -225,7 +228,8 @@ export default function TrendCharts({
         </div>
 
         <div className="h-64">
-            <AreaChart data={weeklyTrends} responsive width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={weeklyTrends}>
               <defs>
                 <linearGradient id="acceptanceGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={REFLECTOR_CHART_COLORS.acceptance_rate} stopOpacity={0.3} />
@@ -261,6 +265,7 @@ export default function TrendCharts({
                 activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2, cursor: onDrillDown ? 'pointer' : 'default', onClick: (_e: any, payload: any) => handleWeekClick(payload?.payload) }}
               />
             </AreaChart>
+          </ResponsiveContainer>
         </div>
       </motion.div>
 
@@ -284,7 +289,8 @@ export default function TrendCharts({
         </div>
 
         <div className="h-64">
-            <BarChart data={scanTypeEffectiveness} layout="vertical" responsive width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={scanTypeEffectiveness} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} horizontal={false} />
               <XAxis
                 type="number"
@@ -309,6 +315,7 @@ export default function TrendCharts({
                 onClick={(data: any) => handleScanTypeClick(data)}
               />
             </BarChart>
+          </ResponsiveContainer>
         </div>
       </motion.div>
 
@@ -332,7 +339,8 @@ export default function TrendCharts({
         </div>
 
         <div className="h-64">
-            <BarChart data={weeklyTrends} responsive width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={weeklyTrends}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
               <XAxis
                 dataKey="week"
@@ -351,6 +359,7 @@ export default function TrendCharts({
               <Bar dataKey="total" name="Generated" fill={REFLECTOR_CHART_COLORS.generated} radius={[4, 4, 0, 0]} className={onDrillDown ? 'cursor-pointer' : ''} onClick={(data: any) => handleWeekClick(data)} />
               <Bar dataKey="accepted" name="Accepted" fill={REFLECTOR_CHART_COLORS.accepted} radius={[4, 4, 0, 0]} className={onDrillDown ? 'cursor-pointer' : ''} onClick={(data: any) => handleWeekClick(data)} />
             </BarChart>
+          </ResponsiveContainer>
         </div>
       </motion.div>
     </div>

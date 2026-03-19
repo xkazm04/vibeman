@@ -3,6 +3,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Grid3X3, X } from 'lucide-react';
+import { transition } from '@/lib/motion';
+import { transitions } from '@/lib/design-tokens';
 import type { WorkspaceProjectNode, CrossProjectRelationship, IntegrationType } from '../sub_WorkspaceArchitecture/lib/types';
 import type { FilteredCellData } from '../sub_WorkspaceArchitecture/lib/useMatrixCanvasData';
 import MatrixFilterChips from './MatrixFilterChips';
@@ -52,7 +54,7 @@ export default function MatrixPanel({
       initial={{ width: 0, opacity: 0 }}
       animate={{ width: panelWidth, opacity: 1 }}
       exit={{ width: 0, opacity: 0 }}
-      transition={{ duration: 0.2, ease: 'easeOut' }}
+      transition={transition.normal}
       className="h-full border-r border-cyan-500/20 backdrop-blur-sm overflow-auto flex-shrink-0 relative z-10"
       style={{ maxWidth: '60%', backgroundColor: `${archTheme.surface.canvas}cc` }}
     >
@@ -64,9 +66,9 @@ export default function MatrixPanel({
           </h3>
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-zinc-800/80 rounded-lg transition-all duration-200 hover:border-zinc-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 group"
+            className={`p-1.5 hover:bg-zinc-800/80 rounded-lg ${transitions.normal} hover:border-zinc-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 group`}
           >
-            <X className="w-4 h-4 text-zinc-500 group-hover:text-zinc-300 transition-colors duration-200" />
+            <X className={`w-4 h-4 text-zinc-500 group-hover:text-zinc-300 ${transitions.colors}`} />
           </button>
         </div>
 

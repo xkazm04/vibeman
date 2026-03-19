@@ -150,7 +150,7 @@ export default function ResponsivePanel() {
                 `}
               >
                 <span className="truncate">{device.name}</span>
-                <span className="text-[10px] opacity-60">{device.width}px</span>
+                <span className="text-2xs opacity-60">{device.width}px</span>
               </button>
             );
           })}
@@ -226,7 +226,7 @@ export default function ResponsivePanel() {
                     style={{ backgroundColor: bp.color }}
                   />
                   <span className="text-xs text-gray-300">{bp.name}</span>
-                  <span className="text-[10px] text-gray-500">{bp.minWidth}px</span>
+                  <span className="text-2xs text-gray-500">{bp.minWidth}px</span>
                 </button>
                 <button
                   onClick={() => removeCustomBreakpoint(bp.name)}
@@ -269,7 +269,7 @@ export default function ResponsivePanel() {
                 />
                 <span className="font-medium">{bp.label}</span>
               </div>
-              <span className="text-[10px] opacity-60">
+              <span className="text-2xs opacity-60">
                 {bp.minWidth ?? 0}px {bp.maxWidth ? `- ${bp.maxWidth}px` : '+'}
               </span>
             </button>

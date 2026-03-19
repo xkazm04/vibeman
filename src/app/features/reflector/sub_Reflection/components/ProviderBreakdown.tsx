@@ -106,7 +106,7 @@ export default function ProviderBreakdown({ providers }: ProviderBreakdownProps)
               </div>
 
               {/* Status Numbers */}
-              <div className="flex items-center justify-between text-[10px] font-mono px-0.5">
+              <div className="flex items-center justify-between text-2xs font-mono px-0.5">
                 <span className={STATUS_CONFIG.pending.color} title="Pending">{stat.pending}p</span>
                 <span className={STATUS_CONFIG.rejected.color} title="Rejected">{stat.rejected}r</span>
                 <span className={STATUS_CONFIG.accepted.color} title="Accepted">{stat.accepted}a</span>

@@ -125,7 +125,7 @@ export default function QuickActionBar({ className = '' }: QuickActionBarProps) 
       animate={{ opacity: 1, y: 0 }}
       className={`flex items-center gap-2 ${className}`}
     >
-      <span className="text-[10px] font-medium uppercase tracking-wider text-gray-500 mr-1">
+      <span className="text-2xs font-medium uppercase tracking-wider text-gray-500 mr-1">
         Quick:
       </span>
       {quickActions.map((action, index) => {
@@ -184,7 +184,7 @@ export function QuickActionBarCompact({ className = '' }: { className?: string }
           <button
             key={action.id}
             onClick={() => handleNavigate(action)}
-            className="flex items-center gap-1 px-2 py-1 text-[10px] text-gray-500 hover:text-gray-300 hover:bg-gray-800/30 rounded transition-colors"
+            className="flex items-center gap-1 px-2 py-1 text-2xs text-gray-500 hover:text-gray-300 hover:bg-gray-800/30 rounded transition-colors"
             title={action.description}
             data-testid={`quick-action-compact-${action.id}`}
           >

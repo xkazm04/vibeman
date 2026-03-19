@@ -13,6 +13,7 @@ import type {
   DbBehavioralSignal,
   CreateBehavioralSignalInput,
 } from '../models/brain.types';
+import { SIGNAL_MIN_WEIGHT } from '@/lib/brain/config';
 import type { BehavioralSignalType } from '@/types/signals';
 import { getAllSignalTypes } from '@/types/signals';
 import { getCurrentTimestamp, selectOne, selectAll } from './repository.utils';
@@ -238,10 +239,10 @@ export const behavioralSignalRepository = {
    *
    * @param projectId - Project to decay signals for
    * @param decayFactor - Multiplier for weight (0.8-0.99, default 0.9)
-   * @param olderThanDays - Only decay signals older than this (default 7)
+   * @param olderThanDays - Only decay signals older than this (derived from retentionDays × DECAY_START_FRACTION)
    * @returns Number of signals updated
    */
-  applyDecay: (projectId: string, decayFactor: number = 0.9, olderThanDays: number = 7): number => {
+  applyDecay: (projectId: string, decayFactor: number, olderThanDays: number): number => {
     const db = getHotWritesDatabase();
     const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString();
     const now = getCurrentTimestamp();
@@ -259,7 +260,7 @@ export const behavioralSignalRepository = {
         SELECT id FROM behavioral_signals
         WHERE project_id = ?
           AND timestamp < ?
-          AND weight > 0.01
+          AND weight > ${SIGNAL_MIN_WEIGHT}
           AND (decay_applied_at IS NULL OR decay_applied_at < ?)
         LIMIT ?
       )

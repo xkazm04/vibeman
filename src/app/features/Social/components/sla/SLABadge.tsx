@@ -57,7 +57,7 @@ export function SLABadge({ item, compact = false, showTooltip = true }: SLABadge
           {slaInfo.status === 'overdue' ? 'Overdue' : slaInfo.formattedRemaining}
         </span>
         {showTooltip && slaInfo.status !== 'overdue' && (
-          <span className="opacity-70 text-[10px]">remaining</span>
+          <span className="opacity-70 text-2xs">remaining</span>
         )}
       </div>
     </motion.div>

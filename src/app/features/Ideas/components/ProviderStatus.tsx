@@ -138,7 +138,7 @@ export function ProviderStatusBadge({
         <Icon className={`w-3 h-3 ${config.color}`} />
       </motion.div>
       {provider && (
-        <span className="text-[10px] font-medium text-gray-400">{provider}</span>
+        <span className="text-2xs font-medium text-gray-400">{provider}</span>
       )}
     </motion.div>
   );

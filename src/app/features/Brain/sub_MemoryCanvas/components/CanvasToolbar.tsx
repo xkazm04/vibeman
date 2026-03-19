@@ -26,7 +26,7 @@ export function CanvasToolbar({
   onToggleType,
 }: CanvasToolbarProps) {
   return (
-    <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-900/60 backdrop-blur-xl border-t border-zinc-700/20 text-xs">
+    <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-950/80 border-t border-zinc-800/70 text-xs font-mono">
       <div className="flex items-center gap-4">
         <span className="text-zinc-500">
           <span className="text-zinc-300 font-medium">{Math.round(zoomLevel * 100)}%</span>
@@ -47,7 +47,7 @@ export function CanvasToolbar({
                 <span className="font-medium text-zinc-200">
                   {groups.find(g => g.id === selectedGroupId)?.name}
                 </span>
-                <span className="text-zinc-500 text-[10px]">Enter ↵</span>
+                <span className="text-zinc-500 text-2xs">Enter ↵</span>
               </span>
             ) : (
               <>
@@ -59,7 +59,7 @@ export function CanvasToolbar({
                 </span>
               </>
             )}
-            <span className="text-zinc-600 text-[10px] hidden md:inline">
+            <span className="text-zinc-600 text-2xs hidden md:inline">
               ←→ navigate · ↵ focus · Esc clear
             </span>
           </>
@@ -73,14 +73,14 @@ export function CanvasToolbar({
               key={type}
               onClick={() => onToggleType(type as SignalType)}
               aria-label={`${isVisible ? 'Hide' : 'Show'} ${LABELS[type as SignalType]}`}
-              className={`flex items-center gap-1.5 transition-all duration-200 hover:scale-110 focus-visible:ring-2 focus-visible:ring-purple-500/50 rounded outline-none ${
+              className={`flex items-center gap-1.5 transition-colors outline-none ${
                 isVisible ? 'opacity-100' : 'opacity-30'
               }`}
               title={`${isVisible ? 'Hide' : 'Show'} ${LABELS[type as SignalType]}`}
             >
               <div
-                className="w-2 h-2 rounded-full shadow-sm"
-                style={{ backgroundColor: color, boxShadow: isVisible ? `0 0 4px ${color}40` : 'none' }}
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ backgroundColor: color }}
               />
               <span className={`hidden lg:inline ${isVisible ? 'text-zinc-500' : 'text-zinc-600 line-through'}`}>
                 {LABELS[type as SignalType]}
@@ -92,7 +92,7 @@ export function CanvasToolbar({
           <button
             onClick={onFitToView}
             aria-label="Fit to view"
-            className="ml-1 p-1.5 rounded-md hover:bg-zinc-700/60 text-zinc-500 hover:text-zinc-200 transition-all focus-visible:ring-2 focus-visible:ring-purple-500/50 outline-none"
+            className="ml-1 p-1 rounded-sm text-zinc-600 hover:text-zinc-300 border border-zinc-800/50 hover:border-zinc-700 transition-colors outline-none"
             title="Fit to view"
           >
             <Maximize2 size={13} />

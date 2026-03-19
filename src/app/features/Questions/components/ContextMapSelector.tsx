@@ -6,6 +6,7 @@ import { Check, CheckCircle, Layers, AlertCircle, Wand2, FileCode } from 'lucide
 import CompactList, { CompactListItem } from '@/components/lists/CompactList';
 import { GroupedContexts } from '../lib/questionsApi';
 import type { Context } from '@/lib/queries/contextQueries';
+import { SimpleSpinner } from '@/components/ui';
 
 interface ContextMapSelectorProps {
   /** Grouped contexts from SQLite database */
@@ -157,7 +158,7 @@ export default function ContextMapSelector({
     return (
       <div className="bg-gray-800/40 backdrop-blur-sm rounded-xl p-4 border border-gray-700/40">
         <div className="flex items-center gap-3 text-gray-400">
-          <div className="w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+          <SimpleSpinner size="sm" color="gray" />
           <span>Loading contexts...</span>
         </div>
       </div>
@@ -192,7 +193,7 @@ export default function ContextMapSelector({
             >
               {setupLoading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <SimpleSpinner size="sm" color="white" />
                   <span>Setting up...</span>
                 </>
               ) : (
@@ -278,7 +279,7 @@ export default function ContextMapSelector({
                       allGroupSelected ? (
                         <CheckCircle className="w-3 h-3 text-green-400" />
                       ) : (
-                        <span className="text-[10px] text-gray-500 tabular-nums">
+                        <span className="text-2xs text-gray-500 tabular-nums">
                           {selectedInGroup}/{totalInGroup}
                         </span>
                       )

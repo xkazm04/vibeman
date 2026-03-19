@@ -28,12 +28,12 @@ export const ConductorRow = memo(function ConductorRow({ runs, onRunStarted }: C
       {/* Section header — always visible */}
       <div className="flex items-center gap-2">
         <Workflow className="w-3.5 h-3.5 text-gray-500" />
-        <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">
+        <span className="text-caption font-medium text-gray-500 uppercase tracking-wider">
           Conductor Pipelines
         </span>
         <ConductorQuickStart onRunStarted={onRunStarted} />
         {hasRuns && (
-          <span className="text-[10px] text-gray-600 tabular-nums">
+          <span className="text-2xs text-gray-600 tabular-nums">
             ({runs.length} active)
           </span>
         )}
@@ -55,7 +55,7 @@ export const ConductorRow = memo(function ConductorRow({ runs, onRunStarted }: C
           animate={{ opacity: 1 }}
           className="flex items-center justify-center py-4 rounded-lg border border-dashed border-gray-800/60 bg-gray-900/20"
         >
-          <p className="text-[11px] text-gray-600">
+          <p className="text-caption text-gray-600">
             No active pipelines. Click <span className="text-gray-400 font-medium">+</span> to start one.
           </p>
         </motion.div>

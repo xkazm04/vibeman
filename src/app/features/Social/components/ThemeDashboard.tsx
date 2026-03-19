@@ -54,7 +54,7 @@ function SentimentBadge({ sentiment }: { sentiment: string | null }) {
   };
 
   return (
-    <span className={`px-1.5 py-0.5 rounded text-[10px] ${colors[sentiment] || colors.neutral}`}>
+    <span className={`px-1.5 py-0.5 rounded text-2xs ${colors[sentiment] || colors.neutral}`}>
       {sentiment}
     </span>
   );
@@ -96,7 +96,7 @@ function ThemeCard({
             {theme.keywords.slice(0, 3).map((kw) => (
               <span
                 key={kw}
-                className="px-1.5 py-0.5 bg-zinc-700/50 text-zinc-400 rounded text-[10px]"
+                className="px-1.5 py-0.5 bg-zinc-700/50 text-zinc-400 rounded text-2xs"
               >
                 {kw}
               </span>
@@ -142,7 +142,7 @@ function ThemeCard({
               <div className="text-zinc-500 mb-1">Channels</div>
               <div className="flex flex-wrap gap-1">
                 {theme.channels.map((ch) => (
-                  <span key={ch} className="px-1 py-0.5 bg-zinc-700/50 text-zinc-400 rounded text-[10px]">
+                  <span key={ch} className="px-1 py-0.5 bg-zinc-700/50 text-zinc-400 rounded text-2xs">
                     {ch}
                   </span>
                 ))}
@@ -157,7 +157,7 @@ function ThemeCard({
               {theme.keywords.map((kw) => (
                 <span
                   key={kw}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-purple-500/10 text-purple-300 rounded text-[10px]"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-purple-500/10 text-purple-300 rounded text-2xs"
                 >
                   <Tag className="w-2.5 h-2.5" />
                   {kw}

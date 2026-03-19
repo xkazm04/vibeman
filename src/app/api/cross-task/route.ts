@@ -10,6 +10,7 @@ import { projectDb } from '@/lib/project_database';
 import { generateId } from '@/app/db/repositories/repository.utils';
 import { buildCrossTaskPrompt } from '@/lib/cross-task/promptBuilder';
 import type { CrossTaskContextData, CrossTaskArchitectureContext, CrossTaskArchitectureRelationship } from '@/app/db/models/cross-task.types';
+import { safeParseJson } from '@/lib/cross-task/safeParseJson';
 
 interface CreateCrossTaskRequest {
   workspaceId: string | null;
@@ -56,6 +57,7 @@ export async function POST(request: Request) {
 
     // Build context data for each project
     const projectContexts: CrossTaskContextData[] = [];
+    const dataWarnings: string[] = [];
 
     for (const project of projects) {
       // Get contexts for this project
@@ -68,28 +70,25 @@ export async function POST(request: Request) {
         projectName: project.name,
         projectPath: project.path,
         contexts: contexts.map((ctx) => {
-          let apiRoutes: string[] | null = null;
-          let filePaths: string[] = [];
+          const apiRoutesResult = safeParseJson<string[] | null>(ctx.api_routes, null, {
+            field: 'api_routes',
+            recordId: ctx.id,
+          });
+          if (apiRoutesResult.warning) dataWarnings.push(apiRoutesResult.warning);
 
-          try {
-            apiRoutes = ctx.api_routes ? JSON.parse(ctx.api_routes) : null;
-          } catch {
-            // Corrupt JSON in api_routes column - fall back to null
-          }
-
-          try {
-            filePaths = ctx.file_paths ? JSON.parse(ctx.file_paths) : [];
-          } catch {
-            // Corrupt JSON in file_paths column - fall back to empty array
-          }
+          const filePathsResult = safeParseJson<string[]>(ctx.file_paths, [], {
+            field: 'file_paths',
+            recordId: ctx.id,
+          });
+          if (filePathsResult.warning) dataWarnings.push(filePathsResult.warning);
 
           return {
             id: ctx.id,
             name: ctx.name,
             businessFeature: ctx.business_feature || null,
             category: (ctx.category && validCategories.has(ctx.category) ? ctx.category : null) as 'ui' | 'lib' | 'api' | 'data' | null,
-            apiRoutes,
-            filePaths,
+            apiRoutes: apiRoutesResult.value,
+            filePaths: filePathsResult.value,
             contextFilePath: ctx.context_file_path || null,
           };
         }),
@@ -155,16 +154,17 @@ export async function POST(request: Request) {
       if (latestAnalysis) {
         narrative = latestAnalysis.ai_analysis || null;
         if (latestAnalysis.detected_patterns) {
-          try {
-            const parsedPatterns = JSON.parse(latestAnalysis.detected_patterns);
-            patterns = parsedPatterns.map((p: { name: string; description: string; projects_involved?: string[] }) => ({
-              name: p.name,
-              description: p.description,
-              projectsInvolved: p.projects_involved || [],
-            }));
-          } catch {
-            // Ignore parse errors
-          }
+          const patternsResult = safeParseJson<Array<{ name: string; description: string; projects_involved?: string[] }>>(
+            latestAnalysis.detected_patterns,
+            [],
+            { field: 'detected_patterns', recordId: latestAnalysis.id }
+          );
+          if (patternsResult.warning) dataWarnings.push(patternsResult.warning);
+          patterns = patternsResult.value.map((p) => ({
+            name: p.name,
+            description: p.description,
+            projectsInvolved: p.projects_involved || [],
+          }));
         }
       }
 
@@ -206,6 +206,10 @@ export async function POST(request: Request) {
       planId,
       promptContent,
       callbackUrl,
+      ...(dataWarnings.length > 0 && {
+        degraded: true,
+        dataWarnings,
+      }),
     });
   } catch (error) {
     console.error('Error creating cross-task plan:', error);
@@ -231,10 +235,17 @@ export async function GET(request: Request) {
     }
 
     // Parse project_ids JSON for each plan
-    const parsedPlans = plans.map((plan) => ({
-      ...plan,
-      project_ids: JSON.parse(plan.project_ids),
-    }));
+    const parsedPlans = plans.map((plan) => {
+      const { value, warning } = safeParseJson<string[]>(plan.project_ids, [], {
+        field: 'project_ids',
+        recordId: plan.id,
+      });
+      return {
+        ...plan,
+        project_ids: value,
+        ...(warning && { dataWarning: warning }),
+      };
+    });
 
     // Also get counts by status
     const counts = crossTaskPlanDb.getCountByStatus(workspaceId);

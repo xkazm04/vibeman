@@ -75,9 +75,9 @@ const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, isFocu
             {goal.title}
           </p>
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-[10px] font-mono text-muted-foreground/60 uppercase">ID-{goal.id.slice(0, 4)}</span>
+            <span className="text-2xs font-mono text-muted-foreground/60 uppercase">ID-{goal.id.slice(0, 4)}</span>
             {progress > 0 && (
-              <span className="text-[10px] font-mono text-blue-400/70">{progress}%</span>
+              <span className="text-2xs font-mono text-blue-400/70">{progress}%</span>
             )}
           </div>
           {/* Lifecycle progress bar */}

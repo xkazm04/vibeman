@@ -24,7 +24,7 @@ export default function ReviewCardContent({ item, variant = 'trustpilot' }: Revi
           ))}
         </div>
         {variant === 'app_store' && item.appVersion && (
-          <span className="text-[10px] text-gray-500">{item.appVersion}</span>
+          <span className="text-2xs text-gray-500">{item.appVersion}</span>
         )}
       </div>
       <div className="text-sm text-gray-300 line-clamp-2">

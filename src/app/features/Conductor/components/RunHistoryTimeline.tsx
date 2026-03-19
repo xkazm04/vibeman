@@ -69,7 +69,7 @@ function RunSummaryCard({ run, onViewReport }: { run: PipelineRunSummary; onView
       <StatusIcon className={`w-4 h-4 text-${statusConfig.color}-400 flex-shrink-0`} />
 
       {/* Date */}
-      <span className="text-[11px] text-gray-400 w-16 flex-shrink-0">
+      <span className="text-caption text-gray-400 w-16 flex-shrink-0">
         {formatDate(run.startedAt)}
       </span>
 
@@ -77,24 +77,24 @@ function RunSummaryCard({ run, onViewReport }: { run: PipelineRunSummary; onView
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <div className="flex items-center gap-1">
           <Lightbulb className="w-3 h-3 text-cyan-500" />
-          <span className="text-[10px] font-mono text-gray-300">{run.metrics.ideasGenerated}</span>
+          <span className="text-2xs font-mono text-gray-300">{run.metrics.ideasGenerated}</span>
         </div>
         <div className="flex items-center gap-1">
           <Zap className="w-3 h-3 text-orange-500" />
-          <span className="text-[10px] font-mono text-gray-300">
+          <span className="text-2xs font-mono text-gray-300">
             {run.metrics.tasksCompleted}/{run.metrics.tasksCreated}
           </span>
         </div>
         {run.metrics.healingPatchesApplied > 0 && (
           <div className="flex items-center gap-1">
             <Wrench className="w-3 h-3 text-pink-500" />
-            <span className="text-[10px] font-mono text-pink-400">{run.metrics.healingPatchesApplied}</span>
+            <span className="text-2xs font-mono text-pink-400">{run.metrics.healingPatchesApplied}</span>
           </div>
         )}
       </div>
 
       {/* Success rate */}
-      <span className={`text-[11px] font-mono font-bold ${
+      <span className={`text-caption font-mono font-bold ${
         successRate >= 80 ? 'text-emerald-400' :
         successRate >= 50 ? 'text-amber-400' :
         successRate > 0 ? 'text-red-400' : 'text-gray-500'
@@ -103,10 +103,10 @@ function RunSummaryCard({ run, onViewReport }: { run: PipelineRunSummary; onView
       </span>
 
       {/* Cycles */}
-      <span className="text-[10px] text-gray-500 font-mono">{run.cycles}c</span>
+      <span className="text-2xs text-gray-500 font-mono">{run.cycles}c</span>
 
       {/* Duration */}
-      <span className="text-[10px] text-gray-500 font-mono w-10 text-right">
+      <span className="text-2xs text-gray-500 font-mono w-10 text-right">
         {formatDuration(run.metrics.totalDurationMs)}
       </span>
 
@@ -140,7 +140,7 @@ export default function RunHistoryTimeline({ onViewReport }: { onViewReport?: (r
         <span className="text-sm font-medium text-gray-300 flex-1 text-left">
           Run History
         </span>
-        <span className="text-[10px] font-mono text-gray-500">
+        <span className="text-2xs font-mono text-gray-500">
           {runHistory.length} runs
         </span>
         <ChevronDown className={`w-3.5 h-3.5 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
@@ -163,7 +163,7 @@ export default function RunHistoryTimeline({ onViewReport }: { onViewReport?: (r
             <div className="px-3 pb-2 flex justify-end">
               <button
                 onClick={clearHistory}
-                className="text-[10px] text-gray-500 hover:text-red-400 flex items-center gap-1 transition-colors"
+                className="text-2xs text-gray-500 hover:text-red-400 flex items-center gap-1 transition-colors"
               >
                 <Trash2 className="w-3 h-3" />
                 Clear History

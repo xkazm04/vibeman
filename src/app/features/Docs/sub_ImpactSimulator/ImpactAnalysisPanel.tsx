@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import {
   X,
   AlertTriangle,
@@ -85,7 +86,7 @@ function CollapsibleSection({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={transition.normal}
             className="overflow-hidden"
           >
             <div className="p-3 bg-gray-900/40">{children}</div>
@@ -114,14 +115,14 @@ function ImpactItemCard({ item }: { item: ImpactItem }) {
           <div className="flex items-center gap-2 mb-1">
             <h4 className="text-sm font-medium text-white">{item.title}</h4>
             <span
-              className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${colors.bg} ${colors.text}`}
+              className={`px-1.5 py-0.5 text-2xs font-medium rounded ${colors.bg} ${colors.text}`}
             >
               {item.severity}
             </span>
           </div>
           <p className="text-xs text-gray-400">{item.description}</p>
           {item.estimatedEffort && (
-            <div className="flex items-center gap-3 mt-2 text-[10px] text-gray-500">
+            <div className="flex items-center gap-3 mt-2 text-2xs text-gray-500">
               <span>{item.estimatedEffort.files} files</span>
               <span>~{item.estimatedEffort.hours.toFixed(1)}h</span>
             </div>
@@ -131,14 +132,14 @@ function ImpactItemCard({ item }: { item: ImpactItem }) {
               {item.affectedFiles.slice(0, 3).map((file, i) => (
                 <span
                   key={i}
-                  className="px-1.5 py-0.5 text-[9px] rounded bg-gray-700/50 text-gray-400 truncate max-w-[150px]"
+                  className="px-1.5 py-0.5 text-micro rounded bg-gray-700/50 text-gray-400 truncate max-w-[150px]"
                   title={file}
                 >
                   {file.split('/').pop()}
                 </span>
               ))}
               {item.affectedFiles.length > 3 && (
-                <span className="px-1.5 py-0.5 text-[9px] rounded bg-gray-700/50 text-gray-400">
+                <span className="px-1.5 py-0.5 text-micro rounded bg-gray-700/50 text-gray-400">
                   +{item.affectedFiles.length - 3} more
                 </span>
               )}
@@ -222,7 +223,7 @@ export default function ImpactAnalysisPanel({
                   </span>
                 </div>
                 {proposedMove.sourceLayer !== proposedMove.targetLayer && (
-                  <div className="mt-2 text-[10px] text-amber-400 flex items-center gap-1">
+                  <div className="mt-2 text-2xs text-amber-400 flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
                     Layer change: {proposedMove.sourceLayer || 'none'} → {proposedMove.targetLayer || 'none'}
                   </div>
@@ -244,15 +245,15 @@ export default function ImpactAnalysisPanel({
                 <div className="grid grid-cols-3 gap-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-white">{summary.totalFiles}</div>
-                    <div className="text-[10px] text-gray-400">Files</div>
+                    <div className="text-2xs text-gray-400">Files</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-white">{summary.totalImportChanges}</div>
-                    <div className="text-[10px] text-gray-400">Imports</div>
+                    <div className="text-2xs text-gray-400">Imports</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-white">{summary.estimatedHours}h</div>
-                    <div className="text-[10px] text-gray-400">Est. Time</div>
+                    <div className="text-2xs text-gray-400">Est. Time</div>
                   </div>
                 </div>
               </div>
@@ -370,7 +371,7 @@ export default function ImpactAnalysisPanel({
                             {test.testFile.split('/').pop()}
                           </span>
                           <span
-                            className={`text-[10px] px-1.5 py-0.5 rounded ${
+                            className={`text-2xs px-1.5 py-0.5 rounded ${
                               test.confidence > 70
                                 ? 'bg-red-500/20 text-red-400'
                                 : 'bg-amber-500/20 text-amber-400'
@@ -379,7 +380,7 @@ export default function ImpactAnalysisPanel({
                             {test.confidence}%
                           </span>
                         </div>
-                        <p className="text-[10px] text-gray-500">{test.reason}</p>
+                        <p className="text-2xs text-gray-500">{test.reason}</p>
                       </div>
                     ))}
                   </div>

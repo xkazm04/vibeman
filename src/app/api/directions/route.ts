@@ -32,7 +32,7 @@ async function handleGet(request: NextRequest) {
       );
     }
 
-    if (status !== null && !contextId && !contextGroupId && !contextMapId && !isValidDirectionStatus(status)) {
+    if (status !== null && !isValidDirectionStatus(status)) {
       return NextResponse.json(
         { error: `Invalid status '${status}'. Valid values: pending, processing, accepted, rejected` },
         { status: 400 }

@@ -37,7 +37,7 @@ export default function MatrixCellInfo({
               />
               <span className="text-zinc-200 text-xs font-medium flex-1">{conn.label}</span>
               <span
-                className="text-[10px] px-1.5 py-0.5 rounded"
+                className="text-2xs px-1.5 py-0.5 rounded"
                 style={{
                   backgroundColor: `${INTEGRATION_COLORS[conn.integrationType]}20`,
                   color: INTEGRATION_COLORS[conn.integrationType],
@@ -49,19 +49,19 @@ export default function MatrixCellInfo({
 
             {/* Details as bullet points */}
             {(conn.protocol || conn.dataFlow) && (
-              <ul className="ml-4 space-y-1 text-[11px]">
+              <ul className="ml-4 space-y-1 text-caption">
                 {conn.protocol && (
                   <li className="flex items-start gap-1.5">
-                    <span className="text-zinc-600 mt-0.5">•</span>
+                    <span className="text-zinc-500 mt-0.5">•</span>
                     <span className="text-zinc-500">Protocol:</span>
-                    <code className="text-zinc-400 font-mono text-[10px] bg-zinc-800/50 px-1 rounded">
+                    <code className="text-zinc-400 font-mono text-2xs bg-zinc-800/50 px-1 rounded">
                       {conn.protocol}
                     </code>
                   </li>
                 )}
                 {conn.dataFlow && (
                   <li className="flex items-start gap-1.5">
-                    <span className="text-zinc-600 mt-0.5">•</span>
+                    <span className="text-zinc-500 mt-0.5">•</span>
                     <span className="text-zinc-500">Data:</span>
                     <span className="text-zinc-400">{conn.dataFlow}</span>
                   </li>

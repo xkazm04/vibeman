@@ -49,7 +49,7 @@ const TemplateColumn = React.memo(function TemplateColumn({
           <h3 className="text-sm font-semibold text-gray-300">
             {formatCategoryName(category)}
           </h3>
-          <span className="text-[10px] text-gray-500 font-mono">
+          <span className="text-2xs text-gray-500 font-mono">
             {templates.length}
           </span>
         </div>
@@ -58,7 +58,7 @@ const TemplateColumn = React.memo(function TemplateColumn({
       {/* Templates List */}
       <div className="flex-1 px-2 py-2 space-y-1 min-h-[100px] max-h-[400px] overflow-y-auto custom-scrollbar scroll-smooth">
         {sortedTemplates.length === 0 ? (
-          <div className="flex items-center justify-center h-20 text-[10px] text-gray-600">
+          <div className="flex items-center justify-center h-20 text-2xs text-gray-600">
             No templates
           </div>
         ) : (

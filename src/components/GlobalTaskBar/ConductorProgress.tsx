@@ -100,13 +100,13 @@ export default function ConductorProgress() {
         <span className="text-xs font-medium text-cyan-300">
           Conductor C{currentRun.cycle}{isPaused ? ' (paused)' : ''}
         </span>
-        <span className="text-[10px] text-gray-500 font-mono truncate">
+        <span className="text-2xs text-gray-500 font-mono truncate">
           {stageStatusText}
         </span>
       </div>
 
       {/* Compact metrics */}
-      <div className="text-[10px] text-gray-500 font-mono hidden sm:flex gap-2 shrink-0">
+      <div className="text-2xs text-gray-500 font-mono hidden sm:flex gap-2 shrink-0">
         <span>{currentRun.metrics.ideasGenerated}ideas</span>
         <span>{currentRun.metrics.tasksCreated}tasks</span>
         {currentRun.metrics.tasksFailed > 0 && (

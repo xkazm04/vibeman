@@ -55,7 +55,7 @@ export function SwimlaneHeader({
       <span className="flex-1" />
 
       {/* Keyboard hint */}
-      <span className="text-[10px] text-gray-500 opacity-0 group-hover:opacity-100">
+      <span className="text-2xs text-gray-500 opacity-0 group-hover:opacity-100">
         {isCollapsed ? 'Expand' : 'Collapse'}
       </span>
     </button>

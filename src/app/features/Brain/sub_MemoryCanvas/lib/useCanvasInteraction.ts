@@ -144,6 +144,9 @@ export function useCanvasInteraction({
     }
   }, [dispatch, momentumAnimRef, groupsRef, canvasRef, zoomBehaviorRef, dimRef]);
 
+  // Momentum ref must be at hook top-level (not inside useEffect)
+  const momentumRef = useRef(0);
+
   // Main setup effect
   useEffect(() => {
     const container = containerRef.current;
@@ -199,9 +202,6 @@ export function useCanvasInteraction({
     const IMMEDIATE_FRACTION = 0.5;
     const MOMENTUM_DRAIN = 0.25;
     const MOMENTUM_THRESHOLD = 0.00008;
-
-    // Store momentum in a ref for the animation loop (avoid dispatch on every frame)
-    const momentumRef = useRef(0);
 
     const applyZoomDelta = (delta: number) => {
       if (!zoomBehaviorRef.current) return;

@@ -12,6 +12,7 @@ import { Plug, Plus, Check } from 'lucide-react';
 import { IntegrationListColumn, type ParsedIntegration } from './components/IntegrationListColumn';
 import { IntegrationDetailPanel } from './components/IntegrationDetailPanel';
 import { EventsLog } from './components/EventsLog';
+import { SimpleSpinner } from '@/components/ui/Spinner';
 
 interface IntegrationsDashboardProps {
   projectId: string;
@@ -127,7 +128,7 @@ export function IntegrationsDashboard({ projectId, projectName }: IntegrationsDa
   if (loading && integrations.length === 0) {
     return (
       <div className="flex items-center justify-center h-96" data-testid="integrations-loading">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500" />
+        <SimpleSpinner size="lg" color="purple" />
       </div>
     );
   }

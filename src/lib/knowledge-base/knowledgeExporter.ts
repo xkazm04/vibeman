@@ -59,12 +59,16 @@ function exportDomainMarkdown(
 
     for (const entry of sectionEntries) {
       lines.push(`### ${entry.title}`);
+      const langLabel = (entry as any).language && (entry as any).language !== 'universal'
+        ? ` | **Language**: ${(entry as any).language}`
+        : '';
       lines.push(
         `**Confidence**: ${entry.confidence}%`
         + ` | **Applied**: ${entry.times_applied} times`
         + (entry.times_helpful > 0
           ? ` | **Helpful**: ${entry.times_helpful}/${entry.times_applied}`
           : '')
+        + langLabel
       );
       lines.push(entry.pattern);
 

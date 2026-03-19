@@ -23,7 +23,7 @@ import type { DbDiscoveredTemplate } from '../../../db/models/types';
 // UI Components
 import { Card } from '@/components/ui/Card';
 import UnifiedButton from '@/components/ui/buttons/UnifiedButton';
-import EmptyState from '@/components/DecisionPanel/EmptyState';
+import EmptyState from '@/components/ui/EmptyState';
 import { FolderSearch, Search, CheckCircle, RefreshCw } from 'lucide-react';
 
 type ScanStatus = 'idle' | 'scanning' | 'complete' | 'error';
@@ -296,9 +296,9 @@ export function TemplateDiscoveryPanel() {
       <div className="p-6">
         <EmptyState
           icon={FolderSearch}
-          headline="No Project Selected"
-          subtext="Select a project from the header dropdown to discover templates"
-          height="h-64"
+          title="No Project Selected"
+          description="Select a project from the header dropdown to discover templates"
+          className="h-64"
         />
       </div>
     );
@@ -390,9 +390,9 @@ export function TemplateDiscoveryPanel() {
         ) : templates.length === 0 ? (
           <EmptyState
             icon={Search}
-            headline="No templates discovered"
-            subtext="Scan a project to discover TemplateConfig exports"
-            height="h-48"
+            title="No templates discovered"
+            description="Scan a project to discover TemplateConfig exports"
+            className="h-48"
           />
         ) : (
           <>

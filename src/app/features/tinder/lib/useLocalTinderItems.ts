@@ -5,7 +5,7 @@
  * All UI state lives in useTinderItems (Layer 1).
  */
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import {
   isIdeaItem,
@@ -27,6 +27,7 @@ import {
 import { TINDER_CONSTANTS } from './tinderUtils';
 import { useCursorPagination } from './useCursorPagination';
 import type { UseTinderItemsCoreResult } from './useTinderItemsCore';
+import { TINDER_FILTER_SPEC, resolveActiveFilters } from './filterAlgebra';
 
 interface UseLocalModeOptions {
   selectedProjectId: string;
@@ -83,10 +84,18 @@ export function useLocalMode(
     threshold: TINDER_CONSTANTS.LOAD_MORE_THRESHOLD,
   });
 
-  // Determine active scan type (only when in scan_type dimension)
-  const activeScanType = filterDimension === 'scan_type' ? selectedScanType : null;
-  // Category only applies when in category dimension
-  const activeCategory = filterDimension === 'category' ? selectedCategory : null;
+  // Resolve active filters via declarative filter algebra (XOR rules handled by spec)
+  const activeDimensionName = filterDimension === 'scan_type' ? 'scanType' : 'category';
+  const activeFilters = useMemo(
+    () => resolveActiveFilters(TINDER_FILTER_SPEC, activeDimensionName, {
+      category: selectedCategory,
+      scanType: selectedScanType,
+      context: selectedContextId,
+    }),
+    [activeDimensionName, selectedCategory, selectedScanType, selectedContextId],
+  );
+  const activeCategory = activeFilters.category;
+  const activeScanType = activeFilters.scanType;
 
   // Load items from local DB with keyset cursor pagination
   const loadItems = useCallback(async (afterId: string | null = null) => {

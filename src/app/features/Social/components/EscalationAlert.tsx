@@ -152,12 +152,12 @@ export default function EscalationAlert({
           </div>
 
           {criticalCount > 0 && (
-            <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-red-500/20 text-red-400 animate-pulse">
+            <span className="px-2 py-0.5 text-2xs font-medium rounded-full bg-red-500/20 text-red-400 animate-pulse">
               {criticalCount} Critical
             </span>
           )}
           {highCount > 0 && (
-            <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-orange-500/20 text-orange-400">
+            <span className="px-2 py-0.5 text-2xs font-medium rounded-full bg-orange-500/20 text-orange-400">
               {highCount} High
             </span>
           )}
@@ -166,7 +166,7 @@ export default function EscalationAlert({
         {/* Toggle show dismissed */}
         <button
           onClick={() => {/* toggle showDismissed would go here */}}
-          className="text-[10px] text-gray-500 hover:text-gray-400"
+          className="text-2xs text-gray-500 hover:text-gray-400"
         >
           {showDismissed ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
         </button>
@@ -209,7 +209,7 @@ export default function EscalationAlert({
                       <span className="text-sm font-medium text-gray-200 truncate">
                         {escalation.item.author.name}
                       </span>
-                      <span className="text-[10px] text-gray-500">
+                      <span className="text-2xs text-gray-500">
                         {getTimeAgo(escalation.createdAt)}
                       </span>
                     </div>
@@ -234,7 +234,7 @@ export default function EscalationAlert({
                       );
                     })}
                     {escalation.reasons.length > 2 && (
-                      <span className="text-[10px] text-gray-500 self-center">
+                      <span className="text-2xs text-gray-500 self-center">
                         +{escalation.reasons.length - 2}
                       </span>
                     )}
@@ -267,7 +267,7 @@ export default function EscalationAlert({
 
                         {/* Reasons list */}
                         <div>
-                          <div className="text-[10px] text-gray-500 mb-1">Escalation Reasons</div>
+                          <div className="text-2xs text-gray-500 mb-1">Escalation Reasons</div>
                           <div className="flex flex-wrap gap-1.5">
                             {escalation.reasons.map((reason) => {
                               const config = REASON_CONFIG[reason];
@@ -275,7 +275,7 @@ export default function EscalationAlert({
                               return (
                                 <div
                                   key={reason}
-                                  className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] ${config.color} bg-gray-800/50`}
+                                  className={`flex items-center gap-1 px-2 py-1 rounded text-2xs ${config.color} bg-gray-800/50`}
                                 >
                                   <ReasonIcon className="w-3 h-3" />
                                   <span>{config.label}</span>
@@ -287,7 +287,7 @@ export default function EscalationAlert({
 
                         {/* Urgency info */}
                         {escalation.urgency && (
-                          <div className="flex items-center gap-2 text-[10px]">
+                          <div className="flex items-center gap-2 text-2xs">
                             <Clock className="w-3 h-3 text-gray-500" />
                             <span className="text-gray-400">
                               Suggested response: {escalation.urgency.suggestedResponseTime}
@@ -330,7 +330,7 @@ export default function EscalationAlert({
 
                         {/* Acknowledged info */}
                         {escalation.acknowledged && (
-                          <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                          <div className="flex items-center gap-2 text-2xs text-gray-500">
                             <CheckCircle className="w-3 h-3" />
                             <span>
                               Acknowledged by {escalation.acknowledgedBy || 'Unknown'} • {' '}
@@ -389,7 +389,7 @@ export function EscalationIndicator({ severity, reasons, compact = false }: Esca
   return (
     <div className={`flex items-center gap-1.5 px-2 py-1 rounded border ${styles.border} ${styles.bg}`}>
       <SeverityIcon className={`w-3 h-3 ${styles.text} ${styles.pulse ? 'animate-pulse' : ''}`} />
-      <span className={`text-[10px] font-medium ${styles.text} capitalize`}>{severity}</span>
+      <span className={`text-2xs font-medium ${styles.text} capitalize`}>{severity}</span>
     </div>
   );
 }

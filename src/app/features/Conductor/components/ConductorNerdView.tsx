@@ -120,7 +120,7 @@ export default function ConductorNerdView({ projectId }: ConductorNerdViewProps)
           return (
             <span
               key={stage}
-              className={`px-2 py-1 border text-[11px] ${stageClass(state)}`}
+              className={`px-2 py-1 border text-caption ${stageClass(state)}`}
             >
               {stage.toUpperCase().padEnd(7)} {stageLabel(state)}
               {(state.itemsIn > 0 || state.itemsOut > 0) && (
@@ -198,7 +198,7 @@ export default function ConductorNerdView({ projectId }: ConductorNerdViewProps)
                   <span className="text-gray-600"> ({Math.round(entry.durationMs / 1000)}s)</span>
                 )}
                 {entry.error && (
-                  <div className="text-red-400/70 ml-[22ch] text-[10px]">{entry.error}</div>
+                  <div className="text-red-400/70 ml-[22ch] text-2xs">{entry.error}</div>
                 )}
               </div>
             ))
@@ -214,7 +214,7 @@ export default function ConductorNerdView({ projectId }: ConductorNerdViewProps)
                 setAutoScroll(true);
               }
             }}
-            className="absolute bottom-1 right-2 text-[10px] text-gray-500 hover:text-gray-300 px-2 py-0.5 bg-gray-900 border border-gray-700"
+            className="absolute bottom-1 right-2 text-2xs text-gray-500 hover:text-gray-300 px-2 py-0.5 bg-gray-900 border border-gray-700"
           >
             scroll to bottom
           </button>

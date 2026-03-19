@@ -255,7 +255,7 @@ export default function RunReportModal({ isOpen, onClose, runId }: RunReportModa
                   >
                     <div className="flex items-center gap-3">
                       {/* Type badge */}
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase shrink-0 ${
+                      <span className={`text-micro px-1.5 py-0.5 rounded uppercase shrink-0 ${
                         decision.type === 'task' ? 'bg-cyan-600/20 text-cyan-400' :
                         decision.type === 'architectural' ? 'bg-purple-600/20 text-purple-400' :
                         'bg-orange-600/20 text-orange-400'
@@ -294,7 +294,7 @@ export default function RunReportModal({ isOpen, onClose, runId }: RunReportModa
                     </div>
 
                     {/* Context */}
-                    <p className="text-[11px] text-gray-500 mt-1 ml-14">
+                    <p className="text-caption text-gray-500 mt-1 ml-14">
                       {decision.context}
                     </p>
 
@@ -314,7 +314,7 @@ export default function RunReportModal({ isOpen, onClose, runId }: RunReportModa
                         />
                         <button
                           onClick={() => handleSaveComment(decision.id)}
-                          className="px-2 py-1 text-[10px] bg-cyan-600/20 text-cyan-400 rounded
+                          className="px-2 py-1 text-2xs bg-cyan-600/20 text-cyan-400 rounded
                             border border-cyan-600/30 hover:bg-cyan-600/30 transition-colors"
                         >
                           Save
@@ -324,7 +324,7 @@ export default function RunReportModal({ isOpen, onClose, runId }: RunReportModa
 
                     {/* Existing comment display */}
                     {r?.comment && !isCommentOpen && (
-                      <p className="text-[10px] text-gray-500 mt-1 ml-14 italic">
+                      <p className="text-2xs text-gray-500 mt-1 ml-14 italic">
                         &ldquo;{r.comment}&rdquo;
                       </p>
                     )}

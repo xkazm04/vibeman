@@ -7,6 +7,7 @@ import type { SocialChannelType, SocialChannelConfigResponse } from '../lib/type
 import { ChannelSelector } from './ChannelIcon';
 import { ConfigList } from './ConfigList';
 import { ConfigForm } from './ConfigForm';
+import { SimpleSpinner } from '@/components/ui';
 
 interface ConfigurationPanelProps {
   projectId: string;
@@ -161,7 +162,7 @@ export function ConfigurationPanel({ projectId }: ConfigurationPanelProps) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+          <SimpleSpinner size="lg" color="cyan" />
           <p className="text-sm text-gray-500">Loading configurations...</p>
         </div>
       </div>

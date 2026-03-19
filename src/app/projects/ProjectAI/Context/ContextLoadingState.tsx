@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
+import { SimpleSpinner } from '@/components/ui/Spinner';
 
 interface LoadingStateProps {
   onBack: () => void;
@@ -27,7 +28,7 @@ export default function LoadingState({ onBack }: LoadingStateProps) {
       {/* Loading Content */}
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-green-500/30 border-t-green-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <SimpleSpinner size="xl" color="green" className="mx-auto mb-4" />
           <h3 className="text-lg font-medium text-white mb-2">Scanning Codebase</h3>
           <p className="text-gray-400 max-w-md">
             Analyzing your project structure and grouping files into logical feature contexts...

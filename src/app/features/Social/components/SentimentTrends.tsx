@@ -141,7 +141,7 @@ export default function SentimentTrends({
               <button
                 key={range}
                 onClick={() => onTimeRangeChange(range)}
-                className={`px-2 py-1 text-[10px] rounded-md transition-colors ${
+                className={`px-2 py-1 text-2xs rounded-md transition-colors ${
                   timeRange === range
                     ? 'bg-gray-700 text-white'
                     : 'text-gray-500 hover:text-gray-300'
@@ -159,7 +159,7 @@ export default function SentimentTrends({
         <div className="grid grid-cols-4 gap-3 mb-4">
           {/* Average sentiment */}
           <div className="bg-gray-800/50 rounded-lg p-2">
-            <div className="text-[10px] text-gray-500 mb-1">Avg Sentiment</div>
+            <div className="text-2xs text-gray-500 mb-1">Avg Sentiment</div>
             <div className={`text-lg font-bold ${stats.avg >= 0 ? 'text-green-400' : 'text-red-400'}`}>
               {stats.avg >= 0 ? '+' : ''}{(stats.avg * 100).toFixed(0)}%
             </div>
@@ -167,7 +167,7 @@ export default function SentimentTrends({
 
           {/* Trend */}
           <div className="bg-gray-800/50 rounded-lg p-2">
-            <div className="text-[10px] text-gray-500 mb-1">Trend</div>
+            <div className="text-2xs text-gray-500 mb-1">Trend</div>
             <div className={`flex items-center gap-1 text-lg font-bold ${trendColor}`}>
               <TrendIcon className="w-4 h-4" />
               <span className="capitalize">{stats.trend}</span>
@@ -176,7 +176,7 @@ export default function SentimentTrends({
 
           {/* Change */}
           <div className="bg-gray-800/50 rounded-lg p-2">
-            <div className="text-[10px] text-gray-500 mb-1">Change</div>
+            <div className="text-2xs text-gray-500 mb-1">Change</div>
             <div className={`text-lg font-bold ${stats.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
               {stats.change >= 0 ? '+' : ''}{(stats.change * 100).toFixed(0)}%
             </div>
@@ -184,7 +184,7 @@ export default function SentimentTrends({
 
           {/* Negative ratio */}
           <div className="bg-gray-800/50 rounded-lg p-2">
-            <div className="text-[10px] text-gray-500 mb-1">Negative Rate</div>
+            <div className="text-2xs text-gray-500 mb-1">Negative Rate</div>
             <div className={`text-lg font-bold ${stats.negativeRatio > 0.3 ? 'text-red-400' : 'text-gray-300'}`}>
               {(stats.negativeRatio * 100).toFixed(0)}%
             </div>
@@ -201,7 +201,7 @@ export default function SentimentTrends({
         ) : (
           <>
             {/* Y-axis labels */}
-            <div className="absolute left-0 top-0 bottom-6 w-8 flex flex-col justify-between text-[10px] text-gray-500">
+            <div className="absolute left-0 top-0 bottom-6 w-8 flex flex-col justify-between text-2xs text-gray-500">
               <span>100%</span>
               <span>50%</span>
               <span>0%</span>
@@ -248,7 +248,7 @@ export default function SentimentTrends({
 
                   {/* Tooltip on hover */}
                   <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
-                    <div className="bg-gray-900 border border-gray-700 rounded-lg p-2 text-[10px] whitespace-nowrap shadow-lg">
+                    <div className="bg-gray-900 border border-gray-700 rounded-lg p-2 text-2xs whitespace-nowrap shadow-lg">
                       <div className="font-medium text-gray-200 mb-1">
                         {new Date(point.date).toLocaleDateString()}
                       </div>
@@ -264,7 +264,7 @@ export default function SentimentTrends({
             </div>
 
             {/* X-axis labels */}
-            <div className="absolute left-10 right-0 bottom-0 h-6 flex justify-between text-[10px] text-gray-500">
+            <div className="absolute left-10 right-0 bottom-0 h-6 flex justify-between text-2xs text-gray-500">
               {chartData.length > 0 && (
                 <>
                   <span>{new Date(chartData[0].date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
@@ -288,15 +288,15 @@ export default function SentimentTrends({
         <div className="flex justify-center gap-4 mt-4 pt-3 border-t border-gray-800">
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded bg-green-500/80" />
-            <span className="text-[10px] text-gray-400">Positive</span>
+            <span className="text-2xs text-gray-400">Positive</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded bg-gray-600/80" />
-            <span className="text-[10px] text-gray-400">Neutral</span>
+            <span className="text-2xs text-gray-400">Neutral</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded bg-red-500/80" />
-            <span className="text-[10px] text-gray-400">Negative</span>
+            <span className="text-2xs text-gray-400">Negative</span>
           </div>
         </div>
       )}

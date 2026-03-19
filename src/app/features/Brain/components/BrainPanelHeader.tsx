@@ -1,66 +1,41 @@
 'use client';
 
-import { motion } from 'framer-motion';
-
 interface BrainPanelHeaderProps {
   icon: React.ElementType;
   title: string;
   accentColor: string;
   glowColor: string;
-  /** Show the glowing icon container (GlowCard style) vs bare icon */
   glow?: boolean;
-  /** Count badge shown next to title */
   count?: number | string;
-  /** Extra elements rendered after title (e.g. badges, scope tags) */
   trailing?: React.ReactNode;
-  /** Extra elements rendered on the right side (e.g. search, status badge) */
   right?: React.ReactNode;
 }
 
+/**
+ * Brain Panel Header — Grid style.
+ * Dot indicator + monospace title. No glow, no text-shadow.
+ */
 export default function BrainPanelHeader({
   icon: Icon,
   title,
   accentColor,
-  glowColor,
-  glow = false,
   count,
   trailing,
   right,
 }: BrainPanelHeaderProps) {
   return (
-    <div className="flex items-center justify-between mb-4">
+    <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800/70">
       <div className="flex items-center gap-2">
-        {glow ? (
-          <motion.div
-            className="p-2 rounded-xl border"
-            style={{
-              backgroundColor: `${accentColor}15`,
-              borderColor: `${accentColor}40`,
-              boxShadow: `0 0 20px ${glowColor}`,
-            }}
-            whileHover={{ scale: 1.05 }}
-          >
-            <Icon className="w-5 h-5" style={{ color: accentColor }} />
-          </motion.div>
-        ) : (
-          <Icon className="w-5 h-5" style={{ color: accentColor }} />
-        )}
-        <h2 className="text-lg font-semibold text-zinc-200">{title}</h2>
+        <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: accentColor }} />
+        <h3 className="text-xs font-mono font-medium text-zinc-400 uppercase tracking-wider">{title}</h3>
         {count !== undefined && (
-          <span
-            className="text-sm font-mono px-2 py-0.5 rounded"
-            style={{
-              color: accentColor,
-              background: `${accentColor}15`,
-              textShadow: `0 0 10px ${glowColor}`,
-            }}
-          >
-            {count}
+          <span className="text-2xs font-mono tabular-nums" style={{ color: accentColor, opacity: 0.7 }}>
+            [{count}]
           </span>
         )}
         {trailing}
       </div>
-      {right && <div className="flex items-center gap-3">{right}</div>}
+      {right && <div className="flex flex-wrap items-center gap-2">{right}</div>}
     </div>
   );
 }

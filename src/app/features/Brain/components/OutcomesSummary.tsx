@@ -71,9 +71,9 @@ function KPICard({
             >
               {value}
             </motion.p>
-            <p className="text-sm font-medium text-gray-300">{title}</p>
+            <p className="text-sm font-medium text-zinc-300">{title}</p>
             {subtitle && (
-              <p className="text-xs font-mono text-gray-500 mt-1">{subtitle}</p>
+              <p className="text-xs font-mono text-zinc-500 mt-1">{subtitle}</p>
             )}
           </div>
         </div>
@@ -377,8 +377,8 @@ export default function OutcomesSummary({ isLoading }: Props) {
                   ))}
                 </svg>
                 <div className="flex justify-between mt-1">
-                  <span className="text-[10px] text-zinc-600 font-mono tabular-nums">{trendDays[0]?.date.slice(5)}</span>
-                  <span className="text-[10px] text-zinc-600 font-mono tabular-nums">{trendDays[trendDays.length - 1]?.date.slice(5)}</span>
+                  <span className="text-2xs text-zinc-600 font-mono tabular-nums">{trendDays[0]?.date.slice(5)}</span>
+                  <span className="text-2xs text-zinc-600 font-mono tabular-nums">{trendDays[trendDays.length - 1]?.date.slice(5)}</span>
                 </div>
               </div>
             );

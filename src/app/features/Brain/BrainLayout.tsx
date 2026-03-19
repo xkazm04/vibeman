@@ -13,9 +13,11 @@
 
 import { useEffect, useState, useMemo, useRef, lazy, Suspense } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
-import { Brain, Activity, AlertCircle, Layers, Clock, Sparkles, AlertTriangle, TrendingDown, TrendingUp, X, Castle, ChevronRight, Focus } from 'lucide-react';
+import { Brain, Activity, AlertCircle, Layers, Clock, Sparkles, AlertTriangle, TrendingDown, TrendingUp, X, Castle, ChevronRight, Focus, BookOpen } from 'lucide-react';
+import { SimpleSpinner } from '@/components/ui';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useBrainStore } from '@/stores/brainStore';
+import { GridBackground } from './components/variants/GridPrimitives';
 import { useApplicationSession, useSessionAbortSignals } from '@/lib/session';
 import { useReflectionEvents } from './lib/useReflectionEvents';
 import BehavioralFocusPanel from './components/BehavioralFocusPanel';
@@ -33,8 +35,9 @@ import type { SignalAnomaly, AnomalySeverity } from '@/lib/brain/anomalyDetector
 const EventCanvasD3 = lazy(() => import('./sub_MemoryCanvas/EventCanvasD3'));
 const EventCanvasTimeline = lazy(() => import('./sub_Timeline/EventCanvasTimeline'));
 const MemoryPalace = lazy(() => import('./sub_MemoryPalace/MemoryPalace'));
+const KnowledgeBaseLayout = lazy(() => import('./sub_KnowledgeBase/KnowledgeBaseLayout'));
 
-type BrainTab = 'dashboard' | 'reflection' | 'canvas' | 'timeline' | 'palace';
+type BrainTab = 'dashboard' | 'reflection' | 'canvas' | 'timeline' | 'palace' | 'knowledge';
 
 const tabs: Array<{ id: BrainTab; label: string; icon: React.ComponentType<{ className?: string }>; description: string }> = [
   { id: 'dashboard', label: 'Dashboard', icon: Activity, description: 'Overview & Insights' },
@@ -42,6 +45,7 @@ const tabs: Array<{ id: BrainTab; label: string; icon: React.ComponentType<{ cla
   { id: 'canvas', label: 'Memory Canvas', icon: Layers, description: 'Grouped Clusters' },
   { id: 'timeline', label: 'Timeline', icon: Clock, description: 'Lane View' },
   { id: 'palace', label: 'Palace', icon: Castle, description: 'Spatial-Temporal' },
+  { id: 'knowledge', label: 'Knowledge', icon: BookOpen, description: 'Pattern Library' },
 ];
 
 export default function BrainLayout() {
@@ -105,12 +109,10 @@ export default function BrainLayout() {
 
   if (!isGlobalMode && !activeProject) {
     return (
-      <div className="flex flex-col items-center justify-center h-full py-20">
-        <Brain className="w-16 h-16 text-zinc-600 mb-4" />
-        <h2 className="text-xl font-semibold text-zinc-300 mb-2">No Project Selected</h2>
-        <p className="text-zinc-500 text-center max-w-md">
-          Select a project to view Brain insights and behavioral learning data.
-        </p>
+      <div className="flex flex-col items-center justify-center h-full py-20 font-mono">
+        <Brain className="w-10 h-10 text-zinc-700 mb-3" />
+        <p className="text-xs text-zinc-500">no project selected</p>
+        <p className="text-2xs text-zinc-600 mt-1">select a project to view brain data</p>
       </div>
     );
   }
@@ -181,19 +183,21 @@ export default function BrainLayout() {
 
   return (
     <div className="flex flex-col" style={{ height: 'calc(100vh - 2.5rem)' }}>
-      {/* Header (always visible across all tabs) */}
-      <div className="px-4 py-2 border-b border-zinc-800/50 flex-shrink-0 flex items-center gap-3">
-        {/* Error banner */}
-        {error && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 border border-red-500/20 rounded-lg">
-            <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
-            <span className="text-xs text-red-300">{error}</span>
-            <button onClick={clearError} className="text-xs text-red-400 hover:text-red-300 ml-2">×</button>
+      {/* Header */}
+      {/* Error banner — separate from tabs so tabs stay stable */}
+      {error && (
+        <div className="px-3 py-1 border-b border-red-500/30 bg-zinc-950/80 flex-shrink-0">
+          <div className="flex items-center gap-2 px-2 py-1 border border-red-500/30 rounded-sm font-mono">
+            <AlertCircle className="w-3 h-3 text-red-400 flex-shrink-0" />
+            <span className="text-2xs text-red-400">{error}</span>
+            <button onClick={clearError} className="text-2xs text-red-500 hover:text-red-300 ml-1">×</button>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Tab navigation */}
-        <div className="flex gap-1">
+      <div className="px-3 py-1.5 border-b border-zinc-800/70 bg-zinc-950/80 flex-shrink-0 flex items-center gap-3">
+        {/* Tab navigation — Grid style */}
+        <div className="flex gap-0.5 flex-1">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -201,12 +205,12 @@ export default function BrainLayout() {
               <TabTooltip key={tab.id} text={tab.description}>
                 <button
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${isActive
-                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono transition-colors ${isActive
+                      ? 'text-cyan-400 bg-cyan-500/10 border border-cyan-500/30 rounded-sm'
+                      : 'text-zinc-500 hover:text-zinc-300 border border-transparent'
                     }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-3.5 h-3.5" />
                   <span>{tab.label}</span>
                 </button>
               </TabTooltip>
@@ -215,167 +219,115 @@ export default function BrainLayout() {
         </div>
       </div>
 
-      {/* Anomaly Alert Banner */}
-      <AnimatePresence>
-        {anomalies.length > 0 && !anomaliesDismissed && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="flex-shrink-0 overflow-hidden"
+      {/* Anomaly Alert Banner — compact Grid style */}
+      {anomalies.length > 0 && !anomaliesDismissed && (
+        <div className="flex items-center gap-3 px-3 py-1.5 border-b border-amber-500/30 bg-zinc-950/80 flex-shrink-0 font-mono">
+          <AlertTriangle className="w-3 h-3 text-amber-400 flex-shrink-0" />
+          <span className="text-2xs text-amber-400">
+            {anomalies.length} anomal{anomalies.length === 1 ? 'y' : 'ies'}
+          </span>
+          {anomalies.some((a) => a.severity === 'critical') && (
+            <span className="text-2xs font-mono text-red-400 border border-red-500/30 px-1 py-0.5 rounded-sm">CRIT</span>
+          )}
+          <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
+            {anomalies.slice(0, 4).map((a) => (
+              <AnomalyChip key={a.id} anomaly={a} />
+            ))}
+            {anomalies.length > 4 && (
+              <span className="text-2xs text-zinc-600">+{anomalies.length - 4}</span>
+            )}
+          </div>
+          <button
+            onClick={() => setAnomaliesDismissed(true)}
+            className="text-zinc-600 hover:text-zinc-400 transition-colors"
+            aria-label="Dismiss anomaly alerts"
           >
-            <div className="px-4 py-2 bg-amber-500/5 border-b border-amber-500/20">
-              <div className="flex items-start gap-3 max-w-7xl mx-auto">
-                <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0 space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-amber-300">
-                      {anomalies.length} anomal{anomalies.length === 1 ? 'y' : 'ies'} detected
-                    </span>
-                    {anomalies.some((a) => a.severity === 'critical') && (
-                      <span className="px-1.5 py-0.5 text-2xs font-mono bg-red-500/20 text-red-400 border border-red-500/30 rounded">
-                        CRITICAL
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {anomalies.slice(0, 4).map((a) => (
-                      <AnomalyChip key={a.id} anomaly={a} />
-                    ))}
-                    {anomalies.length > 4 && (
-                      <span className="text-2xs text-zinc-500 self-center">
-                        +{anomalies.length - 4} more
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={() => setAnomaliesDismissed(true)}
-                  className="p-1 text-zinc-500 hover:text-zinc-300 transition-colors flex-shrink-0"
-                  aria-label="Dismiss anomaly alerts"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
 
-      {/* Dashboard Tab - Adaptive Focus Flow Layout */}
+      {/* Dashboard Tab — Grid layout with dot background */}
       {activeTab === 'dashboard' && (
-        <div className="flex-1 overflow-auto p-6">
+        <GridBackground className="flex-1 overflow-auto p-4">
           <LayoutGroup>
-            <div className="max-w-7xl mx-auto flex gap-6">
-              {/* ── Primary Focus Area ── */}
-              <div className={`flex-1 min-w-0 space-y-6 transition-all duration-300 ${secondaryWidgets.length > 0 && !secondaryCollapsed ? 'lg:pr-0' : ''}`}>
+            <div className="max-w-7xl mx-auto flex gap-4">
+              {/* Primary widgets */}
+              <div className="flex-1 min-w-0 space-y-4">
                 {primaryWidgets.map((w, i) => (
                   <FocusWidget key={w.id} widgetId={w.id} index={i} score={w.score} scope={scope} isGlobalMode={isGlobalMode} activeProject={activeProject} isLoadingOutcomes={isLoadingOutcomes} isLoadingContext={isLoadingContext} isLoading={isLoading} />
                 ))}
               </div>
 
-              {/* ── Secondary Sidebar ── */}
+              {/* Secondary sidebar */}
               {secondaryWidgets.length > 0 && (
                 <div className="flex-shrink-0 hidden lg:block">
                   <div className="sticky top-0">
                     <button
                       onClick={() => setSecondaryCollapsed(c => !c)}
-                      className="flex items-center gap-1.5 mb-3 px-2.5 py-1 rounded-md text-2xs font-medium text-zinc-500 hover:text-zinc-300 bg-zinc-800/40 hover:bg-zinc-800/70 border border-zinc-700/30 transition-all"
+                      className="flex items-center gap-1.5 mb-2 px-2 py-0.5 text-2xs font-mono text-zinc-600 hover:text-zinc-400 border border-zinc-800/50 rounded-sm transition-colors"
                     >
                       <Focus className="w-3 h-3" />
-                      <span>{secondaryCollapsed ? 'Show' : 'Hide'} secondary</span>
-                      <motion.div
-                        animate={{ rotate: secondaryCollapsed ? 0 : 90 }}
-                        transition={{ duration: 0.15 }}
-                      >
-                        <ChevronRight className="w-3 h-3" />
-                      </motion.div>
-                      {secondaryCollapsed && (
-                        <span className="ml-1 px-1.5 py-0.5 rounded bg-zinc-700/50 text-zinc-400">
-                          {secondaryWidgets.length}
-                        </span>
-                      )}
+                      <span>{secondaryCollapsed ? 'show' : 'hide'} [{secondaryWidgets.length}]</span>
                     </button>
 
-                    <AnimatePresence initial={false}>
-                      {!secondaryCollapsed && (
-                        <motion.div
-                          initial={{ width: 0, opacity: 0 }}
-                          animate={{ width: 340, opacity: 1 }}
-                          exit={{ width: 0, opacity: 0 }}
-                          transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
-                          className="overflow-hidden"
-                        >
-                          <div className="w-[340px] space-y-4">
-                            {secondaryWidgets.map((w, i) => (
-                              <FocusWidget key={w.id} widgetId={w.id} index={i} score={w.score} scope={scope} isGlobalMode={isGlobalMode} activeProject={activeProject} isLoadingOutcomes={isLoadingOutcomes} isLoadingContext={isLoadingContext} isLoading={isLoading} compact />
-                            ))}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                    {!secondaryCollapsed && (
+                      <div className="w-[320px] space-y-3">
+                        {secondaryWidgets.map((w, i) => (
+                          <FocusWidget key={w.id} widgetId={w.id} index={i} score={w.score} scope={scope} isGlobalMode={isGlobalMode} activeProject={activeProject} isLoadingOutcomes={isLoadingOutcomes} isLoadingContext={isLoadingContext} isLoading={isLoading} compact />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Secondary widgets on mobile (no sidebar, just stacked below primary) */}
+            {/* Secondary on mobile */}
             {secondaryWidgets.length > 0 && (
-              <div className="max-w-7xl mx-auto lg:hidden mt-6 space-y-6">
+              <div className="max-w-7xl mx-auto lg:hidden mt-4 space-y-4">
                 {secondaryWidgets.map((w, i) => (
                   <FocusWidget key={w.id} widgetId={w.id} index={i + primaryWidgets.length} score={w.score} scope={scope} isGlobalMode={isGlobalMode} activeProject={activeProject} isLoadingOutcomes={isLoadingOutcomes} isLoadingContext={isLoadingContext} isLoading={isLoading} />
                 ))}
               </div>
             )}
           </LayoutGroup>
-        </div>
+        </GridBackground>
       )}
 
-      {/* Reflection Tab - Global Reflection + Reflection History */}
+      {/* Reflection Tab — Grid layout */}
       {activeTab === 'reflection' && (
-        <div className="flex-1 overflow-auto p-6">
-          <div className="max-w-7xl mx-auto space-y-6">
-            {/* Reflection Status (both project and global) */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.15, ease: [0.25, 0.46, 0.45, 0.94] }}
-              >
-                <ReflectionStatus isLoading={isLoading} scope="project" />
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.04, duration: 0.15, ease: [0.25, 0.46, 0.45, 0.94] }}
-              >
-                <ReflectionStatus isLoading={isLoading} scope="global" />
-              </motion.div>
+        <GridBackground className="flex-1 overflow-auto p-4">
+          <div className="max-w-7xl mx-auto space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <ReflectionStatus isLoading={isLoading} scope="project" />
+              <ReflectionStatus isLoading={isLoading} scope="global" />
             </div>
-
-            {/* Reflection History (full width) */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.08, duration: 0.15, ease: [0.25, 0.46, 0.45, 0.94] }}
-            >
-              <ReflectionHistoryPanel scope={scope} />
-            </motion.div>
+            <ReflectionHistoryPanel scope={scope} />
           </div>
-        </div>
+        </GridBackground>
+      )}
+
+      {/* Knowledge Base Tab */}
+      {activeTab === 'knowledge' && (
+        <Suspense
+          fallback={
+            <div className="flex-1 flex items-center justify-center bg-zinc-950">
+              <span className="text-2xs font-mono text-zinc-600">-- loading knowledge_base --</span>
+            </div>
+          }
+        >
+          <KnowledgeBaseLayout />
+        </Suspense>
       )}
 
       {/* Canvas, Timeline & Palace Tabs */}
       {(activeTab === 'canvas' || activeTab === 'timeline' || activeTab === 'palace') && (
-        <div className="flex-1 relative overflow-hidden" style={{ background: '#0f0f11' }}>
+        <div className="flex-1 relative overflow-hidden bg-zinc-950">
           <Suspense
             fallback={
-              <div className="absolute inset-0 flex items-center justify-center" style={{ background: '#0f0f11' }}>
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-400 rounded-full animate-spin" />
-                  <span className="text-sm text-zinc-500">Loading canvas...</span>
-                </div>
+              <div className="absolute inset-0 flex items-center justify-center bg-zinc-950">
+                <span className="text-2xs font-mono text-zinc-600">-- loading canvas --</span>
               </div>
             }
           >
@@ -413,11 +365,19 @@ function TabTooltip({ text, children }: { text: string; children: React.ReactNod
   return (
     <div className="relative" onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
       {children}
-      {visible && (
-        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 whitespace-nowrap bg-zinc-900/95 backdrop-blur-sm border border-zinc-700/50 rounded-lg px-3 py-2 text-xs text-zinc-300 shadow-xl pointer-events-none">
-          {text}
-        </div>
-      )}
+      <AnimatePresence>
+        {visible && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.15, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 whitespace-nowrap bg-zinc-900/95 backdrop-blur-sm border border-zinc-700/50 rounded-lg px-3 py-2 text-xs text-zinc-300 shadow-xl pointer-events-none"
+          >
+            {text}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -440,8 +400,7 @@ interface FocusWidgetProps {
 const SMOOTH_SPRING = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
 function FocusWidget({ widgetId, index, score, scope, isGlobalMode, activeProject, isLoadingOutcomes, isLoadingContext, isLoading, compact }: FocusWidgetProps) {
-  const isHighPriority = score >= 15;
-  const delay = index * 0.04;
+  const delay = index * 0.03;
 
   const content = (() => {
     switch (widgetId) {
@@ -484,17 +443,10 @@ function FocusWidget({ widgetId, index, score, scope, isGlobalMode, activeProjec
     <motion.div
       layout
       layoutId={`focus-${widgetId}`}
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.2, layout: SMOOTH_SPRING }}
-      className={`relative ${isHighPriority && !compact ? 'ring-1 ring-purple-500/20 rounded-xl' : ''}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay, duration: 0.15, layout: SMOOTH_SPRING }}
     >
-      {isHighPriority && !compact && (
-        <div className="absolute -top-2.5 left-4 z-10 flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/25">
-          <Focus className="w-2.5 h-2.5 text-purple-400" />
-          <span className="text-2xs font-medium text-purple-400">Priority</span>
-        </div>
-      )}
       {content}
     </motion.div>
   );
@@ -503,25 +455,18 @@ function FocusWidget({ widgetId, index, score, scope, isGlobalMode, activeProjec
 // ── Anomaly Chip ─────────────────────────────────────────────────────────────
 
 const SEVERITY_STYLES: Record<AnomalySeverity, string> = {
-  critical: 'bg-red-500/10 border-red-500/30 text-red-300',
-  warning: 'bg-amber-500/10 border-amber-500/30 text-amber-300',
-  info: 'bg-zinc-500/10 border-zinc-500/30 text-zinc-300',
+  critical: 'text-red-400 border-red-500/30',
+  warning: 'text-amber-400 border-amber-500/30',
+  info: 'text-zinc-500 border-zinc-700/50',
 };
 
 function AnomalyChip({ anomaly }: { anomaly: SignalAnomaly }) {
-  const Icon = anomaly.kind === 'activity_drop' || anomaly.kind === 'context_neglected'
-    ? TrendingDown
-    : anomaly.kind === 'activity_spike'
-      ? TrendingUp
-      : AlertTriangle;
-
   return (
-    <div
-      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-2xs ${SEVERITY_STYLES[anomaly.severity]}`}
+    <span
+      className={`inline-flex items-center gap-1 px-1 py-0.5 rounded-sm border text-2xs font-mono ${SEVERITY_STYLES[anomaly.severity]}`}
       title={anomaly.description}
     >
-      <Icon className="w-3 h-3 flex-shrink-0" />
-      <span className="truncate max-w-[200px]">{anomaly.title}</span>
-    </div>
+      <span className="truncate max-w-[180px]">{anomaly.title}</span>
+    </span>
   );
 }

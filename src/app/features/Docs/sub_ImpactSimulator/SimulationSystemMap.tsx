@@ -62,7 +62,7 @@ function DraggableContextChip({
     >
       <Move className="w-3 h-3 text-gray-500" />
       <span className="text-xs text-gray-300 truncate max-w-[100px]">{context.name}</span>
-      <span className="text-[9px] text-gray-500">
+      <span className="text-micro text-gray-500">
         ({context.filePaths?.length || 0} files)
       </span>
     </div>
@@ -144,7 +144,7 @@ function GroupDropZone({
 
       {group.type && (
         <span
-          className="absolute top-2 right-2 px-1.5 py-0.5 text-[9px] uppercase font-medium rounded"
+          className="absolute top-2 right-2 px-1.5 py-0.5 text-micro uppercase font-medium rounded"
           style={{
             backgroundColor: `${group.color}20`,
             color: group.color,

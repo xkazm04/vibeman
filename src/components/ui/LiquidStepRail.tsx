@@ -226,7 +226,7 @@ export default function LiquidStepRail({
                   className="absolute flex items-center group"
                   style={{ top: centerY - 8, left: svgW + 4 }}
                 >
-                  <span className={`text-[9px] leading-tight font-medium whitespace-nowrap ${
+                  <span className={`text-micro leading-tight font-medium whitespace-nowrap ${
                     step.done ? 'text-gray-400' : isActive ? 'text-gray-300' : 'text-gray-500'
                   }`}>
                     {step.label}

@@ -59,11 +59,14 @@ export {
   FullPageSpinner,
   InlineSpinner,
   FeatureSpinner,
+  SimpleSpinner,
 } from './Spinner';
 
 // Empty state
 export { default as EmptyStateIllustration } from './EmptyStateIllustration';
 export type { IllustrationType } from './EmptyStateIllustration';
+export { default as EmptyState } from './EmptyState';
+export type { EmptyStateProps, EmptyStateAction, ActionVariant } from './EmptyState';
 
 // Wizard components (re-exported)
 export { default as Badge } from './wizard/Badge';

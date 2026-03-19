@@ -238,7 +238,7 @@ const MoveToGroupMenu = React.memo<MoveToGroupMenuProps>(({
             {/* Footer hint */}
             <div className="px-4 py-2 border-t border-cyan-500/20 mt-1">
               <p className="text-xs text-gray-500 text-center">
-                <kbd className="px-1.5 py-0.5 bg-gray-800 rounded text-gray-400 text-[10px]">Esc</kbd>
+                <kbd className="px-1.5 py-0.5 bg-gray-800 rounded text-gray-400 text-2xs">Esc</kbd>
                 {' '}to cancel
               </p>
             </div>

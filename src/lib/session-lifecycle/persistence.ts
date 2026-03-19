@@ -6,7 +6,7 @@
  * - ApiPersistence: REST API-backed (Claude Code, Automation, Remote Device)
  */
 
-import type { BaseSession, PersistenceStrategy } from './types';
+import type { BaseSession, HeartbeatResult, PersistenceStrategy } from './types';
 
 // ============================================================================
 // IN-MEMORY PERSISTENCE
@@ -37,11 +37,11 @@ export class InMemoryPersistence<T extends BaseSession>
     return this.store.delete(id);
   }
 
-  updateHeartbeat(id: string): void {
+  updateHeartbeat(id: string): HeartbeatResult {
     const session = this.store.get(id);
-    if (session) {
-      this.store.set(id, { ...session, updatedAt: Date.now() });
-    }
+    if (!session) return 'not_found';
+    this.store.set(id, { ...session, updatedAt: Date.now() });
+    return 'updated';
   }
 
   /** Direct access for migration / advanced use cases */
@@ -119,13 +119,21 @@ export class ApiPersistence<T extends BaseSession>
     return response.ok;
   }
 
-  async updateHeartbeat(id: string): Promise<void> {
+  async updateHeartbeat(id: string): Promise<HeartbeatResult> {
     const url =
       this.apiConfig.heartbeatUrl ?? `${this.apiConfig.baseUrl}/heartbeat`;
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: id }),
-    });
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: id }),
+      });
+      if (response.status === 404) return 'not_found';
+      if (response.status === 409) return 'inactive';
+      if (!response.ok) return 'error';
+      return 'updated';
+    } catch {
+      return 'error';
+    }
   }
 }

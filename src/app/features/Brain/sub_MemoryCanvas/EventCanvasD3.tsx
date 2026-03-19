@@ -157,17 +157,12 @@ export default function EventCanvasD3({ enabled = true }: EventCanvasD3Props) {
     dispatch({ type: 'EventSelected', event: null });
     const timeout = setTimeout(() => {
       setUndoStack(prev => prev.filter(u => u.event.id !== evt.id));
+      fetch(`/api/brain/signals?id=${evt.id}`, { method: 'DELETE' })
+        .catch(() => {
+          store.restoreEvent(evt, canvasState.focusedGroupId);
+        });
     }, 5000);
     setUndoStack(prev => [...prev, { event: evt, timeout }]);
-    fetch(`/api/brain/signals?id=${evt.id}`, { method: 'DELETE' })
-      .then(res => {
-        if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
-      })
-      .catch(() => {
-        clearTimeout(timeout);
-        setUndoStack(prev => prev.filter(u => u.event.id !== evt.id));
-        store.restoreEvent(evt, canvasState.focusedGroupId);
-      });
   }, [store, canvasState.focusedGroupId]);
 
   const handleUndo = useCallback((entry: UndoEntry) => {

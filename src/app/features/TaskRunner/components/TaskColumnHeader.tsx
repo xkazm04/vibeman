@@ -115,11 +115,11 @@ export default function TaskColumnHeader({
         {/* Counts and overflow menu */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {selectedCount > 0 && (
-            <span className="text-[11px] text-emerald-400 font-mono">
+            <span className="text-caption text-emerald-400 font-mono">
               {selectedCount}/{selectableCount}
             </span>
           )}
-          <span className="text-[11px] text-gray-500 font-mono">{requirementsCount}</span>
+          <span className="text-caption text-gray-500 font-mono">{requirementsCount}</span>
 
           {/* Overflow menu trigger */}
           {hasMenuItems && (
@@ -145,13 +145,13 @@ export default function TaskColumnHeader({
                     {/* Actions section — constructive operations */}
                     {hasConstructiveActions && (
                       <>
-                        <div className="px-3 pt-1.5 pb-1 text-[9px] uppercase tracking-wider text-gray-500 font-semibold">
+                        <div className="px-3 pt-1.5 pb-1 text-micro uppercase tracking-wider text-gray-500 font-semibold">
                           Actions
                         </div>
                         {hasAutoAssign && (
                           <button
                             onClick={() => { onAutoAssign!(); setMenuOpen(false); }}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] font-medium text-purple-400 hover:bg-purple-500/10 border-l-2 border-purple-500/60 transition-colors"
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-caption font-medium text-purple-400 hover:bg-purple-500/10 border-l-2 border-purple-500/60 transition-colors"
                             data-testid={`auto-assign-btn-${projectId}`}
                           >
                             <Zap className="w-3.5 h-3.5" />
@@ -162,7 +162,7 @@ export default function TaskColumnHeader({
                           <button
                             onClick={() => { onAggregate(); setMenuOpen(false); }}
                             disabled={isAggregating}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] font-medium text-violet-400 hover:bg-violet-500/10 border-l-2 border-violet-500/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-caption font-medium text-violet-400 hover:bg-violet-500/10 border-l-2 border-violet-500/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             data-testid={`aggregate-btn-${projectId}`}
                           >
                             <Layers className="w-3.5 h-3.5" />
@@ -180,7 +180,7 @@ export default function TaskColumnHeader({
                     {/* Cleanup section — reset & removal operations */}
                     {hasCleanupActions && (
                       <>
-                        <div className="px-3 pt-1.5 pb-1 text-[9px] uppercase tracking-wider text-gray-500 font-semibold">
+                        <div className="px-3 pt-1.5 pb-1 text-micro uppercase tracking-wider text-gray-500 font-semibold">
                           Cleanup
                         </div>
 

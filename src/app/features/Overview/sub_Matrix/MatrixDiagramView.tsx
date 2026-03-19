@@ -11,6 +11,9 @@ import { ZoomableCanvas, type ZoomTransform } from '@/components/ZoomableCanvas'
 import { HighlightRule, isHighlighted, isDimmed, getImpactLevel, type HighlightRule as HighlightRuleType } from './lib/highlightAlgebra';
 import { getDetailFlagsFromScale, getSemanticZoomLevel, calculateTierAggregates, ZOOM_THRESHOLDS } from './lib/semanticZoom';
 import { archTheme } from './lib/archTheme';
+import { cssTransitionSafe } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { transitions } from '@/lib/design-tokens';
 
 const ZOOM_LEVEL_LABELS: Record<string, string> = {
   low: 'Overview',
@@ -67,6 +70,7 @@ export default function MatrixDiagramView({
   impactMode,
   onNodeClick,
 }: MatrixDiagramViewProps) {
+  const prefersReduced = useReducedMotion();
   const [currentScale, setCurrentScale] = useState(1);
 
   const handleTransformChange = useCallback((t: ZoomTransform) => {
@@ -116,27 +120,27 @@ export default function MatrixDiagramView({
       {showMatrixButton && (
         <button
           onClick={onShowMatrix}
-          className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 bg-zinc-900/90 hover:bg-cyan-900/50 rounded-lg border border-cyan-500/30 text-sm text-zinc-300 transition-all duration-200 shadow-lg hover:shadow-cyan-500/20 hover:border-cyan-400/50 backdrop-blur-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 group"
+          className={`absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 bg-zinc-900/90 hover:bg-cyan-900/50 rounded-lg border border-cyan-500/30 text-sm text-zinc-300 ${transitions.normal} shadow-lg hover:shadow-cyan-500/20 hover:border-cyan-400/50 backdrop-blur-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 group`}
         >
-          <Grid3X3 className="w-4 h-4 group-hover:text-cyan-400 transition-colors duration-200" />
-          <span className="group-hover:text-white transition-colors duration-200">Show Matrix</span>
+          <Grid3X3 className={`w-4 h-4 group-hover:text-cyan-400 ${transitions.colors}`} />
+          <span className={`group-hover:text-white ${transitions.colors}`}>Show Matrix</span>
         </button>
       )}
 
       {/* Zoom level badge */}
       <div className="absolute top-4 right-[4.5rem] z-10 flex items-center gap-2 pointer-events-none select-none">
         <div
-          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-zinc-900/90 border backdrop-blur-sm transition-all duration-200 ${
+          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-zinc-900/90 border backdrop-blur-sm ${transitions.normal} ${
             isNearThreshold
               ? 'border-cyan-400/50 shadow-md shadow-cyan-500/10 animate-pulse'
               : 'border-zinc-700/50'
           }`}
         >
-          <span className="text-[11px] font-medium text-cyan-400">{zoomLabel}</span>
-          <span className="text-[10px] text-zinc-500">{zoomPercent}%</span>
+          <span className="text-caption font-medium text-cyan-400">{zoomLabel}</span>
+          <span className="text-2xs text-zinc-500">{zoomPercent}%</span>
         </div>
         {thresholdHint && (
-          <span className="text-[10px] text-cyan-400/70 whitespace-nowrap">{thresholdHint}</span>
+          <span className="text-2xs text-cyan-400/70 whitespace-nowrap">{thresholdHint}</span>
         )}
       </div>
 
@@ -181,7 +185,7 @@ export default function MatrixDiagramView({
               ))}
 
               {/* LOW ZOOM: Tier aggregates instead of individual nodes */}
-              <g style={{ opacity: detailFlags.showTierAggregates ? 1 : 0, transition: 'opacity 200ms ease-in-out' }}>
+              <g style={{ opacity: detailFlags.showTierAggregates ? 1 : 0, transition: cssTransitionSafe(prefersReduced, 'opacity', 'normal', 'morph') }}>
                 {detailFlags.showTierAggregates && tierAggregates.map((aggregate) => {
                   const tierConfig = tierConfigs.find(t => t.id === aggregate.tierId);
                   if (!tierConfig) return null;
@@ -198,7 +202,7 @@ export default function MatrixDiagramView({
               </g>
 
               {/* MEDIUM+ ZOOM: Connection lines */}
-              <g style={{ opacity: detailFlags.showConnections ? 1 : 0, transition: 'opacity 200ms ease-in-out' }}>
+              <g style={{ opacity: detailFlags.showConnections ? 1 : 0, transition: cssTransitionSafe(prefersReduced, 'opacity', 'normal', 'morph') }}>
                 {detailFlags.showConnections && resolvedEdges.map((edge) => (
                   <MatrixConnectionLine
                     key={edge.id}
@@ -210,7 +214,7 @@ export default function MatrixDiagramView({
               </g>
 
               {/* MEDIUM+ ZOOM: Individual nodes with progressive detail */}
-              <g style={{ opacity: detailFlags.showNodes ? 1 : 0, transition: 'opacity 200ms ease-in-out' }}>
+              <g style={{ opacity: detailFlags.showNodes ? 1 : 0, transition: cssTransitionSafe(prefersReduced, 'opacity', 'normal', 'morph') }}>
                 {detailFlags.showNodes && nodes.map((node) => (
                   <MatrixNode
                     key={node.id}

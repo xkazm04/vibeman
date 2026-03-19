@@ -270,7 +270,7 @@ export default function RoutingConfig({
                   <span className="text-sm font-medium text-gray-200 truncate">
                     {rule.name}
                   </span>
-                  <span className="px-1.5 py-0.5 text-[10px] rounded bg-gray-800 text-gray-400">
+                  <span className="px-1.5 py-0.5 text-2xs rounded bg-gray-800 text-gray-400">
                     Priority {rule.priority}
                   </span>
                 </div>

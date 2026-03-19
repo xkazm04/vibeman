@@ -128,7 +128,7 @@ export function SelectionGridPreview({ props }: PreviewProps) {
             >
               <div className="flex flex-col items-center gap-1">
                 <span className="text-lg">{opt.emoji}</span>
-                <span className="text-[10px] font-semibold">{opt.label}</span>
+                <span className="text-2xs font-semibold">{opt.label}</span>
               </div>
             </motion.button>
           );

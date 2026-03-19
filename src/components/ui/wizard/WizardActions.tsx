@@ -3,6 +3,7 @@
 import { ArrowLeft, ArrowRight, LucideIcon } from 'lucide-react';
 import { ReactNode } from 'react';
 import { useThemeStore } from '@/stores/themeStore';
+import { SimpleSpinner } from '@/components/ui';
 
 interface WizardActionsProps {
   onBack?: () => void;
@@ -83,7 +84,7 @@ export default function WizardActions({
         >
           {nextLoading ? (
             <>
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <SimpleSpinner size="sm" color="white" />
               <span>Processing...</span>
             </>
           ) : (

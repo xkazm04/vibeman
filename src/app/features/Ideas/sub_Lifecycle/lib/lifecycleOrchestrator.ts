@@ -286,8 +286,8 @@ class LifecycleOrchestrator {
   private async handleCycleError(cycle: LifecycleCycle, error: Error): Promise<void> {
     const now = new Date().toISOString();
 
-    cycle.phase = 'failed';
     cycle.error_phase = cycle.phase;
+    cycle.phase = 'failed';
     cycle.error_message = error.message;
     cycle.completed_at = now;
     cycle.duration_ms = Date.now() - new Date(cycle.started_at).getTime();

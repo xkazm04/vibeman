@@ -130,6 +130,7 @@ export const ideaRepository = {
     limit: number,
     after_id: string | null
   ): { ideas: DbIdea[]; nextCursor: string | null } => {
+    if (projectIds.length === 0) return { ideas: [], nextCursor: null };
     const db = getDatabase();
     const placeholders = projectIds.map(() => '?').join(',');
 

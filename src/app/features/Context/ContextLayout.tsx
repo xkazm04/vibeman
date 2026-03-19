@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Save, Plus, FolderPlus, Scan } from 'lucide-react';
+import { Save, Plus, FolderPlus, Scan, Boxes } from 'lucide-react';
+import { transition, fadeSlideUp, scaleEntrance, expandCollapse, fadeOnly } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Caveat } from 'next/font/google';
 import { DndContext, DragOverlay, DragEndEvent } from '@dnd-kit/core';
 import { useContextStore, useShallow } from '../../../stores/contextStore';
@@ -13,7 +15,7 @@ import HorizontalContextBarHeader from './sub_ContextGroups/HorizontalContextBar
 import { GroupDetailView, useContextDetail } from './sub_ContextDetail';
 import ContextJailCard from '@/components/ContextComponents/ContextJailCard';
 import { useDragDropContext, useDropZoneValidator, DEFAULT_TARGET_TRANSFORMS } from '@/hooks/dnd';
-import EmptyStateIllustration from '@/components/ui/EmptyStateIllustration';
+import EmptyState from '@/components/ui/EmptyState';
 import { SYNTHETIC_GROUP_ID } from './lib/constants';
 import { ContextEmptyState } from './components/ContextEmptyState';
 import { ContextGenerationOverlay } from './components/ContextGenerationOverlay';
@@ -30,6 +32,7 @@ interface HorizontalContextBarProps {
 }
 
 const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalContextBarProps) => {
+  const prefersReduced = useReducedMotion();
   // Atomic selectors: data slices with shallow comparison (re-render only when these specific slices change)
   const { contexts, groups, loading } = useContextStore(useShallow(s => ({
     contexts: s.contexts,
@@ -244,9 +247,9 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
         onDragCancel={handleDragCancel}
       >
         <motion.div
-          initial={{ opacity: 0, y: -30 }}
+          initial={prefersReduced ? false : { opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
+          transition={transition.expand}
           className="relative mb-8"
         >
           {/* Glass Container */}
@@ -283,42 +286,38 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
             <AnimatePresence>
               {isExpanded && (
                 <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.4, ease: "easeInOut" }}
+                  variants={expandCollapse}
+                  initial={prefersReduced ? false : "hidden"}
+                  animate="visible"
+                  exit="exit"
                   className="relative"
                 >
                   {allGroups.length === 0 ? (
-                    <div className="py-32 flex flex-col items-center justify-center text-center" data-testid="context-empty">
-                      <EmptyStateIllustration
-                        type="contexts"
-                        headline="Initialize your context network"
-                        description="Contexts help you organize your codebase into logical groups. Create groups manually, or let Claude scan your codebase and map contexts automatically."
-                        height="py-0"
-                      />
-                      <div className="flex items-center gap-4 mt-6">
-                        <button
-                          onClick={() => setShowGroupModal(true)}
-                          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 hover:from-blue-500/30 hover:to-indigo-500/30 text-blue-400 rounded-xl transition-all border-blue-500/30 border backdrop-blur-sm font-medium"
-                        >
-                          <FolderPlus className="w-4 h-4" />
-                          Create First Group
-                        </button>
-                        <span className="text-gray-500 text-sm">or</span>
-                        <button
-                          onClick={() => {
+                    <EmptyState
+                      icon={Boxes}
+                      title="Initialize your context network"
+                      description="Contexts help you organize your codebase into logical groups. Create groups manually, or let Claude scan your codebase and map contexts automatically."
+                      actions={[
+                        {
+                          label: 'Create First Group',
+                          onClick: () => setShowGroupModal(true),
+                          variant: 'secondary',
+                          icon: FolderPlus,
+                        },
+                        {
+                          label: 'Scan Codebase',
+                          onClick: () => {
                             if (activeProject?.id) {
                               useContextGenerationStore.getState().startGeneration(activeProject.id);
                             }
-                          }}
-                          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:from-cyan-400 hover:to-blue-400 rounded-xl transition-all shadow-lg shadow-cyan-500/25 font-medium"
-                        >
-                          <Scan className="w-4 h-4" />
-                          Scan Codebase for Contexts
-                        </button>
-                      </div>
-                    </div>
+                          },
+                          variant: 'primary',
+                          icon: Scan,
+                        },
+                      ]}
+                      className="py-32"
+                      testId="context-empty"
+                    />
                   ) : hasGroupsButNoContexts ? (
                     /* Empty state when groups exist but no contexts */
                     <ContextEmptyState
@@ -342,14 +341,12 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
                           return (
                             <motion.div
                               key={group.id}
-                              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              variants={scaleEntrance}
+                              initial={prefersReduced ? false : "hidden"}
+                              animate="visible"
                               transition={{
-                                duration: 0.4,
-                                delay: index * 0.05,
-                                type: "spring",
-                                stiffness: 100,
-                                damping: 15
+                                ...transition.spring,
+                                delay: prefersReduced ? 0 : index * 0.05,
                               }}
                               className="h-full"
                             >
@@ -370,9 +367,9 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
                         {/* Add new group slot */}
                         {groups.length < 20 && (
                           <motion.div
-                            initial={{ opacity: 0 }}
+                            initial={prefersReduced ? false : { opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            transition={{ delay: 0.5 }}
+                            transition={{ ...transition.normal, delay: prefersReduced ? 0 : 0.5 }}
                             className="min-h-[300px] border-2 border-dashed border-cyan-500/20 rounded-2xl flex flex-col items-center justify-center gap-4 hover:border-cyan-500/40 hover:bg-cyan-500/5 transition-all cursor-pointer group"
                             onClick={() => setShowGroupModal(true)}
                           >

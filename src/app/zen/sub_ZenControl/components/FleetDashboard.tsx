@@ -505,7 +505,7 @@ export default function FleetDashboard({
 
       {/* Last updated */}
       {overview && (
-        <div className="flex items-center justify-end gap-1 text-[10px] text-gray-500">
+        <div className="flex items-center justify-end gap-1 text-2xs text-gray-500">
           <Clock className="w-3 h-3" />
           <span>Updated: {new Date(overview.lastUpdated).toLocaleTimeString()}</span>
         </div>

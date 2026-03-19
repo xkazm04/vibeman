@@ -120,7 +120,7 @@ export function ZenSessionPanel({ sessionId, session, index }: ZenSessionPanelPr
             instanceId={sessionId}
             projectPath={session.projectPath}
             title=""
-            className="h-full border-0 rounded-none text-[10px]"
+            className="h-full border-0 rounded-none text-2xs"
             taskQueue={session.queue}
             autoStart={session.autoStart}
             enabledSkills={session.enabledSkills}

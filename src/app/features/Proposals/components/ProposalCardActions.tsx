@@ -3,6 +3,8 @@
 import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Check, X, Loader2, Code } from 'lucide-react';
+import { useThemeStore } from '@/stores/themeStore';
+import { getFocusRingStyles } from '@/lib/ui/focusRing';
 
 interface ProposalCardActionsProps {
   isMain?: boolean;
@@ -22,12 +24,16 @@ const ActionButton = React.memo(({
   onClick,
   disabled,
   icon: Icon,
-  color
+  color,
+  focusRingClasses,
+  'aria-label': ariaLabel
 }: {
   onClick?: () => void;
   disabled?: boolean;
   icon: React.ComponentType<{ className?: string }>;
   color: 'red' | 'purple' | 'green';
+  focusRingClasses: string;
+  'aria-label': string;
 }) => {
   const [burstKey, setBurstKey] = useState(0);
 
@@ -66,13 +72,14 @@ const ActionButton = React.memo(({
       onClick={onClick}
       disabled={disabled}
       onMouseEnter={handleHover}
-      className={`relative group p-4 bg-gradient-to-r ${classes.bg} rounded-2xl border ${classes.border} transition-all duration-300 disabled:opacity-50`}
+      aria-label={ariaLabel}
+      className={`relative group p-4 bg-gradient-to-r ${classes.bg} rounded-lg border ${classes.border} transition-all duration-200 disabled:opacity-50 ${focusRingClasses}`}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
     >
       {/* Neural Glow Effect */}
       <motion.div
-        className="absolute -inset-1 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        className="absolute -inset-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
         style={{
           background: `linear-gradient(45deg, ${classes.gradient}, transparent, ${classes.gradient})`,
           filter: 'blur(8px)',
@@ -104,13 +111,16 @@ const ActionButton = React.memo(({
 
 ActionButton.displayName = 'ActionButton';
 
-export const ProposalCardActions = React.memo(({ 
+export const ProposalCardActions = React.memo(({
   isMain = false,
-  onAccept, 
-  onAcceptWithCode, 
-  onDecline, 
-  isProcessing = false 
+  onAccept,
+  onAcceptWithCode,
+  onDecline,
+  isProcessing = false
 }: ProposalCardActionsProps) => {
+  const { theme } = useThemeStore();
+  const focusRing = getFocusRingStyles(theme);
+
   if (!isMain) return null;
 
   return (
@@ -121,29 +131,35 @@ export const ProposalCardActions = React.memo(({
       className="flex justify-between items-center pt-4"
     >
       {/* Decline Button */}
-      <ActionButton 
-        onClick={onDecline} 
-        disabled={isProcessing} 
-        icon={X} 
-        color="red" 
+      <ActionButton
+        onClick={onDecline}
+        disabled={isProcessing}
+        icon={X}
+        color="red"
+        focusRingClasses={focusRing}
+        aria-label="Decline proposal"
       />
 
       {/* Middle buttons container */}
       <div className="flex space-x-4">
         {/* Accept with Code Button */}
-        <ActionButton 
-          onClick={onAcceptWithCode} 
-          disabled={isProcessing} 
-          icon={Code} 
-          color="purple" 
+        <ActionButton
+          onClick={onAcceptWithCode}
+          disabled={isProcessing}
+          icon={Code}
+          color="purple"
+          focusRingClasses={focusRing}
+          aria-label="Accept proposal with code"
         />
 
         {/* Accept Button */}
-        <ActionButton 
-          onClick={onAccept} 
-          disabled={isProcessing} 
-          icon={Check} 
-          color="green" 
+        <ActionButton
+          onClick={onAccept}
+          disabled={isProcessing}
+          icon={Check}
+          color="green"
+          focusRingClasses={focusRing}
+          aria-label="Accept proposal"
         />
       </div>
     </motion.div>

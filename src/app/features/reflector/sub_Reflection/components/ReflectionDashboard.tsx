@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { Loader2, AlertCircle, FileText, BarChart3 } from 'lucide-react';
+import { useTabNavigation } from '@/hooks/useTabNavigation';
 import FilterPanel from './FilterPanel';
 import ScanTypeCard from './ScanTypeCard';
 import AcceptanceChart, { AcceptanceBarClickData } from './AcceptanceChart';
@@ -49,6 +50,7 @@ export default function ReflectionDashboard() {
 
   const router = useRouter();
   const { projects, initializeProjects } = useServerProjectStore();
+  const { tablistRef: viewModeTablistRef, handleKeyDown: handleViewModeKeyDown } = useTabNavigation();
 
   /**
    * Navigate to the Total View with specific filters applied
@@ -356,10 +358,19 @@ export default function ReflectionDashboard() {
 
         <div className="flex flex-col lg:flex-row lg:items-start gap-4">
           {/* View Mode Toggle */}
-          <div className="flex bg-gray-900/50 border border-gray-700/50 rounded-lg p-1 shrink-0">
+          <div
+            ref={viewModeTablistRef}
+            role="tablist"
+            aria-label="Dashboard view mode"
+            onKeyDown={handleViewModeKeyDown}
+            className="flex bg-gray-900/50 border border-gray-700/50 rounded-lg p-1 shrink-0"
+          >
             <button
+              role="tab"
+              aria-selected={viewMode === 'analytics'}
+              tabIndex={viewMode === 'analytics' ? 0 : -1}
               onClick={() => setViewMode('analytics')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
                 viewMode === 'analytics'
                   ? 'bg-gray-700/80 text-white'
                   : 'text-gray-400 hover:text-gray-300'
@@ -370,8 +381,11 @@ export default function ReflectionDashboard() {
               Analytics
             </button>
             <button
+              role="tab"
+              aria-selected={viewMode === 'executive'}
+              tabIndex={viewMode === 'executive' ? 0 : -1}
               onClick={() => setViewMode('executive')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
                 viewMode === 'executive'
                   ? 'bg-indigo-600/80 text-white'
                   : 'text-gray-400 hover:text-gray-300'
@@ -481,7 +495,7 @@ export default function ReflectionDashboard() {
                               {contextMapStat.acceptanceRatio}%
                             </span>
                           </div>
-                          <div className="flex justify-between text-[10px] font-mono text-gray-500">
+                          <div className="flex justify-between text-2xs font-mono text-gray-500">
                             <span className="text-yellow-400">{contextMapStat.pending}p</span>
                             <span className="text-green-400">{contextMapStat.accepted}a</span>
                             <span className="text-red-400">{contextMapStat.rejected}r</span>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crosshair, ChevronDown, ChevronUp, Check, X, Target } from 'lucide-react';
+import { SimpleSpinner } from '@/components/ui';
 import { Context } from '@/lib/queries/contextQueries';
 
 interface ContextTargetsListProps {
@@ -254,7 +255,7 @@ export default function ContextTargetsList({
           <div className="h-px bg-gradient-to-r from-transparent via-gray-600/30 to-transparent mb-4" />
         )}
         <div className="flex items-center gap-2 text-gray-500 text-xs">
-          <div className="w-4 h-4 border-2 border-gray-600/30 border-t-gray-500 rounded-full animate-spin" />
+          <SimpleSpinner size="sm" color="gray" />
           Loading contexts...
         </div>
       </div>
@@ -400,7 +401,7 @@ export default function ContextTargetsList({
                         {goalCreated === context.id ? (
                           <Check className="w-3.5 h-3.5" />
                         ) : creatingGoal === context.id ? (
-                          <div className="w-3.5 h-3.5 border border-gray-500 border-t-cyan-400 rounded-full animate-spin" />
+                          <SimpleSpinner size="xs" color="cyan" />
                         ) : (
                           <Target className="w-3.5 h-3.5" />
                         )}

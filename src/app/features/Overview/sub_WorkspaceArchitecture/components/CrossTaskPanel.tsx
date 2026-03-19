@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { Layers, Check, Play, Info, ChevronRight, Loader2, Eye, X } from 'lucide-react';
+import { Layers, Check, Play, Info, ChevronRight, Loader2, Eye, X, AlertTriangle } from 'lucide-react';
 import { CompactTerminal } from '@/components/cli/CompactTerminal';
 import type { QueuedTask } from '@/components/cli/types';
 import { createQueuedStatus, createCompletedStatus, createFailedStatus } from '@/app/features/TaskRunner/lib/types';
@@ -24,6 +24,7 @@ export default function CrossTaskPanel({
   const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
   const [autoStart, setAutoStart] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [degradedWarning, setDegradedWarning] = useState<string | null>(null);
 
   const handleToggleProject = useCallback((projectId: string) => {
     setSelectedProjects((prev) => {
@@ -50,6 +51,7 @@ export default function CrossTaskPanel({
 
     setIsLoading(true);
     setError(null);
+    setDegradedWarning(null);
 
     try {
       // Get selected project details
@@ -74,7 +76,13 @@ export default function CrossTaskPanel({
         return;
       }
 
-      const { planId, promptContent } = result;
+      const { planId, promptContent, degraded, dataWarnings } = result;
+
+      if (degraded) {
+        setDegradedWarning(
+          `Analysis may be incomplete: ${(dataWarnings as string[]).length} data field(s) had corrupt JSON and were skipped.`
+        );
+      }
 
       // Mark the plan as started
       await fetch(`/api/cross-task/${planId}`, {
@@ -122,6 +130,7 @@ export default function CrossTaskPanel({
     setCurrentPlanId(null);
     setAutoStart(false);
     setError(null);
+    setDegradedWarning(null);
   }, []);
 
   const handleViewPlan = useCallback(() => {
@@ -153,7 +162,7 @@ export default function CrossTaskPanel({
             {!isRunning && (
               <button
                 onClick={handleClear}
-                className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="flex items-center gap-1 px-2 py-1 text-2xs text-zinc-500 hover:text-zinc-300 transition-colors"
               >
                 <X className="w-3 h-3" />
                 Clear
@@ -172,7 +181,7 @@ export default function CrossTaskPanel({
         </div>
 
         {/* Status bar */}
-        <div className="px-3 py-1.5 border-b border-amber-500/5 bg-zinc-900/50 text-[10px]">
+        <div className="px-3 py-1.5 border-b border-amber-500/5 bg-zinc-900/50 text-2xs">
           <div className="flex items-center gap-2">
             {currentTask.status.type === 'queued' && autoStart && (
               <span className="flex items-center gap-1 text-amber-400">
@@ -190,10 +199,18 @@ export default function CrossTaskPanel({
               <span className="text-emerald-400">Analysis complete - 3 implementation plans generated</span>
             )}
             {currentTask.status.type === 'failed' && (
-              <span className="text-red-400">Analysis failed</span>
+              <span role="alert" className="text-red-400">Analysis failed</span>
             )}
           </div>
         </div>
+
+        {/* Degraded data warning */}
+        {degradedWarning && (
+          <div className="px-3 py-1.5 border-b border-amber-500/20 bg-amber-500/5 flex items-center gap-1.5">
+            <AlertTriangle className="w-3 h-3 text-amber-400 flex-shrink-0" />
+            <span className="text-2xs text-amber-400/90">{degradedWarning}</span>
+          </div>
+        )}
 
         {/* Terminal */}
         <div className="flex-1 overflow-hidden">
@@ -222,7 +239,7 @@ export default function CrossTaskPanel({
         </div>
         <div className="flex items-center gap-2">
           {hasSelection && (
-            <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-[10px] text-amber-400 border border-amber-500/20">
+            <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-2xs text-amber-400 border border-amber-500/20">
               {selectedProjects.size} selected
             </span>
           )}
@@ -231,7 +248,7 @@ export default function CrossTaskPanel({
 
       {/* Error banner */}
       {error && (
-        <div className="px-4 py-2 bg-red-500/10 border-b border-red-500/20">
+        <div role="alert" className="px-4 py-2 bg-red-500/10 border-b border-red-500/20">
           <p className="text-xs text-red-400">{error}</p>
         </div>
       )}
@@ -241,13 +258,13 @@ export default function CrossTaskPanel({
         {/* Left: Project Selection */}
         <div className="w-56 flex-shrink-0 border-r border-zinc-800/50 flex flex-col">
           <div className="px-3 py-2 border-b border-zinc-800/30 flex items-center justify-between">
-            <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide">
+            <span className="text-2xs font-medium text-zinc-500 uppercase tracking-wide">
               Target Projects
             </span>
             {hasProjects && (
               <button
                 onClick={handleSelectAll}
-                className="text-[10px] text-amber-400/70 hover:text-amber-400 transition-colors"
+                className="text-2xs text-amber-400/70 hover:text-amber-400 transition-colors"
               >
                 {selectedProjects.size === projects.length ? 'Deselect All' : 'Select All'}
               </button>
@@ -297,7 +314,7 @@ export default function CrossTaskPanel({
           {/* Info Banner */}
           <div className="flex items-start gap-2 p-2.5 mb-3 rounded-lg bg-amber-500/5 border border-amber-500/10">
             <Info className="w-3.5 h-3.5 text-amber-400/70 flex-shrink-0 mt-0.5" />
-            <div className="text-[11px] text-amber-400/80 leading-relaxed">
+            <div className="text-caption text-amber-400/80 leading-relaxed">
               <span className="font-medium">Cross-Project Tasks</span> analyze your requirement across selected projects
               and generate 3 implementation plan options (Conservative, Balanced, Ambitious).
             </div>
@@ -305,7 +322,7 @@ export default function CrossTaskPanel({
 
           {/* Requirement Input */}
           <div className="flex-1 flex flex-col">
-            <label className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide mb-1.5">
+            <label className="text-2xs font-medium text-zinc-500 uppercase tracking-wide mb-1.5">
               Implementation Requirement
             </label>
             <textarea
@@ -314,13 +331,13 @@ export default function CrossTaskPanel({
               placeholder="Describe what should be implemented across selected projects...
 
 Example: Add a health check endpoint at /api/health that returns { status: 'ok', timestamp: Date.now() }"
-              className="flex-1 w-full px-3 py-2 text-xs bg-zinc-800/50 border border-zinc-700/50 rounded-lg resize-none focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 text-zinc-200 placeholder:text-zinc-600"
+              className="flex-1 w-full px-3 py-2 text-xs bg-zinc-800/50 border border-zinc-700/50 rounded-lg resize-none focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 text-zinc-200 placeholder:text-zinc-500"
             />
           </div>
 
           {/* Action Bar */}
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-zinc-800/30">
-            <div className="text-[10px] text-zinc-500">
+            <div className="text-2xs text-zinc-500">
               {hasSelection ? (
                 <span>
                   Will analyze{' '}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateGoalCandidates } from '@/lib/goalGenerator';
 import { goalCandidateRepository } from '@/app/db/repositories/goal-candidate.repository';
 import { goalRepository } from '@/app/db/repositories/goal.repository';
+import { getDatabase } from '@/app/db/connection';
 import { randomUUID } from 'crypto';
 import { withObservability } from '@/lib/observability/middleware';
 import type {
@@ -106,24 +107,31 @@ function handleAcceptAction(candidateId: string, updates: any) {
     return createErrorResponse('Candidate not found', 404);
   }
 
-  const maxOrderIndex = goalRepository.getMaxOrderIndex(candidate.project_id);
+  const db = getDatabase();
+  const acceptCandidate = db.transaction(() => {
+    const maxOrderIndex = goalRepository.getMaxOrderIndex(candidate.project_id);
 
-  const goal = goalRepository.createGoal({
-    id: randomUUID(),
-    project_id: candidate.project_id,
-    context_id: candidate.context_id || undefined,
-    title: updates?.title || candidate.title,
-    description: updates?.description || candidate.description || undefined,
-    status: candidate.suggested_status,
-    order_index: maxOrderIndex + 1
+    const goal = goalRepository.createGoal({
+      id: randomUUID(),
+      project_id: candidate.project_id,
+      context_id: candidate.context_id || undefined,
+      title: updates?.title || candidate.title,
+      description: updates?.description || candidate.description || undefined,
+      status: candidate.suggested_status,
+      order_index: maxOrderIndex + 1
+    });
+
+    const updatedCandidate = goalCandidateRepository.updateCandidate(candidateId, {
+      user_action: 'accepted',
+      goal_id: goal.id,
+      title: updates?.title,
+      description: updates?.description
+    });
+
+    return { goal, updatedCandidate };
   });
 
-  const updatedCandidate = goalCandidateRepository.updateCandidate(candidateId, {
-    user_action: 'accepted',
-    goal_id: goal.id,
-    title: updates?.title,
-    description: updates?.description
-  });
+  const { goal, updatedCandidate } = acceptCandidate();
 
   return NextResponse.json({
     success: true,

@@ -1,8 +1,10 @@
 import React from 'react';
 import { FileText } from 'lucide-react';
+import { SimpleSpinner } from '@/components/ui';
 import { Context } from '../../../../stores/contextStore';
 import MarkdownViewer from '../../../../components/markdown/MarkdownViewer';
 import { MonacoEditor } from '../../../../components/editor';
+import EmptyState from '@/components/ui/EmptyState';
 
 interface ContextModalContentProps {
   context: Context;
@@ -19,43 +21,34 @@ function LoadingState() {
   return (
     <div className="flex items-center justify-center h-full">
       <div className="text-center">
-        <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <SimpleSpinner size="lg" color="cyan" className="mx-auto mb-4" />
         <p className="text-gray-400">Loading context file...</p>
       </div>
     </div>
   );
 }
 
-function EmptyState({ context, generationError }: { context: Context; generationError: string | null }) {
+function ContextFileEmptyState({ context, generationError }: { context: Context; generationError: string | null }) {
+  const fileCount = context.filePaths.length;
+  let description = 'Context files provide detailed business descriptions and documentation for your feature sets. They help team members understand the purpose, architecture, and implementation details.';
+  if (fileCount === 0) {
+    description += ' Add files to this context to enable AI generation.';
+  } else {
+    description += ` AI will analyze ${fileCount} file${fileCount !== 1 ? 's' : ''} in this context. Requires Ollama running locally on port 11434.`;
+  }
+
   return (
     <div className="flex items-center justify-center h-full">
-      <div className="text-center max-w-lg">
-        <FileText className="w-16 h-16 mx-auto mb-6 text-gray-600" />
-        <h3 className="text-xl font-semibold text-white mb-3">
-          No Context File Created
-        </h3>
-        <p className="text-gray-400 mb-6 leading-relaxed">
-          Context files provide detailed business descriptions and documentation
-          for your feature sets. They help team members understand the purpose,
-          architecture, and implementation details.
-        </p>
-
+      <div>
+        <EmptyState
+          icon={FileText}
+          title="No Context File Created"
+          description={description}
+          className="py-8"
+        />
         {generationError && (
-          <div className="mb-6 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-            <p className="text-red-400 text-sm">{generationError}</p>
-          </div>
-        )}
-
-        {context.filePaths.length === 0 && (
-          <p className="text-sm text-gray-500 mt-3">
-            Add files to this context to enable AI generation
-          </p>
-        )}
-
-        {context.filePaths.length > 0 && (
-          <div className="mt-4 text-sm text-gray-500">
-            <p>AI will analyze {context.filePaths.length} file{context.filePaths.length !== 1 ? 's' : ''} in this context</p>
-            <p className="mt-1">Requires Ollama running locally on port 11434</p>
+          <div className="mx-auto max-w-md mb-6 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+            <p className="text-red-400 text-sm text-center">{generationError}</p>
           </div>
         )}
       </div>
@@ -109,7 +102,7 @@ export default function ContextModalContent({
   }
 
   if (!hasContextFile && !isEditing) {
-    return <EmptyState context={context} generationError={generationError} />;
+    return <ContextFileEmptyState context={context} generationError={generationError} />;
   }
 
   if (previewMode === 'preview') {

@@ -86,7 +86,7 @@ export function ActivityItem({ event, showFeedbackId, onJumpToItem }: ActivityIt
           <span className="text-sm text-gray-200">
             {getEventDescription(event)}
           </span>
-          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium text-white ${ACTOR_COLORS[event.actor]}`}>
+          <span className={`px-1.5 py-0.5 rounded text-2xs font-medium text-white ${ACTOR_COLORS[event.actor]}`}>
             {event.actor.toUpperCase()}
           </span>
         </div>

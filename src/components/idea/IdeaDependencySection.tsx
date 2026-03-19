@@ -144,7 +144,7 @@ export default function IdeaDependencySection({ ideaId }: IdeaDependencySectionP
           Related Ideas
         </h3>
         {dependencies.length > 0 && (
-          <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-1.5 rounded-full">
+          <span className="text-2xs bg-cyan-500/20 text-cyan-300 px-1.5 rounded-full">
             {dependencies.length}
           </span>
         )}
@@ -169,7 +169,7 @@ export default function IdeaDependencySection({ ideaId }: IdeaDependencySectionP
                   <span className={`${config.color} font-medium flex-shrink-0`}>{config.label}</span>
                   <ArrowRight className="w-3 h-3 text-gray-500 flex-shrink-0" />
                   <span className="text-gray-200 truncate flex-1">{dep.target_title}</span>
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] ${STATUS_BADGE[dep.target_status] || ''}`}>
+                  <span className={`px-1.5 py-0.5 rounded text-2xs ${STATUS_BADGE[dep.target_status] || ''}`}>
                     {dep.target_status}
                   </span>
                   <button
@@ -191,7 +191,7 @@ export default function IdeaDependencySection({ ideaId }: IdeaDependencySectionP
                   <ArrowRight className="w-3 h-3 text-gray-500 flex-shrink-0" />
                   <Icon className={`w-3 h-3 ${config.color} flex-shrink-0`} />
                   <span className={`${config.color} font-medium flex-shrink-0`}>{config.label}</span>
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] ${STATUS_BADGE[dep.source_status] || ''}`}>
+                  <span className={`px-1.5 py-0.5 rounded text-2xs ${STATUS_BADGE[dep.source_status] || ''}`}>
                     {dep.source_status}
                   </span>
                   <button
@@ -207,11 +207,11 @@ export default function IdeaDependencySection({ ideaId }: IdeaDependencySectionP
             {/* Discovered Related Ideas (unlinked) */}
             {unlinkedRelated.length > 0 && (
               <div className="pt-1">
-                <p className="text-[10px] text-gray-500 mb-1">Suggested (same context/category):</p>
+                <p className="text-2xs text-gray-500 mb-1">Suggested (same context/category):</p>
                 {unlinkedRelated.slice(0, 5).map(r => (
                   <div key={r.id} className="flex items-center gap-2 px-2 py-1 rounded text-xs text-gray-400 hover:bg-gray-700/30 transition-colors">
                     <span className="truncate flex-1">{r.title}</span>
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] ${STATUS_BADGE[r.status] || ''}`}>
+                    <span className={`px-1.5 py-0.5 rounded text-2xs ${STATUS_BADGE[r.status] || ''}`}>
                       {r.status}
                     </span>
                     <button
@@ -260,7 +260,7 @@ export default function IdeaDependencySection({ ideaId }: IdeaDependencySectionP
             {!showAddForm && (
               <button
                 onClick={() => setShowAddForm(true)}
-                className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-cyan-400 transition-colors pt-1"
+                className="flex items-center gap-1 text-2xs text-gray-500 hover:text-cyan-400 transition-colors pt-1"
               >
                 <Plus className="w-3 h-3" />
                 Add dependency

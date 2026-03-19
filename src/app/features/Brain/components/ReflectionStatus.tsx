@@ -11,6 +11,8 @@ import {
   Play,
   Square,
 } from 'lucide-react';
+import { transition, hover as hoverPresets, tap, pulse, fadeSlideUp } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useBrainStore } from '@/stores/brainStore';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
@@ -38,7 +40,7 @@ function formatElapsed(seconds: number): string {
   return `${m}m ${s}s`;
 }
 
-function StatusBadge({ status, elapsedSec }: { status: string; elapsedSec?: number }) {
+function StatusBadge({ status, elapsedSec, prefersReduced }: { status: string; elapsedSec?: number; prefersReduced?: boolean }) {
   const config = status === 'running'
     ? { bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.3)', color: '#60a5fa', icon: Loader2, spin: true, text: 'Running' }
     : status === 'completed'
@@ -68,29 +70,21 @@ function StatusBadge({ status, elapsedSec }: { status: string; elapsedSec?: numb
   );
 
   if (status === 'running') {
+    const glowProps = pulse.glow(config.border);
     return (
       <motion.div
         className="relative"
         initial={false}
       >
         {/* Pulsing ring */}
-        <motion.div
-          className="absolute inset-0 rounded-lg"
-          style={{ border: `1.5px solid ${config.border}` }}
-          animate={{
-            boxShadow: [
-              `0 0 0px ${config.border}`,
-              `0 0 12px ${config.border}`,
-              `0 0 0px ${config.border}`,
-            ],
-            opacity: [0.6, 1, 0.6],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
+        {!prefersReduced && (
+          <motion.div
+            className="absolute inset-0 rounded-lg"
+            style={{ border: `1.5px solid ${config.border}` }}
+            animate={glowProps.animate}
+            transition={glowProps.transition}
+          />
+        )}
         {badge}
       </motion.div>
     );
@@ -100,6 +94,7 @@ function StatusBadge({ status, elapsedSec }: { status: string; elapsedSec?: numb
 }
 
 export default function ReflectionStatus({ isLoading, scope = 'project' }: Props) {
+  const prefersReduced = useReducedMotion();
   const [completionMessage, setCompletionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [elapsedSec, setElapsedSec] = useState(0);
   const prevStatusRef = useRef<string | null>(null);
@@ -247,14 +242,15 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
           accentColor={ACCENT_COLOR}
           glowColor={GLOW_COLOR}
           glow
-          right={<StatusBadge status={reflectionStatus} elapsedSec={elapsedSec} />}
+          right={<StatusBadge status={reflectionStatus} elapsedSec={elapsedSec} prefersReduced={prefersReduced} />}
         />
 
         {/* Completion Message */}
         {completionMessage && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
+            initial={prefersReduced ? false : { opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
+            transition={transition.deliberate}
             className="mb-4 p-3 rounded-lg flex items-center gap-2"
             style={{
               background: completionMessage.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
@@ -290,8 +286,9 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
             </div>
             <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
               <motion.div
-                initial={{ width: 0 }}
+                initial={prefersReduced ? false : { width: 0 }}
                 animate={{ width: `${progress}%` }}
+                transition={transition.deliberate}
                 className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500"
                 style={{ boxShadow: '0 0 15px rgba(168, 85, 247, 0.5)' }}
               />
@@ -302,8 +299,9 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
         {/* Trigger Reason Alert */}
         {shouldTrigger && triggerReason && (
           <motion.div
-            initial={{ opacity: 0 }}
+            initial={prefersReduced ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
+            transition={transition.normal}
             className="mb-4 p-3 rounded-lg"
             style={{
               background: 'rgba(168, 85, 247, 0.1)',
@@ -331,8 +329,8 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
             <motion.button
               onClick={handleTrigger}
               disabled={isTriggering}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={!prefersReduced ? hoverPresets.button : undefined}
+              whileTap={!prefersReduced ? tap.press : undefined}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none"
               style={{
                 background: `linear-gradient(135deg, ${ACCENT_COLOR}30 0%, ${ACCENT_COLOR}15 100%)`,
@@ -351,8 +349,8 @@ export default function ReflectionStatus({ isLoading, scope = 'project' }: Props
           ) : (
             <motion.button
               onClick={handleCancel}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={!prefersReduced ? hoverPresets.button : undefined}
+              whileTap={!prefersReduced ? tap.press : undefined}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none"
               style={{
                 background: 'rgba(239, 68, 68, 0.15)',

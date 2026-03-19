@@ -115,7 +115,7 @@ export default function ModuleNode({
           style={{ color: isActive ? module.color : `${module.color}cc` }}
         />
         <span
-          className="text-[10px] font-medium text-center leading-tight px-2"
+          className="text-2xs font-medium text-center leading-tight px-2"
           style={{ color: isActive ? module.color : `${module.color}cc` }}
         >
           {module.name}
@@ -125,7 +125,7 @@ export default function ModuleNode({
         {hasConnections && (
           <motion.div
             className="absolute -top-2 -left-2 min-w-[20px] h-[20px]
-              rounded-full bg-violet-500/80 text-white text-[9px] font-medium
+              rounded-full bg-violet-500/80 text-white text-micro font-medium
               flex items-center justify-center px-1
               border border-violet-400/50 shadow-sm
               opacity-60 group-hover:opacity-100
@@ -144,7 +144,7 @@ export default function ModuleNode({
         {hasCount && (
           <motion.div
             className="absolute -top-2 -right-2 min-w-[22px] h-[22px]
-              rounded-full text-white text-[10px] font-bold
+              rounded-full text-white text-2xs font-bold
               flex items-center justify-center px-1 shadow-lg
               border-2 border-gray-900
               opacity-0 group-hover:opacity-100

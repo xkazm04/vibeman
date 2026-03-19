@@ -48,7 +48,7 @@ export default function FileCard({ filePath, type }: FileCardProps) {
           <h5 className="text-xs font-medium text-white truncate">{fileName}</h5>
           {/* Folder path - progressive disclosure on hover */}
           <p
-            className="text-[10px] text-gray-500 truncate
+            className="text-2xs text-gray-500 truncate
               opacity-0 group-hover:opacity-100
               scale-95 group-hover:scale-100
               max-h-0 group-hover:max-h-6

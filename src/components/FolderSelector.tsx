@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Folder, FolderOpen, File, ChevronRight, ChevronDown } from 'lucide-react';
+import { transition, expandCollapse } from '@/lib/motion';
 import { useClientProjectStore } from '../stores/clientProjectStore';
 import { useThemeStore } from '@/stores/themeStore';
+import { SimpleSpinner } from '@/components/ui/Spinner';
 
 interface FolderNode {
   name: string;
@@ -108,7 +110,7 @@ export default function FolderSelector({ onSelect, selectedPath, className = '' 
         <motion.div
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.2, delay: depth * 0.05 }}
+          transition={{ ...transition.normal, delay: depth * 0.05 }}
           className={`
             flex items-center space-x-2 py-1.5 px-2 rounded-md cursor-pointer
             hover:bg-gray-800/50 transition-colors duration-200
@@ -164,10 +166,10 @@ export default function FolderSelector({ onSelect, selectedPath, className = '' 
         <AnimatePresence>
           {node.type === 'folder' && hasChildren && isExpanded && (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
+              variants={expandCollapse}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
               className="overflow-hidden"
             >
               {node.children!.map(child => renderFolderNode(child, depth + 1))}
@@ -182,7 +184,7 @@ export default function FolderSelector({ onSelect, selectedPath, className = '' 
     return (
       <div className={`p-4 ${className}`}>
         <div className="flex items-center justify-center">
-          <div className={`w-6 h-6 border-2 ${colors.text} border-t-transparent rounded-full animate-spin`}></div>
+          <SimpleSpinner size="md" color="cyan" />
           <span className="ml-2 text-gray-400 text-sm">Loading folders...</span>
         </div>
       </div>

@@ -243,12 +243,12 @@ export default function DeviceHealthCard({
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-medium text-gray-200">{device.device_name}</span>
               {isLocal && (
-                <span className="px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 text-[9px] font-medium rounded">
+                <span className="px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 text-micro font-medium rounded">
                   LOCAL
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1 text-[10px] text-gray-500">
+            <div className="flex items-center gap-1 text-2xs text-gray-500">
               {status === 'offline' ? (
                 <WifiOff className="w-3 h-3" />
               ) : (
@@ -286,7 +286,7 @@ export default function DeviceHealthCard({
       {/* Health Score Bar */}
       <div className="mb-3">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] text-gray-500 uppercase tracking-wider">Health Score</span>
+          <span className="text-2xs text-gray-500 uppercase tracking-wider">Health Score</span>
           <span className={`text-sm font-bold ${getHealthColor(healthScore)}`}>{healthScore}%</span>
         </div>
         <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
@@ -305,11 +305,11 @@ export default function DeviceHealthCard({
         <div className="p-2 bg-gray-900/50 rounded-lg">
           <div className="flex items-center gap-1 mb-1">
             <Cpu className="w-3 h-3 text-gray-500" />
-            <span className="text-[9px] text-gray-500 uppercase">Sessions</span>
+            <span className="text-micro text-gray-500 uppercase">Sessions</span>
           </div>
           <div className="flex items-baseline gap-1">
             <span className="text-sm font-bold text-gray-200">{activeSessions}</span>
-            <span className="text-[10px] text-gray-500">/ {maxSessions}</span>
+            <span className="text-2xs text-gray-500">/ {maxSessions}</span>
           </div>
         </div>
 
@@ -317,7 +317,7 @@ export default function DeviceHealthCard({
         <div className="p-2 bg-gray-900/50 rounded-lg">
           <div className="flex items-center gap-1 mb-1">
             <Activity className="w-3 h-3 text-gray-500" />
-            <span className="text-[9px] text-gray-500 uppercase">Latency</span>
+            <span className="text-micro text-gray-500 uppercase">Latency</span>
           </div>
           <span className={`text-sm font-bold ${latencyMs === null ? 'text-gray-500' : latencyMs > 200 ? 'text-amber-400' : 'text-gray-200'}`}>
             {latencyMs !== null ? `${latencyMs}ms` : '--'}
@@ -328,7 +328,7 @@ export default function DeviceHealthCard({
         <div className="p-2 bg-gray-900/50 rounded-lg">
           <div className="flex items-center gap-1 mb-1">
             <HardDrive className="w-3 h-3 text-gray-500" />
-            <span className="text-[9px] text-gray-500 uppercase">Load</span>
+            <span className="text-micro text-gray-500 uppercase">Load</span>
           </div>
           <span className={`text-sm font-bold ${utilizationPercent >= 75 ? 'text-amber-400' : 'text-gray-200'}`}>
             {utilizationPercent}%
@@ -339,7 +339,7 @@ export default function DeviceHealthCard({
       {/* Health History Sparkline */}
       {healthHistory && healthHistory.length > 1 && (
         <div className="flex items-center justify-between pt-2 border-t border-gray-700/50">
-          <span className="text-[9px] text-gray-500 uppercase">Trend</span>
+          <span className="text-micro text-gray-500 uppercase">Trend</span>
           <HealthSparkline history={healthHistory} />
         </div>
       )}
@@ -348,19 +348,19 @@ export default function DeviceHealthCard({
       <div className="flex items-center justify-between pt-2 border-t border-gray-700/50 mt-2">
         <div className="flex items-center gap-2">
           {status === 'online' && (
-            <div className="flex items-center gap-1 text-[10px] text-green-400">
+            <div className="flex items-center gap-1 text-2xs text-green-400">
               <CheckCircle className="w-3 h-3" />
               <span>Healthy</span>
             </div>
           )}
           {status === 'busy' && (
-            <div className="flex items-center gap-1 text-[10px] text-amber-400">
+            <div className="flex items-center gap-1 text-2xs text-amber-400">
               <Play className="w-3 h-3" />
               <span>Working</span>
             </div>
           )}
           {status === 'offline' && (
-            <div className="flex items-center gap-1 text-[10px] text-gray-500">
+            <div className="flex items-center gap-1 text-2xs text-gray-500">
               <XCircle className="w-3 h-3" />
               <span>Offline</span>
             </div>

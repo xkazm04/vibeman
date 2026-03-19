@@ -67,7 +67,7 @@ export default function PathSelection({
                 <div className={`text-sm font-medium truncate ${isSelected ? 'text-cyan-300' : ''}`}>
                   {dir.name}
                 </div>
-                <div className="text-[10px] text-gray-500 truncate font-mono">
+                <div className="text-2xs text-gray-500 truncate font-mono">
                   {dir.path}
                 </div>
               </div>

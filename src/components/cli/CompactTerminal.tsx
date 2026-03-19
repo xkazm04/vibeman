@@ -838,7 +838,7 @@ export function CompactTerminal({
           <Terminal className="w-3.5 h-3.5 text-purple-400" />
           <span className="text-xs font-medium text-gray-300">{title}</span>
           {sessionId && (
-            <span className="text-[10px] text-purple-400/70 font-mono">
+            <span className="text-2xs text-purple-400/70 font-mono">
               {sessionId.slice(0, 6)}
             </span>
           )}
@@ -846,13 +846,13 @@ export function CompactTerminal({
         <div className="flex items-center gap-1">
           {/* Queue count */}
           {queuePendingCount > 0 && (
-            <span className="text-[10px] text-cyan-400 px-1.5 py-0.5 bg-cyan-500/10 rounded-md border border-cyan-500/20 tabular-nums">
+            <span className="text-2xs text-cyan-400 px-1.5 py-0.5 bg-cyan-500/10 rounded-md border border-cyan-500/20 tabular-nums">
               Q:{queuePendingCount}
             </span>
           )}
           {/* File change stats */}
           {(editCount > 0 || writeCount > 0) && (
-            <div className="flex items-center gap-1 mr-2 text-[10px]">
+            <div className="flex items-center gap-1 mr-2 text-2xs">
               {editCount > 0 && <span className="text-yellow-400">{editCount}E</span>}
               {writeCount > 0 && <span className="text-green-400">{writeCount}W</span>}
             </div>
@@ -883,7 +883,7 @@ export function CompactTerminal({
       </div>
 
       {/* Status bar */}
-      <div className="flex items-center justify-between px-3 py-1 text-[10px] text-gray-500 bg-gray-900/70 border-b border-gray-800/50 backdrop-blur-sm">
+      <div className="flex items-center justify-between px-3 py-1 text-2xs text-gray-500 bg-gray-900/70 border-b border-gray-800/50 backdrop-blur-sm">
         <div className="flex items-center gap-2">
           {isStreaming ? (
             <span className="flex items-center gap-1 text-yellow-400">

@@ -536,7 +536,7 @@ export default function CrossContextGraph({
       {/* Legend (top-left) */}
       <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-x-3 gap-y-1 pointer-events-none z-10">
         {Object.entries(EDGE_TYPE_COLORS).map(([type, color]) => (
-          <div key={type} className="flex items-center gap-1 text-[10px] text-gray-400">
+          <div key={type} className="flex items-center gap-1 text-2xs text-gray-400">
             <div
               className="w-2.5 h-2.5 rounded-full border"
               style={{ backgroundColor: `${color}30`, borderColor: color }}
@@ -547,7 +547,7 @@ export default function CrossContextGraph({
       </div>
 
       {/* Stats badge (top-right) */}
-      <div className="absolute top-2.5 right-2.5 z-10 flex items-center gap-3 bg-gray-800/80 backdrop-blur-sm rounded-md px-2.5 py-1.5 border border-gray-700/50 text-[10px]">
+      <div className="absolute top-2.5 right-2.5 z-10 flex items-center gap-3 bg-gray-800/80 backdrop-blur-sm rounded-md px-2.5 py-1.5 border border-gray-700/50 text-2xs">
         <div className="flex items-center gap-1 text-yellow-400">
           <Network size={10} />
           <span>{graph.stats.totalNodes} contexts</span>
@@ -569,7 +569,7 @@ export default function CrossContextGraph({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-10 text-[10px] text-gray-500 bg-gray-800/60 backdrop-blur-sm rounded px-2 py-1 border border-gray-700/30"
+            className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-10 text-2xs text-gray-500 bg-gray-800/60 backdrop-blur-sm rounded px-2 py-1 border border-gray-700/30"
           >
             Click a context node to analyze cascade impact
           </motion.div>
@@ -612,11 +612,11 @@ export default function CrossContextGraph({
               }}
             >
               <p className="text-xs font-semibold text-white">{node.data.name}</p>
-              <div className="flex items-center gap-2 mt-1 text-[10px] text-gray-400">
-                {node.data.groupName && <span className="px-1 py-0.5 rounded text-[9px]" style={{ backgroundColor: `${node.color}20`, color: node.color }}>{node.data.groupName}</span>}
+              <div className="flex items-center gap-2 mt-1 text-2xs text-gray-400">
+                {node.data.groupName && <span className="px-1 py-0.5 rounded text-micro" style={{ backgroundColor: `${node.color}20`, color: node.color }}>{node.data.groupName}</span>}
                 {node.data.category && <span>{node.data.category}</span>}
               </div>
-              <div className="flex items-center gap-3 mt-1.5 text-[10px] text-gray-500">
+              <div className="flex items-center gap-3 mt-1.5 text-2xs text-gray-500">
                 <span>{node.data.fileCount} files</span>
                 <span>{node.data.ideaCount} ideas</span>
                 <span>{node.data.apiRouteCount} APIs</span>
@@ -678,19 +678,19 @@ function CascadePanel({
       {/* KPIs */}
       <div className="grid grid-cols-4 gap-2 mb-3">
         <div className="bg-gray-800/50 rounded-md px-2.5 py-1.5 border border-gray-700/30">
-          <p className="text-[10px] text-gray-500 uppercase tracking-wider">Direct</p>
+          <p className="text-2xs text-gray-500 uppercase tracking-wider">Direct</p>
           <p className="text-sm font-semibold text-yellow-400">{cascade.directImpacts.length}</p>
         </div>
         <div className="bg-gray-800/50 rounded-md px-2.5 py-1.5 border border-gray-700/30">
-          <p className="text-[10px] text-gray-500 uppercase tracking-wider">Transitive</p>
+          <p className="text-2xs text-gray-500 uppercase tracking-wider">Transitive</p>
           <p className="text-sm font-semibold text-amber-400">{cascade.transitiveImpacts.length}</p>
         </div>
         <div className="bg-gray-800/50 rounded-md px-2.5 py-1.5 border border-gray-700/30">
-          <p className="text-[10px] text-gray-500 uppercase tracking-wider">Max Depth</p>
+          <p className="text-2xs text-gray-500 uppercase tracking-wider">Max Depth</p>
           <p className="text-sm font-semibold text-gray-300">{cascade.maxDepth}</p>
         </div>
         <div className={`rounded-md px-2.5 py-1.5 border ${riskConfig.border} ${riskConfig.bg}`}>
-          <p className="text-[10px] text-gray-500 uppercase tracking-wider">Risk</p>
+          <p className="text-2xs text-gray-500 uppercase tracking-wider">Risk</p>
           <p className={`text-sm font-semibold capitalize ${riskConfig.text}`}>{cascade.overallRisk}</p>
         </div>
       </div>
@@ -698,7 +698,7 @@ function CascadePanel({
       {/* Impact list */}
       {cascade.directImpacts.length + cascade.transitiveImpacts.length > 0 && (
         <div className="space-y-1">
-          <span className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">
+          <span className="text-2xs text-gray-500 uppercase tracking-wider font-medium">
             Affected Contexts ({cascade.totalAffectedContexts})
           </span>
           <div className="mt-1.5 space-y-1">
@@ -714,8 +714,8 @@ function CascadePanel({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-200 font-medium truncate">{impact.contextName}</span>
-                        <span className="text-[10px] text-gray-600">depth {impact.depth}</span>
-                        <span className="text-[10px] text-gray-600">{impact.relationship}</span>
+                        <span className="text-2xs text-gray-600">depth {impact.depth}</span>
+                        <span className="text-2xs text-gray-600">{impact.relationship}</span>
                       </div>
                       {/* Impact bar */}
                       <div className="flex items-center gap-2 mt-1">
@@ -728,7 +728,7 @@ function CascadePanel({
                             }}
                           />
                         </div>
-                        <span className="text-[10px] text-gray-400 w-8 text-right">{barWidth}%</span>
+                        <span className="text-2xs text-gray-400 w-8 text-right">{barWidth}%</span>
                       </div>
                     </div>
                     {impact.risks.length > 0 && (
@@ -747,7 +747,7 @@ function CascadePanel({
                       >
                         <div className="py-1 space-y-0.5">
                           {impact.risks.map((risk, ri) => (
-                            <p key={ri} className="text-[10px] text-amber-400/70 flex items-center gap-1">
+                            <p key={ri} className="text-2xs text-amber-400/70 flex items-center gap-1">
                               <AlertTriangle className="w-2.5 h-2.5 flex-shrink-0" />
                               {risk}
                             </p>
@@ -763,7 +763,7 @@ function CascadePanel({
         </div>
       )}
 
-      <p className="text-[9px] text-gray-600 mt-3 text-right">
+      <p className="text-micro text-gray-600 mt-3 text-right">
         press Esc to dismiss
       </p>
     </div>

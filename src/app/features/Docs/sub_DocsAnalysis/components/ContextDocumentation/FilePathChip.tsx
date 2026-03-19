@@ -41,7 +41,7 @@ export default function FilePathChip({ path, type }: FilePathChipProps) {
       {CHIP_ICONS[type]}
       {/* Folder path - progressive disclosure on hover */}
       <span
-        className="text-[10px] opacity-50
+        className="text-2xs opacity-50
           opacity-0 group-hover:opacity-50
           max-w-0 group-hover:max-w-[150px]
           overflow-hidden whitespace-nowrap

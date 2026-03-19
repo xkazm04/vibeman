@@ -31,6 +31,8 @@ import {
   CONTEXT_CACHE_MAX_ENTRIES,
   CONTEXT_CACHE_TTL_MS,
   COMPLETION_LOCK_TIMEOUT_MS,
+  DECAY_START_FRACTION,
+  DECAY_START_MIN_DAYS,
 } from '@/lib/brain/config';
 
 // ---------------------------------------------------------------------------
@@ -391,9 +393,6 @@ export async function completeReflection(input: CompleteReflectionInput): Promis
 
       // Insert insights into the first-class brain_insights table
       brainInsightDb.createBatch(reflectionId, projectId, dedupedInsights);
-
-      // Run auto-pruning: demote misleading insights and auto-resolve clear conflicts
-      autoPruneResult = autoPruneInsights(projectId);
     });
 
     runCompletion();
@@ -404,6 +403,13 @@ export async function completeReflection(input: CompleteReflectionInput): Promis
     throw txError;
   } finally {
     releaseLock(lockKey);
+  }
+
+  // Run auto-pruning post-commit: demote misleading insights and auto-resolve clear conflicts (non-critical)
+  try {
+    autoPruneResult = autoPruneInsights(projectId);
+  } catch (err) {
+    console.warn('[Brain] Auto-prune failed (non-critical):', err);
   }
 
   // Refresh predictive intent model after reflection cycle (non-critical)
@@ -484,7 +490,8 @@ export function applySignalDecay(
   decayFactor: number,
   retentionDays: number
 ): { decayed: number; deleted: number } {
-  const decayed = behavioralSignalDb.applyDecay(projectId, decayFactor, 7);
+  const decayStartDays = Math.max(DECAY_START_MIN_DAYS, Math.floor(retentionDays * DECAY_START_FRACTION));
+  const decayed = behavioralSignalDb.applyDecay(projectId, decayFactor, decayStartDays);
   const deleted = behavioralSignalDb.deleteOld(projectId, retentionDays);
   invalidateContextCache(projectId);
   return { decayed, deleted };

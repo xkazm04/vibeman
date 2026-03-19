@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowLeft, Save } from 'lucide-react';
+import { SimpleSpinner } from '@/components/ui';
 
 interface ContextHeaderProps {
   contextCount: number;
@@ -81,7 +82,7 @@ export default function ContextHeader({
           >
             {saving ? (
               <>
-                <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin"></div>
+                <SimpleSpinner size="sm" color="green" />
                 <span>Saving...</span>
               </>
             ) : (

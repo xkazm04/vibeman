@@ -26,6 +26,7 @@ import {
 import type { FeedbackItem, KanbanChannel, KanbanPriority } from '../../lib/types/feedbackTypes';
 import type { ConversationThread as ConversationThreadType, UnifiedCustomer } from '@/lib/social';
 import { useUnifiedInbox } from '../hooks/useUnifiedInbox';
+import { SimpleSpinner } from '@/components/ui/Spinner';
 import { ConversationThread } from './ConversationThread';
 import { CustomerProfile } from './CustomerProfile';
 import {
@@ -296,7 +297,7 @@ export function UnifiedInbox({ projectId, feedbackItems = [] }: UnifiedInboxProp
       <div className="flex-1 overflow-y-auto">
         {inbox.isLoading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="animate-spin w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full" />
+            <SimpleSpinner size="lg" color="cyan" />
           </div>
         ) : inbox.viewMode === 'conversations' ? (
           <ConversationsList
@@ -389,7 +390,7 @@ function ConversationsList({ conversations, customers, onSelect }: Conversations
                       {customer?.displayName || 'Unknown Customer'}
                     </span>
                     {valueTier && (
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${VALUE_TIER_COLORS[valueTier]}`}>
+                      <span className={`px-1.5 py-0.5 rounded text-2xs font-medium border ${VALUE_TIER_COLORS[valueTier]}`}>
                         {valueTier.toUpperCase()}
                       </span>
                     )}
@@ -405,7 +406,7 @@ function ConversationsList({ conversations, customers, onSelect }: Conversations
 
                 <div className="flex items-center gap-2">
                   {/* Status */}
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                  <span className={`text-2xs px-1.5 py-0.5 rounded-full ${
                     thread.status === 'open' ? 'bg-yellow-500/10 text-yellow-400' :
                     thread.status === 'resolved' ? 'bg-green-500/10 text-green-400' :
                     'bg-gray-500/10 text-gray-400'
@@ -415,7 +416,7 @@ function ConversationsList({ conversations, customers, onSelect }: Conversations
 
                   {/* Priority */}
                   {thread.priority !== 'low' && (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                    <span className={`text-2xs px-1.5 py-0.5 rounded-full ${
                       thread.priority === 'critical' ? 'bg-red-500/10 text-red-400' :
                       thread.priority === 'high' ? 'bg-yellow-500/10 text-yellow-400' :
                       'bg-blue-500/10 text-blue-400'
@@ -431,12 +432,12 @@ function ConversationsList({ conversations, customers, onSelect }: Conversations
                       return <Icon key={channel} className="w-3 h-3 text-gray-500" />;
                     })}
                     {thread.channels.length > 3 && (
-                      <span className="text-[10px] text-gray-500">+{thread.channels.length - 3}</span>
+                      <span className="text-2xs text-gray-500">+{thread.channels.length - 3}</span>
                     )}
                   </div>
 
                   {/* Message count */}
-                  <span className="text-[10px] text-gray-500">
+                  <span className="text-2xs text-gray-500">
                     {thread.messages.length} msg
                   </span>
                 </div>
@@ -501,7 +502,7 @@ function CustomersList({ customers, onSelect }: CustomersListProps) {
                     {customer.isVerified && (
                       <CheckCircle className="w-3.5 h-3.5 text-cyan-400" />
                     )}
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${VALUE_TIER_COLORS[valueTier]}`}>
+                    <span className={`px-1.5 py-0.5 rounded text-2xs font-medium border ${VALUE_TIER_COLORS[valueTier]}`}>
                       {VALUE_TIER_LABELS[valueTier]}
                     </span>
                   </div>

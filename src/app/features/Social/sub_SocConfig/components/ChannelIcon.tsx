@@ -110,7 +110,7 @@ export function ChannelIcon({
 
       {/* Config count badge */}
       {configCount > 0 && (
-        <span className="absolute -top-1 -right-1 w-4 h-4 bg-cyan-500 text-[10px] font-bold text-white rounded-full flex items-center justify-center">
+        <span className="absolute -top-1 -right-1 w-4 h-4 bg-cyan-500 text-2xs font-bold text-white rounded-full flex items-center justify-center">
           {configCount}
         </span>
       )}

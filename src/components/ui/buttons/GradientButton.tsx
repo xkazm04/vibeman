@@ -2,6 +2,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
+import { useThemeStore } from '@/stores/themeStore';
+import { getFocusRingStyles } from '@/lib/ui/focusRing';
 
 /**
  * Predefined gradient color schemes
@@ -247,6 +249,9 @@ export default function GradientButton({
   type = 'button',
   title,
 }: GradientButtonProps) {
+  const { theme } = useThemeStore();
+  const focusRingClasses = getFocusRingStyles(theme);
+
   // Build gradient classes
   const buildGradientClasses = () => {
     const opacityConfig = opacityMap[opacity];
@@ -302,6 +307,7 @@ export default function GradientButton({
     items-center
     justify-center
     gap-2
+    ${focusRingClasses}
     ${disabled || loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
     ${className}
   `.trim().replace(/\s+/g, ' ');

@@ -53,7 +53,8 @@ export function ProjectSection({ project, index, isExpanded, onToggle, onFocus }
                 onFocus();
               }}
               className="p-2 bg-purple-500/20 rounded-lg border border-purple-500/40
-                         text-purple-300 hover:bg-purple-500/30 transition-all"
+                         text-purple-300 hover:bg-purple-500/30 transition-all focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 outline-none"
+              aria-label={`Focus on project ${project.projectName}`}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               data-testid={`focus-project-${project.projectId}`}

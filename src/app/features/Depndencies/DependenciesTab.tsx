@@ -10,7 +10,7 @@ import {
   DependencyColumnView,
   SecurityPipelineButton
 } from './components';
-import EmptyState from '@/components/DecisionPanel/EmptyState';
+import EmptyState from '@/components/ui/EmptyState';
 
 export default function DependenciesTab() {
   const [scanData, setScanData] = useState<ScanData | null>(null);
@@ -125,8 +125,8 @@ export default function DependenciesTab() {
               <EmptyState
                 key="empty"
                 icon={Network}
-                headline="No scan selected"
-                subtext="Run a new scan or select from history to visualize dependencies"
+                title="No scan selected"
+                description="Run a new scan or select from history to visualize dependencies"
               />
             )}
           </AnimatePresence>

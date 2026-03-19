@@ -284,7 +284,7 @@ export default function AutonomousAgentPanel() {
                     {step.title}
                   </p>
                   {step.toolName && (
-                    <span className="text-[10px] text-slate-600">{step.toolName}</span>
+                    <span className="text-2xs text-slate-600">{step.toolName}</span>
                   )}
                 </div>
                 {(step.result || step.errorMessage) && (
@@ -302,7 +302,7 @@ export default function AutonomousAgentPanel() {
                     exit={{ height: 0, opacity: 0 }}
                     className="overflow-hidden ml-6"
                   >
-                    <pre className="text-[10px] text-slate-500 bg-slate-800/30 rounded p-2 whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
+                    <pre className="text-2xs text-slate-500 bg-slate-800/30 rounded p-2 whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
                       {step.errorMessage || step.result}
                     </pre>
                   </motion.div>
@@ -347,8 +347,8 @@ export default function AutonomousAgentPanel() {
                     <div key={h.id} className="flex items-start gap-2 py-1">
                       <StatusBadge status={h.status} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-[10px] text-slate-400 truncate">{h.objective}</p>
-                        <p className="text-[10px] text-slate-600">
+                        <p className="text-2xs text-slate-400 truncate">{h.objective}</p>
+                        <p className="text-2xs text-slate-600">
                           {h.completedSteps}/{h.totalSteps} steps
                           {h.completedAt ? ` · ${new Date(h.completedAt).toLocaleDateString()}` : ''}
                         </p>
@@ -378,7 +378,7 @@ function StatusBadge({ status }: { status: string }) {
   const c = config[status] || config.pending;
 
   return (
-    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${c.color}`}>
+    <span className={`px-1.5 py-0.5 rounded text-2xs font-medium ${c.color}`}>
       {c.label}
     </span>
   );

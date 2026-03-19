@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
   ArrowLeft,
   Link2,
@@ -246,6 +247,15 @@ const SVG_STYLES = `
   .ing-edge-flow {
     animation: ing-dash-flow 1.6s linear infinite;
   }
+  @media (prefers-reduced-motion: reduce) {
+    .ing-actionable-ring {
+      animation: none;
+      stroke-opacity: 0.3;
+    }
+    .ing-edge-flow {
+      animation: none;
+    }
+  }
 `;
 
 // ---------------------------------------------------------------------------
@@ -271,6 +281,7 @@ export default function InsightNetworkGraph({
   const [expandedEvidence, setExpandedEvidence] = useState<Set<number>>(new Set());
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 600, height: 400 });
+  const reducedMotion = useReducedMotion();
 
   // Resize observer
   useEffect(() => {
@@ -524,9 +535,9 @@ export default function InsightNetworkGraph({
           evidenceNodes.map((ev, i) => (
             <motion.line
               key={`drill-line-${i}`}
-              initial={{ opacity: 0 }}
+              initial={reducedMotion ? false : { opacity: 0 }}
               animate={{ opacity: 0.4 }}
-              transition={{ duration: 0.4, delay: 0.1 + i * 0.05 }}
+              transition={reducedMotion ? { duration: 0 } : { duration: 0.4, delay: 0.1 + i * 0.05 }}
               x1={drillNode.x}
               y1={drillNode.y}
               x2={ev.x}
@@ -679,9 +690,9 @@ export default function InsightNetworkGraph({
             return (
               <motion.g
                 key={ev.id}
-                initial={{ opacity: 0, scale: 0 }}
+                initial={reducedMotion ? false : { opacity: 0, scale: 0 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{
+                transition={reducedMotion ? { duration: 0 } : {
                   type: 'spring',
                   stiffness: 260,
                   damping: 20,
@@ -748,7 +759,7 @@ export default function InsightNetworkGraph({
         {Object.entries(TYPE_COLORS).map(([type, color]) => (
           <div
             key={type}
-            className="flex items-center gap-1 text-[10px] text-gray-400"
+            className="flex items-center gap-1 text-2xs text-gray-400"
           >
             <div
               className="w-2.5 h-2.5 rounded-full border"
@@ -764,7 +775,7 @@ export default function InsightNetworkGraph({
 
       {/* Top-right: Connection summary badge */}
       {edges.length > 0 && !isDrillDown && (
-        <div className="absolute top-2.5 right-2.5 z-10 flex items-center gap-2 bg-gray-800/80 backdrop-blur-sm rounded-md px-2.5 py-1.5 border border-gray-700/50 text-[10px]">
+        <div className="absolute top-2.5 right-2.5 z-10 flex items-center gap-2 bg-gray-800/80 backdrop-blur-sm rounded-md px-2.5 py-1.5 border border-gray-700/50 text-2xs">
           <div className="flex items-center gap-1 text-green-400">
             <Link2 size={10} />
             <span>{reinforcingCount} reinforcing</span>
@@ -800,7 +811,7 @@ export default function InsightNetworkGraph({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute top-10 right-2.5 z-10 text-[10px] text-gray-500 bg-gray-800/60 backdrop-blur-sm rounded px-2 py-1 border border-gray-700/30"
+            className="absolute top-10 right-2.5 z-10 text-2xs text-gray-500 bg-gray-800/60 backdrop-blur-sm rounded px-2 py-1 border border-gray-700/30"
           >
             Double-click node to drill down
           </motion.div>
@@ -831,10 +842,10 @@ export default function InsightNetworkGraph({
                 <p className="text-xs font-semibold text-white leading-snug">
                   {nodes[selectedNode].insight.title}
                 </p>
-                <p className="text-[10px] text-gray-400 mt-1 line-clamp-2">
+                <p className="text-2xs text-gray-400 mt-1 line-clamp-2">
                   {nodes[selectedNode].insight.description}
                 </p>
-                <div className="flex items-center gap-3 mt-2 text-[10px]">
+                <div className="flex items-center gap-3 mt-2 text-2xs">
                   <span className="text-gray-500">
                     Confidence:{' '}
                     <span className="text-gray-300">
@@ -895,7 +906,7 @@ export default function InsightNetworkGraph({
                       {drillNode.insight.title}
                     </h3>
                     <span
-                      className="text-[10px] px-1.5 py-0.5 rounded-full border flex-shrink-0"
+                      className="text-2xs px-1.5 py-0.5 rounded-full border flex-shrink-0"
                       style={{
                         color: drillNode.color,
                         borderColor: `${drillNode.color}40`,
@@ -905,7 +916,7 @@ export default function InsightNetworkGraph({
                       {TYPE_LABELS[drillNode.insight.type]}
                     </span>
                     {drillNode.insight.actionable && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 flex-shrink-0 flex items-center gap-0.5">
+                      <span className="text-2xs px-1.5 py-0.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 flex-shrink-0 flex items-center gap-0.5">
                         <Zap size={8} /> Actionable
                       </span>
                     )}
@@ -919,7 +930,7 @@ export default function InsightNetworkGraph({
               {/* Confidence meter */}
               <div className="mb-3">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">
+                  <span className="text-2xs text-gray-500 uppercase tracking-wider font-medium">
                     Confidence
                   </span>
                   <span
@@ -943,7 +954,7 @@ export default function InsightNetworkGraph({
               {/* Evidence cards */}
               {drillNode.insight.evidence.length > 0 && (
                 <div className="mb-3">
-                  <span className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">
+                  <span className="text-2xs text-gray-500 uppercase tracking-wider font-medium">
                     Evidence ({drillNode.insight.evidence.length})
                   </span>
                   <div className="mt-1.5 space-y-1.5">
@@ -965,7 +976,7 @@ export default function InsightNetworkGraph({
                         >
                           <div className="flex items-start gap-2">
                             <span
-                              className="text-[10px] font-mono font-bold mt-0.5 flex-shrink-0"
+                              className="text-2xs font-mono font-bold mt-0.5 flex-shrink-0"
                               style={{ color: drillNode.color }}
                             >
                               {String(i + 1).padStart(2, '0')}
@@ -999,7 +1010,7 @@ export default function InsightNetworkGraph({
                 <div className="bg-gray-800/40 border border-gray-700/30 rounded-md px-3 py-2.5">
                   <div className="flex items-center gap-1.5 mb-1">
                     <Target size={10} className="text-gray-400" />
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">
+                    <span className="text-2xs text-gray-500 uppercase tracking-wider font-medium">
                       Suggested Action
                     </span>
                   </div>
@@ -1010,7 +1021,7 @@ export default function InsightNetworkGraph({
               )}
 
               {/* Dismiss hint */}
-              <p className="text-[9px] text-gray-600 mt-3 text-right">
+              <p className="text-micro text-gray-500 mt-3 text-right">
                 press Esc or click &quot;Back to graph&quot; to return
               </p>
             </div>

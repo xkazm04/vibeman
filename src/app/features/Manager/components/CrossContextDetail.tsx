@@ -13,6 +13,7 @@ import type { ContextGroup } from '@/stores/contextStore';
 import { CROSS_CONTEXT_LOG_PAGE_SIZE, SUCCESS_RATE_HIGH, SUCCESS_RATE_LOW } from '../lib/config';
 import { toast } from '@/stores/messageStore';
 import type { LogEntry } from '../lib/types';
+import { SimpleSpinner } from '@/components/ui';
 
 interface CrossContextDetailProps {
   sourceGroup: ContextGroup | undefined;
@@ -133,17 +134,17 @@ export default function CrossContextDetail({
             <div className={`flex items-center gap-4 p-2 rounded-lg border ${getSuccessBg()}`}>
               <div className="text-center">
                 <div className="text-lg font-bold text-white font-mono">{totalCount}</div>
-                <div className="text-[10px] text-gray-400 uppercase">Total</div>
+                <div className="text-2xs text-gray-400 uppercase">Total</div>
               </div>
               <div className="text-center">
                 <div className={`text-lg font-bold font-mono ${getSuccessColor()}`}>
                   {Math.round(successRate * 100)}%
                 </div>
-                <div className="text-[10px] text-gray-400 uppercase">Success</div>
+                <div className="text-2xs text-gray-400 uppercase">Success</div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-bold text-white font-mono">{logIds.length}</div>
-                <div className="text-[10px] text-gray-400 uppercase">Logs</div>
+                <div className="text-2xs text-gray-400 uppercase">Logs</div>
               </div>
             </div>
           </div>
@@ -152,7 +153,7 @@ export default function CrossContextDetail({
           <div className="overflow-y-auto h-[calc(100%-200px)] p-3 space-y-2">
             {loading && (
               <div className="flex items-center justify-center py-12">
-                <div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+                <SimpleSpinner size="md" color="cyan" />
               </div>
             )}
 
@@ -181,7 +182,7 @@ export default function CrossContextDetail({
                     )}
                   </div>
                   <p className="text-xs text-gray-400 line-clamp-2 mb-2">{log.overview}</p>
-                  <div className="flex items-center gap-3 text-[10px] text-gray-500">
+                  <div className="flex items-center gap-3 text-2xs text-gray-500">
                     <span className="font-mono">{log.requirement_name}</span>
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />

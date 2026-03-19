@@ -7,8 +7,8 @@
 
 import { NextRequest } from 'next/server';
 import { knowledgeRepository } from '@/app/db/repositories/knowledge.repository';
-import type { KnowledgeDomain, KnowledgeQuery } from '@/app/db/models/knowledge.types';
-import { KNOWLEDGE_DOMAINS } from '@/app/db/models/knowledge.types';
+import type { KnowledgeDomain, KnowledgeQuery, KnowledgeLayer, KnowledgeLanguage } from '@/app/db/models/knowledge.types';
+import { KNOWLEDGE_DOMAINS, KNOWLEDGE_LANGUAGES, KNOWLEDGE_LAYERS } from '@/app/db/models/knowledge.types';
 import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
 import { withObservability } from '@/lib/observability/middleware';
 
@@ -20,6 +20,11 @@ async function handleGet(request: NextRequest) {
     if (action === 'stats') {
       const stats = knowledgeRepository.getStats();
       return buildSuccessResponse(stats);
+    }
+
+    if (action === 'tree') {
+      const tree = knowledgeRepository.getTreeStructure();
+      return buildSuccessResponse(tree);
     }
 
     if (action === 'list') {
@@ -40,6 +45,10 @@ async function handleGet(request: NextRequest) {
     if (domain && KNOWLEDGE_DOMAINS.includes(domain as KnowledgeDomain)) {
       query.domain = domain as KnowledgeDomain;
     }
+    const layer = searchParams.get('layer');
+    if (layer && KNOWLEDGE_LAYERS.includes(layer as KnowledgeLayer)) {
+      query.layer = layer as KnowledgeLayer;
+    }
     const search = searchParams.get('search');
     if (search) query.search = search;
     const minConfidence = searchParams.get('minConfidence');
@@ -50,6 +59,10 @@ async function handleGet(request: NextRequest) {
     if (limit) query.limit = parseInt(limit, 10);
     const tags = searchParams.get('tags');
     if (tags) query.tags = tags.split(',');
+    const language = searchParams.get('language');
+    if (language && KNOWLEDGE_LANGUAGES.includes(language as KnowledgeLanguage)) {
+      query.language = language as KnowledgeLanguage;
+    }
 
     const entries = knowledgeRepository.query(query);
     return buildSuccessResponse(entries);
@@ -76,6 +89,7 @@ async function handlePost(request: NextRequest) {
       }
       const entry = knowledgeRepository.create({
         domain: body.domain,
+        layer: body.layer,
         pattern_type: body.pattern_type,
         title: body.title,
         pattern: body.pattern,
@@ -85,6 +99,7 @@ async function handlePost(request: NextRequest) {
         applies_to: body.applies_to,
         file_patterns: body.file_patterns,
         tags: body.tags,
+        language: body.language,
         confidence: body.confidence,
         source_project_id: body.source_project_id,
         source_type: body.source_type,

@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { env } from '@/lib/config/envConfig';
-import { ScanType, SCAN_TYPE_CONFIGS, getScanTypeAbbr } from '@/app/features/Ideas/lib/scanTypes';
+import { ScanType, getAgent, getScanTypeAbbr } from '@/app/features/Ideas/lib/scanTypes';
 import { buildPrompt, PromptOptions } from '@/app/projects/ProjectAI/ScanIdeas/prompts';
 import { IMPLEMENTATION_PROCEDURE_EXTENSION } from '@/app/projects/ProjectAI/ScanIdeas/prompts/schemaTemplate';
 import { buildContextSection, buildExistingIdeasSection, buildGoalsSection, buildBehavioralSection } from '@/app/projects/ProjectAI/ScanIdeas/lib/sectionBuilders';
@@ -63,7 +63,7 @@ function buildClaudeIdeaRequirement(config: {
   const { projectId, projectName, scanType, context, goalId, detailed, youtubeUrl } = config;
   const apiUrl = getVibemanApiUrl();
 
-  const scanConfig = SCAN_TYPE_CONFIGS.find(s => s.value === scanType);
+  const scanConfig = getAgent(scanType);
   const scanLabel = scanConfig?.label ?? scanType;
   const scanEmoji = scanConfig?.emoji ?? '💡';
 
@@ -375,7 +375,7 @@ function buildClaudeIdeaRequirementForGroup(config: {
   const { group, contexts, allFilePaths } = groupData;
   const apiUrl = getVibemanApiUrl();
 
-  const scanConfig = SCAN_TYPE_CONFIGS.find(s => s.value === scanType);
+  const scanConfig = getAgent(scanType);
   const scanLabel = scanConfig?.label ?? scanType;
   const scanEmoji = scanConfig?.emoji ?? '💡';
 

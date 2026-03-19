@@ -5,12 +5,18 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb, directionDb, goalDb } from '@/app/db';
+import type { DbIdea } from '@/app/db';
 import { TinderItem, TinderFilterMode } from '@/app/features/tinder/lib/tinderTypes';
 import {
   IdeasErrorCode,
   createIdeasErrorResponse,
   withIdeasErrorHandler,
 } from '@/app/features/Ideas/lib/ideasHandlers';
+import {
+  TINDER_FILTER_SPEC,
+  buildActivePredicates,
+  applyFilterPredicates,
+} from '@/app/features/tinder/lib/filterAlgebra';
 
 async function handleGet(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -71,27 +77,28 @@ async function handleGet(request: NextRequest) {
 
   // Fetch Ideas items if needed
   if (itemType === 'ideas' || itemType === 'both') {
-    // Use already fetched ideas for count, apply category filter for items
+    // Use already fetched ideas for count, apply dimension filters via filter algebra
     let pendingIdeas = pendingIdeasForCount;
 
-    // Apply category filter if specified (only for ideas mode or when explicitly filtering)
-    if (ideaCategory && itemType === 'ideas') {
-      pendingIdeas = pendingIdeas.filter(idea => idea.category === ideaCategory);
-    }
-
-    // Apply scan type filter if specified
-    if (scanType) {
-      pendingIdeas = pendingIdeas.filter(idea => (idea.scan_type || 'overall') === scanType);
-    }
-
-    // Apply context filter if specified
-    if (contextId) {
-      if (contextId === 'unassigned') {
-        pendingIdeas = pendingIdeas.filter(idea => !idea.context_id);
-      } else {
-        pendingIdeas = pendingIdeas.filter(idea => idea.context_id === contextId);
-      }
-    }
+    // Build filter predicates from the declarative spec
+    // The client sends only the active dimension's param (XOR already resolved client-side),
+    // so we detect which dimension is active from the params present.
+    const activeDimension = scanType ? 'scanType' : 'category';
+    const dimensionPredicates = buildActivePredicates<DbIdea>(
+      TINDER_FILTER_SPEC,
+      activeDimension,
+      {
+        category: (ideaCategory && itemType === 'ideas') ? ideaCategory : null,
+        scanType: scanType ?? null,
+        context: contextId ?? null,
+      },
+      {
+        category: (v, idea) => idea.category === v,
+        scanType: (v, idea) => (idea.scan_type || 'overall') === v,
+        context: (v, idea) => v === 'unassigned' ? !idea.context_id : idea.context_id === v,
+      },
+    );
+    pendingIdeas = applyFilterPredicates(pendingIdeas, dimensionPredicates);
 
     // Apply effort/risk range filters server-side (before pagination)
     if (effortMin !== null || effortMax !== null) {

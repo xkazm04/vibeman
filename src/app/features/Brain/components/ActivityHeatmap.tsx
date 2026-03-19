@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CalendarDays,
@@ -20,35 +20,15 @@ import {
   TrendingUp,
   ChevronDown,
 } from 'lucide-react';
+import { SimpleSpinner } from '@/components/ui';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
-import { useAbortableFetch } from '@/hooks/useAbortableFetch';
+import { useHeatmap } from '../lib/queries';
 import GlowCard from './GlowCard';
 import BrainPanelHeader from './BrainPanelHeader';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
-interface HeatmapDayData {
-  date: string;
-  total_count: number;
-  total_weight: number;
-  by_type: Record<string, { count: number; weight: number }>;
-  by_context: Record<string, { name: string; count: number; weight: number }>;
-}
-
-interface HeatmapContext {
-  id: string;
-  name: string;
-}
-
-interface HeatmapResponse {
-  success: boolean;
-  heatmap: {
-    days: HeatmapDayData[];
-    contexts: HeatmapContext[];
-    signal_types: string[];
-    window_days: number;
-  };
-}
+import type { HeatmapDayData, HeatmapContext } from '../lib/queries/apiClient';
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
@@ -92,12 +72,12 @@ interface ActivityHeatmapProps {
 
 export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapProps) {
   const activeProject = useClientProjectStore((s) => s.activeProject);
-  const [data, setData] = useState<HeatmapDayData[]>([]);
-  const [contexts, setContexts] = useState<HeatmapContext[]>([]);
-  const [signalTypes, setSignalTypes] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const abortableFetch = useAbortableFetch();
+
+  const { data: heatmapResponse, isLoading, error: queryError } = useHeatmap(activeProject?.id);
+  const data = heatmapResponse?.heatmap?.days ?? [];
+  const contexts = heatmapResponse?.heatmap?.contexts ?? [];
+  const signalTypes = heatmapResponse?.heatmap?.signal_types ?? [];
+  const error = queryError ? 'Failed to load heatmap data' : null;
 
   // Drill-down state
   const [selectedDay, setSelectedDay] = useState<HeatmapDayData | null>(null);
@@ -106,34 +86,6 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
   const [trendContext, setTrendContext] = useState<string>('all');
   const [trendType, setTrendType] = useState<string>('all');
   const [showTrend, setShowTrend] = useState(false);
-
-  const fetchHeatmap = useCallback(async () => {
-    if (!activeProject?.id) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const res = await abortableFetch(
-        `/api/brain/signals/heatmap?projectId=${encodeURIComponent(activeProject.id)}&days=90`
-      );
-      const json: HeatmapResponse = await res.json();
-      if (json.success) {
-        setData(json.heatmap.days);
-        setContexts(json.heatmap.contexts);
-        setSignalTypes(json.heatmap.signal_types);
-      } else {
-        setError('Failed to load heatmap data');
-      }
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
-      setError('Failed to load heatmap data');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeProject?.id, abortableFetch]);
-
-  useEffect(() => {
-    fetchHeatmap();
-  }, [fetchHeatmap]);
 
   // Build lookup: date string → day data
   const dayLookup = useMemo(() => {
@@ -210,7 +162,7 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
         <div className="p-6">
           <BrainPanelHeader icon={CalendarDays} title="Signal Activity" accentColor={ACCENT} glowColor={GLOW} glow />
           <div className="h-32 flex items-center justify-center">
-            <div className="w-6 h-6 border-2 border-purple-500/30 border-t-purple-400 rounded-full animate-spin" />
+            <SimpleSpinner size="md" color="purple" />
           </div>
         </div>
       </GlowCard>

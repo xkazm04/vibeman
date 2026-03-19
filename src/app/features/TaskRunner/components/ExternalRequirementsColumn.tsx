@@ -101,7 +101,7 @@ const ExternalRequirementsColumn = React.memo(function ExternalRequirementsColum
           </div>
         </div>
         <div className="flex items-center justify-center h-24 px-4">
-          <p className="text-[10px] text-gray-600 text-center">
+          <p className="text-2xs text-gray-600 text-center">
             Supabase not configured.
             <br />
             Set SUPABASE env vars to enable.
@@ -125,12 +125,12 @@ const ExternalRequirementsColumn = React.memo(function ExternalRequirementsColum
           <div className="flex items-center gap-1.5 min-w-0">
             <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-teal-400" />
             <h3 className="text-sm font-semibold text-gray-300">EXTERNAL</h3>
-            <span className="text-[9px] text-gray-600 font-mono">supabase</span>
+            <span className="text-micro text-gray-600 font-mono">supabase</span>
           </div>
           <div className="flex items-center gap-1">
             <motion.span
               key={requirements.length}
-              className="text-[10px] text-gray-500 font-mono mr-1"
+              className="text-2xs text-gray-500 font-mono mr-1"
               initial={{ scale: 1.3, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
             >
@@ -180,7 +180,7 @@ const ExternalRequirementsColumn = React.memo(function ExternalRequirementsColum
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="text-[10px] text-teal-400/80 mt-0.5 overflow-hidden"
+              className="text-2xs text-teal-400/80 mt-0.5 overflow-hidden"
             >
               {syncMessage}
             </motion.div>
@@ -194,7 +194,7 @@ const ExternalRequirementsColumn = React.memo(function ExternalRequirementsColum
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="text-[10px] text-red-400/80 mt-0.5 overflow-hidden"
+              className="text-2xs text-red-400/80 mt-0.5 overflow-hidden"
             >
               {error}
             </motion.div>
@@ -217,7 +217,7 @@ const ExternalRequirementsColumn = React.memo(function ExternalRequirementsColum
         {sortedRequirements.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-20 gap-1">
             <ExternalLink className="w-4 h-4 text-gray-700" />
-            <span className="text-[10px] text-gray-600">No external requirements</span>
+            <span className="text-2xs text-gray-600">No external requirements</span>
           </div>
         ) : (
           <AnimatePresence>

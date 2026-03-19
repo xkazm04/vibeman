@@ -229,12 +229,12 @@ function resolveEvidenceRefs(refs: EvidenceRef[]): NextResponse {
 /**
  * PATCH /api/brain/insights
  * Resolve a conflict between insights
- * Body: { reflectionId, insightTitle, resolution: 'keep_both' | 'keep_this' | 'keep_other', conflictingInsightTitle? }
+ * Body: { reflectionId, insightTitle, resolution: 'keep_both' | 'keep_this' | 'keep_other' }
  */
 async function handlePatch(request: NextRequest) {
   try {
     const body = await request.json();
-    const { reflectionId, insightTitle, resolution, conflictingInsightTitle } = body;
+    const { reflectionId, insightTitle, resolution } = body;
 
     if (!reflectionId || !insightTitle || !resolution) {
       return buildErrorResponse('reflectionId, insightTitle, and resolution required', { status: 400 });
@@ -252,7 +252,10 @@ async function handlePatch(request: NextRequest) {
       return buildErrorResponse('Insight not found', { status: 404 });
     }
 
-    const conflictTitle = conflictingInsightTitle || insightRow.conflict_with_title;
+    // Look up the conflicting insight by ID (cross-reflection), not by title within same reflection
+    const otherInsight = insightRow.conflict_with_id
+      ? brainInsightDb.getById(insightRow.conflict_with_id)
+      : null;
 
     if (resolution === 'keep_both') {
       // Mark both as resolved
@@ -260,15 +263,11 @@ async function handlePatch(request: NextRequest) {
         conflict_resolved: 1,
         conflict_resolution: 'keep_both',
       });
-      // Also find and resolve the other side
-      if (conflictTitle) {
-        const otherInsight = reflectionInsights.find(i => i.title === conflictTitle);
-        if (otherInsight) {
-          brainInsightDb.update(otherInsight.id, {
-            conflict_resolved: 1,
-            conflict_resolution: 'keep_both',
-          });
-        }
+      if (otherInsight) {
+        brainInsightDb.update(otherInsight.id, {
+          conflict_resolved: 1,
+          conflict_resolution: 'keep_both',
+        });
       }
     } else if (resolution === 'keep_this') {
       // Resolve this, delete the other
@@ -279,27 +278,20 @@ async function handlePatch(request: NextRequest) {
         conflict_with_title: null,
         conflict_type: null,
       });
-      if (conflictTitle) {
-        const otherInsight = reflectionInsights.find(i => i.title === conflictTitle);
-        if (otherInsight) {
-          brainInsightDb.delete(otherInsight.id);
-        }
+      if (otherInsight) {
+        brainInsightDb.delete(otherInsight.id);
       }
     } else if (resolution === 'keep_other') {
       // Delete this, resolve the other
-      const insightId = insightRow.id;
-      brainInsightDb.delete(insightId);
-      if (conflictTitle) {
-        const otherInsight = reflectionInsights.find(i => i.title === conflictTitle);
-        if (otherInsight) {
-          brainInsightDb.update(otherInsight.id, {
-            conflict_resolved: 1,
-            conflict_resolution: 'keep_other',
-            conflict_with_id: null,
-            conflict_with_title: null,
-            conflict_type: null,
-          });
-        }
+      brainInsightDb.delete(insightRow.id);
+      if (otherInsight) {
+        brainInsightDb.update(otherInsight.id, {
+          conflict_resolved: 1,
+          conflict_resolution: 'keep_other',
+          conflict_with_id: null,
+          conflict_with_title: null,
+          conflict_type: null,
+        });
       }
     }
 

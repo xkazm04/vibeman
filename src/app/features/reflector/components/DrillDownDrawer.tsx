@@ -149,13 +149,13 @@ export default function DrillDownDrawer({ context, onClose, onIdeaAction }: Dril
                 <div className="flex items-center gap-3 mb-3">
                   {context.stats.total !== undefined && (
                     <div className="px-2 py-1 bg-gray-800/60 rounded border border-gray-700/50">
-                      <span className="text-[10px] text-gray-500 font-mono">TOTAL </span>
+                      <span className="text-2xs text-gray-500 font-mono">TOTAL </span>
                       <span className="text-xs text-white font-mono font-bold">{context.stats.total}</span>
                     </div>
                   )}
                   {context.stats.acceptanceRate !== undefined && (
                     <div className="px-2 py-1 bg-gray-800/60 rounded border border-gray-700/50">
-                      <span className="text-[10px] text-gray-500 font-mono">RATE </span>
+                      <span className="text-2xs text-gray-500 font-mono">RATE </span>
                       <span className={`text-xs font-mono font-bold ${
                         context.stats.acceptanceRate >= 70 ? 'text-emerald-400' :
                         context.stats.acceptanceRate >= 40 ? 'text-amber-400' : 'text-red-400'
@@ -169,7 +169,7 @@ export default function DrillDownDrawer({ context, onClose, onIdeaAction }: Dril
               <div className="flex items-center gap-1.5 flex-wrap">
                 <button
                   onClick={() => setFilter(null)}
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-mono transition-all border ${
+                  className={`px-2 py-0.5 rounded-full text-2xs font-mono transition-all border ${
                     filter === null
                       ? 'bg-gray-700/60 text-white border-gray-500/50'
                       : 'bg-gray-800/40 text-gray-500 border-gray-700/30 hover:text-gray-300'
@@ -184,7 +184,7 @@ export default function DrillDownDrawer({ context, onClose, onIdeaAction }: Dril
                     <button
                       key={status}
                       onClick={() => setFilter(filter === status ? null : status)}
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-mono transition-all border ${
+                      className={`px-2 py-0.5 rounded-full text-2xs font-mono transition-all border ${
                         filter === status
                           ? `${config.bg} ${config.color} ${config.border}`
                           : 'bg-gray-800/40 text-gray-500 border-gray-700/30 hover:text-gray-300'
@@ -242,30 +242,30 @@ export default function DrillDownDrawer({ context, onClose, onIdeaAction }: Dril
                             </p>
 
                             {idea.description && (
-                              <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-2 mb-1.5">
+                              <p className="text-caption text-gray-500 leading-relaxed line-clamp-2 mb-1.5">
                                 {idea.description}
                               </p>
                             )}
 
                             {/* Metadata row */}
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${statusConf.bg} ${statusConf.color} ${statusConf.border} border`}>
+                              <span className={`text-micro font-mono px-1.5 py-0.5 rounded ${statusConf.bg} ${statusConf.color} ${statusConf.border} border`}>
                                 {statusConf.label}
                               </span>
 
                               {idea.scanType && (
-                                <span className="text-[9px] font-mono text-gray-600 px-1.5 py-0.5 rounded bg-gray-800/40 border border-gray-700/30">
+                                <span className="text-micro font-mono text-gray-600 px-1.5 py-0.5 rounded bg-gray-800/40 border border-gray-700/30">
                                   {idea.scanType.replace(/_/g, ' ')}
                                 </span>
                               )}
 
                               {idea.effort != null && (
-                                <span className="text-[9px] font-mono text-gray-600">
+                                <span className="text-micro font-mono text-gray-600">
                                   E:{idea.effort}
                                 </span>
                               )}
                               {idea.impact != null && (
-                                <span className="text-[9px] font-mono text-gray-600">
+                                <span className="text-micro font-mono text-gray-600">
                                   I:{idea.impact}
                                 </span>
                               )}
@@ -311,7 +311,7 @@ export default function DrillDownDrawer({ context, onClose, onIdeaAction }: Dril
 
             {/* Footer */}
             <div className="flex-shrink-0 px-5 py-3 border-t border-gray-800/50 bg-gray-950/80">
-              <div className="flex items-center justify-between text-[10px] text-gray-600 font-mono">
+              <div className="flex items-center justify-between text-2xs text-gray-600 font-mono">
                 <span>SHOWING {filteredIdeas.length} OF {context.ideas.length}</span>
                 <span className="flex items-center gap-1">
                   <Zap className="w-3 h-3" />

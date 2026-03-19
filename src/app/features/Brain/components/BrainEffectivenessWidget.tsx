@@ -1,16 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Brain, TrendingUp, TrendingDown, Minus, AlertTriangle, Zap, ChevronDown, ChevronRight, Lightbulb, FlaskConical } from 'lucide-react';
 import BrainPanelHeader from './BrainPanelHeader';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import InsightEffectivenessScore from './InsightEffectivenessScore';
 import GlowCard from './GlowCard';
-import { useAbortableFetch } from '@/hooks/useAbortableFetch';
-import type { InsightEffectiveness } from '@/app/api/brain/insights/effectiveness/route';
-import type { EffectivenessSummary } from '@/app/api/brain/insights/effectiveness/route';
-import type { CausalValidationReport } from '@/lib/brain/insightCausalValidator';
+import { useEffectiveness, useInfluence, useInvalidateBrain } from '../lib/queries';
 import { subscribeToReflectionCompletion } from '@/stores/reflectionCompletionEmitter';
 
 interface Props {
@@ -18,69 +15,34 @@ interface Props {
 }
 
 export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
-  const [insights, setInsights] = useState<InsightEffectiveness[]>([]);
-  const [summary, setSummary] = useState<EffectivenessSummary | null>(null);
-  const [causal, setCausal] = useState<CausalValidationReport | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showCausal, setShowCausal] = useState(false);
 
   const activeProject = useClientProjectStore((state) => state.activeProject);
-  const abortableFetch = useAbortableFetch();
 
-  const fetchEffectiveness = useCallback(async () => {
-    if (!activeProject?.id) return;
+  const effectivenessQuery = useEffectiveness(activeProject?.id);
+  const influenceQuery = useInfluence(activeProject?.id);
+  const { invalidateInsights } = useInvalidateBrain();
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const [proxyRes, causalRes] = await Promise.all([
-        abortableFetch(`/api/brain/insights/effectiveness?projectId=${activeProject.id}`),
-        abortableFetch(`/api/brain/insights/influence?projectId=${activeProject.id}`).catch(() => null),
-      ]);
-
-      const proxyData = await proxyRes.json();
-
-      if (proxyData.success) {
-        setInsights(proxyData.insights);
-        setSummary(proxyData.summary);
-      } else {
-        setError(proxyData.error || 'Failed to compute effectiveness');
-      }
-
-      if (causalRes) {
-        const causalData = await causalRes.json();
-        if (causalData.success) {
-          setCausal(causalData as CausalValidationReport);
-        }
-      }
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
-      setError('Failed to fetch effectiveness data');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeProject?.id, abortableFetch]);
-
-  useEffect(() => {
-    fetchEffectiveness();
-  }, [fetchEffectiveness]);
+  const isLoading = effectivenessQuery.isLoading;
+  const error = effectivenessQuery.error;
+  const insights = effectivenessQuery.data?.insights ?? [];
+  const summary = effectivenessQuery.data?.summary ?? null;
+  const causal = influenceQuery.data ?? null;
 
   // Subscribe to reflection completion events for auto-refresh
   useEffect(() => {
     const unsubscribe = subscribeToReflectionCompletion((reflectionId, projectId, completionScope) => {
       // Refresh effectiveness when a reflection completes for this project
       if (scope === 'global' && completionScope === 'global') {
-        fetchEffectiveness();
+        invalidateInsights();
       } else if (scope === 'project' && completionScope === 'project' && projectId === activeProject?.id) {
-        fetchEffectiveness();
+        invalidateInsights();
       }
     });
 
     return unsubscribe;
-  }, [scope, activeProject?.id, fetchEffectiveness]);
+  }, [scope, activeProject?.id, invalidateInsights]);
 
   // Determine accent color based on verdict
   const getVerdictConfig = (overallScore: number) => {
@@ -136,7 +98,7 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
         }}
       >
         <BrainPanelHeader icon={Brain} title="Brain Effectiveness" accentColor="#a855f7" glowColor="rgba(168, 85, 247, 0.15)" />
-        <div className="text-sm text-red-400">{error}</div>
+        <div className="text-sm text-red-400">{error.message}</div>
       </div>
     );
   }

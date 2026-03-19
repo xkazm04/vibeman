@@ -15,6 +15,7 @@ import GoalAddButtons from './GoalAddButtons';
 import { ContextTargetsList } from '@/components/ContextComponents';
 import GoalModal from '@/app/features/Goals/sub_GoalModal/GoalModal';
 import GoalCandidatesModal from '@/app/features/Goals/sub_GoalModal/components/GoalCandidatesModal';
+import { SimpleSpinner } from '@/components/ui';
 
 const caveat = Caveat({
   weight: ['400', '500', '600', '700'],
@@ -174,7 +175,7 @@ export default function GoalReviewer({ projectId, onGoalSelect }: GoalReviewerPr
       <div className="space-y-3 mb-4 max-h-[300px] overflow-y-auto">
         {loading && (
           <div className="flex items-center justify-center py-8">
-            <div className="w-5 h-5 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+            <SimpleSpinner size="sm" color="cyan" />
           </div>
         )}
 

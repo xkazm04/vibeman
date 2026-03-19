@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { FolderOpen } from 'lucide-react';
 import IdeasLoadingState from '@/app/features/Ideas/components/IdeasLoadingState';
 import type { ContextCountItem } from '../lib/tinderTypes';
@@ -32,7 +33,7 @@ export default function ContextFilterSidebar({
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
-      transition={{ duration: 0.2 }}
+      transition={transition.normal}
       className="w-56 bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 space-y-3"
     >
       {/* Header */}

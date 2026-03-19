@@ -35,11 +35,11 @@ function ErrorSummaryRow({ classification }: { classification: ErrorClassificati
   return (
     <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-gray-800/30 hover:bg-gray-800/50 transition-colors">
       <Icon className={`w-3.5 h-3.5 text-${config.color}-400 flex-shrink-0`} />
-      <span className="text-[11px] text-gray-300 flex-1 truncate">{config.label}</span>
-      <span className={`text-[10px] font-mono font-bold text-${config.color}-400 px-1.5 py-0.5 rounded bg-${config.color}-500/10`}>
+      <span className="text-caption text-gray-300 flex-1 truncate">{config.label}</span>
+      <span className={`text-2xs font-mono font-bold text-${config.color}-400 px-1.5 py-0.5 rounded bg-${config.color}-500/10`}>
         x{classification.occurrenceCount}
       </span>
-      <span className="text-[10px] text-gray-500 capitalize">{classification.stage}</span>
+      <span className="text-2xs text-gray-500 capitalize">{classification.stage}</span>
     </div>
   );
 }
@@ -66,9 +66,9 @@ function PatchCard({ patch, onRevert }: { patch: HealingPatch; onRevert: (id: st
         ) : (
           <CheckCircle2 className="w-3 h-3 text-emerald-400 flex-shrink-0" />
         )}
-        <span className="text-[11px] text-gray-300 flex-1 truncate">{patch.reason}</span>
+        <span className="text-caption text-gray-300 flex-1 truncate">{patch.reason}</span>
         {patch.effectiveness !== undefined && (
-          <span className={`text-[10px] font-mono font-bold ${effectivenessColor}`}>
+          <span className={`text-2xs font-mono font-bold ${effectivenessColor}`}>
             {Math.round(patch.effectiveness * 100)}%
           </span>
         )}
@@ -85,27 +85,27 @@ function PatchCard({ patch, onRevert }: { patch: HealingPatch; onRevert: (id: st
           >
             <div className="px-2.5 pb-2.5 space-y-2">
               <div className="space-y-1">
-                <span className="text-[10px] text-gray-500">Target</span>
-                <div className="text-[11px] font-mono text-cyan-400 bg-gray-800/50 px-2 py-1 rounded">
+                <span className="text-2xs text-gray-500">Target</span>
+                <div className="text-caption font-mono text-cyan-400 bg-gray-800/50 px-2 py-1 rounded">
                   {patch.targetType}:{patch.targetId}
                 </div>
               </div>
               <div className="space-y-1">
-                <span className="text-[10px] text-gray-500">Error Pattern</span>
-                <div className="text-[11px] text-gray-400 bg-gray-800/50 px-2 py-1 rounded">
+                <span className="text-2xs text-gray-500">Error Pattern</span>
+                <div className="text-caption text-gray-400 bg-gray-800/50 px-2 py-1 rounded">
                   {patch.errorPattern}
                 </div>
               </div>
               <div className="space-y-1">
-                <span className="text-[10px] text-gray-500">Patch</span>
-                <div className="text-[11px] text-emerald-300 bg-emerald-900/10 border border-emerald-800/30 px-2 py-1 rounded font-mono whitespace-pre-wrap max-h-24 overflow-y-auto">
+                <span className="text-2xs text-gray-500">Patch</span>
+                <div className="text-caption text-emerald-300 bg-emerald-900/10 border border-emerald-800/30 px-2 py-1 rounded font-mono whitespace-pre-wrap max-h-24 overflow-y-auto">
                   {patch.patchedValue}
                 </div>
               </div>
               {!patch.reverted && (
                 <button
                   onClick={() => onRevert(patch.id)}
-                  className="text-[10px] text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors"
+                  className="text-2xs text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors"
                 >
                   <Undo2 className="w-3 h-3" />
                   Revert Patch
@@ -145,7 +145,7 @@ export default function HealingPanel() {
           <Wrench className="w-4 h-4 text-pink-400" />
           <span className="text-sm font-medium text-gray-300">Self-Healing</span>
           {activePatches.length > 0 && (
-            <span className="text-[10px] font-mono font-bold text-pink-400 bg-pink-500/10 px-1.5 py-0.5 rounded-full">
+            <span className="text-2xs font-mono font-bold text-pink-400 bg-pink-500/10 px-1.5 py-0.5 rounded-full">
               {activePatches.length} active
             </span>
           )}
@@ -220,7 +220,7 @@ export default function HealingPanel() {
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <Wrench className="w-8 h-8 text-gray-700 mb-2" />
             <p className="text-xs text-gray-500">No errors detected yet</p>
-            <p className="text-[10px] text-gray-600 mt-1">
+            <p className="text-2xs text-gray-600 mt-1">
               Errors will appear here as the pipeline runs
             </p>
           </div>

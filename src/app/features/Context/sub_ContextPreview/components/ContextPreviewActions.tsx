@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Save, Loader2 } from 'lucide-react';
+import { buttonVariants } from '@/lib/design-tokens';
 
 interface ContextPreviewActionsProps {
   contextId: string;
@@ -78,7 +79,7 @@ export default function ContextPreviewActions({
       <motion.button
         onClick={handleSave}
         disabled={!hasChanges || saving || isSaving}
-        className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 rounded-lg hover:from-cyan-500/30 hover:to-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium border border-cyan-500/30"
+        className={`flex items-center space-x-2 ${buttonVariants.primary} text-sm disabled:opacity-50 disabled:cursor-not-allowed`}
         whileHover={{ scale: hasChanges && !saving && !isSaving ? 1.05 : 1 }}
         whileTap={{ scale: hasChanges && !saving && !isSaving ? 0.95 : 1 }}
         data-testid="context-preview-save-btn"

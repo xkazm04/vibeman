@@ -59,7 +59,7 @@ export default function SimulationPreviewPanel({
         <div className="flex items-center gap-2">
           <Eye className="w-4 h-4 text-amber-400" />
           <span className="text-sm font-medium text-amber-300">Simulation Preview</span>
-          <span className="px-1.5 py-0.5 bg-amber-500/15 text-amber-400 text-[10px] uppercase font-semibold rounded">
+          <span className="px-1.5 py-0.5 bg-amber-500/15 text-amber-400 text-2xs uppercase font-semibold rounded">
             dry run
           </span>
         </div>
@@ -119,7 +119,7 @@ export default function SimulationPreviewPanel({
                 <div className="flex items-center gap-2 text-xs">
                   <GitBranch className="w-3.5 h-3.5 text-blue-400" />
                   <span className="text-gray-400">Branch:</span>
-                  <code className="px-1.5 py-0.5 bg-gray-700/50 rounded text-blue-300 font-mono text-[11px]">
+                  <code className="px-1.5 py-0.5 bg-gray-700/50 rounded text-blue-300 font-mono text-caption">
                     {preview.would_create_branch}
                   </code>
                 </div>
@@ -287,7 +287,7 @@ export default function SimulationPreviewPanel({
                   <span className="text-gray-200">{preview.pr_title}</span>
                 </div>
                 <div className="relative">
-                  <pre className="p-3 bg-gray-900/50 border border-gray-700/30 rounded text-[11px] text-gray-400 font-mono overflow-x-auto max-h-48 whitespace-pre-wrap">
+                  <pre className="p-3 bg-gray-900/50 border border-gray-700/30 rounded text-caption text-gray-400 font-mono overflow-x-auto max-h-48 whitespace-pre-wrap">
                     {preview.pr_body}
                   </pre>
                   <button
@@ -338,7 +338,7 @@ export default function SimulationPreviewPanel({
                 <div className="px-4 pb-3">
                   <div className="max-h-40 overflow-y-auto space-y-0.5">
                     {preview.files_changed.map((file, idx) => (
-                      <div key={idx} className="text-[11px] font-mono text-gray-400 px-1.5 py-0.5 hover:bg-gray-700/20 rounded">
+                      <div key={idx} className="text-caption font-mono text-gray-400 px-1.5 py-0.5 hover:bg-gray-700/20 rounded">
                         {file}
                       </div>
                     ))}

@@ -196,7 +196,7 @@ export default function RequirementSelector({
               </span>
 
               {/* Date */}
-              <span className="text-[10px] text-gray-600 shrink-0">
+              <span className="text-2xs text-gray-600 shrink-0">
                 {formatRelativeDate(req.created_at)}
               </span>
             </motion.button>
@@ -209,7 +209,7 @@ export default function RequirementSelector({
         <span className="text-xs text-gray-500">
           {selectedIds.length} of {filteredRequirements.length} selected
         </span>
-        <div className="flex items-center gap-2 text-[10px] text-gray-600">
+        <div className="flex items-center gap-2 text-2xs text-gray-600">
           <span className="flex items-center gap-1">
             <Compass className="w-3 h-3 text-purple-400" /> direction
           </span>

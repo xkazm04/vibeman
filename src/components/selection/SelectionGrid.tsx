@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { LucideIcon, Sparkles } from 'lucide-react';
 
 export interface SelectionOption {
@@ -110,7 +111,7 @@ export default function SelectionGrid({
                   }}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 0.2 }}
-                  transition={{ duration: 0.3 }}
+                  transition={transition.deliberate}
                 />
               )}
 
@@ -120,7 +121,7 @@ export default function SelectionGrid({
                 <span className={`text-sm font-semibold ${isSelected ? '' : 'text-gray-400'}`}>
                   {option.label}
                 </span>
-                <span className={`text-[10px] text-center leading-tight ${isSelected ? 'opacity-80' : 'opacity-60'}`}>
+                <span className={`text-2xs text-center leading-tight ${isSelected ? 'opacity-80' : 'opacity-60'}`}>
                   {option.description}
                 </span>
               </div>

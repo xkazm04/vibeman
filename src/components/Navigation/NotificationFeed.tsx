@@ -26,7 +26,7 @@ export default function NotificationFeed({ onAction }: NotificationFeedProps) {
         <span className="text-xs font-medium text-white">
           Notifications
           {unreadCount > 0 && (
-            <span className="ml-1.5 text-[10px] text-gray-400">
+            <span className="ml-1.5 text-2xs text-gray-400">
               ({unreadCount} unread)
             </span>
           )}

@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { FileCode, AlertTriangle, ArrowRight, Layers } from 'lucide-react';
 import type { ImpactSeverity } from '../sub_DocsAnalysis/lib/impactSimulator/types';
 
@@ -77,14 +78,14 @@ export default function ImpactQuickPreview({
       initial={{ opacity: 0, scale: 0.9, y: 10 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.9, y: 10 }}
-      transition={{ duration: 0.15 }}
+      transition={transition.snappy}
       data-testid="impact-quick-preview"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <span className={`text-xs font-medium ${config.text}`}>{config.label}</span>
         {hasLayerChange && (
-          <span className="flex items-center gap-1 text-[10px] text-amber-400">
+          <span className="flex items-center gap-1 text-2xs text-amber-400">
             <AlertTriangle className="w-3 h-3" />
             Layer Change
           </span>
@@ -122,7 +123,7 @@ export default function ImpactQuickPreview({
       </div>
 
       {/* Hint */}
-      <div className="mt-2 text-[10px] text-gray-500 text-center">
+      <div className="mt-2 text-2xs text-gray-500 text-center">
         Drop to see full analysis
       </div>
     </motion.div>

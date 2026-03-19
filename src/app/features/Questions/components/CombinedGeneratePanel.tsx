@@ -166,7 +166,7 @@ export default function CombinedGeneratePanel({
         </div>
 
         {/* Context hint */}
-        <div className="mt-2 text-[10px] text-gray-500 tabular-nums">
+        <div className="mt-2 text-2xs text-gray-500 tabular-nums">
           {selectedContextCount > 0
             ? `~${questionsPerContext * selectedContextCount} items across ${selectedContextCount} context${selectedContextCount !== 1 ? 's' : ''}`
             : 'Select contexts above to generate questions'}
@@ -236,7 +236,7 @@ export default function CombinedGeneratePanel({
         </div>
 
         {/* Context hint */}
-        <div className="text-[10px] text-gray-500 tabular-nums">
+        <div className="text-2xs text-gray-500 tabular-nums">
           {brainstormAll
             ? <span className="text-amber-400/70">Brainstorming ~{directionsPerContext} across {contexts.length} contexts</span>
             : selectedContextCount > 0
@@ -304,28 +304,33 @@ export default function CombinedGeneratePanel({
                         </div>
 
                         {/* Question checkboxes */}
-                        <div className="max-h-32 overflow-y-auto space-y-1 pr-2">
-                          {answeredQuestions.map(q => (
-                            <label
-                              key={q.id}
-                              className="flex items-start gap-2 p-1.5 rounded hover:bg-gray-800/50 cursor-pointer group"
-                            >
-                              <button
-                                onClick={() => toggleQuestion(q.id)}
-                                className="mt-0.5 flex-shrink-0"
+                        <div className="relative">
+                          <div className="max-h-32 overflow-y-auto space-y-1 pr-2">
+                            {answeredQuestions.map(q => (
+                              <label
+                                key={q.id}
+                                className="flex items-start gap-2 p-1.5 rounded hover:bg-gray-800/50 cursor-pointer group"
                               >
-                                {selectedQuestionIds.includes(q.id) ? (
-                                  <CheckSquare className="w-3.5 h-3.5 text-cyan-400" />
-                                ) : (
-                                  <Square className="w-3.5 h-3.5 text-gray-500 group-hover:text-gray-400" />
-                                )}
-                              </button>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs text-gray-300 line-clamp-1">{q.question}</p>
-                                <p className="text-xs text-gray-500 line-clamp-1">{q.answer}</p>
-                              </div>
-                            </label>
-                          ))}
+                                <button
+                                  onClick={() => toggleQuestion(q.id)}
+                                  className="mt-0.5 flex-shrink-0"
+                                >
+                                  {selectedQuestionIds.includes(q.id) ? (
+                                    <CheckSquare className="w-3.5 h-3.5 text-cyan-400" />
+                                  ) : (
+                                    <Square className="w-3.5 h-3.5 text-gray-500 group-hover:text-gray-400" />
+                                  )}
+                                </button>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs text-gray-300 line-clamp-1">{q.question}</p>
+                                  <p className="text-xs text-gray-500 line-clamp-1">{q.answer}</p>
+                                </div>
+                              </label>
+                            ))}
+                          </div>
+                          {answeredQuestions.length > 3 && (
+                            <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-gray-800/90 to-transparent rounded-b" />
+                          )}
                         </div>
                       </motion.div>
                     )}
@@ -344,6 +349,8 @@ export default function CombinedGeneratePanel({
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
+            role="status"
+            aria-live="polite"
             className={`
               p-2.5 rounded-lg text-sm
               ${status === 'success'

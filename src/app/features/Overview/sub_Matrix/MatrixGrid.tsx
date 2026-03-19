@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import { cssTransitionSafe } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { transitions } from '@/lib/design-tokens';
 import type { WorkspaceProjectNode, IntegrationType } from '../sub_WorkspaceArchitecture/lib/types';
 import type { FilteredCellData } from '../sub_WorkspaceArchitecture/lib/useMatrixCanvasData';
 import { TIER_CONFIG } from '../sub_WorkspaceArchitecture/lib/types';
@@ -34,6 +37,7 @@ export default function MatrixGrid({
   contentHeight,
   highlightRule,
 }: MatrixGridProps) {
+  const prefersReduced = useReducedMotion();
   const { cellSize, labelOffset, headerHeight } = MATRIX_CONSTANTS;
   const nodeCount = sortedNodes.length;
   const { containerRef, visibleRowRange, visibleColRange } = useVirtualizedGrid(
@@ -63,10 +67,10 @@ export default function MatrixGrid({
   return (
     <div
       ref={containerRef}
-      className="overflow-auto bg-zinc-900/30 rounded-lg border border-zinc-800/50 -p-2 transition-colors duration-200 hover:border-zinc-700/60"
+      className={`overflow-auto bg-zinc-900/30 rounded-lg border border-zinc-800/50 -p-2 ${transitions.colors} hover:border-zinc-700/60`}
       style={{ maxHeight: '100%', maxWidth: '100%' }}
     >
-      <svg width={contentWidth} height={contentHeight}>
+      <svg width={contentWidth} height={contentHeight} role="grid" aria-label="Project dependency matrix">
         {/* Crosshair highlight behind cells */}
         {hoveredIndices && (
           <>
@@ -104,7 +108,7 @@ export default function MatrixGrid({
             <g
               key={`col-${node.id}`}
               transform={`translate(${labelOffset + globalIndex * cellSize + cellSize / 2}, ${headerHeight - 8})`}
-              style={{ opacity: colHeaderDimmed ? 0.3 : 1, transition: 'opacity 200ms ease-in-out' }}
+              style={{ opacity: colHeaderDimmed ? 0.3 : 1, transition: cssTransitionSafe(prefersReduced, 'opacity', 'normal') }}
             >
               <text
                 transform="rotate(-45)"
@@ -136,7 +140,7 @@ export default function MatrixGrid({
                 fill={TIER_CONFIG[source.tier].color}
                 fontSize={9}
                 fontWeight={rowHeaderWeight >= 0.8 ? 700 : 500}
-                style={{ opacity: rowHeaderDimmed ? 0.3 : 1, transition: 'opacity 200ms ease-in-out' }}
+                style={{ opacity: rowHeaderDimmed ? 0.3 : 1, transition: cssTransitionSafe(prefersReduced, 'opacity', 'normal') }}
               >
                 {source.name.slice(0, 10)}
               </text>
@@ -201,8 +205,13 @@ export default function MatrixGrid({
                 return (
                   <g
                     key={`cell-${source.id}-${target.id}`}
+                    tabIndex={cellData ? 0 : undefined}
+                    role={cellData ? 'gridcell' : undefined}
+                    aria-label={cellData ? `${source.name} to ${target.name}: ${cellData.types.join(', ')}` : undefined}
                     onMouseEnter={() => onCellHover({ sourceId: source.id, targetId: target.id })}
                     onMouseLeave={() => onCellHover(null)}
+                    onFocus={() => onCellHover({ sourceId: source.id, targetId: target.id })}
+                    onBlur={() => onCellHover(null)}
                     onClick={() =>
                       onCellSelect(
                         selectedCell?.sourceId === source.id && selectedCell?.targetId === target.id
@@ -210,7 +219,18 @@ export default function MatrixGrid({
                           : { sourceId: source.id, targetId: target.id }
                       )
                     }
-                    style={{ cursor: cellData ? 'pointer' : 'default', opacity: cellOpacity, transition: 'opacity 200ms ease-in-out' }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onCellSelect(
+                          selectedCell?.sourceId === source.id && selectedCell?.targetId === target.id
+                            ? null
+                            : { sourceId: source.id, targetId: target.id }
+                        );
+                      }
+                    }}
+                    style={{ cursor: cellData ? 'pointer' : 'default', opacity: cellOpacity, transition: cssTransitionSafe(prefersReduced, 'opacity', 'normal'), outline: 'none' }}
+                    className={cellData ? 'focus-visible:[&>rect:first-child]:stroke-cyan-500/50 focus-visible:[&>rect:first-child]:[stroke-width:2]' : undefined}
                   >
                     <rect
                       x={labelOffset + globalCol * cellSize}

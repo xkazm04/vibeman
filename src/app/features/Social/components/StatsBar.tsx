@@ -15,7 +15,7 @@ function StatItem({ icon, label, value, color }: StatItemProps) {
     <div className="flex items-center gap-1.5">
       <span className={color}>{icon}</span>
       <span className="text-xs font-medium text-gray-300">{value}</span>
-      <span className="text-[10px] text-gray-500 uppercase">{label}</span>
+      <span className="text-2xs text-gray-500 uppercase">{label}</span>
     </div>
   );
 }
@@ -99,7 +99,7 @@ export default function StatsBar({ stats, aiStats }: StatsBarProps) {
       {/* Total */}
       <div className="flex items-center gap-1.5 pl-4 border-l border-gray-700">
         <span className="text-sm font-semibold text-white">{total}</span>
-        <span className="text-[10px] text-gray-500 uppercase">Total</span>
+        <span className="text-2xs text-gray-500 uppercase">Total</span>
       </div>
     </div>
   );

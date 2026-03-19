@@ -498,7 +498,7 @@ export function IntegrationDetailPanel({
                     }`}
                   >
                     <span className="text-base">{pConfig?.icon || '🔌'}</span>
-                    <span className={`text-[10px] mt-0.5 ${isSelected ? 'text-purple-300' : 'text-gray-500'}`}>
+                    <span className={`text-2xs mt-0.5 ${isSelected ? 'text-purple-300' : 'text-gray-500'}`}>
                       {pConfig?.label || p}
                     </span>
                   </motion.button>

@@ -105,7 +105,7 @@ function TreeNode({
           {/* Question icon + depth badge */}
           <div className="flex items-center gap-1.5 flex-shrink-0">
             <HelpCircle className={`w-4 h-4 ${color.text}`} />
-            <span className={`text-[10px] font-mono ${color.text} opacity-60`}>
+            <span className={`text-2xs font-mono ${color.text} opacity-60`}>
               L{depth}
             </span>
           </div>
@@ -116,29 +116,29 @@ function TreeNode({
 
             {/* Context badge */}
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-[10px] text-gray-500 bg-gray-800/50 px-1.5 py-0.5 rounded">
+              <span className="text-2xs text-gray-500 bg-gray-800/50 px-1.5 py-0.5 rounded">
                 {node.context_map_title}
               </span>
               {isAnswered && (
-                <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                <span className="text-2xs text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded flex items-center gap-0.5">
                   <Check className="w-2.5 h-2.5" />
                   Answered
                 </span>
               )}
               {!isAnswered && (
-                <span className="text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                <span className="text-2xs text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded flex items-center gap-0.5">
                   <Clock className="w-2.5 h-2.5" />
                   Pending
                 </span>
               )}
               {node.auto_deepened === 1 && (
-                <span className="text-[10px] text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                <span className="text-2xs text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded flex items-center gap-0.5">
                   <Target className="w-2.5 h-2.5" />
                   Auto-deepened
                 </span>
               )}
               {node.gap_score != null && node.gap_score > 0 && (
-                <span className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5 ${
+                <span className={`text-2xs px-1.5 py-0.5 rounded flex items-center gap-0.5 ${
                   node.gap_score >= 0.7
                     ? 'text-red-400 bg-red-500/10'
                     : node.gap_score >= 0.4
@@ -150,7 +150,7 @@ function TreeNode({
                 </span>
               )}
               {hasChildren && (
-                <span className="text-[10px] text-gray-500">
+                <span className="text-2xs text-gray-500">
                   {node.children.length} follow-up{node.children.length !== 1 ? 's' : ''}
                 </span>
               )}
@@ -196,18 +196,18 @@ function TreeNode({
               <div className="mt-1.5 ml-6 pl-3 border-l-2 border-cyan-500/10">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <Target className="w-2.5 h-2.5 text-cyan-500/60 flex-shrink-0" />
-                  <span className="text-[10px] text-cyan-500/60">Gaps:</span>
+                  <span className="text-2xs text-cyan-500/60">Gaps:</span>
                   {gaps.slice(0, 3).map((gap, i) => (
                     <span
                       key={i}
-                      className="text-[10px] text-cyan-400/70 bg-cyan-500/8 px-1.5 py-0.5 rounded"
+                      className="text-2xs text-cyan-400/70 bg-cyan-500/8 px-1.5 py-0.5 rounded"
                       title={`"${gap.phrase}"`}
                     >
                       {gap.type.replace(/_/g, ' ')}
                     </span>
                   ))}
                   {gaps.length > 3 && (
-                    <span className="text-[10px] text-gray-500">+{gaps.length - 3} more</span>
+                    <span className="text-2xs text-gray-500">+{gaps.length - 3} more</span>
                   )}
                 </div>
               </div>

@@ -2,6 +2,8 @@
 
 import React, { useRef, useCallback, useState, type ReactNode, type CSSProperties } from 'react';
 import { motion, type HTMLMotionProps } from 'framer-motion';
+import { transition, hover as hoverPresets, tap, fadeSlideUp, reducedMotion } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -89,6 +91,7 @@ export const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
   ) => {
     const cardRef = useRef<HTMLDivElement | null>(null);
     const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
+    const prefersReduced = useReducedMotion();
 
     const handleMouseMove = useCallback(
       (e: React.MouseEvent<HTMLDivElement>) => {
@@ -136,8 +139,8 @@ export const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
       .filter(Boolean)
       .join(' ');
 
-    const animateEntrance = animate
-      ? { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 } }
+    const animateEntrance = animate && !prefersReduced
+      ? { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, transition: transition.deliberate }
       : {};
 
     return (
@@ -153,8 +156,8 @@ export const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
         onClick={onClick}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        whileHover={hover ? { scale: 1.005 } : undefined}
-        whileTap={clickable ? { scale: 0.995 } : undefined}
+        whileHover={hover && !prefersReduced ? hoverPresets.lift : undefined}
+        whileTap={clickable && !prefersReduced ? tap.subtle : undefined}
         {...animateEntrance}
         {...motionProps}
       >

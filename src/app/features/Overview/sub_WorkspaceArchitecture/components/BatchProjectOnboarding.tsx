@@ -206,7 +206,7 @@ Execute these commands in order. Each curl command should return a success respo
 
   if (error) {
     return (
-      <div className="flex flex-col items-center gap-4 py-6">
+      <div role="alert" className="flex flex-col items-center gap-4 py-6">
         <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
           <AlertCircle className="w-6 h-6 text-red-400" />
         </div>
@@ -227,7 +227,7 @@ Execute these commands in order. Each curl command should return a success respo
   if (folders.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-6">
-        <Folder className="w-8 h-8 text-zinc-600" />
+        <Folder className="w-8 h-8 text-zinc-500" />
         <p className="text-sm text-zinc-500">No folders found in {basePath}</p>
       </div>
     );
@@ -245,7 +245,7 @@ Execute these commands in order. Each curl command should return a success respo
         </div>
         <button
           onClick={toggleAll}
-          className="flex items-center gap-1 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded transition-colors"
+          className="flex items-center gap-1 px-2 py-1 text-2xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded transition-colors"
         >
           {folders.every(f => f.selected) ? (
             <>
@@ -262,7 +262,7 @@ Execute these commands in order. Each curl command should return a success respo
       </div>
 
       {/* Base path info */}
-      <div className="text-[10px] text-zinc-600 font-mono mb-2 truncate">
+      <div className="text-2xs text-zinc-500 font-mono mb-2 truncate">
         {basePath}
       </div>
 
@@ -304,7 +304,7 @@ Execute these commands in order. Each curl command should return a success respo
                 >
                   {folder.name}
                 </span>
-                <span className="ml-2 text-[10px] text-zinc-600">
+                <span className="ml-2 text-2xs text-zinc-500">
                   {detectProjectType(folder.name)}
                 </span>
               </div>
@@ -327,7 +327,7 @@ Execute these commands in order. Each curl command should return a success respo
         Add {selectedCount} Project{selectedCount !== 1 ? 's' : ''} via Claude Code
       </button>
 
-      <p className="text-[10px] text-zinc-600 text-center mt-2">
+      <p className="text-2xs text-zinc-500 text-center mt-2">
         Claude Code will create project entries in the database
       </p>
     </div>

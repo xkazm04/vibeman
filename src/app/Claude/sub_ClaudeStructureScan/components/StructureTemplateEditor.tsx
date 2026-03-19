@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Save, Trash2, FileCode, AlertCircle } from 'lucide-react';
+import { SimpleSpinner } from '@/components/ui';
 import { StructureRule } from '@/app/api/structure-scan/structureTemplates';
 import RuleEditorRow from './RuleEditorRow';
 
@@ -228,7 +229,7 @@ export default function StructureTemplateEditor({
               >
                 {saving ? (
                   <>
-                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <SimpleSpinner size="xs" color="white" />
                     <span>Saving...</span>
                   </>
                 ) : (

@@ -91,7 +91,7 @@ export default function GroupCluster({
           <div className="flex items-center gap-1.5 ml-auto shrink-0">
             {connectionCount > 0 && (
               <span
-                className="text-[9px] font-mono px-1.5 py-0.5 rounded-full"
+                className="text-micro font-mono px-1.5 py-0.5 rounded-full"
                 style={{ backgroundColor: `${color}20`, color: `${color}cc` }}
                 title={`${connectionCount} connections`}
               >
@@ -100,13 +100,13 @@ export default function GroupCluster({
             )}
             {changeCount > 0 && (
               <span
-                className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400"
+                className="text-micro font-mono px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400"
                 title={`${changeCount} changes`}
               >
                 {changeCount}
               </span>
             )}
-            <span className="text-[9px] text-gray-600 font-mono">
+            <span className="text-micro text-gray-600 font-mono">
               {contexts.length}
             </span>
           </div>
@@ -129,7 +129,7 @@ export default function GroupCluster({
             ))
           ) : (
             <div className="flex items-center justify-center w-full py-3">
-              <span className="text-[10px] text-gray-600 italic">No contexts</span>
+              <span className="text-2xs text-gray-600 italic">No contexts</span>
             </div>
           )}
         </div>

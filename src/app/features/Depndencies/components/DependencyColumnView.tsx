@@ -321,7 +321,7 @@ export default function DependencyColumnView({
                     {lib.isShared && (
                       <div className="flex items-center gap-1 text-yellow-400" title="Shared dependency">
                         <AlertTriangle className="w-3 h-3" />
-                        <span className="text-[10px] font-mono">×{lib.projectCount}</span>
+                        <span className="text-2xs font-mono">×{lib.projectCount}</span>
                       </div>
                     )}
                     <div className="flex-1 truncate" title={lib.name}>

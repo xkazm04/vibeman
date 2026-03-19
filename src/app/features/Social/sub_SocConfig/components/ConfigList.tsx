@@ -80,7 +80,7 @@ export function ConfigList({
             <Plus className="w-4 h-4" />
           </motion.button>
         </div>
-        <p className="text-[10px] text-gray-500 mt-1">
+        <p className="text-2xs text-gray-500 mt-1">
           {filteredConfigs.length} configuration{filteredConfigs.length !== 1 ? 's' : ''}
         </p>
       </div>
@@ -137,19 +137,19 @@ export function ConfigList({
                         {config.name}
                       </span>
                       {!config.isEnabled && (
-                        <span className="px-1.5 py-0.5 text-[9px] font-medium bg-gray-700 text-gray-400 rounded">
+                        <span className="px-1.5 py-0.5 text-micro font-medium bg-gray-700 text-gray-400 rounded">
                           Disabled
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 mt-1">
                       {getStatusIcon(config.connectionStatus)}
-                      <span className="text-[10px] text-gray-500">
+                      <span className="text-2xs text-gray-500">
                         {getStatusText(config.connectionStatus)}
                       </span>
                     </div>
                     {config.itemsFetchedCount > 0 && (
-                      <p className="text-[10px] text-gray-500 mt-1">
+                      <p className="text-2xs text-gray-500 mt-1">
                         {config.itemsFetchedCount} items fetched
                       </p>
                     )}

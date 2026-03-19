@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, Maximize2, Volume2, VolumeX, Bell, X } from 'lucide-react';
+import { transition, expandCollapse } from '@/lib/motion';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useVoiceStore } from '@/stores/annette/voiceStore';
 import { useWidgetStore } from '@/stores/annette/widgetStore';
@@ -44,9 +45,10 @@ function NotificationBar() {
       {notifications.map((notif) => (
         <motion.div
           key={notif.id}
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
+          variants={expandCollapse}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
           className={`flex items-center gap-2 px-3 py-1.5 border-b text-xs ${colorMap[notif.type]}`}
         >
           <Bell className="w-3 h-3 flex-shrink-0" />
@@ -79,7 +81,7 @@ export default function AnnetteDropdownPanel({ onClose }: { onClose: () => void 
       initial={{ opacity: 0, y: -8, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -8, scale: 0.96 }}
-      transition={{ duration: 0.15, ease: 'easeOut' }}
+      transition={transition.snappy}
       className="absolute top-full right-0 mt-2 z-50 w-80 h-[400px] flex flex-col rounded-xl border border-slate-700/50 bg-slate-900/95 backdrop-blur-xl shadow-2xl overflow-hidden"
     >
       {/* Header */}

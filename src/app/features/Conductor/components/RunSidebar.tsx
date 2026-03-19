@@ -165,10 +165,10 @@ export default function RunSidebar({ onNewRun }: RunSidebarProps) {
                   <span className="text-xs text-gray-200 truncate flex-1">{title}</span>
                 </div>
                 <div className="flex items-center gap-2 mt-1 pl-[22px]">
-                  <span className={`text-[10px] ${cfg.labelClass} capitalize`}>
+                  <span className={`text-2xs ${cfg.labelClass} capitalize`}>
                     {run.status}
                   </span>
-                  <span className="text-[10px] text-gray-600">
+                  <span className="text-2xs text-gray-600">
                     {formatElapsed(run.startedAt)}
                   </span>
                 </div>
@@ -178,7 +178,7 @@ export default function RunSidebar({ onNewRun }: RunSidebarProps) {
         </AnimatePresence>
 
         {runList.length === 0 && (
-          <div className="text-center py-8 text-[11px] text-gray-600">
+          <div className="text-center py-8 text-caption text-gray-600">
             No active pipelines
           </div>
         )}

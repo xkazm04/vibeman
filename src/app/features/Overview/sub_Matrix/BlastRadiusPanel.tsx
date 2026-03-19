@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, X, AlertTriangle, ArrowRight, Target } from 'lucide-react';
+import { transition, fadeSlideUp } from '@/lib/motion';
 import type { BlastRadiusResult, ImpactLevel } from '../sub_WorkspaceArchitecture/lib/blastRadiusEngine';
 import { BLAST_RADIUS_COLORS } from '../sub_WorkspaceArchitecture/lib/blastRadiusEngine';
 
@@ -43,7 +44,7 @@ export default function BlastRadiusPanel({
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: 20 }}
-        transition={{ duration: 0.15 }}
+        transition={transition.snappy}
         className="absolute top-4 right-4 z-20 w-72"
       >
         <div className="bg-zinc-900/95 backdrop-blur-md rounded-xl border border-red-500/20 shadow-2xl shadow-red-500/5 overflow-hidden">
@@ -55,7 +56,7 @@ export default function BlastRadiusPanel({
               </div>
               <div>
                 <h3 className="text-xs font-semibold text-zinc-200">Impact Mode</h3>
-                <p className="text-2xs text-zinc-500 mt-0.5">Blast radius from <span className="text-zinc-300">{originName}</span></p>
+                <p className="text-2xs text-zinc-400 mt-0.5">Blast radius from <span className="text-zinc-300">{originName}</span></p>
               </div>
             </div>
             <button
@@ -71,7 +72,7 @@ export default function BlastRadiusPanel({
             <SummaryBadge level="direct" count={summary.direct} />
             <SummaryBadge level="second" count={summary.second} />
             <SummaryBadge level="third" count={summary.third} />
-            <span className="text-2xs text-zinc-600 ml-auto">
+            <span className="text-2xs text-zinc-400 ml-auto">
               {summary.total} affected
             </span>
           </div>
@@ -80,9 +81,9 @@ export default function BlastRadiusPanel({
           <div className="max-h-64 overflow-y-auto">
             {affectedNodes.length === 0 ? (
               <div className="px-4 py-6 text-center">
-                <Target className="w-6 h-6 text-zinc-600 mx-auto mb-2" />
-                <p className="text-xs text-zinc-500">No downstream dependencies</p>
-                <p className="text-2xs text-zinc-600 mt-1">This node has no outgoing connections</p>
+                <Target className="w-6 h-6 text-zinc-400 mx-auto mb-2" />
+                <p className="text-xs text-zinc-400">No downstream dependencies</p>
+                <p className="text-2xs text-zinc-400 mt-1">This node has no outgoing connections</p>
               </div>
             ) : (
               <div className="py-1">
@@ -121,7 +122,7 @@ export default function BlastRadiusPanel({
           {summary.total > 0 && (
             <div className="px-4 py-2 border-t border-zinc-800/30 flex items-center gap-1.5">
               <AlertTriangle className="w-3 h-3 text-amber-500/60" />
-              <span className="text-2xs text-zinc-600">
+              <span className="text-2xs text-zinc-400">
                 Changes may require updates in {summary.total} service{summary.total !== 1 ? 's' : ''}
               </span>
             </div>

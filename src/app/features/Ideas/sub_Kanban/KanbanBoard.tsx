@@ -5,7 +5,7 @@ import { DbIdea } from '@/app/db';
 import { Sparkles } from 'lucide-react';
 import KanbanColumn, { COLUMN_CONFIGS, type IdeaStatus } from './KanbanColumn';
 import { useIdeas, useUpdateIdea, useInvalidateIdeas } from '@/lib/queries/ideaQueries';
-import EmptyStateIllustration from '@/components/ui/EmptyStateIllustration';
+import EmptyState from '@/components/ui/EmptyState';
 import IdeasLoadingState from '@/app/features/Ideas/components/IdeasLoadingState';
 
 interface KanbanBoardProps {
@@ -68,11 +68,11 @@ export default function KanbanBoard({ filterProject, onIdeaClick }: KanbanBoardP
 
   if (ideas.length === 0) {
     return (
-      <EmptyStateIllustration
-        type="ideas"
-        headline="No ideas to display"
+      <EmptyState
+        icon={Sparkles}
+        title="No ideas to display"
         description="Generate AI-powered insights by scanning your codebase. Ideas will appear here organized by their workflow status."
-        action={{
+        actions={[{
           label: 'Generate Ideas',
           onClick: () => {
             const scanBtn = document.querySelector('[data-testid="ideas-scan-btn"]');
@@ -82,7 +82,8 @@ export default function KanbanBoard({ filterProject, onIdeaClick }: KanbanBoardP
             }
           },
           icon: Sparkles,
-        }}
+          variant: 'primary',
+        }]}
         testId="kanban-empty"
       />
     );

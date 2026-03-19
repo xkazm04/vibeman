@@ -140,7 +140,7 @@ export default function TaskProgressItem({
         {/* Progress Bar (for running tasks) */}
         {isTaskRunning(task.status) && (
           <div>
-            <div className="flex items-center justify-between text-[10px] text-gray-400 mb-1">
+            <div className="flex items-center justify-between text-2xs text-gray-400 mb-1">
               <span>{progress}%</span>
               {elapsedTime && (
                 <span className="flex items-center gap-0.5">
@@ -162,14 +162,14 @@ export default function TaskProgressItem({
 
         {/* Error Message (for failed tasks) */}
         {isTaskFailed(task.status) && task.status.error && (
-          <p className="text-[10px] text-red-400 line-clamp-2">
+          <p className="text-2xs text-red-400 line-clamp-2">
             {task.status.error}
           </p>
         )}
 
         {/* Status Text and View Button */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-[10px]">
+          <div className="flex items-center gap-1.5 text-2xs">
             <span className={statusDisplay.color}>
               {isTaskRunning(task.status) && 'Running'}
               {isTaskCompleted(task.status) && 'Done'}
@@ -185,7 +185,7 @@ export default function TaskProgressItem({
           <button
             onClick={handleViewDetails}
             className="
-              px-1.5 py-0.5 text-[10px] text-cyan-400
+              px-1.5 py-0.5 text-2xs text-cyan-400
               hover:text-cyan-300 hover:bg-cyan-500/10
               rounded border border-cyan-500/30
               transition-colors flex items-center gap-0.5

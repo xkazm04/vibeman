@@ -102,14 +102,14 @@ export default function MiniTerminalCard({ sessionId, session, index, isCompact 
       <div className={`px-3 ${isCompact ? 'py-2' : 'py-3'}`}>
         {stats.running ? (
           <div>
-            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Executing</p>
+            <p className="text-2xs text-gray-500 uppercase tracking-wider mb-1">Executing</p>
             <p className="text-xs text-gray-200 truncate font-mono">
               {stats.running.requirementName}
             </p>
           </div>
         ) : session.projectPath ? (
           <div>
-            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Project</p>
+            <p className="text-2xs text-gray-500 uppercase tracking-wider mb-1">Project</p>
             <p className="text-xs text-gray-400 truncate font-mono">
               {session.projectPath.split(/[/\\]/).pop()}
             </p>
@@ -124,7 +124,7 @@ export default function MiniTerminalCard({ sessionId, session, index, isCompact 
         {/* Progress bar */}
         {stats.total > 0 && (
           <div className="mt-2">
-            <div className="flex items-center justify-between text-[9px] text-gray-500 mb-0.5">
+            <div className="flex items-center justify-between text-micro text-gray-500 mb-0.5">
               <span>{stats.completed + stats.failed}/{stats.total}</span>
               <span>{progressPercent}%</span>
             </div>
@@ -144,7 +144,7 @@ export default function MiniTerminalCard({ sessionId, session, index, isCompact 
 
       {/* Queue stats footer */}
       {!isCompact && (
-        <div className="flex items-center gap-2 px-3 py-1.5 border-t border-gray-800/30 text-[9px]">
+        <div className="flex items-center gap-2 px-3 py-1.5 border-t border-gray-800/30 text-micro">
           {stats.pending > 0 && (
             <span className="flex items-center gap-0.5 text-amber-400">
               <Zap className="w-2.5 h-2.5" />{stats.pending} queued

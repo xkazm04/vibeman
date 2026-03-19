@@ -50,7 +50,7 @@ export default function ChartTooltip({ label, anchorRect, visible }: ChartToolti
     <div
       ref={tooltipRef}
       role="tooltip"
-      className="fixed z-50 px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-zinc-200 whitespace-nowrap pointer-events-none shadow-lg transition-opacity duration-100"
+      className="fixed z-50 px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-2xs text-zinc-200 whitespace-nowrap pointer-events-none shadow-lg transition-opacity duration-100"
       style={{
         top: pos?.top ?? -9999,
         left: pos?.left ?? -9999,

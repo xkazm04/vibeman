@@ -86,7 +86,7 @@ export function TruncateTooltip({ text, subtitle, children, delay = 500 }: Trunc
                   {text}
                 </div>
                 {subtitle && (
-                  <div className="text-[10px] text-gray-400 mt-0.5 break-all leading-snug">
+                  <div className="text-2xs text-gray-400 mt-0.5 break-all leading-snug">
                     {subtitle}
                   </div>
                 )}

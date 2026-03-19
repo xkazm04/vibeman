@@ -11,6 +11,7 @@ import {
   CheckCircle,
   XCircle,
 } from 'lucide-react';
+import { SimpleSpinner } from '@/components/ui';
 import RequirementSelector from './RequirementSelector';
 import { useRemoteBatch } from '../hooks/useRemoteBatch';
 
@@ -69,7 +70,7 @@ export default function RemoteBatchPanel({
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mb-3" />
+        <SimpleSpinner size="lg" color="cyan" className="mb-3" />
         <p className="text-sm text-gray-400">
           Fetching requirements from <span className="text-cyan-300">{targetDeviceName}</span>...
         </p>
@@ -135,7 +136,7 @@ export default function RemoteBatchPanel({
               Batch running: {activeBatch.completed_tasks}/{activeBatch.total_tasks} tasks
             </p>
             {activeBatch.current_task && (
-              <p className="text-[10px] text-amber-400/70 truncate">
+              <p className="text-2xs text-amber-400/70 truncate">
                 Current: {activeBatch.current_task}
               </p>
             )}
@@ -177,7 +178,7 @@ export default function RemoteBatchPanel({
           <p className="text-xs text-red-400">{batchError}</p>
           <button
             onClick={clearError}
-            className="ml-auto text-[10px] text-red-400/60 hover:text-red-400"
+            className="ml-auto text-2xs text-red-400/60 hover:text-red-400"
           >
             Dismiss
           </button>
@@ -226,7 +227,7 @@ export default function RemoteBatchPanel({
       </button>
 
       {/* Target device info */}
-      <div className="text-center text-[10px] text-gray-600">
+      <div className="text-center text-2xs text-gray-600">
         Tasks will execute on <span className="text-cyan-400">{targetDeviceName}</span>
       </div>
     </div>

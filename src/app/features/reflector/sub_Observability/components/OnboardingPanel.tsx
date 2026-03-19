@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Rocket, CheckCircle, AlertCircle, FileCode, FolderOpen } from 'lucide-react';
 import { generateOnboardingRequirement } from '../lib/observabilityApi';
+import { SimpleSpinner } from '@/components/ui';
 
 interface OnboardingPanelProps {
   projectId: string;
@@ -131,7 +132,7 @@ export default function OnboardingPanel({
           >
             {loading ? (
               <>
-                <div className="w-4 h-4 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
+                <SimpleSpinner size="sm" color="cyan" />
                 Generating...
               </>
             ) : (

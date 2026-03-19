@@ -12,6 +12,18 @@ import {
   buildReflectionRequirement,
   buildGlobalReflectionRequirement,
 } from './reflectionPromptBuilder';
+import {
+  REFLECTION_TRIGGER_THRESHOLD,
+  REFLECTION_MIN_GAP_HOURS,
+  REFLECTION_MAX_DECISIONS,
+  REFLECTION_INITIAL_DECISIONS_MIN,
+  REFLECTION_WEEKLY_FALLBACK_DAYS,
+  REFLECTION_WEEKLY_DECISIONS_MIN,
+  GLOBAL_REFLECTION_TRIGGER_THRESHOLD,
+  GLOBAL_REFLECTION_MIN_GAP_HOURS,
+  GLOBAL_REFLECTION_MAX_PROJECTS,
+  GLOBAL_REFLECTION_MAX_DIRECTIONS_PER_PROJECT,
+} from './config';
 
 /**
  * Generate a unique reflection ID
@@ -25,9 +37,9 @@ function generateReflectionId(): string {
  */
 export const DEFAULT_REFLECTION_CONFIG = {
   enabled: true,
-  triggerThreshold: 20, // decisions before reflection
-  minGapHours: 24, // minimum hours between reflections
-  maxDecisionsToAnalyze: 30,
+  triggerThreshold: REFLECTION_TRIGGER_THRESHOLD,
+  minGapHours: REFLECTION_MIN_GAP_HOURS,
+  maxDecisionsToAnalyze: REFLECTION_MAX_DECISIONS,
   autoUpdateGuide: true,
 };
 
@@ -36,10 +48,10 @@ export const DEFAULT_REFLECTION_CONFIG = {
  */
 export const DEFAULT_GLOBAL_REFLECTION_CONFIG = {
   enabled: true,
-  triggerThreshold: 50, // total decisions across all projects
-  minGapHours: 72, // 3 days between global reflections
-  maxProjectsToAnalyze: 10,
-  maxDirectionsPerProject: 15,
+  triggerThreshold: GLOBAL_REFLECTION_TRIGGER_THRESHOLD,
+  minGapHours: GLOBAL_REFLECTION_MIN_GAP_HOURS,
+  maxProjectsToAnalyze: GLOBAL_REFLECTION_MAX_PROJECTS,
+  maxDirectionsPerProject: GLOBAL_REFLECTION_MAX_DIRECTIONS_PER_PROJECT,
 };
 
 /**
@@ -94,15 +106,15 @@ export const reflectionAgent = {
     // Check weekly fallback (7 days without reflection)
     if (!lastReflectionDate) {
       // Never reflected and have some decisions
-      if (decisionsSinceLastReflection >= 10) {
+      if (decisionsSinceLastReflection >= REFLECTION_INITIAL_DECISIONS_MIN) {
         return {
           shouldTrigger: true,
-          reason: 'Initial reflection: 10+ decisions with no prior reflection',
+          reason: `Initial reflection: ${REFLECTION_INITIAL_DECISIONS_MIN}+ decisions with no prior reflection`,
         };
       }
     } else {
       const daysSinceReflection = (Date.now() - lastReflectionDate.getTime()) / (1000 * 60 * 60 * 24);
-      if (daysSinceReflection >= 7 && decisionsSinceLastReflection >= 5) {
+      if (daysSinceReflection >= REFLECTION_WEEKLY_FALLBACK_DAYS && decisionsSinceLastReflection >= REFLECTION_WEEKLY_DECISIONS_MIN) {
         return {
           shouldTrigger: true,
           reason: `Weekly fallback: ${daysSinceReflection.toFixed(1)} days since last reflection`,

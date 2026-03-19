@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useRef } from 'react';
 import { DiffEditor } from '@monaco-editor/react';
+import { SimpleSpinner } from '@/components/ui';
 import { defineVibemanTheme, clearErrorMarkers, setupMarkerClearer } from './editorTheme';
 
 type Theme = 'vs-dark' | 'light' | 'vs' | 'vibeman-dark';
@@ -127,7 +128,7 @@ export default function MonacoDiffEditor({
         loading={loading || (
           <div className="flex items-center justify-center h-full bg-gray-900">
             <div className="flex flex-col items-center space-y-3">
-              <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+              <SimpleSpinner size="lg" color="cyan" />
               <span className="text-sm text-gray-400">Loading diff...</span>
             </div>
           </div>

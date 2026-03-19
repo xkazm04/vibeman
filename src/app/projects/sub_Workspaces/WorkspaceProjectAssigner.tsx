@@ -63,7 +63,7 @@ export default function WorkspaceProjectAssigner({ workspaceId, onClose }: Works
     >
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-gray-300">Assign Projects</span>
-        <button onClick={onClose} className="text-gray-500 hover:text-gray-300">
+        <button onClick={onClose} aria-label="Close project assigner" className="text-gray-500 hover:text-gray-300">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -78,6 +78,9 @@ export default function WorkspaceProjectAssigner({ workspaceId, onClose }: Works
             <button
               key={project.id}
               onClick={() => toggleProject(project.id)}
+              role="checkbox"
+              aria-checked={isSelected}
+              aria-label={`${project.name}${otherWs && isSelected ? `, moves from ${otherWs.name}` : otherWs ? `, currently in ${otherWs.name}` : ''}`}
               className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-all ${
                 isSelected
                   ? 'bg-blue-500/20 border border-blue-500/40'
@@ -91,12 +94,12 @@ export default function WorkspaceProjectAssigner({ workspaceId, onClose }: Works
               </div>
               <span className="text-sm text-gray-200 truncate">{project.name}</span>
               {otherWs && !isSelected && (
-                <span className="text-[10px] text-gray-500 ml-auto shrink-0">
+                <span className="text-2xs text-gray-500 ml-auto shrink-0">
                   in {otherWs.name}
                 </span>
               )}
               {otherWs && isSelected && (
-                <span className="text-[10px] text-amber-400/70 ml-auto shrink-0">
+                <span className="text-2xs text-amber-400/70 ml-auto shrink-0">
                   moves from {otherWs.name}
                 </span>
               )}
@@ -114,7 +117,7 @@ export default function WorkspaceProjectAssigner({ workspaceId, onClose }: Works
           disabled={saving}
           className="px-3 py-1.5 text-xs bg-blue-600/80 text-white rounded-md hover:bg-blue-500/80 disabled:opacity-40"
         >
-          {saving ? 'Saving...' : 'Save'}
+          <span aria-live="polite">{saving ? 'Saving...' : 'Save'}</span>
         </button>
       </div>
     </motion.div>

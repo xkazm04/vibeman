@@ -2,6 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { LucideIcon } from 'lucide-react';
 
 export type StatusChipState = 'idle' | 'active' | 'processing' | 'error' | 'success' | 'warning';
@@ -258,7 +259,7 @@ export default function StatusChip({
             initial={animated ? { opacity: 0, x: -10 } : undefined}
             animate={{ opacity: 1, x: 0 }}
             exit={animated ? { opacity: 0, x: 10 } : undefined}
-            transition={{ duration: 0.2 }}
+            transition={transition.normal}
             className="relative z-10"
           >
             <div className="relative">

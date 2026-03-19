@@ -218,7 +218,7 @@ async function handlePut(request: NextRequest) {
     if (orderIndex !== undefined) updateData.order_index = orderIndex;
     if (contextId !== undefined) updateData.context_id = contextId;
 
-    const goal = goalDb.updateGoal(id, updateData);
+    const goal = goalDb.updateGoal(id, updateData, existingGoal.status as GoalStatus);
 
     if (!goal) {
       return notFoundResponse('Goal');

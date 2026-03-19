@@ -164,7 +164,7 @@ export default function MiniFileTree({
                 {showFullPath ? file.path : file.name}
               </span>
               {file.extension && (
-                <span className={`text-[10px] ${color} opacity-60`}>
+                <span className={`text-2xs ${color} opacity-60`}>
                   .{file.extension}
                 </span>
               )}
@@ -217,7 +217,7 @@ export function MiniFileList({
         return (
           <span
             key={path}
-            className={`text-[10px] px-1.5 py-0.5 rounded ${getExtensionColor(ext)} bg-gray-800/50`}
+            className={`text-2xs px-1.5 py-0.5 rounded ${getExtensionColor(ext)} bg-gray-800/50`}
             title={path}
           >
             {fileName.length > 15 ? fileName.slice(0, 12) + '...' : fileName}
@@ -225,7 +225,7 @@ export function MiniFileList({
         );
       })}
       {remaining > 0 && (
-        <span className="text-[10px] text-gray-500">+{remaining}</span>
+        <span className="text-2xs text-gray-500">+{remaining}</span>
       )}
     </div>
   );
@@ -259,7 +259,7 @@ export function FileTypeSummary({
       {typeCounts.map(([ext, count]) => (
         <span
           key={ext}
-          className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${getExtensionColor(ext)} bg-gray-800/50 border border-gray-700/30 transition-all duration-200 hover:bg-gray-700/50 hover:border-gray-600/40`}
+          className={`text-2xs px-1.5 py-0.5 rounded font-mono ${getExtensionColor(ext)} bg-gray-800/50 border border-gray-700/30 transition-all duration-200 hover:bg-gray-700/50 hover:border-gray-600/40`}
         >
           {count} .{ext}
         </span>

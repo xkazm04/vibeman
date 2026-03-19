@@ -25,7 +25,10 @@ export async function POST(request: NextRequest) {
     const { contextId, projectId } = body;
 
     if (!contextId || !projectId) {
-      return NextResponse.json({ success: true, matched: 0 });
+      return NextResponse.json(
+        { success: false, error: 'contextId and projectId are required', matched: 0 },
+        { status: 400 }
+      );
     }
 
     // Find active goals linked to this context
@@ -92,7 +95,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     logger.error('Error checking goal completion:', { error });
-    return NextResponse.json({ success: true, matched: 0 });
+    return NextResponse.json(
+      { success: false, error: 'Failed to check goal completion' },
+      { status: 500 }
+    );
   }
 }
 

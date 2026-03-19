@@ -115,7 +115,7 @@ export default function IntentRefinementModal({
             />
           ))}
         </div>
-        <span className="text-[11px] text-gray-500">
+        <span className="text-caption text-gray-500">
           {answeredCount}/{questions.length} answered
         </span>
       </div>
@@ -132,14 +132,14 @@ export default function IntentRefinementModal({
             {q.context && (
               <button
                 onClick={() => setExpandedContext(prev => ({ ...prev, [q.id]: !prev[q.id] }))}
-                className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-400 transition-colors mb-2 ml-5"
+                className="flex items-center gap-1 text-caption text-gray-500 hover:text-gray-400 transition-colors mb-2 ml-5"
               >
                 {expandedContext[q.id] ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                 Codebase context
               </button>
             )}
             {q.context && expandedContext[q.id] && (
-              <div className="ml-5 mb-2 px-3 py-2 bg-gray-900/60 border border-gray-700/30 rounded-lg text-[11px] text-gray-400 font-mono whitespace-pre-wrap">
+              <div className="ml-5 mb-2 px-3 py-2 bg-gray-900/60 border border-gray-700/30 rounded-lg text-caption text-gray-400 font-mono whitespace-pre-wrap">
                 {q.context}
               </div>
             )}

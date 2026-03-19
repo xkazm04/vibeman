@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { Check, X, Code, Loader2, ChevronLeft, ChevronRight, Sparkles, MapPin, Zap, ChevronDown, ChevronUp, MessageCircleQuestion } from 'lucide-react';
+import { useThemeStore } from '@/stores/themeStore';
+import { getFocusRingStyles } from '@/lib/ui/focusRing';
 import { DbDirection } from '@/app/db';
 import { DirectionProposal, toDirectionProposal } from '../types';
 import { explainDirection } from '@/app/features/Questions/lib/directionsApi';
@@ -32,6 +34,21 @@ export default function DirectionCarousel({
   const [expandedContent, setExpandedContent] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [isExplaining, setIsExplaining] = useState(false);
+  const [showKeyboardHint, setShowKeyboardHint] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { theme } = useThemeStore();
+  const focusRing = getFocusRingStyles(theme);
+
+  // Show keyboard hint overlay on first visit
+  useEffect(() => {
+    const key = 'vibeman:carousel-kb-hint-seen';
+    if (!localStorage.getItem(key)) {
+      setShowKeyboardHint(true);
+      localStorage.setItem(key, '1');
+      const timer = setTimeout(() => setShowKeyboardHint(false), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   // Only pending directions go into the carousel
   const proposals: DirectionProposal[] = useMemo(
@@ -117,11 +134,40 @@ export default function DirectionCarousel({
     }
   }, [currentIndex, total]);
 
+  // ─── Keyboard navigation ─────────────────────────────────────
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (isProcessing) return;
+    switch (e.key) {
+      case 'ArrowLeft':
+        e.preventDefault();
+        goToPrev();
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        goToNext();
+        break;
+      case 'Enter':
+        e.preventDefault();
+        handleAccept();
+        break;
+      case 'Backspace':
+      case 'Delete':
+        e.preventDefault();
+        handleReject();
+        break;
+    }
+  }, [isProcessing, goToPrev, goToNext, handleAccept, handleReject]);
+
+  // Auto-focus container for keyboard events
+  useEffect(() => {
+    containerRef.current?.focus();
+  }, []);
+
   // ─── Empty state ───────────────────────────────────────────────
   if (total === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-gray-800/40 border border-gray-700/30 flex items-center justify-center mb-4">
+        <div className="w-16 h-16 rounded-xl bg-gray-800/40 border border-gray-700/30 flex items-center justify-center mb-4">
           <Sparkles className="w-7 h-7 text-gray-600" />
         </div>
         <p className="text-gray-400 text-sm mb-1">No pending directions to review</p>
@@ -144,7 +190,43 @@ export default function DirectionCarousel({
     : null;
 
   return (
-    <div className="relative">
+    <div
+      ref={containerRef}
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      className="relative outline-none"
+      role="region"
+      aria-label="Direction carousel"
+      aria-roledescription="carousel"
+    >
+      {/* Keyboard hint overlay */}
+      <AnimatePresence>
+        {showKeyboardHint && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="absolute -top-10 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-800/90 border border-gray-600/40 backdrop-blur-sm shadow-lg"
+          >
+            <span className="flex items-center gap-1 text-xs text-gray-300">
+              <kbd className="px-1.5 py-0.5 rounded bg-gray-700 border border-gray-600 text-2xs font-mono">&larr;</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-gray-700 border border-gray-600 text-2xs font-mono">&rarr;</kbd>
+              <span className="ml-1">Navigate</span>
+            </span>
+            <span className="text-gray-600">|</span>
+            <span className="flex items-center gap-1 text-xs text-gray-300">
+              <kbd className="px-1.5 py-0.5 rounded bg-gray-700 border border-gray-600 text-2xs font-mono">Enter</kbd>
+              <span className="ml-1">Accept</span>
+            </span>
+            <span className="text-gray-600">|</span>
+            <span className="flex items-center gap-1 text-xs text-gray-300">
+              <kbd className="px-1.5 py-0.5 rounded bg-gray-700 border border-gray-600 text-2xs font-mono">Del</kbd>
+              <span className="ml-1">Decline</span>
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Progress bar */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
@@ -191,7 +273,7 @@ export default function DirectionCarousel({
           className="absolute inset-0 z-10 rounded-2xl border-2 border-green-500/50 bg-green-500/5 flex items-center justify-center pointer-events-none"
           style={{ opacity: acceptOpacity }}
         >
-          <div className="px-6 py-2 rounded-xl bg-green-500/20 border border-green-500/40">
+          <div className="px-6 py-2 rounded-lg bg-green-500/20 border border-green-500/40">
             <span className="text-green-400 font-bold text-lg">ACCEPT</span>
           </div>
         </motion.div>
@@ -199,7 +281,7 @@ export default function DirectionCarousel({
           className="absolute inset-0 z-10 rounded-2xl border-2 border-red-500/50 bg-red-500/5 flex items-center justify-center pointer-events-none"
           style={{ opacity: declineOpacity }}
         >
-          <div className="px-6 py-2 rounded-xl bg-red-500/20 border border-red-500/40">
+          <div className="px-6 py-2 rounded-lg bg-red-500/20 border border-red-500/40">
             <span className="text-red-400 font-bold text-lg">DECLINE</span>
           </div>
         </motion.div>
@@ -244,17 +326,17 @@ export default function DirectionCarousel({
                   <div className="flex items-center gap-2 mb-3">
                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20">
                       <MapPin className="w-3 h-3 text-cyan-400" />
-                      <span className="text-[11px] text-cyan-300 font-medium">{current.contextLabel}</span>
+                      <span className="text-caption text-cyan-300 font-medium">{current.contextLabel}</span>
                     </div>
                     {current.pairLabel && (
                       <div className="px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
-                        <span className="text-[11px] text-amber-300 font-medium">Variant {current.pairLabel}</span>
+                        <span className="text-caption text-amber-300 font-medium">Variant {current.pairLabel}</span>
                       </div>
                     )}
                     {current.effort !== null && current.impact !== null && (
                       <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-gray-800/50 border border-gray-700/30">
                         <Zap className="w-3 h-3 text-yellow-400" />
-                        <span className="text-[10px] text-gray-300">E:{current.effort} I:{current.impact}</span>
+                        <span className="text-2xs text-gray-300">E:{current.effort} I:{current.impact}</span>
                       </div>
                     )}
                   </div>
@@ -295,7 +377,7 @@ export default function DirectionCarousel({
                   {pairedSibling && (
                     <div className="mb-3 p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/15">
                       <div className="flex items-center gap-1.5 mb-2">
-                        <span className="text-[10px] uppercase tracking-wider text-indigo-400 font-semibold">
+                        <span className="text-2xs uppercase tracking-wider text-indigo-400 font-semibold">
                           Alternative (Variant {pairedSibling.pairLabel})
                         </span>
                       </div>
@@ -330,7 +412,8 @@ export default function DirectionCarousel({
                     <motion.button
                       onClick={handleReject}
                       disabled={isProcessing}
-                      className="relative group p-3.5 bg-gradient-to-r from-red-500/15 to-orange-500/15 hover:from-red-500/25 hover:to-orange-500/25 rounded-xl border border-red-500/25 transition-all disabled:opacity-50"
+                      aria-label="Decline direction"
+                      className={`relative group p-3.5 bg-gradient-to-r from-red-500/15 to-orange-500/15 hover:from-red-500/25 hover:to-orange-500/25 rounded-lg border border-red-500/25 transition-all disabled:opacity-50 ${focusRing}`}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
@@ -345,7 +428,8 @@ export default function DirectionCarousel({
                     <motion.button
                       onClick={handleExplainWhy}
                       disabled={isExplaining || !!explanation}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-800/50 border border-gray-700/30 text-gray-400 hover:text-purple-300 hover:border-purple-500/30 transition-all disabled:opacity-50"
+                      aria-label="Explain why this direction matters"
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-800/50 border border-gray-700/30 text-gray-400 hover:text-purple-300 hover:border-purple-500/30 transition-all disabled:opacity-50 ${focusRing}`}
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.97 }}
                     >
@@ -364,7 +448,7 @@ export default function DirectionCarousel({
                       <motion.button
                         onClick={handleAccept}
                         disabled={isProcessing}
-                        className="relative group p-3.5 bg-gradient-to-r from-purple-500/15 to-violet-500/15 hover:from-purple-500/25 hover:to-violet-500/25 rounded-xl border border-purple-500/25 transition-all disabled:opacity-50"
+                        className={`relative group p-3.5 bg-gradient-to-r from-purple-500/15 to-violet-500/15 hover:from-purple-500/25 hover:to-violet-500/25 rounded-lg border border-purple-500/25 transition-all disabled:opacity-50 ${focusRing}`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         title="Accept with Code"
@@ -374,7 +458,8 @@ export default function DirectionCarousel({
                       <motion.button
                         onClick={handleAccept}
                         disabled={isProcessing}
-                        className="relative group p-3.5 bg-gradient-to-r from-green-500/15 to-emerald-500/15 hover:from-green-500/25 hover:to-emerald-500/25 rounded-xl border border-green-500/25 transition-all disabled:opacity-50"
+                        aria-label="Accept direction"
+                        className={`relative group p-3.5 bg-gradient-to-r from-green-500/15 to-emerald-500/15 hover:from-green-500/25 hover:to-emerald-500/25 rounded-lg border border-green-500/25 transition-all disabled:opacity-50 ${focusRing}`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         title="Accept"
@@ -389,8 +474,8 @@ export default function DirectionCarousel({
                   </div>
 
                   {/* Swipe hint */}
-                  <p className="text-center text-[10px] text-gray-600 mt-3 select-none">
-                    Swipe right to accept, left to decline
+                  <p className="text-center text-2xs text-gray-600 mt-3 select-none">
+                    Swipe or use arrow keys to navigate &middot; Enter to accept &middot; Del to decline
                   </p>
                 </div>
               </div>

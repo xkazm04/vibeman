@@ -307,7 +307,7 @@ function MetricPill({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-white/5 rounded-lg px-3 py-2 text-center">
       <div className="text-sm font-bold text-white tabular-nums">{value}</div>
-      <div className="text-[10px] text-slate-500 uppercase tracking-wider">{label}</div>
+      <div className="text-2xs text-slate-500 uppercase tracking-wider">{label}</div>
     </div>
   );
 }
@@ -338,7 +338,7 @@ function CollapsibleSection({
         <div className="flex items-center gap-2">
           {icon}
           <h4 className="text-xs font-semibold text-white/80 uppercase tracking-wider">{title}</h4>
-          <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${badgeColor}`}>
+          <span className={`px-1.5 py-0.5 rounded text-2xs font-mono border ${badgeColor}`}>
             {badge}
           </span>
         </div>
@@ -384,9 +384,9 @@ function TaskCard({ task, index }: { task: TaskRecommendation; index: number }) 
         <div className="flex items-center gap-2 mt-1.5">
           <span className="flex items-center gap-1">
             {slotIcon(task.suggestedSlot)}
-            <span className="text-[10px] text-slate-500 capitalize">{task.suggestedSlot}</span>
+            <span className="text-2xs text-slate-500 capitalize">{task.suggestedSlot}</span>
           </span>
-          <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${complexityBadge(task.estimatedComplexity)}`}>
+          <span className={`px-1.5 py-0.5 rounded text-2xs font-mono border ${complexityBadge(task.estimatedComplexity)}`}>
             {task.estimatedComplexity}
           </span>
         </div>
@@ -411,7 +411,7 @@ function BlockerCard({ blocker, index }: { blocker: PredictedBlocker; index: num
           <p className="text-xs text-cyan-400/80 mt-1">
             Action: {blocker.preventiveAction}
           </p>
-          <span className="text-[10px] text-slate-500 tabular-nums mt-1 inline-block">
+          <span className="text-2xs text-slate-500 tabular-nums mt-1 inline-block">
             {blocker.confidence}% confidence
           </span>
         </div>
@@ -441,7 +441,7 @@ function GoalRiskCard({ goal, index }: { goal: GoalRiskAssessment; index: number
           <span className={`text-sm font-bold tabular-nums ${riskColor(goal.riskLevel)}`}>
             {goal.progress}%
           </span>
-          <span className="text-[10px] text-slate-500 tabular-nums">
+          <span className="text-2xs text-slate-500 tabular-nums">
             {goal.daysSinceActivity}d ago
           </span>
         </div>
@@ -549,7 +549,7 @@ function TransitionSuggestionCard({
             ))}
             <button
               onClick={onDismiss}
-              className="text-[10px] text-slate-500 hover:text-slate-300 transition-colors ml-auto"
+              className="text-2xs text-slate-500 hover:text-slate-300 transition-colors ml-auto"
             >
               Dismiss
             </button>
@@ -565,7 +565,16 @@ function TransitionSuggestionCard({
   );
 }
 
+const DECAY_STATUS_LABEL: Record<string, string> = {
+  stale: 'Stale',
+  decaying: 'Decaying',
+  growing: 'Growing',
+  healthy: 'Healthy',
+};
+
 function ContextAlertCard({ alert, index }: { alert: ContextDecayAlert; index: number }) {
+  const statusLabel = DECAY_STATUS_LABEL[alert.decayStatus] ?? 'Unknown';
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -10 }}
@@ -575,10 +584,19 @@ function ContextAlertCard({ alert, index }: { alert: ContextDecayAlert; index: n
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-white/90">{alert.contextName}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-white/90">{alert.contextName}</p>
+            <span className={`text-2xs px-1.5 py-0.5 rounded font-medium ${
+              alert.decayStatus === 'stale'
+                ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+            }`}>
+              {statusLabel}
+            </span>
+          </div>
           <p className="text-xs text-slate-400 mt-0.5">{alert.suggestion}</p>
           {alert.linkedToActiveGoals && (
-            <span className="text-[10px] text-amber-400 mt-1 inline-block">
+            <span className="text-2xs text-amber-400 mt-1 inline-block">
               Linked to active goals
             </span>
           )}
@@ -601,7 +619,7 @@ function ContextAlertCard({ alert, index }: { alert: ContextDecayAlert; index: n
                 strokeLinecap="round"
               />
             </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white tabular-nums">
+            <span className="absolute inset-0 flex items-center justify-center text-2xs font-bold text-white tabular-nums">
               {alert.decayPercent}%
             </span>
           </div>

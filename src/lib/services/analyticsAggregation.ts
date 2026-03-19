@@ -8,7 +8,7 @@
 
 import { ideaDb } from '@/app/db';
 import { DbIdea } from '@/app/db/models/types';
-import { SCAN_TYPES } from '@/app/features/Ideas/sub_IdeasSetup/lib/ScanTypeConfig';
+import { ALL_SCAN_TYPES } from '@/app/features/Ideas/lib/scanTypes';
 
 // Types for aggregated statistics
 export interface AggregatedIdeaStats {
@@ -207,7 +207,7 @@ class AnalyticsAggregationService {
    * Calculate stats for each scan type
    */
   private calculateScanTypeStats(ideas: DbIdea[]): AggregatedScanTypeStats[] {
-    const scanTypes = SCAN_TYPES.map(t => t.value);
+    const scanTypes = ALL_SCAN_TYPES;
 
     return scanTypes.map(scanType => {
       const scanIdeas = ideas.filter(idea => idea.scan_type === scanType);

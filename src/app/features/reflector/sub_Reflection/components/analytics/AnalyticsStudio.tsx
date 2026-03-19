@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
   Network, Calendar, Radar, Maximize2, Minimize2, Download,
   GripVertical, X, BarChart3, Eye, EyeOff, RotateCcw,
@@ -51,6 +52,7 @@ export default function AnalyticsStudio({ aiInsights, report, className = '' }: 
   const [draggedPanel, setDraggedPanel] = useState<PanelId | null>(null);
   const [dragOverPanel, setDragOverPanel] = useState<PanelId | null>(null);
   const studioRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = useReducedMotion();
 
   // Build daily counts from report data for the heatmap
   const dailyCounts = useMemo(() => {
@@ -174,7 +176,7 @@ export default function AnalyticsStudio({ aiInsights, report, className = '' }: 
           <div className="absolute inset-0 w-16 h-16 mx-auto bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full blur-xl" />
         </div>
         <p className="text-sm text-gray-400 mb-2">Analytics Studio</p>
-        <p className="text-xs text-gray-600 max-w-sm mx-auto">
+        <p className="text-xs text-gray-400 max-w-sm mx-auto">
           Run an AI analysis and generate ideas to populate the interactive visual analytics studio
           with insight networks, temporal heatmaps, and specialist performance charts.
         </p>
@@ -205,10 +207,10 @@ export default function AnalyticsStudio({ aiInsights, report, className = '' }: 
         onDragStart={() => handleDragStart(panelId)}
         onDragOver={(e) => { e.preventDefault(); handleDragOver(panelId); }}
         onDragEnd={handleDragEnd}
-        initial={{ opacity: 0, y: 20 }}
+        initial={reducedMotion ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-        transition={{ duration: 0.2 }}
+        exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -20 }}
+        transition={reducedMotion ? { duration: 0 } : { duration: 0.2 }}
         className={`bg-gray-900/50 border rounded-xl overflow-hidden backdrop-blur-sm transition-all ${
           isExpanded ? 'col-span-full' : ''
         } ${isDragging ? 'opacity-50 scale-95' : ''} ${
@@ -225,21 +227,22 @@ export default function AnalyticsStudio({ aiInsights, report, className = '' }: 
             <div>
               <span className={`text-xs font-medium ${config.color}`}>{config.label}</span>
               {isExpanded && (
-                <span className="text-[9px] text-gray-600 ml-2">{config.description}</span>
+                <span className="text-micro text-gray-400 ml-2">{config.description}</span>
               )}
             </div>
           </div>
           <div className="flex items-center gap-1">
             <button
               onClick={() => togglePanelVisibility(panelId)}
-              className="p-1 hover:bg-gray-700/50 rounded transition-colors"
+              className="p-1 hover:bg-gray-700/50 rounded transition-colors focus-visible:ring-2 focus-visible:ring-yellow-500/50 outline-none"
+              aria-label={`Hide ${config.label} panel`}
               title="Hide panel"
             >
               <EyeOff className="w-3 h-3 text-gray-600 hover:text-gray-400" />
             </button>
             <button
               onClick={() => toggleExpand(config.id)}
-              className="p-1 hover:bg-gray-700/50 rounded transition-colors"
+              className="p-1 hover:bg-gray-700/50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50"
               aria-label={isExpanded ? 'Minimize panel' : 'Expand panel'}
             >
               {isExpanded ? (
@@ -294,11 +297,12 @@ export default function AnalyticsStudio({ aiInsights, report, className = '' }: 
               <button
                 key={p.id}
                 onClick={() => isHidden ? togglePanelVisibility(p.id) : toggleExpand(p.id)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all border ${
+                aria-label={isHidden ? `Show ${p.label} panel` : isExpanded ? `Collapse ${p.label} panel` : `Expand ${p.label} panel`}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-2xs font-medium transition-all border outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
                   isExpanded
                     ? `${p.color} bg-gray-800/60 border-gray-600/50`
                     : isHidden
-                    ? 'text-gray-600 bg-gray-900/30 border-gray-800/30 line-through'
+                    ? 'text-gray-500 bg-gray-900/30 border-gray-800/30 line-through'
                     : 'text-gray-400 hover:text-gray-300 bg-gray-800/30 border-gray-700/30 hover:border-gray-600/40'
                 }`}
               >
@@ -313,7 +317,8 @@ export default function AnalyticsStudio({ aiInsights, report, className = '' }: 
         <div className="flex items-center gap-1.5">
           <button
             onClick={resetLayout}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] text-gray-500 hover:text-gray-300 bg-gray-800/30 border border-gray-700/30 hover:border-gray-600/40 transition-all"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-2xs text-gray-500 hover:text-gray-300 bg-gray-800/30 border border-gray-700/30 hover:border-gray-600/40 transition-all focus-visible:ring-2 focus-visible:ring-yellow-500/50 outline-none"
+            aria-label="Reset layout"
             title="Reset layout"
           >
             <RotateCcw className="w-3 h-3" />
@@ -321,7 +326,8 @@ export default function AnalyticsStudio({ aiInsights, report, className = '' }: 
           </button>
           <button
             onClick={handleExport}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] text-cyan-400 hover:text-cyan-300 bg-cyan-500/5 border border-cyan-500/20 hover:border-cyan-500/40 transition-all"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-2xs text-cyan-400 hover:text-cyan-300 bg-cyan-500/5 border border-cyan-500/20 hover:border-cyan-500/40 transition-all focus-visible:ring-2 focus-visible:ring-yellow-500/50 outline-none"
+            aria-label="Export report as JSON"
             title="Export report as JSON"
           >
             <Download className="w-3 h-3" />
@@ -334,9 +340,9 @@ export default function AnalyticsStudio({ aiInsights, report, className = '' }: 
       <div className="flex items-center gap-4 px-3 py-2 bg-gradient-to-r from-gray-800/40 via-gray-800/20 to-gray-800/40 border border-gray-700/20 rounded-lg">
         <div className="flex items-center gap-1.5">
           <BarChart3 className="w-3 h-3 text-cyan-500" />
-          <span className="text-[10px] text-gray-500">KPIs</span>
+          <span className="text-2xs text-gray-400">KPIs</span>
         </div>
-        <div className="flex items-center gap-4 text-[10px]">
+        <div className="flex items-center gap-4 text-2xs">
           <span className="text-gray-400">
             Ideas: <span className="text-white font-mono font-semibold">{report.kpiHighlights.totalIdeas}</span>
           </span>
@@ -379,16 +385,17 @@ export default function AnalyticsStudio({ aiInsights, report, className = '' }: 
               <div className="flex items-center gap-2">
                 <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
                 <p className="text-sm font-medium text-blue-300">{selectedInsight.title}</p>
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400">
+                <span className="text-micro px-1.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400">
                   {selectedInsight.type}
                 </span>
-                <span className="text-[10px] text-gray-500">
+                <span className="text-2xs text-gray-500">
                   {selectedInsight.confidence}% confidence
                 </span>
               </div>
               <button
                 onClick={() => setSelectedInsight(null)}
-                className="p-1 hover:bg-gray-700/50 rounded transition-colors"
+                aria-label="Close insight detail"
+                className="p-1 hover:bg-gray-700/50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50"
               >
                 <X className="w-3 h-3 text-gray-500" />
               </button>
@@ -397,10 +404,10 @@ export default function AnalyticsStudio({ aiInsights, report, className = '' }: 
 
             {selectedInsight.evidence.length > 0 && (
               <div className="mb-3">
-                <p className="text-[10px] text-gray-500 mb-1.5">Evidence ({selectedInsight.evidence.length} points)</p>
+                <p className="text-2xs text-gray-500 mb-1.5">Evidence ({selectedInsight.evidence.length} points)</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
                   {selectedInsight.evidence.map((ev, i) => (
-                    <div key={i} className="flex items-start gap-1.5 text-[10px] text-gray-500 bg-gray-800/30 rounded px-2 py-1">
+                    <div key={i} className="flex items-start gap-1.5 text-2xs text-gray-500 bg-gray-800/30 rounded px-2 py-1">
                       <span className="text-blue-400 mt-0.5">•</span>
                       <span>{ev}</span>
                     </div>
@@ -411,7 +418,7 @@ export default function AnalyticsStudio({ aiInsights, report, className = '' }: 
 
             {selectedInsight.suggestedAction && (
               <div className="pt-2 border-t border-gray-700/30">
-                <p className="text-[10px] text-emerald-400">
+                <p className="text-2xs text-emerald-400">
                   Suggested Action: <span className="text-gray-300">{selectedInsight.suggestedAction}</span>
                 </p>
               </div>
@@ -431,7 +438,7 @@ export default function AnalyticsStudio({ aiInsights, report, className = '' }: 
                 <p className="text-sm font-medium text-purple-300">
                   #{selectedSpecialist.rank} {selectedSpecialist.scanType.replace(/_/g, ' ')}
                 </p>
-                <span className={`text-[10px] ${
+                <span className={`text-2xs ${
                   selectedSpecialist.trend === 'improving' ? 'text-emerald-400' :
                   selectedSpecialist.trend === 'declining' ? 'text-red-400' : 'text-gray-400'
                 }`}>
@@ -441,7 +448,8 @@ export default function AnalyticsStudio({ aiInsights, report, className = '' }: 
               </div>
               <button
                 onClick={() => setSelectedSpecialist(null)}
-                className="p-1 hover:bg-gray-700/50 rounded transition-colors"
+                aria-label="Close specialist detail"
+                className="p-1 hover:bg-gray-700/50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50"
               >
                 <X className="w-3 h-3 text-gray-500" />
               </button>
@@ -450,15 +458,15 @@ export default function AnalyticsStudio({ aiInsights, report, className = '' }: 
             <div className="grid grid-cols-3 gap-4 mb-3">
               <div className="text-center bg-gray-800/30 rounded-lg py-2">
                 <p className="text-lg font-bold text-cyan-400 font-mono">{Math.round(selectedSpecialist.acceptanceRatio * 100)}%</p>
-                <p className="text-[9px] text-gray-500">Accept Rate</p>
+                <p className="text-micro text-gray-400">Accept Rate</p>
               </div>
               <div className="text-center bg-gray-800/30 rounded-lg py-2">
                 <p className="text-lg font-bold text-purple-400 font-mono">{selectedSpecialist.totalIdeas}</p>
-                <p className="text-[9px] text-gray-500">Total Ideas</p>
+                <p className="text-micro text-gray-400">Total Ideas</p>
               </div>
               <div className="text-center bg-gray-800/30 rounded-lg py-2">
                 <p className="text-lg font-bold text-emerald-400 font-mono">{Math.round(selectedSpecialist.score * 100)}</p>
-                <p className="text-[9px] text-gray-500">Score</p>
+                <p className="text-micro text-gray-400">Score</p>
               </div>
             </div>
 
@@ -475,7 +483,7 @@ export default function AnalyticsStudio({ aiInsights, report, className = '' }: 
                 />
                 <div className="h-full bg-gray-600/30 flex-1 rounded-r-full" />
               </div>
-              <div className="flex justify-between text-[9px] text-gray-600 mt-0.5">
+              <div className="flex justify-between text-micro text-gray-400 mt-0.5">
                 <span>Accepted</span>
                 <span>Rejected</span>
                 <span>Pending</span>

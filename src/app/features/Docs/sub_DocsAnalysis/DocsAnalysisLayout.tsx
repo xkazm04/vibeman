@@ -209,7 +209,7 @@ export default function DocsAnalysisLayout() {
           </div>
           <div>
             <h2 className="text-sm font-semibold text-white">Architecture Explorer</h2>
-            <p className="text-[10px] text-gray-500">{currentLevelLabel}</p>
+            <p className="text-2xs text-gray-500">{currentLevelLabel}</p>
           </div>
         </div>
 

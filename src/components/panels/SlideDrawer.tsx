@@ -3,6 +3,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
+import { transition, fadeOnly } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Caveat } from 'next/font/google';
 
 const caveat = Caveat({
@@ -47,6 +49,7 @@ export default function SlideDrawer({
   slideFrom = 'top',
   openOffset = 80,
 }: SlideDrawerProps) {
+  const prefersReduced = useReducedMotion();
   const getInitialPosition = () => {
     switch (slideFrom) {
       case 'top': return { y: '-100%', x: '-50%', opacity: 0 };
@@ -80,25 +83,20 @@ export default function SlideDrawer({
         <>
           {/* Backdrop */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            variants={fadeOnly}
+            initial={prefersReduced ? false : "hidden"}
+            animate="visible"
+            exit="exit"
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
             onClick={onClose}
           />
 
           {/* Drawer Panel */}
           <motion.div
-            initial={getInitialPosition()}
+            initial={prefersReduced ? false : getInitialPosition()}
             animate={getAnimatePosition()}
             exit={getInitialPosition()}
-            transition={{
-              type: 'spring',
-              damping: 25,
-              stiffness: 200,
-              mass: 0.8,
-            }}
+            transition={transition.spring}
             className={`fixed ${getPositionClasses()} z-50 w-full ${maxWidth}`}
           >
             {/* Paper-like card */}
@@ -116,9 +114,9 @@ export default function SlideDrawer({
 
               {/* Title */}
               <motion.h2
-                initial={{ opacity: 0, y: -10 }}
+                initial={prefersReduced ? false : { opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
+                transition={{ ...transition.normal, delay: prefersReduced ? 0 : 0.2 }}
                 className={`${caveat.className} text-4xl text-amber-200/90 mb-6 font-semibold`}
                 style={{ textShadow: '0 2px 10px rgba(251, 191, 36, 0.3)' }}
               >

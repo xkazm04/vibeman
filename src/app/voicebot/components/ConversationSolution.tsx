@@ -26,6 +26,7 @@ import {
   generateEvaluationPrompt
 } from '../lib';
 import { generateCallId, generateMessageId, isMonitoringEnabled } from '@/app/monitor/lib';
+import { SimpleSpinner } from '@/components/ui/Spinner';
 
 
 
@@ -628,7 +629,7 @@ export default function ConversationSolution() {
 
             {isEvaluating ? (
               <div className="flex items-center justify-center p-8">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+                <SimpleSpinner size="xl" color="cyan" />
               </div>
             ) : (
               <div className="prose prose-invert max-w-none">

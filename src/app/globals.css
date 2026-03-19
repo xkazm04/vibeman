@@ -16,8 +16,12 @@
   --color-border: #334155;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-size-caption: 0.6875rem;
+  --font-size-caption--line-height: 1rem;
   --font-size-2xs: 0.625rem;
   --font-size-2xs--line-height: 0.875rem;
+  --font-size-micro: 0.5625rem;
+  --font-size-micro--line-height: 0.75rem;
   --gradient-primary: linear-gradient(135deg, #0f0f23 0%, #1e2a4a 50%, #1e3a5f 100%);
   --gradient-secondary: linear-gradient(245deg, #0f172a 0%, #1e293b 100%);
 }
@@ -32,6 +36,20 @@ body {
 /* ===== GLOBAL SCROLLBAR STYLES ===== */
 /* Apply consistent scrollbar styling to ALL elements by default */
 @layer base {
+  /* Unified focus-visible ring for all interactive elements (WCAG 2.1 AA) */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  [role="button"]:focus-visible,
+  [tabindex]:not([tabindex="-1"]):focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px #0f0f23,
+      0 0 0 4px rgb(6 182 212 / 0.6);
+  }
+
   * {
     scrollbar-width: thin;
     scrollbar-color: #d0e41d #00102a;
@@ -168,6 +186,23 @@ body {
     transform: scale(0) translateY(10px);
   }
   to {
+    opacity: 0.6;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-\[neuralParticle_1\.5s_ease-out_forwards\] {
+    animation: none !important;
     opacity: 0.6;
     transform: scale(1) translateY(0);
   }
@@ -351,4 +386,17 @@ body {
 .animate-gradient-sweep-fast {
   animation: gradient-sweep 1.5s linear infinite;
   will-change: transform;
+}
+
+/* Touch device overrides - force visibility of hover-gated interactive elements */
+@media (hover: none) {
+  .group:hover .group-hover\:opacity-100,
+  .group .group-hover\:opacity-100 {
+    opacity: 1 !important;
+  }
+
+  .group:hover .group-hover\:opacity-50,
+  .group .group-hover\:opacity-50 {
+    opacity: 0.5 !important;
+  }
 }

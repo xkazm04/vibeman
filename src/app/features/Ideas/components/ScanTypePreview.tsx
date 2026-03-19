@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Lightbulb, ArrowRight } from 'lucide-react';
-import { ScanType, ScanTypeConfig, SCAN_TYPE_CONFIGS, getAgentExamples } from '../lib/scanTypes';
+import { ScanType, AgentDefinition, getAgent, getAgentExamples, getAgentsByCategory } from '../lib/scanTypes';
 
 interface ScanTypePreviewProps {
   scanType: ScanType;
@@ -26,7 +26,7 @@ export function ScanTypePreview({
   onToggle,
   className = '',
 }: ScanTypePreviewProps) {
-  const config = SCAN_TYPE_CONFIGS.find(c => c.value === scanType);
+  const config = getAgent(scanType);
   const examples = getExamples(scanType);
 
   if (!config) return null;
@@ -94,13 +94,13 @@ export function ScanTypeCard({
   onSelect,
   showExamples = false,
 }: {
-  config: ScanTypeConfig;
+  config: AgentDefinition;
   selected: boolean;
   onSelect: () => void;
   showExamples?: boolean;
 }) {
   const [hovering, setHovering] = useState(false);
-  const examples = getExamples(config.value);
+  const examples = getExamples(config.id);
 
   return (
     <motion.button
@@ -137,11 +137,11 @@ export function ScanTypeCard({
             exit={{ opacity: 0, y: 5 }}
             className="pt-2 border-t border-gray-700/50"
           >
-            <div className="flex items-center gap-1 text-[10px] text-gray-500 mb-1">
+            <div className="flex items-center gap-1 text-2xs text-gray-500 mb-1">
               <ArrowRight className="w-2.5 h-2.5" />
               <span>Finds:</span>
             </div>
-            <p className="text-[10px] text-gray-400 truncate">
+            <p className="text-2xs text-gray-400 truncate">
               {examples[0]}
             </p>
           </motion.div>
@@ -173,7 +173,7 @@ export function ScanTypeCategorySelector({
   return (
     <div className="space-y-4">
       {categories.map(category => {
-        const configs = SCAN_TYPE_CONFIGS.filter(c => c.category === category.key);
+        const configs = getAgentsByCategory(category.key);
 
         return (
           <div key={category.key}>
@@ -181,16 +181,16 @@ export function ScanTypeCategorySelector({
               <span>{category.icon}</span>
               <span className="text-sm font-medium text-gray-400">{category.label}</span>
               <span className="text-xs text-gray-600">
-                ({configs.filter(c => selectedTypes.includes(c.value)).length}/{configs.length})
+                ({configs.filter(c => selectedTypes.includes(c.id)).length}/{configs.length})
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {configs.map(config => (
                 <ScanTypeCard
-                  key={config.value}
+                  key={config.id}
                   config={config}
-                  selected={selectedTypes.includes(config.value)}
-                  onSelect={() => onToggle(config.value)}
+                  selected={selectedTypes.includes(config.id)}
+                  onSelect={() => onToggle(config.id)}
                   showExamples={showExamples}
                 />
               ))}

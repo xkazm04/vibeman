@@ -24,6 +24,7 @@ import type { UseTinderItemsResult } from './tinderTypes';
 import type { UseTinderItemsCoreResult } from './useTinderItemsCore';
 import { useLocalMode } from './useLocalTinderItems';
 import { useRemoteMode } from './useRemoteTinderItems';
+import { TINDER_FILTER_SPEC, applyDimensionSwitch } from './filterAlgebra';
 
 interface UseTinderItemsOptions {
   selectedProjectId: string;
@@ -129,9 +130,15 @@ export function useTinderItems(
 
   const handleSetFilterDimension = useCallback((dimension: FilterDimension) => {
     setFilterDimension(dimension);
-    setSelectedCategory(null);
-    setSelectedScanType(null);
-  }, []);
+    // Use declarative filter algebra to determine which dimensions to clear
+    const cleared = applyDimensionSwitch(
+      TINDER_FILTER_SPEC,
+      { category: selectedCategory, scanType: selectedScanType, context: selectedContextId },
+      dimension === 'category' ? 'category' : 'scanType',
+    );
+    setSelectedCategory(cleared.category ?? null);
+    setSelectedScanType(cleared.scanType ?? null);
+  }, [selectedCategory, selectedScanType, selectedContextId]);
 
   const handleSetScanType = useCallback((scanType: string | null) => setSelectedScanType(scanType), []);
   const handleSetContextId = useCallback((contextId: string | null) => setSelectedContextId(contextId), []);

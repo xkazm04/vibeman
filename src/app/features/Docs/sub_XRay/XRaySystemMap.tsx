@@ -403,7 +403,7 @@ function XRayModuleNode({
           style={{ color: hasTraffic ? xrayColor : `${module.color}cc` }}
         />
         <span
-          className="text-[10px] font-medium text-center leading-tight px-2"
+          className="text-2xs font-medium text-center leading-tight px-2"
           style={{ color: hasTraffic ? xrayColor : `${module.color}cc` }}
         >
           {module.name}
@@ -413,7 +413,7 @@ function XRayModuleNode({
         {hasTraffic && (
           <motion.div
             className="absolute -top-2 -right-2 min-w-[24px] h-[24px]
-              rounded-full text-white text-[9px] font-bold
+              rounded-full text-white text-micro font-bold
               flex items-center justify-center px-1
               border-2 border-gray-900 shadow-lg"
             style={{
@@ -438,7 +438,7 @@ function XRayModuleNode({
           <motion.div
             className="absolute -bottom-12 left-1/2 -translate-x-1/2
               bg-gray-900/95 border border-gray-700 rounded-lg px-2 py-1
-              text-[9px] font-mono text-gray-300 whitespace-nowrap z-10"
+              text-micro font-mono text-gray-300 whitespace-nowrap z-10"
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
           >
@@ -498,7 +498,7 @@ function XRayLayerLabel({
         {config.label}
       </span>
       {stats && stats.totalRequests > 0 && (
-        <span className="text-[10px] font-mono text-gray-500">
+        <span className="text-2xs font-mono text-gray-500">
           ({stats.totalRequests})
         </span>
       )}
@@ -780,7 +780,7 @@ export default function XRaySystemMap({
       </div>
 
       {/* X-Ray legend */}
-      <div className="absolute bottom-4 right-4 bg-gray-900/90 border border-gray-700/50 rounded-lg px-3 py-2 text-[10px] font-mono">
+      <div className="absolute bottom-4 right-4 bg-gray-900/90 border border-gray-700/50 rounded-lg px-3 py-2 text-2xs font-mono">
         <div className="text-gray-400 mb-1">X-Ray Legend</div>
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">

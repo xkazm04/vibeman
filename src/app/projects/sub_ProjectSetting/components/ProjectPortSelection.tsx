@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ProjectType } from '@/types';
+import { SimpleSpinner } from '@/components/ui/Spinner';
 
 interface ProjectPortSelectionProps {
   projectType: ProjectType;
@@ -74,7 +75,7 @@ export default function ProjectPortSelection({
 
       {loading ? (
         <div className="flex items-center gap-2 py-3 text-gray-500">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-400"></div>
+          <SimpleSpinner size="sm" color="cyan" />
           <span className="text-xs">Checking ports...</span>
         </div>
       ) : (
@@ -108,7 +109,7 @@ export default function ProjectPortSelection({
         </div>
       )}
 
-      <div className="flex items-center gap-4 text-[10px] text-gray-500 pt-1">
+      <div className="flex items-center gap-4 text-2xs text-gray-500 pt-1">
         <div className="flex items-center gap-1">
           <div className="w-2 h-2 bg-gray-800/40 rounded"></div>
           <span>Available</span>

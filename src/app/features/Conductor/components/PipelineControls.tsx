@@ -111,7 +111,7 @@ function TriageModal({ triageData, runId, onClose }: TriageModalProps) {
             </div>
             <div>
               <h3 className="text-sm font-semibold text-gray-200">Triage Review</h3>
-              <p className="text-[11px] text-gray-500">{triageData.items.length} items awaiting your decision</p>
+              <p className="text-caption text-gray-500">{triageData.items.length} items awaiting your decision</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-800 text-gray-500 hover:text-gray-300 transition-colors">
@@ -121,13 +121,13 @@ function TriageModal({ triageData, runId, onClose }: TriageModalProps) {
 
         {/* Bulk actions */}
         <div className="flex items-center gap-2 px-5 py-2.5 border-b border-gray-800/50 bg-gray-900/50">
-          <button onClick={approveAll} className="text-[11px] px-2.5 py-1 rounded-md bg-emerald-600/10 text-emerald-400 hover:bg-emerald-600/20 border border-emerald-600/30 transition-colors">
+          <button onClick={approveAll} className="text-caption px-2.5 py-1 rounded-md bg-emerald-600/10 text-emerald-400 hover:bg-emerald-600/20 border border-emerald-600/30 transition-colors">
             Approve All
           </button>
-          <button onClick={rejectAll} className="text-[11px] px-2.5 py-1 rounded-md bg-red-600/10 text-red-400 hover:bg-red-600/20 border border-red-600/30 transition-colors">
+          <button onClick={rejectAll} className="text-caption px-2.5 py-1 rounded-md bg-red-600/10 text-red-400 hover:bg-red-600/20 border border-red-600/30 transition-colors">
             Reject All
           </button>
-          <span className="ml-auto text-[11px] text-gray-500 font-mono">
+          <span className="ml-auto text-caption text-gray-500 font-mono">
             {approvedCount}/{triageData.items.length} approved
           </span>
         </div>
@@ -156,25 +156,25 @@ function TriageModal({ triageData, runId, onClose }: TriageModalProps) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-gray-200 truncate">{item.title}</span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-500 uppercase shrink-0">
+                      <span className="text-micro px-1.5 py-0.5 rounded bg-gray-800 text-gray-500 uppercase shrink-0">
                         {item.category}
                       </span>
                     </div>
                     {item.description && (
-                      <p className="text-[11px] text-gray-500 mt-1 line-clamp-2">{item.description}</p>
+                      <p className="text-caption text-gray-500 mt-1 line-clamp-2">{item.description}</p>
                     )}
                     <div className="flex items-center gap-3 mt-1.5">
                       {item.effort != null && (
-                        <span className="text-[10px] text-gray-600">Effort: <span className="text-gray-400">{item.effort}</span></span>
+                        <span className="text-2xs text-gray-600">Effort: <span className="text-gray-400">{item.effort}</span></span>
                       )}
                       {item.impact != null && (
-                        <span className="text-[10px] text-gray-600">Impact: <span className="text-gray-400">{item.impact}</span></span>
+                        <span className="text-2xs text-gray-600">Impact: <span className="text-gray-400">{item.impact}</span></span>
                       )}
                       {item.risk != null && (
-                        <span className="text-[10px] text-gray-600">Risk: <span className="text-gray-400">{item.risk}</span></span>
+                        <span className="text-2xs text-gray-600">Risk: <span className="text-gray-400">{item.risk}</span></span>
                       )}
                       {item.brainConflict?.hasConflict && (
-                        <span className="text-[10px] text-amber-400 flex items-center gap-1">
+                        <span className="text-2xs text-amber-400 flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3" />
                           {item.brainConflict.patternTitle || 'Conflict'}
                         </span>
@@ -326,7 +326,7 @@ export default function PipelineControls({ projectId, onStart, onOpenSettings, o
         {/* ---- LEFT: Action buttons ---- */}
         <div className="flex items-center gap-1.5">
           {/* Status Badge */}
-          <div className={`px-2.5 py-1 rounded-full text-[11px] font-medium mr-1 ${badge.className}`}>
+          <div className={`px-2.5 py-1 rounded-full text-caption font-medium mr-1 ${badge.className}`}>
             {isRunning && (
               <motion.span
                 className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5"

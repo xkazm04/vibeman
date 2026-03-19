@@ -143,7 +143,7 @@ export default function ContextRowSelection({
             )}
           </AnimatePresence>
           <span>{group.name}</span>
-          <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+          <span className={`px-1.5 py-0.5 rounded text-2xs font-semibold ${
             isSelected || allChildrenSelected ? 'bg-white/20 text-white' : 'bg-gray-700/60 text-gray-500'
           }`}>
             {count}
@@ -256,7 +256,7 @@ export default function ContextRowSelection({
         <AnimatePresence>
           {contextCount > 0 && (
             <motion.span
-              className="shrink-0 px-2 py-1 rounded-full text-[10px] font-semibold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+              className="shrink-0 px-2 py-1 rounded-full text-2xs font-semibold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}

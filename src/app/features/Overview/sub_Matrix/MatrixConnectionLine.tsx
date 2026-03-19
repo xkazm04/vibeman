@@ -2,6 +2,8 @@
 
 import React, { useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { fadeOnly, cssTransitionSafe } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import type { GraphEdge } from '../sub_WorkspaceArchitecture/lib/Graph';
 import { INTEGRATION_COLORS, INTEGRATION_STYLES } from './constants';
 import { archTheme } from './lib/archTheme';
@@ -21,6 +23,7 @@ export default function MatrixConnectionLine({
   isHighlighted,
   isDimmed,
 }: MatrixConnectionLineProps) {
+  const prefersReduced = useReducedMotion();
   const [isHovered, setIsHovered] = useState(false);
 
   const handleMouseEnter = useCallback(() => setIsHovered(true), []);
@@ -49,8 +52,10 @@ export default function MatrixConnectionLine({
   const cardW = 200;
   const cardH = 96;
 
+  const connectionLabel = `${style.label} connection from ${source.name} to ${target.name}${edge.dataFlow ? `: ${edge.dataFlow}` : ''}`;
+
   return (
-    <g>
+    <g role="img" aria-label={connectionLabel}>
       {/* Invisible wide hit area for easier hover targeting */}
       <path
         d={pathD}
@@ -70,7 +75,7 @@ export default function MatrixConnectionLine({
         strokeWidth={active ? 2 : 1.5}
         strokeDasharray={style.dashed ? '6 4' : undefined}
         opacity={opacity}
-        style={{ pointerEvents: 'none', transition: 'stroke-width 0.1s, opacity 0.1s' }}
+        style={{ pointerEvents: 'none', transition: cssTransitionSafe(prefersReduced, ['stroke-width', 'opacity'], 'snappy') }}
       />
 
       {/* Arrowhead */}
@@ -92,10 +97,10 @@ export default function MatrixConnectionLine({
             style={{ overflow: 'visible', pointerEvents: 'none' }}
           >
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.1 }}
+              variants={fadeOnly}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
               style={{
                 background: 'rgba(15, 15, 20, 0.95)',
                 border: `1px solid ${color}40`,

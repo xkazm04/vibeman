@@ -7,6 +7,7 @@
 
 import { NextResponse } from 'next/server';
 import { crossTaskPlanDb } from '@/app/db';
+import { safeParseJson } from '@/lib/cross-task/safeParseJson';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -25,9 +26,14 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     // Parse project_ids JSON
+    const { value: projectIds, warning: projectIdsWarning } = safeParseJson<string[]>(plan.project_ids, [], {
+      field: 'project_ids',
+      recordId: id,
+    });
     const parsedPlan = {
       ...plan,
-      project_ids: JSON.parse(plan.project_ids),
+      project_ids: projectIds,
+      ...(projectIdsWarning && { dataWarning: projectIdsWarning }),
     };
 
     return NextResponse.json({
@@ -105,7 +111,13 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
       return NextResponse.json({
         success: true,
-        plan: updated ? { ...updated, project_ids: JSON.parse(updated.project_ids) } : null,
+        plan: updated ? {
+          ...updated,
+          project_ids: safeParseJson<string[]>(updated.project_ids, [], {
+            field: 'project_ids',
+            recordId: id,
+          }).value,
+        } : null,
       });
     }
 

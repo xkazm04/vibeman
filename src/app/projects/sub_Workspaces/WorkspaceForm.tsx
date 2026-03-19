@@ -49,42 +49,53 @@ export default function WorkspaceForm({ workspace, onSubmit, onCancel }: Workspa
         <span className="text-sm font-medium text-gray-300">
           {workspace ? 'Edit Workspace' : 'New Workspace'}
         </span>
-        <button type="button" onClick={onCancel} className="text-gray-500 hover:text-gray-300">
+        <button type="button" onClick={onCancel} aria-label="Cancel" className="text-gray-500 hover:text-gray-300">
           <X className="w-4 h-4" />
         </button>
       </div>
 
-      <input
-        type="text"
-        value={name}
-        onChange={e => setName(e.target.value)}
-        placeholder="Workspace name"
-        className="w-full px-3 py-2 bg-gray-900/60 border border-gray-700/40 rounded-md text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500/50"
-        autoFocus
-      />
+      <div>
+        <label htmlFor="workspace-name" className="sr-only">Workspace name</label>
+        <input
+          id="workspace-name"
+          type="text"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder="Workspace name"
+          className="w-full px-3 py-2 bg-gray-900/60 border border-gray-700/40 rounded-md text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500/50"
+          autoFocus
+        />
+      </div>
 
-      <input
-        type="text"
-        value={description}
-        onChange={e => setDescription(e.target.value)}
-        placeholder="Description (optional)"
-        className="w-full px-3 py-2 bg-gray-900/60 border border-gray-700/40 rounded-md text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500/50"
-      />
+      <div>
+        <label htmlFor="workspace-description" className="sr-only">Description (optional)</label>
+        <input
+          id="workspace-description"
+          type="text"
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          placeholder="Description (optional)"
+          className="w-full px-3 py-2 bg-gray-900/60 border border-gray-700/40 rounded-md text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500/50"
+        />
+      </div>
 
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-500">Color:</span>
+      <fieldset className="flex items-center gap-2">
+        <legend className="sr-only">Workspace color</legend>
+        <span className="text-xs text-gray-500" aria-hidden="true">Color:</span>
         {COLORS.map(c => (
           <button
             key={c}
             type="button"
             onClick={() => setColor(c)}
+            aria-label={`Select color ${c}`}
+            aria-pressed={color === c}
             className={`w-5 h-5 rounded-full border-2 transition-all ${
               color === c ? 'border-white scale-110' : 'border-transparent opacity-60 hover:opacity-100'
             }`}
             style={{ backgroundColor: c }}
           />
         ))}
-      </div>
+      </fieldset>
 
       {/* Advanced Settings Toggle */}
       <button
@@ -109,7 +120,7 @@ export default function WorkspaceForm({ workspace, onSubmit, onCancel }: Workspa
             placeholder={defaultBasePath || 'e.g., C:\\Projects\\ClientA'}
             defaultPaths={defaultBasePath ? [defaultBasePath] : []}
           />
-          <p className="text-[10px] text-gray-600">
+          <p className="text-2xs text-gray-600">
             Optional. Set a root directory for projects in this workspace.
             {defaultBasePath && (
               <button

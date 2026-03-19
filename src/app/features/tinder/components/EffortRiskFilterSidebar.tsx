@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { Gauge, AlertTriangle, ArrowUpDown } from 'lucide-react';
 
 interface EffortRiskFilters {
@@ -81,7 +82,7 @@ export default function EffortRiskFilterSidebar({
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
-      transition={{ duration: 0.2 }}
+      transition={transition.normal}
       className="w-56 bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 space-y-4 mt-3"
     >
       {/* Sort Order Toggle */}
@@ -107,7 +108,7 @@ export default function EffortRiskFilterSidebar({
           whileTap={disabled ? {} : { scale: 0.98 }}
         >
           <span>{isReversed ? 'Hardest First' : 'Easiest First'}</span>
-          <span className="text-[10px] text-gray-500">{isReversed ? '10→1' : '1→10'}</span>
+          <span className="text-2xs text-gray-500">{isReversed ? '10→1' : '1→10'}</span>
         </motion.button>
       </div>
 
@@ -141,7 +142,7 @@ export default function EffortRiskFilterSidebar({
                 whileTap={disabled ? {} : { scale: 0.98 }}
               >
                 <span>{label}</span>
-                <span className="text-[10px] text-gray-500">{range[0]}-{range[1]}</span>
+                <span className="text-2xs text-gray-500">{range[0]}-{range[1]}</span>
               </motion.button>
             );
           })}
@@ -178,7 +179,7 @@ export default function EffortRiskFilterSidebar({
                 whileTap={disabled ? {} : { scale: 0.98 }}
               >
                 <span>{label}</span>
-                <span className="text-[10px] text-gray-500">{range[0]}-{range[1]}</span>
+                <span className="text-2xs text-gray-500">{range[0]}-{range[1]}</span>
               </motion.button>
             );
           })}

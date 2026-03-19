@@ -95,7 +95,7 @@ export function ActivityPanel({ isOpen, onClose, onJumpToItem }: ActivityPanelPr
                 <button
                   key={type}
                   onClick={() => toggleType(type)}
-                  className={`px-2 py-0.5 rounded text-[10px] transition-colors ${
+                  className={`px-2 py-0.5 rounded text-2xs transition-colors ${
                     selectedTypes.includes(type)
                       ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
                       : 'bg-gray-800 text-gray-500 hover:text-gray-400'

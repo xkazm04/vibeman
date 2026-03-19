@@ -92,7 +92,7 @@ export default function SuggestionTypeToggle({
             <span className="font-medium">{option.label}</span>
             {count !== undefined && (
               <span className={`
-                ${compact ? 'text-[10px]' : 'text-xs'}
+                ${compact ? 'text-2xs' : 'text-xs'}
                 ${isSelected ? 'opacity-80' : 'opacity-60'}
               `}>
                 ({count.toLocaleString()})

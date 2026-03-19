@@ -11,6 +11,7 @@ import IdeasCategorySidebar from '@/app/features/tinder/components/IdeasCategory
 import EffortRiskFilterSidebar from '@/app/features/tinder/components/EffortRiskFilterSidebar';
 import ContextFilterSidebar from '@/app/features/tinder/components/ContextFilterSidebar';
 import KeyboardShortcutOverlay from '@/app/features/tinder/components/KeyboardShortcutOverlay';
+import AutoTriageButton from '@/app/features/tinder/components/AutoTriageButton';
 import { useTinderItems, useTinderItemsKeyboardShortcuts } from '@/app/features/tinder/lib/useTinderItems';
 import { useTestMode, useTestModeIdeas } from '@/app/features/tinder/lib/useTestMode';
 import { fetchContextsForProjects } from '@/app/features/Ideas/lib/contextLoader';
@@ -188,6 +189,16 @@ const TinderLayout = () => {
             remoteDeviceName={selectedDevice?.device_name}
             onRemoteModeToggle={handleRemoteModeToggle}
           />
+          {/* Auto-Triage button — only in ideas mode */}
+          {filterMode === 'ideas' && (
+            <>
+              <div className="w-px h-6 bg-gray-700" />
+              <AutoTriageButton
+                selectedProjectId={selectedProjectId}
+                disabled={loading || processing}
+              />
+            </>
+          )}
         </div>
       </div>
 
@@ -247,7 +258,7 @@ const TinderLayout = () => {
             >
               <span>🌟</span>
               <span>All</span>
-              <span className={`px-1.5 py-0.5 text-[10px] font-semibold rounded-full ${
+              <span className={`px-1.5 py-0.5 text-2xs font-semibold rounded-full ${
                 mobileChipSelected === null
                   ? filterDimension === 'category' ? 'bg-purple-500/30 text-purple-200' : 'bg-cyan-500/30 text-cyan-200'
                   : 'bg-gray-700/80 text-gray-400'
@@ -287,7 +298,7 @@ const TinderLayout = () => {
                   >
                     <span>{cfg.emoji}</span>
                     <span className="capitalize">{cfg.label}</span>
-                    <span className={`px-1.5 py-0.5 text-[10px] font-semibold rounded-full ${
+                    <span className={`px-1.5 py-0.5 text-2xs font-semibold rounded-full ${
                       isActive ? 'bg-white/10' : 'bg-gray-700/80 text-gray-400'
                     }`}>
                       {count}
@@ -320,7 +331,7 @@ const TinderLayout = () => {
                 >
                   <span>{icon}</span>
                   <span className="capitalize">{label}</span>
-                  <span className={`px-1.5 py-0.5 text-[10px] font-semibold rounded-full ${
+                  <span className={`px-1.5 py-0.5 text-2xs font-semibold rounded-full ${
                     isActive ? 'bg-white/10' : 'bg-gray-700/80 text-gray-400'
                   }`}>
                     {count}

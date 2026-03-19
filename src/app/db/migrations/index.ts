@@ -72,6 +72,8 @@ import { migrate208LifecycleLocks } from './208_lifecycle_locks';
 import { migrate210SpecLifecycle } from './210_spec_lifecycle';
 import { migrate211ConductorV3 } from './211_conductor_v3';
 import { migrate215KnowledgeBase } from './215_knowledge_base';
+import { migrate217KnowledgeLayer } from './217_knowledge_layer';
+import { migrate218EffectivenessCacheWindowDays } from './218_effectiveness_cache_window_days';
 
 /**
  * Migration logger utility
@@ -290,6 +292,12 @@ export function runMigrations() {
       addColumnIfNotExists(db, 'implementation_log', 'metadata', 'TEXT', migrationLogger);
     });
     once('m215', () => migrate215KnowledgeBase(db as any, migrationLogger));
+    once('m216', () => {
+      addColumnIfNotExists(db, 'knowledge_entries', 'language', "TEXT NOT NULL DEFAULT 'universal'", migrationLogger);
+    });
+
+    once('m217', () => migrate217KnowledgeLayer(db as any, migrationLogger));
+    once('m218', () => migrate218EffectivenessCacheWindowDays(db as any, migrationLogger));
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {

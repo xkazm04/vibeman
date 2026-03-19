@@ -6,6 +6,7 @@ import { ProposalCardHeader } from './ProposalCardHeader';
 import { ProposalCardContent } from './ProposalCardContent';
 import { ProposalCardActions } from './ProposalCardActions';
 import { useThemeStore } from '@/stores/themeStore';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 export interface ProposalCardProps {
   proposal: { id: string; title: string; rationale: string };
@@ -28,7 +29,8 @@ export const ProposalCard = React.memo(({
 }: ProposalCardProps) => {
   const { getThemeColors } = useThemeStore();
   const colors = getThemeColors();
-  
+  const reducedMotion = useReducedMotion();
+
   // Animation properties based on card state
   const scale = isMain ? 1 : 0.75;
   const opacity = isMain ? 1 : 0.5;
@@ -59,7 +61,7 @@ export const ProposalCard = React.memo(({
         y: '-50%',
         willChange: isMain ? undefined : 'filter',
       }}
-      initial={{
+      initial={reducedMotion ? false : {
         scale: isMain ? 0.9 : 0.75,
         opacity: 0,
         x: getXPosition(),
@@ -71,8 +73,8 @@ export const ProposalCard = React.memo(({
         filter: `blur(${blur}px)`,
         x: getXPosition()
       }}
-      exit={{ 
-        scale: 0.7, 
+      exit={reducedMotion ? { opacity: 0 } : {
+        scale: 0.7,
         opacity: 0,
         x: '150%',
         filter: 'blur(20px)',
@@ -81,8 +83,8 @@ export const ProposalCard = React.memo(({
           ease: [0.4, 0, 0.2, 1]
         }
       }}
-      transition={{ 
-        duration: 0.5,
+      transition={{
+        duration: reducedMotion ? 0 : 0.5,
         ease: [0.4, 0, 0.2, 1]
       }}
       layout
@@ -104,8 +106,8 @@ export const ProposalCard = React.memo(({
           }}
         />
 
-        {/* Neural Particles - CSS one-shot entrance */}
-        {isMain && Array.from({ length: 8 }).map((_, i) => (
+        {/* Neural Particles - CSS one-shot entrance (disabled with reduced motion) */}
+        {isMain && !reducedMotion && Array.from({ length: 8 }).map((_, i) => (
           <div
             key={i}
             className={`absolute w-1 h-1 ${colors.border.replace('border-', 'bg-')} rounded-full animate-[neuralParticle_1.5s_ease-out_forwards]`}

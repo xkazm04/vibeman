@@ -74,7 +74,7 @@ export default function BreakpointJumperBar() {
         <button
           onClick={toggleBreakpointRuler}
           className={`
-            px-2 py-1 text-[10px] rounded transition-all
+            px-2 py-1 text-2xs rounded transition-all
             ${isBreakpointRulerVisible
               ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
               : 'bg-gray-700/50 text-gray-500 hover:text-gray-300 border border-gray-700'

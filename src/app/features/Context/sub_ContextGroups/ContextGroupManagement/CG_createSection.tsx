@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { ContextGroup } from '@/stores/contextStore';
 import { CONTEXT_GROUP_COLORS } from '@/lib/constants/contextColors';
+import { buttonVariants, inputStyle } from '@/lib/design-tokens';
 
 interface CreateGroupSectionProps {
   newGroupName: string;
@@ -113,7 +114,7 @@ export default function CreateGroupSection({
                 setError('');
               }}
               placeholder="e.g., Frontend Components"
-              className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all backdrop-blur-sm font-mono"
+              className={`w-full ${inputStyle} backdrop-blur-sm font-mono`}
               maxLength={30}
               data-testid="create-group-name-input"
             />
@@ -153,7 +154,7 @@ export default function CreateGroupSection({
           <motion.button
             onClick={onCreateGroup}
             disabled={loading || groups.length >= 20}
-            className="flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-blue-500/20 to-blue-500/20 text-white rounded-xl hover:from-blue-500/30 hover:to-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-mono border border-blue-500/30"
+            className={`flex items-center space-x-3 ${buttonVariants.primary} text-white disabled:opacity-50 disabled:cursor-not-allowed font-mono`}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             data-testid="create-group-btn"

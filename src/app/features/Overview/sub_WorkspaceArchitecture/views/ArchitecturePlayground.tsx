@@ -274,7 +274,7 @@ function ValidationPanel({ issues }: { issues: ValidationIssue[] }) {
 
   if (issues.length === 0) {
     return (
-      <div className="flex items-center gap-1.5 px-2 py-1 text-[10px] text-emerald-400">
+      <div className="flex items-center gap-1.5 px-2 py-1 text-2xs text-emerald-400">
         <CheckCircle2 className="w-3 h-3" />
         Design valid
       </div>
@@ -284,19 +284,19 @@ function ValidationPanel({ issues }: { issues: ValidationIssue[] }) {
   return (
     <div className="space-y-1 max-h-48 overflow-y-auto">
       {errors.map(i => (
-        <div key={i.id} className="flex items-start gap-1.5 px-2 py-1 text-[10px] text-red-400 bg-red-500/5 rounded">
+        <div key={i.id} className="flex items-start gap-1.5 px-2 py-1 text-2xs text-red-400 bg-red-500/5 rounded">
           <XCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
           <div><span className="font-medium">{i.title}:</span> {i.description}</div>
         </div>
       ))}
       {warnings.map(i => (
-        <div key={i.id} className="flex items-start gap-1.5 px-2 py-1 text-[10px] text-amber-400 bg-amber-500/5 rounded">
+        <div key={i.id} className="flex items-start gap-1.5 px-2 py-1 text-2xs text-amber-400 bg-amber-500/5 rounded">
           <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
           <div><span className="font-medium">{i.title}:</span> {i.description}</div>
         </div>
       ))}
       {infos.map(i => (
-        <div key={i.id} className="flex items-start gap-1.5 px-2 py-1 text-[10px] text-zinc-400 bg-zinc-800/30 rounded">
+        <div key={i.id} className="flex items-start gap-1.5 px-2 py-1 text-2xs text-zinc-400 bg-zinc-800/30 rounded">
           <Info className="w-3 h-3 flex-shrink-0 mt-0.5" />
           <div>{i.description}</div>
         </div>
@@ -315,9 +315,9 @@ function NodePropertiesPanel({
 }) {
   return (
     <div className="space-y-2">
-      <div className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide">Node Properties</div>
+      <div className="text-2xs font-medium text-zinc-500 uppercase tracking-wide">Node Properties</div>
       <div>
-        <label className="text-[10px] text-zinc-500">Name</label>
+        <label className="text-2xs text-zinc-500">Name</label>
         <input
           type="text"
           value={node.name}
@@ -326,7 +326,7 @@ function NodePropertiesPanel({
         />
       </div>
       <div>
-        <label className="text-[10px] text-zinc-500">Tier</label>
+        <label className="text-2xs text-zinc-500">Tier</label>
         <select
           value={node.tier}
           onChange={e => dispatch({ type: 'UPDATE_NODE', nodeId: node.id, updates: { tier: e.target.value as ProjectTier } })}
@@ -338,7 +338,7 @@ function NodePropertiesPanel({
         </select>
       </div>
       <div>
-        <label className="text-[10px] text-zinc-500">Framework</label>
+        <label className="text-2xs text-zinc-500">Framework</label>
         <input
           type="text"
           value={node.framework || ''}
@@ -349,7 +349,7 @@ function NodePropertiesPanel({
       </div>
       <button
         onClick={() => dispatch({ type: 'REMOVE_NODE', nodeId: node.id })}
-        className="flex items-center gap-1 px-2 py-1 text-[10px] text-red-400 hover:bg-red-500/10 rounded transition-colors"
+        className="flex items-center gap-1 px-2 py-1 text-2xs text-red-400 hover:bg-red-500/10 rounded transition-colors"
       >
         <Trash2 className="w-3 h-3" /> Remove Node
       </button>
@@ -369,12 +369,12 @@ function EdgePropertiesPanel({
 
   return (
     <div className="space-y-2">
-      <div className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide">Connection Properties</div>
-      <div className="text-[10px] text-zinc-400">
+      <div className="text-2xs font-medium text-zinc-500 uppercase tracking-wide">Connection Properties</div>
+      <div className="text-2xs text-zinc-400">
         {source?.name || '?'} → {target?.name || '?'}
       </div>
       <div>
-        <label className="text-[10px] text-zinc-500">Type</label>
+        <label className="text-2xs text-zinc-500">Type</label>
         <select
           value={edge.integrationType}
           onChange={e => dispatch({ type: 'UPDATE_EDGE', edgeId: edge.id, updates: { integrationType: e.target.value as IntegrationType } })}
@@ -386,7 +386,7 @@ function EdgePropertiesPanel({
         </select>
       </div>
       <div>
-        <label className="text-[10px] text-zinc-500">Label</label>
+        <label className="text-2xs text-zinc-500">Label</label>
         <input
           type="text"
           value={edge.label}
@@ -395,7 +395,7 @@ function EdgePropertiesPanel({
         />
       </div>
       <div>
-        <label className="text-[10px] text-zinc-500">Protocol</label>
+        <label className="text-2xs text-zinc-500">Protocol</label>
         <input
           type="text"
           value={edge.protocol || ''}
@@ -405,7 +405,7 @@ function EdgePropertiesPanel({
         />
       </div>
       <div>
-        <label className="text-[10px] text-zinc-500">Data Flow</label>
+        <label className="text-2xs text-zinc-500">Data Flow</label>
         <input
           type="text"
           value={edge.dataFlow || ''}
@@ -416,7 +416,7 @@ function EdgePropertiesPanel({
       </div>
       <button
         onClick={() => dispatch({ type: 'REMOVE_EDGE', edgeId: edge.id })}
-        className="flex items-center gap-1 px-2 py-1 text-[10px] text-red-400 hover:bg-red-500/10 rounded transition-colors"
+        className="flex items-center gap-1 px-2 py-1 text-2xs text-red-400 hover:bg-red-500/10 rounded transition-colors"
       >
         <Trash2 className="w-3 h-3" /> Remove Connection
       </button>
@@ -639,24 +639,24 @@ export default function ArchitecturePlayground({
         <div className="flex items-center gap-2">
           <Pencil className="w-4 h-4 text-cyan-400" />
           <span className="text-sm font-medium text-zinc-200">Architecture Playground</span>
-          <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">
+          <span className="px-1.5 py-0.5 rounded text-micro font-medium bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">
             DESIGN
           </span>
         </div>
         <div className="flex items-center gap-2">
           {/* Validation badge */}
           {errorCount > 0 && (
-            <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 rounded-full">
+            <span className="flex items-center gap-1 px-2 py-0.5 text-2xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-full">
               <XCircle className="w-3 h-3" /> {errorCount} error{errorCount > 1 ? 's' : ''}
             </span>
           )}
           {warningCount > 0 && (
-            <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-full">
+            <span className="flex items-center gap-1 px-2 py-0.5 text-2xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-full">
               <AlertTriangle className="w-3 h-3" /> {warningCount}
             </span>
           )}
           {errorCount === 0 && warningCount === 0 && state.nodes.length > 0 && (
-            <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+            <span className="flex items-center gap-1 px-2 py-0.5 text-2xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
               <CheckCircle2 className="w-3 h-3" /> Valid
             </span>
           )}
@@ -683,7 +683,7 @@ export default function ArchitecturePlayground({
         <div className="w-48 flex-shrink-0 border-r border-zinc-800/50 bg-zinc-900/40 flex flex-col overflow-y-auto">
           {/* Mode selector */}
           <div className="px-3 py-2 border-b border-zinc-800/30">
-            <div className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide mb-1.5">Mode</div>
+            <div className="text-2xs font-medium text-zinc-500 uppercase tracking-wide mb-1.5">Mode</div>
             <div className="flex gap-1">
               {([
                 { mode: 'select' as PlaygroundMode, label: 'Select', icon: null },
@@ -692,7 +692,7 @@ export default function ArchitecturePlayground({
                 <button
                   key={m.mode}
                   onClick={() => dispatch({ type: 'SET_MODE', mode: m.mode })}
-                  className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-medium rounded-md border transition-all ${
+                  className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-2xs font-medium rounded-md border transition-all ${
                     state.mode === m.mode
                       ? 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30'
                       : 'text-zinc-500 border-transparent hover:bg-zinc-800/50 hover:text-zinc-300'
@@ -707,7 +707,7 @@ export default function ArchitecturePlayground({
 
           {/* Add nodes */}
           <div className="px-3 py-2 border-b border-zinc-800/30">
-            <div className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide mb-1.5">Add Service</div>
+            <div className="text-2xs font-medium text-zinc-500 uppercase tracking-wide mb-1.5">Add Service</div>
             <div className="space-y-1">
               {TIER_PALETTE.map(item => {
                 const Icon = item.icon;
@@ -737,7 +737,7 @@ export default function ArchitecturePlayground({
               <EdgePropertiesPanel edge={selectedEdge} nodes={state.nodes} dispatch={dispatch} />
             )}
             {!selectedNode && !selectedEdge && (
-              <div className="text-[10px] text-zinc-600 mt-2">
+              <div className="text-2xs text-zinc-500 mt-2">
                 Click a node or connection to edit its properties.
                 <br /><br />
                 <span className="text-zinc-500">Shortcuts:</span>
@@ -749,7 +749,7 @@ export default function ArchitecturePlayground({
 
           {/* Validation */}
           <div className="px-3 py-2 border-t border-zinc-800/30">
-            <div className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide mb-1">Validation</div>
+            <div className="text-2xs font-medium text-zinc-500 uppercase tracking-wide mb-1">Validation</div>
             <ValidationPanel issues={validationIssues} />
           </div>
         </div>

@@ -319,7 +319,7 @@ export default function KanbanCard({
             </div>
             <div className="flex items-center gap-1.5">
               {item.githubIssueUrl && (
-                <span className="flex items-center gap-0.5 text-[10px] text-gray-400 px-1.5 py-0.5 bg-gray-500/10 rounded" title="GitHub Issue linked">
+                <span className="flex items-center gap-0.5 text-2xs text-gray-400 px-1.5 py-0.5 bg-gray-500/10 rounded" title="GitHub Issue linked">
                   <Github className="w-3 h-3" />
                 </span>
               )}
@@ -350,11 +350,11 @@ export default function KanbanCard({
             <div className="flex gap-2 flex-wrap items-center">
               {item.status !== 'new' && (aiResult || item.analysis) && (
                 <>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase ${getClassificationColor((aiResult?.classification || item.analysis?.bugTag) as string)}`}>
+                  <span className={`text-2xs px-2 py-0.5 rounded-full font-medium uppercase ${getClassificationColor((aiResult?.classification || item.analysis?.bugTag) as string)}`}>
                     {aiResult?.classification || item.analysis?.bugTag}
                   </span>
                   {(aiResult?.sentiment || item.analysis?.sentiment) && (
-                    <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                    <div className="flex items-center gap-1 text-2xs text-gray-400">
                       {getSentimentIcon(aiResult?.sentiment || item.analysis?.sentiment as string)}
                       <span className="capitalize">{aiResult?.sentiment || item.analysis?.sentiment}</span>
                     </div>
@@ -399,14 +399,14 @@ export default function KanbanCard({
 
         {/* Resolved indicator */}
         {item.status === 'done' && item.resolvedBy && (
-          <div className="absolute top-2 right-8 text-[10px] px-1.5 py-0.5 rounded-sm bg-green-500/20 text-green-400 flex items-center gap-1">
+          <div className="absolute top-2 right-8 text-2xs px-1.5 py-0.5 rounded-sm bg-green-500/20 text-green-400 flex items-center gap-1">
             {item.resolvedBy === 'ai' ? <Bot className="w-3 h-3" /> : <User className="w-3 h-3" />}
             <span>Resolved</span>
           </div>
         )}
 
         {/* Right-click hint */}
-        <div className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-[9px] text-gray-600">
+        <div className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-micro text-gray-600">
           Right-click to select
         </div>
       </div>

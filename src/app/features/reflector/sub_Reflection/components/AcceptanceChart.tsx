@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from 'recharts';
 import { TrendingUp, BarChart3, MousePointerClick } from 'lucide-react';
 import { ScanTypeStats } from '../lib/types';
 import { SCAN_TYPE_CONFIG } from '../lib/config';
@@ -189,7 +189,7 @@ export default function AcceptanceChart({ scanTypeStats, onBarClick }: Acceptanc
           {onBarClick && (
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-purple-500/20 bg-purple-500/5">
               <MousePointerClick className="w-3 h-3 text-purple-500/60" />
-              <span className="text-[9px] font-mono text-purple-500/60">CLICK_TO_DRILL</span>
+              <span className="text-micro font-mono text-purple-500/60">CLICK_TO_DRILL</span>
             </div>
           )}
           {/* Average indicator */}
@@ -203,12 +203,10 @@ export default function AcceptanceChart({ scanTypeStats, onBarClick }: Acceptanc
       
       {/* Chart */}
       <div className="relative z-10 h-96">
-        <BarChart
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
             data={chartData}
             margin={{ top: 10, right: 20, left: 0, bottom: 70 }}
-            responsive
-            width="100%"
-            height="100%"
           >
             <defs>
               <linearGradient id="gridGradient" x1="0" y1="0" x2="0" y2="1">
@@ -271,6 +269,7 @@ export default function AcceptanceChart({ scanTypeStats, onBarClick }: Acceptanc
               }}
             />
           </BarChart>
+        </ResponsiveContainer>
       </div>
       
       {/* Legend */}

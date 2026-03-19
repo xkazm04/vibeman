@@ -186,12 +186,12 @@ function ComparisonPanel({
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">
+        <span className="text-2xs text-gray-400 font-medium uppercase tracking-wider">
           Week Comparison
         </span>
         <button
           onClick={onClear}
-          className="text-[9px] text-gray-500 hover:text-gray-300 transition-colors px-1.5 py-0.5 rounded hover:bg-gray-800"
+          className="text-micro text-gray-500 hover:text-gray-300 transition-colors px-1.5 py-0.5 rounded hover:bg-gray-800"
         >
           Clear
         </button>
@@ -200,7 +200,7 @@ function ComparisonPanel({
       {/* Totals side-by-side */}
       <div className="flex items-center gap-4 mb-3">
         <div className="flex-1">
-          <p className="text-[9px] text-gray-500 mb-0.5">
+          <p className="text-micro text-gray-500 mb-0.5">
             {formatDateShort(weekA.startDate)} - {formatDateShort(weekA.endDate)}
           </p>
           <p className="text-sm font-mono text-cyan-400">{weekA.total}</p>
@@ -230,7 +230,7 @@ function ComparisonPanel({
         </div>
 
         <div className="flex-1 text-right">
-          <p className="text-[9px] text-gray-500 mb-0.5">
+          <p className="text-micro text-gray-500 mb-0.5">
             {formatDateShort(weekB.startDate)} - {formatDateShort(weekB.endDate)}
           </p>
           <p className="text-sm font-mono text-cyan-400">{weekB.total}</p>
@@ -544,7 +544,7 @@ export default function TemporalHeatmap({
   return (
     <div className={`relative ${className}`}>
       {/* Summary stats */}
-      <div className="flex items-center gap-4 mb-3 text-[10px] text-gray-500">
+      <div className="flex items-center gap-4 mb-3 text-2xs text-gray-500">
         <span>Last {WEEKS} weeks</span>
         <span>{insights.length} insights</span>
         <span>{totalIdeas} total ideas</span>
@@ -563,7 +563,7 @@ export default function TemporalHeatmap({
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
-            className="text-[9px] text-cyan-500/70 mb-1"
+            className="text-micro text-cyan-500/70 mb-1"
           >
             Click another week column to compare
           </motion.p>
@@ -813,7 +813,7 @@ export default function TemporalHeatmap({
       </div>
 
       {/* Intensity legend */}
-      <div className="flex items-center gap-1 mt-2 text-[9px] text-gray-500">
+      <div className="flex items-center gap-1 mt-2 text-micro text-gray-500">
         <span>Less</span>
         {INTENSITY_COLORS.map((color, i) => (
           <div
@@ -840,7 +840,7 @@ export default function TemporalHeatmap({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="absolute top-0 right-0 bg-gray-900/95 backdrop-blur-xl border border-gray-700/60 rounded-lg px-3 py-2 text-[10px] pointer-events-none shadow-lg shadow-black/30"
+            className="absolute top-0 right-0 bg-gray-900/95 backdrop-blur-xl border border-gray-700/60 rounded-lg px-3 py-2 text-2xs pointer-events-none shadow-lg shadow-black/30"
           >
             <p className="text-gray-300 font-medium">{hoveredInfo.date}</p>
             <p className="text-cyan-400">

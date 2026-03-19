@@ -176,7 +176,7 @@ export default function BreakpointRuler({
               {/* Breakpoint label */}
               {width > 30 && (
                 <span
-                  className={`absolute top-1 left-1 text-[9px] font-medium ${
+                  className={`absolute top-1 left-1 text-micro font-medium ${
                     isActive ? 'text-white' : 'text-gray-400'
                   }`}
                 >
@@ -258,14 +258,14 @@ export default function BreakpointRuler({
           animate={{ scale: isDragging ? 1.25 : 1 }}
         />
         {/* Width label */}
-        <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-cyan-500 rounded text-[10px] font-bold text-white whitespace-nowrap">
+        <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-cyan-500 rounded text-2xs font-bold text-white whitespace-nowrap">
           {currentWidth}px
         </div>
       </motion.div>
 
       {/* Active breakpoint label overlay */}
       {activeBreakpoint && !compact && (
-        <div className="absolute top-1 right-2 px-2 py-0.5 rounded text-[10px] font-medium bg-gray-800/80 text-gray-300">
+        <div className="absolute top-1 right-2 px-2 py-0.5 rounded text-2xs font-medium bg-gray-800/80 text-gray-300">
           <span className="w-2 h-2 inline-block rounded-full mr-1" style={{ backgroundColor: activeBreakpoint.color }} />
           {activeBreakpoint.label}
         </div>

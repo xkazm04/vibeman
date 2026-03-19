@@ -384,7 +384,7 @@ export default function DirectionCard({
             <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-gray-800/60 border border-gray-700/40 rounded-lg">
               <MapPin className="w-4 h-4 text-cyan-400" />
               <div>
-                <div className="text-[10px] text-gray-500 uppercase">Context Area</div>
+                <div className="text-2xs text-gray-500 uppercase">Context Area</div>
                 <div className="text-sm font-semibold text-gray-200">
                   {direction.context_map_title}
                 </div>

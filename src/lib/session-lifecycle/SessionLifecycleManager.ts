@@ -10,6 +10,7 @@
 
 import type {
   BaseSession,
+  HeartbeatResult,
   SessionLifecycleConfig,
   StaleSession,
 } from './types';
@@ -82,9 +83,10 @@ export class SessionLifecycleManager<T extends BaseSession> {
 
   /**
    * Send heartbeat for a single session.
+   * Returns the result so callers can detect orphaned/inactive sessions.
    */
-  async heartbeat(sessionId: string): Promise<void> {
-    await this.config.persistence.updateHeartbeat(sessionId);
+  async heartbeat(sessionId: string): Promise<HeartbeatResult> {
+    return await this.config.persistence.updateHeartbeat(sessionId);
   }
 
   /**

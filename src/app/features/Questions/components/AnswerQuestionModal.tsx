@@ -107,17 +107,20 @@ export default function AnswerQuestionModal({
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
           >
             <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="answer-modal-title"
               className="bg-gray-900 border border-gray-700/50 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
               <div className="flex items-start gap-4 p-6 border-b border-gray-800">
-                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/20 via-blue-500/10 to-cyan-500/20 border border-purple-500/30 flex-shrink-0">
+                <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500/20 via-blue-500/10 to-cyan-500/20 border border-purple-500/30 flex-shrink-0">
                   <HelpCircle className="w-6 h-6 text-purple-400" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-semibold text-white leading-tight">
+                    <h2 id="answer-modal-title" className="text-lg font-semibold text-white leading-tight">
                       {isEditing ? 'Edit Answer' : 'Answer Question'}
                     </h2>
                     {isEditing && (
@@ -133,6 +136,7 @@ export default function AnswerQuestionModal({
                 </div>
                 <button
                   onClick={onClose}
+                  aria-label="Close dialog"
                   className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
                 >
                   <X className="w-5 h-5" />

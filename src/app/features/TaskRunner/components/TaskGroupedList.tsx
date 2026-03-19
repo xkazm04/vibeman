@@ -39,7 +39,7 @@ export default function TaskGroupedList({
 }: TaskGroupedListProps) {
   if (groupedRequirements.length === 0) {
     return (
-      <div className="flex items-center justify-center h-20 text-[10px] text-gray-600">
+      <div className="flex items-center justify-center h-20 text-2xs text-gray-600">
         No requirements
       </div>
     );
@@ -91,7 +91,7 @@ export default function TaskGroupedList({
               }
             >
               <span
-                className="text-[10px] font-medium truncate block"
+                className="text-2xs font-medium truncate block"
                 style={{ color: group.context?.color || '#9ca3af' }}
               >
                 {group.context
@@ -102,7 +102,7 @@ export default function TaskGroupedList({
               </span>
             </TruncateTooltip>
             <div className="flex-1 h-px bg-gray-700/40" />
-            <span className="text-[9px] text-gray-500 font-mono">{group.requirements.length}</span>
+            <span className="text-micro text-gray-500 font-mono">{group.requirements.length}</span>
           </div>
 
           {/* Tasks in this group */}

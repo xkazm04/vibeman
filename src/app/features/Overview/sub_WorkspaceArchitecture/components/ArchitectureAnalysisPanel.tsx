@@ -107,7 +107,7 @@ export default function ArchitectureAnalysisPanel({
           {analysisTask && !isRunning && (
             <button
               onClick={handleClear}
-              className="px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+              className="px-2 py-1 text-2xs text-zinc-500 hover:text-zinc-300 transition-colors"
             >
               Clear
             </button>
@@ -129,13 +129,13 @@ export default function ArchitectureAnalysisPanel({
 
       {/* Error banner */}
       {error && (
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-red-500/20 bg-red-500/10 text-xs">
+        <div role="alert" className="flex items-center gap-2 px-3 py-2 border-b border-red-500/20 bg-red-500/10 text-xs">
           <AlertTriangle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
           <span className="text-red-400 flex-1">Analysis failed: {error}</span>
           <button
             onClick={handleTriggerAnalysis}
             disabled={!hasProjects || isLoading}
-            className="px-2 py-0.5 text-[10px] font-medium text-red-300 bg-red-500/20 rounded border border-red-500/30 hover:bg-red-500/30 disabled:opacity-40 transition-colors"
+            className="px-2 py-0.5 text-2xs font-medium text-red-300 bg-red-500/20 rounded border border-red-500/30 hover:bg-red-500/30 disabled:opacity-40 transition-colors"
           >
             Retry
           </button>
@@ -150,7 +150,7 @@ export default function ArchitectureAnalysisPanel({
 
       {/* Status bar */}
       {analysisTask && (
-        <div className="px-3 py-1.5 border-b border-purple-500/5 bg-zinc-900/50 text-[10px]">
+        <div className="px-3 py-1.5 border-b border-purple-500/5 bg-zinc-900/50 text-2xs">
           <div className="flex items-center gap-2">
             {analysisTask.status.type === 'queued' && autoStart && (
               <span className="flex items-center gap-1 text-amber-400">
@@ -168,7 +168,7 @@ export default function ArchitectureAnalysisPanel({
               <span className="text-emerald-400">Analysis complete</span>
             )}
             {analysisTask.status.type === 'failed' && (
-              <span className="text-red-400">Analysis failed</span>
+              <span role="alert" className="text-red-400">Analysis failed</span>
             )}
           </div>
         </div>
@@ -192,14 +192,14 @@ export default function ArchitectureAnalysisPanel({
                   <GitBranch className="w-5 h-5 text-purple-400/50" />
                 </div>
                 <span>Click "Analyze Workspace" to start</span>
-                <span className="text-[10px] text-zinc-600">
+                <span className="text-2xs text-zinc-400">
                   {projects.length} project{projects.length !== 1 ? 's' : ''} will be analyzed
                 </span>
               </>
             ) : (
               <>
                 <div className="p-2 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
-                  <GitBranch className="w-5 h-5 text-zinc-600" />
+                  <GitBranch className="w-5 h-5 text-zinc-400" />
                 </div>
                 <span>No projects in workspace</span>
               </>

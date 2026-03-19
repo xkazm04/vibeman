@@ -8,8 +8,9 @@
  */
 
 import { getDatabase } from '../connection';
+import { EFFECTIVENESS_CACHE_TTL_MS } from '@/lib/brain/config';
 
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_TTL_MS = EFFECTIVENESS_CACHE_TTL_MS;
 
 export interface CachedEffectivenessResult {
   insightsJson: string;
@@ -23,13 +24,13 @@ export const insightEffectivenessCacheRepository = {
    * Get cached effectiveness data if it exists and is fresh (< 24h old).
    * Returns null if cache miss or stale.
    */
-  get(projectId: string, minDirections: number): CachedEffectivenessResult | null {
+  get(projectId: string, minDirections: number, windowDays: number = 90): CachedEffectivenessResult | null {
     const db = getDatabase();
     const row = db.prepare(`
       SELECT insights_json, summary_json, cached_at, version
       FROM insight_effectiveness_cache
-      WHERE project_id = ? AND min_directions = ?
-    `).get(projectId, minDirections) as {
+      WHERE project_id = ? AND min_directions = ? AND window_days = ?
+    `).get(projectId, minDirections, windowDays) as {
       insights_json: string;
       summary_json: string;
       cached_at: string;
@@ -57,22 +58,22 @@ export const insightEffectivenessCacheRepository = {
    * Uses INSERT OR REPLACE to upsert.
    * Increments version on every write to enable client-side staleness detection.
    */
-  set(projectId: string, minDirections: number, insightsJson: string, summaryJson: string): void {
+  set(projectId: string, minDirections: number, windowDays: number, insightsJson: string, summaryJson: string): void {
     const db = getDatabase();
 
     // Get current version or default to 0
     const current = db.prepare(`
       SELECT version FROM insight_effectiveness_cache
-      WHERE project_id = ? AND min_directions = ?
-    `).get(projectId, minDirections) as { version: number } | undefined;
+      WHERE project_id = ? AND min_directions = ? AND window_days = ?
+    `).get(projectId, minDirections, windowDays) as { version: number } | undefined;
 
     const newVersion = (current?.version || 0) + 1;
 
     db.prepare(`
       INSERT OR REPLACE INTO insight_effectiveness_cache
-        (project_id, min_directions, insights_json, summary_json, cached_at, version)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(projectId, minDirections, insightsJson, summaryJson, new Date().toISOString(), newVersion);
+        (project_id, min_directions, window_days, insights_json, summary_json, cached_at, version)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(projectId, minDirections, windowDays, insightsJson, summaryJson, new Date().toISOString(), newVersion);
   },
 
   /**

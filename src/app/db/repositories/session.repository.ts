@@ -328,9 +328,15 @@ export const sessionRepository = {
   /**
    * Update heartbeat (touch updated_at timestamp)
    */
-  updateHeartbeat(id: string): boolean {
+  updateHeartbeat(id: string): 'updated' | 'not_found' | 'inactive' {
     const db = getDatabase();
     const now = new Date().toISOString();
+
+    const session = db.prepare('SELECT status FROM claude_code_sessions WHERE id = ?').get(id) as { status: string } | undefined;
+    if (!session) return 'not_found';
+
+    const activeStatuses = ['pending', 'running', 'paused'];
+    if (!activeStatuses.includes(session.status)) return 'inactive';
 
     const stmt = db.prepare(`
       UPDATE claude_code_sessions
@@ -338,8 +344,8 @@ export const sessionRepository = {
       WHERE id = ?
     `);
 
-    const result = stmt.run(now, id);
-    return result.changes > 0;
+    stmt.run(now, id);
+    return 'updated';
   },
 
   /**

@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { FileCode, GitCommit, Globe, Clock, TrendingUp, TrendingDown, Minus, AlertCircle } from 'lucide-react';
-import { useAbortableFetch } from '@/hooks/useAbortableFetch';
 import type { DbBehavioralSignal, GitActivitySignalData, ApiFocusSignalData } from '@/app/db/models/brain.types';
 import type { DrillDownTarget } from './SignalDetailDrawer';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
+import { useSignals } from '../lib/queries';
 
 interface ContextSignalDetailProps {
   target: DrillDownTarget;
@@ -24,69 +24,37 @@ function formatTimestamp(ts: string): string {
 }
 
 export default function ContextSignalDetail({ target }: ContextSignalDetailProps) {
-  const [signals, setSignals] = useState<DbBehavioralSignal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const activeProject = useClientProjectStore(s => s.activeProject);
-  const abortableFetch = useAbortableFetch();
 
-  useEffect(() => {
-    if (!activeProject?.id) return;
+  const queryOptions = useMemo(() => {
+    if (target.type === 'context') return { contextId: target.id, limit: 30 };
+    if (target.type === 'theme') return { types: ['git_activity'], limit: 30 };
+    if (target.type === 'endpoint') return { types: ['api_focus'], limit: 30 };
+    return { limit: 30 };
+  }, [target]);
 
-    const fetchSignals = async () => {
-      setLoading(true);
-      setError(null);
+  const { data, isLoading: loading, error: queryError } = useSignals(activeProject?.id, queryOptions);
 
-      try {
-        const params = new URLSearchParams({ projectId: activeProject.id, limit: '30' });
-
-        // Add filters based on target type
-        if (target.type === 'context') {
-          params.set('contextId', target.id);
-        } else if (target.type === 'theme') {
-          params.set('signalType', 'git_activity');
-        } else if (target.type === 'endpoint') {
-          params.set('signalType', 'api_focus');
-        }
-
-        const res = await abortableFetch(`/api/brain/signals?${params.toString()}`);
-        const data = await res.json();
-
-        if (!data.success) {
-          setError(data.error || 'Failed to fetch signals');
-          return;
-        }
-
-        let filtered = data.signals as DbBehavioralSignal[];
-
-        // Client-side filter for theme and endpoint (data payload match)
-        if (target.type === 'theme') {
-          filtered = filtered.filter(s => {
-            try {
-              const payload = JSON.parse(s.data) as GitActivitySignalData;
-              return payload.commitMessage?.toLowerCase().includes(target.theme.toLowerCase());
-            } catch { return false; }
-          });
-        } else if (target.type === 'endpoint') {
-          filtered = filtered.filter(s => {
-            try {
-              const payload = JSON.parse(s.data) as ApiFocusSignalData;
-              return payload.endpoint === target.path;
-            } catch { return false; }
-          });
-        }
-
-        setSignals(filtered);
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') return; // Component unmounted
-        setError(err instanceof Error ? err.message : 'Network error');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSignals();
-  }, [activeProject?.id, target]);
+  const signals = useMemo(() => {
+    const raw = (data?.signals ?? []) as DbBehavioralSignal[];
+    if (target.type === 'theme') {
+      return raw.filter(s => {
+        try {
+          const payload = JSON.parse(s.data) as GitActivitySignalData;
+          return payload.commitMessage?.toLowerCase().includes(target.theme.toLowerCase());
+        } catch { return false; }
+      });
+    }
+    if (target.type === 'endpoint') {
+      return raw.filter(s => {
+        try {
+          const payload = JSON.parse(s.data) as ApiFocusSignalData;
+          return payload.endpoint === target.path;
+        } catch { return false; }
+      });
+    }
+    return raw;
+  }, [data?.signals, target]);
 
   if (loading) {
     return (
@@ -100,11 +68,11 @@ export default function ContextSignalDetail({ target }: ContextSignalDetailProps
     );
   }
 
-  if (error) {
+  if (queryError) {
     return (
       <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
         <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
-        <p className="text-xs text-red-300">{error}</p>
+        <p className="text-xs text-red-300">{queryError?.message}</p>
       </div>
     );
   }
@@ -145,7 +113,7 @@ function SignalCard({ signal, targetType }: { signal: DbBehavioralSignal; target
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-zinc-500 flex items-center gap-1">
+          <span className="text-2xs text-zinc-500 flex items-center gap-1">
             <Clock className="w-3 h-3" />
             {formatTimestamp(signal.timestamp)}
           </span>
@@ -177,7 +145,7 @@ function WeightBadge({ weight }: { weight: number }) {
     : 'text-zinc-400 bg-zinc-700/50';
 
   return (
-    <span className={`text-[10px] px-1.5 py-0.5 rounded ${color}`}>
+    <span className={`text-2xs px-1.5 py-0.5 rounded ${color}`}>
       w:{weight.toFixed(1)}
     </span>
   );
@@ -194,12 +162,12 @@ function ContextPayload({ signal, parsed }: { signal: DbBehavioralSignal; parsed
             <p className="text-xs text-zinc-400 italic">&ldquo;{data.commitMessage}&rdquo;</p>
           )}
           {data.filesChanged?.length > 0 && (
-            <p className="text-[10px] text-zinc-500">
+            <p className="text-2xs text-zinc-500">
               {data.filesChanged.length} files, +{data.linesAdded || 0}/-{data.linesRemoved || 0} lines
             </p>
           )}
           {data.commitSha && (
-            <code className="text-[10px] text-zinc-600">{data.commitSha.substring(0, 7)}</code>
+            <code className="text-2xs text-zinc-600">{data.commitSha.substring(0, 7)}</code>
           )}
         </div>
       );
@@ -209,7 +177,7 @@ function ContextPayload({ signal, parsed }: { signal: DbBehavioralSignal; parsed
       return (
         <div className="space-y-1">
           <code className="text-xs text-zinc-400">{data.method} {data.endpoint}</code>
-          <p className="text-[10px] text-zinc-500">
+          <p className="text-2xs text-zinc-500">
             {data.callCount} calls, {data.avgResponseTime?.toFixed(0)}ms avg, {(data.errorRate * 100).toFixed(1)}% errors
           </p>
         </div>
@@ -222,7 +190,7 @@ function ContextPayload({ signal, parsed }: { signal: DbBehavioralSignal; parsed
           {data.requirementName && (
             <p className="text-xs text-zinc-400">{data.requirementName}</p>
           )}
-          <p className="text-[10px] text-zinc-500">
+          <p className="text-2xs text-zinc-500">
             {data.success ? 'Success' : 'Failed'}
             {data.filesModified && ` — ${data.filesModified.length} modified`}
             {data.filesCreated && `, ${data.filesCreated.length} created`}
@@ -232,7 +200,7 @@ function ContextPayload({ signal, parsed }: { signal: DbBehavioralSignal; parsed
     }
     default:
       return (
-        <pre className="text-[10px] text-zinc-500 overflow-x-auto max-h-20 whitespace-pre-wrap">
+        <pre className="text-2xs text-zinc-500 overflow-x-auto max-h-20 whitespace-pre-wrap">
           {JSON.stringify(parsed, null, 2).substring(0, 300)}
         </pre>
       );
@@ -245,7 +213,7 @@ function ThemePayload({ parsed }: { parsed: GitActivitySignalData }) {
       {parsed.commitMessage && (
         <p className="text-xs text-zinc-300">&ldquo;{parsed.commitMessage}&rdquo;</p>
       )}
-      <div className="flex items-center gap-3 text-[10px] text-zinc-500">
+      <div className="flex items-center gap-3 text-2xs text-zinc-500">
         {parsed.commitSha && <code>{parsed.commitSha.substring(0, 7)}</code>}
         {parsed.filesChanged?.length > 0 && <span>{parsed.filesChanged.length} files</span>}
         <span>+{parsed.linesAdded || 0}/-{parsed.linesRemoved || 0}</span>
@@ -264,17 +232,17 @@ function EndpointPayload({ parsed }: { parsed: ApiFocusSignalData }) {
       <div className="grid grid-cols-3 gap-2">
         <div className="text-center p-1.5 rounded bg-zinc-900/50">
           <p className="text-xs font-medium text-zinc-300">{parsed.callCount || 0}</p>
-          <p className="text-[10px] text-zinc-600">calls</p>
+          <p className="text-2xs text-zinc-600">calls</p>
         </div>
         <div className="text-center p-1.5 rounded bg-zinc-900/50">
           <p className="text-xs font-medium text-zinc-300">{parsed.avgResponseTime?.toFixed(0) || '—'}ms</p>
-          <p className="text-[10px] text-zinc-600">avg time</p>
+          <p className="text-2xs text-zinc-600">avg time</p>
         </div>
         <div className="text-center p-1.5 rounded bg-zinc-900/50">
           <p className={`text-xs font-medium ${(parsed.errorRate || 0) > 0.05 ? 'text-red-400' : 'text-zinc-300'}`}>
             {((parsed.errorRate || 0) * 100).toFixed(1)}%
           </p>
-          <p className="text-[10px] text-zinc-600">errors</p>
+          <p className="text-2xs text-zinc-600">errors</p>
         </div>
       </div>
     </div>

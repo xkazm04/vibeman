@@ -10,6 +10,7 @@ import {
   CartesianGrid,
   Tooltip,
   Rectangle,
+  ResponsiveContainer,
 } from 'recharts';
 import { Package, TrendingUp, Calendar, Loader2, AlertCircle } from 'lucide-react';
 import { ProjectImplementationStats } from '../lib/types';
@@ -196,13 +197,11 @@ export default function ProjectImplementationRanking() {
         <>
           {/* Chart */}
           <div className="relative z-10 h-80">
-            <BarChart
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
                 data={chartData}
                 margin={{ top: 10, right: 10, left: -10, bottom: 60 }}
                 barCategoryGap="20%"
-                responsive
-                width="100%"
-                height="100%"
               >
                 <defs>
                   {/* Generate gradients for each color */}
@@ -265,6 +264,7 @@ export default function ProjectImplementationRanking() {
                   }}
                 />
               </BarChart>
+            </ResponsiveContainer>
           </div>
 
           {/* Project list footer */}
@@ -290,7 +290,7 @@ export default function ProjectImplementationRanking() {
                       <div className="text-xs font-medium text-gray-300 truncate group-hover:text-white transition-colors">
                         {project.projectName}
                       </div>
-                      <div className="flex items-center gap-2 text-[10px] font-mono text-gray-500 mt-0.5">
+                      <div className="flex items-center gap-2 text-2xs font-mono text-gray-500 mt-0.5">
                         <span
                           className="font-bold"
                           style={{ color: color.primary }}

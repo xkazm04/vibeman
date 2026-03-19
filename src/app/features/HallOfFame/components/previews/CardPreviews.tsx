@@ -23,7 +23,7 @@ export function CompactListPreview({ props }: PreviewProps) {
     <div className="w-48 bg-gray-900/40 border border-gray-700/40 rounded-lg overflow-hidden">
       <div className="px-2 py-1.5 bg-gray-800/60 border-b border-gray-700/40 flex items-center justify-between">
         <span className="text-xs font-semibold text-gray-300">Ideas Buffer</span>
-        <span className="text-[10px] text-gray-500 font-mono">{items.length}</span>
+        <span className="text-2xs text-gray-500 font-mono">{items.length}</span>
       </div>
       <div className="p-1.5 space-y-1">
         {items.map((item, idx) => (
@@ -35,7 +35,7 @@ export function CompactListPreview({ props }: PreviewProps) {
             whileHover={{ x: 2 }}
           >
             <span className="text-xs">{item.emoji}</span>
-            <span className="flex-1 text-[10px] text-gray-200 truncate">{item.title}</span>
+            <span className="flex-1 text-2xs text-gray-200 truncate">{item.title}</span>
           </motion.div>
         ))}
       </div>
@@ -54,28 +54,28 @@ export function PerformanceCardPreview({ props }: PreviewProps) {
         </div>
         <div>
           <h3 className="text-sm font-semibold text-gray-200">Performance</h3>
-          <span className="text-[10px] font-mono text-gray-500">3 ACTIVE</span>
+          <span className="text-2xs font-mono text-gray-500">3 ACTIVE</span>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2 mb-3">
         <div className="p-2 rounded-lg bg-emerald-950/30 border border-emerald-500/20">
           <div className="flex items-center gap-1 mb-1">
             <Star className="w-3 h-3 text-yellow-400" />
-            <span className="text-[10px] font-semibold text-emerald-300">Top</span>
+            <span className="text-2xs font-semibold text-emerald-300">Top</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-gray-300">🐛 Bug Hunter</span>
-            <span className="text-[10px] font-mono font-bold text-emerald-400">92%</span>
+            <span className="text-2xs text-gray-300">🐛 Bug Hunter</span>
+            <span className="text-2xs font-mono font-bold text-emerald-400">92%</span>
           </div>
         </div>
         <div className="p-2 rounded-lg bg-red-950/30 border border-red-500/20">
           <div className="flex items-center gap-1 mb-1">
             <Zap className="w-3 h-3 text-red-400" />
-            <span className="text-[10px] font-semibold text-red-300">Attention</span>
+            <span className="text-2xs font-semibold text-red-300">Attention</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-gray-300">🔧 Refactor</span>
-            <span className="text-[10px] font-mono font-bold text-red-400">34%</span>
+            <span className="text-2xs text-gray-300">🔧 Refactor</span>
+            <span className="text-2xs font-mono font-bold text-red-400">34%</span>
           </div>
         </div>
       </div>
@@ -91,7 +91,7 @@ export function PerformanceCardPreview({ props }: PreviewProps) {
             className="flex items-center gap-2 p-2 rounded-lg bg-gray-900/60 border border-gray-700/30"
           >
             <span className="text-sm">{item.emoji}</span>
-            <span className="flex-1 text-[10px] text-gray-300">{item.label}</span>
+            <span className="flex-1 text-2xs text-gray-300">{item.label}</span>
             <span
               className="text-xs font-mono font-bold"
               style={{ color: item.rate >= 70 ? '#10b981' : '#f59e0b' }}

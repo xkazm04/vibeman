@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { Flame, Clock, AlertCircle, TrendingUp, Zap } from 'lucide-react';
 import { useXRayHotPaths, useXRayLayers, useXRayIsConnected } from '@/stores/xrayStore';
 
@@ -46,7 +47,7 @@ export default function XRayHotPathsPanel({ isExpanded, onToggle }: XRayHotPaths
           <Flame className="w-4 h-4" />
           <span className="text-xs font-medium">Hot Paths</span>
           {hotPaths.length > 0 && (
-            <span className="bg-cyan-500/30 text-cyan-300 text-[10px] px-1.5 py-0.5 rounded-full">
+            <span className="bg-cyan-500/30 text-cyan-300 text-2xs px-1.5 py-0.5 rounded-full">
               {hotPaths.length}
             </span>
           )}
@@ -61,7 +62,7 @@ export default function XRayHotPathsPanel({ isExpanded, onToggle }: XRayHotPaths
             initial={{ opacity: 0, scale: 0.95, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            transition={{ duration: 0.2 }}
+            transition={transition.normal}
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
@@ -71,7 +72,7 @@ export default function XRayHotPathsPanel({ isExpanded, onToggle }: XRayHotPaths
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-white">Hot Paths</h3>
-                  <p className="text-[10px] text-gray-500">
+                  <p className="text-2xs text-gray-500">
                     {isConnected ? 'Live traffic analysis' : 'Disconnected'}
                   </p>
                 </div>
@@ -89,19 +90,19 @@ export default function XRayHotPathsPanel({ isExpanded, onToggle }: XRayHotPaths
             <div className="grid grid-cols-3 gap-2 px-4 py-3 border-b border-gray-700/30">
               <div className="text-center">
                 <div className="text-lg font-bold text-cyan-400">{totalRequests}</div>
-                <div className="text-[10px] text-gray-500">Requests</div>
+                <div className="text-2xs text-gray-500">Requests</div>
               </div>
               <div className="text-center">
                 <div className={`text-lg font-bold ${avgLatency > 500 ? 'text-amber-400' : 'text-green-400'}`}>
                   {Math.round(avgLatency)}
                 </div>
-                <div className="text-[10px] text-gray-500">Avg ms</div>
+                <div className="text-2xs text-gray-500">Avg ms</div>
               </div>
               <div className="text-center">
                 <div className={`text-lg font-bold ${errorCount > 0 ? 'text-red-400' : 'text-green-400'}`}>
                   {errorCount}
                 </div>
-                <div className="text-[10px] text-gray-500">Errors</div>
+                <div className="text-2xs text-gray-500">Errors</div>
               </div>
             </div>
 
@@ -111,7 +112,7 @@ export default function XRayHotPathsPanel({ isExpanded, onToggle }: XRayHotPaths
                 <div className="px-4 py-6 text-center">
                   <TrendingUp className="w-8 h-8 text-gray-600 mx-auto mb-2" />
                   <p className="text-sm text-gray-500">No traffic yet</p>
-                  <p className="text-[10px] text-gray-600 mt-1">
+                  <p className="text-2xs text-gray-600 mt-1">
                     Activity will appear here as requests flow
                   </p>
                 </div>
@@ -144,12 +145,12 @@ export default function XRayHotPathsPanel({ isExpanded, onToggle }: XRayHotPaths
                             </code>
                           </div>
                           <div className="flex items-center gap-3 mt-1">
-                            <span className="text-[10px] text-gray-500 flex items-center gap-1">
+                            <span className="text-2xs text-gray-500 flex items-center gap-1">
                               <TrendingUp className="w-3 h-3" />
                               {path.requestCount}
                             </span>
                             <span
-                              className={`text-[10px] flex items-center gap-1 ${
+                              className={`text-2xs flex items-center gap-1 ${
                                 path.avgLatency > 500 ? 'text-amber-400' : 'text-gray-500'
                               }`}
                             >
@@ -197,7 +198,7 @@ export default function XRayHotPathsPanel({ isExpanded, onToggle }: XRayHotPaths
 
             {/* Layer breakdown */}
             <div className="px-4 py-3 border-t border-gray-700/30">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">
+              <div className="text-2xs text-gray-500 uppercase tracking-wider mb-2">
                 Traffic by Layer
               </div>
               <div className="grid grid-cols-4 gap-2">
@@ -217,7 +218,7 @@ export default function XRayHotPathsPanel({ isExpanded, onToggle }: XRayHotPaths
                       <div className={`text-sm font-bold ${colors[layer].split(' ')[0]}`}>
                         {stats?.totalRequests || 0}
                       </div>
-                      <div className="text-[9px] text-gray-500 capitalize">{layer}</div>
+                      <div className="text-micro text-gray-500 capitalize">{layer}</div>
                     </div>
                   );
                 })}

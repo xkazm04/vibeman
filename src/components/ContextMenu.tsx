@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { useThemeStore } from '@/stores/themeStore';
 
 export interface ContextMenuItem {
@@ -155,12 +156,10 @@ export default function ContextMenu({
             initial={{ opacity: 0, scale: 0.95, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            transition={{
-              duration: variant === 'neural' ? 0.3 : 0.15,
-              type: variant === 'neural' ? 'spring' : 'tween',
-              stiffness: 300,
-              damping: 30
-            }}
+            transition={variant === 'neural'
+              ? { type: 'spring', stiffness: 300, damping: 30 }
+              : transition.snappy
+            }
             className={getMenuContainerClasses(variant)}
             style={{
               left: `${adjustedPosition.x}px`,
@@ -199,7 +198,7 @@ export default function ContextMenu({
                     {Icon && (
                       <motion.div
                         whileHover={variant === 'neural' ? { rotate: 15 } : {}}
-                        transition={{ duration: 0.2 }}
+                        transition={transition.normal}
                       >
                         <Icon className={`flex-shrink-0 ${variant === 'neural' ? 'w-4 h-4' : 'w-4 h-4'}`} />
                       </motion.div>

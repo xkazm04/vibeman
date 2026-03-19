@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Maximize2 } from 'lucide-react';
+import { SimpleSpinner } from '@/components/ui/Spinner';
 import { createPortal } from 'react-dom';
 
 interface InteractiveContentProps {
@@ -154,7 +155,7 @@ function PlantUMLRenderer({ content }: PlantUMLRendererProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
+        <SimpleSpinner size="lg" color="cyan" />
         <span className="ml-3 text-gray-400">Generating diagram...</span>
       </div>
     );

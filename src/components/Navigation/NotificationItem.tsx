@@ -84,7 +84,7 @@ export default function NotificationItem({ notification, onMarkRead, onAction }:
           </p>
 
           <div className="flex items-center justify-between mt-1.5">
-            <span className="text-[10px] text-gray-500">
+            <span className="text-2xs text-gray-500">
               {formatTimeAgo(notification.timestamp)}
             </span>
 
@@ -96,7 +96,7 @@ export default function NotificationItem({ notification, onMarkRead, onAction }:
                   if (!notification.read) onMarkRead(notification.id);
                   onAction?.(notification.suggestedAction!.tool);
                 }}
-                className="text-[10px] px-2 py-0.5 rounded bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 hover:text-white transition-colors"
+                className="text-2xs px-2 py-0.5 rounded bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 hover:text-white transition-colors"
               >
                 {notification.suggestedAction.description}
               </button>

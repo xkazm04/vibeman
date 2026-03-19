@@ -1,7 +1,8 @@
 'use client';
 
 import { memo } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
   FileText,
   Pencil,
@@ -71,7 +72,7 @@ const EventRow = memo(function EventRow({ event, isLatest }: { event: LiveToolEv
     : null;
 
   return (
-    <div className={`flex items-center gap-2 py-0.5 px-1 rounded text-[10px] font-mono ${isLatest ? 'bg-white/5' : ''}`}>
+    <div className={`flex items-center gap-2 py-0.5 px-1 rounded text-2xs font-mono ${isLatest ? 'bg-white/5' : ''}`}>
       <Icon className={`w-3 h-3 flex-shrink-0 ${color}`} />
       <span className={`flex-shrink-0 w-14 ${color} font-medium`}>
         {event.tool}
@@ -126,18 +127,18 @@ export const LiveActivityPanel = memo(function LiveActivityPanel({
           </span>
 
           {/* Phase badge */}
-          <span className={`text-[10px] font-medium ${theme.text}`}>
+          <span className={`text-2xs font-medium ${theme.text}`}>
             {theme.label}
           </span>
 
           {/* Requirement name */}
-          <span className="text-[10px] text-gray-500 truncate">
+          <span className="text-2xs text-gray-500 truncate">
             {requirementName}
           </span>
 
           {/* Event count */}
           {events.length > 0 && (
-            <span className="text-[9px] text-gray-600 tabular-nums">
+            <span className="text-micro text-gray-600 tabular-nums">
               {events.length} ops
             </span>
           )}
@@ -167,7 +168,7 @@ export const LiveActivityPanel = memo(function LiveActivityPanel({
           >
             <div className="px-2 pb-2 space-y-0.5">
               {events.length === 0 ? (
-                <div className="text-[10px] text-gray-600 italic py-1">
+                <div className="text-2xs text-gray-600 italic py-1">
                   Waiting for tool invocations...
                 </div>
               ) : (

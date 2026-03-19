@@ -112,7 +112,7 @@ export default function SentimentBadge({
 
   // Size classes
   const sizeClasses = {
-    xs: { icon: 'w-2.5 h-2.5', text: 'text-[10px]', padding: 'px-1.5 py-0.5', gap: 'gap-1' },
+    xs: { icon: 'w-2.5 h-2.5', text: 'text-2xs', padding: 'px-1.5 py-0.5', gap: 'gap-1' },
     sm: { icon: 'w-3 h-3', text: 'text-xs', padding: 'px-2 py-0.5', gap: 'gap-1.5' },
     md: { icon: 'w-4 h-4', text: 'text-sm', padding: 'px-2.5 py-1', gap: 'gap-2' },
     lg: { icon: 'w-5 h-5', text: 'text-base', padding: 'px-3 py-1.5', gap: 'gap-2' },
@@ -192,7 +192,7 @@ export default function SentimentBadge({
                 <div className="text-xs font-medium text-gray-400 mb-2">Sentiment Breakdown</div>
                 <div className="flex gap-2">
                   <div className="flex-1">
-                    <div className="text-[10px] text-green-400 mb-1">Positive</div>
+                    <div className="text-2xs text-green-400 mb-1">Positive</div>
                     <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-green-500 rounded-full"
@@ -201,7 +201,7 @@ export default function SentimentBadge({
                     </div>
                   </div>
                   <div className="flex-1">
-                    <div className="text-[10px] text-red-400 mb-1">Negative</div>
+                    <div className="text-2xs text-red-400 mb-1">Negative</div>
                     <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-red-500 rounded-full"
@@ -221,7 +221,7 @@ export default function SentimentBadge({
                   {(signals || analysisResult?.overall.signals || []).slice(0, 6).map((signal, i) => (
                     <span
                       key={i}
-                      className={`text-[10px] px-1.5 py-0.5 rounded ${styles.bg} ${styles.text} opacity-80`}
+                      className={`text-2xs px-1.5 py-0.5 rounded ${styles.bg} ${styles.text} opacity-80`}
                     >
                       {signal}
                     </span>
@@ -238,7 +238,7 @@ export default function SentimentBadge({
                   {analysisResult.keywords.slice(0, 8).map((kw, i) => (
                     <span
                       key={i}
-                      className={`text-[10px] px-1.5 py-0.5 rounded border ${
+                      className={`text-2xs px-1.5 py-0.5 rounded border ${
                         kw.category === 'positive'
                           ? 'bg-green-500/10 text-green-400 border-green-500/30'
                           : kw.category === 'negative'
@@ -286,7 +286,7 @@ export function SentimentScoreBar({ score, showLabel = true }: { score: number; 
   return (
     <div className="w-full">
       {showLabel && (
-        <div className="flex justify-between text-[10px] mb-1">
+        <div className="flex justify-between text-2xs mb-1">
           <span className="text-red-400">Negative</span>
           <span className="text-gray-500">Neutral</span>
           <span className="text-green-400">Positive</span>

@@ -37,6 +37,7 @@ export {
 
 // Standup API schemas
 export {
+  STANDUP_JSON_VERSION,
   StandupBlockerSchema,
   StandupHighlightSchema,
   StandupFocusAreaSchema,

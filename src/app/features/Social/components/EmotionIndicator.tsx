@@ -124,7 +124,7 @@ export default function EmotionIndicator({
 
   // Size classes
   const sizeClasses = {
-    xs: { icon: 'w-2.5 h-2.5', text: 'text-[10px]', padding: 'px-1.5 py-0.5' },
+    xs: { icon: 'w-2.5 h-2.5', text: 'text-2xs', padding: 'px-1.5 py-0.5' },
     sm: { icon: 'w-3 h-3', text: 'text-xs', padding: 'px-2 py-0.5' },
     md: { icon: 'w-4 h-4', text: 'text-sm', padding: 'px-2.5 py-1' },
     lg: { icon: 'w-5 h-5', text: 'text-base', padding: 'px-3 py-1.5' },
@@ -211,7 +211,7 @@ export default function EmotionIndicator({
           >
             {/* Intensity bar */}
             <div className="mb-3">
-              <div className="flex justify-between text-[10px] mb-1">
+              <div className="flex justify-between text-2xs mb-1">
                 <span className={styles.text}>Intensity</span>
                 <span className={styles.text}>{intensityWidth}%</span>
               </div>
@@ -227,7 +227,7 @@ export default function EmotionIndicator({
             {/* Confidence */}
             {confidence !== undefined && (
               <div className="mb-3">
-                <div className="flex justify-between text-[10px] mb-1">
+                <div className="flex justify-between text-2xs mb-1">
                   <span className="text-gray-400">Confidence</span>
                   <span className="text-gray-400">{Math.round(confidence * 100)}%</span>
                 </div>
@@ -243,12 +243,12 @@ export default function EmotionIndicator({
             {/* Signals */}
             {signals && signals.length > 0 && (
               <div>
-                <div className="text-[10px] text-gray-400 mb-1.5">Detected Signals</div>
+                <div className="text-2xs text-gray-400 mb-1.5">Detected Signals</div>
                 <div className="flex flex-wrap gap-1">
                   {signals.map((signal, i) => (
                     <span
                       key={i}
-                      className={`text-[10px] px-1.5 py-0.5 rounded ${styles.bg} ${styles.text} border ${styles.border}`}
+                      className={`text-2xs px-1.5 py-0.5 rounded ${styles.bg} ${styles.text} border ${styles.border}`}
                     >
                       "{signal}"
                     </span>
@@ -323,7 +323,7 @@ export function EmotionStack({
               animate={{ width: `${result.emotionalIntensity * 100}%` }}
             />
           </div>
-          <span className="text-[10px] text-gray-500">
+          <span className="text-2xs text-gray-500">
             {Math.round(result.emotionalIntensity * 100)}%
           </span>
         </div>
@@ -331,7 +331,7 @@ export function EmotionStack({
 
       {/* Attention flag */}
       {result.needsAttention && (
-        <div className="flex items-center gap-1.5 text-[10px] text-red-400 mt-1">
+        <div className="flex items-center gap-1.5 text-2xs text-red-400 mt-1">
           <AlertTriangle className="w-3 h-3" />
           <span>Needs immediate attention</span>
         </div>
@@ -349,7 +349,7 @@ export function EmotionBadgeCompact({ emotion, intensity }: { emotion: EmotionTy
 
   return (
     <div
-      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] ${styles.bg} ${styles.text}`}
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs ${styles.bg} ${styles.text}`}
       title={`${EMOTION_LABELS[emotion]} (${Math.round(intensity * 100)}%)`}
     >
       <Icon className="w-2.5 h-2.5" />

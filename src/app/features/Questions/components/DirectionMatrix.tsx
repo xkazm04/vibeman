@@ -163,7 +163,7 @@ export default function DirectionMatrix({
             <Grid3X3 className="w-5 h-5 text-cyan-400" />
             <h3 className="text-sm font-semibold text-zinc-200">Impact / Effort Matrix</h3>
           </div>
-          <div className="flex items-center gap-3 text-[10px] text-zinc-500">
+          <div className="flex items-center gap-3 text-2xs text-zinc-500">
             <span>{scoredDirections.length} scored</span>
             {unscoredCount > 0 && (
               <span className="text-amber-400/70">{unscoredCount} unscored</span>
@@ -270,7 +270,7 @@ export default function DirectionMatrix({
         {contextColorMap.size > 1 && (
           <div className="flex flex-wrap gap-3 mt-3 justify-center">
             {Array.from(contextColorMap.entries()).map(([name, color]) => (
-              <div key={name} className="flex items-center gap-1.5 text-[10px] text-zinc-400">
+              <div key={name} className="flex items-center gap-1.5 text-2xs text-zinc-400">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
                 <span className="truncate max-w-[120px]">{name}</span>
               </div>
@@ -286,7 +286,7 @@ export default function DirectionMatrix({
             <div className="mt-3 px-3 py-2 bg-zinc-900/90 border border-zinc-700/50 rounded-lg text-xs">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-zinc-200 font-medium line-clamp-1">{d.summary}</span>
-                <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${
+                <span className={`px-1.5 py-0.5 rounded text-2xs font-mono ${
                   d.status === 'accepted' ? 'bg-green-500/20 text-green-400'
                   : d.status === 'rejected' ? 'bg-red-500/20 text-red-400'
                   : 'bg-amber-500/20 text-amber-400'
@@ -316,9 +316,9 @@ export default function DirectionMatrix({
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: config.color }} />
                   <span className="text-xs font-semibold" style={{ color: config.color }}>{config.label}</span>
                 </div>
-                <span className="text-[10px] text-zinc-500 font-mono">{items.length}</span>
+                <span className="text-2xs text-zinc-500 font-mono">{items.length}</span>
               </div>
-              <p className="text-[10px] text-zinc-500 mb-2">{config.description}</p>
+              <p className="text-2xs text-zinc-500 mb-2">{config.description}</p>
               <div className="space-y-1.5">
                 {items.map(d => (
                   <QuadrantItem
@@ -359,8 +359,8 @@ function QuadrantItem({
       <div className="flex-1 min-w-0">
         <p className="text-xs text-zinc-300 line-clamp-1">{d.summary}</p>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-[10px] text-zinc-500 font-mono">E:{d.effort} I:{d.impact}</span>
-          <span className="text-[10px] text-zinc-600">{d.context_name || d.context_map_title}</span>
+          <span className="text-2xs text-zinc-500 font-mono">E:{d.effort} I:{d.impact}</span>
+          <span className="text-2xs text-zinc-600">{d.context_name || d.context_map_title}</span>
         </div>
       </div>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

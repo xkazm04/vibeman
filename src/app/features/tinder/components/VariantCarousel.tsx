@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import {
   Loader2, Sparkles, ChevronLeft, ChevronRight,
   Zap, Target, Rocket, Star, Terminal, ArrowRight,
@@ -296,7 +297,7 @@ export default function VariantCarousel({
           </button>
         </div>
 
-        <p className="text-center text-[10px] text-gray-600 font-mono">
+        <p className="text-center text-2xs text-gray-600 font-mono">
           ⌘/Ctrl+Enter to generate · ESC to cancel
         </p>
       </motion.div>
@@ -320,7 +321,7 @@ export default function VariantCarousel({
         <div className="rounded-lg overflow-hidden border border-purple-500/30 bg-gray-950/50">
           <div className="px-3 py-1.5 bg-purple-500/10 border-b border-purple-500/20 flex items-center gap-2">
             <Terminal className="w-3 h-3 text-purple-400" />
-            <span className="text-[11px] font-mono text-purple-300">
+            <span className="text-caption font-mono text-purple-300">
               Generating: MVP / Standard / Ambitious
             </span>
           </div>
@@ -397,7 +398,7 @@ export default function VariantCarousel({
               <button
                 key={v.scope}
                 onClick={() => setActiveIndex(i)}
-                className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-mono transition-all border ${
+                className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-caption font-mono transition-all border ${
                   isActive
                     ? `bg-gradient-to-r ${conf.bgGradient} ${conf.color} ${conf.borderColor}`
                     : 'bg-gray-800/40 text-gray-500 border-gray-700/30 hover:text-gray-300 hover:border-gray-600/50'
@@ -428,7 +429,7 @@ export default function VariantCarousel({
           initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -30 }}
-          transition={{ duration: 0.2 }}
+          transition={transition.normal}
           className={`relative bg-gradient-to-br ${scopeConf.bgGradient} border ${scopeConf.borderColor} rounded-xl p-5 backdrop-blur-sm`}
         >
           <div className="flex items-start gap-3 mb-4">
@@ -436,11 +437,11 @@ export default function VariantCarousel({
               <ScopeIcon className={`w-5 h-5 ${scopeConf.color}`} />
             </div>
             <div className="flex-1 min-w-0">
-              <span className={`text-[10px] font-mono uppercase tracking-wider ${scopeConf.color}`}>
+              <span className={`text-2xs font-mono uppercase tracking-wider ${scopeConf.color}`}>
                 {scopeConf.label} — {scopeConf.description}
               </span>
               {activeVariant.label && (
-                <span className="text-[10px] text-gray-500 ml-2">· {activeVariant.label}</span>
+                <span className="text-2xs text-gray-500 ml-2">· {activeVariant.label}</span>
               )}
               <h3 className="text-sm font-semibold text-white leading-snug mt-0.5">
                 {activeVariant.title}
@@ -461,7 +462,7 @@ export default function VariantCarousel({
               <div key={label} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-900/50 rounded-lg border border-gray-700/40">
                 <Icon className={`w-3.5 h-3.5 ${scale.colorOf(val)}`} />
                 <div>
-                  <div className="text-[9px] text-gray-500 uppercase">{label}</div>
+                  <div className="text-micro text-gray-500 uppercase">{label}</div>
                   <div className={`text-sm font-bold font-mono ${scale.colorOf(val)}`}>{val}</div>
                 </div>
               </div>
@@ -469,7 +470,7 @@ export default function VariantCarousel({
           </div>
 
           {activeVariant.reasoning && (
-            <p className="text-[11px] text-gray-500 italic mb-4">{activeVariant.reasoning}</p>
+            <p className="text-caption text-gray-500 italic mb-4">{activeVariant.reasoning}</p>
           )}
 
           <div className="flex items-center gap-2">
@@ -490,7 +491,7 @@ export default function VariantCarousel({
         </motion.div>
       </AnimatePresence>
 
-      <div className="flex items-center justify-center gap-4 text-[10px] text-gray-600 font-mono">
+      <div className="flex items-center justify-center gap-4 text-2xs text-gray-600 font-mono">
         <span>← → Navigate</span>
         <span>ENTER Accept</span>
         <span>ESC Cancel</span>

@@ -1,8 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Check } from 'lucide-react';
 import { useState } from 'react';
-import { SCAN_TYPES } from './lib/ScanTypeConfig';
-import { ScanType } from '../lib/scanTypes';
+import { ScanType, getAllAgents } from '../lib/scanTypes';
 import PromptEditorModal from './components/PromptEditorModal';
 
 export type { ScanType };
@@ -16,7 +15,8 @@ export default function ScanTypeSelector({ selectedTypes, onChange }: ScanTypeSe
   const [editingPrompt, setEditingPrompt] = useState<{ scanType: ScanType; label: string } | null>(null);
   const [shakingType, setShakingType] = useState<ScanType | null>(null);
 
-  const allSelected = selectedTypes.length === SCAN_TYPES.length;
+  const allAgents = getAllAgents();
+  const allSelected = selectedTypes.length === allAgents.length;
 
   const handleToggle = (type: ScanType) => {
     if (selectedTypes.includes(type)) {
@@ -37,7 +37,7 @@ export default function ScanTypeSelector({ selectedTypes, onChange }: ScanTypeSe
       // Clear to just the first selected type
       onChange([selectedTypes[0]]);
     } else {
-      onChange(SCAN_TYPES.map(t => t.value));
+      onChange(allAgents.map(t => t.id));
     }
   };
 
@@ -57,7 +57,7 @@ export default function ScanTypeSelector({ selectedTypes, onChange }: ScanTypeSe
         </div>
         <button
           onClick={handleSelectAllOrClear}
-          className="text-[11px] text-cyan-500 hover:text-cyan-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 focus-visible:ring-cyan-400 rounded"
+          className="text-caption text-cyan-500 hover:text-cyan-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 focus-visible:ring-cyan-400 rounded"
         >
 
           {allSelected ? 'Clear' : 'Select All'}
@@ -65,14 +65,14 @@ export default function ScanTypeSelector({ selectedTypes, onChange }: ScanTypeSe
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        {SCAN_TYPES.map((type) => {
-          const isSelected = selectedTypes.includes(type.value);
-          const isShaking = shakingType === type.value;
+        {allAgents.map((type) => {
+          const isSelected = selectedTypes.includes(type.id);
+          const isShaking = shakingType === type.id;
           return (
             <motion.button
-              key={type.value}
-              onClick={() => handleToggle(type.value)}
-              onContextMenu={(e) => handleRightClick(e, type.value, type.label)}
+              key={type.id}
+              onClick={() => handleToggle(type.id)}
+              onContextMenu={(e) => handleRightClick(e, type.id, type.label)}
               className={`relative px-4 py-3 min-h-[44px] rounded-lg border-2 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 focus-visible:ring-cyan-400 ${
                 isSelected
                   ? type.color
@@ -117,7 +117,7 @@ export default function ScanTypeSelector({ selectedTypes, onChange }: ScanTypeSe
                 <span className={`text-sm font-semibold ${isSelected ? '' : 'text-gray-400'}`}>
                   {type.label}
                 </span>
-                <span className={`text-[10px] text-center leading-tight ${isSelected ? 'opacity-80' : 'opacity-60'}`}>
+                <span className={`text-2xs text-center leading-tight ${isSelected ? 'opacity-80' : 'opacity-60'}`}>
                   {type.description}
                 </span>
               </div>

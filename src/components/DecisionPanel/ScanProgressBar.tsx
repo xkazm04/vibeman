@@ -25,6 +25,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { transition } from '@/lib/motion';
 
 export type ScanProgressState = 'idle' | 'scanning' | 'success' | 'error';
 
@@ -108,7 +109,7 @@ export default function ScanProgressBar({
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.3 }}
+      transition={transition.deliberate}
     >
       {/* Header with label and stats */}
       {(label || showPercentage || showTokenCounts) && (

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Activity, CheckCircle2, Clock, Zap, GitCommit, FileText,
@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import GlassCard from '@/components/cards/GlassCard';
 
-interface GoalSignal {
+export interface GoalSignal {
   id: string;
   signal_type: string;
   source_title: string | null;
@@ -18,7 +18,7 @@ interface GoalSignal {
   created_at: string;
 }
 
-interface SubGoal {
+export interface SubGoal {
   id: string;
   title: string;
   description: string | null;
@@ -27,7 +27,7 @@ interface SubGoal {
   order_index: number;
 }
 
-interface LifecycleData {
+export interface LifecycleData {
   goal: {
     id: string;
     lifecycle_status?: string;
@@ -45,8 +45,9 @@ interface LifecycleData {
 }
 
 interface GoalLifecyclePanelProps {
-  goalId: string;
+  data: LifecycleData;
   projectId: string;
+  onRefresh: () => void;
 }
 
 const SIGNAL_ICONS: Record<string, React.ElementType> = {
@@ -80,38 +81,18 @@ function formatTimeAgo(dateStr: string): string {
   return `${days}d ago`;
 }
 
-export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecyclePanelProps) {
-  const [data, setData] = useState<LifecycleData | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function GoalLifecyclePanel({ data, projectId, onRefresh }: GoalLifecyclePanelProps) {
+  const [localData, setLocalData] = useState<LifecycleData>(data);
   const [showSignals, setShowSignals] = useState(false);
   const [catchingUp, setCatchingUp] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
-  const abortRef = useRef<AbortController | null>(null);
+  // Sync local data when parent provides new data
+  React.useEffect(() => {
+    setLocalData(data);
+  }, [data]);
 
-  const fetchData = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const res = await fetch(`/api/goals/lifecycle?goalId=${goalId}`, { signal });
-      if (res.ok) {
-        const json = await res.json();
-        setData(json.data);
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') return;
-      // Silent fail - lifecycle is supplementary
-    } finally {
-      setLoading(false);
-    }
-  }, [goalId]);
-
-  useEffect(() => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setLoading(true);
-    fetchData(controller.signal);
-    return () => controller.abort();
-  }, [fetchData]);
+  const goalId = localData.goal.id;
 
   const handleCatchUp = async () => {
     setCatchingUp(true);
@@ -121,7 +102,7 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'catch_up', projectId }),
       });
-      await fetchData();
+      onRefresh();
     } finally {
       setCatchingUp(false);
     }
@@ -135,7 +116,7 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'confirm_complete', goalId }),
       });
-      await fetchData();
+      onRefresh();
     } finally {
       setConfirming(false);
     }
@@ -147,13 +128,12 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'dismiss_complete', goalId }),
     });
-    await fetchData();
+    onRefresh();
   };
 
   const handleSubGoalStatusChange = async (subGoalId: string, newStatus: string) => {
     // Optimistic update — mutate local state immediately
-    setData(prev => {
-      if (!prev) return prev;
+    setLocalData(prev => {
       const subGoals = prev.subGoals.map(sg =>
         sg.id === subGoalId ? { ...sg, status: newStatus as SubGoal['status'] } : sg
       );
@@ -178,24 +158,13 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
       }),
     }).catch(() => {
       // Revert on failure by refetching
-      fetchData();
+      onRefresh();
     });
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center gap-2 py-4 text-slate-400">
-        <Loader2 className="w-4 h-4 animate-spin" />
-        <span className="text-xs">Loading lifecycle data...</span>
-      </div>
-    );
-  }
-
-  if (!data) return null;
-
-  const progress = data.inferredProgress;
-  const totalSignals = data.signals.length;
-  const lifecycleStatus = data.goal.lifecycle_status || 'manual';
+  const progress = localData.inferredProgress;
+  const totalSignals = localData.signals.length;
+  const lifecycleStatus = localData.goal.lifecycle_status || 'manual';
 
   return (
     <div className="space-y-4">
@@ -208,12 +177,12 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
               Autonomous Progress
             </h4>
             {lifecycleStatus === 'auto_tracking' && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-blue-500/20 text-blue-300 border border-blue-500/30">
+              <span className="px-1.5 py-0.5 rounded text-2xs font-mono bg-blue-500/20 text-blue-300 border border-blue-500/30">
                 TRACKING
               </span>
             )}
             {lifecycleStatus === 'auto_completed' && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-green-500/20 text-green-300 border border-green-500/30">
+              <span className="px-1.5 py-0.5 rounded text-2xs font-mono bg-green-500/20 text-green-300 border border-green-500/30">
                 READY
               </span>
             )}
@@ -253,7 +222,7 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
         </div>
         <div className="flex justify-between mt-1.5">
           <span className="text-xs text-slate-400">
-            {data.lastActivity ? `Last activity: ${formatTimeAgo(data.lastActivity)}` : 'No activity yet'}
+            {localData.lastActivity ? `Last activity: ${formatTimeAgo(localData.lastActivity)}` : 'No activity yet'}
           </span>
           <span className="text-sm font-bold text-white">
             {progress}%
@@ -263,7 +232,7 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
 
       {/* Auto-Complete Suggestion */}
       <AnimatePresence>
-        {data.shouldAutoComplete && lifecycleStatus === 'auto_completed' && (
+        {localData.shouldAutoComplete && lifecycleStatus === 'auto_completed' && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -277,7 +246,7 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
                   This goal appears complete
                 </p>
                 <p className="text-xs text-green-400/70 mt-1">
-                  Based on {totalSignals} signals and {data.subGoalStats.done}/{data.subGoalStats.total || 'all'} sub-goals done.
+                  Based on {totalSignals} signals and {localData.subGoalStats.done}/{localData.subGoalStats.total || 'all'} sub-goals done.
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -306,7 +275,7 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
       </AnimatePresence>
 
       {/* Sub-Goals */}
-      {data.subGoals.length > 0 && (
+      {localData.subGoals.length > 0 && (
         <GlassCard variant="card" className="p-4">
           <div className="flex items-center gap-2 mb-3">
             <ListChecks className="w-4 h-4 text-purple-400" />
@@ -314,12 +283,12 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
               Sub-Goals
             </h4>
             <span className="text-xs text-slate-400">
-              {data.subGoalStats.done}/{data.subGoalStats.total}
+              {localData.subGoalStats.done}/{localData.subGoalStats.total}
             </span>
           </div>
 
           <div className="space-y-2">
-            {data.subGoals.map((sg) => (
+            {localData.subGoals.map((sg) => (
               <div
                 key={sg.id}
                 className="flex items-center gap-3 py-2 px-3 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors"
@@ -379,7 +348,7 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
                 className="overflow-hidden"
               >
                 <div className="px-4 pb-4 space-y-2 max-h-64 overflow-y-auto">
-                  {data.signals.slice(0, 20).map((signal) => {
+                  {localData.signals.slice(0, 20).map((signal) => {
                     const Icon = SIGNAL_ICONS[signal.signal_type] || Activity;
                     const color = SIGNAL_COLORS[signal.signal_type] || 'text-slate-400';
 
@@ -390,7 +359,7 @@ export default function GoalLifecyclePanel({ goalId, projectId }: GoalLifecycleP
                           <p className="text-xs text-white/70 truncate">
                             {signal.source_title || signal.description || signal.signal_type}
                           </p>
-                          <p className="text-[10px] text-slate-500">
+                          <p className="text-2xs text-slate-500">
                             {formatTimeAgo(signal.created_at)}
                             {signal.progress_delta > 0 && (
                               <span className="ml-2 text-green-400">+{signal.progress_delta}%</span>

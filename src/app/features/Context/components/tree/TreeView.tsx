@@ -2,6 +2,7 @@ import React from 'react';
 import { RefreshCw, AlertCircle, FolderTree } from 'lucide-react';
 import { TreeNode as TreeNodeType, Project } from '@/types';
 import TreeNode from './TreeNode';
+import { buttonVariants } from '@/lib/design-tokens';
 
 interface TreeViewProps {
   activeProject?: Project | null;
@@ -50,14 +51,14 @@ export default function TreeView({
               <button
                 data-testid="tree-error-dismiss-button"
                 onClick={onClearError}
-                className="text-sm text-gray-400 hover:text-gray-300 transition-colors px-4 py-2 bg-gray-700/50 rounded-lg hover:bg-gray-700/70"
+                className={`text-sm ${buttonVariants.secondary}`}
               >
                 Dismiss
               </button>
               <button
                 data-testid="tree-error-retry-button"
                 onClick={onRefresh}
-                className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors px-4 py-2 bg-cyan-500/10 rounded-lg hover:bg-cyan-500/20"
+                className={`text-sm ${buttonVariants.primary}`}
               >
                 Retry
               </button>

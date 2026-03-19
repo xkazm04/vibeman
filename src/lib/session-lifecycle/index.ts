@@ -16,6 +16,7 @@ export { SessionLifecycleManager } from './SessionLifecycleManager';
 // Types
 export type {
   BaseSession,
+  HeartbeatResult,
   StalenessRule,
   StaleSession,
   PersistenceStrategy,

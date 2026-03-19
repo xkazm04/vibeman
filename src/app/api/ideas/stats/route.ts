@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/app/db/connection';
-import { SCAN_TYPES } from '@/app/features/Ideas/sub_IdeasSetup/lib/ScanTypeConfig';
+import { ALL_SCAN_TYPES } from '@/app/features/Ideas/lib/scanTypes';
 import { createRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
 interface StatusScanRow {
@@ -51,7 +51,7 @@ async function handleGet(request: NextRequest) {
   ).all(...params) as StatusScanRow[];
 
   // Build scan type stats from the aggregated rows
-  const scanTypeValues = SCAN_TYPES.map(t => t.value);
+  const scanTypeValues = ALL_SCAN_TYPES;
   const scanTypeStats = scanTypeValues.map(scanType => {
     const scanRows = rows.filter(r => r.scan_type === scanType);
     const pending = scanRows.find(r => r.status === 'pending')?.count ?? 0;

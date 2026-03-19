@@ -64,7 +64,7 @@ export function ScreenThumbnailPreview({ props }: PreviewProps) {
         />
       )}
       <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5 bg-gradient-to-t from-black/80 to-transparent">
-        <span className="text-[10px] text-gray-300 truncate block">Dashboard</span>
+        <span className="text-2xs text-gray-300 truncate block">Dashboard</span>
       </div>
     </motion.div>
   );
@@ -90,7 +90,7 @@ export function CandidateCardPreview({ props }: PreviewProps) {
     >
       <div className="flex items-start justify-between mb-2">
         <span className={`text-xs font-semibold uppercase ${colors.text}`}>{priority}</span>
-        <span className="text-[10px] text-gray-500 font-mono">85%</span>
+        <span className="text-2xs text-gray-500 font-mono">85%</span>
       </div>
       <h3 className="text-sm font-medium text-gray-200 mb-2">Add authentication flow</h3>
       {isEditing ? (
@@ -148,7 +148,7 @@ export function ScanTypeCardPreview({ props }: PreviewProps) {
       </div>
       <p className="text-xs text-gray-400">Find potential bugs and edge cases</p>
       <div className="flex items-center justify-between mt-2">
-        <span className="text-[10px] text-gray-500">{category}</span>
+        <span className="text-2xs text-gray-500">{category}</span>
         {selected && <Check className="w-3 h-3 text-white" />}
       </div>
     </motion.div>
@@ -447,7 +447,7 @@ export function CheckpointProgressPreview({ props }: PreviewProps) {
               >
                 <s.icon className="w-4 h-4" />
               </motion.div>
-              <span className="text-[10px] text-gray-500 mt-1">{cp.label}</span>
+              <span className="text-2xs text-gray-500 mt-1">{cp.label}</span>
             </div>
             {i < checkpoints.length - 1 && (
               <div className={`w-6 h-0.5 ${cp.status === 'completed' ? 'bg-green-500/50' : 'bg-gray-700'}`} />
@@ -554,7 +554,7 @@ export function HypothesisRowPreview({ props }: PreviewProps) {
       <h3 className="text-sm text-gray-200 mb-1">Users prefer dark mode</h3>
       <p className="text-xs text-gray-500">Based on user feedback analysis</p>
       <div className="flex items-center gap-2 mt-2">
-        <span className="text-[10px] px-1.5 py-0.5 bg-gray-800 text-gray-400 rounded">{category}</span>
+        <span className="text-2xs px-1.5 py-0.5 bg-gray-800 text-gray-400 rounded">{category}</span>
       </div>
     </motion.div>
   );
@@ -930,7 +930,7 @@ export function DecisionNodeConfigPreview({ props }: PreviewProps) {
           {['low', 'medium', 'high'].map((severity) => (
             <button
               key={severity}
-              className={`flex-1 py-1 text-[10px] rounded ${severity === 'medium' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-gray-800 text-gray-500'}`}
+              className={`flex-1 py-1 text-2xs rounded ${severity === 'medium' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-gray-800 text-gray-500'}`}
             >
               {severity}
             </button>
@@ -1042,7 +1042,7 @@ export function ContextMapSelectorPreview({ props }: PreviewProps) {
               {ctx.selected && <Check className="w-2 h-2 text-white" />}
             </div>
             <span className={`text-xs flex-1 ${ctx.selected ? 'text-cyan-400' : 'text-gray-400'}`}>{ctx.name}</span>
-            <span className="text-[10px] text-gray-600">{ctx.files}</span>
+            <span className="text-2xs text-gray-600">{ctx.files}</span>
           </motion.div>
         ))}
       </div>

@@ -68,7 +68,7 @@ export default function EmulatorHeader({
             {isRegistered ? localDeviceName : isConnecting ? 'Connecting...' : 'Disconnected'}
           </p>
           {connectionError && !isRegistered && (
-            <p className="text-[10px] text-red-400 truncate max-w-[150px]">{connectionError}</p>
+            <p className="text-2xs text-red-400 truncate max-w-[150px]">{connectionError}</p>
           )}
         </div>
 
@@ -189,7 +189,7 @@ export default function EmulatorHeader({
                         />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-gray-200 truncate">{device.device_name}</p>
-                          <p className="text-[10px] text-gray-500">
+                          <p className="text-2xs text-gray-500">
                             {device.active_sessions}/{device.capabilities?.session_slots || 4} sessions
                           </p>
                         </div>

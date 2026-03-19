@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Plus, Save } from 'lucide-react';
 import { ContextGroup } from '../../../../stores/contextStore';
 import ContextEditModal from '../sub_ContextGen/ContextEditModal';
+import { buttonVariants } from '@/lib/design-tokens';
 
 interface ContextCardsEmptyProps {
   group?: ContextGroup;
@@ -69,7 +70,7 @@ const ContextCardsEmpty = React.memo(({
                 }
               );
             }}
-            className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 rounded-xl hover:from-cyan-500/30 hover:to-blue-500/30 transition-all border border-cyan-500/30 backdrop-blur-sm"
+            className={`flex items-center space-x-2 ${buttonVariants.primary} backdrop-blur-sm`}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >

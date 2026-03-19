@@ -30,7 +30,7 @@ export default function BottleneckBadge({ failCount, onClick }: BottleneckBadgeP
     >
       <div className="relative flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-500/90 border border-red-400/60 shadow-lg">
         <AlertTriangle className="w-3 h-3 text-white" />
-        <span className="text-[9px] font-bold text-white">{failCount}</span>
+        <span className="text-micro font-bold text-white">{failCount}</span>
 
         {/* Pulse animation ring */}
         <motion.div

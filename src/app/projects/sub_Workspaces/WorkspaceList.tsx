@@ -54,28 +54,28 @@ export default function WorkspaceList({ onEdit, onAssignProjects, onDelete }: Wo
               {projectCount} {projectCount === 1 ? 'project' : 'projects'}
             </span>
 
-            {/* Actions */}
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Actions - always visible for touch accessibility */}
+            <div className="flex items-center gap-1">
               <button
                 onClick={() => onAssignProjects(ws.id)}
-                className="p-1.5 text-gray-500 hover:text-blue-400 rounded"
-                title="Assign projects"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-600 hover:text-blue-400 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0f23]"
+                aria-label={`Assign projects to ${ws.name}`}
               >
-                <Users className="w-3.5 h-3.5" />
+                <Users className="w-4 h-4" />
               </button>
               <button
                 onClick={() => onEdit(ws)}
-                className="p-1.5 text-gray-500 hover:text-gray-300 rounded"
-                title="Edit"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-600 hover:text-gray-300 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0f23]"
+                aria-label={`Edit ${ws.name}`}
               >
-                <Pencil className="w-3.5 h-3.5" />
+                <Pencil className="w-4 h-4" />
               </button>
               <button
                 onClick={() => onDelete(ws.id)}
-                className="p-1.5 text-gray-500 hover:text-red-400 rounded"
-                title="Delete"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-600 hover:text-red-400 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0f23]"
+                aria-label={`Delete ${ws.name}`}
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-4 h-4" />
               </button>
             </div>
           </motion.div>

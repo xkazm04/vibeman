@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Target, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 
 interface GoalProgressRingProps {
@@ -20,7 +21,7 @@ const SIZE_CONFIG = {
     strokeWidth: 6,
     radius: 32,
     textSize: 'text-lg',
-    labelSize: 'text-[10px]',
+    labelSize: 'text-2xs',
   },
   md: {
     containerSize: 120,
@@ -305,7 +306,7 @@ export function GoalProgressMini({
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[9px] font-bold text-gray-300">{percent}%</span>
+          <span className="text-micro font-bold text-gray-300">{percent}%</span>
         </div>
       </div>
       <span className="text-xs text-gray-400">

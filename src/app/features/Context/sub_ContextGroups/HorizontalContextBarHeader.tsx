@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { SimpleSpinner } from '@/components/ui';
 import { Save, Plus, Grid3X3, ChevronUp, Trash2, Download, Check, Loader2 } from 'lucide-react';
 import { ContextGroup } from '../../../../stores/contextStore';
 import { useActiveOnboardingStep } from '@/app/features/Onboarding/lib/useOnboardingConditions';
+import { buttonVariants } from '@/lib/design-tokens';
 
 interface HorizontalContextBarHeaderProps {
   selectedFilesCount: number;
@@ -206,7 +208,7 @@ const HorizontalContextBarHeader = React.memo(({
                             <motion.button
                               onClick={handleDeleteAll}
                               disabled={isDeleting}
-                              className="flex-1 px-3 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-all border border-red-500/30 text-sm font-medium disabled:opacity-50"
+                              className={`flex-1 ${buttonVariants.ghost} bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 text-sm disabled:opacity-50`}
                               whileHover={{ scale: 1.02 }}
                               whileTap={{ scale: 0.98 }}
                             >
@@ -215,7 +217,7 @@ const HorizontalContextBarHeader = React.memo(({
                             <motion.button
                               onClick={() => setShowDeleteConfirm(false)}
                               disabled={isDeleting}
-                              className="px-3 py-2 bg-gray-700/50 text-gray-400 rounded-lg hover:bg-gray-700/70 transition-all text-sm disabled:opacity-50"
+                              className={`${buttonVariants.ghost} text-sm disabled:opacity-50`}
                               whileHover={{ scale: 1.02 }}
                               whileTap={{ scale: 0.98 }}
                             >
@@ -233,7 +235,7 @@ const HorizontalContextBarHeader = React.memo(({
 
           {loading && (
             <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+              <SimpleSpinner size="sm" color="cyan" />
               <span className="text-sm text-blue-400 font-mono">Syncing...</span>
             </div>
           )}

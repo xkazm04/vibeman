@@ -135,7 +135,7 @@ export function CLIGitConfigPanel({
             >
               <Icon className="w-4 h-4" />
               <span className="text-xs font-medium">{preset.label}</span>
-              <span className="text-[10px] opacity-60">{preset.description}</span>
+              <span className="text-2xs opacity-60">{preset.description}</span>
             </button>
           );
         })}
@@ -150,7 +150,7 @@ export function CLIGitConfigPanel({
               <button
                 key={tag}
                 onClick={() => setLocalTemplate(prev => prev + ' ' + tag)}
-                className="text-[10px] px-1.5 py-0.5 bg-purple-500/10 text-purple-400 rounded-md hover:bg-purple-500/20 transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/30"
+                className="text-2xs px-1.5 py-0.5 bg-purple-500/10 text-purple-400 rounded-md hover:bg-purple-500/20 transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/30"
               >
                 {tag}
               </button>
@@ -180,7 +180,7 @@ export function CLIGitConfigPanel({
           )}
         </div>
         {/* Live Preview */}
-        <div className="mt-1.5 px-2 py-1 bg-gray-900/70 rounded-md text-[10px] text-gray-500 font-mono truncate border border-gray-800/50">
+        <div className="mt-1.5 px-2 py-1 bg-gray-900/70 rounded-md text-2xs text-gray-500 font-mono truncate border border-gray-800/50">
           Preview: <span className="text-gray-300">{commitPreview}</span>
         </div>
       </div>
@@ -191,7 +191,7 @@ export function CLIGitConfigPanel({
           <label className="text-xs font-medium text-gray-400">Commands</label>
           <button
             onClick={() => handlePresetSelect('standard')}
-            className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-purple-400 transition-all duration-200 hover:scale-105 active:scale-95"
+            className="flex items-center gap-1 text-2xs text-gray-500 hover:text-purple-400 transition-all duration-200 hover:scale-105 active:scale-95"
           >
             <RotateCcw className="w-2.5 h-2.5" />
             Reset
@@ -204,7 +204,7 @@ export function CLIGitConfigPanel({
             const hasErrors = validation && !validation.valid;
             return (
               <div key={index} className="flex items-center gap-1.5">
-                <span className={`w-5 h-5 flex items-center justify-center rounded text-[10px] font-medium transition-colors duration-200 ${
+                <span className={`w-5 h-5 flex items-center justify-center rounded text-2xs font-medium transition-colors duration-200 ${
                   hasErrors
                     ? 'bg-red-500/20 text-red-400 border border-red-500/30'
                     : 'bg-gray-800 text-gray-500 border border-gray-700/50'
@@ -235,7 +235,7 @@ export function CLIGitConfigPanel({
 
         <button
           onClick={addCommand}
-          className="mt-1.5 flex items-center gap-1 text-[10px] text-purple-400 hover:text-purple-300 transition-all duration-200 hover:scale-105 active:scale-95"
+          className="mt-1.5 flex items-center gap-1 text-2xs text-purple-400 hover:text-purple-300 transition-all duration-200 hover:scale-105 active:scale-95"
         >
           <Plus className="w-3 h-3" />
           Add command
@@ -244,7 +244,7 @@ export function CLIGitConfigPanel({
 
       {/* Validation Errors */}
       {(!templateValidation.valid || commandValidation.some(v => !v.valid)) && (
-        <div className="flex items-start gap-2 px-2 py-1.5 bg-gradient-to-r from-red-500/10 to-red-600/5 border border-red-500/20 rounded-md text-[10px] text-red-400">
+        <div className="flex items-start gap-2 px-2 py-1.5 bg-gradient-to-r from-red-500/10 to-red-600/5 border border-red-500/20 rounded-md text-2xs text-red-400">
           <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
           <div className="space-y-0.5">
             {templateValidation.errors.map((err, i) => <div key={`t-${i}`}>{err}</div>)}
@@ -257,7 +257,7 @@ export function CLIGitConfigPanel({
 
       {/* Footer */}
       <div className="flex items-center justify-between pt-3 border-t border-gray-700/50">
-        <div className="flex items-center gap-1.5 text-[10px]">
+        <div className="flex items-center gap-1.5 text-2xs">
           {isConfigValid ? (
             <>
               <CheckCircle className="w-3 h-3 text-green-500" />

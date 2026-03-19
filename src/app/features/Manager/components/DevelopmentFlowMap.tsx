@@ -18,6 +18,7 @@ import { useFlowAnalysis, type FlowPair } from './useFlowAnalysis';
 import FlowArrow from './FlowArrow';
 import BottleneckBadge from './BottleneckBadge';
 import CrossContextDetail from './CrossContextDetail';
+import { SimpleSpinner } from '@/components/ui/Spinner';
 import type { EnrichedLogWithGroup } from './ManagerSystemMap';
 import {
   MIN_ARROW_THRESHOLD,
@@ -263,7 +264,7 @@ export default function DevelopmentFlowMap({
             className="absolute bottom-3 left-3 z-10 p-3 rounded-lg bg-gray-900/95 border border-gray-700 backdrop-blur-sm"
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-semibold text-gray-300 uppercase tracking-wider">
+              <span className="text-2xs font-semibold text-gray-300 uppercase tracking-wider">
                 Flow Legend
               </span>
               <button
@@ -276,19 +277,19 @@ export default function DevelopmentFlowMap({
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-0.5 bg-green-500 rounded" />
-                <span className="text-[10px] text-gray-400">{'>'}{SUCCESS_RATE_HIGH * 100}% success</span>
+                <span className="text-2xs text-gray-400">{'>'}{SUCCESS_RATE_HIGH * 100}% success</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-6 h-0.5 bg-yellow-500 rounded" />
-                <span className="text-[10px] text-gray-400">{SUCCESS_RATE_LOW * 100}-{SUCCESS_RATE_HIGH * 100}% success</span>
+                <span className="text-2xs text-gray-400">{SUCCESS_RATE_LOW * 100}-{SUCCESS_RATE_HIGH * 100}% success</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-6 h-0.5 bg-red-500 rounded" />
-                <span className="text-[10px] text-gray-400">{'<'}{SUCCESS_RATE_LOW * 100}% success</span>
+                <span className="text-2xs text-gray-400">{'<'}{SUCCESS_RATE_LOW * 100}% success</span>
               </div>
               <div className="flex items-center gap-2 pt-1 border-t border-gray-800">
                 <div className="w-6 h-1.5 bg-gray-500 rounded" />
-                <span className="text-[10px] text-gray-400">Thicker = more frequent</span>
+                <span className="text-2xs text-gray-400">Thicker = more frequent</span>
               </div>
             </div>
           </motion.div>
@@ -309,7 +310,7 @@ export default function DevelopmentFlowMap({
       {/* Empty flow state */}
       {!flowLoading && !hasFlowData && contextGroups.length > 0 && (
         <div className="absolute bottom-3 left-3 z-10 p-3 rounded-lg bg-gray-900/90 border border-gray-700/50 max-w-[240px]">
-          <p className="text-[10px] text-gray-500 leading-relaxed">
+          <p className="text-2xs text-gray-500 leading-relaxed">
             No cross-context flows detected yet. Flows appear when implementations span multiple context groups.
           </p>
         </div>
@@ -318,8 +319,8 @@ export default function DevelopmentFlowMap({
       {/* Flow loading indicator */}
       {flowLoading && (
         <div className="absolute bottom-3 left-3 z-10 flex items-center gap-2 p-2 rounded-lg bg-gray-900/80 border border-gray-700">
-          <div className="w-3 h-3 border border-cyan-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-[10px] text-gray-400">Loading flows...</span>
+          <SimpleSpinner size="xs" color="cyan" />
+          <span className="text-2xs text-gray-400">Loading flows...</span>
         </div>
       )}
 

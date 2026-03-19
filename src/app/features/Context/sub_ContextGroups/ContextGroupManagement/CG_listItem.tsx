@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Edit2, Trash2, Check, X } from 'lucide-react';
 import { ContextGroup } from '@/stores/contextStore';
+import { inputStyle } from '@/lib/design-tokens';
 import GradientPalettePicker from '../components/GradientPalettePicker';
 
 interface GroupListItemProps {
@@ -88,7 +89,7 @@ export default function GroupListItem({
                   if (e.key === 'Enter') handleSave();
                   if (e.key === 'Escape') onCancelEdit();
                 }}
-                className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white font-mono focus:outline-none focus:border-blue-500"
+                className={`w-full ${inputStyle} font-mono`}
                 autoFocus
                 maxLength={30}
                 data-testid={`group-name-input-${group.id}`}

@@ -86,7 +86,7 @@ export default function ContextGroupSelector({
 
             {/* Context count badge */}
             <span
-              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+              className={`px-1.5 py-0.5 rounded text-2xs font-semibold ${
                 isSelected ? 'bg-white/20 text-white' : 'bg-gray-700/60 text-gray-500'
               }`}
             >

@@ -12,6 +12,8 @@ import {
   Search, Filter, Layers, Zap, CheckCircle, Brain, Sparkles,
   Loader2, AlertCircle, Pause, Clock,
 } from 'lucide-react';
+import { hover as hoverPresets, tap, pulse } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import type { AnyPipelineStage, StageState, ExecutionTaskState } from '../lib/types';
 
 const STAGE_ICONS: Record<string, typeof Search> = {
@@ -58,6 +60,7 @@ interface StageCardProps {
 }
 
 export default function StageCard({ stage, state, isCurrentStage, onClick }: StageCardProps) {
+  const prefersReduced = useReducedMotion();
   const Icon = STAGE_ICONS[stage] || Zap;
   const colors = STAGE_COLORS[stage] || STAGE_COLORS.execute;
   const label = STAGE_LABELS[stage] || stage;
@@ -93,16 +96,16 @@ export default function StageCard({ stage, state, isCurrentStage, onClick }: Sta
               : 'border-gray-800 bg-gray-900/30 hover:bg-gray-800/50'
         }
       `}
-      whileHover={{ scale: 1.03, y: -2 }}
-      whileTap={{ scale: 0.98 }}
+      whileHover={!prefersReduced ? hoverPresets.card : undefined}
+      whileTap={!prefersReduced ? tap.press : undefined}
       data-testid={`stage-card-${stage}`}
     >
       {/* Pulse ring for active stage */}
-      {isActive && (
+      {isActive && !prefersReduced && (
         <motion.div
           className={`absolute inset-0 rounded-xl border ${colors.active.replace('text-', 'border-')}`}
-          animate={{ opacity: [0.3, 0.8, 0.3] }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          animate={pulse.ring.animate}
+          transition={pulse.ring.transition}
         />
       )}
 
@@ -132,7 +135,7 @@ export default function StageCard({ stage, state, isCurrentStage, onClick }: Sta
 
       {/* Item counts */}
       {(state.itemsIn > 0 || state.itemsOut > 0) && (
-        <div className="flex items-center gap-1 text-[10px] font-mono">
+        <div className="flex items-center gap-1 text-2xs font-mono">
           <span className="text-gray-500">{state.itemsIn}</span>
           <span className="text-gray-600">&rarr;</span>
           <span className={isCompleted ? 'text-emerald-400' : colors.active}>
@@ -145,7 +148,7 @@ export default function StageCard({ stage, state, isCurrentStage, onClick }: Sta
       {stage === 'execute' && executionTasks.length > 0 && (
         <div className="w-full space-y-0.5 mt-1">
           {executionTasks.slice(0, 4).map((task) => (
-            <div key={task.requirementName} className="flex items-center gap-1 text-[9px] font-mono">
+            <div key={task.requirementName} className="flex items-center gap-1 text-micro font-mono">
               <span className={
                 task.status === 'running' ? 'text-cyan-400' :
                 task.status === 'completed' ? 'text-emerald-400' :
@@ -172,7 +175,7 @@ export default function StageCard({ stage, state, isCurrentStage, onClick }: Sta
       {stage === 'dispatch' && dispatchTasks.length > 0 && (
         <div className="w-full space-y-0.5 mt-1">
           {dispatchTasks.slice(0, 4).map((task) => (
-            <div key={task.id} className="flex items-center gap-1 text-[9px] font-mono">
+            <div key={task.id} className="flex items-center gap-1 text-micro font-mono">
               <span className={
                 task.status === 'running' ? 'text-cyan-400' :
                 task.status === 'completed' ? 'text-emerald-400' :

@@ -158,7 +158,7 @@ export function CLISession({
     return (
       <div className="flex flex-col font-mono border border-gray-800 bg-gray-950 overflow-hidden">
         {/* Nerd Header */}
-        <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-800 text-[11px]">
+        <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-800 text-caption">
           <div className="flex items-center gap-2">
             <span className="text-gray-500">S{index + 1}</span>
             <span className={statusClass}>[{statusText}]</span>
@@ -183,7 +183,7 @@ export function CLISession({
             <button
               onClick={handleAddTasks}
               disabled={selectedCount === 0}
-              className="px-1.5 py-0.5 text-[10px] text-cyan-400 hover:bg-cyan-500/10 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="px-1.5 py-0.5 text-2xs text-cyan-400 hover:bg-cyan-500/10 disabled:opacity-30 disabled:cursor-not-allowed"
               title={`Add ${selectedCount} selected tasks`}
             >
               +{selectedCount}
@@ -191,7 +191,7 @@ export function CLISession({
             {canStart && (
               <button
                 onClick={handleStart}
-                className="px-1.5 py-0.5 text-[10px] text-emerald-400 hover:bg-emerald-500/10"
+                className="px-1.5 py-0.5 text-2xs text-emerald-400 hover:bg-emerald-500/10"
                 title="Start queue"
               >
                 [START]
@@ -206,7 +206,7 @@ export function CLISession({
                     handleDelete();
                   }
                 }}
-                className="px-1 py-0.5 text-[10px] text-red-400/60 hover:text-red-400 hover:bg-red-500/10"
+                className="px-1 py-0.5 text-2xs text-red-400/60 hover:text-red-400 hover:bg-red-500/10"
                 title={isRunning ? 'Stop & reset' : 'Reset'}
               >
                 [X]
@@ -217,7 +217,7 @@ export function CLISession({
 
         {/* Nerd Delete Confirm */}
         {showDeleteConfirm && (
-          <div ref={deleteConfirmRef} className="px-2 py-1.5 border-b border-red-800/50 bg-red-950/20 text-[10px] flex items-center justify-between">
+          <div ref={deleteConfirmRef} className="px-2 py-1.5 border-b border-red-800/50 bg-red-950/20 text-2xs flex items-center justify-between">
             <span className="text-red-400">Abort running task and reset?</span>
             <div className="flex gap-2">
               <button onClick={() => setShowDeleteConfirm(false)} className="text-gray-500 hover:text-gray-300">[cancel]</button>
@@ -228,7 +228,7 @@ export function CLISession({
 
         {/* Nerd Queue */}
         {hasQueue && (
-          <div className="px-2 py-1 border-b border-gray-800 text-[10px] text-gray-500 max-h-[40px] overflow-y-auto">
+          <div className="px-2 py-1 border-b border-gray-800 text-2xs text-gray-500 max-h-[40px] overflow-y-auto">
             {session.queue.slice(0, 8).map(task => (
               <span
                 key={task.id}
@@ -270,7 +270,7 @@ export function CLISession({
               model={session.model}
             />
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-600 text-[10px] font-mono">
+            <div className="flex items-center justify-center h-full text-gray-600 text-2xs font-mono">
               awaiting tasks...
             </div>
           )}
@@ -329,7 +329,7 @@ export function CLISession({
                         <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
                         <div>
                           <p className="text-xs text-gray-200 font-medium">Stop execution?</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">
+                          <p className="text-2xs text-gray-400 mt-0.5">
                             This will abort the running task and reset the session.
                           </p>
                         </div>
@@ -337,13 +337,13 @@ export function CLISession({
                       <div className="flex justify-end gap-2">
                         <button
                           onClick={() => setShowDeleteConfirm(false)}
-                          className="px-2 py-1 text-[10px] text-gray-400 hover:text-gray-300 transition-all duration-200 hover:bg-gray-800/50 rounded"
+                          className="px-2 py-1 text-2xs text-gray-400 hover:text-gray-300 transition-all duration-200 hover:bg-gray-800/50 rounded"
                         >
                           Cancel
                         </button>
                         <button
                           onClick={handleDelete}
-                          className="px-2 py-1 text-[10px] bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded transition-all duration-200 font-medium hover:shadow-sm hover:shadow-red-500/20 active:scale-95"
+                          className="px-2 py-1 text-2xs bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded transition-all duration-200 font-medium hover:shadow-sm hover:shadow-red-500/20 active:scale-95"
                         >
                           Stop & Reset
                         </button>
@@ -356,26 +356,26 @@ export function CLISession({
           </div>
           {/* Per-session recovery indicator */}
           {session.isRecovering && (
-            <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 bg-amber-500/10 text-amber-400 rounded font-medium border border-amber-500/20 animate-pulse">
+            <span className="flex items-center gap-1 text-micro px-1.5 py-0.5 bg-amber-500/10 text-amber-400 rounded font-medium border border-amber-500/20 animate-pulse">
               <RotateCcw className="w-2.5 h-2.5 animate-spin" />
               Recovering...
             </span>
           )}
           {/* Session resolved count */}
           {session.completedCount > 0 && (
-            <span className="text-[9px] px-1.5 py-0.5 bg-gradient-to-r from-green-500/10 to-emerald-500/10 text-green-400 rounded font-medium border border-green-500/20">
+            <span className="text-micro px-1.5 py-0.5 bg-gradient-to-r from-green-500/10 to-emerald-500/10 text-green-400 rounded font-medium border border-green-500/20">
               {session.completedCount} resolved
             </span>
           )}
           {/* Claude session indicator */}
           {session.claudeSessionId && (
-            <span className="text-[9px] text-purple-400/70 font-mono">
+            <span className="text-micro text-purple-400/70 font-mono">
               {session.claudeSessionId.slice(0, 6)}
             </span>
           )}
           {/* Stats */}
           {hasQueue && (
-            <div className="flex items-center gap-1.5 text-[10px]">
+            <div className="flex items-center gap-1.5 text-2xs">
               {stats.pending > 0 && (
                 <span className="flex items-center gap-0.5 text-amber-400">
                   <Clock className="w-2.5 h-2.5" />
@@ -410,7 +410,7 @@ export function CLISession({
           <button
             onClick={handleAddTasks}
             disabled={selectedCount === 0}
-            className="flex items-center gap-1 px-2 py-1 text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 rounded-md disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-sm hover:shadow-cyan-500/20 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/30"
+            className="flex items-center gap-1 px-2 py-1 text-2xs bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 rounded-md disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-sm hover:shadow-cyan-500/20 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/30"
             title={`Add ${selectedCount} selected tasks`}
           >
             <Plus className="w-3 h-3" />
@@ -526,7 +526,7 @@ export function CLISession({
           {canStart && (
             <button
               onClick={handleStart}
-              className="flex items-center gap-1 px-2 py-1 text-[10px] bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-md transition-all duration-200 hover:shadow-sm hover:shadow-green-500/20 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500/30"
+              className="flex items-center gap-1 px-2 py-1 text-2xs bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-md transition-all duration-200 hover:shadow-sm hover:shadow-green-500/20 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500/30"
               title="Start queue"
             >
               <Play className="w-3 h-3" />
@@ -543,7 +543,7 @@ export function CLISession({
               <button
                 key={task.id}
                 onClick={() => handleCopyFilename(task.id, task.requirementName)}
-                className={`text-[9px] px-1.5 py-0.5 rounded-md truncate max-w-[100px] flex items-center gap-1 cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 ${
+                className={`text-micro px-1.5 py-0.5 rounded-md truncate max-w-[100px] flex items-center gap-1 cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 ${
                   task.status.type === 'running' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 shadow-sm shadow-blue-500/10' :
                   task.status.type === 'completed' ? 'bg-green-500/10 text-green-400 hover:bg-green-500/20' :
                   task.status.type === 'failed' ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' :
@@ -560,7 +560,7 @@ export function CLISession({
               </button>
             ))}
             {session.queue.length > 6 && (
-              <span className="text-[9px] text-gray-500">
+              <span className="text-micro text-gray-500">
                 +{session.queue.length - 6}
               </span>
             )}

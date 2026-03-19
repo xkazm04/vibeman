@@ -26,7 +26,7 @@ function SimilarityBar({ similarity }: { similarity: number }) {
           style={{ width: `${percent}%` }}
         />
       </div>
-      <span className="text-[10px] text-zinc-400">{percent}%</span>
+      <span className="text-2xs text-zinc-400">{percent}%</span>
     </div>
   );
 }
@@ -68,8 +68,8 @@ export default function RelatedFeedback({ relatedItems, onItemClick, maxItems = 
             </p>
             <div className="flex items-center gap-3 mt-1.5">
               <SimilarityBar similarity={similarity} />
-              <span className="text-[10px] text-zinc-500">{item.channel}</span>
-              <span className="text-[10px] text-zinc-500">{item.priority}</span>
+              <span className="text-2xs text-zinc-500">{item.channel}</span>
+              <span className="text-2xs text-zinc-500">{item.priority}</span>
             </div>
           </div>
 
@@ -78,7 +78,7 @@ export default function RelatedFeedback({ relatedItems, onItemClick, maxItems = 
       ))}
 
       {relatedItems.length > maxItems && (
-        <div className="text-[10px] text-zinc-500 text-center pt-1">
+        <div className="text-2xs text-zinc-500 text-center pt-1">
           +{relatedItems.length - maxItems} more related items
         </div>
       )}

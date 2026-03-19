@@ -220,7 +220,7 @@ export default function TriageRulesPanel({ projectId }: TriageRulesPanelProps) {
         <Filter className="w-3.5 h-3.5" />
         Triage Rules
         {rules.filter(r => r.enabled).length > 0 && (
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-cyan-500/20 text-cyan-300 font-mono">
+          <span className="px-1.5 py-0.5 rounded-full text-2xs bg-cyan-500/20 text-cyan-300 font-mono">
             {rules.filter(r => r.enabled).length}
           </span>
         )}
@@ -394,7 +394,7 @@ export default function TriageRulesPanel({ projectId }: TriageRulesPanelProps) {
                         ))}
                         <button
                           onClick={handleAddCondition}
-                          className="text-[10px] text-cyan-400 hover:text-cyan-300 transition-colors"
+                          className="text-2xs text-cyan-400 hover:text-cyan-300 transition-colors"
                         >
                           + Add condition
                         </button>
@@ -461,18 +461,18 @@ export default function TriageRulesPanel({ projectId }: TriageRulesPanelProps) {
                             <span className="text-xs font-medium text-gray-200 truncate">
                               {rule.name}
                             </span>
-                            <span className={`text-[10px] font-mono ${actionOpt?.color ?? 'text-gray-400'}`}>
+                            <span className={`text-2xs font-mono ${actionOpt?.color ?? 'text-gray-400'}`}>
                               {rule.action}
                             </span>
                           </div>
-                          <div className="text-[10px] text-gray-500 truncate">
+                          <div className="text-2xs text-gray-500 truncate">
                             {conditions.map(conditionSummary).join(' AND ')}
                           </div>
                         </div>
 
                         {/* Stats */}
                         {rule.times_fired > 0 && (
-                          <span className="text-[10px] text-gray-500 font-mono tabular-nums flex-shrink-0">
+                          <span className="text-2xs text-gray-500 font-mono tabular-nums flex-shrink-0">
                             {rule.times_fired}x
                           </span>
                         )}

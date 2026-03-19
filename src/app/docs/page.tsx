@@ -8,6 +8,7 @@ import { useClientProjectStore } from '@/stores/clientProjectStore';
 import ContextSelector, { Context, ContextGroup } from '@/components/ContextSelector';
 import MarkdownViewer from '@/components/markdown/MarkdownViewer';
 import DocsAnalysisLayout from '../features/Docs/sub_DocsAnalysis/DocsAnalysisLayout';
+import { SimpleSpinner } from '@/components/ui/Spinner';
 
 type TabType = 'contexts' | 'analysis';
 
@@ -84,7 +85,7 @@ function ContextsTabContent() {
     return (
       <div className="flex items-center justify-center h-64" data-testid="docs-contexts-loading">
         <div className="text-center">
-          <div className="w-12 h-12 mx-auto mb-4 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
+          <SimpleSpinner size="xl" color="cyan" className="mx-auto mb-4" />
           <p className="text-sm text-gray-400">Loading contexts...</p>
         </div>
       </div>

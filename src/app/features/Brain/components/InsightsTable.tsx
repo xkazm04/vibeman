@@ -129,21 +129,21 @@ function InsightRow({
             <p className="text-zinc-200 text-sm truncate" title={insight.title}>{insight.title}</p>
             <p className="text-zinc-500 text-xs truncate mt-0.5" title={insight.description}>{insight.description}</p>
             {insight.evolves && (
-              <p className="text-purple-400/60 text-[10px] italic mt-0.5 truncate">Evolved: {insight.evolves}</p>
+              <p className="text-purple-400/60 text-2xs italic mt-0.5 truncate">Evolved: {insight.evolves}</p>
             )}
             {hasConflict && (
               <div className="flex items-center gap-1.5 mt-1">
                 <AlertOctagon className="w-3 h-3 text-red-400" />
-                <span className="text-red-400/80 text-[10px] font-mono truncate" title={`Conflicts with: ${insight.conflict_with}`}>
+                <span className="text-red-400/80 text-2xs font-mono truncate" title={`Conflicts with: ${insight.conflict_with}`}>
                   CONFLICT: {insight.conflict_with}
                 </span>
-                <span className="text-zinc-600 text-[10px]">({insight.conflict_type})</span>
+                <span className="text-zinc-600 text-2xs">({insight.conflict_type})</span>
               </div>
             )}
             {isAutoResolved && (
               <div className="flex items-center gap-1.5 mt-1">
                 <Zap className="w-3 h-3 text-amber-400" />
-                <span className="text-amber-400/70 text-[10px] font-mono truncate" title={insight.auto_prune_reason}>
+                <span className="text-amber-400/70 text-2xs font-mono truncate" title={insight.auto_prune_reason}>
                   AUTO-RESOLVED: {insight.conflict_with}
                 </span>
               </div>
@@ -151,7 +151,7 @@ function InsightRow({
             {isAutoPruned && !isAutoResolved && insight.auto_prune_reason && (
               <div className="flex items-center gap-1.5 mt-1">
                 <Zap className="w-3 h-3 text-amber-400" />
-                <span className="text-amber-400/70 text-[10px] font-mono truncate" title={insight.auto_prune_reason}>
+                <span className="text-amber-400/70 text-2xs font-mono truncate" title={insight.auto_prune_reason}>
                   DEMOTED{insight.original_confidence ? ` (was ${insight.original_confidence}%)` : ''}
                 </span>
               </div>

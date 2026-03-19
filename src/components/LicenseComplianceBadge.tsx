@@ -2,6 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { Shield, AlertTriangle, XCircle, HelpCircle } from 'lucide-react';
 import {
   evaluateLicense,
@@ -90,7 +91,7 @@ export default function LicenseComplianceBadge({
       className={`inline-flex items-center gap-1.5 rounded-md border ${colors.bg} ${colors.border} ${colors.text} ${sizeClass.badge} font-medium transition-all ${className}`}
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.2 }}
+      transition={transition.normal}
       title={showTooltip ? tooltipContent : undefined}
       data-testid="license-compliance-badge"
     >
@@ -137,7 +138,7 @@ export function LicenseComplianceIndicator({
       className={`inline-flex ${className}`}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.15 }}
+      transition={transition.snappy}
       title={tooltipContent}
       data-testid="license-compliance-indicator"
     >

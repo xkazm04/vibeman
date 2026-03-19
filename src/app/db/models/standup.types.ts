@@ -58,6 +58,7 @@ export interface DbStandupSummary {
 
 // Blocker structure
 export interface StandupBlocker {
+  _v?: number;
   id: string;
   title: string;
   description: string;
@@ -68,6 +69,7 @@ export interface StandupBlocker {
 
 // Highlight structure
 export interface StandupHighlight {
+  _v?: number;
   id: string;
   title: string;
   description: string;
@@ -77,6 +79,7 @@ export interface StandupHighlight {
 
 // Focus area structure
 export interface StandupFocusArea {
+  _v?: number;
   area: string;
   contextId?: string;
   scanType?: string;
@@ -173,6 +176,8 @@ export interface ContextDecayAlert {
   contextName: string;
   /** Signal weight decay percentage (0-100, higher = more decayed) */
   decayPercent: number;
+  /** Dual-axis classification: relative trend + absolute activity level */
+  decayStatus: 'decaying' | 'stale' | 'growing' | 'healthy';
   lastActivityDate: string | null;
   /** Whether this context is linked to active goals */
   linkedToActiveGoals: boolean;

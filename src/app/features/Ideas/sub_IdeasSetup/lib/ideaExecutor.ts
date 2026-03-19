@@ -9,7 +9,7 @@
  * Claude path: /api/ideas/claude   → /api/claude-code/requirement
  */
 
-import { ScanType, SCAN_TYPE_CONFIGS } from '../../lib/scanTypes';
+import { ScanType, getAgent } from '../../lib/scanTypes';
 import { SupportedProvider } from '@/lib/llm/types';
 import { gatherCodebaseFiles, executeScan, GatherFilesError } from '../../lib/scanApi';
 
@@ -128,7 +128,7 @@ export async function executeClaudeCodeScan(config: ExecutionConfig): Promise<Ex
 
   for (const scanType of config.scanTypes) {
     for (const target of targets) {
-      const scanConfig = SCAN_TYPE_CONFIGS.find(s => s.value === scanType);
+      const scanConfig = getAgent(scanType);
       const scanLabel = scanConfig?.label ?? scanType;
       const itemLabel = target.label;
 

@@ -173,7 +173,7 @@ export function ConversationThread({
                   <CheckCircle className="w-3.5 h-3.5 text-cyan-400" />
                 )}
                 {valueTier && (
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${VALUE_TIER_COLORS[valueTier]}`}>
+                  <span className={`px-1.5 py-0.5 rounded text-2xs font-medium border ${VALUE_TIER_COLORS[valueTier]}`}>
                     {valueTier.toUpperCase()}
                   </span>
                 )}
@@ -272,7 +272,7 @@ function MessageBubble({ message, isFirst, customerName }: MessageBubbleProps) {
           <span className="text-xs font-medium text-gray-400">
             {isCustomer ? (customerName || 'Customer') : 'Agent'}
           </span>
-          <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border ${CHANNEL_COLORS[message.channel]}`}>
+          <span className={`inline-flex items-center gap-1 text-2xs px-1.5 py-0.5 rounded border ${CHANNEL_COLORS[message.channel]}`}>
             <Icon className="w-2.5 h-2.5" />
             {message.channel}
           </span>
@@ -296,7 +296,7 @@ function MessageBubble({ message, isFirst, customerName }: MessageBubbleProps) {
           {/* Sentiment badge */}
           {message.sentiment && (
             <div className="mt-2 flex items-center gap-1">
-              <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize ${SENTIMENT_COLORS[message.sentiment]} ${SENTIMENT_BG_COLORS[message.sentiment]}`}>
+              <span className={`text-2xs px-1.5 py-0.5 rounded capitalize ${SENTIMENT_COLORS[message.sentiment]} ${SENTIMENT_BG_COLORS[message.sentiment]}`}>
                 {message.sentiment}
               </span>
             </div>

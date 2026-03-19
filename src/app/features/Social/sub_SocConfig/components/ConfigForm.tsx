@@ -141,7 +141,7 @@ export function ConfigForm({
           )}
         </div>
         {field.helpText && (
-          <p className="mt-1 text-[10px] text-gray-500">{field.helpText}</p>
+          <p className="mt-1 text-2xs text-gray-500">{field.helpText}</p>
         )}
       </div>
     );
@@ -155,7 +155,7 @@ export function ConfigForm({
             <div>
               <label className="text-xs font-medium text-gray-300">{field.label}</label>
               {field.helpText && (
-                <p className="text-[10px] text-gray-500">{field.helpText}</p>
+                <p className="text-2xs text-gray-500">{field.helpText}</p>
               )}
             </div>
             <button
@@ -191,7 +191,7 @@ export function ConfigForm({
                 focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
             />
             {field.helpText && (
-              <p className="mt-1 text-[10px] text-gray-500">{field.helpText}</p>
+              <p className="mt-1 text-2xs text-gray-500">{field.helpText}</p>
             )}
           </div>
         );
@@ -247,7 +247,7 @@ export function ConfigForm({
               ))}
             </div>
             {field.helpText && (
-              <p className="mt-1 text-[10px] text-gray-500">{field.helpText}</p>
+              <p className="mt-1 text-2xs text-gray-500">{field.helpText}</p>
             )}
           </div>
         );
@@ -272,7 +272,7 @@ export function ConfigForm({
         <h3 className="text-sm font-semibold text-gray-200">
           {existingConfig ? 'Edit Configuration' : 'New Configuration'}
         </h3>
-        <p className="text-[10px] text-gray-500 mt-1">
+        <p className="text-2xs text-gray-500 mt-1">
           {channelInfo.description}
         </p>
       </div>

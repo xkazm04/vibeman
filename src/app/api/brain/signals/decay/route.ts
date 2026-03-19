@@ -12,11 +12,19 @@ import { withObservability } from '@/lib/observability/middleware';
 import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
 import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
 import { applySignalDecay } from '@/lib/brain/brainService';
+import {
+  DEFAULT_DECAY_FACTOR,
+  DEFAULT_RETENTION_DAYS,
+  DECAY_FACTOR_MIN,
+  DECAY_FACTOR_MAX,
+  RETENTION_DAYS_MIN,
+  RETENTION_DAYS_MAX,
+} from '@/lib/brain/config';
 
 async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
-    const { projectId, decayFactor = 0.9, retentionDays = 30 } = body;
+    const { projectId, decayFactor = DEFAULT_DECAY_FACTOR, retentionDays = DEFAULT_RETENTION_DAYS } = body;
 
     if (!projectId) {
       return NextResponse.json(
@@ -30,8 +38,8 @@ async function handlePost(request: NextRequest) {
     if (accessDenied) return accessDenied;
 
     // Validate ranges
-    const clampedFactor = Math.max(0.8, Math.min(0.99, Number(decayFactor)));
-    const clampedRetention = Math.max(7, Math.min(90, Math.floor(Number(retentionDays))));
+    const clampedFactor = Math.max(DECAY_FACTOR_MIN, Math.min(DECAY_FACTOR_MAX, Number(decayFactor)));
+    const clampedRetention = Math.max(RETENTION_DAYS_MIN, Math.min(RETENTION_DAYS_MAX, Math.floor(Number(retentionDays))));
 
     const { decayed, deleted } = applySignalDecay(projectId, clampedFactor, clampedRetention);
 

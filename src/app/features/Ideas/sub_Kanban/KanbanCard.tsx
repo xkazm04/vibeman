@@ -53,14 +53,14 @@ const KanbanCard = React.memo(function KanbanCard({ idea, onClick, draggable = t
       {/* Meta row */}
       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
         {/* Category */}
-        <span className="text-[10px]" title={idea.category}>
+        <span className="text-2xs" title={idea.category}>
           {categoryConfig.emoji}
         </span>
 
         {/* Scan type badge */}
         {agent && (
           <span
-            className="text-[10px] px-1 py-0.5 rounded bg-zinc-700/60 text-zinc-400 truncate max-w-[80px]"
+            className="text-2xs px-1 py-0.5 rounded bg-zinc-700/60 text-zinc-400 truncate max-w-[80px]"
             title={agent.label}
           >
             {agent.emoji} {agent.label}
@@ -74,7 +74,7 @@ const KanbanCard = React.memo(function KanbanCard({ idea, onClick, draggable = t
         {impactCfg && (
           <div className="flex items-center gap-0.5" title={`Impact: ${impactCfg.label}`}>
             <ImpactIcon className={`w-3 h-3 ${impactCfg.color}`} />
-            <span className={`text-[10px] font-mono ${impactCfg.color}`}>{idea.impact}</span>
+            <span className={`text-2xs font-mono ${impactCfg.color}`}>{idea.impact}</span>
           </div>
         )}
 
@@ -82,7 +82,7 @@ const KanbanCard = React.memo(function KanbanCard({ idea, onClick, draggable = t
         {effortCfg && (
           <div className="flex items-center gap-0.5" title={`Effort: ${effortCfg.label}`}>
             <EffortIcon className={`w-3 h-3 ${effortCfg.color}`} />
-            <span className={`text-[10px] font-mono ${effortCfg.color}`}>{idea.effort}</span>
+            <span className={`text-2xs font-mono ${effortCfg.color}`}>{idea.effort}</span>
           </div>
         )}
       </div>

@@ -34,7 +34,7 @@ export function FilterChip({
     >
       <span>{label}</span>
       {count !== undefined && count > 1 && (
-        <span className="px-1.5 py-0.5 rounded-full bg-white/10 text-[10px]">
+        <span className="px-1.5 py-0.5 rounded-full bg-white/10 text-2xs">
           {count}
         </span>
       )}

@@ -100,11 +100,12 @@ export const goalRepository = {
     priority?: 'low' | 'normal' | 'high';
     checkpoint_config?: Record<string, boolean> | null;
     use_brain?: boolean;
-  }): DbGoal | null => {
+  }, currentStatus?: GoalStatus): DbGoal | null => {
     if (updates.status !== undefined) {
-      const current = base.getById(id);
-      if (current) {
-        goalTransition(current.status as GoalStatus, updates.status);
+      // Use provided currentStatus to avoid a redundant fetch (TOCTOU fix)
+      const effectiveStatus = currentStatus ?? (base.getById(id)?.status as GoalStatus | undefined);
+      if (effectiveStatus) {
+        goalTransition(effectiveStatus, updates.status);
       }
     }
     // Serialize JSON fields before passing to generic update

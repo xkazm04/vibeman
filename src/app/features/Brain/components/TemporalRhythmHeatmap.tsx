@@ -9,11 +9,12 @@
 
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Sun, Moon, Sunrise, Sunset, TrendingUp, X } from 'lucide-react';
+import { SimpleSpinner } from '@/components/ui';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
-import { useAbortableFetch } from '@/hooks/useAbortableFetch';
+import { useTemporal } from '../lib/queries';
 import GlowCard from './GlowCard';
 import BrainPanelHeader from './BrainPanelHeader';
 
@@ -95,48 +96,16 @@ interface TemporalRhythmHeatmapProps {
 
 export default function TemporalRhythmHeatmap({ scope = 'project' }: TemporalRhythmHeatmapProps) {
   const activeProject = useClientProjectStore((s) => s.activeProject);
-  const [cells, setCells] = useState<TemporalCell[]>([]);
-  const [hourTotals, setHourTotals] = useState<number[]>(new Array(24).fill(0));
-  const [dayTotals, setDayTotals] = useState<number[]>(new Array(7).fill(0));
-  const [peakHour, setPeakHour] = useState(0);
-  const [peakDay, setPeakDay] = useState(0);
-  const [grandTotal, setGrandTotal] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: temporalResponse, isLoading, error: queryError } = useTemporal(activeProject?.id);
+  const temporal = temporalResponse?.data?.temporal;
+  const cells = temporal?.cells ?? [];
+  const hourTotals = temporal?.hourTotals ?? new Array(24).fill(0);
+  const dayTotals = temporal?.dayTotals ?? new Array(7).fill(0);
+  const peakHour = temporal?.peakHour ?? 0;
+  const peakDay = temporal?.peakDay ?? 0;
+  const grandTotal = temporal?.grandTotal ?? 0;
+  const error = queryError ? 'Failed to load temporal data' : null;
   const [selectedCell, setSelectedCell] = useState<TemporalCell | null>(null);
-  const abortableFetch = useAbortableFetch();
-
-  const fetchData = useCallback(async () => {
-    if (!activeProject?.id) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const res = await abortableFetch(
-        `/api/brain/signals/temporal?projectId=${encodeURIComponent(activeProject.id)}&days=30`
-      );
-      const json: TemporalResponse = await res.json();
-      if (json.success && json.data) {
-        const t = json.data.temporal;
-        setCells(t.cells);
-        setHourTotals(t.hourTotals);
-        setDayTotals(t.dayTotals);
-        setPeakHour(t.peakHour);
-        setPeakDay(t.peakDay);
-        setGrandTotal(t.grandTotal);
-      } else {
-        setError('Failed to load temporal data');
-      }
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return;
-      setError('Failed to load temporal data');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeProject?.id, abortableFetch]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
   // Build lookup: "hour-dow" → cell
   const cellLookup = useMemo(() => {
@@ -187,7 +156,7 @@ export default function TemporalRhythmHeatmap({ scope = 'project' }: TemporalRhy
         <div className="p-6">
           <BrainPanelHeader icon={Clock} title="Developer Rhythm" accentColor={ACCENT} glowColor={GLOW} glow />
           <div className="h-32 flex items-center justify-center">
-            <div className="w-6 h-6 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
+            <SimpleSpinner size="md" color="cyan" />
           </div>
         </div>
       </GlowCard>

@@ -1,116 +1,72 @@
 /**
  * Centralized Design Tokens
  *
- * This file exports standardized values for animations, spacing, colors, and shadows.
+ * This file exports standardized values for spacing, colors, and shadows.
  * Use these tokens throughout the codebase to ensure visual consistency.
  *
- * @example
- * import { animation, colors, shadows } from '@/lib/design-tokens';
- *
- * <motion.div
- *   whileHover={{ scale: animation.scales.hover, y: animation.offsets.liftY }}
- *   whileTap={{ scale: animation.scales.tap }}
- *   transition={{ duration: animation.durations.normal }}
- * />
+ * Animation tokens are re-exported from '@/lib/motion' — the single source
+ * of truth for all motion constants (durations, scales, offsets, easing).
  */
 
 // =============================================================================
-// ANIMATION TOKENS
+// ANIMATION TOKENS — derived from @/lib/motion (single source of truth)
 // =============================================================================
 
+import { duration, scales as _scales, offsets as _offsets } from './motion';
+
 /**
- * Animation duration values in seconds
+ * Duration aliases — maps legacy names to motion.ts canonical tiers.
+ * Prefer importing `duration` directly from '@/lib/motion' in new code.
  */
 export const durations = {
-  /** Fast animations (0.15s) - buttons, icons, micro-interactions */
-  fast: 0.15,
-  /** Normal animations (0.2s) - default for most transitions */
-  normal: 0.2,
-  /** Slow animations (0.3s) - modals, panels, emphasis */
-  slow: 0.3,
-  /** Very slow animations (0.4s) - page transitions, large elements */
-  verySlow: 0.4,
+  fast: duration.snappy,
+  normal: duration.normal,
+  slow: duration.deliberate,
+  verySlow: duration.expand,
 } as const;
 
-/**
- * Scale transform values for hover/tap states
- */
-export const scales = {
-  /** Minimal hover scale (1.01) - subtle, cards */
-  hoverMinimal: 1.01,
-  /** Subtle hover scale (1.02) - cards, list items */
-  hoverSubtle: 1.02,
-  /** Standard hover scale (1.05) - buttons, interactive elements */
-  hover: 1.05,
-  /** Pronounced hover scale (1.1) - emphasis, large CTAs */
-  hoverPronounced: 1.1,
-  /** Standard tap scale (0.95) - default press feedback */
-  tap: 0.95,
-  /** Subtle tap scale (0.98) - cards, large elements */
-  tapSubtle: 0.98,
-  /** Pronounced tap scale (0.9) - emphasis, bounce effect */
-  tapPronounced: 0.9,
-} as const;
-
-/**
- * Y-axis offset values for lift/hover effects (in pixels)
- */
-export const offsets = {
-  /** Subtle lift (-1px) - buttons, small elements */
-  liftSubtle: -1,
-  /** Standard lift (-2px) - cards, interactive panels */
-  liftY: -2,
-  /** Pronounced lift (-4px) - emphasis, floating elements */
-  liftPronounced: -4,
-} as const;
+export const scales = _scales;
+export const offsets = _offsets;
 
 /**
  * Pre-composed animation presets for common use cases
  */
 export const animationPresets = {
-  /** Default button animation */
   button: {
     whileHover: { scale: scales.hover, y: offsets.liftSubtle },
     whileTap: { scale: scales.tap },
     transition: { duration: durations.fast },
   },
-  /** Subtle button animation */
   buttonSubtle: {
     whileHover: { scale: scales.hoverSubtle },
     whileTap: { scale: scales.tapSubtle },
     transition: { duration: durations.normal },
   },
-  /** Bouncy button animation */
   buttonBounce: {
     whileHover: { scale: scales.hoverPronounced },
     whileTap: { scale: scales.tapPronounced },
     transition: { duration: durations.normal, type: 'spring', stiffness: 400 },
   },
-  /** Card hover animation */
   card: {
     whileHover: { scale: scales.hoverSubtle, y: offsets.liftY },
     whileTap: { scale: scales.tapSubtle },
     transition: { duration: durations.normal },
   },
-  /** Minimal card animation */
   cardMinimal: {
     whileHover: { scale: scales.hoverMinimal },
     transition: { duration: durations.normal },
   },
-  /** Icon button animation */
   icon: {
     whileHover: { scale: scales.hover, y: offsets.liftSubtle },
     whileTap: { scale: scales.tap },
     transition: { duration: durations.fast },
   },
-  /** Lift only animation (no scale) */
   lift: {
     whileHover: { y: offsets.liftY },
     transition: { duration: durations.normal },
   },
 } as const;
 
-// Combine for convenient import
 export const animation = {
   durations,
   scales,
@@ -535,6 +491,49 @@ export const gaps = {
 } as const;
 
 // =============================================================================
+// BORDER RADIUS TOKENS
+// =============================================================================
+
+/**
+ * Standardized border-radius classes.
+ * - control: buttons, inputs, small interactive elements
+ * - card: cards, panels, containers
+ * - modal: modals, dialogs, large overlays
+ * - pill: pills, badges, avatars, spinners
+ */
+export const borderRadius = {
+  control: 'rounded-lg',
+  card: 'rounded-xl',
+  modal: 'rounded-2xl',
+  pill: 'rounded-full',
+} as const;
+
+export type BorderRadius = keyof typeof borderRadius;
+
+// =============================================================================
+// TYPOGRAPHY TOKENS
+// =============================================================================
+
+/**
+ * 4-tier typography scale mapped to CSS custom properties in globals.css @theme.
+ *
+ * - heading: text-sm (14px) — section headings, card titles
+ * - body:    text-xs (12px) — primary content, labels
+ * - caption: text-caption (11px) — secondary info, metadata
+ * - micro:   text-micro (9px) — timestamps, badges, chart labels
+ *
+ * The `2xs` tier (10px) sits between caption and micro for edge cases.
+ */
+export const typography = {
+  heading: 'text-sm font-semibold',
+  body: 'text-xs',
+  caption: 'text-caption',
+  micro: 'text-micro',
+} as const;
+
+export type TypographyTier = keyof typeof typography;
+
+// =============================================================================
 // TRANSITION TOKENS
 // =============================================================================
 
@@ -555,6 +554,27 @@ export const transitions = {
   /** Transform-only transitions */
   transform: 'transition-transform duration-200 ease-out',
 } as const;
+
+// =============================================================================
+// BUTTON VARIANT TOKENS
+// =============================================================================
+
+/**
+ * Standardized button variant class strings for Context Management and beyond.
+ * Three variants: primary (gradient CTA), secondary (muted outline), ghost (minimal).
+ */
+export const buttonVariants = {
+  primary: 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 px-5 py-2.5 rounded-xl text-cyan-400 font-medium border border-cyan-500/30 transition-all',
+  secondary: 'bg-gray-800/50 border border-gray-600/50 hover:bg-gray-700/50 px-4 py-2 rounded-xl text-gray-300 font-medium transition-all',
+  ghost: 'hover:bg-gray-800/30 px-3 py-1.5 rounded-lg text-gray-400 hover:text-gray-300 font-medium transition-all',
+} as const;
+
+/**
+ * Standardized input field class string for all text inputs and textareas.
+ */
+export const inputStyle = 'px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm placeholder-gray-400 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 transition-all' as const;
+
+export type ButtonVariantToken = keyof typeof buttonVariants;
 
 // =============================================================================
 // COMBINED EXPORTS
@@ -596,7 +616,11 @@ const designTokens = {
   semanticShadows,
   spacing,
   gaps,
+  borderRadius,
   transitions,
+  typography,
+  buttonVariants,
+  inputStyle,
 } as const;
 
 export default designTokens;

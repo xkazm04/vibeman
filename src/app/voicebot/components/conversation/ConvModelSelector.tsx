@@ -69,7 +69,7 @@ export default function ConvModelSelector({
               `}
             >
               <div className="font-semibold">{vp.label}</div>
-              <div className="text-[10px] opacity-70 mt-0.5">{vp.description}</div>
+              <div className="text-2xs opacity-70 mt-0.5">{vp.description}</div>
             </button>
           ))}
         </div>
@@ -156,7 +156,7 @@ export default function ConvModelSelector({
       {/* Nova Sonic info badge */}
       {voiceProvider === 'nova-sonic' && (
         <div className="mt-2 p-2 bg-orange-950/30 border border-orange-500/20 rounded-lg">
-          <div className="text-[11px] text-orange-300/80 font-mono">
+          <div className="text-caption text-orange-300/80 font-mono">
             Nova 2 Sonic (eu-north-1) — unified S2S model, LLM built-in
           </div>
         </div>

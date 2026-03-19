@@ -32,7 +32,7 @@ export const ProposalCardContent = React.memo(({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="bg-gray-800/30 border border-gray-700/30 rounded-2xl p-6 backdrop-blur-sm"
+        className="bg-gray-800/30 border border-gray-700/30 rounded-xl p-6 backdrop-blur-sm"
       >
         <p className={`text-gray-300 leading-relaxed font-mono ${isMain ? 'text-sm' : 'text-sm'}`}>
           {rationale}

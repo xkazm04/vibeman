@@ -21,6 +21,7 @@ import {
   XCircle,
   LayoutDashboard,
 } from 'lucide-react';
+import { useTabNavigation } from '@/hooks/useTabNavigation';
 import { ComparisonFilterState } from '../lib/types';
 import { fetchExecutiveInsights } from '../lib/statsApi';
 import {
@@ -240,7 +241,7 @@ function NarrativeContent({ report }: { report: ExecutiveInsightReport }) {
 
       <div className="pt-3 border-t border-gray-700/50">
         <h4 className="text-sm font-semibold text-gray-400 mb-1">Outlook</h4>
-        <p className="text-sm text-gray-500 italic">{report.narrative.outlook}</p>
+        <p className="text-sm text-gray-400 italic">{report.narrative.outlook}</p>
       </div>
     </div>
   );
@@ -370,8 +371,8 @@ function AIAnalysisContent({ aiInsights, aiNarrative, aiRecommendations, lastAna
       <div className="text-center py-8">
         <Bot className="w-12 h-12 text-gray-600 mx-auto mb-3" />
         <p className="text-sm text-gray-500 mb-2">No AI analysis results yet</p>
-        <p className="text-xs text-gray-600">
-          Click "AI Deep Analysis" to run Claude Code analysis on your ideas and directions data.
+        <p className="text-xs text-gray-400">
+          Click &quot;AI Deep Analysis&quot; to run Claude Code analysis on your ideas and directions data.
         </p>
       </div>
     );
@@ -431,6 +432,8 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>('narrative');
+
+  const { tablistRef: execTablistRef, handleKeyDown: handleExecTabKeyDown } = useTabNavigation();
 
   // AI Analysis state from store
   const {
@@ -505,7 +508,7 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
         <span className="text-red-400 mb-4">{error}</span>
         <button
           onClick={loadInsights}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 hover:bg-gray-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 hover:bg-gray-700 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
           data-testid="executive-summary-retry-btn"
         >
           <RefreshCw className="w-4 h-4" />
@@ -566,7 +569,8 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
         <div className="flex items-center justify-between p-4">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-3 hover:bg-gray-800/30 transition-colors rounded-lg -m-2 p-2 flex-1"
+            className="flex items-center gap-3 hover:bg-gray-800/30 transition-colors rounded-lg -m-2 p-2 flex-1 outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+            aria-expanded={isExpanded}
             data-testid="executive-summary-toggle"
           >
             <div className="p-2 bg-gray-900/60 rounded-lg border border-indigo-500/40">
@@ -617,15 +621,26 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
             >
               {/* Tab Navigation */}
               <div className="px-4 border-b border-gray-700/50">
-                <div className="flex gap-1 -mb-px" data-testid="executive-summary-tabs">
+                <div
+                  ref={execTablistRef}
+                  role="tablist"
+                  aria-label="Executive summary sections"
+                  onKeyDown={handleExecTabKeyDown}
+                  className="flex gap-1 -mb-px"
+                  data-testid="executive-summary-tabs"
+                >
                   {availableTabs.map((tab) => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.id;
                     return (
                       <button
                         key={tab.id}
+                        id={`executive-summary-tab-${tab.id}`}
+                        role="tab"
+                        aria-selected={isActive}
+                        tabIndex={isActive ? 0 : -1}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                        className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-t-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
                           isActive
                             ? `${tab.color} bg-gray-800/50 border-t border-x ${tab.borderColor}`
                             : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/30'
@@ -667,7 +682,7 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
               </div>
 
               {/* Tab Content */}
-              <div className="p-4">
+              <div role="tabpanel" aria-labelledby={`executive-summary-tab-${activeTab}`} className="p-4">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={activeTab}
@@ -682,7 +697,7 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
               </div>
 
               {/* Timestamp Footer */}
-              <div className="px-4 pb-3 text-xs text-gray-600 border-t border-gray-700/30 pt-3">
+              <div className="px-4 pb-3 text-xs text-zinc-400 border-t border-gray-700/30 pt-3">
                 Generated {new Date(report.generatedAt).toLocaleString()}
                 {report.filterContext.projectName && (
                   <span> • Project: {report.filterContext.projectName}</span>

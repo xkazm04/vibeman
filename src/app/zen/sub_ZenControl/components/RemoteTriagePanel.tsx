@@ -13,6 +13,7 @@ import {
   X,
   ChevronDown,
 } from 'lucide-react';
+import { SimpleSpinner } from '@/components/ui';
 import DirectionCardRemote from './DirectionCardRemote';
 import { useRemoteTriage } from '../hooks/useRemoteTriage';
 
@@ -93,7 +94,7 @@ export default function RemoteTriagePanel({
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mb-3" />
+        <SimpleSpinner size="lg" color="purple" className="mb-3" />
         <p className="text-sm text-gray-400">
           Fetching directions from <span className="text-purple-300">{targetDeviceName}</span>...
         </p>
@@ -242,7 +243,7 @@ export default function RemoteTriagePanel({
       </div>
 
       {/* Hint */}
-      <div className="flex items-center justify-center gap-4 text-[10px] text-gray-600">
+      <div className="flex items-center justify-center gap-4 text-2xs text-gray-600">
         <span>Swipe left: reject</span>
         <span>Swipe down: skip</span>
         <span>Swipe right: accept</span>

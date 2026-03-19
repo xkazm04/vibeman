@@ -98,7 +98,7 @@ export const ConductorCompactCard = memo(function ConductorCompactCard({ run }: 
         <span className="text-xs font-medium text-gray-200 truncate flex-1" title={run.goalTitle}>
           {run.goalTitle}
         </span>
-        <span className={`flex items-center gap-1 text-[10px] font-medium ${statusCfg.color} shrink-0`}>
+        <span className={`flex items-center gap-1 text-2xs font-medium ${statusCfg.color} shrink-0`}>
           <StatusIcon className={`w-3 h-3 ${statusCfg.spin ? 'animate-spin' : ''}`} />
           {statusCfg.label}
         </span>
@@ -138,7 +138,7 @@ export const ConductorCompactCard = memo(function ConductorCompactCard({ run }: 
       </div>
 
       {/* Metrics row */}
-      <div className="flex items-center justify-between text-[10px] text-gray-500 tabular-nums">
+      <div className="flex items-center justify-between text-2xs text-gray-500 tabular-nums">
         <span>
           Cycle {run.cycle} | {run.tasksCompleted}/{run.tasksTotal} tasks
         </span>
@@ -152,7 +152,7 @@ export const ConductorCompactCard = memo(function ConductorCompactCard({ run }: 
         {hasQA && (
           <button
             onClick={navigateToConductor}
-            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 transition-all active:scale-95"
+            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1 rounded text-2xs font-medium bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 transition-all active:scale-95"
           >
             <MessageCircleQuestion className="w-3 h-3" />
             Answer {run.intentQuestionCount + run.triageItemCount} Q
@@ -160,7 +160,7 @@ export const ConductorCompactCard = memo(function ConductorCompactCard({ run }: 
         )}
         <button
           onClick={navigateToConductor}
-          className={`${hasQA ? '' : 'flex-1'} flex items-center justify-center gap-1 px-2 py-1 rounded text-[10px] font-medium text-gray-400 hover:text-gray-300 bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700/40 transition-all active:scale-95`}
+          className={`${hasQA ? '' : 'flex-1'} flex items-center justify-center gap-1 px-2 py-1 rounded text-2xs font-medium text-gray-400 hover:text-gray-300 bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700/40 transition-all active:scale-95`}
           title="Open in Conductor"
         >
           <ExternalLink className="w-3 h-3" />

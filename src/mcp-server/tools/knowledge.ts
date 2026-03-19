@@ -16,12 +16,14 @@ import { McpConfig } from '../config.js';
 interface KnowledgeEntry {
   id: string;
   domain: string;
+  layer: string;
   pattern_type: string;
   title: string;
   pattern: string;
   rationale: string | null;
   code_example: string | null;
   anti_pattern: string | null;
+  language: string;
   confidence: number;
   times_applied: number;
   times_helpful: number;
@@ -54,18 +56,34 @@ export function registerKnowledgeTool(
           ),
         domain: z
           .enum([
-            'ui',
-            'api',
-            'state_management',
-            'database',
-            'testing',
-            'performance',
-            'architecture',
-            'security',
+            'ui', 'api', 'state_management', 'database', 'testing', 'performance', 'architecture', 'security',
+            'styling', 'accessibility', 'routing', 'middleware', 'auth', 'validation', 'error_handling',
+            'caching', 'migrations', 'queries', 'orm', 'devops', 'monitoring', 'deployment', 'ci_cd', 'logging', 'patterns',
           ])
           .optional()
           .describe(
-            'Filter by technical domain. Omit to search across all domains.'
+            'Filter by category (formerly "domain"). Omit to search across all categories.'
+          ),
+        layer: z
+          .enum(['frontend', 'backend', 'data', 'infrastructure', 'cross_cutting'])
+          .optional()
+          .describe(
+            'Filter by architectural layer. Omit to search across all layers.'
+          ),
+        language: z
+          .enum([
+            'typescript',
+            'javascript',
+            'python',
+            'rust',
+            'go',
+            'java',
+            'csharp',
+            'universal',
+          ])
+          .optional()
+          .describe(
+            'Filter by programming language. Omit to include all languages (universal entries always included).'
           ),
         limit: z
           .number()
@@ -74,7 +92,7 @@ export function registerKnowledgeTool(
       }),
       annotations: { readOnlyHint: true },
     },
-    async ({ query, domain, limit }) => {
+    async ({ query, domain, layer, language, limit }) => {
       const params: Record<string, string> = {
         action: 'query',
         search: query,
@@ -82,6 +100,12 @@ export function registerKnowledgeTool(
       };
       if (domain) {
         params.domain = domain;
+      }
+      if (layer) {
+        params.layer = layer;
+      }
+      if (language) {
+        params.language = language;
       }
 
       const result = await client.get<KnowledgeResponse>(

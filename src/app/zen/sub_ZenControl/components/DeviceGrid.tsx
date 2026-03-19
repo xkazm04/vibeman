@@ -61,7 +61,7 @@ export default function DeviceGrid({
       {/* This Device */}
       {localDevice && (
         <div>
-          <p className="text-[10px] text-cyan-400 uppercase tracking-wider mb-2 font-medium">
+          <p className="text-2xs text-cyan-400 uppercase tracking-wider mb-2 font-medium">
             This Device
           </p>
           <DeviceCard
@@ -75,7 +75,7 @@ export default function DeviceGrid({
 
       {/* Other Devices */}
       <div>
-        <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2 font-medium">
+        <p className="text-2xs text-gray-500 uppercase tracking-wider mb-2 font-medium">
           Remote Devices
         </p>
 
@@ -128,7 +128,7 @@ export default function DeviceGrid({
             <span className="font-medium">Target selected:</span>{' '}
             {sortedDevices.find((d) => d.device_id === selectedDeviceId)?.device_name}
           </p>
-          <p className="text-[10px] text-purple-400 mt-1">
+          <p className="text-2xs text-purple-400 mt-1">
             Commands will be sent to this device
           </p>
         </motion.div>

@@ -408,6 +408,25 @@ function buildEnrichedPrompt(
 ): string {
   const dbPath = path.join(process.cwd(), 'database', 'goals.db');
 
+  // Inject KB context for this requirement
+  let knowledgeSection = '';
+  try {
+    const { knowledgeBaseService } = require('@/lib/knowledge-base/knowledgeBaseService');
+    const filePaths = matchedContexts.flatMap(ctx => ctx.filePaths || []);
+    const entries = knowledgeBaseService.getRelevantForTask({
+      taskTitle: requirement.title,
+      taskDescription: requirement.description,
+      targetFiles: filePaths,
+      projectId,
+      limit: 5,
+    });
+    if (entries.length > 0) {
+      knowledgeSection = knowledgeBaseService.formatKBForPrompt(entries);
+    }
+  } catch {
+    // KB not available — continue without it
+  }
+
   return buildExternalTaskPrompt({
     title: requirement.title,
     description: requirement.description,
@@ -428,6 +447,7 @@ function buildEnrichedPrompt(
       projectIdComment: `Project ID: \`${projectId}\``,
       projectIdValue: ` (use: "${projectId}")`,
       gitSection: '', // External requirements don't auto-commit
+      knowledgeSection,
     },
   });
 }

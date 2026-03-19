@@ -1,5 +1,6 @@
 import React, { lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
+import { SimpleSpinner } from '@/components/ui';
 import { LazyContextCardsProps } from './types';
 
 // Lazy load the ContextCards component
@@ -12,7 +13,7 @@ const LoadingSpinner = () => (
     animate={{ opacity: 1 }}
     transition={{ duration: 0.3 }}
   >
-    <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+    <SimpleSpinner size="lg" color="cyan" />
   </motion.div>
 );
 

@@ -14,6 +14,7 @@ import type {
 import type { SignalAnomaly } from '@/lib/brain/anomalyDetector';
 import { safeResponseJson, parseApiResponse, parseApiResponseSafe, unwrapEnvelope, extractMeta, BrainDecayResponseSchema, BrainContextResponseSchema, BrainOutcomesResponseSchema, BrainReflectionStatusSchema, BrainReflectionTriggerSchema } from '@/lib/apiResponseGuard';
 import { reflectionCompletionEmitter } from './reflectionCompletionEmitter';
+import { DEFAULT_DECAY_FACTOR, DEFAULT_RETENTION_DAYS, REFLECTION_TRIGGER_THRESHOLD } from '@/lib/brain/config';
 
 // ============================================================================
 // TYPES
@@ -54,7 +55,7 @@ const INITIAL_SCOPE_STATE: ReflectionScopeState = {
   runningReflectionId: null,
   promptContent: null,
   decisionsSinceReflection: 0,
-  nextThreshold: 20,
+  nextThreshold: REFLECTION_TRIGGER_THRESHOLD,
   shouldTrigger: false,
   triggerReason: null,
 };
@@ -119,8 +120,8 @@ type BrainStore = BrainState & BrainActions;
 
 const initialState: BrainState = {
   decaySettings: {
-    decayFactor: 0.9,
-    retentionDays: 30,
+    decayFactor: DEFAULT_DECAY_FACTOR,
+    retentionDays: DEFAULT_RETENTION_DAYS,
   },
   behavioralContext: null,
   isLoadingContext: false,
@@ -371,7 +372,7 @@ export const useBrainStore = create<BrainStore>()(
             }
 
             const raw = await safeResponseJson(response, '/api/brain/signals/decay');
-            const data = parseApiResponseSafe(raw, BrainDecayResponseSchema, { success: false, affected: 0, decayed: 0, deleted: 0, settings: { decayFactor: 0.9, retentionDays: 30 } }, '/api/brain/signals/decay');
+            const data = parseApiResponseSafe(raw, BrainDecayResponseSchema, { success: false, affected: 0, decayed: 0, deleted: 0, settings: { decayFactor: DEFAULT_DECAY_FACTOR, retentionDays: DEFAULT_RETENTION_DAYS } }, '/api/brain/signals/decay');
             return { affected: data.affected };
           } catch (error) {
             set({ error: error instanceof Error ? error.message : 'Failed to apply decay' });
@@ -496,7 +497,7 @@ export const useBrainStore = create<BrainStore>()(
                   lastReflection: ref.lastCompleted || null,
                   runningReflectionId: ref.runningReflection?.id || null,
                   decisionsSinceReflection: ref.decisionsSinceLastReflection || 0,
-                  nextThreshold: ref.nextThreshold || 20,
+                  nextThreshold: ref.nextThreshold || REFLECTION_TRIGGER_THRESHOLD,
                   shouldTrigger: ref.shouldTrigger || false,
                   triggerReason: ref.triggerReason || null,
                 },

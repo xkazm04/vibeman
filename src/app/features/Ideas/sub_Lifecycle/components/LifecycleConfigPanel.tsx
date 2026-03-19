@@ -19,7 +19,7 @@ import {
   DeploymentTarget,
   DEFAULT_LIFECYCLE_CONFIG,
 } from '../lib/lifecycleTypes';
-import { ScanType, SCAN_TYPE_CONFIGS } from '../../lib/scanTypes';
+import { ScanType, getAllAgents } from '../../lib/scanTypes';
 
 interface LifecycleConfigPanelProps {
   config: Partial<LifecycleConfig>;
@@ -173,7 +173,7 @@ export default function LifecycleConfigPanel({
             <Eye className="w-4 h-4 text-amber-400" />
             <div>
               <span className="text-sm text-gray-300">Simulation Mode</span>
-              <p className="text-[10px] text-gray-500 mt-0.5">
+              <p className="text-2xs text-gray-500 mt-0.5">
                 Runs full pipeline but stops before creating PR
               </p>
             </div>
@@ -240,17 +240,17 @@ export default function LifecycleConfigPanel({
                 className="px-4 pb-3 overflow-hidden"
               >
                 <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto">
-                  {SCAN_TYPE_CONFIGS.map(scanConfig => (
+                  {getAllAgents().map(scanConfig => (
                     <Checkbox
-                      key={scanConfig.value}
-                      checked={currentConfig.scan_types.includes(scanConfig.value)}
+                      key={scanConfig.id}
+                      checked={currentConfig.scan_types.includes(scanConfig.id)}
                       onChange={() =>
                         onConfigChange({
-                          scan_types: toggleArrayItem(currentConfig.scan_types, scanConfig.value),
+                          scan_types: toggleArrayItem(currentConfig.scan_types, scanConfig.id),
                         })
                       }
                       label={`${scanConfig.emoji} ${scanConfig.label}`}
-                      testId={`lifecycle-scan-${scanConfig.value}`}
+                      testId={`lifecycle-scan-${scanConfig.id}`}
                     />
                   ))}
                 </div>

@@ -109,7 +109,7 @@ export default function ArchitectureBottomBar({
                     if (!isExpanded) setIsExpanded(true);
                   }}
                   onKeyDown={handleTabKeyDown}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium rounded-md border transition-all ${colorClasses}`}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 text-caption font-medium rounded-md border transition-all ${colorClasses}`}
                 >
                   <Icon className="w-3 h-3" />
                   {tab.label}
@@ -131,7 +131,7 @@ export default function ArchitectureBottomBar({
               }`}
             />
             {!isExpanded && (
-              <span className="ml-2 text-[11px] text-zinc-500 group-hover:text-zinc-400">
+              <span className="ml-2 text-caption text-zinc-500 group-hover:text-zinc-400">
                 Click to expand
               </span>
             )}
@@ -140,7 +140,7 @@ export default function ArchitectureBottomBar({
           {/* Right: Project count badge */}
           <div className="px-3">
             {projects.length > 0 && (
-              <span className="px-2 py-0.5 rounded-full bg-cyan-500/10 text-[10px] text-cyan-400/70 border border-cyan-500/20">
+              <span className="px-2 py-0.5 rounded-full bg-cyan-500/10 text-2xs text-cyan-400/70 border border-cyan-500/20">
                 {projects.length} project{projects.length !== 1 ? 's' : ''}
               </span>
             )}

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, SkipBack, SkipForward, Clock, Sparkles, X, Eye, Maximize2 } from 'lucide-react';
 import { usePalaceData } from './lib/usePalaceData';
 import type { PalaceRoom, PalaceConnection, PalaceSignal, PalaceMode, ReplayKeyframe } from './lib/palaceTypes';
+import { SimpleSpinner } from '@/components/ui';
 import { COLORS } from '../sub_MemoryCanvas/lib/constants';
 import type { SignalType } from '../sub_MemoryCanvas/lib/types';
 
@@ -204,7 +205,7 @@ export default function MemoryPalace() {
     return (
       <div className="flex-1 flex items-center justify-center" style={{ background: '#0c0c0f' }}>
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-400 rounded-full animate-spin" />
+          <SimpleSpinner size="lg" color="purple" />
           <span className="text-sm text-zinc-500">Building memory palace...</span>
         </div>
       </div>

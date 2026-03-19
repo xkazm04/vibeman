@@ -1,11 +1,12 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import {  Save, Edit3, Trash2 } from 'lucide-react';
+import { Save, Edit3, Trash2, Loader2 } from 'lucide-react';
 import { Goal } from '../../../../../types';
 import { useGoals } from '../../../../../hooks/useGoals';
 import { validateGoalData } from '../lib';
 import GoalLifecyclePanel from '../../components/GoalLifecyclePanel';
+import type { LifecycleData } from '../../components/GoalLifecyclePanel';
 
 interface GoalsDetailModalContentProps {
   goal: Goal;
@@ -27,7 +28,42 @@ export default function GoalsDetailModalContent({
   const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const [lifecycleData, setLifecycleData] = useState<LifecycleData | null>(null);
+  const [lifecycleLoading, setLifecycleLoading] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
   const { deleteGoal } = useGoals(projectId);
+
+  const fetchLifecycleData = useCallback(async (signal?: AbortSignal) => {
+    if (!projectId) return;
+    try {
+      const res = await fetch(`/api/goals/lifecycle?goalId=${goal.id}`, { signal });
+      if (res.ok) {
+        const json = await res.json();
+        setLifecycleData(json.data);
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      // Lifecycle is supplementary — silent fail
+    } finally {
+      setLifecycleLoading(false);
+    }
+  }, [goal.id, projectId]);
+
+  // Fetch lifecycle data when goal changes
+  useEffect(() => {
+    if (!projectId) return;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setLifecycleLoading(true);
+    fetchLifecycleData(controller.signal);
+    return () => controller.abort();
+  }, [fetchLifecycleData, projectId]);
+
+  const handleLifecycleRefresh = useCallback(() => {
+    fetchLifecycleData();
+  }, [fetchLifecycleData]);
 
   // Update editedGoal when goal prop changes
   useEffect(() => {
@@ -112,8 +148,14 @@ export default function GoalsDetailModalContent({
       </div>
 
       {/* Lifecycle Engine Panel */}
-      {projectId && (
-        <GoalLifecyclePanel goalId={goal.id} projectId={projectId} />
+      {projectId && lifecycleLoading && (
+        <div className="flex items-center gap-2 py-4 text-slate-400">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span className="text-xs">Loading lifecycle data...</span>
+        </div>
+      )}
+      {projectId && lifecycleData && (
+        <GoalLifecyclePanel data={lifecycleData} projectId={projectId} onRefresh={handleLifecycleRefresh} />
       )}
 
       {/* Error Message */}
