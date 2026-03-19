@@ -177,6 +177,37 @@ export function getBrainWarnings(input: GetBrainWarningsInput): string[] {
 }
 
 // ============================================================================
+// Moment 4: Get Knowledge Base Context for Plan Phase
+// ============================================================================
+
+/**
+ * Retrieve relevant Knowledge Base entries for a goal context.
+ * Uses dynamic require to avoid circular dependencies.
+ * Non-blocking: returns empty string on any failure.
+ */
+export function getKBContext(input: {
+  projectId: string;
+  goalTitle: string;
+  goalDescription: string;
+}): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { knowledgeBaseService } = require('@/lib/knowledge-base/knowledgeBaseService');
+    const entries = knowledgeBaseService.getRelevantForTask({
+      taskTitle: input.goalTitle,
+      taskDescription: input.goalDescription,
+      projectId: input.projectId,
+      limit: 10,
+    });
+    if (entries.length === 0) return '';
+    return knowledgeBaseService.formatKBForPrompt(entries);
+  } catch (err) {
+    console.warn('[BrainAdvisor] getKBContext failed:', err);
+    return '';
+  }
+}
+
+// ============================================================================
 // Moment 3: After REFLECT — Feed Outcome to Brain
 // ============================================================================
 
@@ -225,6 +256,19 @@ export async function feedBrainOutcome(input: FeedBrainOutcomeInput): Promise<vo
         source: 'conductor-v3',
       },
     });
+    // Best-effort KB enrichment for completed tasks
+    try {
+      const { knowledgeEnrichment } = await import('@/lib/knowledge-base/knowledgeEnrichment');
+      for (const task of completedTasks) {
+        knowledgeEnrichment.enrichFromTask({
+          projectId,
+          taskTitle: task.title,
+          filesChanged: task.result?.filesChanged ?? [],
+        });
+      }
+    } catch {
+      // knowledgeEnrichment module may not exist yet — silently ignore
+    }
   } catch (err) {
     console.warn('[BrainAdvisor] feedBrainOutcome failed:', err);
   }
