@@ -5,6 +5,8 @@ import { Loader2 } from 'lucide-react';
 import TaskRunnerHeader from '@/app/features/TaskRunner/TaskRunnerHeader';
 import TaskColumn from '@/app/features/TaskRunner/TaskColumn';
 import ExternalRequirementsColumn from '@/app/features/TaskRunner/components/ExternalRequirementsColumn';
+import { ConductorRow } from '@/app/features/TaskRunner/components/ConductorRow';
+import { useConductorSync } from '@/app/features/TaskRunner/hooks/useConductorSync';
 import { usePollingCleanupOnUnmount } from '@/app/features/TaskRunner/lib/pollingManager';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
 import { useRequirements } from '@/app/features/TaskRunner/hooks/useRequirements';
@@ -49,6 +51,9 @@ const TaskRunnerLayout = () => {
 
   // Batch-fetch aggregation, ideas, and contexts for ALL columns (3 calls instead of 3N)
   const { aggregationByProject, ideasMap, contextsMap } = useTaskRunnerBatchData(groupedRequirements);
+
+  // Conductor pipeline sync — compact cards + Q&A detection
+  const { runs: conductorRuns, qaCount: conductorQACount, refresh: refreshConductor } = useConductorSync();
 
   // Auto-assign handler: distributes selected idle requirements to free CLI sessions
   const handleAutoAssign = useCallback(async (
@@ -135,7 +140,13 @@ const TaskRunnerLayout = () => {
             selectedRequirements={selectedRequirements}
             actions={actions}
             getRequirementId={getRequirementId}
+            conductorQACount={conductorQACount}
           />
+        </LazyContentSection>
+
+        {/* Conductor Compact Cards — always visible with empty state + quick-start */}
+        <LazyContentSection delay={0.1}>
+          <ConductorRow runs={conductorRuns} onRunStarted={refreshConductor} />
         </LazyContentSection>
 
         {/* Requirements Grid - Column Layout */}
