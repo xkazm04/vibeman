@@ -10,6 +10,10 @@
       "env": {
         "VIBEMAN_BASE_URL": "http://localhost:3000"
       }
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"]
     }
   },
   "hooks": {
