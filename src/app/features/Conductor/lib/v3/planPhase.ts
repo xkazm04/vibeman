@@ -172,6 +172,12 @@ function buildPlanPrompt(input: PlanPromptInput): string {
     sections.push(`## Healing Context\n\nPrevious errors and patches to be aware of:\n\n${healingContext}`);
   }
 
+  // Knowledge Base context (architectural patterns & decisions)
+  const kbSection = getKBContextForPlan(goalTitle, goalDescription);
+  if (kbSection) {
+    sections.push(kbSection);
+  }
+
   // Codebase context
   const filesSection = fileContents.length > 0
     ? fileContents.map(f => `### ${f.path}\n\`\`\`\n${f.content}\n\`\`\``).join('\n\n')
@@ -337,6 +343,23 @@ function buildFallbackOutput(goalTitle: string, goalDescription: string): PlanOu
 // ============================================================================
 // Context Helpers (dynamic import to avoid circular deps)
 // ============================================================================
+
+function getKBContextForPlan(goalTitle: string, goalDescription: string): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { knowledgeBaseService } = require('@/lib/knowledge-base/knowledgeBaseService');
+    const entries = knowledgeBaseService.getRelevantForTask({
+      taskTitle: goalTitle,
+      taskDescription: goalDescription,
+      limit: 10,
+    });
+    if (entries.length === 0) return '';
+    return knowledgeBaseService.formatKBForPrompt(entries);
+  } catch (err) {
+    console.warn('[v3:plan] KB context retrieval failed:', err);
+    return '';
+  }
+}
 
 function getProjectContexts(projectId: string): Array<{ id: string; name: string }> {
   try {
