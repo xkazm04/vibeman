@@ -129,6 +129,7 @@ const VALID_TABLE_NAMES = [
   'test_knowledge',
   'velocity_tracking',
   'voicebot_analytics',
+  'knowledge_entries',
   'vulnerability_debates',
   'workspace',
 ] as const;

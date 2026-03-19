@@ -71,6 +71,7 @@ import { migrate207PlannerColumns } from './207_planner_columns';
 import { migrate208LifecycleLocks } from './208_lifecycle_locks';
 import { migrate210SpecLifecycle } from './210_spec_lifecycle';
 import { migrate211ConductorV3 } from './211_conductor_v3';
+import { migrate215KnowledgeBase } from './215_knowledge_base';
 
 /**
  * Migration logger utility
@@ -288,6 +289,7 @@ export function runMigrations() {
       addColumnIfNotExists(db, 'conductor_runs', 'intent_scan_failure', 'TEXT', migrationLogger);
       addColumnIfNotExists(db, 'implementation_log', 'metadata', 'TEXT', migrationLogger);
     });
+    once('m215', () => migrate215KnowledgeBase(db as any, migrationLogger));
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {
