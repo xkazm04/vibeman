@@ -234,7 +234,7 @@ Execute the context map generation workflow as described in the skill file.`,
                 {progress.failed}
               </span>
             )}
-            <span className="text-zinc-500">
+            <span className="text-zinc-400">
               {progress.total - progress.completed - progress.failed} pending
             </span>
           </div>
@@ -290,7 +290,7 @@ Execute the context map generation workflow as described in the skill file.`,
             autoStart={autoStart}
           />
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-zinc-500 text-xs gap-2">
+          <div className="flex flex-col items-center justify-center h-full text-zinc-400 text-xs gap-2">
             {hasProjects ? (
               <>
                 <div className="p-2 rounded-lg bg-cyan-500/5 border border-cyan-500/10">

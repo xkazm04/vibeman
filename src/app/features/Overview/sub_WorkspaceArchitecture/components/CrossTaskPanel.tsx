@@ -206,7 +206,7 @@ export default function CrossTaskPanel({
 
         {/* Degraded data warning */}
         {degradedWarning && (
-          <div className="px-3 py-1.5 border-b border-amber-500/20 bg-amber-500/5 flex items-center gap-1.5">
+          <div role="alert" className="px-3 py-1.5 border-b border-amber-500/20 bg-amber-500/5 flex items-center gap-1.5">
             <AlertTriangle className="w-3 h-3 text-amber-400 flex-shrink-0" />
             <span className="text-2xs text-amber-400/90">{degradedWarning}</span>
           </div>
@@ -258,7 +258,7 @@ export default function CrossTaskPanel({
         {/* Left: Project Selection */}
         <div className="w-56 flex-shrink-0 border-r border-zinc-800/50 flex flex-col">
           <div className="px-3 py-2 border-b border-zinc-800/30 flex items-center justify-between">
-            <span className="text-2xs font-medium text-zinc-500 uppercase tracking-wide">
+            <span className="text-2xs font-medium text-zinc-400 uppercase tracking-wide">
               Target Projects
             </span>
             {hasProjects && (
@@ -302,7 +302,7 @@ export default function CrossTaskPanel({
                 );
               })
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-zinc-500 text-xs">
+              <div className="flex flex-col items-center justify-center h-full text-zinc-400 text-xs">
                 <span>No projects in workspace</span>
               </div>
             )}
@@ -322,7 +322,7 @@ export default function CrossTaskPanel({
 
           {/* Requirement Input */}
           <div className="flex-1 flex flex-col">
-            <label className="text-2xs font-medium text-zinc-500 uppercase tracking-wide mb-1.5">
+            <label className="text-2xs font-medium text-zinc-400 uppercase tracking-wide mb-1.5">
               Implementation Requirement
             </label>
             <textarea
@@ -337,7 +337,7 @@ Example: Add a health check endpoint at /api/health that returns { status: 'ok',
 
           {/* Action Bar */}
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-zinc-800/30">
-            <div className="text-2xs text-zinc-500">
+            <div className="text-2xs text-zinc-400">
               {hasSelection ? (
                 <span>
                   Will analyze{' '}

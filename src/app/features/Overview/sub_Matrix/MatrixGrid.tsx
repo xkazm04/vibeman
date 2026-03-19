@@ -229,8 +229,8 @@ export default function MatrixGrid({
                         );
                       }
                     }}
-                    style={{ cursor: cellData ? 'pointer' : 'default', opacity: cellOpacity, transition: cssTransitionSafe(prefersReduced, 'opacity', 'normal'), outline: 'none' }}
-                    className={cellData ? 'focus-visible:[&>rect:first-child]:stroke-cyan-500/50 focus-visible:[&>rect:first-child]:[stroke-width:2]' : undefined}
+                    style={{ cursor: cellData ? 'pointer' : 'default', opacity: cellOpacity, transition: cssTransitionSafe(prefersReduced, 'opacity', 'normal') }}
+                    className={cellData ? 'outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-500/50 focus-visible:outline-offset-1 rounded-sm' : undefined}
                   >
                     <rect
                       x={labelOffset + globalCol * cellSize}
