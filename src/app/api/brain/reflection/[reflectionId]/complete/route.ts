@@ -40,7 +40,7 @@ async function handlePost(
       );
     }
 
-    const result = completeReflection({
+    const result = await completeReflection({
       reflectionId,
       directionsAnalyzed,
       outcomesAnalyzed,

@@ -27,6 +27,11 @@ import type { LearningInsight, BehavioralSignalType, ReflectionTriggerType, Evid
 import { SignalType } from '@/types/signals';
 import { LRUCache } from '@/lib/brain/lruCache';
 import { tryClusterSignals } from '@/lib/brain/signalClusterer';
+import {
+  CONTEXT_CACHE_MAX_ENTRIES,
+  CONTEXT_CACHE_TTL_MS,
+  COMPLETION_LOCK_TIMEOUT_MS,
+} from '@/lib/brain/config';
 
 // ---------------------------------------------------------------------------
 // Evidence coercion (LLM returns plain string IDs → classify by prefix)
@@ -49,8 +54,8 @@ function coerceEvidence(raw: unknown): EvidenceRef[] {
 // Context cache (moved from api/brain/context/route.ts)
 // ---------------------------------------------------------------------------
 
-const contextCache = new LRUCache<string, { data: unknown; expiry: number }>(200);
-const CACHE_TTL_MS = 60 * 1000; // 60 seconds
+const contextCache = new LRUCache<string, { data: unknown; expiry: number }>(CONTEXT_CACHE_MAX_ENTRIES);
+const CACHE_TTL_MS = CONTEXT_CACHE_TTL_MS;
 
 /**
  * Invalidate cached behavioral context for a project.
@@ -121,7 +126,7 @@ interface LockEntry {
 }
 
 const activeCompletions = new Map<string, LockEntry>();
-const LOCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const LOCK_TIMEOUT_MS = COMPLETION_LOCK_TIMEOUT_MS;
 
 /**
  * Generate a scope-aware lock key for reflection completion.
@@ -298,7 +303,7 @@ export interface CompleteReflectionResult {
  *
  * Runs inside a transaction with per-project concurrency lock.
  */
-export function completeReflection(input: CompleteReflectionInput): CompleteReflectionResult {
+export async function completeReflection(input: CompleteReflectionInput): Promise<CompleteReflectionResult> {
   const { reflectionId, directionsAnalyzed, outcomesAnalyzed, signalsAnalyzed, insights, guideSectionsUpdated } = input;
 
   // Verify reflection exists and is running
@@ -406,6 +411,14 @@ export function completeReflection(input: CompleteReflectionInput): CompleteRefl
     predictiveIntentEngine.refresh(projectId);
   } catch {
     // Don't block reflection completion
+  }
+
+  // Auto-graduate qualifying insights to Knowledge Base (best-effort)
+  try {
+    const { knowledgeBaseService } = await import('@/lib/knowledge-base/knowledgeBaseService');
+    knowledgeBaseService.autoGraduateInsights(projectId);
+  } catch (err) {
+    console.warn('[Brain] Knowledge graduation failed:', err);
   }
 
   const updatedReflection = brainReflectionDb.getById(reflectionId);
