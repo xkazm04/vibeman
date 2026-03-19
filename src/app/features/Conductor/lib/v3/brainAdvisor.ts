@@ -258,13 +258,18 @@ export async function feedBrainOutcome(input: FeedBrainOutcomeInput): Promise<vo
     });
     // Best-effort KB enrichment for completed tasks
     try {
-      const { knowledgeEnrichment } = await import('@/lib/knowledge-base/knowledgeEnrichment');
-      for (const task of completedTasks) {
-        knowledgeEnrichment.enrichFromTask({
-          projectId,
-          taskTitle: task.title,
-          filesChanged: task.result?.filesChanged ?? [],
-        });
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const mod = require('@/lib/knowledge-base/knowledgeEnrichment') as {
+        knowledgeEnrichment?: { enrichFromTask: (input: { projectId: string; taskTitle: string; filesChanged: string[] }) => void };
+      };
+      if (mod.knowledgeEnrichment) {
+        for (const task of completedTasks) {
+          mod.knowledgeEnrichment.enrichFromTask({
+            projectId,
+            taskTitle: task.title,
+            filesChanged: task.result?.filesChanged ?? [],
+          });
+        }
       }
     } catch {
       // knowledgeEnrichment module may not exist yet — silently ignore
