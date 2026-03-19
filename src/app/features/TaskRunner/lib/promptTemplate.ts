@@ -13,6 +13,7 @@ export interface TaskPromptParams {
   projectIdComment: string;
   projectIdValue: string;
   gitSection: string;
+  knowledgeSection?: string;
 }
 
 /**
@@ -43,7 +44,7 @@ IMPORTANT INSTRUCTIONS:
 - Create/modify files as needed
 - Run any tests if specified
 - Ensure all changes are complete before finishing
-
+${params.knowledgeSection ? `\n${params.knowledgeSection}\n` : ''}
 ## Context Updates
 
 **When to update contexts**: Only if you **created or deleted files** during implementation.
