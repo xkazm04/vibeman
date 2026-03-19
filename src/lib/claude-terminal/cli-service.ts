@@ -255,6 +255,13 @@ function buildSpawnConfig(
     throw new Error('Copilot provider uses the Copilot SDK API routes. It cannot be executed via the CLI service.');
   }
 
+  // Strip Claude Code nesting-guard env vars so child CLI processes don't
+  // refuse to start with "cannot be launched inside another Claude Code session".
+  // This happens when the Vibeman dev server itself was started from a Claude Code session.
+  const baseEnv = { ...process.env };
+  delete baseEnv.CLAUDECODE;
+  delete baseEnv.CLAUDE_CODE_ENTRYPOINT;
+
   if (provider === 'ollama') {
     // Ollama v0.14+ supports Anthropic Messages API at /v1/messages.
     // Claude CLI sends to ANTHROPIC_BASE_URL + '/v1/messages', so we point
@@ -274,7 +281,7 @@ function buildSpawnConfig(
     ];
     if (resumeSessionId) args.push('--resume', resumeSessionId);
 
-    const env = { ...process.env };
+    const env = { ...baseEnv };
     env.ANTHROPIC_BASE_URL = ollamaBaseUrl;
     env.ANTHROPIC_API_KEY = '';
     env.ANTHROPIC_AUTH_TOKEN = 'ollama';
@@ -294,7 +301,7 @@ function buildSpawnConfig(
     // effective prompt is: <stdin>\n\n_ (trailing _ is harmless).
     args.push('-p', '_');
 
-    const env = { ...process.env };
+    const env = { ...baseEnv };
     delete env.ANTHROPIC_API_KEY;
     return { command: 'gemini', args, env, stdinPrompt: true };
   }
@@ -313,7 +320,7 @@ function buildSpawnConfig(
   if (model) args.push('--model', model);
   if (resumeSessionId) args.push('--resume', resumeSessionId);
 
-  const env = { ...process.env };
+  const env = { ...baseEnv };
   delete env.ANTHROPIC_API_KEY; // Force web subscription auth
   // Agent Teams: experimental opt-in for coordinated multi-session work
   if (providerConfig?.enableAgentTeams) {
@@ -674,9 +681,11 @@ export function startExecution(
       }
     });
 
-    // Handle stderr
+    // Handle stderr — capture for error reporting
+    let stderrBuffer = '';
     childProcess.stderr.on('data', (data: Buffer) => {
       const text = data.toString();
+      stderrBuffer += text;
       logMessage(`[STDERR] ${text.trim()}`);
     });
 
@@ -702,9 +711,10 @@ export function startExecution(
       execution.status = code === 0 ? 'completed' : 'error';
 
       if (code !== 0) {
+        const stderrHint = stderrBuffer.trim().split('\n')[0]?.slice(0, 200) || '';
         const errorMsg = !initEventReceived && durationMs < 3000
-          ? `'${spawnConfig.command}' CLI failed to start (exit code ${code}). Is it installed and in PATH?`
-          : `Process exited with code ${code}`;
+          ? `'${spawnConfig.command}' CLI failed to start (exit code ${code}). ${stderrHint || 'Is it installed and in PATH?'}`
+          : `Process exited with code ${code}${stderrHint ? `: ${stderrHint}` : ''}`;
         emitEvent({
           type: 'error',
           data: { exitCode: code, message: errorMsg },
