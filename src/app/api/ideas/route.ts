@@ -14,6 +14,7 @@ import { parseProjectIds, filterByProject } from '@/lib/api-helpers/projectFilte
 import { validateRequestBody } from '@/lib/validation/apiValidator';
 import {
   validateUUID,
+  validateProjectId,
   validateEntityId,
   validateIdeaTitle,
   validateIdeaDescription,
@@ -135,7 +136,7 @@ async function handlePost(request: NextRequest) {
     const result = await validateRequestBody(request, {
       required: [
         { field: 'scan_id', validator: validateUUID },
-        { field: 'project_id', validator: validateUUID },
+        { field: 'project_id', validator: validateProjectId },
         { field: 'category', validator: validateCategory },
         { field: 'title', validator: validateIdeaTitle },
       ],

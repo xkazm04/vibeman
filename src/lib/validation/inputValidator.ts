@@ -279,16 +279,18 @@ export function validateProjectType(value: unknown): string | null {
 }
 
 /**
- * Validate a project ID: must be a valid UUID v4 string.
+ * Validate a project ID: accepts UUID or slug-style names (e.g., "vibeman-main").
+ * Slugs may contain letters, digits, and hyphens.
  *
  * @returns `null` if valid, or an error message.
  */
+const PROJECT_ID_RE = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[a-z0-9][a-z0-9-]{0,98}[a-z0-9])$/i;
 export function validateProjectId(value: unknown): string | null {
   if (!value || typeof value !== 'string') {
     return 'projectId is required and must be a string';
   }
-  if (!UUID_RE.test(value)) {
-    return 'projectId must be a valid UUID';
+  if (!PROJECT_ID_RE.test(value)) {
+    return 'projectId must be a valid UUID or project slug';
   }
   return null;
 }
