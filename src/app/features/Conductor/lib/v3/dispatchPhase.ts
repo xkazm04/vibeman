@@ -420,6 +420,25 @@ async function dispatchTask(task: V3Task, ctx: DispatchContext): Promise<V3TaskR
 // Prompt Composer (zero LLM — direct template)
 // ============================================================================
 
+function getKBContextForTask(task: V3Task, ctx: DispatchContext): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { knowledgeBaseService } = require('@/lib/knowledge-base/knowledgeBaseService');
+    const entries = knowledgeBaseService.getRelevantForTask({
+      taskTitle: task.title,
+      taskDescription: task.description,
+      targetFiles: task.targetFiles,
+      projectId: ctx.projectId,
+      limit: 5,
+    });
+    if (entries.length === 0) return '';
+    return knowledgeBaseService.formatKBForPrompt(entries);
+  } catch (err) {
+    console.warn('[v3:dispatch] KB context retrieval failed:', err);
+    return '';
+  }
+}
+
 function composeTaskPrompt(task: V3Task, ctx: DispatchContext): string {
   const targetFilesSection = task.targetFiles.length > 0
     ? `\n## Target Files\n\n${task.targetFiles.map(f => `- \`${f}\``).join('\n')}`
@@ -428,6 +447,8 @@ function composeTaskPrompt(task: V3Task, ctx: DispatchContext): string {
   const healingSection = ctx.healingContext
     ? `\n## Previous Errors to Avoid\n\n${ctx.healingContext}`
     : '';
+
+  const kbSection = getKBContextForTask(task, ctx);
 
   return `You are an expert software engineer. Execute the following task precisely.
 
@@ -442,7 +463,7 @@ ${ctx.goalContext.description}
 ${task.description}
 ${targetFilesSection}
 ${healingSection}
-
+${kbSection ? `\n${kbSection}\n` : ''}
 ## Instructions
 
 1. Read and understand the relevant source files before making changes
