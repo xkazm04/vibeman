@@ -99,6 +99,52 @@ pub fn run() {
             commands::execute_claude,
             commands::abort_claude,
             commands::claude_execution_status,
+            // Brain & Intelligence
+            commands::get_brain_dashboard,
+            commands::get_brain_signals,
+            commands::get_brain_insights,
+            commands::get_directions,
+            commands::get_direction_stats,
+            commands::get_questions,
+            commands::get_collective_memory,
+            // Conductor & TaskRunner
+            commands::get_conductor_runs,
+            commands::get_conductor_status,
+            commands::get_scan_queue,
+            commands::update_scan_queue_item,
+            commands::get_cross_tasks,
+            commands::get_scan_notifications,
+            // Git & Server
+            commands::git_get_branch,
+            commands::git_commit_and_push,
+            commands::git_status,
+            commands::start_dev_server,
+            commands::stop_dev_server,
+            commands::scan_ports,
+            // Social & Integrations
+            commands::get_social_configs,
+            commands::get_social_discoveries,
+            commands::get_integrations,
+            commands::get_integration_events,
+            commands::get_remote_devices,
+            commands::get_remote_commands,
+            // Lifecycle & Context Management
+            commands::get_standups,
+            commands::get_group_health_scans,
+            commands::get_context_group_relationships,
+            commands::get_external_requirements,
+            commands::get_workspaces,
+            commands::tinder_action,
+            commands::get_tinder_items,
+            commands::get_dependency_scans,
+            commands::get_discovered_templates,
+            // System & Misc
+            commands::get_system_status,
+            commands::get_db_performance,
+            commands::get_observability_stats,
+            commands::get_schema_intelligence,
+            commands::get_generation_history,
+            commands::check_llm_providers,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Vibeman");
