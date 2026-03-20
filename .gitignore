@@ -65,3 +65,6 @@ vibeman-bridge/node_modules/
 vibeman-bridge/dist/
 vibeman-bridge/*.vsix
 
+# Tauri
+/src-tauri/target/
+

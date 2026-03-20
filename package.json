@@ -15,7 +15,10 @@
     "mcp-server": "node dist/mcp-server/index.js",
     "security:audit": "npm audit --omit=dev",
     "security:audit:full": "npm audit",
-    "security:lockfile": "node scripts/verify-lockfile.js"
+    "security:lockfile": "node scripts/verify-lockfile.js",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.79",
@@ -61,6 +64,8 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.1",
+    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/cli": "^2.10.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/dompurify": "^3.0.5",
     "@types/node": "^20.19.37",
