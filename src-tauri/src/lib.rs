@@ -2,6 +2,7 @@ mod commands;
 mod db;
 mod fs;
 mod process;
+mod runtime;
 mod state;
 
 use tauri::{

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::db::Database;
 use crate::process::ProcessManager;
+use crate::runtime::ExecutionRuntime;
 
 /// Global application state managed by Tauri
 pub struct AppState {
@@ -9,8 +10,10 @@ pub struct AppState {
     pub started_at: chrono::DateTime<chrono::Utc>,
     /// Database connection
     pub db: Option<Database>,
-    /// Process manager for CLI sessions
+    /// Legacy process manager (kept for backward compat with existing commands)
     pub process_manager: Arc<ProcessManager>,
+    /// Unified execution runtime (Wave 1 — Items 19, 1, 2, 3)
+    pub runtime: Arc<ExecutionRuntime>,
 }
 
 impl AppState {
@@ -19,7 +22,6 @@ impl AppState {
             let path = std::path::Path::new(path);
             Some(Database::open(path)?)
         } else {
-            // Try default path: ./database/goals.db relative to CWD
             let default_path = std::env::current_dir()
                 .unwrap_or_default()
                 .join("database")
@@ -36,10 +38,10 @@ impl AppState {
             started_at: chrono::Utc::now(),
             db,
             process_manager: Arc::new(ProcessManager::new()),
+            runtime: Arc::new(ExecutionRuntime::new()),
         })
     }
 
-    /// Get database reference, returning error if not initialized
     pub fn db(&self) -> Result<&Database, String> {
         self.db.as_ref().ok_or_else(|| "Database not initialized".to_string())
     }

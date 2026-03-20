@@ -4,7 +4,7 @@
 //! with proper lifecycle management, stream parsing, and cleanup.
 
 mod manager;
-mod stream;
+pub mod stream;
 
 pub use manager::{ProcessManager, ProcessHandle, SpawnConfig, ProcessStatus};
 pub use stream::{StreamEvent, StreamParser};

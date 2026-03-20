@@ -28,6 +28,26 @@ log = "0.4"
 env_logger = "0.11"
 regex-lite = "0.1"
 
+# Wave 1: Core runtime
+dashmap = "6"
+simd-json = "0.14"
+
+# Wave 2: Hooks HTTP server
+axum = { version = "0.8", features = ["tokio"] }
+
+# Wave 3: Conductor pipeline
+petgraph = "0.7"
+git2 = { version = "0.19", features = ["vendored-libgit2"] }
+
+# Wave 4: Brain computation
+ndarray = "0.16"
+ndarray-stats = "0.6"
+rayon = "1.10"
+futures = "0.3"
+
+# Wave 5: Ideas concurrent LLM
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
