@@ -78,6 +78,10 @@ pub fn run() {
             commands::db_query,
             commands::db_execute,
             commands::db_health,
+            // Claude Code execution
+            commands::execute_claude,
+            commands::abort_claude,
+            commands::claude_execution_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Vibeman");

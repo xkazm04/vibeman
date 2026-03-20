@@ -61,10 +61,7 @@ pub struct TokenUsage {
     pub output_tokens: Option<u64>,
 }
 
-/// Parses newline-delimited JSON from CLI stdout
-pub struct StreamParser;
-
-impl StreamParser {
+impl StreamEvent {
     /// Parse a single line of stream-json output
     pub fn parse_line(line: &str) -> Option<StreamEvent> {
         let trimmed = line.trim();
@@ -74,6 +71,12 @@ impl StreamParser {
         serde_json::from_str(trimmed).ok()
     }
 
+}
+
+/// Parses newline-delimited JSON from CLI stdout
+pub struct StreamParser;
+
+impl StreamParser {
     /// Extract session ID from a stream of events
     pub fn extract_session_id(events: &[StreamEvent]) -> Option<String> {
         for event in events {
