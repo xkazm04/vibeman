@@ -1,4 +1,6 @@
+mod brain;
 mod commands;
+mod conductor;
 mod db;
 mod fs;
 mod hooks;
@@ -148,6 +150,10 @@ pub fn run() {
             commands::get_schema_intelligence,
             commands::get_generation_history,
             commands::check_llm_providers,
+            // Wave 5: Ideas & Triage
+            commands::reevaluate_ideas,
+            commands::triage_preview,
+            commands::triage_execute,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Vibeman");

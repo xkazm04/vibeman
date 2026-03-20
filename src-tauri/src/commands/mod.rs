@@ -1,6 +1,4 @@
-//! Tauri IPC commands
-//!
-//! Each submodule corresponds to a domain of API routes being migrated.
+//! Tauri IPC commands — all domain modules
 
 mod system;
 mod process_cmds;
@@ -14,6 +12,8 @@ mod git_server_cmds;
 mod social_cmds;
 mod lifecycle_cmds;
 mod misc_cmds;
+mod ideas_cmds;
+mod triage_cmds;
 
 pub use system::*;
 pub use process_cmds::*;
@@ -27,3 +27,5 @@ pub use git_server_cmds::*;
 pub use social_cmds::*;
 pub use lifecycle_cmds::*;
 pub use misc_cmds::*;
+pub use ideas_cmds::*;
+pub use triage_cmds::*;
