@@ -16,6 +16,9 @@
     "security:audit": "npm audit --omit=dev",
     "security:audit:full": "npm audit",
     "security:lockfile": "node scripts/verify-lockfile.js",
+    "vite:dev": "vite",
+    "vite:build": "vite build",
+    "vite:preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
@@ -72,6 +75,7 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@types/react-window": "^1.8.8",
+    "@vitejs/plugin-react": "^6.0.1",
     "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9.39.3",
     "eslint-config-next": "16.1.6",
@@ -79,6 +83,7 @@
     "tailwindcss": "^4.2.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
+    "vite": "^8.0.1",
     "vitest": "^4.0.18"
   },
   "overrides": {
