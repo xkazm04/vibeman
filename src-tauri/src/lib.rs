@@ -1,8 +1,10 @@
 mod commands;
 mod db;
 mod fs;
+mod hooks;
 mod process;
 mod runtime;
+mod schemas;
 mod state;
 
 use tauri::{

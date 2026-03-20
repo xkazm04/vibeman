@@ -3,9 +3,7 @@
  *
  * Drop-in replacement for the HTTP-based terminalStrategy.
  * Uses Tauri IPC (invoke + events) instead of HTTP API + SSE.
- *
- * When running inside Tauri, the TaskRunner can use this strategy
- * for zero-overhead CLI execution with native process management.
+ * Supports Claude Code CLI v2.1+ features via direct flags.
  */
 
 import { tauriInvoke, tauriListen, isTauri } from './bridge';
@@ -20,6 +18,23 @@ export interface ExecuteClaudeArgs {
   project_id?: string;
   task_id?: string;
   timeout_secs?: number;
+  // Wave 2: CLI v2.1+ flags
+  /** Item 15: Named session for easy resume */
+  session_name?: string;
+  /** Item 15: Link to GitHub PR number or URL */
+  from_pr?: string;
+  /** Item 16: JSON schema for structured output */
+  json_schema?: string;
+  /** Item 18: Effort level (low|medium|high|max), default: medium */
+  effort?: 'low' | 'medium' | 'high' | 'max';
+  /** Item 4: Use CLI-native worktree isolation */
+  use_worktree?: boolean;
+  /** Max budget in USD */
+  max_budget_usd?: number;
+  /** Max agentic turns */
+  max_turns?: number;
+  /** Additional CLI settings JSON (for hooks config) */
+  cli_settings?: string;
 }
 
 export interface ExecuteResult {
@@ -73,8 +88,20 @@ export async function listenToExecution(
 
 /**
  * Check if Tauri terminal strategy is available.
- * If true, the TaskRunner should prefer this over HTTP.
  */
 export function isTauriTerminalAvailable(): boolean {
   return isTauri();
+}
+
+/**
+ * Map task complexity (1-3) to CLI effort level.
+ * Used by balancingEngine integration.
+ */
+export function complexityToEffort(complexity: number): ExecuteClaudeArgs['effort'] {
+  switch (complexity) {
+    case 1: return 'low';
+    case 2: return 'medium';
+    case 3: return 'high';
+    default: return 'medium';
+  }
 }

@@ -24,6 +24,23 @@ pub struct ExecuteClaudeArgs {
     pub project_id: Option<String>,
     pub task_id: Option<String>,
     pub timeout_secs: Option<u64>,
+    // Wave 2: CLI v2.1+ flags
+    /// Item 15: Named session (--name)
+    pub session_name: Option<String>,
+    /// Item 15: Resume by PR (--from-pr)
+    pub from_pr: Option<String>,
+    /// Item 16: Structured output schema (--json-schema)
+    pub json_schema: Option<String>,
+    /// Item 18: Effort level (--effort low|medium|high|max), default: medium
+    pub effort: Option<String>,
+    /// Item 4: CLI-native worktree isolation (--worktree)
+    pub use_worktree: Option<bool>,
+    /// Item 17: Max budget in USD (--max-budget-usd)
+    pub max_budget_usd: Option<f64>,
+    /// Item 5: Max agentic turns (--max-turns)
+    pub max_turns: Option<u32>,
+    /// Additional --settings JSON to pass to CLI
+    pub cli_settings: Option<String>,
 }
 
 /// Result returned immediately when execution starts
@@ -231,7 +248,8 @@ pub async fn abort_claude(
     state.process_manager.kill(&execution_id).await
 }
 
-/// Build CLI command and arguments based on provider
+/// Build CLI command and arguments based on provider.
+/// Supports Claude Code CLI v2.1+ flags (Wave 2).
 fn build_cli_command(args: &ExecuteClaudeArgs) -> (String, Vec<String>) {
     let provider = args.provider.as_deref().unwrap_or("claude");
 
@@ -252,9 +270,62 @@ fn build_cli_command(args: &ExecuteClaudeArgs) -> (String, Vec<String>) {
                 "--dangerously-skip-permissions".to_string(),
             ];
 
+            // Session resume
             if let Some(ref session_id) = args.resume_session_id {
                 cli_args.push("--resume".to_string());
                 cli_args.push(session_id.clone());
+            }
+
+            // Item 15: Named session (CLI v2.1.76+)
+            if let Some(ref name) = args.session_name {
+                cli_args.push("--name".to_string());
+                cli_args.push(name.clone());
+            }
+
+            // Item 15: Resume by PR (CLI v2.1.27+)
+            if let Some(ref pr) = args.from_pr {
+                cli_args.push("--from-pr".to_string());
+                cli_args.push(pr.clone());
+            }
+
+            // Item 16: Structured output schema (CLI v2.1.21+)
+            if let Some(ref schema) = args.json_schema {
+                cli_args.push("--json-schema".to_string());
+                cli_args.push(schema.clone());
+            }
+
+            // Item 18: Effort level (CLI v2.1.78+), default: medium
+            let effort = args.effort.as_deref().unwrap_or("medium");
+            cli_args.push("--effort".to_string());
+            cli_args.push(effort.to_string());
+
+            // Item 4: CLI-native worktree isolation (CLI v2.1.49+)
+            if args.use_worktree.unwrap_or(false) {
+                cli_args.push("--worktree".to_string());
+            }
+
+            // Max budget (CLI v2.1.21+)
+            if let Some(budget) = args.max_budget_usd {
+                cli_args.push("--max-budget-usd".to_string());
+                cli_args.push(format!("{:.2}", budget));
+            }
+
+            // Max turns (CLI v2.1.21+)
+            if let Some(turns) = args.max_turns {
+                cli_args.push("--max-turns".to_string());
+                cli_args.push(turns.to_string());
+            }
+
+            // Model override
+            if let Some(ref model) = args.model {
+                cli_args.push("--model".to_string());
+                cli_args.push(model.clone());
+            }
+
+            // Item 17: Additional settings (for hooks config)
+            if let Some(ref settings) = args.cli_settings {
+                cli_args.push("--settings".to_string());
+                cli_args.push(settings.clone());
             }
 
             (program, cli_args)
@@ -274,7 +345,6 @@ fn build_cli_command(args: &ExecuteClaudeArgs) -> (String, Vec<String>) {
             (program, cli_args)
         }
         other => {
-            // Generic CLI provider
             (other.to_string(), vec!["-p".to_string(), "-".to_string()])
         }
     }
