@@ -83,6 +83,18 @@ pub fn run() {
             commands::db_query,
             commands::db_execute,
             commands::db_health,
+            // Domain repositories
+            commands::get_projects,
+            commands::create_project,
+            commands::get_contexts,
+            commands::get_context_groups,
+            commands::get_goals,
+            commands::get_ideas,
+            commands::update_idea_status,
+            commands::get_events,
+            commands::create_event,
+            commands::get_implementation_logs,
+            commands::get_scans,
             // Claude Code execution
             commands::execute_claude,
             commands::abort_claude,
