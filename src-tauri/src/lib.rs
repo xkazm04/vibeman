@@ -74,6 +74,11 @@ pub fn run() {
             commands::scan_directory,
             commands::read_file,
             commands::write_file,
+            commands::check_file_exists,
+            commands::batch_read_files,
+            commands::search_files,
+            commands::analyze_file_dependencies,
+            commands::get_project_structure,
             // Database
             commands::db_query,
             commands::db_execute,
