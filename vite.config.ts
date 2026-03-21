@@ -46,7 +46,6 @@ export default defineConfig({
         '@aws-sdk/client-bedrock-runtime',
         '@aws-sdk/credential-providers',
         '@smithy/node-http-handler',
-        '@github/copilot-sdk',
         '@modelcontextprotocol/sdk',
         'fs',
         'fs/promises',

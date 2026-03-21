@@ -22,7 +22,7 @@ Created three new tables via migrations:
 
 ### 2. AI Component Analyzer ✅
 
-Built an intelligent component analysis system using Gemini LLM:
+Built an intelligent component analysis system using LLM:
 
 - Extracts component structure, props, and interactive elements
 - Identifies existing data-testid attributes
@@ -226,7 +226,7 @@ import { TestScenarioPanel } from '@/app/features/Onboarding/sub_Blueprint/compo
 
 ## Key Technologies
 
-- **AI**: Gemini 2.0 Flash for component analysis and scenario generation
+- **AI**: LLM-powered component analysis and scenario generation
 - **Testing**: Playwright for browser automation
 - **Database**: SQLite with better-sqlite3
 - **UI**: React 19 + Framer Motion + Tailwind CSS
@@ -261,7 +261,7 @@ To use this feature:
 
 2. Set environment variables:
    ```env
-   GEMINI_API_KEY=your-api-key
+   ANTHROPIC_API_KEY=your-api-key
    TEST_BASE_URL=http://localhost:3000
    ```
 
@@ -294,7 +294,7 @@ To test this feature:
 
 ## Known Limitations
 
-- Requires Gemini API key for AI analysis
+- Requires an LLM API key for AI analysis
 - Playwright must be installed separately
 - Screenshots stored locally (not cloud storage)
 - Single browser testing (Chromium only in execution API)

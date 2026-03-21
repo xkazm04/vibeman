@@ -33,7 +33,6 @@ Common issues and solutions for Vibeman development. Each section is titled with
   - [Import alias `@/` not resolving in tests](#import-alias--not-resolving-in-tests)
 - [CLI Providers](#cli-providers)
   - [Claude CLI not found](#claude-cli-not-found)
-  - [Gemini CLI OAuth failure](#gemini-cli-oauth-failure)
   - [Ollama connection refused](#ollama-connection-refused)
 - [CI/CD](#cicd)
   - [CI build fails on `better-sqlite3`](#ci-build-fails-on-better-sqlite3)
@@ -494,22 +493,6 @@ claude --version
 ```
 
 On Windows, ensure the npm global bin directory is in your PATH.
-
----
-
-### Gemini CLI OAuth failure
-
-**Symptom:** Gemini CLI prompts fail or return authentication errors.
-
-**Solution:**
-```bash
-# Run interactively once to complete OAuth
-gemini
-
-# Or skip OAuth by setting the API key
-# In .env.local:
-GEMINI_API_KEY=your-key-here
-```
 
 ---
 

@@ -17,9 +17,6 @@
   - Auth: `OPENAI_API_KEY`, `OPENAI_BASE_URL`
   - Client: `src/lib/llm/providers/openai-client.ts`
 
-- Google Gemini API
-  - Auth: `GEMINI_API_KEY`, `GEMINI_BASE_URL`
-  - Client: `src/lib/llm/providers/gemini-client.ts`
 
 - Groq API
   - Auth: `GROQ_API_KEY`, `GROQ_BASE_URL`
@@ -37,13 +34,6 @@
   - Use case: Autonomous task execution with tool integration
 
 **GitHub Integration:**
-- GitHub Copilot SDK 0.1.30
-  - SDK: `@github/copilot-sdk`
-  - Auth: Session-based with GitHub authentication
-  - Client: `src/lib/copilot-sdk/client.ts`
-  - Features: Session resume for context continuity, global persistence via `globalThis` for HMR survival
-  - Models: Configurable via SDK
-
 - GitHub API (via PAT)
   - Auth: `GITHUB_TOKEN` (personal access token)
   - Scopes: `project:read`, `project:write`
@@ -106,8 +96,8 @@
 ## Authentication & Identity
 
 **Auth Provider:**
-- GitHub OAuth (via Copilot SDK and GitHub API token)
-  - Implementation: Session-based for Copilot, PAT-based for GitHub API
+- GitHub API token
+  - Implementation: PAT-based for GitHub API
   - Config: `GITHUB_TOKEN` for personal access tokens
 
 - Supabase Auth (Optional)
@@ -115,7 +105,7 @@
   - Access methods: Anon key for client, service role for server
 
 **Session Management:**
-- CLI Sessions: 4 concurrent, multi-provider (claude, gemini, copilot, ollama)
+- CLI Sessions: 4 concurrent, multi-provider (claude, ollama)
   - Location: `src/lib/claude-terminal/session-manager.ts`
   - Persistence: Global state via `useClientProjectStore` (Zustand)
 
@@ -162,7 +152,7 @@ npm run security:audit   # Vulnerability check
 
 **Required env vars (min to run):**
 - `DATABASE_URL` - SQLite path (or Supabase connection)
-- At least one LLM API key: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `GROQ_API_KEY`
+- At least one LLM API key: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GROQ_API_KEY`
 
 **Optional integrations:**
 - `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` - Cloud sync

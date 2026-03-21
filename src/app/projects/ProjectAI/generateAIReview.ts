@@ -8,7 +8,7 @@ export async function generateAIReview(projectName: string, analysis: ProjectAna
   const promptResult = buildHighLevelDocsPrompt(projectName, analysis, userVision);
   const prompt = promptResult.fullPrompt;
   const result = await generateWithLLM(prompt, {
-    provider: (provider as "gemini" | "openai" | "anthropic" | "ollama") || DefaultProviderStorage.getDefaultProvider(),
+    provider: (provider as "openai" | "anthropic" | "ollama") || DefaultProviderStorage.getDefaultProvider(),
     projectId,
     taskType: 'ai_review',
     taskDescription: `Generate AI review for ${projectName}`,

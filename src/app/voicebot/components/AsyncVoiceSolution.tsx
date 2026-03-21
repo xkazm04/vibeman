@@ -36,7 +36,6 @@ const LLM_PROVIDERS: Array<{ value: LLMProvider; label: string; description: str
   { value: 'ollama', label: 'Ollama', description: 'Local GPT-OSS 20B' },
   { value: 'openai', label: 'OpenAI', description: 'GPT-5 Models' },
   { value: 'anthropic', label: 'Claude', description: 'Anthropic AI' },
-  { value: 'gemini', label: 'Gemini', description: 'Google AI' }
 ];
 
 export default function AsyncVoiceSolution() {

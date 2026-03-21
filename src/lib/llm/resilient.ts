@@ -68,7 +68,7 @@ export async function executeResilientLLM(
     maxRetries = 3,
     timeout = 30000,
     fallbackEnabled = true,
-    preferredProvider = 'gemini'
+    preferredProvider = 'anthropic'
   } = options;
 
   const manager = getCircuitBreakerManager();

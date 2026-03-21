@@ -27,7 +27,6 @@ export default function AIContentCard({
     switch (provider) {
       case 'openai': return 'OpenAI';
       case 'anthropic': return 'Claude';
-      case 'gemini': return 'Gemini';
       case 'internal': return 'Internal API';
       default: return 'Ollama';
     }

@@ -1495,7 +1495,7 @@
     {
       "id": "llm-providers",
       "title": "LLM Provider Integration",
-      "summary": "Multi-provider LLM integration: OpenAI, Anthropic, Gemini, Ollama. Provider selector, token tracking, and unified API interface.",
+      "summary": "Multi-provider LLM integration: OpenAI, Anthropic, Ollama, Groq. Provider selector, token tracking, and unified API interface.",
       "filepaths": {
         "ui": [
           "src/components/llm/ProviderSelector.tsx"
@@ -1505,7 +1505,6 @@
           "src/lib/llm/base-client.ts",
           "src/lib/llm/openai-client.ts",
           "src/lib/llm/anthropic-client.ts",
-          "src/lib/llm/gemini-client.ts",
           "src/lib/llm/ollama-client.ts",
           "src/lib/llm/providers-config.ts",
           "src/lib/llm/types.ts",
@@ -1913,7 +1912,7 @@
           "annette-voice-core",
           "questions-clarification"
         ],
-        "purpose": "Unified LLM integration layer - all AI features route through here for consistent token tracking, provider switching, and cost monitoring across OpenAI, Anthropic, Gemini, and Ollama"
+        "purpose": "Unified LLM integration layer - all AI features route through here for consistent token tracking, provider switching, and cost monitoring across OpenAI, Anthropic, Ollama, and Groq"
       },
       {
         "context": "database-layer",

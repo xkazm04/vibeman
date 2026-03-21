@@ -48,14 +48,6 @@ const providers: ProviderInfo[] = [
     borderColor: 'border-orange-600/50',
     hoverBorderColor: 'hover:border-orange-400'
   },
-  {
-    id: 'gemini',
-    name: 'Gemini',
-    icon: '/llm_icons/gemini.svg',
-    description: 'Google AI models',
-    borderColor: 'border-blue-600/50',
-    hoverBorderColor: 'hover:border-blue-400'
-  }
 ];
 
 

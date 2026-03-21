@@ -1242,7 +1242,7 @@ import { Sparkles } from 'lucide-react';
   {
     id: 'ai-processing-panel',
     name: 'AIProcessingPanel',
-    description: 'Multi-stage panel with gradient progress bar, 4 states, and Gemini branding',
+    description: 'Multi-stage panel with gradient progress bar, 4 states, and AI branding',
     categoryId: 'advanced',
     variantCount: 4,
     propsConfig: [

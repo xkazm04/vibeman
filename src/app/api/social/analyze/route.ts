@@ -21,7 +21,7 @@ interface FeedbackItemInput {
 }
 
 interface AnalyzeRequest {
-  provider: 'gemini' | 'anthropic';
+  provider: 'anthropic' | 'openai';
   feedbackItems: FeedbackItemInput[];
   stage?: 'classification' | 'requirement';
   codeContext?: {
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Map provider name to vibeman's provider type
-    const vibemanProvider: SupportedProvider = provider === 'anthropic' ? 'anthropic' : 'gemini';
+    const vibemanProvider: SupportedProvider = provider === 'anthropic' ? 'anthropic' : 'openai';
 
     // Check provider availability
     const isAvailable = await llmManager.checkProviderAvailability(vibemanProvider);
@@ -160,13 +160,13 @@ export async function POST(request: NextRequest) {
  * Check AI analysis endpoint status
  */
 export async function GET() {
-  const geminiAvailable = await llmManager.checkProviderAvailability('gemini');
+  const openaiAvailable = await llmManager.checkProviderAvailability('openai');
   const anthropicAvailable = await llmManager.checkProviderAvailability('anthropic');
 
   return NextResponse.json({
     status: 'ready',
     providers: {
-      gemini: geminiAvailable ? 'available' : 'unavailable',
+      openai: openaiAvailable ? 'available' : 'unavailable',
       anthropic: anthropicAvailable ? 'available' : 'unavailable',
     },
   });

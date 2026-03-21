@@ -200,7 +200,7 @@ function generateMockIdea(index: number, rng: SeededRandom, projectId: string = 
     risk: rng.nextInt(1, 10),
     requirement_id: null,
     goal_id: rng.next() > 0.7 ? `test-goal-${rng.nextInt(1, 5)}` : null,
-    provider: rng.pick(['claude', 'gemini', 'copilot', 'ollama']),
+    provider: rng.pick(['claude', 'ollama']),
     model: null,
     detailed: 0,
     created_at: createdAt.toISOString(),

@@ -3,7 +3,6 @@ import { hasCapability, createStrategy } from './executionStrategy';
 import './strategies/terminalStrategy';
 import './strategies/queueStrategy';
 import './strategies/remoteMeshStrategy';
-import './strategies/copilotSdkStrategy';
 
 describe('ExecutionStrategy Capabilities', () => {
   it('TerminalStrategy should have stream and status capabilities', () => {
@@ -24,14 +23,6 @@ describe('ExecutionStrategy Capabilities', () => {
 
   it('QueueStrategy should have stream and status capabilities', () => {
     const strategy = createStrategy('queue');
-    expect(strategy.capabilities).toContain('stream');
-    expect(strategy.capabilities).toContain('status');
-    expect(hasCapability(strategy, 'stream')).toBe(true);
-    expect(hasCapability(strategy, 'status')).toBe(true);
-  });
-
-  it('CopilotSdkStrategy should have stream and status capabilities', () => {
-    const strategy = createStrategy('copilot');
     expect(strategy.capabilities).toContain('stream');
     expect(strategy.capabilities).toContain('status');
     expect(hasCapability(strategy, 'stream')).toBe(true);

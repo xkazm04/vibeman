@@ -27,7 +27,6 @@ export { BaseLLMClient } from './base-client';
 // Individual provider clients
 export { OpenAIClient } from './providers/openai-client';
 export { AnthropicClient } from './providers/anthropic-client';
-export { GeminiClient } from './providers/gemini-client';
 export { OllamaClient } from './providers/ollama-client';
 export { InternalClient } from './providers/internal-client';
 

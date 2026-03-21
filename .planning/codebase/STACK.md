@@ -53,7 +53,6 @@
 **AI/LLM:**
 - @anthropic-ai/sdk 0.78.0 - Anthropic Claude API client
 - @anthropic-ai/claude-agent-sdk 0.2.59 - Claude Agent framework for agentic workflows
-- @github/copilot-sdk 0.1.30 - GitHub Copilot SDK for tool execution
 - @modelcontextprotocol/sdk 1.27.1 - Model Context Protocol for Claude Code integration (MCP server in `src/mcp-server/`)
 
 **AWS:**
@@ -115,13 +114,13 @@
 - `GITHUB_TOKEN` - GitHub personal access token (optional)
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` - AWS credentials for Bedrock (optional)
 - `OLLAMA_BASE_URL` - Local Ollama instance URL (optional, default: `http://localhost:11434`)
-- `OPENAI_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY` - Alternative LLM provider keys (optional)
+- `OPENAI_API_KEY`, `GROQ_API_KEY` - Alternative LLM provider keys (optional)
 
 **Build:**
 - Turbopack bundling enabled in dev (`next dev --turbopack`)
 - Module Federation for dynamic remote loading (webpack config in `next.config.ts`)
 - Security headers via CSP, X-Frame-Options, etc. (configured in `next.config.ts`)
-- Server-external packages: `ts-morph`, `@github/copilot-sdk` (avoid bundling)
+- Server-external packages: `ts-morph` (avoid bundling)
 
 ## Platform Requirements
 
@@ -135,7 +134,7 @@
 - Node.js runtime (Next.js server)
 - SQLite3 support or Supabase cloud PostgreSQL
 - AWS Bedrock access (if voice features enabled)
-- Anthropic/OpenAI/Gemini API keys for LLM features
+- Anthropic/OpenAI API keys for LLM features
 
 ---
 

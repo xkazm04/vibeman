@@ -25,7 +25,6 @@ const DEFAULT_PROVIDER_CONFIG: Record<SupportedProvider, boolean> = {
   ollama: true,
   openai: true,
   anthropic: true,
-  gemini: true,
   groq: false,
   internal: false
 };
@@ -34,7 +33,6 @@ const DEFAULT_PROVIDERS: Record<SupportedProvider, ProviderStatus> = {
   ollama: { configured: true, reason: 'loading', suggestion: '' },
   openai: { configured: true, reason: 'loading', suggestion: '' },
   anthropic: { configured: true, reason: 'loading', suggestion: '' },
-  gemini: { configured: true, reason: 'loading', suggestion: '' },
   groq: { configured: false, reason: 'loading', suggestion: '' },
   internal: { configured: false, reason: 'loading', suggestion: '' },
 };

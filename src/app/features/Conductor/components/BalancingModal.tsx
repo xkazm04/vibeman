@@ -121,7 +121,7 @@ function SectionHeader({
 // Model Routing Table
 // ============================================================================
 
-const PROVIDERS: CLIProvider[] = ['claude', 'gemini', 'copilot', 'ollama'];
+const PROVIDERS: CLIProvider[] = ['claude', 'ollama'];
 
 const TIER_META: { condition: ModelRoutingRule['condition']; label: string; effort: string; color: string }[] = [
   { condition: 'complexity_1', label: 'Effort 1-3', effort: 'Low', color: 'text-emerald-400' },

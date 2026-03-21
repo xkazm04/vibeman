@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       projectName: projectInfo.name,
       projectPath: projectInfo.path,
       scanType: scanType as ScanType,
-      provider: (provider as SupportedProvider) || 'gemini',
+      provider: (provider as SupportedProvider) || 'anthropic',
       contextId,
       contextFilePaths,
     });

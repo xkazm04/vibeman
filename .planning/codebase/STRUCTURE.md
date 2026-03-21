@@ -93,7 +93,6 @@ vibeman/
 │   │   ├── analysis/                 # Code analysis utilities
 │   │   ├── dag/                      # DAG (directed acyclic graph)
 │   │   ├── db/                       # Database utilities
-│   │   ├── copilot-sdk/              # GitHub Copilot integration
 │   │   ├── constants/                # Constants & enums
 │   │   ├── command/                  # Command dispatch system
 │   │   ├── errorClassifier.ts        # Error classification logic

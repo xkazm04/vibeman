@@ -164,18 +164,18 @@ Defer until the Conductor has proven value in daily use.
 
 This is an internal tool, not a competitive product. "Competitors" here are the public agentic coding systems that define user mental models and expectations.
 
-| Feature | Claude Code (Anthropic) | Cursor Agent Mode | GitHub Copilot Workspace | Vibeman Conductor Approach |
-|---------|------------------------|-------------------|--------------------------|---------------------------|
-| Goal-to-code pipeline | Goal via chat, single agent | Goal via chat, single agent | Goal → plan → tasks → PRs | Structured goal → multi-stage pipeline with checkpoints |
-| Parallel execution | Sub-agents (experimental) | Single session | Single session | 1-4 concurrent CLI sessions with domain isolation |
-| Backlog / planning | Ad-hoc in chat | Ad-hoc in chat | Explicit plan step | Formal backlog generation with Ideas scan types |
-| Human approval gates | Implicit (user reviews each step) | Implicit | Explicit plan review | Configurable explicit gates (triage, pre-execute, post-review) |
-| Memory / pattern reuse | Project memory (CLAUDE.md) | Codebase indexing | None explicit | Brain module as active decision engine across runs |
-| Spec generation | None (prompt-driven) | None | Plan items | Markdown .md spec per backlog item with acceptance criteria |
-| Self-healing | Retry in same context | No | No | Error classification + prompt patching |
-| Build validation | Manual | Manual | Manual | Automated TypeScript compile gate |
-| Test generation | On request | On request | No | Embedded in spec as mandatory execution step |
-| Commit automation | On request | On request | PR creation | Planned as v1.x; manual for v1 |
+| Feature | Claude Code (Anthropic) | Cursor Agent Mode | Vibeman Conductor Approach |
+|---------|------------------------|-------------------|---------------------------|
+| Goal-to-code pipeline | Goal via chat, single agent | Goal via chat, single agent | Structured goal → multi-stage pipeline with checkpoints |
+| Parallel execution | Sub-agents (experimental) | Single session | 1-4 concurrent CLI sessions with domain isolation |
+| Backlog / planning | Ad-hoc in chat | Ad-hoc in chat | Formal backlog generation with Ideas scan types |
+| Human approval gates | Implicit (user reviews each step) | Implicit | Configurable explicit gates (triage, pre-execute, post-review) |
+| Memory / pattern reuse | Project memory (CLAUDE.md) | Codebase indexing | Brain module as active decision engine across runs |
+| Spec generation | None (prompt-driven) | None | Markdown .md spec per backlog item with acceptance criteria |
+| Self-healing | Retry in same context | No | Error classification + prompt patching |
+| Build validation | Manual | Manual | Automated TypeScript compile gate |
+| Test generation | On request | On request | Embedded in spec as mandatory execution step |
+| Commit automation | On request | On request | Planned as v1.x; manual for v1 |
 
 ---
 

@@ -39,7 +39,6 @@ To use AI-powered task execution, install at least one CLI tool:
 | Provider | Install | Docs |
 |----------|---------|------|
 | Claude CLI | `npm install -g @anthropic-ai/claude-code` | [claude.ai/code](https://claude.ai/code) |
-| Gemini CLI | `npm install -g @anthropic-ai/gemini-cli` | [ai.google.dev](https://ai.google.dev) |
 | Ollama | Download from [ollama.com](https://ollama.com) | Local models, no API key needed |
 
 These are only needed for the TaskRunner and Conductor features. The rest of the app (goals, ideas, scans, brain) works with just API keys.
@@ -81,7 +80,7 @@ The app starts with zero configuration. For AI features, set at least one LLM pr
 # Pick one (or more):
 ANTHROPIC_API_KEY=sk-ant-xxx     # Recommended — used by most features
 OPENAI_API_KEY=sk-xxx
-GEMINI_API_KEY=xxx
+GROQ_API_KEY=xxx
 ```
 
 That's it. Everything else has sensible defaults.
@@ -94,7 +93,7 @@ That's it. Everything else has sensible defaults.
 |----------|---------|---------|
 | `ANTHROPIC_API_KEY` | Claude API for idea generation, analysis, conductor | *none* |
 | `OPENAI_API_KEY` | OpenAI models as alternative/fallback | *none* |
-| `GEMINI_API_KEY` | Gemini models as alternative/fallback | *none* |
+| `GROQ_API_KEY` | Groq models as alternative/fallback | *none* |
 | `OLLAMA_BASE_URL` | Local Ollama instance | `http://localhost:11434` |
 
 **Tier 2 — Database (optional, has defaults):**
@@ -242,14 +241,13 @@ rm -rf node_modules/.cache
 npx tsc --noEmit
 ```
 
-### CLI provider not found (claude/gemini command not found)
+### CLI provider not found (claude command not found)
 
 CLI providers must be installed globally. The app spawns them as subprocesses:
 
 ```bash
 # Verify installation
 which claude    # or: where claude (Windows)
-which gemini
 
 # If missing, install globally
 npm install -g @anthropic-ai/claude-code

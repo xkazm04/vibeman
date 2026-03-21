@@ -1,7 +1,7 @@
 /**
  * CLI-based Terminal Service
  *
- * Spawns CLI processes (Claude Code or Gemini CLI) and parses stream-json output.
+ * Spawns CLI processes (Claude Code) and parses stream-json output.
  * Provider-agnostic: the buildSpawnConfig() function maps provider+model to command/args/env.
  */
 
@@ -71,62 +71,14 @@ export interface CLIResultMessage {
   duration_ms?: number;
   cost_usd?: number;
   is_error?: boolean;
-  // Gemini result fields
-  status?: string;
-  stats?: {
-    total_tokens?: number;
-    input_tokens?: number;
-    output_tokens?: number;
-    cached?: number;
-    input?: number;
-    duration_ms?: number;
-    tool_calls?: number;
-  };
   error?: { type?: string; message?: string } | string;
-}
-
-// Gemini-specific stream-json message types
-export interface GeminiInitMessage {
-  type: 'init';
-  session_id?: string;
-  model?: string;
-  timestamp?: string;
-}
-
-export interface GeminiTextMessage {
-  type: 'message';
-  role: string;
-  content: string;
-  delta?: boolean;
-  timestamp?: string;
-}
-
-export interface GeminiToolUseMessage {
-  type: 'tool_use';
-  tool_name: string;
-  tool_id: string;
-  parameters?: Record<string, unknown>;
-  timestamp?: string;
-}
-
-export interface GeminiToolResultMessage {
-  type: 'tool_result';
-  tool_id: string;
-  status?: string;
-  output?: string | Record<string, unknown>;
-  error?: { type?: string; message?: string };
-  timestamp?: string;
 }
 
 export type CLIMessage =
   | CLISystemMessage
   | CLIAssistantMessage
   | CLIUserMessage
-  | CLIResultMessage
-  | GeminiInitMessage
-  | GeminiTextMessage
-  | GeminiToolUseMessage
-  | GeminiToolResultMessage;
+  | CLIResultMessage;
 
 // Events emitted during execution
 export interface CLIExecutionEvent {
@@ -251,10 +203,6 @@ function buildSpawnConfig(
   const provider = providerConfig?.provider || 'claude';
   const model = providerConfig?.model;
 
-  if (provider === 'copilot') {
-    throw new Error('Copilot provider uses the Copilot SDK API routes. It cannot be executed via the CLI service.');
-  }
-
   // Strip Claude Code nesting-guard env vars so child CLI processes don't
   // refuse to start with "cannot be launched inside another Claude Code session".
   // This happens when the Vibeman dev server itself was started from a Claude Code session.
@@ -286,24 +234,6 @@ function buildSpawnConfig(
     env.ANTHROPIC_API_KEY = '';
     env.ANTHROPIC_AUTH_TOKEN = 'ollama';
     return { command: 'claude', args, env, stdinPrompt: true };
-  }
-
-  if (provider === 'gemini') {
-    const args = [
-      '-o', 'stream-json',
-      '--approval-mode=yolo',
-    ];
-    if (model) args.push('-m', model);
-    if (resumeSessionId) args.push('--resume', resumeSessionId);
-    // Use stdin for prompt delivery + '-p _' to trigger headless mode.
-    // On Windows, shell:true causes spawn to split multi-word -p values
-    // into positional args. Gemini appends stdin to -p value, so the
-    // effective prompt is: <stdin>\n\n_ (trailing _ is harmless).
-    args.push('-p', '_');
-
-    const env = { ...baseEnv };
-    delete env.ANTHROPIC_API_KEY;
-    return { command: 'gemini', args, env, stdinPrompt: true };
   }
 
   // Claude (default)
@@ -488,7 +418,7 @@ export function startExecution(
     let assistantMessageCount = 0;
 
     // Process a single line of JSON output.
-    // Handles both Claude CLI and Gemini CLI stream-json formats.
+    // Handles Claude CLI stream-json format.
     const processLine = (line: string) => {
       const parsed = parseStreamJsonLine(line);
       if (!parsed) return;
@@ -513,19 +443,6 @@ export function startExecution(
           timestamp: Date.now(),
         });
 
-      // ── Gemini: {"type":"init","session_id":"...","model":"..."}
-      } else if (parsed.type === 'init') {
-        initEventReceived = true;
-        execution.sessionId = parsed.session_id;
-        emitEvent({
-          type: 'init',
-          data: {
-            sessionId: parsed.session_id,
-            model: parsed.model,
-          },
-          timestamp: Date.now(),
-        });
-
       // ── Claude: {"type":"assistant","message":{"role":"assistant","content":[...]}}
       } else if (parsed.type === 'assistant') {
         assistantMessageCount++;
@@ -546,42 +463,6 @@ export function startExecution(
           });
         }
 
-      // ── Gemini: {"type":"message","role":"assistant","content":"...","delta":true}
-      // ── Gemini: {"type":"message","role":"user","content":"..."}
-      } else if (parsed.type === 'message') {
-        if (parsed.role === 'assistant' && parsed.content) {
-          assistantMessageCount++;
-          emitEvent({
-            type: 'text',
-            data: { content: parsed.content, model: undefined },
-            timestamp: Date.now(),
-          });
-        }
-        // Gemini tool calls come as separate action/action_result events (handled below)
-
-      // ── Gemini: {"type":"tool_use","tool_name":"glob","tool_id":"glob_...","parameters":{...}}
-      } else if (parsed.type === 'tool_use') {
-        emitEvent({
-          type: 'tool_use',
-          data: {
-            id: parsed.tool_id,
-            name: parsed.tool_name,
-            input: parsed.parameters || {},
-          },
-          timestamp: Date.now(),
-        });
-
-      // ── Gemini: {"type":"tool_result","tool_id":"glob_...","status":"success","output":"..."}
-      } else if (parsed.type === 'tool_result') {
-        emitEvent({
-          type: 'tool_result',
-          data: {
-            toolUseId: parsed.tool_id,
-            content: typeof parsed.output === 'string' ? parsed.output : JSON.stringify(parsed.output || ''),
-          },
-          timestamp: Date.now(),
-        });
-
       // ── Claude: {"type":"user","message":{"content":[{"type":"tool_result",...}]}}
       } else if (parsed.type === 'user' && parsed.message?.content) {
         const results = parsed.message.content.filter((c: any) => c.type === 'tool_result');
@@ -599,44 +480,21 @@ export function startExecution(
           });
         }
 
-      // ── Both: {"type":"result",...}
-      // Claude: {"result":{"session_id":"..."},"duration_ms":...,"cost_usd":...}
-      // Gemini: {"status":"success","stats":{"total_tokens":...,"duration_ms":...}}
+      // ── Claude: {"type":"result","result":{"session_id":"..."},"duration_ms":...,"cost_usd":...}
       } else if (parsed.type === 'result') {
         resultEventEmitted = true;
-        // Claude format
-        if (parsed.result) {
-          execution.sessionId = parsed.result.session_id || execution.sessionId;
-          emitEvent({
-            type: 'result',
-            data: {
-              sessionId: parsed.result.session_id,
-              usage: parsed.result.usage,
-              durationMs: parsed.duration_ms,
-              costUsd: parsed.cost_usd,
-              isError: parsed.is_error,
-            },
-            timestamp: Date.now(),
-          });
-        } else {
-          // Gemini format
-          const stats = parsed.stats || {};
-          const isError = parsed.status === 'error';
-          emitEvent({
-            type: isError ? 'error' : 'result',
-            data: {
-              sessionId: execution.sessionId,
-              usage: stats.total_tokens ? {
-                inputTokens: stats.input_tokens || 0,
-                outputTokens: stats.output_tokens || 0,
-              } : undefined,
-              durationMs: stats.duration_ms,
-              isError,
-              ...(isError && parsed.error ? { message: typeof parsed.error === 'string' ? parsed.error : (parsed.error.message || String(parsed.error)) } : {}),
-            },
-            timestamp: Date.now(),
-          });
-        }
+        execution.sessionId = parsed.result?.session_id || execution.sessionId;
+        emitEvent({
+          type: 'result',
+          data: {
+            sessionId: parsed.result?.session_id,
+            usage: parsed.result?.usage,
+            durationMs: parsed.duration_ms,
+            costUsd: parsed.cost_usd,
+            isError: parsed.is_error,
+          },
+          timestamp: Date.now(),
+        });
 
       // ── Rate limit: {"type":"rate_limit_event","rate_limit_info":{...}} (CLI v2.1.45+)
       // Informational event — CLI retries internally, but we surface it for monitoring.

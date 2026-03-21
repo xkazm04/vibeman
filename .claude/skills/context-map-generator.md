@@ -241,7 +241,7 @@ echo "Contexts: $(curl -s "http://localhost:3000/api/contexts?projectId=$PROJECT
 
 **Groups Created:**
 1. **Core Simulator Engine** (`#3B82F6`) - Main orchestration, layout, mobile support
-2. **AI & Generation Services** (`#8B5CF6`) - Gemini Vision, Leonardo AI, orchestration
+2. **AI & Generation Services** (`#8B5CF6`) - Leonardo AI, orchestration
 3. **Dimension Management** (`#06B6D4`) - Dimension input, presets, configuration
 4. **Prompt System** (`#10B981`) - Prompt generation, display, feedback
 5. **Output & Gallery** (`#F59E0B`) - Poster display, image management, comparison
@@ -256,11 +256,9 @@ curl -X POST "http://localhost:3000/api/contexts" \
   -d '{
     "projectId": "a25313f3-1551-4006-a33e-81dbeb6f0719",
     "groupId": "group_xxx",
-    "name": "Gemini Vision Analysis",
-    "description": "Google Gemini integration for image analysis. Extracts visual format, identifies swappable content elements, and provides AI-powered breakdown suggestions.",
+    "name": "AI Vision Analysis",
+    "description": "AI-powered image analysis. Extracts visual format, identifies swappable content elements, and provides AI-powered breakdown suggestions.",
     "filePaths": [
-      "app/lib/gemini.ts",
-      "app/api/ai/gemini/route.ts",
       "app/api/ai/image-describe/route.ts",
       "app/features/simulator/lib/simulatorAI.ts"
     ]
@@ -421,7 +419,7 @@ Before finalizing:
 { "name": "Helper Functions" }
 
 // CORRECT
-{ "name": "Gemini Vision Analysis" }
+{ "name": "AI Vision Analysis" }
 { "name": "Poster Display & Gallery" }
 ```
 

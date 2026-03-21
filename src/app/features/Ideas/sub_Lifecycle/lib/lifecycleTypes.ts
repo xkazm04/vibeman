@@ -126,7 +126,7 @@ export const DEFAULT_LIFECYCLE_CONFIG: Omit<LifecycleConfig, 'id' | 'project_id'
   ignore_patterns: ['node_modules/**', '*.test.ts', '*.spec.ts'],
 
   scan_types: ['bug_hunter', 'security_protector', 'perf_optimizer'],
-  provider: 'gemini',
+  provider: 'anthropic',
   max_concurrent_scans: 1,
 
   auto_resolve: false,

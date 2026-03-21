@@ -35,7 +35,7 @@ export function useAIProcessing(options: UseAIProcessingOptions = {}) {
 
   const [state, setState] = useState<AIProcessingState>({
     status: 'idle',
-    provider: 'gemini',
+    provider: 'claude',
     results: new Map(),
     requirementResults: new Map(),
   });
@@ -85,7 +85,7 @@ export function useAIProcessing(options: UseAIProcessingOptions = {}) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            provider: state.provider === 'claude' ? 'anthropic' : 'gemini',
+            provider: state.provider === 'claude' ? 'anthropic' : 'openai',
             feedbackItems: items,
             stage: 'classification',
           }),
@@ -167,7 +167,7 @@ export function useAIProcessing(options: UseAIProcessingOptions = {}) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            provider: state.provider === 'claude' ? 'anthropic' : 'gemini',
+            provider: state.provider === 'claude' ? 'anthropic' : 'openai',
             feedbackItems: items,
             stage: 'requirement',
           }),

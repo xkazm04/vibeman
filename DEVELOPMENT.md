@@ -55,15 +55,15 @@ In-depth architecture and development reference for Vibeman contributors. For hi
 │  │              │               │  │  └───────────┬───────────────────┘  │  │
 │  │              ▼               │  │              │                      │  │
 │  │  ┌────────────────────────┐  │  │  ┌───────────▼───────────────────┐  │  │
-│  │  │   SQLite (better-      │  │  │  │   Subprocesses / SDK          │  │  │
+│  │  │   SQLite (better-      │  │  │  │   Subprocesses                │  │  │
 │  │  │   sqlite3) + WAL       │  │  │  │   ┌───────┐ ┌───────┐        │  │  │
-│  │  │   ┌──────┐ ┌────────┐ │  │  │  │   │Claude │ │Gemini │        │  │  │
+│  │  │   ┌──────┐ ┌────────┐ │  │  │  │   │Claude │ │Ollama │        │  │  │
 │  │  │   │ Main │ │  Hot-  │ │  │  │  │   │  CLI  │ │  CLI  │        │  │  │
 │  │  │   │  DB  │ │ Writes │ │  │  │  │   └───────┘ └───────┘        │  │  │
-│  │  │   └──────┘ └────────┘ │  │  │  │   ┌───────┐ ┌───────┐        │  │  │
-│  │  └────────────────────────┘  │  │  │   │Copilot│ │Ollama │        │  │  │
-│  └──────────────────────────────┘  │  │   │  SDK  │ │  CLI  │        │  │  │
-│                                    │  │   └───────┘ └───────┘        │  │  │
+│  │  │   └──────┘ └────────┘ │  │  │                                  │  │  │
+│  │  └────────────────────────┘  │  │                                  │  │  │
+│  └──────────────────────────────┘  │                                  │  │  │
+│                                    │                                  │  │  │
 │  ┌──────────────────────────────┐  │  └──────────────────────────────┘  │  │
 │  │  Optional Cloud Integrations │  └─────────────────────────────────────┘  │
 │  │  ┌──────────┐ ┌──────────┐  │                                           │
@@ -125,7 +125,7 @@ Vibeman runs as a single Next.js process on localhost. There is no separate back
 | Module | Responsibility |
 |--------|---------------|
 | **`claude-terminal/`** | CLI provider abstraction — session management, subprocess spawning, output parsing |
-| **`llm/`** | Multi-provider LLM client (Anthropic, OpenAI, Gemini, Ollama, Groq) with circuit breaker and retry |
+| **`llm/`** | Multi-provider LLM client (Anthropic, OpenAI, Ollama, Groq) with circuit breaker and retry |
 | **`supabase/`** | Cloud sync: project sync, external requirements, goal sync |
 | **`brain/`** | Behavioral signal analysis and insight generation |
 | **`config/envConfig.ts`** | Centralized environment variable access with server-only guards |
@@ -190,7 +190,6 @@ This is the core workflow — how a development task goes from creation to execu
         │
         ├── TerminalStrategy:  spawn('claude', args)  →  piped stdio
         ├── QueueStrategy:     POST /api/claude-code/execute
-        ├── CopilotSdkStrategy: copilot.complete()
         └── RemoteMeshStrategy: POST to remote device
 
 4. REAL-TIME UPDATES
@@ -523,7 +522,6 @@ The CLI integration layer provides a unified interface for executing AI-powered 
 │  ┌─────────────────────────────────────────────────────┐  │
 │  │ TerminalStrategy   → spawn() subprocess             │  │
 │  │ QueueStrategy      → server-side queue execution    │  │
-│  │ CopilotSdkStrategy → @github/copilot-sdk in-process│  │
 │  │ RemoteMeshStrategy → HTTP to remote Vibeman device  │  │
 │  └─────────────────────────────────────────────────────┘  │
 └──────────────────────────┬────────────────────────────────┘
@@ -535,9 +533,7 @@ The CLI integration layer provides a unified interface for executing AI-powered 
 │  buildSpawnConfig(provider, model, projectPath)            │
 │       │                                                   │
 │       ├── claude  → spawn('claude', ['--model', model])   │
-│       ├── gemini  → spawn('gemini', [...args])            │
-│       ├── ollama  → spawn('claude', [...]) + OLLAMA env   │
-│       └── copilot → in-process SDK call                   │
+│       └── ollama  → spawn('claude', [...]) + OLLAMA env   │
 │                                                           │
 │  Output: stream-json lines parsed into TerminalMessage[]  │
 │  Approval: PendingApproval objects pause execution        │
@@ -549,14 +545,12 @@ The CLI integration layer provides a unified interface for executing AI-powered 
 Defined in `src/lib/claude-terminal/types.ts`:
 
 ```typescript
-type CLIProvider = 'claude' | 'gemini' | 'copilot' | 'ollama';
+type CLIProvider = 'claude' | 'ollama';
 ```
 
 | Provider | Binary | Communication | Notes |
 |----------|--------|---------------|-------|
 | Claude | `claude` CLI | Piped stdio, stream-json | Primary provider, supports Agent SDK |
-| Gemini | `gemini` CLI | Piped stdio, stream-json | Google's CLI tool |
-| Copilot | In-process | `@github/copilot-sdk` | No subprocess, direct SDK calls |
 | Ollama | `claude` CLI | Piped stdio with env override | Routes through Claude CLI to local Ollama |
 
 ### Session Lifecycle
@@ -605,7 +599,7 @@ Task prompts are built by the prompt template system:
 For non-CLI LLM calls (idea generation, analysis, summaries), the `src/lib/llm/` module provides:
 
 - **`llm-manager.ts`** — Main facade with provider selection
-- **Providers**: Anthropic, OpenAI, Gemini, Ollama, Groq, Internal
+- **Providers**: Anthropic, OpenAI, Ollama, Groq, Internal
 - **Resilience**: Circuit breaker pattern (`circuitBreaker.ts`) prevents cascading failures; retry with exponential backoff (`retryStrategy.ts`)
 - **Fallback chain**: `resilient.ts` tries providers in order until one succeeds
 
@@ -617,7 +611,7 @@ For non-CLI LLM calls (idea generation, analysis, summaries), the `src/lib/llm/`
 
 Vibeman directly accesses the filesystem, spawns CLI subprocesses, and reads/writes SQLite. A cloud deployment would require reimagining the entire execution model. Localhost gives us:
 - Direct file system access for codebase scanning and context file management
-- Subprocess spawning for CLI providers (Claude, Gemini, etc.)
+- Subprocess spawning for CLI providers (Claude Code CLI)
 - Zero-latency SQLite queries (synchronous, in-process)
 - No auth complexity — single user on their own machine
 
@@ -646,7 +640,7 @@ Each feature directory (`src/app/features/FeatureName/`) contains its own compon
 
 ### Why subprocess spawning for CLI providers?
 
-AI coding assistants (Claude Code, Gemini CLI) are designed as terminal tools. Rather than reimplementing their capabilities:
+AI coding assistants (Claude Code CLI) are designed as terminal tools. Rather than reimplementing their capabilities:
 - We spawn them as subprocesses and parse their structured output
 - Each CLI tool handles its own authentication, model routing, and tool execution
 - We get new CLI features (tool use, file editing, etc.) for free on updates

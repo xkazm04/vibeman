@@ -56,7 +56,7 @@ All API routes return errors in a consistent envelope:
 
 | Code | Description | When |
 |------|-------------|------|
-| `LLM_ERROR` | AI/LLM provider returned an error | Claude, Gemini, Copilot API failures |
+| `LLM_ERROR` | AI/LLM provider returned an error | Claude, OpenAI, Ollama API failures |
 | `EXTERNAL_SERVICE_ERROR` | Third-party service call failed | Supabase, external APIs |
 | `SERVICE_UNAVAILABLE` | Service is temporarily down | Provider timeout, maintenance |
 

@@ -15,7 +15,7 @@ export type ScanCategory = 'agent' | 'structure' | 'template' | 'blueprint';
 
 export type ProjectType = 'nextjs' | 'fastapi' | 'django' | 'express' | 'generic';
 
-export type SupportedProvider = 'gemini' | 'openai' | 'anthropic' | 'groq' | 'ollama' | 'internal';
+export type SupportedProvider = 'openai' | 'anthropic' | 'groq' | 'ollama' | 'internal';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scan Configuration

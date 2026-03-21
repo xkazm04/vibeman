@@ -27,7 +27,7 @@ export function spawnV4Session(
   onEvent?: (event: unknown) => void,
 ): string {
   const providerConfig: CLIProviderConfig = {
-    provider: (config.provider || 'claude') as 'claude' | 'gemini' | 'ollama',
+    provider: (config.provider || 'claude') as 'claude' | 'ollama',
     model: config.model,
   };
 
@@ -60,7 +60,7 @@ export function resumeV4Session(
   const sessionName = `conductor-v4-${runId.substring(0, 12)}`;
 
   const providerConfig: CLIProviderConfig = {
-    provider: (config.provider || 'claude') as 'claude' | 'gemini' | 'ollama',
+    provider: (config.provider || 'claude') as 'claude' | 'ollama',
     model: config.model,
   };
 

@@ -44,9 +44,8 @@ Vibeman is a **Next.js 16 App Router** application that runs locally. It uses **
 │  (DB)  │ │System│ │ (subprocess) │
 └────────┘ └──────┘ └──────────────┘
                       │  │  │  │
-                      ▼  ▼  ▼  ▼
-                    Claude Gemini
-                    Copilot Ollama
+                      ▼  ▼
+                    Claude Ollama
 ```
 
 ### Core Principles
@@ -358,15 +357,13 @@ const { items, loading } = useMyStore(
 The CLI layer (`src/lib/claude-terminal/`) provides a unified interface over multiple AI providers:
 
 ```typescript
-type CLIProvider = 'claude' | 'gemini' | 'copilot' | 'ollama';
+type CLIProvider = 'claude' | 'ollama';
 ```
 
 | Provider | Mechanism | Communication |
 |----------|-----------|---------------|
 | Claude | `spawn('claude')` subprocess | Piped stdio, stream-json |
-| Gemini | `spawn('gemini')` subprocess | Piped stdio, stream-json |
 | Ollama | `spawn('claude')` with env override | Claude CLI → Ollama API |
-| Copilot | In-process `@github/copilot-sdk` | Direct SDK calls |
 
 ### Session Lifecycle
 
