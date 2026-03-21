@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
   Lightbulb,
   AlertTriangle,
@@ -294,11 +296,14 @@ function InsightRow({
   );
 }
 
+const MAX_ANIMATED_ROWS = 15;
+
 export function InsightsTable({ insights, scope, sortField, sortDir, onSort, onDelete, onResolveConflict, projectNameMap }: InsightsTableProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [resolvingConflict, setResolvingConflict] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(MAX_VISIBLE_ROWS * ROW_HEIGHT);
+  const prefersReducedMotion = useReducedMotion();
 
   const getRowKey = useCallback((insight: InsightWithMeta, idx: number) => `${insight.reflection_id}-${idx}`, []);
 
@@ -389,7 +394,20 @@ export function InsightsTable({ insights, scope, sortField, sortDir, onSort, onD
           </ReactWindowList>
         ) : (
           <div>
-            {insights.map((insight, idx) => renderRow(insight, idx))}
+            {insights.map((insight, idx) => {
+              const shouldAnimate = !prefersReducedMotion && idx < MAX_ANIMATED_ROWS;
+              if (!shouldAnimate) return renderRow(insight, idx);
+              return (
+                <motion.div
+                  key={getRowKey(insight, idx)}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2, delay: idx * 0.02 }}
+                >
+                  {renderRow(insight, idx)}
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </div>

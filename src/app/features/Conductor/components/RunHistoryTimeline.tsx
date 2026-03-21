@@ -35,15 +35,16 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-const STATUS_STYLES: Record<PipelineStatus, { icon: typeof CheckCircle2; color: string }> = {
-  completed: { icon: CheckCircle2, color: 'emerald' },
-  failed: { icon: XCircle, color: 'red' },
-  idle: { icon: Clock, color: 'gray' },
-  running: { icon: Zap, color: 'cyan' },
-  paused: { icon: Clock, color: 'amber' },
-  stopping: { icon: Clock, color: 'red' },
-  interrupted: { icon: XCircle, color: 'amber' },
-  queued: { icon: Clock, color: 'indigo' },
+// Full static class strings for Tailwind JIT compatibility (no dynamic interpolation)
+const STATUS_STYLES: Record<PipelineStatus, { icon: typeof CheckCircle2; iconClass: string }> = {
+  completed: { icon: CheckCircle2, iconClass: 'text-emerald-400' },
+  failed: { icon: XCircle, iconClass: 'text-red-400' },
+  idle: { icon: Clock, iconClass: 'text-gray-400' },
+  running: { icon: Zap, iconClass: 'text-cyan-400' },
+  paused: { icon: Clock, iconClass: 'text-amber-400' },
+  stopping: { icon: Clock, iconClass: 'text-red-400' },
+  interrupted: { icon: XCircle, iconClass: 'text-amber-400' },
+  queued: { icon: Clock, iconClass: 'text-indigo-400' },
 };
 
 function RunSummaryCard({ run, onViewReport }: { run: PipelineRunSummary; onViewReport?: (runId: string) => void }) {
@@ -66,7 +67,7 @@ function RunSummaryCard({ run, onViewReport }: { run: PipelineRunSummary; onView
       title={isTerminal && onViewReport ? 'Click to view report' : undefined}
     >
       {/* Status icon */}
-      <StatusIcon className={`w-4 h-4 text-${statusConfig.color}-400 flex-shrink-0`} />
+      <StatusIcon className={`w-4 h-4 ${statusConfig.iconClass} flex-shrink-0`} />
 
       {/* Date */}
       <span className="text-caption text-gray-400 w-16 flex-shrink-0">

@@ -19,6 +19,7 @@ import { routeModel } from '../balancingEngine';
 import type { CLIProvider, CLIProviderConfig } from '@/lib/claude-terminal/types';
 import type { V3Task, V3TaskResult, V3Config, V3Phase, V3Metrics } from './types';
 import { v3ConfigToBalancing } from './types';
+import { getTaskKnowledge, resolveTaskApplications } from '@/lib/collective-memory/taskCompletionHook';
 import {
   createWorktree,
   mergeWorktreeBranch,
@@ -332,6 +333,23 @@ async function dispatchTask(task: V3Task, ctx: DispatchContext): Promise<V3TaskR
     prompt = `PREVIOUS ATTEMPT FAILED\nThe previous attempt to implement this task failed with:\n${ctx.errorContext}\nPlease fix the issues and try again.\n---\n${prompt}`;
   }
 
+  // 2b. Inject collective memory knowledge (feedback loop)
+  let memoryApplicationIds: string[] = [];
+  try {
+    const knowledge = getTaskKnowledge({
+      projectId: ctx.projectId,
+      requirementName: task.title,
+      taskId: task.id,
+      filePatterns: task.targetFiles,
+    });
+    if (knowledge.promptSection) {
+      prompt = `${prompt}\n\n${knowledge.promptSection}`;
+    }
+    memoryApplicationIds = knowledge.applicationIds;
+  } catch {
+    // Best-effort: don't block dispatch if collective memory fails
+  }
+
   // 3. Snapshot files before dispatch
   const beforeSnapshots = snapshotFiles(ctx.projectPath, task.targetFiles);
 
@@ -357,6 +375,7 @@ async function dispatchTask(task: V3Task, ctx: DispatchContext): Promise<V3TaskR
   while (true) {
     if (ctx.abortSignal?.aborted) {
       abortExecution(executionId);
+      resolveTaskApplications(memoryApplicationIds, 'failure', 'Aborted by user');
       return {
         success: false, error: 'Aborted by user',
         filesChanged: [], durationMs: Date.now() - startTime,
@@ -366,6 +385,7 @@ async function dispatchTask(task: V3Task, ctx: DispatchContext): Promise<V3TaskR
 
     const execution = getExecution(executionId);
     if (!execution) {
+      resolveTaskApplications(memoryApplicationIds, 'failure', 'Execution not found');
       return {
         success: false, error: 'Execution not found',
         filesChanged: [], durationMs: Date.now() - startTime,
@@ -392,6 +412,13 @@ async function dispatchTask(task: V3Task, ctx: DispatchContext): Promise<V3TaskR
         if (commitResult) commitSha = commitResult.sha;
       }
 
+      // 8. Resolve collective memory applications (closes feedback loop)
+      resolveTaskApplications(
+        memoryApplicationIds,
+        success ? 'success' : 'failure',
+        success ? undefined : (execution.status === 'error' ? 'Execution error' : 'File verification failed')
+      );
+
       return {
         success,
         error: success ? undefined : (execution.status === 'error' ? 'Execution error' : 'File verification failed'),
@@ -405,6 +432,7 @@ async function dispatchTask(task: V3Task, ctx: DispatchContext): Promise<V3TaskR
 
     if (Date.now() > deadline) {
       abortExecution(executionId);
+      resolveTaskApplications(memoryApplicationIds, 'failure', `Timeout after ${Math.round(timeoutMs / 1000)}s`);
       return {
         success: false, error: `Timeout after ${Math.round(timeoutMs / 1000)}s`,
         filesChanged: [], durationMs: Date.now() - startTime,
