@@ -76,6 +76,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the log entry
+    // tested flag: true if explicitly passed from MCP tool (testResult=passed), false otherwise
+    const testedFlag = body.tested === true || metadata?.test_result === 'passed';
     const log = implementationLogDb.createLog({
       id,
       project_id: projectId,
@@ -84,7 +86,7 @@ export async function POST(request: NextRequest) {
       title,
       overview,
       overview_bullets: overviewBullets || null,
-      tested: false,
+      tested: testedFlag,
       screenshot: screenshot || null,
       provider: provider || undefined,
       model: model || undefined,
