@@ -17,6 +17,7 @@ export default function ImplementationLogList({
   const [logs, setLogs] = useState<ImplementationLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
+  const [showAll, setShowAll] = useState(true);
 
   // Fetch logs on mount and when projectId changes
   useEffect(() => {
@@ -87,7 +88,6 @@ export default function ImplementationLogList({
     );
   }
 
-  const [showAll, setShowAll] = useState(true);
   const untestedLogs = logs.filter(log => log.tested === 0);
   const untestedCount = untestedLogs.length;
   const displayLogs = showAll ? logs : untestedLogs;
