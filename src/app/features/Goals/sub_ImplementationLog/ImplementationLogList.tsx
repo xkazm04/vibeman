@@ -87,8 +87,10 @@ export default function ImplementationLogList({
     );
   }
 
+  const [showAll, setShowAll] = useState(true);
   const untestedLogs = logs.filter(log => log.tested === 0);
   const untestedCount = untestedLogs.length;
+  const displayLogs = showAll ? logs : untestedLogs;
 
   return (
     <div className="w-full font-mono text-sm">
@@ -100,23 +102,29 @@ export default function ImplementationLogList({
         </div>
 
         <div className="flex items-center gap-3">
-          {untestedCount > 0 ? (
+          {untestedCount > 0 && (
             <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 text-xs rounded border border-amber-500/30 animate-pulse">
-              {untestedCount} PENDING VERIFICATION
-            </span>
-          ) : (
-            <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded border border-green-500/30">
-              ALL SYSTEMS NOMINAL
+              {untestedCount} PENDING
             </span>
           )}
+          <button
+            onClick={() => setShowAll(!showAll)}
+            className={`px-2 py-0.5 text-xs rounded border transition-colors ${
+              showAll
+                ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                : 'bg-white/5 text-white/40 border-white/10 hover:text-white/60'
+            }`}
+          >
+            {showAll ? `ALL (${logs.length})` : `PENDING (${untestedCount})`}
+          </button>
         </div>
       </div>
 
       {/* Logs Stream */}
       <div className="space-y-3">
         <AnimatePresence mode="popLayout">
-          {untestedLogs.length > 0 ? (
-            untestedLogs.map((log, index) => (
+          {displayLogs.length > 0 ? (
+            displayLogs.map((log, index) => (
               <motion.div
                 key={log.id}
                 initial={{ opacity: 0, x: -20 }}
