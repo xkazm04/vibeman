@@ -70,8 +70,11 @@ async function handleGet(request: NextRequest) {
 async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
-    const { projectId, groupId, name, description, filePaths, testScenario,
+    const { projectId, groupId, name, description, testScenario,
       entry_points, db_tables, keywords, api_surface, cross_refs, tech_stack } = body;
+
+    // Accept both "filePaths" and "files" — CLI sometimes sends "files" instead
+    const filePaths = body.filePaths || body.files || body.file_paths;
 
     const validationError = validateRequiredFields({ projectId, name, filePaths }, ['projectId', 'name', 'filePaths']);
     if (validationError) return validationError;
@@ -159,7 +162,7 @@ async function handlePut(request: NextRequest) {
     const transformedUpdates = {
       name: updates.name,
       description: updates.description,
-      filePaths: updates.file_paths ?? updates.filePaths,
+      filePaths: updates.file_paths ?? updates.filePaths ?? updates.files,
       groupId: updates.group_id ?? updates.groupId,
       testScenario: updates.test_scenario ?? updates.testScenario,
       target: updates.target,
