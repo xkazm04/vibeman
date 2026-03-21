@@ -3,18 +3,19 @@
  *
  * POST: Start, pause, resume, or stop a pipeline run
  *
- * Uses conductorRepository for all DB state management.
- * V3-only: 3-phase adaptive pipeline (PLAN → DISPATCH → REFLECT).
+ * V4: Single-session autonomous pipeline (PRE-FLIGHT → EXECUTE → POST-FLIGHT).
+ * Replaces V3's multi-session PLAN → DISPATCH → REFLECT cycle.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import {
-  startV3Pipeline,
-  pauseV3Pipeline,
-  resumeV3Pipeline,
-  stopV3Pipeline,
-} from '@/app/features/Conductor/lib/v3/conductorV3';
+  startV4Pipeline,
+  pauseV4Pipeline,
+  resumeV4Pipeline,
+  stopV4Pipeline,
+  getV4RunState,
+} from '@/app/features/Conductor/lib/v4/conductorV4';
 import { conductorRepository } from '@/app/features/Conductor/lib/conductor.repository';
 import { withValidation } from '@/lib/api/withValidation';
 import { RunPostBodySchema, type RunPostBody } from '@/lib/api/schemas/conductor';
@@ -22,7 +23,7 @@ import { RunPostBodySchema, type RunPostBody } from '@/lib/api/schemas/conductor
 export const POST = withValidation(
   RunPostBodySchema,
   async (_request: NextRequest, body: RunPostBody) => {
-  const { action, projectId, runId, config, projectPath, projectName, goalId, refinedIntent } = body;
+  const { action, projectId, runId, config, projectPath, projectName, goalId } = body;
   try {
     switch (action) {
       case 'start': {
@@ -41,13 +42,20 @@ export const POST = withValidation(
         }
 
         const id = runId || uuidv4();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        startV3Pipeline(id, projectId, (config || {}) as any, projectPath || '', projectName || 'Project', goalId, refinedIntent || undefined);
+        startV4Pipeline(
+          id,
+          projectId,
+          config || {},
+          projectPath || '',
+          projectName || 'Project',
+          goalId,
+        );
 
         return NextResponse.json({
           success: true,
           runId: id,
           status: 'running',
+          pipelineVersion: 4,
         });
       }
 
@@ -65,7 +73,7 @@ export const POST = withValidation(
         })();
 
         if (pauseTargetId) {
-          pauseV3Pipeline(pauseTargetId);
+          pauseV4Pipeline(pauseTargetId);
         }
 
         return NextResponse.json({ success: true, status: 'paused' });
@@ -85,7 +93,7 @@ export const POST = withValidation(
         })();
 
         if (resumeTargetId) {
-          resumeV3Pipeline(resumeTargetId);
+          resumeV4Pipeline(resumeTargetId, projectPath || '', config || {});
         }
 
         return NextResponse.json({ success: true, status: 'running' });
@@ -105,10 +113,31 @@ export const POST = withValidation(
         })();
 
         if (stopTargetId) {
-          stopV3Pipeline(stopTargetId);
+          stopV4Pipeline(stopTargetId);
         }
 
         return NextResponse.json({ success: true, status: 'completed' });
+      }
+
+      case 'status': {
+        if (!runId) {
+          return NextResponse.json(
+            { success: false, error: 'Missing runId' },
+            { status: 400 }
+          );
+        }
+
+        const state = getV4RunState(runId);
+        if (state) {
+          return NextResponse.json({ success: true, ...state });
+        }
+
+        // Fall back to DB
+        const dbRun = conductorRepository.getRunById(runId);
+        return NextResponse.json({
+          success: true,
+          status: dbRun?.status || 'unknown',
+        });
       }
 
       default:
