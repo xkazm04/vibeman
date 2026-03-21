@@ -185,6 +185,7 @@ export function processInterruptedRun(
   runId: string,
   projectId: string,
   startedAt: string,
+  goalId?: string,
 ): { logsCreated: number; sessionName: string } {
   const db = getDatabase();
 
@@ -194,6 +195,15 @@ export function processInterruptedRun(
   ).get(projectId, startedAt) as { count: number } | undefined;
 
   conductorRepository.updateRunStatus(runId, 'interrupted');
+
+  // Mark goal as in_progress if partial work was done (not 'done' — incomplete)
+  if (goalId && (logsCreated?.count || 0) > 0) {
+    try {
+      db.prepare(
+        `UPDATE goals SET status = 'in_progress', updated_at = datetime('now') WHERE id = ? AND status = 'open'`
+      ).run(goalId);
+    } catch { /* non-blocking */ }
+  }
 
   return {
     logsCreated: logsCreated?.count || 0,
