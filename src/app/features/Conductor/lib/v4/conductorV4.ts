@@ -130,7 +130,7 @@ export function stopV4Pipeline(runId: string): boolean {
   state.status = 'interrupted';
 
   // Run post-flight for partial work
-  processPostFlight(runId, state.projectId, state.startedAt);
+  processPostFlight(runId, state.projectId, state.startedAt, state.goalId);
   conductorRepository.updateRunStatus(runId, 'interrupted');
 
   activeRuns.delete(runId);
@@ -199,7 +199,7 @@ async function executeV4Pipeline(
     state.progressPhase = 'post-flight';
     state.progressMessage = 'Processing results...';
 
-    processPostFlight(runId, projectId, state.startedAt);
+    processPostFlight(runId, projectId, state.startedAt, state.goalId);
 
     state.status = 'completed';
     state.completedAt = new Date().toISOString();
@@ -225,7 +225,7 @@ async function handleAbnormalExit(
   if (state.resumeAttempts >= maxResumes) {
     // Max retries reached — finalize partial work
     logger.warn(`[V4] Max resume attempts (${maxResumes}) reached for run ${state.runId}`);
-    processPostFlight(state.runId, state.projectId, state.startedAt);
+    processPostFlight(state.runId, state.projectId, state.startedAt, state.goalId);
     state.status = 'failed';
     conductorRepository.updateRunStatus(state.runId, 'failed');
     activeRuns.delete(state.runId);
@@ -263,7 +263,7 @@ async function resumeAndMonitor(
 
   if (result.completedNormally) {
     state.status = 'completing';
-    processPostFlight(state.runId, state.projectId, state.startedAt);
+    processPostFlight(state.runId, state.projectId, state.startedAt, state.goalId);
     state.status = 'completed';
     state.completedAt = new Date().toISOString();
     state.progress = 100;

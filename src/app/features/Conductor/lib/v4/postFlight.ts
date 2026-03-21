@@ -29,6 +29,7 @@ export function processPostFlight(
   runId: string,
   projectId: string,
   startedAt: string,
+  goalId?: string,
 ): PostFlightResult {
   const db = getDatabase();
   const result: PostFlightResult = {
@@ -153,6 +154,18 @@ export function processPostFlight(
     };
 
     conductorRepository.updateRunStatus(runId, 'completed', metrics);
+
+    // 7. Mark Goal as completed
+    if (goalId && logs.length > 0) {
+      try {
+        db.prepare(
+          `UPDATE goals SET status = 'done', updated_at = datetime('now') WHERE id = ? AND status != 'done'`
+        ).run(goalId);
+        logger.info(`[V4 Post-flight] Goal ${goalId} marked as done`);
+      } catch (goalErr) {
+        logger.warn(`[V4 Post-flight] Failed to update goal status: ${goalErr}`);
+      }
+    }
 
     logger.info(`[V4 Post-flight] Run ${runId}: ${logs.length} implementations, ${result.ideasUpdated} ideas updated, ${result.contextsUpdated} contexts updated`);
 
