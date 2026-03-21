@@ -39,7 +39,7 @@ export interface CLISessionState {
   enabledSkills: SkillId[]; // Active skills for this session
   gitEnabled: boolean; // Whether to auto-commit after tasks
   gitConfig: CLIGitConfig | null; // Git commands and template
-  provider: CLIProvider; // CLI provider: 'claude' or 'gemini'
+  provider: CLIProvider; // CLI provider: 'claude' or 'ollama'
   model: CLIModel | null; // Model override (null = provider default)
 }
 
@@ -473,17 +473,7 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
                   model: existingSession.model ?? null,
                 };
               }
-              // v6 -> v7: Rename 'vscode' provider to 'copilot' (Copilot SDK migration)
-              if (version < 7) {
-                const session = migratedSessions[id];
-                if ((session as { provider?: string }).provider === 'vscode') {
-                  migratedSessions[id] = {
-                    ...session,
-                    provider: 'copilot' as CLIProvider,
-                    model: null, // Reset model since IDs may differ
-                  };
-                }
-              }
+              // v6 -> v7: (legacy migration, no-op)
               // v8 -> v9: Add per-session isRecovering flag (ephemeral, always starts false)
               if (version < 9) {
                 migratedSessions[id] = {

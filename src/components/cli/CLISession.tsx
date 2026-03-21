@@ -76,8 +76,6 @@ export function CLISession({
 
   const providerOptions: SelectOption[] = useMemo(() => [
     { value: 'claude', label: 'Claude' },
-    { value: 'gemini', label: 'Gemini' },
-    { value: 'copilot', label: 'Copilot' },
     { value: 'ollama', label: 'Ollama' },
   ], []);
 

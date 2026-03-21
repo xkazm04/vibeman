@@ -118,7 +118,7 @@ async function handlePost(request: NextRequest): Promise<NextResponse<TestResult
           projectPath,
           projectType: projectType as any,
           scanCategory: 'structure',
-          provider: 'gemini'
+          provider: 'anthropic'
         });
 
         results.push({
@@ -214,14 +214,14 @@ async function handlePost(request: NextRequest): Promise<NextResponse<TestResult
             projectPath,
             projectType: projectType as any,
             scanCategory: 'structure',
-            provider: 'gemini'
+            provider: 'anthropic'
           },
           {
             projectId: projectId + '-2',
             projectPath,
             projectType: projectType as any,
             scanCategory: 'structure',
-            provider: 'gemini'
+            provider: 'anthropic'
           }
         ]);
 

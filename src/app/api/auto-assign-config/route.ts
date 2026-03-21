@@ -6,10 +6,10 @@ import type { AutoAssignConfig } from '@/lib/autoAssignConfig';
 const CONFIG_PATH = path.join(process.cwd(), 'data', 'auto-assign-rules.json');
 
 const DEFAULT_CONFIG: AutoAssignConfig = {
-  geminiRule: {
+  lightweightRule: {
     enabled: true,
     conditions: { effort: 1, risk: 1 },
-    provider: 'gemini',
+    provider: 'ollama',
     model: null,
   },
   defaultRule: {

@@ -16,7 +16,7 @@ import { logger } from '@/lib/logger';
  *   projectType: 'nextjs' | 'fastapi' | 'django' | 'express' | 'generic'
  *   scanCategory: 'agent' | 'structure' | 'template' | 'blueprint'
  *   scanType?: string (agent persona or template name)
- *   provider?: 'gemini' | 'openai' | 'anthropic'
+ *   provider?: 'openai' | 'anthropic' | 'groq'
  *   contextId?: string (for context-specific scans)
  * }
  * 
@@ -110,7 +110,7 @@ async function handlePost(request: NextRequest): Promise<NextResponse<UnifiedSca
       projectType,
       scanCategory,
       scanType: scanType || 'default',
-      provider: (provider as any) || 'gemini',
+      provider: (provider as any) || 'anthropic',
       contextId
     };
 
@@ -206,7 +206,7 @@ async function handleParallelScan(
       projectType: scan.projectType,
       scanCategory: scan.scanCategory,
       scanType: scan.scanType || 'default',
-      provider: (scan.provider as any) || 'gemini',
+      provider: (scan.provider as any) || 'anthropic',
       contextId: scan.contextId
     }));
 

@@ -244,7 +244,7 @@ type ScanState = 'idle' | 'scanning' | 'success' | 'error';
    - Reads AI docs (`context/high.md`)
    - Fetches existing ideas for project
    - Builds comprehensive prompt
-   - Sends to LLM (Claude/GPT/Gemini)
+   - Sends to LLM (Claude/GPT/Ollama)
    - Parses 8-12 ideas
    - Saves to database with `context_id = null`
 5. UI shows success message
@@ -472,7 +472,7 @@ describe('Idea Generation', () => {
 
 ```typescript
 {
-  provider: 'anthropic' | 'openai' | 'gemini' | 'ollama',
+  provider: 'anthropic' | 'openai' | 'ollama' | 'groq',
   maxTokens: 30000,
   temperature: 0.7, // Balanced creativity
   taskType: 'idea_generation'

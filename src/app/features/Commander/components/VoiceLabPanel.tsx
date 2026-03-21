@@ -59,8 +59,8 @@ const TEST_PROMPTS = [
 const TECH_STACK = [
   { icon: Mic, label: 'STT', value: 'ElevenLabs Scribe v2 (cloud API, 90+ languages)' },
   { icon: BrainCircuit, label: 'LLM (Main)', value: 'Claude Haiku 4.5 via Anthropic Messages API (tool_use, max 10 rounds, 4096 max tokens)' },
-  { icon: Cpu, label: 'LLM (Alt)', value: 'Gemini 3 Flash Preview via Google AI API (150 max tokens, no tools)' },
-  { icon: Cpu, label: 'LLM (Eval)', value: 'Gemini 3 Flash Preview via Google AI API (conversation evaluation)' },
+  { icon: Cpu, label: 'LLM (Alt)', value: 'Claude Haiku 4.5 via Anthropic API (150 max tokens, no tools)' },
+  { icon: Cpu, label: 'LLM (Eval)', value: 'Claude Haiku 4.5 via Anthropic API (conversation evaluation)' },
   { icon: Volume2, label: 'TTS', value: 'ElevenLabs eleven_flash_v2_5 (voice: WAhoMTNdLdMoq1j3wf3I, stability 0.8)' },
   { icon: Volume2, label: 'TTS (Alt)', value: 'OpenAI TTS-1 (voice: alloy, MP3 output)' },
   { icon: Radio, label: 'Audio Capture', value: 'Web Audio API → 16kHz mono downsample' },

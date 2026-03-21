@@ -17,7 +17,7 @@ export const createWizardSlice: StateCreator<
   selectedScanGroups: new Set(),
   techniqueOverrides: new Map(),
   selectedFolders: [],
-  llmProvider: 'gemini',
+  llmProvider: 'anthropic',
   llmModel: '',
   isWizardOpen: false,
   currentStep: 'settings',

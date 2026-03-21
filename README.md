@@ -55,7 +55,7 @@ Instead of manually writing code, reviewing diffs, and managing backlogs in sepa
 
 ### Key Features
 
-- **Multi-Provider AI Execution** — Run tasks across Claude, Gemini, Copilot, and Ollama simultaneously with 4 concurrent CLI sessions
+- **AI Execution via Claude Code CLI** — Run tasks through Claude Code CLI with up to 4 concurrent sessions and Ollama for local models
 - **Conductor Pipeline** — Adaptive 3-phase cycle (Plan -> Dispatch -> Reflect) with self-healing error recovery
 - **Codebase Scanning** — AI agents analyze your code for improvements across structure, build, context, and vision dimensions
 - **Tinder-Style Idea Evaluation** — Swipe to accept/reject AI-generated improvement suggestions
@@ -154,7 +154,6 @@ All environment variables are read through a centralized config module (`src/lib
 |----------|-------------|
 | `ANTHROPIC_API_KEY` | Anthropic API key for Claude models |
 | `OPENAI_API_KEY` | OpenAI API key |
-| `GEMINI_API_KEY` | Google Gemini API key |
 | `GROQ_API_KEY` | Groq API key |
 | `OLLAMA_BASE_URL` | Ollama server URL (default: `http://localhost:11434`) |
 
@@ -209,7 +208,7 @@ The **Tinder** module presents ideas one at a time. Swipe right to accept, left 
 
 ### 5. Execute Tasks
 
-Open the **Task Runner** to execute accepted tasks. Select a CLI provider (Claude, Gemini, etc.), configure batch size, and let AI implement the changes. Monitor progress via real-time streaming output.
+Open the **Task Runner** to execute accepted tasks. Select the Claude Code CLI provider, configure batch size, and let AI implement the changes. Monitor progress via real-time streaming output.
 
 ### 6. Review and Iterate
 
@@ -262,9 +261,9 @@ Vibeman is built as a localhost-first Next.js application. The browser talks to 
                                                           │
                                            ┌──────────────┼──────────────┐
                                            │              │              │
-                                     ┌─────▼──┐    ┌─────▼──┐    ┌─────▼──┐
-                                     │ Claude │    │ Gemini │    │ Ollama │
-                                     └────────┘    └────────┘    └────────┘
+                                     ┌─────▼──┐    ┌─────▼──┐          │
+                                     │ Claude │    │ Ollama │          │
+                                     └────────┘    └────────┘          │
 ```
 
 ### Data Flow
@@ -337,12 +336,12 @@ The Conductor is the autonomous orchestration engine. It runs a 3-phase adaptive
 ```
 
 - **Plan** — Breaks a goal into structured tasks with dependencies
-- **Dispatch** — Routes tasks to available CLI providers (Claude, Gemini, Ollama)
+- **Dispatch** — Routes tasks to available CLI providers (Claude, Ollama)
 - **Reflect** — Evaluates execution results; on failure, the self-healing chain (error classifier -> healing analyzer -> prompt patcher) adjusts and retries
 
 ### CLI Sessions
 
-Vibeman manages up to 4 concurrent CLI sessions. Each session wraps a subprocess (e.g., `claude`, `gemini`) and tracks:
+Vibeman manages up to 4 concurrent CLI sessions. Each session wraps a subprocess (e.g., `claude`) and tracks:
 - Real-time output via SSE streaming
 - Token usage and cost
 - Tool approval flow (pause execution for human approval of file changes)
@@ -352,7 +351,7 @@ Vibeman manages up to 4 concurrent CLI sessions. Each session wraps a subprocess
 
 ## CLI Providers
 
-The Task Runner dispatches work to multiple AI CLI providers. Each is optional — install only what you need.
+The Task Runner dispatches work to AI CLI providers.
 
 ### Claude Code CLI (Primary)
 
@@ -363,14 +362,6 @@ claude --version
 
 Uses Anthropic's Claude models via headless CLI with `--output-format stream-json`.
 
-### Gemini CLI
-
-```bash
-npm install -g @google/gemini-cli
-gemini --version
-# Run 'gemini' once interactively to complete OAuth login, or set GEMINI_API_KEY
-```
-
 ### Ollama (via Claude CLI)
 
 Routes Claude CLI through a local Ollama instance. Requires both `claude` CLI and `ollama` installed.
@@ -380,10 +371,6 @@ Routes Claude CLI through a local Ollama instance. Requires both `claude` CLI an
 ollama serve
 ollama pull qwen3.5:cloud
 ```
-
-### VS Code Copilot Bridge
-
-Leverages GitHub Copilot subscription models through a VS Code extension. See `vibeman-bridge/README.md` for setup instructions.
 
 ---
 
@@ -455,7 +442,7 @@ For teams collecting feedback from users or stakeholders:
 | **State** | Zustand with persist middleware |
 | **Database** | SQLite via better-sqlite3 (WAL mode) |
 | **Data Fetching** | TanStack React Query v5 |
-| **AI Providers** | Anthropic, Google Gemini, GitHub Copilot, Ollama |
+| **AI Providers** | Anthropic, OpenAI, Ollama, Groq |
 | **Visualization** | Recharts, D3, React Flow |
 | **Testing** | Vitest, fast-check (property-based) |
 | **Drag & Drop** | dnd-kit |

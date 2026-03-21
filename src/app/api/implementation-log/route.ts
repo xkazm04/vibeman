@@ -52,16 +52,41 @@ export async function POST(request: NextRequest) {
     // Auto-generate ID
     const id = randomUUID();
 
+    // V4: Auto-detect contextId from overview/title if not provided
+    let resolvedContextId = contextId || null;
+    if (!resolvedContextId && projectId) {
+      try {
+        const contexts = contextDb.getContextsByProject(projectId);
+        // Match overview text against context file_paths
+        const overviewLower = (overview + ' ' + title).toLowerCase();
+        for (const ctx of contexts) {
+          const filePaths = JSON.parse(ctx.file_paths || '[]') as string[];
+          const hasMatch = filePaths.some((fp: string) => {
+            const parts = fp.split('/');
+            return parts.some(part => part.length > 3 && overviewLower.includes(part.toLowerCase()));
+          });
+          if (hasMatch) {
+            resolvedContextId = ctx.id;
+            break;
+          }
+        }
+      } catch {
+        // Auto-detection is best-effort
+      }
+    }
+
     // Create the log entry
+    // tested flag: true if explicitly passed from MCP tool (testResult=passed), false otherwise
+    const testedFlag = body.tested === true || metadata?.test_result === 'passed';
     const log = implementationLogDb.createLog({
       id,
       project_id: projectId,
-      context_id: contextId || null,
+      context_id: resolvedContextId,
       requirement_name: requirementName,
       title,
       overview,
       overview_bullets: overviewBullets || null,
-      tested: false,
+      tested: testedFlag,
       screenshot: screenshot || null,
       provider: provider || undefined,
       model: model || undefined,

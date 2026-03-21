@@ -44,7 +44,7 @@ If applicable, add screenshots to help explain the problem.
 
 ## CLI Provider (if applicable)
 
-- **Provider:** [e.g., Claude, Gemini, Ollama, Copilot]
+- **Provider:** [e.g., Claude, Ollama]
 - **CLI version:** [e.g., claude --version output]
 
 ## Additional Context

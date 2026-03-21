@@ -69,7 +69,6 @@ export async function GET(request: NextRequest) {
       ollama: { configured: false, reason: 'unchecked', suggestion: '' },
       openai: { configured: false, reason: 'unchecked', suggestion: '' },
       anthropic: { configured: false, reason: 'unchecked', suggestion: '' },
-      gemini: { configured: false, reason: 'unchecked', suggestion: '' },
       groq: { configured: false, reason: 'unchecked', suggestion: '' },
       internal: { configured: false, reason: 'unchecked', suggestion: '' },
     };
@@ -77,7 +76,6 @@ export async function GET(request: NextRequest) {
     if (typeof window === 'undefined') {
       providers.openai = checkApiKey(env.openaiApiKey(), 'OPENAI_API_KEY', 'OpenAI');
       providers.anthropic = checkApiKey(env.anthropicApiKey(), 'ANTHROPIC_API_KEY', 'Anthropic');
-      providers.gemini = checkApiKey(env.geminiApiKey(), 'GEMINI_API_KEY', 'Gemini');
       providers.groq = checkApiKey(env.groqApiKey(), 'GROQ_API_KEY', 'Groq');
       providers.ollama = await checkOllamaAvailability();
       providers.internal = checkApiKey(env.internalApiBaseUrl(), 'INTERNAL_API_BASE_URL', 'Internal');

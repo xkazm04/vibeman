@@ -1,13 +1,13 @@
 ---
 name: leonardo
-description: Generate images with Leonardo AI (Lucid Origin model), remove backgrounds, analyze with Gemini vision, and write SVG. For brand assets, UI illustrations, backgrounds, and icons.
+description: Generate images with Leonardo AI (Lucid Origin model), remove backgrounds, and write SVG. For brand assets, UI illustrations, backgrounds, and icons.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(node *), Bash(npx *)
 argument-hint: <description of visual asset to create>
 ---
 
 # Leonardo — AI Image Generation & Visual Assets
 
-Generate production-quality images using Leonardo AI's Lucid Origin model, with Gemini vision for analysis and iterative refinement.
+Generate production-quality images using Leonardo AI's Lucid Origin model.
 
 ## Interactive Workflow
 
@@ -31,8 +31,7 @@ Then follow the matching procedure below.
 ### Icon / Logo
 1. Discuss concept with user, confirm style direction
 2. Generate with Leonardo: `--width 512 --height 512 --style dynamic --contrast 3.5`
-3. Analyze with Gemini vision to verify quality
-4. If user wants theme-adaptive version → analyze structure, write SVG with `currentColor`
+3. If user wants theme-adaptive version → analyze structure, write SVG with `currentColor`
 5. Integrate into component
 
 ### State Illustration (transparent bg)
@@ -40,8 +39,7 @@ Leonardo's Lucid Origin does not support `--transparent`. Use the remove-bg pipe
 1. Generate with solid dark background: `--style vibrant --contrast 3`
 2. Use `remove-bg --id <imageId> --output path.png` (requires `--no-cleanup` on generate)
 3. Clean up cloud generation manually after bg removal
-4. Analyze result with Gemini to verify clean extraction
-5. Integrate with appropriate sizing
+4. Integrate with appropriate sizing
 
 ### Background
 1. Generate wide format: `--width 1536 --height 512 --style cinematic --contrast 2.5`
@@ -77,16 +75,9 @@ node .claude/skills/leonardo/tools/leonardo-image.mjs remove-bg \
   --id <imageId> --output path-nobg.png
 ```
 
-### Gemini Image Analysis
-```bash
-node .claude/skills/leonardo/tools/gemini-recognize.mjs \
-  --input path.png \
-  --prompt "Describe shapes, colors, composition, quality"
-```
-
 ### SVG Conversion Workflow
 1. Generate PNG with Leonardo
-2. Analyze with Gemini: `"Describe every shape, position, color as SVG recreation instructions"`
+2. Analyze the image structure to identify shapes, positions, and colors
 3. Hand-write SVG using `currentColor` / `var(--primary)` for theme adaptation
 4. Test across themes
 
@@ -95,10 +86,9 @@ node .claude/skills/leonardo/tools/gemini-recognize.mjs \
 ## Environment
 Requires in `.env`:
 - `LEONARDO_API_KEY` — from app.leonardo.ai
-- `GEMINI_API_KEY` — for vision analysis
 
-Load env before running (bash): `export $(grep -E '^(LEONARDO_API_KEY|GEMINI_API_KEY)=' .env | xargs)`
-Load env before running (PowerShell): `Get-Content .env | ForEach-Object { if ($_ -match '^(LEONARDO_API_KEY|GEMINI_API_KEY)=(.*)') { [Environment]::SetEnvironmentVariable($matches[1], $matches[2]) } }`
+Load env before running (bash): `export $(grep -E '^LEONARDO_API_KEY=' .env | xargs)`
+Load env before running (PowerShell): `Get-Content .env | ForEach-Object { if ($_ -match '^LEONARDO_API_KEY=(.*)') { [Environment]::SetEnvironmentVariable('LEONARDO_API_KEY', $matches[1]) } }`
 
 ## Brand Direction
 Personas brand identity: **Neon android head** — representing AI agents of the new generation. Futuristic, glowing, geometric, clean. Primary palette from `src/styles/tokens.css` and `src/lib/colors.ts`.

@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate markdown body for the issue
-    const issueBody = generateGitHubIssueMarkdown(issue) + '\n\n---\n\n@copilot please implement this fix.';
+    const issueBody = generateGitHubIssueMarkdown(issue);
 
     const githubPayload = {
       title: issue.title,

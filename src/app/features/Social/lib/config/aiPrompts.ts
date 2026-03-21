@@ -4,7 +4,7 @@ import type { AIProvider } from '../types/aiTypes';
 // Model configurations
 export const AI_MODELS = {
   claude: 'claude-haiku-4-5-20251001',
-  gemini: 'gemini-2.5-flash',
+  openai: 'gpt-4o-mini',
 } as const;
 
 // System prompt for feedback analysis

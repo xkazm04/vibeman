@@ -219,7 +219,7 @@ export default function ConversationSolution() {
       const conversationHistory: ConversationMessage[] = [];
 
       // Process with all providers in parallel
-      const providers: LLMProvider[] = ['ollama', 'openai', 'anthropic', 'gemini'];
+      const providers: LLMProvider[] = ['ollama', 'openai', 'anthropic'];
       const responses = await Promise.all(
         providers.map(async (prov) => {
           const providerModel = DEFAULT_LLM_MODELS[prov];
@@ -473,7 +473,7 @@ export default function ConversationSolution() {
       addLog('system', `Starting conversation test with Nova Sonic (voice: ${novaVoiceId})`);
       playNextSentence();
     } else if (isMultiModel) {
-      addLog('system', 'Starting MULTI-MODEL conversation test (Ollama, OpenAI, Anthropic, Gemini)');
+      addLog('system', 'Starting MULTI-MODEL conversation test (Ollama, OpenAI, Anthropic)');
       playNextSentenceMultiModel();
     } else {
       addLog('system', `Starting conversation test with ${provider} (${model})`);
@@ -598,8 +598,7 @@ export default function ConversationSolution() {
             activeModels={[
               { provider: 'ollama', model: DEFAULT_LLM_MODELS.ollama },
               { provider: 'openai', model: DEFAULT_LLM_MODELS.openai },
-              { provider: 'anthropic', model: DEFAULT_LLM_MODELS.anthropic },
-              { provider: 'gemini', model: DEFAULT_LLM_MODELS.gemini }
+              { provider: 'anthropic', model: DEFAULT_LLM_MODELS.anthropic }
             ]}
             onClearLogs={clearLogs}
           />

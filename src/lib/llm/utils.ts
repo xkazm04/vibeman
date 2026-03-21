@@ -36,7 +36,7 @@ export async function selectBestProvider(
     
     // Code-related tasks: prefer local models first
     if (taskLower.includes('code') || taskLower.includes('programming')) {
-      const codePreferences: SupportedProvider[] = ['ollama', 'openai', 'anthropic', 'gemini', 'internal'];
+      const codePreferences: SupportedProvider[] = ['ollama', 'openai', 'anthropic', 'internal'];
       for (const provider of codePreferences) {
         if (availableProviders.includes(provider)) {
           return provider;
@@ -46,7 +46,7 @@ export async function selectBestProvider(
     
     // Creative writing: prefer Claude or GPT
     if (taskLower.includes('creative') || taskLower.includes('writing') || taskLower.includes('story')) {
-      const creativePreferences: SupportedProvider[] = ['anthropic', 'openai', 'gemini', 'ollama', 'internal'];
+      const creativePreferences: SupportedProvider[] = ['anthropic', 'openai', 'ollama', 'internal'];
       for (const provider of creativePreferences) {
         if (availableProviders.includes(provider)) {
           return provider;
@@ -56,7 +56,7 @@ export async function selectBestProvider(
     
     // Analysis tasks: prefer Claude
     if (taskLower.includes('analysis') || taskLower.includes('review') || taskLower.includes('critique')) {
-      const analysisPreferences: SupportedProvider[] = ['anthropic', 'openai', 'gemini', 'ollama', 'internal'];
+      const analysisPreferences: SupportedProvider[] = ['anthropic', 'openai', 'ollama', 'internal'];
       for (const provider of analysisPreferences) {
         if (availableProviders.includes(provider)) {
           return provider;
@@ -66,7 +66,7 @@ export async function selectBestProvider(
   }
 
   // Default preference order
-  const defaultPreferences: SupportedProvider[] = ['ollama', 'openai', 'anthropic', 'gemini', 'internal'];
+  const defaultPreferences: SupportedProvider[] = ['ollama', 'openai', 'anthropic', 'internal'];
   for (const provider of defaultPreferences) {
     if (availableProviders.includes(provider)) {
       return provider;
@@ -119,7 +119,7 @@ export async function generateWithFallback(
     onProgress?: (progress: number, message?: string) => void;
   }
 ): Promise<LLMResponse> {
-  const providers = options?.providers || ['ollama', 'openai', 'anthropic', 'gemini', 'internal'];
+  const providers = options?.providers || ['ollama', 'openai', 'anthropic', 'internal'];
   const enabledProviders = llmManager.getEnabledProviders();
   const availableProviders = providers.filter(p => enabledProviders.includes(p));
 
@@ -232,19 +232,18 @@ export async function getProviderStatus(): Promise<Array<{
     ollama: 'Ollama (Local)',
     openai: 'OpenAI (ChatGPT)',
     anthropic: 'Anthropic (Claude)',
-    gemini: 'Google Gemini',
     groq: 'Groq',
     internal: 'Internal API'
   };
 
-  const providers: SupportedProvider[] = ['ollama', 'openai', 'anthropic', 'gemini', 'groq', 'internal'];
+  const providers: SupportedProvider[] = ['ollama', 'openai', 'anthropic', 'groq', 'internal'];
 
   return providers.map(provider => ({
     provider,
     name: providerNames[provider],
     available: availability[provider] || false,
     enabled: enabledProviders.includes(provider),
-    hasApiKey: ['openai', 'anthropic', 'gemini'].includes(provider) ? 
+    hasApiKey: ['openai', 'anthropic'].includes(provider) ?
       (typeof window !== 'undefined' && !!localStorage.getItem(`llm_api_keys`)) : true,
     modelCount: allModels[provider]?.length || 0
   }));

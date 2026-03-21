@@ -13,7 +13,7 @@
  *   projectId: 'proj-456',
  *   projectPath: '/path/to/project',
  *   description: 'User input describing what to implement',
- *   provider: 'gemini',
+ *   provider: 'anthropic',
  *   title: 'Optional title',
  * });
  * ```

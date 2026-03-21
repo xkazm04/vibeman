@@ -160,7 +160,7 @@ POST /api/refactor/analyze
   "projectPath": "/path/to/project",
   "projectType": "nextjs", // optional
   "useAI": true,
-  "provider": "gemini",
+  "provider": "anthropic",
   "selectedGroups": ["code-quality"]
 }
 ```

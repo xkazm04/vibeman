@@ -81,25 +81,25 @@ export function AutoAssignSettingsModal({ isOpen, onClose }: AutoAssignSettingsM
 
             {/* Body */}
             <div className="px-5 py-4 space-y-5">
-              {/* Gemini Rule */}
+              {/* Lightweight Rule */}
               <section className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
-                    Gemini Rule
+                    Lightweight Rule
                   </label>
                   <button
-                    onClick={() => setConfig({ ...config, geminiRule: { ...config.geminiRule, enabled: !config.geminiRule.enabled } })}
+                    onClick={() => setConfig({ ...config, lightweightRule: { ...config.lightweightRule, enabled: !config.lightweightRule.enabled } })}
                     className={`relative w-9 h-5 rounded-full transition-colors ${
-                      config.geminiRule.enabled ? 'bg-purple-500' : 'bg-gray-600'
+                      config.lightweightRule.enabled ? 'bg-purple-500' : 'bg-gray-600'
                     }`}
                   >
                     <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
-                      config.geminiRule.enabled ? 'translate-x-4' : 'translate-x-0.5'
+                      config.lightweightRule.enabled ? 'translate-x-4' : 'translate-x-0.5'
                     }`} />
                   </button>
                 </div>
 
-                {config.geminiRule.enabled && (
+                {config.lightweightRule.enabled && (
                   <div className="space-y-2 pl-2 border-l-2 border-purple-500/30">
                     <p className="text-2xs text-gray-500">
                       Route low-effort, low-risk tasks to a different provider.
@@ -111,14 +111,14 @@ export function AutoAssignSettingsModal({ isOpen, onClose }: AutoAssignSettingsM
                           type="number"
                           min={1}
                           max={10}
-                          value={config.geminiRule.conditions?.effort ?? 1}
+                          value={config.lightweightRule.conditions?.effort ?? 1}
                           onChange={(e) => setConfig({
                             ...config,
-                            geminiRule: {
-                              ...config.geminiRule,
+                            lightweightRule: {
+                              ...config.lightweightRule,
                               conditions: {
                                 effort: Math.max(1, Math.min(10, Number(e.target.value) || 1)),
-                                risk: config.geminiRule.conditions?.risk ?? 1,
+                                risk: config.lightweightRule.conditions?.risk ?? 1,
                               },
                             },
                           })}
@@ -131,13 +131,13 @@ export function AutoAssignSettingsModal({ isOpen, onClose }: AutoAssignSettingsM
                           type="number"
                           min={1}
                           max={10}
-                          value={config.geminiRule.conditions?.risk ?? 1}
+                          value={config.lightweightRule.conditions?.risk ?? 1}
                           onChange={(e) => setConfig({
                             ...config,
-                            geminiRule: {
-                              ...config.geminiRule,
+                            lightweightRule: {
+                              ...config.lightweightRule,
                               conditions: {
-                                effort: config.geminiRule.conditions?.effort ?? 1,
+                                effort: config.lightweightRule.conditions?.effort ?? 1,
                                 risk: Math.max(1, Math.min(10, Number(e.target.value) || 1)),
                               },
                             },
@@ -149,16 +149,14 @@ export function AutoAssignSettingsModal({ isOpen, onClose }: AutoAssignSettingsM
                     <div>
                       <label className="text-2xs text-gray-400 block mb-1">Provider Override</label>
                       <select
-                        value={config.geminiRule.provider || 'gemini'}
+                        value={config.lightweightRule.provider || 'ollama'}
                         onChange={(e) => setConfig({
                           ...config,
-                          geminiRule: { ...config.geminiRule, provider: e.target.value as typeof config.geminiRule.provider },
+                          lightweightRule: { ...config.lightweightRule, provider: e.target.value as typeof config.lightweightRule.provider },
                         })}
                         className="w-full px-2 py-1 text-xs bg-gray-800 border border-gray-700 rounded text-gray-300 focus:border-purple-500/50 focus:outline-none"
                       >
                         <option value="claude">Claude</option>
-                        <option value="gemini">Gemini</option>
-                        <option value="copilot">Copilot</option>
                         <option value="ollama">Ollama</option>
                       </select>
                     </div>
@@ -187,7 +185,7 @@ export function AutoAssignSettingsModal({ isOpen, onClose }: AutoAssignSettingsM
                   </button>
                 </div>
                 <p className="text-2xs text-gray-500">
-                  Assign remaining tasks (not matched by gemini rule) to free sessions using their current provider.
+                  Assign remaining tasks (not matched by lightweight rule) to free sessions using their current provider.
                 </p>
               </section>
 

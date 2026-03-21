@@ -52,8 +52,6 @@ export default function MultiModelSessionLogs({
         return { bg: 'from-green-600/20 via-green-600/10', border: 'border-green-400/30', text: 'text-green-400' };
       case 'anthropic':
         return { bg: 'from-orange-600/20 via-orange-600/10', border: 'border-orange-400/30', text: 'text-orange-400' };
-      case 'gemini':
-        return { bg: 'from-blue-600/20 via-blue-600/10', border: 'border-blue-400/30', text: 'text-blue-400' };
     }
   };
 

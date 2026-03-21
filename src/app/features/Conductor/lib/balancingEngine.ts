@@ -270,7 +270,7 @@ const MODEL_COST_PER_1K_TOKENS: Record<string, number> = {
   opus: 0.015,
   sonnet: 0.003,
   haiku: 0.00025,
-  'gemini-3.1-pro-preview': 0.002,
+  'gpt-4o': 0.005,
   'gpt-5.3-codex': 0.01,
   default: 0.003,
 };

@@ -83,7 +83,7 @@ export interface ExecuteOptions {
     commands: string[];
     commitMessage: string;
   };
-  /** CLI provider ('claude' | 'gemini') */
+  /** CLI provider ('claude' | 'ollama') */
   provider?: string;
   /** Model override for the provider */
   model?: string | null;
@@ -168,7 +168,7 @@ export function hasCapability<C extends StrategyCapability>(
 // Strategy Registry
 // ============================================================================
 
-export type StrategyType = 'terminal' | 'queue' | 'remote-mesh' | 'copilot';
+export type StrategyType = 'terminal' | 'queue' | 'remote-mesh';
 
 const strategyFactories = new Map<StrategyType, () => ExecutionStrategy>();
 

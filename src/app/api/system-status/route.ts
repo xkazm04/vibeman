@@ -238,7 +238,6 @@ function collectLLMStatus(): LLMStatus {
   try {
     const providerChecks: { name: string; envVar: string | undefined; envName: string }[] = [
       { name: 'Anthropic Claude', envVar: env.anthropicApiKey(), envName: 'ANTHROPIC_API_KEY' },
-      { name: 'Google Gemini', envVar: env.geminiApiKey(), envName: 'GEMINI_API_KEY' },
       { name: 'OpenAI GPT', envVar: env.openaiApiKey(), envName: 'OPENAI_API_KEY' },
       { name: 'Groq', envVar: env.groqApiKey(), envName: 'GROQ_API_KEY' },
       { name: 'Ollama (Local)', envVar: env.ollamaBaseUrl(), envName: 'OLLAMA_BASE_URL' },

@@ -47,7 +47,7 @@ class ScanQueueWorker {
   private config: WorkerConfig = {
     pollIntervalMs: ADAPTIVE_POLL_INTERVALS.BASE_MS, // Base poll interval
     maxConcurrent: 1, // Process one scan at a time by default
-    provider: 'gemini' // Default provider
+    provider: 'anthropic' // Default provider
   };
 
   // Adaptive polling state - tracks consecutive empty polls for backoff

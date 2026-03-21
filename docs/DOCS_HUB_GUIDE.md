@@ -104,8 +104,8 @@ Generate new documentation.
   "projectPath": "/path/to/project",
   "projectName": "Project Name",
   "sectionTypes": ["overview", "architecture", "api", "database", "components"],
-  "provider": "gemini",
-  "model": "gemini-flash-latest"
+  "provider": "anthropic",
+  "model": "claude-haiku-4-5-20251001"
 }
 ```
 
@@ -165,9 +165,8 @@ CREATE TABLE documentation (
 
 The Docs Hub uses the same LLM configuration as other parts of Vibeman:
 
-- **Gemini** (default): Fast and cost-effective
+- **Anthropic** (default): Claude for detailed technical writing
 - **OpenAI**: GPT-4o for high-quality documentation
-- **Anthropic**: Claude for detailed technical writing
 - **Ollama**: Local models for privacy
 
 Configure providers in the project settings.

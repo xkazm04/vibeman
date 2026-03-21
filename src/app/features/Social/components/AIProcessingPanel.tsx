@@ -65,11 +65,11 @@ export default function AIProcessingPanel({
           </div>
         </div>
 
-        {/* Center: Powered by Gemini */}
+        {/* Center: Powered by AI */}
         <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 rounded-md">
           <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
           <span className="text-xs font-medium bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-            Powered by Gemini 2.5 Flash
+            Powered by AI
           </span>
         </div>
 
@@ -128,7 +128,7 @@ export default function AIProcessingPanel({
             className="mt-3 pt-3 border-t border-gray-700/40"
           >
             <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-              <span>Analyzing feedback with Gemini...</span>
+              <span>Analyzing feedback with AI...</span>
               <span>{Math.round((progress.current / progress.total) * 100)}%</span>
             </div>
             <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">

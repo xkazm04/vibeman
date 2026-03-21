@@ -39,7 +39,7 @@ The following API routes were excluded from testing as per requirements:
 
 | Route | Reason |
 |-------|--------|
-| `/api/llm` | Direct LLM API calls (OpenAI, Anthropic, Gemini, Ollama) |
+| `/api/llm` | Direct LLM API calls (OpenAI, Anthropic, Ollama) |
 | `/api/llm/providers` | LLM provider management |
 | `/api/ai/compose-prompt` | LLM prompt generation |
 | `/api/ai/generations` | LLM text generation |

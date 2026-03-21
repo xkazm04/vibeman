@@ -811,7 +811,7 @@ export function AIProcessingPanelPreview({ props }: PreviewProps) {
     >
       <div className="flex items-center gap-2 mb-3">
         <Sparkles className={`w-5 h-5 ${s.text}`} />
-        <span className="text-sm font-medium text-gray-200">Gemini Processing</span>
+        <span className="text-sm font-medium text-gray-200">AI Processing</span>
       </div>
       {status === 'idle' && (
         <p className="text-xs text-gray-500 mb-3">Select items to process with AI</p>

@@ -14,7 +14,7 @@ import { logger } from '@/lib/logger';
  *   projectPath: string
  *   projectType: 'nextjs' | 'fastapi' | 'django' | 'express' | 'generic'
  *   agentPersona?: string (agent to use for analysis, e.g., 'zen_architect', 'bug_hunter')
- *   provider?: 'gemini' | 'openai' | 'anthropic'
+ *   provider?: 'openai' | 'anthropic' | 'groq'
  * }
  * 
  * Response:
@@ -91,7 +91,7 @@ async function handlePost(request: NextRequest): Promise<NextResponse<FullScanRe
       projectPath,
       projectType,
       agentPersona = 'zen_architect',
-      provider = 'gemini'
+      provider = 'anthropic'
     } = body;
 
     logger.info('Processing full scan request', {

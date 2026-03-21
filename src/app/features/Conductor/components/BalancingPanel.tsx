@@ -140,7 +140,7 @@ function ToggleGroup<T extends string>({
   );
 }
 
-const PROVIDERS: CLIProvider[] = ['claude', 'gemini', 'copilot', 'ollama'];
+const PROVIDERS: CLIProvider[] = ['claude', 'ollama'];
 
 const CONDITION_LABELS: Record<ModelRoutingRule['condition'], string> = {
   complexity_1: 'Low (1-3)',
@@ -274,41 +274,7 @@ function SubscriptionUsage() {
       }
     } catch { /* silent */ }
 
-    // Copilot: fetch premium request usage
-    try {
-      const res = await fetch('/api/conductor/usage?provider=copilot');
-      if (res.ok) {
-        const d = await res.json();
-        if (d.copilot) {
-          data.push({
-            provider: 'copilot',
-            label: 'Copilot',
-            used: d.copilot.used,
-            limit: d.copilot.limit,
-            unit: d.copilot.unit || 'req/mo',
-            color: 'text-blue-400',
-          });
-        }
-      }
-    } catch { /* silent */ }
 
-    // Gemini: local tracking only (no API)
-    try {
-      const res = await fetch('/api/conductor/usage?provider=gemini');
-      if (res.ok) {
-        const d = await res.json();
-        if (d.gemini) {
-          data.push({
-            provider: 'gemini',
-            label: 'Gemini',
-            used: d.gemini.used,
-            limit: d.gemini.limit,
-            unit: d.gemini.unit || 'req/day',
-            color: 'text-emerald-400',
-          });
-        }
-      }
-    } catch { /* silent */ }
 
     setUsage(data);
     setLoading(false);

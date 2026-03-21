@@ -1,6 +1,6 @@
 # Multi-LLM Client Library
 
-A unified interface for multiple Large Language Model providers including OpenAI, Anthropic, Google Gemini, Ollama, and internal APIs.
+A unified interface for multiple Large Language Model providers including OpenAI, Anthropic, Ollama, Groq, and internal APIs.
 
 ## Features
 
@@ -45,11 +45,6 @@ const isAvailable = await llmManager.checkProviderAvailability('openai');
 - **API Key Required**: Yes
 - **Endpoint**: https://api.anthropic.com/v1
 
-### Google Gemini
-- **Models**: Gemini-1.5-pro, Gemini-1.5-flash, Gemini-1.0-pro
-- **API Key Required**: Yes
-- **Endpoint**: https://generativelanguage.googleapis.com/v1beta
-
 ### Ollama (Local)
 - **Models**: Any locally installed Ollama model
 - **API Key Required**: No
@@ -77,7 +72,7 @@ const config = APIKeyStorage.getAPIKey('openai');
 const hasKey = APIKeyStorage.hasAPIKey('anthropic');
 
 // Remove API key
-APIKeyStorage.removeAPIKey('gemini');
+APIKeyStorage.removeAPIKey('ollama');
 ```
 
 ## Provider Configuration
@@ -162,7 +157,7 @@ import { generateWithMultipleProviders } from '@/app/lib/llm/utils';
 // Generate with multiple providers for comparison
 const results = await generateWithMultipleProviders(
   'What is the meaning of life?',
-  ['openai', 'anthropic', 'gemini']
+  ['openai', 'anthropic', 'ollama']
 );
 
 console.log(results.openai.response);
@@ -263,7 +258,6 @@ import {
 // Set up API keys
 APIKeyStorage.setAPIKey('openai', 'sk-...');
 APIKeyStorage.setAPIKey('anthropic', 'sk-ant-...');
-APIKeyStorage.setAPIKey('gemini', 'AI...');
 
 // Configure providers
 ProviderConfigStorage.setProviderConfig('ollama', {

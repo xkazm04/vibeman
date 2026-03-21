@@ -147,13 +147,12 @@ export function validateConfig(): { warnings: ValidationIssue[] } {
   const hasAnyLlmKey = !!(
     env.anthropicApiKey() ||
     env.openaiApiKey() ||
-    env.geminiApiKey() ||
     env.groqApiKey() ||
     env.internalApiBaseUrl()
   );
   if (!hasAnyLlmKey) {
     issues.push({
-      variable: 'ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY / GROQ_API_KEY',
+      variable: 'ANTHROPIC_API_KEY / OPENAI_API_KEY / GROQ_API_KEY',
       level: 'warning',
       message:
         'No LLM API key configured. AI features (task execution, analysis, conductor) will not work. ' +
@@ -240,7 +239,6 @@ export interface AppConfig {
   llm: {
     readonly hasAnthropic: boolean;
     readonly hasOpenai: boolean;
-    readonly hasGemini: boolean;
     readonly hasGroq: boolean;
     readonly hasOllama: boolean;
     readonly hasInternal: boolean;
@@ -308,7 +306,6 @@ function buildConfig(): AppConfig {
     ? {
         get hasAnthropic() { return !!env.anthropicApiKey(); },
         get hasOpenai() { return !!env.openaiApiKey(); },
-        get hasGemini() { return !!env.geminiApiKey(); },
         get hasGroq() { return !!env.groqApiKey(); },
         hasOllama: true, // Ollama is local, always "available"
         get hasInternal() { return !!env.internalApiBaseUrl(); },
@@ -317,7 +314,6 @@ function buildConfig(): AppConfig {
     : {
         get hasAnthropic() { return false; },
         get hasOpenai() { return false; },
-        get hasGemini() { return false; },
         get hasGroq() { return false; },
         hasOllama: true,
         get hasInternal() { return false; },

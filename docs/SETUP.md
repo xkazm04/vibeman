@@ -89,7 +89,6 @@ ANTHROPIC_API_KEY=sk-ant-your-key-here
 
 # Or any of these alternatives:
 # OPENAI_API_KEY=sk-your-key-here
-# GEMINI_API_KEY=your-key-here
 # GROQ_API_KEY=your-key-here
 ```
 
@@ -109,7 +108,6 @@ The default `OLLAMA_BASE_URL=http://localhost:11434` in `.env.example` is alread
 |----------|----------|---------|-------------|
 | `ANTHROPIC_API_KEY` | At least one LLM key | — | Anthropic Claude API key |
 | `OPENAI_API_KEY` | | — | OpenAI API key |
-| `GEMINI_API_KEY` | | — | Google Gemini API key |
 | `GROQ_API_KEY` | | — | Groq API key |
 | `OLLAMA_BASE_URL` | | `http://localhost:11434` | Ollama server URL |
 | `DB_PATH` | No | `./database/goals.db` | SQLite database file path |
@@ -219,14 +217,6 @@ The Task Runner dispatches work to AI CLI tools. Install only what you need:
 ```bash
 npm install -g @anthropic-ai/claude-code
 claude --version
-```
-
-### Gemini CLI
-
-```bash
-npm install -g @google/gemini-cli
-gemini --version
-# Run 'gemini' once interactively to complete OAuth login, or set GEMINI_API_KEY
 ```
 
 ### Ollama
