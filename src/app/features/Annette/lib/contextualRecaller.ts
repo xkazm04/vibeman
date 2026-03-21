@@ -14,6 +14,7 @@ import {
   type KnowledgeEdge,
 } from './unifiedKnowledgeStore';
 import { generateWithLLM } from '@/lib/llm';
+import { safeParseLLMJson } from '@/lib/safeParseLLMJson';
 
 export interface RecallContext {
   projectId: string;
@@ -74,7 +75,13 @@ Respond in JSON format:
         return { topics: [], entities: [], questions: [], intents: [] };
       }
 
-      return JSON.parse(response.response);
+      const parsed = safeParseLLMJson<ConversationContext>(response.response);
+      return {
+        topics: Array.isArray(parsed.topics) ? parsed.topics : [],
+        entities: Array.isArray(parsed.entities) ? parsed.entities : [],
+        questions: Array.isArray(parsed.questions) ? parsed.questions : [],
+        intents: Array.isArray(parsed.intents) ? parsed.intents : [],
+      };
     } catch (error) {
       console.error('Failed to extract context signals:', error);
       return { topics: [], entities: [], questions: [], intents: [] };

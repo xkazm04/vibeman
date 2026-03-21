@@ -1,6 +1,7 @@
 import { COLORS, LABELS, LANE_TYPES } from './constants';
 import { hexToRgba } from './helpers';
 import type { SignalType } from './types';
+import { DISPLAY_FONT, FONT_SIZE } from '../../lib/brainFonts';
 
 const PARTICLE_COUNT = 24;
 const SIGNAL_KEYS = LANE_TYPES;
@@ -83,13 +84,13 @@ export function renderEmptyState(
 
   // Central text
   ctx.fillStyle = 'rgba(161,161,170,0.7)';
-  ctx.font = 'bold 16px Inter, system-ui, sans-serif';
+  ctx.font = `bold ${FONT_SIZE.heading}px ${DISPLAY_FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('No signals yet', cx, cy - 8);
 
   ctx.fillStyle = 'rgba(113,113,122,0.5)';
-  ctx.font = '11px Inter, system-ui, sans-serif';
+  ctx.font = `${FONT_SIZE.label}px ${DISPLAY_FONT}`;
   ctx.fillText('Brain collects signals from task execution, idea reviews & code activity', cx, cy + 14);
 
   // Signal type dots at bottom
@@ -97,7 +98,7 @@ export function renderEmptyState(
   const totalW = SIGNAL_KEYS.length * 70;
   const startX = cx - totalW / 2 + 35;
 
-  ctx.font = '9px Inter, system-ui, sans-serif';
+  ctx.font = `${FONT_SIZE.axis}px ${DISPLAY_FONT}`;
   for (let i = 0; i < SIGNAL_KEYS.length; i++) {
     const dx = startX + i * 70;
     const color = COLORS[SIGNAL_KEYS[i]];

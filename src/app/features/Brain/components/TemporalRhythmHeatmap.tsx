@@ -12,11 +12,14 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Sun, Moon, Sunrise, Sunset, TrendingUp, X } from 'lucide-react';
-import { SimpleSpinner } from '@/components/ui';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useTemporal } from '../lib/queries';
 import GlowCard from './GlowCard';
 import BrainPanelHeader from './BrainPanelHeader';
+import { inlineExpand, inlineExpandTransition } from '../lib/motionPresets';
+import NeuralPulseLoader from './NeuralPulseLoader';
+import BrainEmptyState from './BrainEmptyState';
+import { DATA_FONT, FONT_SIZE } from '../lib/brainFonts';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -156,7 +159,7 @@ export default function TemporalRhythmHeatmap({ scope = 'project' }: TemporalRhy
         <div className="p-6">
           <BrainPanelHeader icon={Clock} title="Developer Rhythm" accentColor={ACCENT} glowColor={GLOW} glow />
           <div className="h-32 flex items-center justify-center">
-            <SimpleSpinner size="md" color="cyan" />
+            <NeuralPulseLoader />
           </div>
         </div>
       </GlowCard>
@@ -210,10 +213,12 @@ export default function TemporalRhythmHeatmap({ scope = 'project' }: TemporalRhy
         />
 
         {grandTotal === 0 ? (
-          <div className="py-8 text-center">
-            <Clock className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
-            <p className="text-sm text-zinc-500">No temporal data yet.</p>
-            <p className="text-xs text-zinc-600 mt-1">Activity patterns will appear as signals are recorded.</p>
+          <div className="py-8 flex justify-center">
+            <BrainEmptyState
+              icon={<Clock className="w-10 h-10 text-zinc-600" />}
+              title="No temporal data yet"
+              description="Activity patterns will appear as signals are recorded."
+            />
           </div>
         ) : (
           <>
@@ -230,7 +235,7 @@ export default function TemporalRhythmHeatmap({ scope = 'project' }: TemporalRhy
                       textAnchor="middle"
                       className="fill-zinc-600"
                       fontSize={8}
-                      fontFamily="monospace"
+                      fontFamily={DATA_FONT}
                     >
                       {label}
                     </text>
@@ -246,7 +251,7 @@ export default function TemporalRhythmHeatmap({ scope = 'project' }: TemporalRhy
                     textAnchor="end"
                     className="fill-zinc-500"
                     fontSize={9}
-                    fontFamily="monospace"
+                    fontFamily={DATA_FONT}
                   >
                     {label}
                   </text>
@@ -349,9 +354,11 @@ function CellDrillDown({ cell, onClose }: { cell: TemporalCell; onClose: () => v
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
+      variants={inlineExpand}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      transition={inlineExpandTransition}
       className="rounded-xl border border-zinc-700/50 bg-zinc-900/80 backdrop-blur-sm p-4 space-y-3"
     >
       <div className="flex items-center justify-between">

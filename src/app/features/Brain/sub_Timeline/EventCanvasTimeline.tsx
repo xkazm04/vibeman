@@ -12,6 +12,7 @@ import type { RenderContext } from '../sub_MemoryCanvas/lib/canvasRenderPipeline
 import { mapSignalsToEvents } from '../sub_MemoryCanvas/lib/signalMapper';
 import { resolveLaneCollisions } from '../sub_MemoryCanvas/lib/canvasLayout';
 import { executeTimelineRenderPipeline, TIMELINE_MARGIN } from './timelineRenderPipeline';
+import BrainStatusBar from '../components/BrainStatusBar';
 import { SIGNAL_METADATA } from '@/types/signals';
 import { TIMELINE_WINDOW_DAYS, MAX_CANVAS_SIGNALS } from '@/lib/brain/config';
 
@@ -442,36 +443,40 @@ export default function EventCanvasTimeline() {
         )}
       </div>
 
-      {/* Glass-morphism toolbar with interactive legend */}
-      <div className="flex items-center justify-between px-4 py-2 bg-zinc-900/60 backdrop-blur-xl border-t border-zinc-700/20 text-xs">
-        <div className="flex items-center gap-4">
-          <span className="text-zinc-400">
-            Zoom: <span className="text-zinc-200 font-medium">{Math.round(zoomLevel * 100)}%</span>
-          </span>
-          <span className="text-zinc-400">
-            Events: <span className="text-zinc-200">{eventsRef.current.filter(e => visibleTypes.has(e.type)).length}</span>
-          </span>
-          <span className="text-zinc-500">{zoomLevel < 3 ? '\u25CF Dots' : '\u25AA Cards'}</span>
-        </div>
-        <div className="flex items-center gap-4">
-          {SIGNAL_TYPES.map(type => {
-            const active = visibleTypes.has(type);
-            return (
-              <button
-                key={type}
-                onClick={() => toggleType(type)}
-                className={`flex items-center gap-1.5 transition-opacity ${active ? 'opacity-100' : 'opacity-30'}`}
-              >
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[type] }} />
-                <span className={`text-zinc-400 ${active ? '' : 'line-through'}`}>{LANE_LABELS[type]}</span>
-              </button>
-            );
-          })}
-          <button onClick={fitToView} className="ml-2 p-1.5 rounded hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors" title="Reset zoom">
-            <Maximize2 size={14} />
-          </button>
-        </div>
-      </div>
+      {/* Unified status bar */}
+      <BrainStatusBar
+        left={
+          <>
+            <span className="text-zinc-400">
+              Zoom: <span className="text-zinc-200 font-medium">{Math.round(zoomLevel * 100)}%</span>
+            </span>
+            <span className="text-zinc-400">
+              Events: <span className="text-zinc-200">{eventsRef.current.filter(e => visibleTypes.has(e.type)).length}</span>
+            </span>
+            <span className="text-zinc-500">{zoomLevel < 3 ? '\u25CF Dots' : '\u25AA Cards'}</span>
+          </>
+        }
+        right={
+          <>
+            {SIGNAL_TYPES.map(type => {
+              const active = visibleTypes.has(type);
+              return (
+                <button
+                  key={type}
+                  onClick={() => toggleType(type)}
+                  className={`flex items-center gap-1.5 transition-opacity ${active ? 'opacity-100' : 'opacity-30'}`}
+                >
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[type] }} />
+                  <span className={`text-zinc-400 ${active ? '' : 'line-through'}`}>{LANE_LABELS[type]}</span>
+                </button>
+              );
+            })}
+            <button onClick={fitToView} className="ml-2 p-1.5 rounded hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors" title="Reset zoom">
+              <Maximize2 size={14} />
+            </button>
+          </>
+        }
+      />
     </div>
   );
 }

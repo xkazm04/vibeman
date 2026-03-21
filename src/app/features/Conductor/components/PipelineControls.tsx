@@ -165,13 +165,31 @@ function TriageModal({ triageData, runId, onClose }: TriageModalProps) {
                     )}
                     <div className="flex items-center gap-3 mt-1.5">
                       {item.effort != null && (
-                        <span className="text-2xs text-gray-600">Effort: <span className="text-gray-400">{item.effort}</span></span>
+                        <span className="text-2xs text-gray-600 flex items-center gap-1" title={`Effort: ${item.effort}/10`}>
+                          Eff
+                          <span className="inline-block w-16 h-1.5 rounded-full bg-gray-700/50 overflow-hidden">
+                            <span className="block h-full rounded-full bg-amber-400/80" style={{ width: `${Math.min(item.effort * 10, 100)}%` }} />
+                          </span>
+                          <span className="text-gray-500 font-mono w-3 text-right">{item.effort}</span>
+                        </span>
                       )}
                       {item.impact != null && (
-                        <span className="text-2xs text-gray-600">Impact: <span className="text-gray-400">{item.impact}</span></span>
+                        <span className="text-2xs text-gray-600 flex items-center gap-1" title={`Impact: ${item.impact}/10`}>
+                          Imp
+                          <span className="inline-block w-16 h-1.5 rounded-full bg-gray-700/50 overflow-hidden">
+                            <span className="block h-full rounded-full bg-emerald-400/80" style={{ width: `${Math.min(item.impact * 10, 100)}%` }} />
+                          </span>
+                          <span className="text-gray-500 font-mono w-3 text-right">{item.impact}</span>
+                        </span>
                       )}
                       {item.risk != null && (
-                        <span className="text-2xs text-gray-600">Risk: <span className="text-gray-400">{item.risk}</span></span>
+                        <span className="text-2xs text-gray-600 flex items-center gap-1" title={`Risk: ${item.risk}/10`}>
+                          Risk
+                          <span className="inline-block w-16 h-1.5 rounded-full bg-gray-700/50 overflow-hidden">
+                            <span className="block h-full rounded-full bg-red-400/80" style={{ width: `${Math.min(item.risk * 10, 100)}%` }} />
+                          </span>
+                          <span className="text-gray-500 font-mono w-3 text-right">{item.risk}</span>
+                        </span>
                       )}
                       {item.brainConflict?.hasConflict && (
                         <span className="text-2xs text-amber-400 flex items-center gap-1">

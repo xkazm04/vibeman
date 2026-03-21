@@ -21,6 +21,7 @@ import type {
   AnnetteMemoryType,
 } from '@/app/db/models/annette.types';
 import { generateWithLLM } from '@/lib/llm';
+import { safeParseLLMJson } from '@/lib/safeParseLLMJson';
 
 // ─── Re-exported types for backward compatibility ───
 
@@ -735,7 +736,7 @@ Only extract meaningful entities and relationships. If none found, return empty 
 
       let parsed: unknown;
       try {
-        parsed = JSON.parse(response.response);
+        parsed = safeParseLLMJson(response.response);
       } catch {
         console.error('[unifiedKnowledgeStore] Failed to parse LLM response');
         return { entities: [], relationships: [], error: true };
@@ -849,6 +850,12 @@ Provide a clear, concise answer based only on the information in the knowledge g
   getMemory(id: string): Memory | null {
     const dbMemory = annetteDb.memories.getById(id);
     if (!dbMemory) return null;
+    return dbToMemory(dbMemory);
+  },
+
+  accessMemory(id: string): Memory | null {
+    const dbMemory = annetteDb.memories.getById(id);
+    if (!dbMemory) return null;
     annetteDb.memories.markAccessed(id);
     return dbToMemory(dbMemory);
   },
@@ -860,6 +867,10 @@ Provide a clear, concise answer based only on the information in the knowledge g
       minImportance: options.minImportance,
       includeConsolidated: options.includeConsolidated,
     }).map(dbToMemory);
+  },
+
+  countMemoriesByType(projectId: string): Record<string, number> {
+    return annetteDb.memories.countByType(projectId);
   },
 
   updateMemoryImportance(id: string, importance: number): void {
@@ -917,7 +928,7 @@ Only extract truly important information worth remembering. If nothing important
       const response = await generateWithLLM(prompt, { provider: 'gemini', temperature: 0.3, maxTokens: 1000 });
       if (!response.success || !response.response) return [];
 
-      const parsed = JSON.parse(response.response);
+      const parsed = safeParseLLMJson<{ memories?: Array<{ type?: string; content?: string; importance?: number }> }>(response.response);
       const memories: Memory[] = [];
       const messageIds = messages.map(m => m.id).filter(Boolean) as string[];
 
@@ -971,11 +982,11 @@ Respond in JSON format:
       const response = await generateWithLLM(prompt, { provider: 'gemini', temperature: 0.3, maxTokens: 500 });
       if (!response.success || !response.response) return null;
 
-      const parsed = JSON.parse(response.response);
+      const parsed = safeParseLLMJson<{ summary?: string; type?: string; importance?: number }>(response.response);
       const consolidated = this.createMemory({
         projectId,
-        memoryType: parsed.type || 'insight',
-        content: parsed.summary,
+        memoryType: (parsed.type || 'insight') as AnnetteMemoryType,
+        content: parsed.summary || memoryText,
         importanceScore: parsed.importance || 0.7,
         sourceMessageIds: memoryIds,
         metadata: { consolidatedFrom: memoryIds },
@@ -984,7 +995,7 @@ Respond in JSON format:
       annetteDb.memories.markConsolidated(memoryIds, consolidated.id);
 
       const tokensBefore = memories.reduce((sum, m) => sum + m.content.length / 4, 0);
-      const tokensAfter = parsed.summary.length / 4;
+      const tokensAfter = (parsed.summary || memoryText).length / 4;
       annetteDb.consolidations.create({
         projectId,
         sourceMemoryIds: memoryIds,

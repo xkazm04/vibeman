@@ -16,6 +16,7 @@ export type {
 export const memoryStore = {
   create: unifiedKnowledgeStore.createMemory.bind(unifiedKnowledgeStore),
   getById: unifiedKnowledgeStore.getMemory.bind(unifiedKnowledgeStore),
+  accessById: unifiedKnowledgeStore.accessMemory.bind(unifiedKnowledgeStore),
   getByProject: unifiedKnowledgeStore.getMemories.bind(unifiedKnowledgeStore),
   updateImportance: unifiedKnowledgeStore.updateMemoryImportance.bind(unifiedKnowledgeStore),
   applyDecay: unifiedKnowledgeStore.applyMemoryDecay.bind(unifiedKnowledgeStore),

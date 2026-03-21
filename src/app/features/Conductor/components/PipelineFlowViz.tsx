@@ -42,17 +42,37 @@ function ConnectorArrow({
         `}
       />
 
-      {/* Animated particle (only when active) */}
+      {/* Neural pulse trail (only when active) */}
       {isActive && (
-        <motion.div
-          className="absolute w-2 h-2 rounded-full bg-cyan-400 shadow-lg shadow-cyan-400/60"
-          animate={{ x: ['-20px', '48px'] }}
-          transition={{
-            duration: 1.2,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
+        <>
+          <svg className="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 48 16">
+            <defs>
+              <linearGradient id="neural-pulse-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="transparent" />
+                <stop offset="30%" stopColor="#22d3ee" stopOpacity="0.6" />
+                <stop offset="70%" stopColor="#a855f7" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#22d3ee" stopOpacity="0.3" />
+              </linearGradient>
+            </defs>
+            <rect
+              x="-16" y="6.5" width="20" height="3" rx="1.5"
+              fill="url(#neural-pulse-grad)"
+              className="animate-[neuralPulse_1.4s_ease-in-out_infinite]"
+            />
+          </svg>
+          {/* Secondary lime spark (brand accent) */}
+          <motion.div
+            className="absolute w-1 h-1 rounded-full"
+            style={{ backgroundColor: '#d0e41d', boxShadow: '0 0 4px #d0e41d' }}
+            animate={{ x: ['-12px', '52px'], opacity: [0, 1, 1, 0] }}
+            transition={{
+              duration: 0.8,
+              repeat: Infinity,
+              repeatDelay: 2.5,
+              ease: 'easeOut',
+            }}
+          />
+        </>
       )}
     </div>
   );

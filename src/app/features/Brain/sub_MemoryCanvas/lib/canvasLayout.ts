@@ -81,6 +81,8 @@ export function formGroups(events: BrainEvent[]): Group[] {
  * Use runForceLayoutAsync() for non-blocking worker-based layout.
  */
 export function runForceLayout(groups: Group[], width: number, height: number): void {
+  if (groups.length === 0) return;
+
   const angleStep = (2 * Math.PI) / groups.length;
   const initRadius = Math.min(width, height) * 0.25;
   groups.forEach((g, i) => {
@@ -122,6 +124,12 @@ export function runForceLayoutAsync(
   } = {}
 ): () => void {
   const { onProgress, onComplete, totalTicks = 120, progressInterval = 10 } = options;
+
+  // Guard: empty groups would cause NaN in worker
+  if (groups.length === 0) {
+    onComplete?.(groups);
+    return () => {};
+  }
 
   // Create worker from module
   const worker = new Worker(

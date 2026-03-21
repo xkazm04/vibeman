@@ -35,7 +35,23 @@ async function handleGET(request: NextRequest) {
       case 'relevant': {
         const requirementName = searchParams.get('requirementName') || '';
         const filePatternsRaw = searchParams.get('filePatterns');
-        const filePatterns = filePatternsRaw ? JSON.parse(filePatternsRaw) : [];
+        let filePatterns: string[] = [];
+        if (filePatternsRaw) {
+          try {
+            filePatterns = JSON.parse(filePatternsRaw);
+          } catch {
+            return NextResponse.json(
+              { error: 'Invalid filePatterns JSON — expected a JSON array string' },
+              { status: 400 }
+            );
+          }
+          if (!Array.isArray(filePatterns)) {
+            return NextResponse.json(
+              { error: 'filePatterns must be a JSON array' },
+              { status: 400 }
+            );
+          }
+        }
         const limit = parseInt(searchParams.get('limit') || '5', 10);
 
         const knowledge = getRelevantKnowledge({

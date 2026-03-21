@@ -5,6 +5,7 @@ import { Trash2, X } from 'lucide-react';
 import type { BrainEvent } from '../lib/types';
 import { COLORS, LABELS } from '../lib/constants';
 import { relTime } from '../lib/helpers';
+import { bottomSheet, bottomSheetTransition } from '../../lib/motionPresets';
 
 interface EventDetailDrawerProps {
   selectedEvent: BrainEvent | null;
@@ -18,10 +19,11 @@ export function EventDetailDrawer({ selectedEvent, onDelete, onClose }: EventDet
       {selectedEvent && (
         <motion.div
           key={selectedEvent.id}
-          initial={{ opacity: 0, y: '100%' }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: '100%' }}
-          transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+          variants={bottomSheet}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          transition={bottomSheetTransition}
           className="absolute bottom-0 left-0 right-0 z-50"
         >
           <div className="mx-auto max-w-md bg-zinc-900/90 backdrop-blur-2xl border border-zinc-600/30 border-b-0 rounded-t-2xl shadow-[0_-8px_40px_rgba(0,0,0,0.5)] px-5 py-4">

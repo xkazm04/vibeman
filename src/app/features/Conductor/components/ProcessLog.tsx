@@ -66,6 +66,7 @@ function LogEntry({ entry }: { entry: ProcessLogEntry }) {
   const isSkipped = entry.event === 'skipped';
 
   return (
+  <>
     <motion.div
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
@@ -112,10 +113,27 @@ function LogEntry({ entry }: { entry: ProcessLogEntry }) {
           onClick={() => setExpanded(!expanded)}
           className="text-red-500 hover:text-red-400 shrink-0"
         >
-          <AlertCircle className="w-3 h-3" />
+          <AlertCircle className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
         </button>
       )}
     </motion.div>
+
+    {/* Expanded error detail */}
+    <AnimatePresence>
+      {expanded && entry.error && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          className="overflow-hidden"
+        >
+          <div className="bg-red-950/30 border-l-2 border-red-500 px-3 py-2 font-mono text-2xs text-red-300 whitespace-pre-wrap max-h-32 overflow-y-auto ml-[72px] mr-2 mb-1 rounded-r">
+            {entry.error}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </>
   );
 }
 

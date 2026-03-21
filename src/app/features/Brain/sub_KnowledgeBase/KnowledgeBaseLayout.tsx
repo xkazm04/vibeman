@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Search } from 'lucide-react';
+import { Search, BookOpen, Loader2 } from 'lucide-react';
 import type { DbKnowledgeEntry } from '@/app/db/models/knowledge.types';
 import { KNOWLEDGE_CATEGORY_LABELS, KNOWLEDGE_LAYER_LABELS } from '@/app/db/models/knowledge.types';
 import type { KnowledgeCategory, KnowledgeLayer } from '@/app/db/models/knowledge.types';
@@ -99,7 +99,13 @@ export default function KnowledgeBaseLayout() {
 // ── Tree ──────────────────────────────────────────────────────────────────────
 
 function KBTree({ tree, selection, onSelect }: { tree: KBTree | null; selection: TreeSelection; onSelect: (s: TreeSelection) => void }) {
-  if (!tree) return <p className="text-2xs font-mono text-zinc-700 p-3">-- empty --</p>;
+  if (!tree) return (
+    <div className="flex flex-col items-center gap-2 py-6 px-3">
+      <BookOpen className="w-5 h-5 text-cyan-500/40" />
+      <p className="text-2xs font-mono text-zinc-600 text-center">no entries yet</p>
+      <p className="text-2xs font-mono text-zinc-700 text-center">run /identify-patterns or click + add</p>
+    </div>
+  );
 
   const languages = Object.entries(tree).sort(([, a], [, b]) => {
     const sumA = Object.values(a).reduce((s, c) => s + Object.values(c).reduce((ss, v) => ss + v, 0), 0);
@@ -182,9 +188,20 @@ function KBEntryList({ entries, searchQuery, onSearchChange, breadcrumb, isLoadi
 
       <div className="flex-1 overflow-auto">
         {isLoading ? (
-          <p className="text-2xs font-mono text-zinc-600 p-3">-- loading --</p>
+          <div className="flex items-center gap-2 p-4">
+            <Loader2 className="w-3.5 h-3.5 text-cyan-500/60 animate-spin" />
+            <span className="text-2xs font-mono text-zinc-600">loading entries...</span>
+          </div>
         ) : entries.length === 0 ? (
-          <p className="text-2xs font-mono text-zinc-600 p-3">-- no results --</p>
+          <div className="flex flex-col items-center gap-2.5 py-10 px-4">
+            <Search className="w-5 h-5 text-cyan-500/40" />
+            <p className="text-2xs font-mono text-zinc-500 text-center">
+              {searchQuery ? 'no matches found' : 'no entries in this category'}
+            </p>
+            <p className="text-2xs font-mono text-zinc-700 text-center">
+              {searchQuery ? 'try a different search term' : 'run /identify-patterns from the CLI or click + add'}
+            </p>
+          </div>
         ) : (
           <GridTable headers={['type', 'title', 'category', 'conf', 'used']}>
             {entries.map(entry => {

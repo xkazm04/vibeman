@@ -20,11 +20,13 @@ import {
   TrendingUp,
   ChevronDown,
 } from 'lucide-react';
-import { SimpleSpinner } from '@/components/ui';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useHeatmap } from '../lib/queries';
 import GlowCard from './GlowCard';
 import BrainPanelHeader from './BrainPanelHeader';
+import { inlineExpand, inlineExpandTransition } from '../lib/motionPresets';
+import NeuralPulseLoader from './NeuralPulseLoader';
+import { DATA_FONT, FONT_SIZE } from '../lib/brainFonts';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -162,7 +164,7 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
         <div className="p-6">
           <BrainPanelHeader icon={CalendarDays} title="Signal Activity" accentColor={ACCENT} glowColor={GLOW} glow />
           <div className="h-32 flex items-center justify-center">
-            <SimpleSpinner size="md" color="purple" />
+            <NeuralPulseLoader />
           </div>
         </div>
       </GlowCard>
@@ -220,8 +222,8 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
                 x={30 + m.col * (CELL_SIZE + CELL_GAP)}
                 y={10}
                 className="fill-zinc-500"
-                fontSize={9}
-                fontFamily="monospace"
+                fontSize={FONT_SIZE.axis}
+                fontFamily={DATA_FONT}
               >
                 {m.label}
               </text>
@@ -236,7 +238,7 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
                   y={20 + i * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2 + 3}
                   className="fill-zinc-600"
                   fontSize={8}
-                  fontFamily="monospace"
+                  fontFamily={DATA_FONT}
                 >
                   {label}
                 </text>
@@ -351,9 +353,11 @@ function DayDrillDown({ day, onClose }: { day: HeatmapDayData; onClose: () => vo
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
+      variants={inlineExpand}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      transition={inlineExpandTransition}
       className="rounded-xl border border-zinc-700/50 bg-zinc-900/80 backdrop-blur-sm p-4 space-y-3"
     >
       {/* Header */}
@@ -588,7 +592,7 @@ function TrendChart({
                     textAnchor="middle"
                     className="fill-zinc-600"
                     fontSize={8}
-                    fontFamily="monospace"
+                    fontFamily={DATA_FONT}
                   >
                     {week.weekLabel}
                   </text>

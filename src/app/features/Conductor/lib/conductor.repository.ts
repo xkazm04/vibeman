@@ -288,19 +288,27 @@ export const conductorRepository = {
   /**
    * Mark all running/paused runs as interrupted (startup recovery).
    * Uses globalThis guard to prevent HMR re-triggering.
-   * Returns the number of runs marked.
+   * Returns the IDs of the affected runs.
    */
-  markInterruptedRuns(): number {
-    if (conductorGlobal.__conductorRecoveryDone) return 0;
+  markInterruptedRuns(): string[] {
+    if (conductorGlobal.__conductorRecoveryDone) return [];
 
     const db = getDatabase();
-    const now = new Date().toISOString();
-    const result = db.prepare(
-      "UPDATE conductor_runs SET status = 'interrupted', completed_at = ? WHERE status IN ('running', 'paused')"
-    ).run(now);
+
+    // Query affected IDs before updating
+    const rows = db.prepare(
+      "SELECT id FROM conductor_runs WHERE status IN ('running', 'paused')"
+    ).all() as { id: string }[];
+
+    if (rows.length > 0) {
+      const now = new Date().toISOString();
+      db.prepare(
+        "UPDATE conductor_runs SET status = 'interrupted', completed_at = ? WHERE status IN ('running', 'paused')"
+      ).run(now);
+    }
 
     conductorGlobal.__conductorRecoveryDone = true;
-    return result.changes;
+    return rows.map(r => r.id);
   },
 
   /**

@@ -2,6 +2,7 @@ import type { Group, FilterState } from './types';
 import { FOCUS_ZOOM_THRESHOLD } from './constants';
 import { colorAt } from './helpers';
 import { executeRenderPipeline, type RenderContext } from './canvasRenderPipeline';
+import { DISPLAY_FONT } from '../../lib/brainFonts';
 
 interface RenderOverviewParams {
   ctx: CanvasRenderingContext2D;
@@ -134,13 +135,13 @@ function renderGroupBubble(ctx: CanvasRenderingContext2D, group: Group, k: numbe
     ctx.restore();
 
     ctx.fillStyle = '#f4f4f5';
-    ctx.font = `bold ${Math.max(10, 13 / k)}px Inter, system-ui, sans-serif`;
+    ctx.font = `bold ${Math.max(10, 13 / k)}px ${DISPLAY_FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillText(group.name, gx, gy - radius - 6 / k);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = `bold ${12 / k}px Inter, system-ui, sans-serif`;
+    ctx.font = `bold ${12 / k}px ${DISPLAY_FONT}`;
     ctx.textBaseline = 'middle';
     ctx.fillText(`${group.events.length}`, gx, gy);
     return;
@@ -148,14 +149,14 @@ function renderGroupBubble(ctx: CanvasRenderingContext2D, group: Group, k: numbe
 
   // Group label
   ctx.fillStyle = '#f4f4f5';
-  ctx.font = `bold ${Math.min(14, 11 / k)}px Inter, system-ui, sans-serif`;
+  ctx.font = `bold ${Math.min(14, 11 / k)}px ${DISPLAY_FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
   ctx.fillText(group.name, gx, gy - radius - 4 / k);
 
   // Event count
   ctx.fillStyle = colorAt(color, 0.8);
-  ctx.font = `${9 / k}px Inter, system-ui, sans-serif`;
+  ctx.font = `${9 / k}px ${DISPLAY_FONT}`;
   ctx.textBaseline = 'top';
   ctx.fillText(`${group.events.length} events`, gx, gy + radius + 3 / k);
 

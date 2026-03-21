@@ -388,6 +388,35 @@ body {
   will-change: transform;
 }
 
+@keyframes neuralPulse {
+  0% {
+    transform: translateX(-16px);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(48px);
+    opacity: 0;
+  }
+}
+
+/* Pipeline completion celebration particles */
+@keyframes celebrationBurst {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--tx), var(--ty)) scale(0);
+    opacity: 0;
+  }
+}
+
 /* Touch device overrides - force visibility of hover-gated interactive elements */
 @media (hover: none) {
   .group:hover .group-hover\:opacity-100,

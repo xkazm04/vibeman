@@ -11,11 +11,11 @@ import { conductorRepository } from '@/app/features/Conductor/lib/conductor.repo
 
 export async function POST() {
   try {
-    const count = conductorRepository.markInterruptedRuns();
+    const runIds = conductorRepository.markInterruptedRuns();
     return NextResponse.json({
       success: true,
-      recovered: count,
-      runIds: [], // markInterruptedRuns returns count, not IDs
+      recovered: runIds.length,
+      runIds,
     });
   } catch (error) {
     console.error('[conductor/recovery] Error:', error);

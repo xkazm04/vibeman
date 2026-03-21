@@ -52,11 +52,7 @@ export async function GET(request: NextRequest) {
 
     // Get stats
     const stats = unifiedKnowledgeStore.getConsolidationStats(projectId);
-    const byType = unifiedKnowledgeStore.getMemories({ projectId, limit: 1000 })
-      .reduce((acc, m) => {
-        acc[m.memoryType] = (acc[m.memoryType] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
+    const byType = unifiedKnowledgeStore.countMemoriesByType(projectId);
 
     return NextResponse.json({
       memories,
@@ -260,7 +256,7 @@ export async function PATCH(request: NextRequest) {
       unifiedKnowledgeStore.updateMemoryImportance(id, importanceScore);
     }
 
-    const memory = unifiedKnowledgeStore.getMemory(id);
+    const memory = unifiedKnowledgeStore.accessMemory(id);
 
     return NextResponse.json({ memory });
   } catch (error) {

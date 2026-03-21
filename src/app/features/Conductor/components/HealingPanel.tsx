@@ -152,9 +152,12 @@ export default function HealingPanel() {
         </div>
         <button
           onClick={() => updateConfig({ healingEnabled: !config.healingEnabled })}
-          className={`w-8 h-4 rounded-full transition-colors relative ${
-            config.healingEnabled ? 'bg-pink-600' : 'bg-gray-700'
-          }`}
+          role="switch"
+          aria-checked={config.healingEnabled}
+          aria-label="Toggle self-healing auto-repair"
+          className={`w-8 h-4 rounded-full transition-colors relative
+            focus-visible:ring-2 focus-visible:ring-pink-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900
+            ${config.healingEnabled ? 'bg-pink-600' : 'bg-gray-700'}`}
           title={config.healingEnabled ? 'Auto-heal enabled' : 'Auto-heal disabled'}
         >
           <div className={`w-3 h-3 rounded-full bg-white absolute top-0.5 transition-transform ${

@@ -8,6 +8,7 @@
 import type { BrainEvent, Group, FilterState } from './types';
 import { COLORS, RECENCY_GLOW_HOURS, LABEL_MIN_ZOOM } from './constants';
 import { getEventAlpha, getEventRadius, computeLabelRects, colorAt } from './helpers';
+import { DISPLAY_FONT } from '../../lib/brainFonts';
 
 // ─── RenderContext: Shared state passed to all render passes ──────────────
 
@@ -300,7 +301,7 @@ export const renderEventCards: RenderPassFn<EventCardsConfig> = (
       ctx.fillRect(cx + 5 * cardScale, cy + 7 * cardScale, 3 * cardScale, cardH - 14 * cardScale);
 
       ctx.fillStyle = '#f4f4f5';
-      ctx.font = `600 ${Math.round(13 * cardScale)}px Inter, system-ui, sans-serif`;
+      ctx.font = `600 ${Math.round(13 * cardScale)}px ${DISPLAY_FONT}`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       const titleText = showContext
@@ -309,7 +310,7 @@ export const renderEventCards: RenderPassFn<EventCardsConfig> = (
       ctx.fillText(titleText, cx + 14 * cardScale, cy + 9 * cardScale);
 
       ctx.fillStyle = '#a1a1aa';
-      ctx.font = `${Math.round(10 * cardScale)}px Inter, system-ui, sans-serif`;
+      ctx.font = `${Math.round(10 * cardScale)}px ${DISPLAY_FONT}`;
       const metaText = showContext
         ? evt.summary.slice(0, 22)
         : `${COLORS[evt.type] ? evt.type : 'Event'}  ·  ${Math.round((Date.now() - evt.timestamp) / 3600000)}h ago`;
@@ -478,10 +479,10 @@ export const renderSmartLabels: RenderPassFn<SmartLabelsConfig> = (
     if (labelCandidates.length === 0) return;
 
     const labelFont = fontSize
-      ? `500 ${fontSize}px Inter, system-ui, sans-serif`
+      ? `500 ${fontSize}px ${DISPLAY_FONT}`
       : coordinateMode === 'world'
-      ? `500 ${Math.max(8, Math.round(9 / k))}px Inter, system-ui, sans-serif`
-      : `500 ${Math.max(9, Math.round(11 * Math.min(k, 1.2)))}px Inter, system-ui, sans-serif`;
+      ? `500 ${Math.max(8, Math.round(9 / k))}px ${DISPLAY_FONT}`
+      : `500 ${Math.max(9, Math.round(11 * Math.min(k, 1.2)))}px ${DISPLAY_FONT}`;
 
     const rects = computeLabelRects(labelCandidates, ctx, labelFont, maxLabels);
 
@@ -584,21 +585,21 @@ export const renderOverlay: RenderPassFn<OverlayConfig> = (
     ctx.fillRect(0, 0, width, 48);
 
     ctx.fillStyle = header.color || '#f4f4f5';
-    ctx.font = 'bold 14px Inter, system-ui, sans-serif';
+    ctx.font = 'bold 14px ${DISPLAY_FONT}';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText(header.title, width / 2, 12);
 
     if (header.subtitle) {
       ctx.fillStyle = '#a1a1aa';
-      ctx.font = '10px Inter, system-ui, sans-serif';
+      ctx.font = '10px ${DISPLAY_FONT}';
       ctx.fillText(header.subtitle, width / 2, 32);
     }
   }
 
   // Hint
   if (hint) {
-    ctx.font = '10px Inter, system-ui, sans-serif';
+    ctx.font = '10px ${DISPLAY_FONT}';
     const hintWidth = ctx.measureText(hint.text).width + 24;
     const hintX = (width - hintWidth) / 2;
     const hintY = hint.yPosition ?? height - 54;

@@ -115,6 +115,22 @@ export const annetteMemoryRepository = {
     `).all(...params) as unknown as DbAnnetteMemory[];
   },
 
+  countByType(projectId: string): Record<string, number> {
+    const db = getConnection();
+    const rows = db.prepare(`
+      SELECT memory_type, COUNT(*) as cnt
+      FROM annette_memories
+      WHERE project_id = ? AND consolidated_into IS NULL
+      GROUP BY memory_type
+    `).all(projectId) as Array<{ memory_type: string; cnt: number }>;
+
+    const result: Record<string, number> = {};
+    for (const row of rows) {
+      result[row.memory_type] = row.cnt;
+    }
+    return result;
+  },
+
   getBySession(sessionId: string, limit = 100): DbAnnetteMemory[] {
     const db = getConnection();
     return db.prepare(`

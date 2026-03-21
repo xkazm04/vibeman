@@ -9,6 +9,7 @@ import { executeRenderPipeline, withWorldTransform, type RenderContext, type Ren
 import { hexToRgba } from '../sub_MemoryCanvas/lib/helpers';
 import { COLORS } from '../sub_MemoryCanvas/lib/constants';
 import type { SignalType } from '../sub_MemoryCanvas/lib/types';
+import { DISPLAY_FONT, FONT_SIZE } from '../lib/brainFonts';
 
 // ─── Timeline Margins ─────────────────────────────────────────────────────
 
@@ -34,7 +35,7 @@ export const renderLaneBackground: RenderPassFn<LaneBackgroundConfig> = (
   const plotH = height - margin.top - margin.bottom;
   const laneH = plotH / laneTypes.length;
 
-  ctx.font = 'bold 11px Inter, system-ui, sans-serif';
+  ctx.font = 'bold 11px ${DISPLAY_FONT}';
 
   laneTypes.forEach((type, i) => {
     const y = margin.top + i * laneH + laneH / 2;
@@ -70,7 +71,7 @@ export const renderTimeAxis: RenderPassFn<TimeAxisConfig> = (
 
   const plotW = width - margin.left - margin.right;
 
-  ctx.font = '10px Inter, system-ui, sans-serif';
+  ctx.font = '10px ${DISPLAY_FONT}';
   ctx.fillStyle = '#71717a';
   ctx.textAlign = 'center';
 
@@ -165,7 +166,7 @@ export const renderEmptyState: RenderPassFn<EmptyStateConfig> = (
   const laneH = plotH / laneTypes.length;
 
   // Ghost lane labels
-  ctx.font = 'bold 11px Inter, system-ui, sans-serif';
+  ctx.font = 'bold 11px ${DISPLAY_FONT}';
   laneTypes.forEach((type, i) => {
     const y = margin.top + i * laneH + laneH / 2;
     ctx.fillStyle = hexToRgba(COLORS[type], 0.10);
@@ -193,11 +194,11 @@ export const renderEmptyState: RenderPassFn<EmptyStateConfig> = (
   ctx.textBaseline = 'middle';
 
   ctx.fillStyle = 'rgba(161,161,170,0.6)';
-  ctx.font = '500 14px Inter, system-ui, sans-serif';
+  ctx.font = '500 14px ${DISPLAY_FONT}';
   ctx.fillText(message.title, cx, cy - 10);
 
   ctx.fillStyle = 'rgba(113,113,122,0.5)';
-  ctx.font = '12px Inter, system-ui, sans-serif';
+  ctx.font = '12px ${DISPLAY_FONT}';
   message.lines.forEach((line, i) => {
     ctx.fillText(line, cx, cy + 12 + i * 16);
   });

@@ -27,6 +27,17 @@ const PATTERN_TYPES: { value: KnowledgePatternType; label: string }[] = [
   { value: 'optimization', label: 'Optimization' },
 ];
 
+const inputCls = 'w-full px-3 py-2 rounded-lg bg-zinc-950/50 border border-zinc-800/50 text-[0.8125rem] text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-purple-500/40 transition-colors';
+
+const sliderCls = `w-full h-1.5 rounded-full appearance-none bg-zinc-800 cursor-pointer
+  [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5
+  [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-purple-500 [&::-webkit-slider-thumb]:hover:bg-purple-400
+  [&::-webkit-slider-thumb]:transition-colors
+  [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:h-3.5
+  [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-purple-500 [&::-moz-range-thumb]:hover:bg-purple-400
+  [&::-moz-range-thumb]:transition-colors
+  [&::-moz-range-track]:bg-zinc-800 [&::-moz-range-track]:rounded-full`;
+
 export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEntryModalProps) {
   const prefersReduced = useReducedMotion();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -122,7 +133,7 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
                           update('domain', cats[0]);
                         }
                       }}
-                      className="input-base"
+                      className={`${inputCls} cursor-pointer`}
                     >
                       {KNOWLEDGE_LAYERS.map(l => (
                         <option key={l} value={l}>{KNOWLEDGE_LAYER_LABELS[l]}</option>
@@ -133,7 +144,7 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
                     <select
                       value={form.domain}
                       onChange={e => update('domain', e.target.value as KnowledgeCategory)}
-                      className="input-base"
+                      className={`${inputCls} cursor-pointer`}
                     >
                       {LAYER_CATEGORIES[form.layer].map(c => (
                         <option key={c} value={c}>{KNOWLEDGE_CATEGORY_LABELS[c]}</option>
@@ -144,7 +155,7 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
                     <select
                       value={form.pattern_type}
                       onChange={e => update('pattern_type', e.target.value as KnowledgePatternType)}
-                      className="input-base"
+                      className={`${inputCls} cursor-pointer`}
                     >
                       {PATTERN_TYPES.map(p => (
                         <option key={p.value} value={p.value}>{p.label}</option>
@@ -160,7 +171,7 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
                     value={form.title}
                     onChange={e => update('title', e.target.value)}
                     placeholder="e.g., Use GlassCard for all panel containers"
-                    className="input-base"
+                    className={inputCls}
                     required
                   />
                 </Field>
@@ -172,7 +183,7 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
                     onChange={e => update('pattern', e.target.value)}
                     placeholder="Describe the pattern..."
                     rows={3}
-                    className="input-base resize-none"
+                    className={`${inputCls} resize-none`}
                     required
                   />
                 </Field>
@@ -184,7 +195,7 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
                     onChange={e => update('rationale', e.target.value)}
                     placeholder="Why this pattern matters..."
                     rows={2}
-                    className="input-base resize-none"
+                    className={`${inputCls} resize-none`}
                   />
                 </Field>
 
@@ -195,7 +206,7 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
                     onChange={e => update('code_example', e.target.value)}
                     placeholder="// Example code..."
                     rows={3}
-                    className="input-base resize-none font-mono text-xs"
+                    className={`${inputCls} resize-none font-mono text-xs`}
                   />
                 </Field>
 
@@ -206,7 +217,7 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
                     onChange={e => update('anti_pattern', e.target.value)}
                     placeholder="What NOT to do..."
                     rows={2}
-                    className="input-base resize-none"
+                    className={`${inputCls} resize-none`}
                   />
                 </Field>
 
@@ -216,7 +227,7 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
                     <select
                       value={form.language}
                       onChange={e => update('language', e.target.value as KnowledgeLanguage)}
-                      className="input-base"
+                      className={`${inputCls} cursor-pointer`}
                     >
                       {KNOWLEDGE_LANGUAGES.map(l => (
                         <option key={l} value={l}>{l}</option>
@@ -231,7 +242,7 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
                       step={5}
                       value={form.confidence}
                       onChange={e => update('confidence', Number(e.target.value))}
-                      className="w-full accent-purple-500"
+                      className={sliderCls}
                     />
                   </Field>
                 </div>
@@ -243,7 +254,7 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
                     value={form.tags}
                     onChange={e => update('tags', e.target.value)}
                     placeholder="e.g., zustand, state, pattern"
-                    className="input-base"
+                    className={inputCls}
                   />
                 </Field>
               </div>
@@ -268,29 +279,6 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
               </div>
             </form>
 
-            {/* Shared input styles injected via className */}
-            <style jsx>{`
-              .input-base {
-                width: 100%;
-                padding: 0.5rem 0.75rem;
-                border-radius: 0.5rem;
-                background: rgba(24, 24, 27, 0.5);
-                border: 1px solid rgba(63, 63, 70, 0.5);
-                color: #e4e4e7;
-                font-size: 0.8125rem;
-                transition: border-color 0.15s;
-              }
-              .input-base:focus {
-                outline: none;
-                border-color: rgba(168, 85, 247, 0.4);
-              }
-              .input-base::placeholder {
-                color: #52525b;
-              }
-              select.input-base {
-                cursor: pointer;
-              }
-            `}</style>
           </motion.div>
         </>
       )}

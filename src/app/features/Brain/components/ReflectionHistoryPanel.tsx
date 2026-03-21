@@ -4,6 +4,8 @@ import { useEffect } from 'react';
 import { History, TrendingUp, Lightbulb, Clock, BarChart3 } from 'lucide-react';
 import BrainPanelHeader from './BrainPanelHeader';
 import GlowCard from './GlowCard';
+import NeuralPulseLoader from './NeuralPulseLoader';
+import BrainEmptyState from './BrainEmptyState';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { subscribeToReflectionCompletion } from '@/stores/reflectionCompletionEmitter';
 import ReflectionHistoryItem, { type ReflectionHistoryEntry } from './ReflectionHistoryItem';
@@ -68,15 +70,19 @@ export default function ReflectionHistoryPanel({ scope = 'project' }: Props) {
       />
       <div className="p-6">
       {isLoading ? (
-        <div className="animate-pulse space-y-3">
-          <div className="h-4 bg-zinc-800 rounded w-1/2" />
-          <div className="h-12 bg-zinc-800 rounded" />
-          <div className="h-12 bg-zinc-800 rounded" />
+        <div className="h-32 flex items-center justify-center">
+          <NeuralPulseLoader />
         </div>
       ) : error ? (
         <div className="text-sm text-red-400">{error.message}</div>
       ) : history.length === 0 ? (
-        <div className="text-sm text-zinc-500">No reflections recorded yet.</div>
+        <div className="py-6 flex justify-center">
+          <BrainEmptyState
+            icon={<History className="w-10 h-10 text-zinc-600" />}
+            title="No reflections yet"
+            description="Reflections will appear here after Brain processes your activity."
+          />
+        </div>
       ) : (
         <>
           {/* Aggregate Stats */}

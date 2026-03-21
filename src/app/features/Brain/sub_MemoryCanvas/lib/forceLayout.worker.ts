@@ -19,6 +19,12 @@ self.onmessage = (e: MessageEvent<WorkerInputMessage>) => {
 
   const { width, height, totalTicks, progressInterval } = config;
 
+  // Guard: empty groups would cause NaN from division by zero
+  if (groups.length === 0) {
+    self.postMessage({ type: 'complete', groups: [], tick: 0, totalTicks: 0 });
+    return;
+  }
+
   // Initialize groups in a circle
   const angleStep = (2 * Math.PI) / groups.length;
   const initRadius = Math.min(width, height) * 0.25;

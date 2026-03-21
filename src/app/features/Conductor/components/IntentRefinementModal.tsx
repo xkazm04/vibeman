@@ -32,6 +32,7 @@ export default function IntentRefinementModal({
 }: IntentRefinementModalProps) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [expandedContext, setExpandedContext] = useState<Record<string, boolean>>({});
 
   // Stable question IDs string — only reinitialize answers when actual questions change
@@ -54,6 +55,7 @@ export default function IntentRefinementModal({
     if (!allAnswered || submitting) return;
 
     setSubmitting(true);
+    setError(null);
     try {
       const payload = questions.map((q) => ({
         questionId: q.id,
@@ -68,7 +70,16 @@ export default function IntentRefinementModal({
 
       if (res.ok) {
         onClose();
+      } else {
+        let msg = 'Failed to submit answers';
+        try {
+          const data = await res.json();
+          if (data.error) msg = data.error;
+        } catch { /* use default message */ }
+        setError(msg);
       }
+    } catch {
+      setError('Network error — please check your connection and try again');
     } finally {
       setSubmitting(false);
     }
@@ -119,6 +130,12 @@ export default function IntentRefinementModal({
           {answeredCount}/{questions.length} answered
         </span>
       </div>
+
+      {error && (
+        <div className="mb-3 px-3 py-2 bg-red-900/30 border border-red-700/50 rounded-lg text-sm text-red-300">
+          {error}
+        </div>
+      )}
 
       <div className="space-y-3">
         {questions.map((q, i) => (

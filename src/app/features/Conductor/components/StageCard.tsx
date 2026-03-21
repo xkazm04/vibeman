@@ -9,35 +9,152 @@
 
 import { motion } from 'framer-motion';
 import {
-  Search, Filter, Layers, Zap, CheckCircle, Brain, Sparkles,
-  Loader2, AlertCircle, Pause, Clock,
+  Loader2, AlertCircle, Pause, Clock, CheckCircle,
 } from 'lucide-react';
 import { hover as hoverPresets, tap, pulse } from '@/lib/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import type { AnyPipelineStage, StageState, ExecutionTaskState } from '../lib/types';
 
-const STAGE_ICONS: Record<string, typeof Search> = {
-  scout: Search,
-  triage: Filter,
-  batch: Layers,
-  execute: Zap,
-  review: CheckCircle,
+// Custom SVG stage icons with circuit-neural visual language
+function ScoutIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="11" cy="11" r="6" />
+      <path d="M16.5 16.5 21 21" />
+      {/* Circuit trace accents */}
+      <path d="M11 5V2" strokeWidth="1" opacity="0.5" />
+      <path d="M17 11h3" strokeWidth="1" opacity="0.5" />
+      <circle cx="11" cy="11" r="2" strokeWidth="1" opacity="0.6" />
+    </svg>
+  );
+}
+
+function TriageIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      {/* Routing/sorting node */}
+      <path d="M12 3v6" />
+      <path d="M12 9 6 18" />
+      <path d="M12 9l6 9" />
+      <circle cx="12" cy="9" r="2" />
+      <circle cx="6" cy="18" r="2" strokeWidth="1" />
+      <circle cx="18" cy="18" r="2" strokeWidth="1" />
+      {/* Circuit traces */}
+      <path d="M12 3h3" strokeWidth="1" opacity="0.4" />
+    </svg>
+  );
+}
+
+function BatchIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      {/* Bundled parallel tasks */}
+      <rect x="3" y="4" width="7" height="7" rx="1.5" />
+      <rect x="14" y="4" width="7" height="7" rx="1.5" />
+      <rect x="3" y="13" width="7" height="7" rx="1.5" />
+      <rect x="14" y="13" width="7" height="7" rx="1.5" />
+      {/* Circuit connections */}
+      <path d="M10 7.5h4" strokeWidth="1" opacity="0.5" />
+      <path d="M10 16.5h4" strokeWidth="1" opacity="0.5" />
+    </svg>
+  );
+}
+
+function ExecuteIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      {/* Precision execution bolt with circuit */}
+      <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
+      {/* Circuit trace */}
+      <path d="M18 6h3" strokeWidth="1" opacity="0.4" />
+      <path d="M3 18h3" strokeWidth="1" opacity="0.4" />
+    </svg>
+  );
+}
+
+function ReviewIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      {/* Analysis eye with circuit */}
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+      {/* Circuit traces */}
+      <path d="M12 5V2" strokeWidth="1" opacity="0.4" />
+      <path d="M12 22v-3" strokeWidth="1" opacity="0.4" />
+    </svg>
+  );
+}
+
+function PlanIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      {/* Brain-like neural planning */}
+      <path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 6l4 5 4-5c1.5-1.5 3-3.5 3-6a7 7 0 0 0-7-7z" />
+      <path d="M9 10h6" strokeWidth="1" />
+      <path d="M12 7v6" strokeWidth="1" />
+      {/* Circuit traces */}
+      <path d="M8 5 5 3" strokeWidth="1" opacity="0.4" />
+      <path d="M16 5l3-2" strokeWidth="1" opacity="0.4" />
+    </svg>
+  );
+}
+
+function DispatchIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      {/* Signal routing/dispatch */}
+      <circle cx="5" cy="12" r="2" />
+      <path d="M7 12h4" />
+      <path d="M11 12l5-5h5" />
+      <path d="M11 12h10" />
+      <path d="M11 12l5 5h5" />
+      {/* Arrow heads */}
+      <path d="M19 5l2 2-2 2" strokeWidth="1.2" />
+      <path d="M19 10l2 2-2 2" strokeWidth="1.2" />
+      <path d="M19 15l2 2-2 2" strokeWidth="1.2" />
+    </svg>
+  );
+}
+
+function ReflectIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      {/* Reflective loop/mirror */}
+      <path d="M12 3v18" strokeDasharray="2 2" opacity="0.4" />
+      <path d="M7 8l-3 4 3 4" />
+      <path d="M17 8l3 4-3 4" />
+      <circle cx="12" cy="12" r="3" />
+      {/* Circuit sparkle */}
+      <path d="M12 6l1-1" strokeWidth="1" opacity="0.5" />
+      <path d="M12 18l-1 1" strokeWidth="1" opacity="0.5" />
+    </svg>
+  );
+}
+
+type SvgIconComponent = ({ className }: { className?: string }) => React.JSX.Element;
+
+const STAGE_ICONS: Record<string, SvgIconComponent> = {
+  scout: ScoutIcon,
+  triage: TriageIcon,
+  batch: BatchIcon,
+  execute: ExecuteIcon,
+  review: ReviewIcon,
   // v3 stages
-  plan: Brain,
-  dispatch: Zap,
-  reflect: Sparkles,
+  plan: PlanIcon,
+  dispatch: DispatchIcon,
+  reflect: ReflectIcon,
 };
 
-const STAGE_COLORS: Record<string, { active: string; glow: string; bg: string }> = {
-  scout: { active: 'text-cyan-400', glow: 'shadow-cyan-500/40', bg: 'bg-cyan-500/10' },
-  triage: { active: 'text-amber-400', glow: 'shadow-amber-500/40', bg: 'bg-amber-500/10' },
-  batch: { active: 'text-purple-400', glow: 'shadow-purple-500/40', bg: 'bg-purple-500/10' },
-  execute: { active: 'text-orange-400', glow: 'shadow-orange-500/40', bg: 'bg-orange-500/10' },
-  review: { active: 'text-pink-400', glow: 'shadow-pink-500/40', bg: 'bg-pink-500/10' },
+const STAGE_COLORS: Record<string, { active: string; glow: string; bg: string; progressBar: string }> = {
+  scout: { active: 'text-cyan-400', glow: 'shadow-cyan-500/40', bg: 'bg-cyan-500/10', progressBar: 'bg-cyan-400' },
+  triage: { active: 'text-amber-400', glow: 'shadow-amber-500/40', bg: 'bg-amber-500/10', progressBar: 'bg-amber-400' },
+  batch: { active: 'text-purple-400', glow: 'shadow-purple-500/40', bg: 'bg-purple-500/10', progressBar: 'bg-purple-400' },
+  execute: { active: 'text-orange-400', glow: 'shadow-orange-500/40', bg: 'bg-orange-500/10', progressBar: 'bg-orange-400' },
+  review: { active: 'text-pink-400', glow: 'shadow-pink-500/40', bg: 'bg-pink-500/10', progressBar: 'bg-pink-400' },
   // v3 stages
-  plan: { active: 'text-cyan-400', glow: 'shadow-cyan-500/40', bg: 'bg-cyan-500/10' },
-  dispatch: { active: 'text-purple-400', glow: 'shadow-purple-500/40', bg: 'bg-purple-500/10' },
-  reflect: { active: 'text-pink-400', glow: 'shadow-pink-500/40', bg: 'bg-pink-500/10' },
+  plan: { active: 'text-cyan-400', glow: 'shadow-cyan-500/40', bg: 'bg-cyan-500/10', progressBar: 'bg-cyan-400' },
+  dispatch: { active: 'text-purple-400', glow: 'shadow-purple-500/40', bg: 'bg-purple-500/10', progressBar: 'bg-purple-400' },
+  reflect: { active: 'text-pink-400', glow: 'shadow-pink-500/40', bg: 'bg-pink-500/10', progressBar: 'bg-pink-400' },
 };
 
 const STAGE_LABELS: Record<string, string> = {
@@ -61,7 +178,7 @@ interface StageCardProps {
 
 export default function StageCard({ stage, state, isCurrentStage, onClick }: StageCardProps) {
   const prefersReduced = useReducedMotion();
-  const Icon = STAGE_ICONS[stage] || Zap;
+  const Icon = STAGE_ICONS[stage] || ExecuteIcon;
   const colors = STAGE_COLORS[stage] || STAGE_COLORS.execute;
   const label = STAGE_LABELS[stage] || stage;
 

@@ -2,12 +2,17 @@
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, SkipBack, SkipForward, Clock, Sparkles, X, Eye, Maximize2 } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Clock, X, Eye, Maximize2 } from 'lucide-react';
 import { usePalaceData } from './lib/usePalaceData';
 import type { PalaceRoom, PalaceConnection, PalaceSignal, PalaceMode, ReplayKeyframe } from './lib/palaceTypes';
-import { SimpleSpinner } from '@/components/ui';
 import { COLORS } from '../sub_MemoryCanvas/lib/constants';
 import type { SignalType } from '../sub_MemoryCanvas/lib/types';
+import { sidePanel, sidePanelTransition } from '../lib/motionPresets';
+import { DISPLAY_FONT, FONT_SIZE } from '../lib/brainFonts';
+import NeuralPulseLoader from '../components/NeuralPulseLoader';
+import BrainEmptyState from '../components/BrainEmptyState';
+import PalaceEmptyIllustration from '../components/PalaceEmptyIllustration';
+import BrainStatusBar from '../components/BrainStatusBar';
 
 // ── Color helpers ────────────────────────────────────────────────────────────
 
@@ -205,7 +210,7 @@ export default function MemoryPalace() {
     return (
       <div className="flex-1 flex items-center justify-center" style={{ background: '#0c0c0f' }}>
         <div className="flex flex-col items-center gap-3">
-          <SimpleSpinner size="lg" color="purple" />
+          <NeuralPulseLoader />
           <span className="text-sm text-zinc-500">Building memory palace...</span>
         </div>
       </div>
@@ -215,13 +220,11 @@ export default function MemoryPalace() {
   if (isEmpty) {
     return (
       <div className="flex-1 flex items-center justify-center" style={{ background: '#0c0c0f' }}>
-        <div className="flex flex-col items-center gap-3">
-          <Sparkles className="w-12 h-12 text-zinc-600" />
-          <h3 className="text-lg font-medium text-zinc-400">No memories yet</h3>
-          <p className="text-sm text-zinc-600 max-w-sm text-center">
-            Behavioral signals will appear here as you work. Start scanning, implementing, or reviewing contexts.
-          </p>
-        </div>
+        <BrainEmptyState
+          icon={<PalaceEmptyIllustration />}
+          title="No memories yet"
+          description="Behavioral signals will appear here as you work. Start scanning, implementing, or reviewing contexts."
+        />
       </div>
     );
   }
@@ -383,9 +386,9 @@ export default function MemoryPalace() {
                   y={room.y + dynamicRadius + 16}
                   textAnchor="middle"
                   fill={isHovered || isSelected ? '#e4e4e7' : '#71717a'}
-                  fontSize={11}
+                  fontSize={FONT_SIZE.label}
                   fontWeight={isSelected ? 600 : 400}
-                  fontFamily="system-ui, sans-serif"
+                  fontFamily={DISPLAY_FONT}
                 >
                   {room.name.length > 20 ? room.name.substring(0, 18) + '...' : room.name}
                 </text>
@@ -397,7 +400,7 @@ export default function MemoryPalace() {
                   textAnchor="middle"
                   fill="#a1a1aa"
                   fontSize={10}
-                  fontFamily="system-ui, sans-serif"
+                  fontFamily={DISPLAY_FONT}
                   opacity={0.7}
                 >
                   {signalCount}
@@ -461,9 +464,11 @@ export default function MemoryPalace() {
         <AnimatePresence>
           {selectedRoom && (
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
+              variants={sidePanel}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={sidePanelTransition}
               className="absolute top-3 right-12 w-64 bg-zinc-900/95 backdrop-blur-xl rounded-xl border border-zinc-700/40 shadow-2xl overflow-hidden"
             >
               <div className="p-3 border-b border-zinc-800/50 flex items-center justify-between">
@@ -539,7 +544,7 @@ export default function MemoryPalace() {
 
       {/* Timeline Scrubber */}
       {(mode === 'timeline' || mode === 'replay') && (
-        <div className="flex-shrink-0 border-t border-zinc-800/50 bg-zinc-900/60 backdrop-blur-sm px-4 py-2">
+        <div className="flex-shrink-0 border-t border-zinc-800/40 bg-zinc-900/70 backdrop-blur-xl px-4 py-2">
           <div className="flex items-center gap-3">
             {/* Playback controls */}
             <div className="flex items-center gap-1">
@@ -646,13 +651,15 @@ export default function MemoryPalace() {
 
       {/* Bottom bar for explore mode */}
       {mode === 'explore' && (
-        <div className="flex-shrink-0 border-t border-zinc-800/50 bg-zinc-900/60 backdrop-blur-sm px-4 py-1.5">
-          <div className="flex items-center justify-between text-xs text-zinc-500">
-            <div className="flex items-center gap-3">
+        <BrainStatusBar
+          left={
+            <div className="flex items-center gap-3 text-zinc-500">
               <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> Pan & zoom to explore</span>
               <span>Click rooms to inspect</span>
             </div>
-            <div className="flex items-center gap-3">
+          }
+          right={
+            <div className="flex items-center gap-3 text-zinc-500">
               {Object.entries(COLORS).map(([type, color]) => (
                 <div key={type} className="flex items-center gap-1">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
@@ -660,8 +667,8 @@ export default function MemoryPalace() {
                 </div>
               ))}
             </div>
-          </div>
-        </div>
+          }
+        />
       )}
     </div>
   );
