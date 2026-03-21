@@ -117,6 +117,8 @@ You are executing an autonomous development pipeline. Follow this protocol preci
 - Use the \`get_knowledge\` MCP tool if you need patterns for unfamiliar domains
 - Use the \`get_memory\` MCP tool to check for known approaches and pitfalls
 - Break the goal into concrete implementation requirements
+- Call \`save_plan\` with your list of requirements (this persists them as Ideas for tracking)
+- If save_plan says approval is required, STOP and wait — otherwise proceed immediately
 - Call \`report_progress\` with phase="planning" and include your plan summary in the message
 
 ## STEP 2 — EXECUTE EACH REQUIREMENT
@@ -128,10 +130,16 @@ For each requirement in your plan:
      - title: brief 2-6 word summary
      - overview: 1-2 paragraphs describing what was done
      - overviewBullets: key changes separated by newlines
+     - testResult: "passed", "failed", or "skipped" (from Step 3)
+     - testDetails: what was tested or why it was skipped
   d) Continue to the next requirement
 
-## STEP 3 — TEST (non-blocking)
+## STEP 3 — TEST (non-blocking, per requirement)
 ${testingInstructions}
+- Record the test outcome when calling \`log_implementation\`:
+  - testResult="passed" if tests/browser verification succeeded
+  - testResult="failed" if tests broke (include details in testDetails)
+  - testResult="skipped" if testing was not possible (include reason in testDetails)
 
 ## STEP 4 — FINALIZE
 - Call \`report_progress\` with phase="validating" and percentage=100
@@ -141,6 +149,7 @@ ${testingInstructions}
 ## RULES
 - Use \`get_knowledge\` tool when working in unfamiliar code areas
 - Use \`get_memory\` tool to check for known patterns and pitfalls before major decisions
+- Use \`save_plan\` after planning to persist your requirements as Ideas
 - Use \`report_progress\` at each major milestone so the dashboard stays updated
 - If you encounter rate limits, wait and retry — do NOT stop the pipeline
 - If a requirement is blocked (missing dependency, unclear spec), skip it, log why via \`report_progress\`, and continue with the next one

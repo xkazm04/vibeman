@@ -30,6 +30,7 @@ export function processPostFlight(
   projectId: string,
   startedAt: string,
   goalId?: string,
+  memoryIdsQueried?: string[],
 ): PostFlightResult {
   const db = getDatabase();
   const result: PostFlightResult = {
@@ -164,6 +165,40 @@ export function processPostFlight(
         logger.info(`[V4 Post-flight] Goal ${goalId} marked as done`);
       } catch (goalErr) {
         logger.warn(`[V4 Post-flight] Failed to update goal status: ${goalErr}`);
+      }
+    }
+
+    // 8. Resolve collective memory outcomes (Gap 5)
+    if (memoryIdsQueried && memoryIdsQueried.length > 0) {
+      try {
+        const success = logs.length > 0;
+        const outcome = success ? 'success' : 'failure';
+        const resolveStmt = db.prepare(
+          `UPDATE collective_memory_applications
+           SET outcome = ?, resolved_at = datetime('now'),
+               details = ?
+           WHERE session_id = ? AND outcome = 'pending'`
+        );
+        resolveStmt.run(outcome, `Conductor V4 run ${runId}: ${logs.length} implementations`, `conductor-v4-${runId}`);
+
+        // Update effectiveness scores on the memory entries
+        if (success) {
+          db.prepare(
+            `UPDATE collective_memory_entries
+             SET success_count = success_count + 1,
+                 effectiveness_score = CAST(success_count + 1 AS REAL) / CAST(success_count + failure_count + 1 AS REAL),
+                 last_applied_at = datetime('now')
+             WHERE id IN (
+               SELECT memory_id FROM collective_memory_applications
+               WHERE session_id = ? AND outcome = 'success'
+             )`
+          ).run(`conductor-v4-${runId}`);
+        }
+
+        logger.info(`[V4 Post-flight] Resolved ${memoryIdsQueried.length} collective memory outcomes as '${outcome}'`);
+      } catch (memErr) {
+        // Non-blocking
+        logger.warn(`[V4 Post-flight] Collective memory resolution failed: ${memErr}`);
       }
     }
 

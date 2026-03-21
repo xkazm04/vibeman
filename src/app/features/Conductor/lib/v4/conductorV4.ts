@@ -185,11 +185,17 @@ async function executeV4Pipeline(
 
   state.executionId = executionId;
 
-  // ── MONITOR ──
-  const result = await monitorSession(executionId, (phase, pct, msg) => {
-    state.progressPhase = phase;
-    state.progress = pct;
-    state.progressMessage = msg;
+  // ── MONITOR (Gap 4: stream tool activity, Gap 5: track memory queries) ──
+  const result = await monitorSession(executionId, {
+    onProgress: (phase, pct, msg) => {
+      state.progressPhase = phase;
+      state.progress = pct;
+      state.progressMessage = msg;
+    },
+    onToolActivity: (toolName, _input) => {
+      // Gap 4: Real-time tool activity visible in UI
+      state.progressMessage = `Using ${toolName.replace('mcp__vibeman__', '')}...`;
+    },
   });
 
   // ── HANDLE RESULT ──
@@ -199,7 +205,7 @@ async function executeV4Pipeline(
     state.progressPhase = 'post-flight';
     state.progressMessage = 'Processing results...';
 
-    processPostFlight(runId, projectId, state.startedAt, state.goalId);
+    processPostFlight(runId, projectId, state.startedAt, state.goalId, result.memoryIdsQueried);
 
     state.status = 'completed';
     state.completedAt = new Date().toISOString();
@@ -259,11 +265,15 @@ async function resumeAndMonitor(
   const executionId = resumeV4Session(state.runId, projectPath, config);
   state.executionId = executionId;
 
-  const result = await monitorSession(executionId);
+  const result = await monitorSession(executionId, {
+    onToolActivity: (toolName, _input) => {
+      state.progressMessage = `Using ${toolName.replace('mcp__vibeman__', '')}...`;
+    },
+  });
 
   if (result.completedNormally) {
     state.status = 'completing';
-    processPostFlight(state.runId, state.projectId, state.startedAt, state.goalId);
+    processPostFlight(state.runId, state.projectId, state.startedAt, state.goalId, result.memoryIdsQueried);
     state.status = 'completed';
     state.completedAt = new Date().toISOString();
     state.progress = 100;

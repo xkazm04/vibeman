@@ -15,6 +15,8 @@ export interface V4RunConfig {
   enableChrome?: boolean;
   /** Whether to auto-commit after execution (default: false — let CLI decide) */
   autoCommit?: boolean;
+  /** Gap 1: Require user approval of the plan before execution begins */
+  requirePlanApproval?: boolean;
 }
 
 export interface V4PreFlightData {
@@ -110,4 +112,6 @@ export interface V4SessionResult {
   lastProgressPercentage: number;
   sessionId: string | null;
   error: string | null;
+  /** Gap 5: Memory entry queries tracked during session for outcome resolution */
+  memoryIdsQueried?: string[];
 }
