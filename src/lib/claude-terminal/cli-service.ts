@@ -152,6 +152,13 @@ export interface CLIExecution {
   hookSecret?: string;
 }
 
+// ── Resource protection ──
+// Max concurrent CLI processes to prevent resource exhaustion.
+// Each claude.cmd process consumes ~200-500MB RAM + CPU for streaming.
+const MAX_CONCURRENT_EXECUTIONS = 4;
+// Auto-cleanup completed executions after this many ms (5 minutes)
+const EXECUTION_CLEANUP_DELAY_MS = 5 * 60 * 1000;
+
 // Active executions map + event bus - use globalThis to persist across Next.js module reloads in dev mode
 const globalForExecutions = globalThis as unknown as {
   cliActiveExecutions: Map<string, CLIExecution> | undefined;
@@ -383,6 +390,23 @@ export function startExecution(
   providerConfig?: CLIProviderConfig,
   extraEnv?: Record<string, string>
 ): string {
+  // Resource protection: enforce global concurrency limit
+  const runningCount = Array.from(activeExecutions.values()).filter(e => e.status === 'running').length;
+  if (runningCount >= MAX_CONCURRENT_EXECUTIONS) {
+    throw new Error(
+      `CLI execution limit reached (${MAX_CONCURRENT_EXECUTIONS} concurrent). ` +
+      `Wait for a running task to complete or abort one before starting new executions.`
+    );
+  }
+
+  // Cleanup stale completed executions to prevent memory leak
+  const now = Date.now();
+  for (const [id, exec] of activeExecutions) {
+    if (exec.status !== 'running' && exec.endTime && (now - exec.endTime > EXECUTION_CLEANUP_DELAY_MS)) {
+      activeExecutions.delete(id);
+    }
+  }
+
   const provider = providerConfig?.provider || 'claude';
   const executionId = `exec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
