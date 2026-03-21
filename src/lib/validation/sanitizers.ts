@@ -92,7 +92,7 @@ export function sanitizeFilename(raw: string): string {
  */
 export function sanitizeId(raw: string, maxLength = 128): string {
   if (!raw || typeof raw !== 'string') return '';
-  return raw.replace(/[^a-zA-Z0-9\-]/g, '').slice(0, maxLength);
+  return raw.replace(/[^a-zA-Z0-9\-_]/g, '').slice(0, maxLength);
 }
 
 // ── Shell argument sanitization ─────────────────────────────────────
