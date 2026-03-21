@@ -9,7 +9,7 @@ import { logger } from '@/lib/logger';
  * 
  * Request body:
  * {
- *   provider?: 'gemini' | 'openai' | 'anthropic' (if omitted, resets all)
+ *   provider?: 'openai' | 'anthropic' | 'groq' (if omitted, resets all)
  *   action: 'reset' | 'open' | 'close' | 'status'
  * }
  * 

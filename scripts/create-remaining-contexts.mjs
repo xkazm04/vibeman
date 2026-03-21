@@ -671,7 +671,7 @@ Comprehensive LLM prompt engineering system providing context-aware, domain-orga
 Feature component needs AI generation → Imports prompt from \`src/prompts\` → Calls context gathering function → Rich context built (project, characters, scenes, etc.) → Context injected into prompt template → Prompt sent to LLM via \`/api/llm\` → LLM generates content → Content returned to feature → Feature displays or saves result
 
 ### Key Dependencies
-- External: OpenAI SDK, Anthropic SDK, Google Generative AI (Gemini), Ollama
+- External: OpenAI SDK, Anthropic SDK, Ollama
 - Internal: All feature modules use prompts, LLM API hooks
 
 ## Technical Details

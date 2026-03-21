@@ -609,6 +609,6 @@ curl -X POST http://localhost:3000/api/chat/completions \
 
 ---
 
-**Implementation by:** GitHub Copilot  
+**Implementation by:** AI Assistant  
 **Status:** ✅ Complete and Production Ready (Async Pipeline)  
 **Last Updated:** January 2025

@@ -7,7 +7,6 @@ function getConfiguredProviders(): Record<string, boolean> {
     ollama: true,
     openai: !!env.openaiApiKey(),
     anthropic: !!env.anthropicApiKey(),
-    gemini: !!env.geminiApiKey(),
     internal: !!env.internalApiBaseUrl()
   };
 }

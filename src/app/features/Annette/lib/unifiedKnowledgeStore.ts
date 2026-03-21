@@ -725,7 +725,7 @@ Only extract meaningful entities and relationships. If none found, return empty 
 
     try {
       const response = await generateWithLLM(prompt, {
-        provider: 'gemini',
+        provider: 'anthropic',
         temperature: 0.2,
         maxTokens: 1500,
       });
@@ -829,7 +829,7 @@ Question: ${question}
 Provide a clear, concise answer based only on the information in the knowledge graph. If the information is insufficient, say so.`;
 
     try {
-      const response = await generateWithLLM(prompt, { provider: 'gemini', temperature: 0.3, maxTokens: 500 });
+      const response = await generateWithLLM(prompt, { provider: 'anthropic', temperature: 0.3, maxTokens: 500 });
       return {
         answer: response.success && response.response ? response.response : 'Unable to generate an answer.',
         relevantNodes,
@@ -925,7 +925,7 @@ Respond in JSON format:
 Only extract truly important information worth remembering. If nothing important, return empty array.`;
 
     try {
-      const response = await generateWithLLM(prompt, { provider: 'gemini', temperature: 0.3, maxTokens: 1000 });
+      const response = await generateWithLLM(prompt, { provider: 'anthropic', temperature: 0.3, maxTokens: 1000 });
       if (!response.success || !response.response) return [];
 
       const parsed = safeParseLLMJson<{ memories?: Array<{ type?: string; content?: string; importance?: number }> }>(response.response);
@@ -979,7 +979,7 @@ Respond in JSON format:
 }`;
 
     try {
-      const response = await generateWithLLM(prompt, { provider: 'gemini', temperature: 0.3, maxTokens: 500 });
+      const response = await generateWithLLM(prompt, { provider: 'anthropic', temperature: 0.3, maxTokens: 500 });
       if (!response.success || !response.response) return null;
 
       const parsed = safeParseLLMJson<{ summary?: string; type?: string; importance?: number }>(response.response);

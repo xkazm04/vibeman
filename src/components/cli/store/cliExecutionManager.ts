@@ -26,7 +26,6 @@ import {
 } from '@/app/features/TaskRunner/lib/types';
 // Register strategies on import
 import '@/app/features/TaskRunner/lib/strategies/terminalStrategy';
-import '@/app/features/TaskRunner/lib/strategies/copilotSdkStrategy';
 import { registerTaskComplete } from '../taskRegistry';
 import { DAGScheduler, type DAGTask, type DAGTaskStatus } from '@/lib/dag/dagScheduler';
 
@@ -97,16 +96,12 @@ function queueToDAGTasks(queue: QueuedTask[]): DAGTask[] {
 
 /**
  * Get or create the execution strategy for a session.
- * Routes to 'copilot' strategy when session provider is 'copilot',
- * otherwise uses 'terminal' strategy (for claude/gemini).
+ * Uses 'terminal' strategy for all CLI providers (claude/ollama).
  */
 function getSessionStrategy(sessionId: CLISessionId): ExecutionStrategy {
   let strategy = sessionStrategies.get(sessionId);
   if (!strategy) {
-    const store = useCLISessionStore.getState();
-    const session = store.sessions[sessionId];
-    const strategyType = session?.provider === 'copilot' ? 'copilot' : 'terminal';
-    strategy = createStrategy(strategyType);
+    strategy = createStrategy('terminal');
     sessionStrategies.set(sessionId, strategy);
   }
   return strategy;

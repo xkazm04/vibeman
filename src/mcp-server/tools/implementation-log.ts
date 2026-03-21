@@ -52,10 +52,18 @@ export function registerImplementationLogTool(
           .string()
           .optional()
           .describe('Comma-separated list of patterns or techniques used (e.g., "repository pattern, LRU cache, debounce")'),
+        testResult: z
+          .enum(['passed', 'failed', 'skipped'])
+          .optional()
+          .describe('Result of testing this implementation: passed (tests/browser verified), failed (tests broke), skipped (could not test)'),
+        testDetails: z
+          .string()
+          .optional()
+          .describe('Details about testing: what was tested, what failed, or why testing was skipped'),
       }),
       annotations: { readOnlyHint: false },
     },
-    async ({ requirementName, title, overview, overviewBullets, category, patternsApplied }) => {
+    async ({ requirementName, title, overview, overviewBullets, category, patternsApplied, testResult, testDetails }) => {
       if (!config.projectId) {
         return {
           content: [
@@ -72,7 +80,12 @@ export function registerImplementationLogTool(
       const metadata: Record<string, unknown> = {};
       if (category) metadata.category = category;
       if (patternsApplied) metadata.patterns_applied = patternsApplied.split(',').map(s => s.trim()).filter(Boolean);
+      if (testResult) metadata.test_result = testResult;
+      if (testDetails) metadata.test_details = testDetails;
       const hasMetadata = Object.keys(metadata).length > 0;
+
+      // Set tested flag based on test result
+      const tested = testResult === 'passed';
 
       const result = await client.post<LogResponse>('/api/implementation-log', {
         projectId: config.projectId,
@@ -81,6 +94,7 @@ export function registerImplementationLogTool(
         title,
         overview,
         overviewBullets: overviewBullets || null,
+        tested,
         ...(hasMetadata ? { metadata } : {}),
       });
 

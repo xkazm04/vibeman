@@ -27,7 +27,7 @@ Focus analysis on major and minor updates. Patches can be listed but don't need 
 
 Group the outdated packages by their role in the app:
 - **Framework & Runtime**: next, react, react-dom, typescript
-- **AI & SDK**: @anthropic-ai/sdk, @anthropic-ai/claude-agent-sdk, @github/copilot-sdk, @modelcontextprotocol/sdk
+- **AI & SDK**: @anthropic-ai/sdk, @anthropic-ai/claude-agent-sdk, @modelcontextprotocol/sdk
 - **Data & State**: better-sqlite3, zustand, @tanstack/react-query, @supabase/supabase-js
 - **UI & Visualization**: @xyflow/react, recharts, framer-motion, lucide-react, @monaco-editor/react, @dnd-kit/*, @uiw/react-md-editor
 - **Cloud & Infrastructure**: @aws-sdk/*
@@ -45,7 +45,7 @@ For each package with a major or minor version bump:
 
 Cross-reference new package features with the app's architecture:
 - **Conductor Pipeline** (`src/app/features/Manager/lib/conductor/`): Could AI SDK updates improve the pipeline stages?
-- **CLI Sessions** (`src/lib/claude-terminal/`, `src/components/cli/`): New Copilot SDK or Claude SDK features?
+- **CLI Sessions** (`src/lib/claude-terminal/`, `src/components/cli/`): New Claude SDK features?
 - **Task Runner** (`src/app/features/TaskRunner/`): Better state management, UI improvements?
 - **Canvas/Flow** (`@xyflow/react`): New node types, interaction patterns?
 - **Observability** (`src/app/db/repositories/`): Better query patterns, perf improvements?

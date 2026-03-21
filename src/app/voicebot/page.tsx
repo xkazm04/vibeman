@@ -278,7 +278,7 @@ export default function VoicebotPage() {
                 </h3>
                 <p className="text-sm text-gray-400 font-mono">
                   {activeSolution === 'async'
-                    ? 'Voice input with multi-model LLM selection. Uses sequential API calls: Speech-to-Text (ElevenLabs) → LLM Processing (Ollama/OpenAI/Claude/Gemini) → Text-to-Speech (ElevenLabs).'
+                    ? 'Voice input with multi-model LLM selection. Uses sequential API calls: Speech-to-Text (ElevenLabs) → LLM Processing (Ollama/OpenAI/Claude) → Text-to-Speech (ElevenLabs).'
                     : activeSolution === 'websocket'
                     ? 'Uses POST endpoint for audio processing. WebSocket connection available for future real-time streaming features.'
                     : 'Automated conversation testing with predefined sentences. Switch between ElevenLabs (STT+LLM+TTS pipeline) and Nova Sonic (unified speech-to-speech) to compare.'
@@ -344,7 +344,7 @@ export default function VoicebotPage() {
                 </div>
                 <div className="flex items-start space-x-2">
                   <span className={colors.textDark}>3.</span>
-                  <span>Text → Multi-model LLM (Ollama/OpenAI/Claude/Gemini)</span>
+                  <span>Text → Multi-model LLM (Ollama/OpenAI/Claude)</span>
                 </div>
                 <div className="flex items-start space-x-2">
                   <span className={colors.textDark}>4.</span>

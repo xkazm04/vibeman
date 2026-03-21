@@ -11,21 +11,127 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wrench, AlertTriangle, CheckCircle2, Undo2, ChevronDown,
-  ShieldAlert, FileQuestion, Timer, Bug, Lock, Package, FileWarning, HelpCircle,
 } from 'lucide-react';
+import { NoErrorsIllustration } from './ConductorEmptyStates';
 import { useConductorStore } from '../lib/conductorStore';
 import type { ErrorType, HealingPatch, ErrorClassification } from '../lib/types';
 
-const ERROR_TYPE_CONFIG: Record<ErrorType, { icon: typeof Bug; label: string; color: string }> = {
-  prompt_ambiguity: { icon: FileQuestion, label: 'Prompt Ambiguity', color: 'amber' },
-  missing_context: { icon: FileWarning, label: 'Missing Context', color: 'orange' },
-  rate_limit: { icon: Timer, label: 'Rate Limit', color: 'yellow' },
-  tool_failure: { icon: Bug, label: 'Tool Failure', color: 'red' },
-  timeout: { icon: Timer, label: 'Timeout', color: 'purple' },
-  permission_error: { icon: Lock, label: 'Permission Error', color: 'red' },
-  dependency_missing: { icon: Package, label: 'Missing Dependency', color: 'amber' },
-  invalid_output: { icon: ShieldAlert, label: 'Invalid Output', color: 'pink' },
-  unknown: { icon: HelpCircle, label: 'Unknown', color: 'gray' },
+// Custom 16x16 SVG icons for error types with geometric-warning + circuit-trace motif
+type ErrorIconComponent = ({ className }: { className?: string }) => React.JSX.Element;
+
+function PromptAmbiguityIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" className={className}>
+      <rect x="2" y="2" width="12" height="12" rx="2" opacity="0.3" />
+      <path d="M6 6a2 2 0 1 1 2.5 1.94V9" />
+      <circle cx="8" cy="11" r="0.5" fill="currentColor" stroke="none" />
+      <path d="M2 5H1" strokeWidth="0.8" opacity="0.4" />
+    </svg>
+  );
+}
+
+function MissingContextIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" className={className}>
+      <rect x="3" y="1" width="10" height="14" rx="1.5" opacity="0.3" />
+      <path d="M6 5h4M6 8h2" opacity="0.5" />
+      <path d="M10 10l2 2M12 10l-2 2" strokeWidth="1.5" />
+      <path d="M14 8h1" strokeWidth="0.8" opacity="0.4" />
+    </svg>
+  );
+}
+
+function RateLimitIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" className={className}>
+      <circle cx="8" cy="8" r="6" opacity="0.3" />
+      <path d="M8 4v4l2.5 1.5" />
+      <path d="M12 3l1.5-1.5" strokeWidth="0.8" opacity="0.4" />
+    </svg>
+  );
+}
+
+function ToolFailureIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" className={className}>
+      <path d="M10 2 6 6l1.5 1.5-5.5 5.5 1 1 5.5-5.5L10 10l4-4" opacity="0.5" />
+      <path d="M12 6l2-2" />
+      <circle cx="13" cy="3" r="1" strokeWidth="0.8" fill="currentColor" opacity="0.4" />
+    </svg>
+  );
+}
+
+function TimeoutIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" className={className}>
+      <circle cx="8" cy="9" r="5.5" opacity="0.3" />
+      <path d="M6 2h4" />
+      <path d="M8 2v2" />
+      <path d="M8 9V6.5" strokeWidth="1.5" />
+      <path d="M8 9l2 1.5" strokeWidth="1" />
+    </svg>
+  );
+}
+
+function PermissionErrorIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" className={className}>
+      <rect x="4" y="7" width="8" height="7" rx="1.5" opacity="0.3" />
+      <path d="M6 7V5a2 2 0 0 1 4 0v2" />
+      <circle cx="8" cy="11" r="1" fill="currentColor" stroke="none" opacity="0.5" />
+      <path d="M1 8h2" strokeWidth="0.8" opacity="0.4" />
+    </svg>
+  );
+}
+
+function DependencyMissingIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" className={className}>
+      <rect x="3" y="3" width="10" height="10" rx="1.5" opacity="0.3" />
+      <path d="M6 8h4M8 6v4" strokeWidth="1.5" opacity="0.5" />
+      <path d="M3 6H1" strokeWidth="0.8" opacity="0.4" />
+      <path d="M15 10h-2" strokeWidth="0.8" opacity="0.4" />
+    </svg>
+  );
+}
+
+function InvalidOutputIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" className={className}>
+      <path d="M8 1.5 14.5 13H1.5Z" opacity="0.3" />
+      <path d="M8 6v3.5" strokeWidth="1.5" />
+      <circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function UnknownErrorIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" className={className}>
+      <circle cx="8" cy="8" r="6" opacity="0.3" />
+      <path d="M6 6a2 2 0 1 1 2.5 1.94V9.5" />
+      <circle cx="8" cy="12" r="0.5" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+// Full static class strings for Tailwind JIT compatibility (no dynamic interpolation)
+const ERROR_TYPE_CONFIG: Record<ErrorType, {
+  icon: ErrorIconComponent;
+  label: string;
+  iconClass: string;
+  textClass: string;
+  badgeBg: string;
+}> = {
+  prompt_ambiguity: { icon: PromptAmbiguityIcon, label: 'Prompt Ambiguity', iconClass: 'text-amber-400', textClass: 'text-amber-400', badgeBg: 'bg-amber-500/10' },
+  missing_context: { icon: MissingContextIcon, label: 'Missing Context', iconClass: 'text-orange-400', textClass: 'text-orange-400', badgeBg: 'bg-orange-500/10' },
+  rate_limit: { icon: RateLimitIcon, label: 'Rate Limit', iconClass: 'text-yellow-400', textClass: 'text-yellow-400', badgeBg: 'bg-yellow-500/10' },
+  tool_failure: { icon: ToolFailureIcon, label: 'Tool Failure', iconClass: 'text-red-400', textClass: 'text-red-400', badgeBg: 'bg-red-500/10' },
+  timeout: { icon: TimeoutIcon, label: 'Timeout', iconClass: 'text-purple-400', textClass: 'text-purple-400', badgeBg: 'bg-purple-500/10' },
+  permission_error: { icon: PermissionErrorIcon, label: 'Permission Error', iconClass: 'text-red-400', textClass: 'text-red-400', badgeBg: 'bg-red-500/10' },
+  dependency_missing: { icon: DependencyMissingIcon, label: 'Missing Dependency', iconClass: 'text-amber-400', textClass: 'text-amber-400', badgeBg: 'bg-amber-500/10' },
+  invalid_output: { icon: InvalidOutputIcon, label: 'Invalid Output', iconClass: 'text-pink-400', textClass: 'text-pink-400', badgeBg: 'bg-pink-500/10' },
+  unknown: { icon: UnknownErrorIcon, label: 'Unknown', iconClass: 'text-gray-400', textClass: 'text-gray-400', badgeBg: 'bg-gray-500/10' },
 };
 
 function ErrorSummaryRow({ classification }: { classification: ErrorClassification }) {
@@ -34,9 +140,9 @@ function ErrorSummaryRow({ classification }: { classification: ErrorClassificati
 
   return (
     <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-gray-800/30 hover:bg-gray-800/50 transition-colors">
-      <Icon className={`w-3.5 h-3.5 text-${config.color}-400 flex-shrink-0`} />
+      <Icon className={`w-3.5 h-3.5 ${config.iconClass} flex-shrink-0`} />
       <span className="text-caption text-gray-300 flex-1 truncate">{config.label}</span>
-      <span className={`text-2xs font-mono font-bold text-${config.color}-400 px-1.5 py-0.5 rounded bg-${config.color}-500/10`}>
+      <span className={`text-2xs font-mono font-bold ${config.textClass} px-1.5 py-0.5 rounded ${config.badgeBg}`}>
         x{classification.occurrenceCount}
       </span>
       <span className="text-2xs text-gray-500 capitalize">{classification.stage}</span>
@@ -221,7 +327,7 @@ export default function HealingPanel() {
         {/* Empty State */}
         {activeErrors.length === 0 && healingPatches.length === 0 && (
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <Wrench className="w-8 h-8 text-gray-700 mb-2" />
+            <NoErrorsIllustration className="w-28 h-16 mb-2" />
             <p className="text-xs text-gray-500">No errors detected yet</p>
             <p className="text-2xs text-gray-600 mt-1">
               Errors will appear here as the pipeline runs

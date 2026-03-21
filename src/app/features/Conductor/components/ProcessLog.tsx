@@ -14,6 +14,7 @@ import {
   Terminal, ChevronDown, AlertCircle,
   Play, CheckCircle, XCircle, SkipForward, Info, Activity,
 } from 'lucide-react';
+import { EmptyLogIllustration } from './ConductorEmptyStates';
 import type { ProcessLogEntry } from '../lib/types';
 
 interface ProcessLogProps {
@@ -179,7 +180,7 @@ export default function ProcessLog({ entries, isRunning }: ProcessLogProps) {
           <span className="text-sm font-medium text-gray-300">Process Log</span>
         </div>
         <div className="flex flex-col items-center justify-center py-10 text-center">
-          <Terminal className="w-8 h-8 text-gray-700 mb-2" />
+          <EmptyLogIllustration className="w-28 h-16 mb-2" />
           <p className="text-xs text-gray-500">Pipeline log will appear here when running</p>
           <p className="text-2xs text-gray-600 mt-1">
             Each stage transition is logged in real-time

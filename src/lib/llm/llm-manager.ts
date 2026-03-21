@@ -5,7 +5,6 @@ import { APIKeyStorage, ProviderConfigStorage, DefaultProviderStorage, DEFAULT_F
 import { getCircuitBreakerManager, initializeCircuitBreakerManager } from './circuitBreaker';
 import { OpenAIClient } from './providers/openai-client';
 import { AnthropicClient } from './providers/anthropic-client';
-import { GeminiClient } from './providers/gemini-client';
 import { OllamaClient } from './providers/ollama-client';
 import { InternalClient } from './providers/internal-client';
 import { GroqClient } from './providers/groq-client';
@@ -46,15 +45,6 @@ export class LLMManager {
         }));
       }
 
-      // Initialize Gemini client
-      const geminiApiKey = env.geminiApiKey();
-      if (geminiApiKey) {
-        this.providers.set('gemini', new GeminiClient({
-          apiKey: geminiApiKey,
-          baseUrl: env.geminiBaseUrl()
-        }));
-      }
-
       // Initialize Ollama client (always available)
       this.providers.set('ollama', new OllamaClient({
         baseUrl: env.ollamaBaseUrl()
@@ -88,12 +78,6 @@ export class LLMManager {
       this.providers.set('anthropic', new AnthropicClient({
         apiKey: anthropicConfig?.apiKey,
         baseUrl: anthropicConfig?.baseUrl
-      }));
-
-      const geminiConfig = APIKeyStorage.getAPIKey('gemini');
-      this.providers.set('gemini', new GeminiClient({
-        apiKey: geminiConfig?.apiKey,
-        baseUrl: geminiConfig?.baseUrl
       }));
 
       const ollamaConfig = ProviderConfigStorage.getProviderConfig('ollama');
@@ -229,8 +213,8 @@ export class LLMManager {
   async checkAllProvidersAvailability(): Promise<Record<SupportedProvider, boolean>> {
     const results: Record<SupportedProvider, boolean> = {} as Record<SupportedProvider, boolean>;
 
-    const providers: SupportedProvider[] = ['ollama', 'openai', 'anthropic', 'gemini', 'groq', 'internal'];
-    
+    const providers: SupportedProvider[] = ['ollama', 'openai', 'anthropic', 'groq', 'internal'];
+
     await Promise.all(
       providers.map(async (provider) => {
         results[provider] = await this.checkProviderAvailability(provider);
@@ -263,8 +247,8 @@ export class LLMManager {
   async getAllProviderModels(): Promise<Record<SupportedProvider, string[]>> {
     const results: Record<SupportedProvider, string[]> = {} as Record<SupportedProvider, string[]>;
 
-    const providers: SupportedProvider[] = ['ollama', 'openai', 'anthropic', 'gemini', 'groq', 'internal'];
-    
+    const providers: SupportedProvider[] = ['ollama', 'openai', 'anthropic', 'groq', 'internal'];
+
     await Promise.all(
       providers.map(async (provider) => {
         results[provider] = await this.getProviderModels(provider);
@@ -325,11 +309,10 @@ export class LLMManager {
       ollama: 'ministral-3:14b',
       openai: 'gpt-5.1',
       anthropic: 'claude-opus-4-5',
-      gemini: 'gemini-flash-latest',
       groq: 'qwen/qwen3-32b',
       internal: 'default'
     };
-    return defaultModels[provider] || defaultModels.gemini;
+    return defaultModels[provider] || defaultModels.anthropic;
   }
 
   /**

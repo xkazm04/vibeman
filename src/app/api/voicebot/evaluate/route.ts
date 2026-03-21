@@ -4,10 +4,10 @@ import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
-const EVAL_MODEL = 'gemini-3-flash-preview';
+const EVAL_MODEL = 'claude-haiku-4-5-20250929';
 
 /**
- * Evaluate conversation quality using Gemini 3 Flash
+ * Evaluate conversation quality using Claude Haiku
  */
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     const response = await llmManager.generate({
       prompt,
-      provider: 'gemini',
+      provider: 'anthropic',
       model: EVAL_MODEL,
       temperature: 0.7,
       maxTokens: 1024,

@@ -1,0 +1,53 @@
+[package]
+name = "vibeman"
+version = "0.1.0"
+description = "AI-powered development orchestration platform"
+authors = ["vibeman"]
+edition = "2021"
+
+[lib]
+name = "vibeman_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+walkdir = "2"
+notify = "7"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2"
+log = "0.4"
+env_logger = "0.11"
+regex-lite = "0.1"
+
+# Wave 1: Core runtime
+dashmap = "6"
+simd-json = "0.14"
+
+# Wave 2: Hooks HTTP server
+axum = { version = "0.8", features = ["tokio"] }
+
+# Wave 3: Conductor pipeline
+petgraph = "0.7"
+git2 = { version = "0.19", features = ["vendored-libgit2"] }
+
+# Wave 4: Brain computation
+ndarray = "0.16"
+ndarray-stats = "0.6"
+rayon = "1.10"
+futures = "0.3"
+
+# Wave 5: Ideas concurrent LLM
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

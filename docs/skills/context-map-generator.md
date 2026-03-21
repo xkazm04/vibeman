@@ -117,7 +117,7 @@ For truly shared utilities (used by 3+ features):
     {
       "id": "image-input-analysis",
       "title": "Image Input & Analysis",
-      "summary": "Upload reference images and get AI-powered visual analysis. Gemini Vision extracts format, content, and suggests dimensions.",
+      "summary": "Upload reference images and get AI-powered visual analysis. Extracts format, content, and suggests dimensions.",
       "filepaths": {
         "ui": ["components/BaseImageInput.tsx", "components/SmartBreakdown.tsx"],
         "logic": ["hooks/useImageGeneration.ts", "lib/simulatorAI.ts"],

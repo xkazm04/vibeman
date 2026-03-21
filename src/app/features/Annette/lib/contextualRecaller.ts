@@ -66,7 +66,7 @@ Respond in JSON format:
 
     try {
       const response = await generateWithLLM(prompt, {
-        provider: 'gemini',
+        provider: 'anthropic',
         temperature: 0.2,
         maxTokens: 500,
       });

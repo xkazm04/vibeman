@@ -85,5 +85,27 @@ async function handlePatch(
   }
 }
 
+async function handleDelete(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'Log ID is required' }, { status: 400 });
+    }
+
+    implementationLogRepository.deleteLog(id);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    logger.error('Error deleting implementation log:', { error });
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Failed to delete log' },
+      { status: 500 }
+    );
+  }
+}
+
 export const GET = withObservability(handleGet, '/api/implementation-logs/[id]');
 export const PATCH = withObservability(handlePatch, '/api/implementation-logs/[id]');
+export const DELETE = withObservability(handleDelete, '/api/implementation-logs/[id]');

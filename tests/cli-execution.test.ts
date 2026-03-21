@@ -201,80 +201,6 @@ async function testClaudeRequirementPrompt() {
   }
 }
 
-async function testGeminiSpawnQuoting() {
-  const name = 'Gemini: multi-word prompt (spawn quoting fix)';
-  const start = Date.now();
-
-  try {
-    const exec = await startExecution('Say hello and nothing else', 'gemini');
-    if (!exec.success) {
-      results.push({ name, passed: false, duration: Date.now() - start, details: `Start failed: ${exec.error}` });
-      return;
-    }
-
-    const stream = await collectSSEEvents(exec.streamUrl!, 20000);
-
-    const hasConnected = stream.events.some(e => e.type === 'connected');
-    // Gemini may fail with API key error, but should NOT fail with
-    // "Cannot use both a positional prompt and the --prompt (-p) flag together"
-    const errorEvent = stream.events.find(e => e.type === 'error');
-    const errorMsg = errorEvent?.data?.data?.error || errorEvent?.data?.data?.message || '';
-    const isSpawnError = errorMsg.includes('positional prompt') || errorMsg.includes('Cannot use both');
-    const isQuickExit = errorMsg.includes('failed to start') || errorMsg.includes('CLI not found');
-
-    // Pass if init was received OR if the error is about API key (not spawn quoting)
-    const hasInit = stream.events.some(e => {
-      const d = e.data;
-      return e.type === 'connected' && d?.data?.session_id;
-    });
-    const resultEvent = stream.events.find(e => e.type === 'result');
-    const resultData = resultEvent?.data;
-
-    const passed = hasConnected && !isSpawnError && !isQuickExit;
-    const details = [
-      `Events: ${stream.events.map(e => e.type).join(', ')}`,
-      errorMsg ? `Error: ${errorMsg.slice(0, 120)}` : '',
-      `Spawn quoting issue: ${isSpawnError ? 'YES (BUG!)' : 'No (fixed)'}`,
-      stream.error ? `Stream error: ${stream.error}` : '',
-    ].filter(Boolean).join(' | ');
-
-    results.push({ name, passed, duration: Date.now() - start, details });
-  } catch (e) {
-    results.push({ name, passed: false, duration: Date.now() - start, details: `Exception: ${e}` });
-  }
-}
-
-async function testGeminiModelParam() {
-  const name = 'Gemini: model parameter passed correctly';
-  const start = Date.now();
-
-  try {
-    const exec = await startExecution('Say hello', 'gemini', 'gemini-3.1-pro-preview');
-    if (!exec.success) {
-      results.push({ name, passed: false, duration: Date.now() - start, details: `Start failed: ${exec.error}` });
-      return;
-    }
-
-    const stream = await collectSSEEvents(exec.streamUrl!, 15000);
-    const hasConnected = stream.events.some(e => e.type === 'connected');
-
-    // Check that CLI didn't fail due to spawn/args issue
-    const errorEvent = stream.events.find(e => e.type === 'error');
-    const errorMsg = errorEvent?.data?.data?.error || errorEvent?.data?.data?.message || '';
-    const isArgError = errorMsg.includes('positional') || errorMsg.includes('Cannot use both');
-
-    const passed = hasConnected && !isArgError;
-    const details = [
-      `Events: ${stream.events.map(e => e.type).join(', ')}`,
-      errorMsg ? `Error: ${errorMsg.slice(0, 120)}` : '',
-    ].filter(Boolean).join(' | ');
-
-    results.push({ name, passed, duration: Date.now() - start, details });
-  } catch (e) {
-    results.push({ name, passed: false, duration: Date.now() - start, details: `Exception: ${e}` });
-  }
-}
-
 async function testAPIRouteExists() {
   const name = 'API: /api/ideas/update-implementation-status exists';
   const start = Date.now();
@@ -316,8 +242,6 @@ async function run() {
   await testAPIRouteExists();
   await testClaudeSimplePrompt();
   await testClaudeRequirementPrompt();
-  await testGeminiSpawnQuoting();
-  await testGeminiModelParam();
 
   // Print results
   console.log('\n─── Results ───\n');

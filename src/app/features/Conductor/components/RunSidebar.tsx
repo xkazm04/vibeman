@@ -12,6 +12,7 @@ import {
   Plus, Zap, Clock, Pause, Square,
   AlertTriangle, CheckCircle2, XCircle,
 } from 'lucide-react';
+import { LaunchpadIllustration } from './ConductorEmptyStates';
 import { useConductorStore } from '../lib/conductorStore';
 import type { PipelineStatus } from '../lib/types';
 
@@ -178,8 +179,9 @@ export default function RunSidebar({ onNewRun }: RunSidebarProps) {
         </AnimatePresence>
 
         {runList.length === 0 && (
-          <div className="text-center py-8 text-caption text-gray-600">
-            No active pipelines
+          <div className="flex flex-col items-center py-6 text-center">
+            <LaunchpadIllustration className="w-16 h-16 mb-1" />
+            <span className="text-caption text-gray-600">No active pipelines</span>
           </div>
         )}
       </div>

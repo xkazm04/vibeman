@@ -16,18 +16,6 @@ const PROVIDER_STYLES: Record<string, { color: string; borderColor: string; bgGr
     bgGradient: 'from-purple-500/5 to-purple-600/2',
     label: 'Claude',
   },
-  gemini: {
-    color: 'text-blue-400',
-    borderColor: 'border-blue-500/40',
-    bgGradient: 'from-blue-500/5 to-blue-600/2',
-    label: 'Gemini',
-  },
-  copilot: {
-    color: 'text-cyan-400',
-    borderColor: 'border-cyan-500/40',
-    bgGradient: 'from-cyan-500/5 to-cyan-600/2',
-    label: 'Copilot',
-  },
   ollama: {
     color: 'text-green-400',
     borderColor: 'border-green-500/40',

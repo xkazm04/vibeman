@@ -45,7 +45,7 @@ export interface SessionAssignment {
 
 interface TaskItem {
   type: 'single' | 'consolidated';
-  /** Lead requirement (used for project info, gemini check fallback) */
+  /** Lead requirement (used for project info, lightweight check fallback) */
   primaryReq: ProjectRequirement;
   /** All constituent requirements */
   allReqs: ProjectRequirement[];
@@ -69,7 +69,7 @@ function chunk<T>(arr: T[], maxSize: number): T[][] {
   return chunks;
 }
 
-function matchesGeminiRule(
+function matchesLightweightRule(
   req: ProjectRequirement,
   ideasMap: Record<string, DbIdea | null>,
   conditions: { effort: number; risk: number }
@@ -208,9 +208,9 @@ function taskItemToQueuedTask(
  * Algorithm:
  * 1. If consolidateBeforeAssign is enabled, group requirements by context_id
  *    and merge multi-requirement groups into phased consolidated tasks
- * 2. Partition task items into gemini bucket (low effort+risk) and default bucket
+ * 2. Partition task items into lightweight bucket (low effort+risk) and default bucket
  * 3. Chunk each bucket by maxTasksPerSession
- * 4. Assign chunks to free sessions (gemini bucket first, with provider override)
+ * 4. Assign chunks to free sessions (lightweight bucket first, with provider override)
  * 5. Remaining tasks (no free sessions) are left unassigned
  */
 export function autoAssignTasks(input: AutoAssignInput): SessionAssignment[] {
@@ -234,21 +234,21 @@ export function autoAssignTasks(input: AutoAssignInput): SessionAssignment[] {
     }));
   }
 
-  // Step 2: Partition into gemini / default buckets
-  const geminiBucket: TaskItem[] = [];
+  // Step 2: Partition into lightweight / default buckets
+  const lightweightBucket: TaskItem[] = [];
   const defaultBucket: TaskItem[] = [];
 
   for (const item of taskItems) {
     if (
-      config.geminiRule.enabled &&
-      config.geminiRule.conditions
+      config.lightweightRule.enabled &&
+      config.lightweightRule.conditions
     ) {
       // For consolidated items, ALL constituent reqs must match (conservative)
       const allMatch = item.allReqs.every(req =>
-        matchesGeminiRule(req, ideasMap, config.geminiRule.conditions!)
+        matchesLightweightRule(req, ideasMap, config.lightweightRule.conditions!)
       );
       if (allMatch) {
-        geminiBucket.push(item);
+        lightweightBucket.push(item);
         continue;
       }
     }
@@ -259,17 +259,17 @@ export function autoAssignTasks(input: AutoAssignInput): SessionAssignment[] {
   const assignments: SessionAssignment[] = [];
   let freeIndex = 0;
 
-  // Assign gemini bucket
-  if (geminiBucket.length > 0) {
-    const chunks = chunk(geminiBucket, config.maxTasksPerSession);
+  // Assign lightweight bucket
+  if (lightweightBucket.length > 0) {
+    const chunks = chunk(lightweightBucket, config.maxTasksPerSession);
     for (const ch of chunks) {
       if (freeIndex >= freeSessions.length) break;
       const sessionId = freeSessions[freeIndex++];
       assignments.push({
         sessionId,
         tasks: ch.map(item => taskItemToQueuedTask(item, getRequirementId)),
-        providerOverride: config.geminiRule.provider || undefined,
-        modelOverride: config.geminiRule.model,
+        providerOverride: config.lightweightRule.provider || undefined,
+        modelOverride: config.lightweightRule.model,
       });
     }
   }

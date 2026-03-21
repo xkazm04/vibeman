@@ -61,19 +61,19 @@ export async function POST(request: NextRequest) {
       response = result.response;
       model = result.model;
     } else {
-      // Simple pipeline — direct Gemini 3 Flash call via llmManager (no tools)
+      // Simple pipeline — direct Claude Haiku call via llmManager (no tools)
       const llmStart = Date.now();
       const result = await llmManager.generate({
         prompt: message,
-        provider: 'gemini',
-        model: 'gemini-3-flash-preview',
+        provider: 'anthropic',
+        model: 'claude-haiku-4-5-20250929',
         temperature: 0.7,
         maxTokens: 150,
         systemPrompt: 'You are a helpful AI assistant. Keep responses brief.',
       });
       llmMs = Date.now() - llmStart;
       response = result.response || 'No response generated';
-      model = result.model || 'gemini-3-flash-preview';
+      model = result.model || 'claude-haiku-4-5-20250929';
     }
 
     // Optionally run TTS and return audio for playback

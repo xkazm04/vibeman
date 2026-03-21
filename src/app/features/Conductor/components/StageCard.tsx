@@ -203,7 +203,7 @@ export default function StageCard({ stage, state, isCurrentStage, onClick }: Sta
   return (
     <motion.button
       onClick={onClick}
-      className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border transition-all min-w-[100px]
+      className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border transition-all min-w-[100px] overflow-hidden
         ${isActive
           ? `border-gray-600 ${colors.bg} shadow-lg ${colors.glow}`
           : isCompleted
@@ -320,6 +320,18 @@ export default function StageCard({ stage, state, isCurrentStage, onClick }: Sta
       {/* Pending indicator */}
       {isPending && !isCurrentStage && (
         <Clock className="w-3 h-3 text-gray-600 absolute top-2 right-2" />
+      )}
+
+      {/* Progress fill indicator (active stage only) */}
+      {isActive && (
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gray-800/50">
+          <div
+            className={`h-full ${colors.progressBar} transition-all duration-700`}
+            style={{
+              width: `${state.itemsIn > 0 ? Math.min(Math.round((state.itemsOut / state.itemsIn) * 100), 100) : 5}%`,
+            }}
+          />
+        </div>
       )}
     </motion.button>
   );

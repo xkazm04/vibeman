@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowLeft } from 'lucide-react';
 
@@ -31,6 +32,61 @@ function getDrawerSubtitle(target: DrillDownTarget): string {
 }
 
 export default function SignalDetailDrawer({ target, onClose, children }: SignalDetailDrawerProps) {
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const backButtonRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<Element | null>(null);
+
+  // Capture the element that had focus before drawer opened
+  useEffect(() => {
+    if (target) {
+      triggerRef.current = document.activeElement;
+    }
+  }, [target]);
+
+  // Auto-focus back button when drawer opens
+  useEffect(() => {
+    if (target && backButtonRef.current) {
+      backButtonRef.current.focus();
+    }
+  }, [target]);
+
+  // Return focus to trigger on close
+  const handleClose = useCallback(() => {
+    onClose();
+    requestAnimationFrame(() => {
+      if (triggerRef.current instanceof HTMLElement) {
+        triggerRef.current.focus();
+      }
+    });
+  }, [onClose]);
+
+  // Focus trap: cycle through focusable elements within the drawer
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      handleClose();
+      return;
+    }
+
+    if (e.key === 'Tab' && drawerRef.current) {
+      const focusable = drawerRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  }, [handleClose]);
+
   return (
     <AnimatePresence>
       {target && (
@@ -42,11 +98,16 @@ export default function SignalDetailDrawer({ target, onClose, children }: Signal
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
-            onClick={onClose}
+            onClick={handleClose}
           />
 
           {/* Drawer panel */}
           <motion.div
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={target ? getDrawerTitle(target) : undefined}
+            onKeyDown={handleKeyDown}
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -56,7 +117,8 @@ export default function SignalDetailDrawer({ target, onClose, children }: Signal
             {/* Header */}
             <div className="flex items-center gap-3 px-4 py-4 border-b border-zinc-800/50">
               <button
-                onClick={onClose}
+                ref={backButtonRef}
+                onClick={handleClose}
                 aria-label="Go back"
                 className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/50 transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/50 outline-none"
                 title="Back"
@@ -72,7 +134,7 @@ export default function SignalDetailDrawer({ target, onClose, children }: Signal
                 </p>
               </div>
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 aria-label="Close drawer"
                 className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/50 transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/50 outline-none"
                 title="Close"

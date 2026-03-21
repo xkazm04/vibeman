@@ -1,11 +1,11 @@
 {
-  "geminiRule": {
+  "lightweightRule": {
     "enabled": true,
     "conditions": {
       "effort": 1,
       "risk": 1
     },
-    "provider": "gemini",
+    "provider": "ollama",
     "model": null
   },
   "defaultRule": {

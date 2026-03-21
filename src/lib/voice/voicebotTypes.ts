@@ -92,7 +92,7 @@ export interface ConversationMessage {
 /**
  * LLM Provider types
  */
-export type LLMProvider = 'ollama' | 'openai' | 'anthropic' | 'gemini';
+export type LLMProvider = 'ollama' | 'openai' | 'anthropic';
 
 /**
  * Voice provider types for STT/TTS pipeline selection
@@ -131,8 +131,7 @@ export interface LLMModelConfig {
 export const DEFAULT_LLM_MODELS: Record<LLMProvider, string> = {
   ollama: 'ministral-3:14b',
   openai: 'gpt-5-mini-2025-08-07',
-  anthropic: 'claude-4-5-haiku-latest',
-  gemini: 'gemini-3-flash-preview'
+  anthropic: 'claude-4-5-haiku-latest'
 };
 
 /**
@@ -149,11 +148,6 @@ export const AVAILABLE_LLM_MODELS: Record<LLMProvider, Array<{ value: string; la
   anthropic: [
     { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku' },
     { value: 'claude-sonnet-4-5', label: 'Claude Sonnet' }
-  ],
-  gemini: [
-    { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash (Preview)' },
-    { value: 'gemini-flash-latest', label: 'Gemini Flash (Latest)' },
-    { value: 'gemini-flash-lite-latest', label: 'Gemini Flash Lite (Latest)' }
   ]
 };
 

@@ -140,16 +140,6 @@ export const env = {
     return read('OPENAI_BASE_URL');
   },
 
-  geminiApiKey: () => {
-    serverOnly('GEMINI_API_KEY');
-    return read('GEMINI_API_KEY');
-  },
-
-  geminiBaseUrl: () => {
-    serverOnly('GEMINI_BASE_URL');
-    return readOr('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta');
-  },
-
   groqApiKey: () => {
     serverOnly('GROQ_API_KEY');
     return read('GROQ_API_KEY');

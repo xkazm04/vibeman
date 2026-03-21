@@ -9,7 +9,8 @@
 
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Workflow, Sparkles, Target, ChevronDown } from 'lucide-react';
+import { Sparkles, Target, ChevronDown } from 'lucide-react';
+import { NoProjectIllustration } from './ConductorEmptyStates';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { toast } from '@/stores/messageStore';
 import { useConductorStore } from '../lib/conductorStore';
@@ -127,7 +128,7 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
   if (!effectiveProjectId) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center" data-testid="conductor-no-project">
-        <Workflow className="w-12 h-12 text-gray-700 mb-3" />
+        <NoProjectIllustration className="w-32 h-20 mb-3" />
         <p className="text-sm text-gray-400">Select a project to use the Conductor pipeline</p>
         <p className="text-xs text-gray-600 mt-1">
           The pipeline requires an active project context

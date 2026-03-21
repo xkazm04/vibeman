@@ -13,7 +13,7 @@ Conductor reliably and autonomously turns a high-level goal into committed, prod
 ### Validated
 
 - Goal management UI with CRUD operations — existing
-- Multi-provider CLI sessions (Claude, Gemini, Copilot, Ollama) with 4 concurrent slots — existing
+- Multi-provider CLI sessions (Claude, Ollama) with 4 concurrent slots — existing
 - SQLite persistence with migration system — existing
 - Zustand state management with persist middleware — existing
 - Brain module for pattern storage and retrieval — existing

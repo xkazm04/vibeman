@@ -11,7 +11,7 @@ const STORAGE_KEYS = {
 
 /** Server-side default fallback chain used by CircuitBreakerManager */
 export const DEFAULT_FALLBACK_CHAIN: SupportedProvider[] = [
-  'gemini', 'openai', 'anthropic', 'groq', 'ollama', 'internal'
+  'openai', 'anthropic', 'groq', 'ollama', 'internal'
 ];
 
 /**

@@ -11,7 +11,7 @@
 - Client-side state management via Zustand with persistence middleware for UI and selection state
 - Server-side SQLite database with better-sqlite3 driver abstraction layer supporting future driver swaps
 - API-first architecture: Client communicates with backend exclusively through `/api/` routes
-- Multi-provider LLM support: Claude, Gemini, Copilot, Ollama via unified `CLIProvider` routing
+- Multi-provider LLM support: Claude, Ollama via unified `CLIProvider` routing
 - Self-healing pipeline: Error classification and automated prompt patching for autonomous development
 
 ## Layers
@@ -115,7 +115,7 @@
 2. Task queued to Supabase `vibeman_requirements` table
 3. `/api/external-requirements/process` polls for new requirements
 4. Pipeline stages: analyze → execute → cleanup
-5. Execution occurs in CLI session (Claude, Gemini, Copilot, Ollama)
+5. Execution occurs in CLI session (Claude, Ollama)
 6. Results synced back to database and UI via polling
 
 **State Management & Persistence:**
@@ -180,7 +180,7 @@
 **CLI Providers:**
 - Location: `src/lib/claude-terminal/` for session management
 - Triggers: User initiates terminal/autonomous operation
-- Responsibilities: Route requests to appropriate provider (Claude, Gemini, Copilot, Ollama), manage 4 concurrent sessions
+- Responsibilities: Route requests to appropriate provider (Claude, Ollama), manage 4 concurrent sessions
 
 ## Error Handling
 

@@ -30,11 +30,12 @@ interface ToolbarAction {
 
 export default function ProjectToolbar() {
   // Use session coordinator for cascading project changes
-  const { activeProject } = useApplicationSession();
+  const { activeProject: sessionProject } = useApplicationSession();
   const { switchProject } = useSessionActions();
-  
-  // Fallback to old store for now (will be fully replaced once coordinator is integrated everywhere)
-  const { setActiveProject } = useClientProjectStore();
+
+  // Fallback to old store when session coordinator hasn't been initialized yet
+  const { activeProject: clientProject, setActiveProject } = useClientProjectStore();
+  const activeProject = sessionProject || clientProject;
   const { syncWithServer, getAllProjects } = useServerProjectStore();
   const {
     setShowAddProject,

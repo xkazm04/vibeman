@@ -196,7 +196,7 @@ export interface DbIdea {
   risk: number | null; // 1-10 scale: 1 = very safe, 10 = critical risk
   requirement_id: string | null; // Claude Code requirement file name
   goal_id: string | null; // Related goal (foreign key to goals table)
-  provider: string | null; // CLI provider that generated this idea (claude, gemini, copilot, ollama)
+  provider: string | null; // CLI provider that generated this idea (claude, ollama)
   model: string | null; // Model used to generate this idea
   detailed: number; // Boolean flag (0 or 1) — includes implementation procedure steps
   created_at: string;

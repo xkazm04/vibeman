@@ -7,7 +7,7 @@ const OPENAI_API_KEY = env.openaiApiKey();
 
 export const dynamic = 'force-dynamic';
 
-const LLM_MODEL = 'gemini-3-flash-preview';
+const LLM_MODEL = 'claude-haiku-4-5-20250929';
 
 // This endpoint handles audio-to-text conversion and gets AI response
 export async function POST(request: NextRequest) {
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     const userText = transcription.text;
     const sttMs = Date.now() - startStt;
 
-    // Step 2: Get AI response using Gemini 3 Flash
+    // Step 2: Get AI response using Claude Haiku
     const startLlm = Date.now();
 
     const historyPrompt = conversationHistory
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     const llmResponse = await llmManager.generate({
       prompt: fullPrompt,
-      provider: 'gemini',
+      provider: 'anthropic',
       model: LLM_MODEL,
       temperature: 0.7,
       maxTokens: 150,

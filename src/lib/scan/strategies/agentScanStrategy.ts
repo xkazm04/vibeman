@@ -26,7 +26,7 @@ export class AgentScanStrategy extends BaseScanStrategy {
     if (!config.scanType) {
       throw new Error('Agent scan requires scanType (e.g., "zen_architect", "bug_hunter")');
     }
-    if (!config.provider && !env.anthropicApiKey() && !env.geminiApiKey()) {
+    if (!config.provider && !env.anthropicApiKey()) {
       throw new Error('No LLM provider configured for agent scanning');
     }
   }

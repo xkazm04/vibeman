@@ -192,7 +192,7 @@ export type BatchRequirementAnalysisResponse = z.infer<typeof BatchRequirementAn
 export type AIProcessingStatus = 'idle' | 'processing' | 'success' | 'error';
 
 // AI Provider type
-export type AIProvider = 'gemini' | 'claude';
+export type AIProvider = 'claude' | 'openai';
 
 // AI Processing state
 export interface AIProcessingState {

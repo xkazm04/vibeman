@@ -25,7 +25,7 @@ export const managerTools = {
       projectId: params.projectId,
       projectPath: params.projectPath,
       description: params.description,
-      provider: 'gemini', // Or use Annette's preferred provider
+      provider: 'anthropic', // Or use Annette's preferred provider
       title: params.description.split('\n')[0].substring(0, 50),
     });
 
@@ -78,7 +78,7 @@ export const managerTools = {
 
     const plan = await generateImplementationPlan(
       params.description,
-      'gemini',
+      'anthropic',
       {
         contextId: params.contextId,
         projectId: params.projectId,

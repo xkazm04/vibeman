@@ -14,23 +14,23 @@ export interface AutoAssignRuleConditions {
 
 export interface AutoAssignRule {
   enabled: boolean;
-  conditions?: AutoAssignRuleConditions; // Only for conditional rules like gemini
+  conditions?: AutoAssignRuleConditions; // Only for conditional rules like lightweight
   provider: CLIProvider | null;          // null = don't change provider
   model: CLIModel | null;               // null = use provider default
 }
 
 export interface AutoAssignConfig {
-  geminiRule: AutoAssignRule;
+  lightweightRule: AutoAssignRule;
   defaultRule: AutoAssignRule;
   maxTasksPerSession: number;
   consolidateBeforeAssign: boolean;
 }
 
 export const DEFAULT_AUTO_ASSIGN_CONFIG: AutoAssignConfig = {
-  geminiRule: {
+  lightweightRule: {
     enabled: true,
     conditions: { effort: 1, risk: 1 },
-    provider: 'gemini',
+    provider: 'ollama',
     model: null,
   },
   defaultRule: {

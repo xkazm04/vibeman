@@ -2111,7 +2111,7 @@ function migrateLifecycleTables() {
         watch_patterns TEXT NOT NULL DEFAULT '["src/**/*.ts","src/**/*.tsx"]',
         ignore_patterns TEXT NOT NULL DEFAULT '["node_modules/**"]',
         scan_types TEXT NOT NULL DEFAULT '["bug_hunter","security_protector","perf_optimizer"]',
-        provider TEXT NOT NULL DEFAULT 'gemini',
+        provider TEXT NOT NULL DEFAULT 'anthropic',
         max_concurrent_scans INTEGER NOT NULL DEFAULT 1,
         auto_resolve INTEGER NOT NULL DEFAULT 0,
         max_auto_implementations INTEGER NOT NULL DEFAULT 3,

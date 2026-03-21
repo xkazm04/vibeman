@@ -70,9 +70,6 @@ const LOG_ITEM_HEIGHT = 24; // px - matches py-0.5 + text-xs line height
 const ANIMATED_LOG_COUNT = 5; // Number of recent logs to animate
 const VIRTUALIZATION_THRESHOLD = 50; // Start virtualizing after this many logs
 
-// Copilot SDK API routes (server-side execution)
-const COPILOT_SDK_BASE = '/api/copilot-sdk';
-
 // Get icon for log type - uses static maps for O(1) lookup
 const getLogIcon = (type: LogEntry['type'], toolName?: string) => {
   // For tool_use, check tool-specific icons first
@@ -380,7 +377,6 @@ export function CompactTerminal({
     // Only attempt reconnection once per mount
     if (hasAttemptedReconnectRef.current) return;
     if (!currentExecutionId || isStreaming) return;
-    // Copilot SDK has server-side state; reconnection is supported
 
     hasAttemptedReconnectRef.current = true;
 
@@ -524,17 +520,11 @@ export function CompactTerminal({
     });
 
     try {
-      // Route to Copilot SDK or cli-service based on provider
-      const isCopilot = provider === 'copilot';
-      const executeUrl = isCopilot
-        ? `${COPILOT_SDK_BASE}/execute`
-        : '/api/claude-terminal/query';
+      const executeUrl = '/api/claude-terminal/query';
       // Only use worktree isolation when there's a single task (worktree sessions can't be resumed for chaining)
       const hasMultipleTasks = taskQueue.filter(t => t.status.type === 'queued' || t.status.type === 'running').length > 1;
       const useWorktree = provider === 'claude' && !resumeSession && !hasMultipleTasks ? true : undefined;
-      const executeBody = isCopilot
-        ? { projectPath: task.projectPath, prompt: taskPrompt, model: model || undefined }
-        : { projectPath: task.projectPath, prompt: taskPrompt, resumeSessionId: resumeSession ? sessionId : undefined, provider, model: model || undefined, useWorktree };
+      const executeBody = { projectPath: task.projectPath, prompt: taskPrompt, resumeSessionId: resumeSession ? sessionId : undefined, provider, model: model || undefined, useWorktree };
 
       const response = await fetch(executeUrl, {
         method: 'POST',
@@ -568,9 +558,7 @@ export function CompactTerminal({
 
       connectToStream(streamUrl);
     } catch (e) {
-      const errorMsg = provider === 'copilot'
-        ? 'Copilot SDK execution failed. Check that GitHub authentication is configured (GITHUB_TOKEN or GH_TOKEN environment variable).'
-        : e instanceof Error ? e.message : 'Failed to start task';
+      const errorMsg = e instanceof Error ? e.message : 'Failed to start task';
       setError(errorMsg);
       setIsStreaming(false);
       // Register failure with server
@@ -729,14 +717,8 @@ export function CompactTerminal({
     });
 
     try {
-      // Route to Copilot SDK or cli-service based on provider
-      const isCopilot = provider === 'copilot';
-      const executeUrl = isCopilot
-        ? `${COPILOT_SDK_BASE}/execute`
-        : '/api/claude-terminal/query';
-      const executeBody = isCopilot
-        ? { projectPath, prompt, model: model || undefined }
-        : { projectPath, prompt, resumeSessionId: resumeSession ? sessionId : undefined, provider, model: model || undefined };
+      const executeUrl = '/api/claude-terminal/query';
+      const executeBody = { projectPath, prompt, resumeSessionId: resumeSession ? sessionId : undefined, provider, model: model || undefined };
 
       const response = await fetch(executeUrl, {
         method: 'POST',
@@ -754,9 +736,7 @@ export function CompactTerminal({
       const { streamUrl } = await response.json();
       connectToStream(streamUrl);
     } catch (e) {
-      const errorMsg = provider === 'copilot'
-        ? 'Copilot SDK execution failed. Check that GitHub authentication is configured (GITHUB_TOKEN or GH_TOKEN environment variable).'
-        : e instanceof Error ? e.message : 'Failed to start';
+      const errorMsg = e instanceof Error ? e.message : 'Failed to start';
       setError(errorMsg);
       setIsStreaming(false);
     }

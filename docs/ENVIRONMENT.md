@@ -25,8 +25,6 @@ Next.js automatically loads `.env.local` (highest priority), `.env.development`,
 | `ANTHROPIC_BASE_URL` | No | — | Custom Anthropic endpoint |
 | `OPENAI_API_KEY` | No | — | OpenAI API key |
 | `OPENAI_BASE_URL` | No | — | Custom OpenAI endpoint |
-| `GEMINI_API_KEY` | No | — | Google Gemini API key |
-| `GEMINI_BASE_URL` | No | `https://generativelanguage.googleapis.com/v1beta` | Gemini endpoint |
 | `GROQ_API_KEY` | No | — | Groq API key |
 | `GROQ_BASE_URL` | No | — | Custom Groq endpoint |
 | `OLLAMA_BASE_URL` | No | `http://localhost:11434` | Local Ollama server URL |

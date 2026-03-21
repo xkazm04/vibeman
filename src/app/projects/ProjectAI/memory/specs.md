@@ -115,7 +115,7 @@ Evaluate this system's accumulated knowledge with brutal honesty to answer:
    - What insights emerge that are NOT easily obtainable through:
      * Manual code reviews
      * Standard static analysis tools (ESLint, SonarQube, etc.)
-     * Generic AI coding assistants (GitHub Copilot, Cursor, etc.)
+     * Generic AI coding assistants (Cursor, etc.)
    - What proprietary knowledge has been accumulated through the accept/reject patterns?
 
 2. **MARKET DIFFERENTIATION**
@@ -819,7 +819,7 @@ In addition to the previous analysis, now evaluate:
     | Solution Type | Examples | Time to Value | Cost | What They Do Well | What They Miss | Our Differentiation |
     |---------------|----------|---------------|------|-------------------|----------------|---------------------|
     | Static Analysis | ESLint, SonarQube, CodeClimate | Immediate | Free-$$ | Code quality, security | Context-blind, no learning | ? |
-    | AI Code Assistants | GitHub Copilot, Cursor, Cody | Immediate | $$-$$$ | Code generation, autocomplete | No project memory, no learning | ? |
+    | AI Code Assistants | Cursor, Cody | Immediate | $$-$$$ | Code generation, autocomplete | No project memory, no learning | ? |
     | Code Review Tools | Reviewable, Codacy, Pull Panda | Per PR | $-$$ | Human-style review | Manual, no automation | ? |
     | Performance Monitoring | New Relic, DataDog, Sentry | Ongoing | $$$-$$$$ | Production insights | Reactive, not preventive | ? |
     | Architecture Analysis | Structure101, Lattix | Per analysis | $$$ | Deep arch insights | Not actionable, complex | ? |
