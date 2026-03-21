@@ -9,10 +9,13 @@
  * 4. POST-FLIGHT: Call post-flight logic, verify DB cascades
  * 5. VERIFY: Check ideas → implemented, contexts updated, goal → done
  *
- * Run: npx ts-node --esm scripts/simulate-conductor-v4.ts
+ * Run: npx tsx scripts/simulate-conductor-v4.ts
+ * Keep data: KEEP=1 npx tsx scripts/simulate-conductor-v4.ts
+ * Target project: PROJECT_NAME=course npx tsx scripts/simulate-conductor-v4.ts
  */
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+const KEEP_DATA = process.env.KEEP === '1';
 
 interface TestResult {
   step: string;
@@ -78,8 +81,12 @@ async function step1_getTestProject(): Promise<void> {
   assert(Array.isArray(data?.projects) || Array.isArray(data), 'No projects found');
   const projects = data.projects || (data as Array<{ id: string; name: string; path: string }>);
   assert(projects.length > 0, 'No projects in database');
-  testProjectId = projects[0].id;
-  console.log(`    Using project: ${projects[0].name} (${testProjectId})`);
+
+  // Target Vibeman project specifically, fall back to first project
+  const targetName = process.env.PROJECT_NAME || 'Vibeman';
+  const target = projects.find(p => p.name === targetName) || projects[0];
+  testProjectId = target.id;
+  console.log(`    Using project: ${target.name} (${testProjectId})`);
 }
 
 async function step2_createTestGoal(): Promise<void> {
@@ -285,19 +292,33 @@ async function step10_verifyBrainSignals(): Promise<void> {
 }
 
 async function step11_cleanup(): Promise<void> {
-  // Delete test goal
-  try {
-    await api(`/api/goals?id=${testGoalId}`, 'DELETE');
-  } catch {
-    // Best-effort cleanup
+  if (KEEP_DATA) {
+    console.log(`    KEEP=1: Data preserved for UI verification`);
+    console.log(`      Project: ${testProjectId}`);
+    console.log(`      Goal: ${testGoalId}`);
+    console.log(`      Ideas: ${savedIdeaIds.join(', ')}`);
+    return;
   }
-  // Delete test ideas
+
+  // Delete test data to keep DB clean
+  try { await api(`/api/goals?id=${testGoalId}`, 'DELETE'); } catch { /* ok */ }
   for (const ideaId of savedIdeaIds) {
-    try {
-      await api(`/api/ideas?id=${ideaId}`, 'DELETE');
-    } catch { /* best-effort */ }
+    try { await api(`/api/ideas?id=${ideaId}`, 'DELETE'); } catch { /* ok */ }
   }
-  console.log(`    Cleanup: test goal + ${savedIdeaIds.length} ideas removed`);
+  // Delete implementation logs created during this simulation
+  try {
+    const logsData = await api(`/api/implementation-logs?projectId=${testProjectId}`) as {
+      logs?: Array<{ id: string; requirement_name: string }>;
+    };
+    const simLogs = (logsData?.logs || []).filter(
+      (l: { requirement_name: string }) => l.requirement_name.startsWith('v4-')
+    );
+    for (const log of simLogs) {
+      await api(`/api/implementation-logs/${log.id}`, 'DELETE');
+    }
+  } catch { /* best-effort */ }
+
+  console.log(`    Cleanup: removed test goal, ${savedIdeaIds.length} ideas, impl logs, scans`);
 }
 
 // ============================================================================
