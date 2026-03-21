@@ -25,7 +25,7 @@ export interface ExecuteClaudeArgs {
   from_pr?: string;
   /** Item 16: JSON schema for structured output */
   json_schema?: string;
-  /** Item 18: Effort level (low|medium|high|max), default: medium */
+  /** Item 18: Effort level (low|medium|high|max). Only set when explicitly needed — omit to let CLI use its own default for best quality */
   effort?: 'low' | 'medium' | 'high' | 'max';
   /** Item 4: Use CLI-native worktree isolation */
   use_worktree?: boolean;

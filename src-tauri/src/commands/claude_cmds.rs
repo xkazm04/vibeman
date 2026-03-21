@@ -294,10 +294,13 @@ fn build_cli_command(args: &ExecuteClaudeArgs) -> (String, Vec<String>) {
                 cli_args.push(schema.clone());
             }
 
-            // Item 18: Effort level (CLI v2.1.78+), default: medium
-            let effort = args.effort.as_deref().unwrap_or("medium");
-            cli_args.push("--effort".to_string());
-            cli_args.push(effort.to_string());
+            // Item 18: Effort level (CLI v2.1.78+)
+            // Only passed when explicitly set — no default, let CLI use its own default
+            // to avoid constraining quality
+            if let Some(ref effort) = args.effort {
+                cli_args.push("--effort".to_string());
+                cli_args.push(effort.clone());
+            }
 
             // Item 4: CLI-native worktree isolation (CLI v2.1.49+)
             if args.use_worktree.unwrap_or(false) {
@@ -311,6 +314,8 @@ fn build_cli_command(args: &ExecuteClaudeArgs) -> (String, Vec<String>) {
             }
 
             // Max turns (CLI v2.1.21+)
+            // Only passed when explicitly set — no default limit,
+            // let the CLI run as many turns as needed for quality
             if let Some(turns) = args.max_turns {
                 cli_args.push("--max-turns".to_string());
                 cli_args.push(turns.to_string());
