@@ -14,6 +14,7 @@ import {
   Lightbulb, Zap, Wrench, Trash2, FileText,
 } from 'lucide-react';
 import { useConductorStore } from '../lib/conductorStore';
+import { PIPELINE_STATUS_COLORS } from '../lib/stageTheme';
 import type { PipelineRunSummary, PipelineStatus } from '../lib/types';
 
 function formatDuration(ms: number): string {
@@ -35,21 +36,20 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-// Full static class strings for Tailwind JIT compatibility (no dynamic interpolation)
-const STATUS_STYLES: Record<PipelineStatus, { icon: typeof CheckCircle2; iconClass: string }> = {
-  completed: { icon: CheckCircle2, iconClass: 'text-emerald-400' },
-  failed: { icon: XCircle, iconClass: 'text-red-400' },
-  idle: { icon: Clock, iconClass: 'text-gray-400' },
-  running: { icon: Zap, iconClass: 'text-cyan-400' },
-  paused: { icon: Clock, iconClass: 'text-amber-400' },
-  stopping: { icon: Clock, iconClass: 'text-red-400' },
-  interrupted: { icon: XCircle, iconClass: 'text-amber-400' },
-  queued: { icon: Clock, iconClass: 'text-indigo-400' },
+const STATUS_ICONS: Record<PipelineStatus, typeof CheckCircle2> = {
+  completed: CheckCircle2,
+  failed: XCircle,
+  idle: Clock,
+  running: Zap,
+  paused: Clock,
+  stopping: Clock,
+  interrupted: XCircle,
+  queued: Clock,
 };
 
 function RunSummaryCard({ run, onViewReport }: { run: PipelineRunSummary; onViewReport?: (runId: string) => void }) {
-  const statusConfig = STATUS_STYLES[run.status];
-  const StatusIcon = statusConfig.icon;
+  const colors = PIPELINE_STATUS_COLORS[run.status];
+  const StatusIcon = STATUS_ICONS[run.status];
   const successRate = run.metrics.tasksCompleted + run.metrics.tasksFailed > 0
     ? Math.round((run.metrics.tasksCompleted / (run.metrics.tasksCompleted + run.metrics.tasksFailed)) * 100)
     : 0;
@@ -67,7 +67,7 @@ function RunSummaryCard({ run, onViewReport }: { run: PipelineRunSummary; onView
       title={isTerminal && onViewReport ? 'Click to view report' : undefined}
     >
       {/* Status icon */}
-      <StatusIcon className={`w-4 h-4 ${statusConfig.iconClass} flex-shrink-0`} />
+      <StatusIcon className={`w-4 h-4 ${colors.iconClass} flex-shrink-0`} />
 
       {/* Date */}
       <span className="text-caption text-gray-400 w-16 flex-shrink-0">
@@ -138,7 +138,7 @@ export default function RunHistoryTimeline({ onViewReport }: { onViewReport?: (r
         className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-gray-800/30 transition-colors"
       >
         <History className="w-4 h-4 text-gray-400" />
-        <span className="text-sm font-medium text-gray-300 flex-1 text-left">
+        <span className="text-base font-semibold tracking-wide text-gray-300 flex-1 text-left">
           Run History
         </span>
         <span className="text-2xs font-mono text-gray-500">

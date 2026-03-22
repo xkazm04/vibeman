@@ -2,6 +2,9 @@
 
 import { useState, useMemo } from 'react';
 import { ChevronRight, ChevronDown, FolderOpen, Folder, FileText } from 'lucide-react';
+import BrainEmptyState from '../../components/BrainEmptyState';
+import KBSidebarEmptySvg from './KBSidebarEmptySvg';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import type { KBTree, TreeSelection } from '../lib/useKnowledgeBase';
 import { KNOWLEDGE_LAYER_LABELS, KNOWLEDGE_CATEGORY_LABELS } from '@/app/db/models/knowledge.types';
 import type { KnowledgeLayer, KnowledgeCategory, KnowledgeLanguage } from '@/app/db/models/knowledge.types';
@@ -14,6 +17,7 @@ interface KBTreeSidebarProps {
 
 export default function KBTreeSidebar({ tree, selection, onSelect }: KBTreeSidebarProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const prefersReduced = useReducedMotion();
 
   const languages = useMemo(() => {
     if (!tree) return [];
@@ -74,9 +78,8 @@ export default function KBTreeSidebar({ tree, selection, onSelect }: KBTreeSideb
   const totalEntries = languages.reduce((sum, l) => sum + l.total, 0);
 
   return (
-    <div className="w-56 flex-shrink-0 overflow-y-auto border-r border-zinc-800/50 bg-zinc-950/30">
-      <div className="p-3">
-        <h3 className="text-2xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Browse</h3>
+    <div className="p-3 bg-zinc-950/30">
+      <h3 className="text-2xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Browse</h3>
 
         {/* All entries root */}
         <button
@@ -192,9 +195,14 @@ export default function KBTreeSidebar({ tree, selection, onSelect }: KBTreeSideb
         })}
 
         {languages.length === 0 && (
-          <p className="text-2xs text-zinc-600 px-2 py-4">No entries yet</p>
+          <div className="py-6 flex justify-center px-2">
+            <BrainEmptyState
+              icon={<KBSidebarEmptySvg reducedMotion={prefersReduced} />}
+              title="No entries yet"
+              description="Run /identify-patterns or click + add."
+            />
+          </div>
         )}
-      </div>
     </div>
   );
 }

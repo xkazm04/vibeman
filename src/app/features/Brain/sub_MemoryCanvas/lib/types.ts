@@ -44,6 +44,8 @@ export interface Group {
 export interface UndoEntry {
   event: BrainEvent;
   timeout: ReturnType<typeof setTimeout>;
+  /** The group the event belonged to at time of deletion (avoids stale-closure restore). */
+  groupId: string | null;
 }
 
 export interface FilterState {

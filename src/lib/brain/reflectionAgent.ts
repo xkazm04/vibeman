@@ -69,6 +69,9 @@ export const reflectionAgent = {
     projectId: string,
     config = DEFAULT_REFLECTION_CONFIG
   ): { shouldTrigger: boolean; reason: string } => {
+    // Auto-recover stuck running reflections before checking
+    brainReflectionDb.recoverStuckRunning();
+
     // Check minimum gap
     if (!brainReflectionDb.canReflect(projectId, config.minGapHours)) {
       return {
@@ -132,6 +135,9 @@ export const reflectionAgent = {
    * Get current reflection status for a project
    */
   getStatus: (projectId: string) => {
+    // Auto-recover stuck running reflections before reporting status
+    brainReflectionDb.recoverStuckRunning();
+
     const running = brainReflectionDb.getRunning(projectId);
     const lastCompleted = brainReflectionDb.getLatestCompleted(projectId);
     const stats = brainReflectionDb.getStats(projectId);
@@ -242,6 +248,9 @@ export const reflectionAgent = {
     projects: Array<{ id: string }>,
     config = DEFAULT_GLOBAL_REFLECTION_CONFIG
   ): { shouldTrigger: boolean; reason: string } => {
+    // Auto-recover stuck running reflections before checking
+    brainReflectionDb.recoverStuckRunning();
+
     // Check if a global reflection is already running
     const running = brainReflectionDb.getRunningGlobal();
     if (running) {
@@ -285,6 +294,9 @@ export const reflectionAgent = {
    * Get global reflection status
    */
   getGlobalStatus: () => {
+    // Auto-recover stuck running reflections before reporting status
+    brainReflectionDb.recoverStuckRunning();
+
     const running = brainReflectionDb.getRunningGlobal();
     const lastCompleted = brainReflectionDb.getLatestCompletedGlobal();
 

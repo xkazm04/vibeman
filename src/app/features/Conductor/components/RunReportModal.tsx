@@ -10,8 +10,84 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   FileText, Star, Download, MessageSquare,
-  Wand2, Loader2,
+  Wand2,
 } from 'lucide-react';
+
+function ReportLoadingSpinner({ className }: { className?: string }) {
+  const prefersReduced = typeof window !== 'undefined'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (prefersReduced) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+        <rect x="5" y="2" width="14" height="20" rx="2" opacity="0.3" />
+        <path d="M9 8h6M9 12h6M9 16h4" opacity="0.5">
+          <animate attributeName="opacity" values="0.5;0.2;0.5" dur="1.5s" repeatCount="indefinite" />
+        </path>
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+      <defs>
+        <linearGradient id="scan-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#22d3ee" />
+          <stop offset="100%" stopColor="#a78bfa" />
+        </linearGradient>
+      </defs>
+      {/* Document outline with pulse */}
+      <rect x="5" y="2" width="14" height="20" rx="2" opacity="0.3" />
+      {/* Text lines */}
+      <path d="M9 8h6" opacity="0.4" />
+      <path d="M9 12h6" opacity="0.4" />
+      <path d="M9 16h4" opacity="0.4" />
+      {/* Scanning line with gradient */}
+      <line x1="5" y1="2" x2="19" y2="2" stroke="url(#scan-grad)" strokeWidth="2" opacity="0.9">
+        <animate attributeName="y1" values="2;22;2" dur="1.6s" repeatCount="indefinite" />
+        <animate attributeName="y2" values="2;22;2" dur="1.6s" repeatCount="indefinite" />
+      </line>
+      {/* Scan glow band */}
+      <rect x="5" y="2" width="14" height="3" fill="url(#scan-grad)" opacity="0.12" rx="1">
+        <animate attributeName="y" values="2;19;2" dur="1.6s" repeatCount="indefinite" />
+      </rect>
+    </svg>
+  );
+}
+
+function MiniSpinner({ className }: { className?: string }) {
+  const prefersReduced = typeof window !== 'undefined'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (prefersReduced) {
+    return (
+      <svg viewBox="0 0 14 14" fill="none" className={className}>
+        <circle cx="7" cy="7" r="2" fill="currentColor" opacity="0.6">
+          <animate attributeName="opacity" values="0.6;0.2;0.6" dur="1.5s" repeatCount="indefinite" />
+        </circle>
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 14 14" fill="none" className={className}>
+      <defs>
+        <linearGradient id="mini-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#a78bfa" stopOpacity="0" />
+          <stop offset="100%" stopColor="#d946ef" stopOpacity="0.8" />
+        </linearGradient>
+      </defs>
+      <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1" opacity="0.15" />
+      <circle cx="7" cy="7" r="5" stroke="url(#mini-grad)" strokeWidth="1.5" strokeLinecap="round"
+        strokeDasharray="8 23" fill="none">
+        <animateTransform attributeName="transform" type="rotate" from="0 7 7" to="360 7 7" dur="0.8s" repeatCount="indefinite" />
+      </circle>
+      <circle cx="7" cy="2" r="1" fill="currentColor">
+        <animateTransform attributeName="transform" type="rotate" from="0 7 7" to="360 7 7" dur="0.8s" repeatCount="indefinite" />
+      </circle>
+    </svg>
+  );
+}
 import { UniversalModal } from '@/components/UniversalModal';
 import MarkdownViewer from '@/components/markdown/MarkdownViewer';
 import { toast } from '@/stores/messageStore';
@@ -198,7 +274,7 @@ export default function RunReportModal({ isOpen, onClose, runId }: RunReportModa
         {/* Loading / Error states */}
         {loading && (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 text-cyan-400 animate-spin" />
+            <ReportLoadingSpinner className="w-6 h-6 text-cyan-400" />
             <span className="ml-2 text-sm text-gray-400">Generating report...</span>
           </div>
         )}
@@ -234,7 +310,7 @@ export default function RunReportModal({ isOpen, onClose, runId }: RunReportModa
                     disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {generatingRedesign ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <MiniSpinner className="w-3.5 h-3.5 text-purple-400" />
                   ) : (
                     <Wand2 className="w-3.5 h-3.5" />
                   )}

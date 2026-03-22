@@ -10,6 +10,7 @@ import type {
 } from '../models/brain.types';
 import { getCurrentTimestamp, selectOne, selectAll } from './repository.utils';
 import { createGenericRepository } from './generic.repository';
+import { REFLECTION_RUNNING_TIMEOUT_MS } from '@/lib/brain/config';
 
 const base = createGenericRepository<DbBrainReflection>({
   tableName: 'brain_reflections',
@@ -54,6 +55,9 @@ export const brainReflectionRepository = {
     const db = getDatabase();
     const now = getCurrentTimestamp();
     const scope = input.scope || 'project';
+
+    // Auto-recover stuck running reflections before attempting insert
+    brainReflectionRepository.recoverStuckRunning();
 
     try {
       const stmt = db.prepare(`
@@ -313,19 +317,66 @@ export const brainReflectionRepository = {
   deleteByProject: (projectId: string): number => base.deleteByProject(projectId),
 
   /**
-   * Clean up old failed/pending reflections
+   * Clean up old failed/pending reflections and auto-fail stuck running ones.
    */
   cleanupStale: (olderThanDays: number = 7): number => {
     const db = getDatabase();
     const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString();
+    const now = getCurrentTimestamp();
 
-    const stmt = db.prepare(`
+    // Auto-fail reflections stuck in 'running' state beyond the timeout
+    const runningCutoff = new Date(Date.now() - REFLECTION_RUNNING_TIMEOUT_MS).toISOString();
+    const failStmt = db.prepare(`
+      UPDATE brain_reflections
+      SET status = 'failed', completed_at = ?, error_message = 'Auto-failed: exceeded running timeout'
+      WHERE status = 'running' AND started_at < ?
+    `);
+    const failResult = failStmt.run(now, runningCutoff);
+
+    // Also catch running reflections that were never started (started_at is NULL)
+    const failNullStmt = db.prepare(`
+      UPDATE brain_reflections
+      SET status = 'failed', completed_at = ?, error_message = 'Auto-failed: stuck in running state with no start time'
+      WHERE status = 'running' AND started_at IS NULL AND created_at < ?
+    `);
+    const failNullResult = failNullStmt.run(now, runningCutoff);
+
+    // Delete old failed/pending reflections
+    const deleteStmt = db.prepare(`
       DELETE FROM brain_reflections
       WHERE status IN ('failed', 'pending') AND created_at < ?
     `);
+    const deleteResult = deleteStmt.run(cutoff);
 
-    const result = stmt.run(cutoff);
-    return result.changes;
+    return deleteResult.changes + failResult.changes + failNullResult.changes;
+  },
+
+  /**
+   * Auto-fail reflections stuck in 'running' state beyond the timeout.
+   * Returns the number of reflections recovered.
+   */
+  recoverStuckRunning: (): number => {
+    const db = getDatabase();
+    const now = getCurrentTimestamp();
+    const runningCutoff = new Date(Date.now() - REFLECTION_RUNNING_TIMEOUT_MS).toISOString();
+
+    const stmt = db.prepare(`
+      UPDATE brain_reflections
+      SET status = 'failed', completed_at = ?, error_message = 'Auto-failed: exceeded running timeout'
+      WHERE status = 'running'
+        AND (started_at IS NOT NULL AND started_at < ?)
+    `);
+    const result = stmt.run(now, runningCutoff);
+
+    // Also recover running reflections with no started_at
+    const nullStmt = db.prepare(`
+      UPDATE brain_reflections
+      SET status = 'failed', completed_at = ?, error_message = 'Auto-failed: stuck in running state with no start time'
+      WHERE status = 'running' AND started_at IS NULL AND created_at < ?
+    `);
+    const nullResult = nullStmt.run(now, runningCutoff);
+
+    return result.changes + nullResult.changes;
   },
 
   /**

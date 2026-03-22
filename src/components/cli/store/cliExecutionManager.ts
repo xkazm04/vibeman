@@ -62,7 +62,7 @@ const sessionUnsubscribers = new Map<CLISessionId, Map<string, () => void>>();
 const sessionExecutionIds = new Map<CLISessionId, Map<string, string>>();
 
 /** Default max parallel tasks per CLI session */
-const DEFAULT_MAX_PARALLEL = 3;
+const DEFAULT_MAX_PARALLEL = 10;
 
 /** Per-session DAG scheduler instances */
 const sessionSchedulers = new Map<CLISessionId, DAGScheduler>();
@@ -347,10 +347,24 @@ export function executeNextTask(sessionId: CLISessionId): void {
   executeReadyTasks(sessionId);
 }
 
+/** Max auto-retries for tasks that fail due to server restart / transient errors */
+const MAX_TASK_RETRIES = 3;
+
+/** Max attempts to reach the server during recovery before giving up */
+const MAX_RECOVERY_ATTEMPTS = 5;
+
+/** Base delay between recovery attempts (doubles each attempt) */
+const RECOVERY_BASE_DELAY_MS = 1000;
+
 /**
- * Check if a requirement file still exists
+ * Check if a requirement file still exists.
+ * Returns { exists: boolean; reachable: boolean } to distinguish between
+ * "file doesn't exist" and "server unreachable".
  */
-async function checkRequirementExists(projectPath: string, requirementName: string): Promise<boolean> {
+async function checkRequirementExists(
+  projectPath: string,
+  requirementName: string
+): Promise<{ exists: boolean; reachable: boolean }> {
   try {
     const response = await fetch('/api/claude-code/requirement/exists', {
       method: 'POST',
@@ -359,17 +373,77 @@ async function checkRequirementExists(projectPath: string, requirementName: stri
     });
     if (response.ok) {
       const data = await response.json();
-      return data.exists === true;
+      return { exists: data.exists === true, reachable: true };
     }
-    return false;
+    // Server responded but with an error — still reachable
+    return { exists: true, reachable: true };
   } catch {
-    // If we can't check, assume it doesn't exist (task completed)
-    return false;
+    // Server unreachable (restarting) — safe default: assume file exists (re-queue)
+    return { exists: true, reachable: false };
   }
 }
 
 /**
- * Recover CLI sessions after page refresh
+ * Check if the server has an active execution for a given execution ID.
+ * Returns the execution status or null if not found/unreachable.
+ */
+async function checkServerExecution(executionId: string): Promise<{
+  found: boolean;
+  status?: string;
+  sessionId?: string;
+} | null> {
+  try {
+    const res = await fetch(
+      `/api/claude-terminal/query?executionId=${encodeURIComponent(executionId)}`
+    );
+    if (!res.ok) return { found: false };
+    const data = await res.json();
+    if (data.success && data.execution) {
+      return {
+        found: true,
+        status: data.execution.status,
+        sessionId: data.execution.sessionId,
+      };
+    }
+    return { found: false };
+  } catch {
+    return null; // Server unreachable
+  }
+}
+
+/**
+ * Wait for the server to become reachable with exponential backoff.
+ * Returns true if server is reachable, false if max attempts exceeded.
+ */
+async function waitForServer(maxAttempts = MAX_RECOVERY_ATTEMPTS): Promise<boolean> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const res = await fetch('/api/system-status', { method: 'GET' });
+      if (res.ok) return true;
+    } catch {
+      // Server not ready yet
+    }
+    // Exponential backoff: 1s, 2s, 4s, 8s, 16s
+    const delay = RECOVERY_BASE_DELAY_MS * Math.pow(2, attempt);
+    await new Promise((resolve) => setTimeout(resolve, delay));
+  }
+  return false;
+}
+
+/**
+ * Recover CLI sessions after page refresh.
+ *
+ * Key insight: On hard refresh, the server-side CLI processes keep running.
+ * Recovery must NOT blindly re-queue and restart tasks — that would create
+ * duplicate processes and hit the concurrent execution limit, causing
+ * immediate failure. Instead, recovery:
+ *
+ * 1. Waits for the server to be reachable (with backoff)
+ * 2. Checks ALL running tasks (not just the first)
+ * 3. For each task, checks if the server still has an active execution
+ *    - If yes: reconnects the SSE stream to the existing execution
+ *    - If no: checks requirement file to decide re-queue vs complete
+ * 4. Only starts NEW executions for tasks that truly need restarting
  */
 export async function recoverCLISessions(): Promise<void> {
   const store = useCLISessionStore.getState();
@@ -379,47 +453,133 @@ export async function recoverCLISessions(): Promise<void> {
     return;
   }
 
+  // Wait for the server to be ready.
+  const serverReady = await waitForServer();
+
   for (const session of sessionsToRecover) {
-    // Mark this session as recovering (only sessions with interrupted work get this flag)
     store.setSessionRecovering(session.id, true);
 
-    // Check if we have a running task that needs monitoring
-    const runningTask = session.queue.find((t) => t.status.type === 'running');
+    // Find ALL running tasks (supports parallel DAG execution)
+    const runningTasks = session.queue.filter((t) => t.status.type === 'running');
+    let anyReconnected = false;
 
-    if (runningTask) {
-      // Check if the requirement file still exists
-      const exists = await checkRequirementExists(runningTask.projectPath, runningTask.requirementName);
+    for (const task of runningTasks) {
+      const retryCount = task.retryCount || 0;
+
+      if (!serverReady) {
+        // Server unreachable — re-queue if within retry limit
+        if (retryCount < MAX_TASK_RETRIES) {
+          store.updateTaskStatus(session.id, task.id, createQueuedStatus());
+          incrementTaskRetryCount(session.id, task.id, retryCount);
+        } else {
+          store.updateTaskStatus(
+            session.id,
+            task.id,
+            createFailedStatus(`Server unreachable after ${MAX_TASK_RETRIES} recovery attempts`)
+          );
+        }
+        continue;
+      }
+
+      // Server is reachable. Check if the execution is still alive on the server.
+      // This is the key difference: on hard refresh the server process keeps running,
+      // so we should reconnect to it instead of starting a duplicate.
+      const executionId = session.currentExecutionId;
+      if (executionId) {
+        const serverExec = await checkServerExecution(executionId);
+        if (serverExec?.found && serverExec.status === 'running') {
+          // Process is STILL RUNNING on server — reconnect the SSE stream
+          const strategy = getSessionStrategy(session.id);
+          if (hasCapability(strategy, 'stream')) {
+            // Track the existing execution ID
+            if (!sessionExecutionIds.has(session.id)) {
+              sessionExecutionIds.set(session.id, new Map());
+            }
+            sessionExecutionIds.get(session.id)!.set(task.id, executionId);
+
+            // Re-subscribe to the stream
+            const unsubscribe = strategy.stream(executionId, (event: ExecutionEvent) => {
+              store.updateLastActivity(session.id);
+              if (event.type === 'result') {
+                handleTaskComplete(session.id, task, true);
+                cleanupTaskExecution(session.id, task.id);
+              } else if (event.type === 'error') {
+                handleTaskComplete(session.id, task, false);
+                cleanupTaskExecution(session.id, task.id);
+              }
+            });
+
+            if (!sessionUnsubscribers.has(session.id)) {
+              sessionUnsubscribers.set(session.id, new Map());
+            }
+            sessionUnsubscribers.get(session.id)!.set(task.id, unsubscribe);
+
+            if (serverExec.sessionId) {
+              store.setClaudeSessionId(session.id, serverExec.sessionId);
+            }
+            store.setRunning(session.id, true);
+            anyReconnected = true;
+            continue; // Task stays 'running', reconnected to existing process
+          }
+        }
+
+        // Execution finished while we were refreshing — check if it completed or errored
+        if (serverExec?.found && (serverExec.status === 'completed')) {
+          store.updateTaskStatus(session.id, task.id, createCompletedStatus());
+          await performTaskCleanup(task.projectPath, task.requirementName, task.projectId);
+          setTimeout(() => { store.removeTask(session.id, task.id); }, 1000);
+          continue;
+        }
+      }
+
+      // No active server execution found — check requirement file to decide next step
+      const { exists } = await checkRequirementExists(task.projectPath, task.requirementName);
 
       if (exists) {
-        // Task was interrupted - restart it (re-queue)
-        store.updateTaskStatus(session.id, runningTask.id, createQueuedStatus());
+        // File exists, process is gone → task was interrupted, re-queue it
+        if (retryCount < MAX_TASK_RETRIES) {
+          store.updateTaskStatus(session.id, task.id, createQueuedStatus());
+          incrementTaskRetryCount(session.id, task.id, retryCount);
+        } else {
+          store.updateTaskStatus(
+            session.id,
+            task.id,
+            createFailedStatus(`Task interrupted ${MAX_TASK_RETRIES} times, giving up`)
+          );
+        }
       } else {
-        // Requirement file was deleted - task completed successfully
-        store.updateTaskStatus(session.id, runningTask.id, createCompletedStatus());
-        // Remove from queue after short delay
-        setTimeout(() => {
-          store.removeTask(session.id, runningTask.id);
-        }, 1000);
+        // Requirement file deleted → task completed successfully
+        store.updateTaskStatus(session.id, task.id, createCompletedStatus());
+        setTimeout(() => { store.removeTask(session.id, task.id); }, 1000);
       }
     }
 
-    // If autoStart was true and there are still queued tasks, continue execution
-    const updatedSession = store.sessions[session.id];
+    // Resume autoStart for queued tasks (but not if we reconnected — those are already running)
+    const updatedSession = useCLISessionStore.getState().sessions[session.id];
     const hasQueuedTasks = updatedSession.queue.some((t) => t.status.type === 'queued');
 
     if (session.autoStart && hasQueuedTasks) {
       store.setRunning(session.id, true);
-      setTimeout(() => executeNextTask(session.id), 1000);
-    } else if (!hasQueuedTasks) {
-      // No more pending tasks - clear autoStart
+      setTimeout(() => executeNextTask(session.id), 2000);
+    } else if (!hasQueuedTasks && !anyReconnected) {
       store.setAutoStart(session.id, false);
       store.setRunning(session.id, false);
     }
 
-    // Clear recovery flag after a short delay to allow UI to show recovery completed
+    // Clear recovery flag
     setTimeout(() => {
       useCLISessionStore.getState().setSessionRecovering(session.id, false);
     }, 3000);
+  }
+}
+
+/** Helper to increment retry count on a task in the store */
+function incrementTaskRetryCount(sessionId: CLISessionId, taskId: string, currentCount: number): void {
+  const currentStore = useCLISessionStore.getState();
+  const currentSession = currentStore.sessions[sessionId];
+  const taskInQueue = currentSession.queue.find((t) => t.id === taskId);
+  if (taskInQueue) {
+    taskInQueue.retryCount = currentCount + 1;
   }
 }
 

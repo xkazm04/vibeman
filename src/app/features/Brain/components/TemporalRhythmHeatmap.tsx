@@ -19,6 +19,7 @@ import BrainPanelHeader from './BrainPanelHeader';
 import { inlineExpand, inlineExpandTransition } from '../lib/motionPresets';
 import NeuralPulseLoader from './NeuralPulseLoader';
 import BrainEmptyState from './BrainEmptyState';
+import SectionHeading from './SectionHeading';
 import { DATA_FONT, FONT_SIZE } from '../lib/brainFonts';
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -383,7 +384,7 @@ function CellDrillDown({ cell, onClose }: { cell: TemporalCell; onClose: () => v
         <p className="text-xs text-zinc-500 py-2">No signals recorded in this time slot.</p>
       ) : (
         <div className="space-y-2">
-          <span className="text-2xs text-zinc-500 uppercase tracking-wider font-medium">By Type</span>
+          <SectionHeading className="mb-0">By Type</SectionHeading>
           {typeEntries.map(([type, stats]) => {
             const barWidth = (stats.count / maxCount) * 100;
             return (

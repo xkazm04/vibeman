@@ -31,6 +31,7 @@ export function processPostFlight(
   startedAt: string,
   goalId?: string,
   memoryIdsQueried?: string[],
+  options?: { skipStatusUpdate?: boolean },
 ): PostFlightResult {
   const db = getDatabase();
   const result: PostFlightResult = {
@@ -154,10 +155,12 @@ export function processPostFlight(
       ideasUpdated: result.ideasUpdated,
     };
 
-    conductorRepository.updateRunStatus(runId, 'completed', metrics);
+    if (!options?.skipStatusUpdate) {
+      conductorRepository.updateRunStatus(runId, 'completed', metrics);
+    }
 
-    // 7. Mark Goal as completed
-    if (goalId && logs.length > 0) {
+    // 7. Mark Goal as completed (skip for recovery — goal stays in_progress)
+    if (goalId && logs.length > 0 && !options?.skipStatusUpdate) {
       try {
         db.prepare(
           `UPDATE goals SET status = 'done', updated_at = datetime('now') WHERE id = ? AND status != 'done'`

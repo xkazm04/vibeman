@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { fullDrawer, fullDrawerTransition } from '../lib/motionPresets';
 import { X, ArrowLeft } from 'lucide-react';
 
 export type DrillDownTarget =
@@ -108,10 +109,11 @@ export default function SignalDetailDrawer({ target, onClose, children }: Signal
             aria-modal="true"
             aria-label={target ? getDrawerTitle(target) : undefined}
             onKeyDown={handleKeyDown}
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            variants={fullDrawer}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={fullDrawerTransition}
             className="fixed top-0 right-0 h-full w-full max-w-md z-50 bg-zinc-900 border-l border-zinc-800 shadow-2xl flex flex-col"
           >
             {/* Header */}

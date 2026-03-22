@@ -38,6 +38,7 @@ export class CanvasStore {
 
   // ── Diff tracking ──────────────────────────────────────────────────
   private eventIdSet = new Set<string>();
+  private eventFingerprint = new Map<string, number>();
 
   // ── Worker cleanup ─────────────────────────────────────────────────
   private workerCleanup: (() => void) | null = null;
@@ -88,6 +89,7 @@ export class CanvasStore {
     this._events = newEvents;
     this._isEmpty = newEvents.length === 0;
     this.eventIdSet = new Set(newEvents.map(e => e.id));
+    this.eventFingerprint = new Map(newEvents.map(e => [e.id, e.weight]));
     this.recalculateLayout(focusedGroupId);
     this.emitChange();
     return true;
@@ -104,6 +106,7 @@ export class CanvasStore {
     const removed = this._events[idx];
     this._events = this._events.filter(e => e.id !== eventId);
     this.eventIdSet.delete(eventId);
+    this.eventFingerprint.delete(eventId);
     this._isEmpty = this._events.length === 0;
     this.recalculateLayout(focusedGroupId);
     this.emitChange();
@@ -117,6 +120,7 @@ export class CanvasStore {
     if (this.eventIdSet.has(event.id)) return;
     this._events = [...this._events, event];
     this.eventIdSet.add(event.id);
+    this.eventFingerprint.set(event.id, event.weight);
     this._isEmpty = false;
     this.recalculateLayout(focusedGroupId);
     this.emitChange();
@@ -205,32 +209,15 @@ export class CanvasStore {
   }
 
   private eventsUnchanged(newEvents: BrainEvent[]): boolean {
-    if (newEvents.length !== this._events.length) return false;
-
-    // Use a lightweight hash sum to detect mutations (like weight decay)
-    // and set changes without deep comparison. Summing makes it
-    // order-independent, improving layout stability if the API response
-    // order fluctuates.
-    let newHashSum = 0;
-    let oldHashSum = 0;
+    if (newEvents.length !== this.eventFingerprint.size) return false;
 
     for (let i = 0; i < newEvents.length; i++) {
-      newHashSum += this.getEventHash(newEvents[i]);
-      oldHashSum += this.getEventHash(this._events[i]);
+      const e = newEvents[i];
+      const prevWeight = this.eventFingerprint.get(e.id);
+      if (prevWeight === undefined || prevWeight !== e.weight) return false;
     }
 
-    return newHashSum === oldHashSum;
-  }
-
-  private getEventHash(e: BrainEvent): number {
-    let h = 0;
-    const id = e.id;
-    for (let i = 0; i < id.length; i++) {
-      h = (h << 5) - h + id.charCodeAt(i);
-      h |= 0;
-    }
-    // Multiply weight by 1000 to catch small decay changes in the integer sum
-    return h + Math.round(e.weight * 1000);
+    return true;
   }
 }
 

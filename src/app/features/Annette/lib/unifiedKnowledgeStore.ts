@@ -113,6 +113,11 @@ export interface SimilarityResult<T> {
   similarity: number;
 }
 
+// ─── Constants ───
+
+/** Cap for fallback/no-keyword queries to avoid full-table scans with per-row cosine computation */
+const SIMILARITY_SCAN_LIMIT = 500;
+
 // ─── Embedding helpers (from semanticIndexer) ───
 
 const embeddingCache = new Map<string, { embedding: number[]; updatedAt: string }>();
@@ -332,13 +337,15 @@ export const unifiedKnowledgeStore = {
         memories = db.prepare(`
           SELECT * FROM annette_memories
           WHERE project_id = ? AND embedding IS NOT NULL AND consolidated_into IS NULL
-        `).all(projectId) as unknown as DbAnnetteMemory[];
+          ORDER BY importance_score DESC LIMIT ?
+        `).all(projectId, SIMILARITY_SCAN_LIMIT) as unknown as DbAnnetteMemory[];
       }
     } else {
       memories = db.prepare(`
         SELECT * FROM annette_memories
         WHERE project_id = ? AND embedding IS NOT NULL AND consolidated_into IS NULL
-      `).all(projectId) as unknown as DbAnnetteMemory[];
+        ORDER BY importance_score DESC LIMIT ?
+      `).all(projectId, SIMILARITY_SCAN_LIMIT) as unknown as DbAnnetteMemory[];
     }
 
     // Fetch knowledge nodes with embeddings
@@ -354,13 +361,15 @@ export const unifiedKnowledgeStore = {
         nodes = db.prepare(`
           SELECT * FROM annette_knowledge_nodes
           WHERE project_id = ? AND embedding IS NOT NULL
-        `).all(projectId) as unknown as DbAnnetteKnowledgeNode[];
+          ORDER BY importance_score DESC LIMIT ?
+        `).all(projectId, SIMILARITY_SCAN_LIMIT) as unknown as DbAnnetteKnowledgeNode[];
       }
     } else {
       nodes = db.prepare(`
         SELECT * FROM annette_knowledge_nodes
         WHERE project_id = ? AND embedding IS NOT NULL
-      `).all(projectId) as unknown as DbAnnetteKnowledgeNode[];
+        ORDER BY importance_score DESC LIMIT ?
+      `).all(projectId, SIMILARITY_SCAN_LIMIT) as unknown as DbAnnetteKnowledgeNode[];
     }
 
     // Score all items against query embedding
@@ -415,13 +424,15 @@ export const unifiedKnowledgeStore = {
         memories = db.prepare(`
           SELECT * FROM annette_memories
           WHERE project_id = ? AND embedding IS NOT NULL AND consolidated_into IS NULL
-        `).all(projectId) as unknown as DbAnnetteMemory[];
+          ORDER BY importance_score DESC LIMIT ?
+        `).all(projectId, SIMILARITY_SCAN_LIMIT) as unknown as DbAnnetteMemory[];
       }
     } else {
       memories = db.prepare(`
         SELECT * FROM annette_memories
         WHERE project_id = ? AND embedding IS NOT NULL AND consolidated_into IS NULL
-      `).all(projectId) as unknown as DbAnnetteMemory[];
+        ORDER BY importance_score DESC LIMIT ?
+      `).all(projectId, SIMILARITY_SCAN_LIMIT) as unknown as DbAnnetteMemory[];
     }
 
     const results: SimilarityResult<DbAnnetteMemory>[] = [];
@@ -461,13 +472,15 @@ export const unifiedKnowledgeStore = {
         nodes = db.prepare(`
           SELECT * FROM annette_knowledge_nodes
           WHERE project_id = ? AND embedding IS NOT NULL
-        `).all(projectId) as unknown as DbAnnetteKnowledgeNode[];
+          ORDER BY importance_score DESC LIMIT ?
+        `).all(projectId, SIMILARITY_SCAN_LIMIT) as unknown as DbAnnetteKnowledgeNode[];
       }
     } else {
       nodes = db.prepare(`
         SELECT * FROM annette_knowledge_nodes
         WHERE project_id = ? AND embedding IS NOT NULL
-      `).all(projectId) as unknown as DbAnnetteKnowledgeNode[];
+        ORDER BY importance_score DESC LIMIT ?
+      `).all(projectId, SIMILARITY_SCAN_LIMIT) as unknown as DbAnnetteKnowledgeNode[];
     }
 
     const results: SimilarityResult<DbAnnetteKnowledgeNode>[] = [];

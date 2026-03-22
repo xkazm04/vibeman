@@ -43,19 +43,19 @@ export const TEAM_ICONS: Record<DevTeam, string> = {
 };
 
 // Team colors for UI
-export const TEAM_COLORS: Record<DevTeam, string> = {
-  frontend: 'text-blue-400 bg-blue-500/20',
-  backend: 'text-green-400 bg-green-500/20',
-  mobile: 'text-purple-400 bg-purple-500/20',
-  platform: 'text-cyan-400 bg-cyan-500/20',
-  data: 'text-orange-400 bg-orange-500/20',
-  payments: 'text-emerald-400 bg-emerald-500/20',
-  search: 'text-yellow-400 bg-yellow-500/20',
-  notifications: 'text-pink-400 bg-pink-500/20',
-  security: 'text-red-400 bg-red-500/20',
-  localization: 'text-indigo-400 bg-indigo-500/20',
-  'customer-success': 'text-teal-400 bg-teal-500/20',
-  growth: 'text-lime-400 bg-lime-500/20',
+export const TEAM_COLORS: Record<DevTeam, { text: string; bg: string }> = {
+  frontend: { text: 'text-blue-400', bg: 'bg-blue-500/20' },
+  backend: { text: 'text-green-400', bg: 'bg-green-500/20' },
+  mobile: { text: 'text-purple-400', bg: 'bg-purple-500/20' },
+  platform: { text: 'text-cyan-400', bg: 'bg-cyan-500/20' },
+  data: { text: 'text-orange-400', bg: 'bg-orange-500/20' },
+  payments: { text: 'text-emerald-400', bg: 'bg-emerald-500/20' },
+  search: { text: 'text-yellow-400', bg: 'bg-yellow-500/20' },
+  notifications: { text: 'text-pink-400', bg: 'bg-pink-500/20' },
+  security: { text: 'text-red-400', bg: 'bg-red-500/20' },
+  localization: { text: 'text-indigo-400', bg: 'bg-indigo-500/20' },
+  'customer-success': { text: 'text-teal-400', bg: 'bg-teal-500/20' },
+  growth: { text: 'text-lime-400', bg: 'bg-lime-500/20' },
 };
 
 // ============================================================================

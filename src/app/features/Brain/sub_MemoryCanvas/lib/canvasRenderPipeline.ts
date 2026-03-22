@@ -585,21 +585,21 @@ export const renderOverlay: RenderPassFn<OverlayConfig> = (
     ctx.fillRect(0, 0, width, 48);
 
     ctx.fillStyle = header.color || '#f4f4f5';
-    ctx.font = 'bold 14px ${DISPLAY_FONT}';
+    ctx.font = `bold 14px ${DISPLAY_FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText(header.title, width / 2, 12);
 
     if (header.subtitle) {
       ctx.fillStyle = '#a1a1aa';
-      ctx.font = '10px ${DISPLAY_FONT}';
+      ctx.font = `10px ${DISPLAY_FONT}`;
       ctx.fillText(header.subtitle, width / 2, 32);
     }
   }
 
   // Hint
   if (hint) {
-    ctx.font = '10px ${DISPLAY_FONT}';
+    ctx.font = `10px ${DISPLAY_FONT}`;
     const hintWidth = ctx.measureText(hint.text).width + 24;
     const hintX = (width - hintWidth) / 2;
     const hintY = hint.yPosition ?? height - 54;

@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useCallback, useState, useEffect, useRef } from 'react';
+import { useCallback, useState, useEffect, useRef, type KeyboardEvent } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Target, ChevronDown } from 'lucide-react';
 import { NoProjectIllustration } from './ConductorEmptyStates';
@@ -15,6 +15,7 @@ import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { toast } from '@/stores/messageStore';
 import { useConductorStore } from '../lib/conductorStore';
 import { useConductorStatus } from '../lib/useConductorStatus';
+import { useConductorRecovery } from '../lib/useConductorRecovery';
 import PipelineFlowViz from './PipelineFlowViz';
 import PipelineControls from './PipelineControls';
 import MetricsBar from './MetricsBar';
@@ -46,6 +47,7 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
   const [goalDropdownOpen, setGoalDropdownOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportRunId, setReportRunId] = useState<string | null>(null);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
 
   const goalDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -57,11 +59,53 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
     const handler = (e: MouseEvent) => {
       if (goalDropdownRef.current && !goalDropdownRef.current.contains(e.target as Node)) {
         setGoalDropdownOpen(false);
+        setFocusedIndex(-1);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [goalDropdownOpen]);
+
+  // Keyboard navigation for goal dropdown
+  const handleGoalKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
+    if (!goalDropdownOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        setGoalDropdownOpen(true);
+        setFocusedIndex(0);
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setFocusedIndex((prev) => (prev + 1) % goals.length);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setFocusedIndex((prev) => (prev - 1 + goals.length) % goals.length);
+        break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        if (focusedIndex >= 0 && focusedIndex < goals.length) {
+          setSelectedGoalId(goals[focusedIndex].id);
+          setGoalDropdownOpen(false);
+          setFocusedIndex(-1);
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setGoalDropdownOpen(false);
+        setFocusedIndex(-1);
+        break;
+      case 'Tab':
+        setGoalDropdownOpen(false);
+        setFocusedIndex(-1);
+        break;
+    }
+  }, [goalDropdownOpen, focusedIndex, goals]);
 
   // Fetch goals for the active project
   useEffect(() => {
@@ -75,6 +119,9 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
       })
       .catch(() => setGoals([]));
   }, [effectiveProjectId]);
+
+  // Recovery hook — runs once on mount, syncs persisted runs with server state
+  useConductorRecovery(effectiveProjectId);
 
   // Shared polling hook — always fetches on mount (discovers active runs
   // even when isRunning was false due to navigation), then polls every 3s
@@ -187,16 +234,23 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
             <Sparkles className="w-4 h-4 text-cyan-400" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-gray-200">Conductor Pipeline</h2>
+            <h2 className="text-base font-semibold tracking-wide text-gray-200">Conductor Pipeline</h2>
             <p className="text-caption text-gray-500">Autonomous development with self-healing</p>
           </div>
         </div>
 
         {/* Goal Selector */}
         {!isRunning && !currentRun && goals.length > 0 && (
-          <div className="relative" ref={goalDropdownRef}>
+          <div className="relative" ref={goalDropdownRef} onKeyDown={handleGoalKeyDown}>
             <button
-              onClick={() => setGoalDropdownOpen(!goalDropdownOpen)}
+              onClick={() => {
+                const opening = !goalDropdownOpen;
+                setGoalDropdownOpen(opening);
+                setFocusedIndex(opening ? 0 : -1);
+              }}
+              aria-haspopup="listbox"
+              aria-expanded={goalDropdownOpen}
+              aria-label={selectedGoal ? `Goal: ${selectedGoal.title}` : 'Select a goal'}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-700
                 bg-gray-800/50 hover:bg-gray-800 transition-colors text-sm"
             >
@@ -207,14 +261,23 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
               <ChevronDown className={`w-3.5 h-3.5 text-gray-500 transition-transform ${goalDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
             {goalDropdownOpen && (
-              <div className="absolute right-0 top-full mt-1 w-72 rounded-lg border border-gray-700
-                bg-gray-900 shadow-xl z-50 py-1 max-h-60 overflow-y-auto">
-                {goals.map((goal) => (
+              <div
+                role="listbox"
+                aria-label="Goals"
+                aria-activedescendant={focusedIndex >= 0 ? `goal-option-${goals[focusedIndex]?.id}` : undefined}
+                className="absolute right-0 top-full mt-1 w-72 rounded-lg border border-gray-700
+                  bg-gray-900 shadow-xl z-50 py-1 max-h-60 overflow-y-auto"
+              >
+                {goals.map((goal, index) => (
                   <button
                     key={goal.id}
-                    onClick={() => { setSelectedGoalId(goal.id); setGoalDropdownOpen(false); }}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-800 transition-colors
-                      ${selectedGoalId === goal.id ? 'text-purple-400' : 'text-gray-300'}`}
+                    id={`goal-option-${goal.id}`}
+                    role="option"
+                    aria-selected={selectedGoalId === goal.id}
+                    onClick={() => { setSelectedGoalId(goal.id); setGoalDropdownOpen(false); setFocusedIndex(-1); }}
+                    className={`w-full text-left px-3 py-2 text-sm transition-colors
+                      ${selectedGoalId === goal.id ? 'text-purple-400' : 'text-gray-300'}
+                      ${focusedIndex === index ? 'bg-gray-800' : 'hover:bg-gray-800'}`}
                   >
                     <div className="truncate">{goal.title}</div>
                     <div className="text-2xs text-gray-600 capitalize">{goal.status}</div>

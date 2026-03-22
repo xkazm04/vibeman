@@ -24,8 +24,13 @@ export function useCanvasInteraction({
   requestRender, fitToView,
 }: UseCanvasInteractionParams) {
 
+  // Keep a ref to canvasState so event handlers always read latest
+  // without causing the setup effect to re-run on every dispatch.
+  const stateRef = useRef(canvasState);
+  stateRef.current = canvasState;
+
   const findGroupAtCursor = useCallback((): Group | null => {
-    const { transform, cursor } = canvasState;
+    const { transform, cursor } = stateRef.current;
     const dataX = (cursor.x - transform.x) / transform.k;
     const dataY = (cursor.y - transform.y) / transform.k;
     for (const group of groupsRef.current) {
@@ -34,10 +39,10 @@ export function useCanvasInteraction({
       if (dx * dx + dy * dy <= group.radius * group.radius) return group;
     }
     return null;
-  }, [canvasState, groupsRef]);
+  }, [groupsRef]);
 
   const findEventAt = useCallback((screenX: number, screenY: number): BrainEvent | null => {
-    const { transform, focusedGroupId } = canvasState;
+    const { transform, focusedGroupId } = stateRef.current;
 
     if (focusedGroupId) {
       // Focused mode: layout uses screen coords directly.
@@ -98,7 +103,7 @@ export function useCanvasInteraction({
       }
     }
     return best;
-  }, [canvasState, groupsRef]);
+  }, [groupsRef]);
 
   const enterFocus = useCallback((group: Group) => {
     if (momentumAnimRef.current) { cancelAnimationFrame(momentumAnimRef.current); momentumAnimRef.current = 0; }
@@ -166,8 +171,8 @@ export function useCanvasInteraction({
       cachedRect = canvas.getBoundingClientRect();
       const currentGroups = groupsRef.current;
       if (currentGroups.length > 0) {
-        if (canvasState.focusedGroupId) {
-          const fg = currentGroups.find(g => g.id === canvasState.focusedGroupId);
+        if (stateRef.current.focusedGroupId) {
+          const fg = currentGroups.find(g => g.id === stateRef.current.focusedGroupId);
           if (fg) layoutFocusedGroup(fg, w, h);
         } else {
           runForceLayout(currentGroups, w, h);
@@ -184,14 +189,14 @@ export function useCanvasInteraction({
       .scaleExtent([0.2, 8])
       .filter((event: any) => { if (event.type === 'wheel') return false; return !event.ctrlKey && !event.button; })
       .on('zoom', (event) => {
-        const prevK = canvasState.transform.k;
+        const prevK = stateRef.current.transform.k;
         const k = event.transform.k;
         dispatch({ type: 'ZoomChanged', transform: event.transform, zoomLevel: k });
-        if (!canvasState.focusedGroupId && prevK < FOCUS_ZOOM_THRESHOLD && k >= FOCUS_ZOOM_THRESHOLD) {
+        if (!stateRef.current.focusedGroupId && prevK < FOCUS_ZOOM_THRESHOLD && k >= FOCUS_ZOOM_THRESHOLD) {
           const group = findGroupAtCursor();
           if (group) { enterFocus(group); return; }
         }
-        if (canvasState.focusedGroupId && k < 0.6) { exitFocus(); return; }
+        if (stateRef.current.focusedGroupId && k < 0.6) { exitFocus(); return; }
         requestRender();
       });
 
@@ -205,7 +210,7 @@ export function useCanvasInteraction({
 
     const applyZoomDelta = (delta: number) => {
       if (!zoomBehaviorRef.current) return;
-      const { transform, zoomCenter } = canvasState;
+      const { transform, zoomCenter } = stateRef.current;
       const newK = Math.max(0.2, Math.min(8, transform.k * Math.pow(2, delta)));
       if (newK === transform.k) return;
       const ratio = newK / transform.k;
@@ -247,8 +252,8 @@ export function useCanvasInteraction({
 
     const handleClick = (e: MouseEvent) => {
       const mx = e.clientX - cachedRect.left; const my = e.clientY - cachedRect.top;
-      if (!canvasState.focusedGroupId) {
-        const { transform } = canvasState;
+      if (!stateRef.current.focusedGroupId) {
+        const { transform } = stateRef.current;
         const dataX = (mx - transform.x) / transform.k; const dataY = (my - transform.y) / transform.k;
         for (const group of groupsRef.current) {
           const dx = dataX - group.x; const dy = dataY - group.y;
@@ -277,7 +282,7 @@ export function useCanvasInteraction({
         mouseMoveRafPending = false;
         const found = findEventAt(x, y);
         if (found) canvas.style.cursor = 'pointer';
-        else if (!canvasState.focusedGroupId) canvas.style.cursor = findGroupAtCursor() ? 'pointer' : 'grab';
+        else if (!stateRef.current.focusedGroupId) canvas.style.cursor = findGroupAtCursor() ? 'pointer' : 'grab';
         else canvas.style.cursor = 'grab';
       });
     };
@@ -295,13 +300,14 @@ export function useCanvasInteraction({
       if (momentumAnimRef.current) cancelAnimationFrame(momentumAnimRef.current);
     };
   }, [requestRender, fitToView, findEventAt, findGroupAtCursor, enterFocus, exitFocus,
-      canvasRef, containerRef, canvasState, dispatch, dimRef, groupsRef,
+      canvasRef, containerRef, dispatch, dimRef, groupsRef,
       zoomBehaviorRef, momentumAnimRef]);
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (canvasState.focusedGroupId) {
+      const st = stateRef.current;
+      if (st.focusedGroupId) {
         if (e.key === 'Escape') { e.preventDefault(); exitFocus(); }
         return;
       }
@@ -310,24 +316,24 @@ export function useCanvasInteraction({
 
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault();
-        const idx = groups.findIndex(g => g.id === canvasState.selectedGroupId);
+        const idx = groups.findIndex(g => g.id === st.selectedGroupId);
         const next = idx < 0 ? 0 : (idx + 1) % groups.length;
         dispatch({ type: 'GroupSelected', groupId: groups[next].id });
         requestRender();
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         e.preventDefault();
-        const idx = groups.findIndex(g => g.id === canvasState.selectedGroupId);
+        const idx = groups.findIndex(g => g.id === st.selectedGroupId);
         const next = idx <= 0 ? groups.length - 1 : idx - 1;
         dispatch({ type: 'GroupSelected', groupId: groups[next].id });
         requestRender();
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        const group = groups.find(g => g.id === canvasState.selectedGroupId);
+        const group = groups.find(g => g.id === st.selectedGroupId);
         if (group) {
           dispatch({ type: 'GroupSelected', groupId: null });
           enterFocus(group);
         }
-      } else if (e.key === 'Escape' && canvasState.selectedGroupId) {
+      } else if (e.key === 'Escape' && st.selectedGroupId) {
         e.preventDefault();
         dispatch({ type: 'GroupSelected', groupId: null });
         requestRender();
@@ -335,5 +341,5 @@ export function useCanvasInteraction({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [requestRender, enterFocus, exitFocus, canvasState, dispatch, groupsRef]);
+  }, [requestRender, enterFocus, exitFocus, dispatch, groupsRef]);
 }

@@ -14,6 +14,7 @@ import {
 import type { V4RunConfig, V4SessionResult } from './types';
 
 const POLL_INTERVAL_MS = 5000;
+const MAX_MONITOR_DURATION_MS = 4 * 60 * 60 * 1000; // 4 hours safety ceiling
 
 /**
  * Spawn a new V4 CLI session with the master prompt.
@@ -107,11 +108,17 @@ export async function monitorSession(
     let implementationLogCount = 0;
     let lastEventIndex = 0;
     const memoryQueriesTracked: string[] = [];
+    const monitorStartTime = Date.now();
+
+    const cleanup = (interval: ReturnType<typeof setInterval>, safetyTimeout: ReturnType<typeof setTimeout>) => {
+      clearInterval(interval);
+      clearTimeout(safetyTimeout);
+    };
 
     const interval = setInterval(() => {
       const execution = getExecution(executionId);
       if (!execution) {
-        clearInterval(interval);
+        cleanup(interval, safetyTimeout);
         resolve({
           exitCode: -1,
           completedNormally: false,
@@ -155,9 +162,9 @@ export async function monitorSession(
         }
       }
 
-      // Check for terminal status
-      if (execution.status === 'completed' || execution.status === 'error') {
-        clearInterval(interval);
+      // Check for terminal status (includes 'aborted' from external abort via stopV4Pipeline)
+      if (execution.status === 'completed' || execution.status === 'error' || execution.status === 'aborted') {
+        cleanup(interval, safetyTimeout);
 
         const exitCode = execution.status === 'completed' ? 0 : 1;
         const completedNormally = lastProgressPhase === 'validating' && lastProgressPercentage >= 100;
@@ -171,11 +178,29 @@ export async function monitorSession(
           sessionId,
           error: execution.status === 'error'
             ? execution.events.find(e => e.type === 'error')?.message || 'Unknown error'
-            : null,
+            : execution.status === 'aborted'
+              ? 'Session aborted'
+              : null,
           memoryIdsQueried: memoryQueriesTracked,
         });
       }
     }, POLL_INTERVAL_MS);
+
+    // Safety timeout: unconditionally clear the interval after MAX_MONITOR_DURATION_MS
+    // to prevent leaked intervals from polling indefinitely
+    const safetyTimeout = setTimeout(() => {
+      clearInterval(interval);
+      resolve({
+        exitCode: 1,
+        completedNormally: false,
+        implementationLogCount,
+        lastProgressPhase,
+        lastProgressPercentage,
+        sessionId,
+        error: `Monitor safety timeout reached after ${MAX_MONITOR_DURATION_MS / 3600000}h`,
+        memoryIdsQueried: memoryQueriesTracked,
+      });
+    }, MAX_MONITOR_DURATION_MS);
   });
 }
 

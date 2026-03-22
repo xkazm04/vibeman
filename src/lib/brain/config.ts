@@ -215,3 +215,11 @@ export const REFLECTION_WEEKLY_DECISIONS_MIN = 5;
 /** How long a reflection-completion lock is held before auto-expiring (ms).
  *  Guards against zombie locks from crashed completions. */
 export const COMPLETION_LOCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+// ---------------------------------------------------------------------------
+// Reflection Timeout
+// ---------------------------------------------------------------------------
+
+/** How long a reflection can stay in 'running' state before being auto-failed (ms).
+ *  Prevents stuck reflections from permanently blocking new ones after crashes. */
+export const REFLECTION_RUNNING_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes

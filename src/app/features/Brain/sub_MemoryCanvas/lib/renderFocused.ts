@@ -2,7 +2,7 @@ import type { Group, FilterState } from './types';
 import { COLORS, LABELS, LANE_TYPES } from './constants';
 import { colorAt } from './helpers';
 import { executeRenderPipeline, type RenderContext } from './canvasRenderPipeline';
-import { DISPLAY_FONT } from '../../lib/brainFonts';
+import { DISPLAY_FONT, DATA_FONT } from '../../lib/brainFonts';
 
 // --- Cached lane background OffscreenCanvas ---
 let _laneCache: OffscreenCanvas | null = null;
@@ -49,7 +49,7 @@ function getLaneBackground(width: number, height: number, filterState?: FilterSt
     octx.fillText(LABELS[LANE_TYPES[i]].toUpperCase(), width / 2, laneY + laneHeight / 2);
 
     octx.fillStyle = colorAt(laneColor, 0.6);
-    octx.font = 'bold 10px ${DISPLAY_FONT}';
+    octx.font = `bold 10px ${DISPLAY_FONT}`;
     octx.textAlign = 'left';
     octx.textBaseline = 'top';
     octx.fillText(LABELS[LANE_TYPES[i]], 10, laneY + 6);
@@ -176,7 +176,7 @@ function renderTimeAxis(
     return d.getTime();
   })();
 
-  ctx.font = '9px ${DISPLAY_FONT}';
+  ctx.font = `9px ${DATA_FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
 
@@ -207,9 +207,9 @@ function renderTimeAxis(
 
       const weekNum = Math.ceil(((weekStart - new Date(weekDate.getFullYear(), 0, 1).getTime()) / WEEK_MS)) + 1;
       ctx.fillStyle = 'rgba(113,113,122,0.5)';
-      ctx.font = '8px ${DISPLAY_FONT}';
+      ctx.font = `8px ${DATA_FONT}`;
       ctx.fillText(`W${weekNum}`, screenGridX, axisY + 20);
-      ctx.font = '9px ${DISPLAY_FONT}';
+      ctx.font = `9px ${DATA_FONT}`;
     }
     weekStart += WEEK_MS;
   }

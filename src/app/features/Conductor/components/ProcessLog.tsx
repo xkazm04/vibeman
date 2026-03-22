@@ -15,24 +15,14 @@ import {
   Play, CheckCircle, XCircle, SkipForward, Info, Activity,
 } from 'lucide-react';
 import { EmptyLogIllustration } from './ConductorEmptyStates';
+import { useThemeStore } from '@/stores/themeStore';
 import type { ProcessLogEntry } from '../lib/types';
+import { getStageTheme } from '../lib/stageTheme';
 
 interface ProcessLogProps {
   entries: ProcessLogEntry[];
   isRunning: boolean;
 }
-
-const STAGE_COLORS: Record<string, string> = {
-  scout: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-  triage: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  batch: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  execute: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  review: 'bg-pink-500/20 text-pink-400 border-pink-500/30',
-  // v3 stages
-  plan: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-  dispatch: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  reflect: 'bg-pink-500/20 text-pink-400 border-pink-500/30',
-};
 
 const EVENT_ICONS: Record<ProcessLogEntry['event'], { icon: typeof Play; className: string }> = {
   started: { icon: Play, className: 'text-cyan-400' },
@@ -60,7 +50,8 @@ function formatDuration(ms: number): string {
 
 function LogEntry({ entry }: { entry: ProcessLogEntry }) {
   const [expanded, setExpanded] = useState(false);
-  const stageColor = STAGE_COLORS[entry.stage] || STAGE_COLORS.execute;
+  const appTheme = useThemeStore((s) => s.theme);
+  const stageColor = getStageTheme(entry.stage, appTheme).badge;
   const eventConfig = EVENT_ICONS[entry.event];
   const EventIcon = eventConfig.icon;
   const isFailed = entry.event === 'failed';
@@ -141,7 +132,6 @@ function LogEntry({ entry }: { entry: ProcessLogEntry }) {
 export default function ProcessLog({ entries, isRunning }: ProcessLogProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
-  const [expandedErrors, setExpandedErrors] = useState<Set<string>>(new Set());
 
   // Auto-scroll to bottom when new entries arrive
   useEffect(() => {
@@ -177,7 +167,7 @@ export default function ProcessLog({ entries, isRunning }: ProcessLogProps) {
         {/* Header */}
         <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-800 bg-gray-900/50">
           <Terminal className="w-4 h-4 text-gray-400" />
-          <span className="text-sm font-medium text-gray-300">Process Log</span>
+          <span className="text-base font-semibold tracking-wide text-gray-300">Process Log</span>
         </div>
         <div className="flex flex-col items-center justify-center py-10 text-center">
           <EmptyLogIllustration className="w-28 h-16 mb-2" />
@@ -201,7 +191,7 @@ export default function ProcessLog({ entries, isRunning }: ProcessLogProps) {
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-800 bg-gray-900/50">
         <div className="flex items-center gap-2">
           <Terminal className="w-4 h-4 text-gray-400" />
-          <span className="text-sm font-medium text-gray-300">Process Log</span>
+          <span className="text-base font-semibold tracking-wide text-gray-300">Process Log</span>
           <span className="text-2xs text-gray-600 font-mono">{entries.length} entries</span>
           {isRunning && (
             <motion.div

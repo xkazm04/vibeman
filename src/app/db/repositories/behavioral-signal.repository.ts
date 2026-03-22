@@ -18,20 +18,27 @@ import type { BehavioralSignalType } from '@/types/signals';
 import { getAllSignalTypes } from '@/types/signals';
 import { getCurrentTimestamp, selectOne, selectAll } from './repository.utils';
 
+/** Max IDs per SQL IN() clause — well under SQLite's 999 variable limit */
+const CLEANUP_BATCH_SIZE = 500;
+
 /**
  * Clean up evidence junction rows in the main DB for deleted signal IDs.
  * Required because signals live in hot-writes.db (separate SQLite file)
  * so the trigger_delete_signal_evidence trigger on the main DB never fires.
+ * Batches into chunks of CLEANUP_BATCH_SIZE to stay within SQLite param limits.
  */
 function cleanupSignalEvidence(signalIds: string[]): void {
   if (signalIds.length === 0) return;
   try {
     const mainDb = getDatabase();
-    const placeholders = signalIds.map(() => '?').join(',');
-    mainDb.prepare(
-      `DELETE FROM brain_insight_evidence
-       WHERE evidence_type = 'signal' AND evidence_id IN (${placeholders})`
-    ).run(...signalIds);
+    for (let i = 0; i < signalIds.length; i += CLEANUP_BATCH_SIZE) {
+      const chunk = signalIds.slice(i, i + CLEANUP_BATCH_SIZE);
+      const placeholders = chunk.map(() => '?').join(',');
+      mainDb.prepare(
+        `DELETE FROM brain_insight_evidence
+         WHERE evidence_type = 'signal' AND evidence_id IN (${placeholders})`
+      ).run(...chunk);
+    }
   } catch {
     // Best-effort cleanup — don't break signal deletion if main DB is unavailable
   }
@@ -278,29 +285,37 @@ export const behavioralSignalRepository = {
   },
 
   /**
-   * Delete old signals beyond retention period
+   * Delete old signals beyond retention period.
+   * Processes in batches of CLEANUP_BATCH_SIZE to avoid loading all IDs into
+   * memory and to stay within SQLite's variable-number limit for evidence cleanup.
    */
   deleteOld: (projectId: string, retentionDays: number = 30): number => {
     const db = getHotWritesDatabase();
     const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
+    let totalChanges = 0;
 
-    // Collect IDs before deletion for cross-DB evidence cleanup
-    const ids = selectAll<{ id: string }>(
-      db,
-      'SELECT id FROM behavioral_signals WHERE project_id = ? AND timestamp < ?',
-      projectId, cutoff
-    ).map(r => r.id);
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const batch = selectAll<{ id: string }>(
+        db,
+        'SELECT id FROM behavioral_signals WHERE project_id = ? AND timestamp < ? LIMIT ?',
+        projectId, cutoff, CLEANUP_BATCH_SIZE
+      ).map(r => r.id);
 
-    const stmt = db.prepare(`
-      DELETE FROM behavioral_signals
-      WHERE project_id = ? AND timestamp < ?
-    `);
+      if (batch.length === 0) break;
 
-    const result = stmt.run(projectId, cutoff);
-    if (ids.length > 0) {
-      cleanupSignalEvidence(ids);
+      cleanupSignalEvidence(batch);
+
+      const placeholders = batch.map(() => '?').join(',');
+      const result = db.prepare(
+        `DELETE FROM behavioral_signals WHERE id IN (${placeholders})`
+      ).run(...batch);
+      totalChanges += result.changes;
+
+      if (batch.length < CLEANUP_BATCH_SIZE) break;
     }
-    return result.changes;
+
+    return totalChanges;
   },
 
   /**
@@ -317,20 +332,35 @@ export const behavioralSignalRepository = {
   },
 
   /**
-   * Delete signals by project
+   * Delete signals by project.
+   * Batches evidence cleanup to stay within SQLite param limits.
    */
   deleteByProject: (projectId: string): number => {
     const db = getHotWritesDatabase();
-    // Collect IDs before deletion for cross-DB evidence cleanup
-    const ids = selectAll<{ id: string }>(
-      db, 'SELECT id FROM behavioral_signals WHERE project_id = ?', projectId
-    ).map(r => r.id);
-    const stmt = db.prepare('DELETE FROM behavioral_signals WHERE project_id = ?');
-    const result = stmt.run(projectId);
-    if (ids.length > 0) {
-      cleanupSignalEvidence(ids);
+    let totalChanges = 0;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const batch = selectAll<{ id: string }>(
+        db,
+        'SELECT id FROM behavioral_signals WHERE project_id = ? LIMIT ?',
+        projectId, CLEANUP_BATCH_SIZE
+      ).map(r => r.id);
+
+      if (batch.length === 0) break;
+
+      cleanupSignalEvidence(batch);
+
+      const placeholders = batch.map(() => '?').join(',');
+      const result = db.prepare(
+        `DELETE FROM behavioral_signals WHERE id IN (${placeholders})`
+      ).run(...batch);
+      totalChanges += result.changes;
+
+      if (batch.length < CLEANUP_BATCH_SIZE) break;
     }
-    return result.changes;
+
+    return totalChanges;
   },
 
   /**

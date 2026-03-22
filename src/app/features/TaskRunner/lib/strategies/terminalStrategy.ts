@@ -22,11 +22,23 @@ import type {
 } from '../executionStrategy';
 import { registerStrategy } from '../executionStrategy';
 
+/** Max SSE reconnect attempts before falling back to polling */
+const MAX_SSE_RECONNECTS = 3;
+
+/** Base delay for SSE reconnect backoff (doubles each attempt) */
+const SSE_RECONNECT_BASE_MS = 2000;
+
+/** Max poll attempts before giving up (10s * 30 = 5 minutes) */
+const MAX_POLL_ATTEMPTS = 30;
+
 interface ActiveExecution {
   executionId: string;
   eventSource?: EventSource;
   pollingInterval?: ReturnType<typeof setInterval>;
   handlers: Set<ExecutionEventHandler>;
+  sseReconnectAttempts: number;
+  sseReconnectTimer?: ReturnType<typeof setTimeout>;
+  pollAttempts: number;
 }
 
 class TerminalStrategy implements ExecutionStrategy {
@@ -71,6 +83,8 @@ class TerminalStrategy implements ExecutionStrategy {
       const execution: ActiveExecution = {
         executionId,
         handlers: new Set(),
+        sseReconnectAttempts: 0,
+        pollAttempts: 0,
       };
       this.executions.set(executionId, execution);
 
@@ -132,7 +146,7 @@ class TerminalStrategy implements ExecutionStrategy {
   stream(executionId: string, onEvent: ExecutionEventHandler): () => void {
     let execution = this.executions.get(executionId);
     if (!execution) {
-      execution = { executionId, handlers: new Set() };
+      execution = { executionId, handlers: new Set(), sseReconnectAttempts: 0, pollAttempts: 0 };
       this.executions.set(executionId, execution);
     }
 
@@ -140,38 +154,7 @@ class TerminalStrategy implements ExecutionStrategy {
 
     // Start SSE if not already connected
     if (!execution.eventSource && typeof EventSource !== 'undefined') {
-      const streamUrl = `/api/claude-terminal/stream?executionId=${encodeURIComponent(executionId)}`;
-      const es = new EventSource(streamUrl);
-      execution.eventSource = es;
-
-      es.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          const execEvent: ExecutionEvent = {
-            type: data.type || 'message',
-            data,
-            timestamp: data.timestamp || Date.now(),
-          };
-
-          // Notify all handlers
-          for (const handler of execution!.handlers) {
-            try { handler(execEvent); } catch { /* handler error */ }
-          }
-
-          // On terminal events, clean up stream
-          if (data.type === 'result' || data.type === 'error') {
-            es.close();
-            execution!.eventSource = undefined;
-          }
-        } catch { /* parse error */ }
-      };
-
-      es.onerror = () => {
-        es.close();
-        execution!.eventSource = undefined;
-        // Start polling fallback
-        this.startPollingFallback(executionId);
-      };
+      this.connectSSE(executionId);
     }
 
     // Return unsubscribe
@@ -179,6 +162,62 @@ class TerminalStrategy implements ExecutionStrategy {
       execution?.handlers.delete(onEvent);
       if (execution?.handlers.size === 0) {
         this.cleanupExecution(executionId);
+      }
+    };
+  }
+
+  private connectSSE(executionId: string): void {
+    const execution = this.executions.get(executionId);
+    if (!execution || execution.eventSource) return;
+
+    const streamUrl = `/api/claude-terminal/stream?executionId=${encodeURIComponent(executionId)}`;
+    const es = new EventSource(streamUrl);
+    execution.eventSource = es;
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        const execEvent: ExecutionEvent = {
+          type: data.type || 'message',
+          data,
+          timestamp: data.timestamp || Date.now(),
+        };
+
+        // Reset reconnect counter on successful message
+        execution!.sseReconnectAttempts = 0;
+
+        // Notify all handlers
+        for (const handler of execution!.handlers) {
+          try { handler(execEvent); } catch { /* handler error */ }
+        }
+
+        // On terminal events, clean up stream
+        if (data.type === 'result' || data.type === 'error') {
+          es.close();
+          execution!.eventSource = undefined;
+        }
+      } catch { /* parse error */ }
+    };
+
+    es.onerror = () => {
+      es.close();
+      execution!.eventSource = undefined;
+
+      // Try SSE reconnect with backoff before falling back to polling.
+      // This handles brief server restarts (HMR, self-editing) gracefully.
+      if (execution!.sseReconnectAttempts < MAX_SSE_RECONNECTS) {
+        const delay = SSE_RECONNECT_BASE_MS * Math.pow(2, execution!.sseReconnectAttempts);
+        execution!.sseReconnectAttempts++;
+        execution!.sseReconnectTimer = setTimeout(() => {
+          execution!.sseReconnectTimer = undefined;
+          // Only reconnect if we still have handlers (not cleaned up)
+          if (execution!.handlers.size > 0) {
+            this.connectSSE(executionId);
+          }
+        }, delay);
+      } else {
+        // SSE reconnects exhausted — fall back to polling
+        this.startPollingFallback(executionId);
       }
     };
   }
@@ -200,6 +239,10 @@ class TerminalStrategy implements ExecutionStrategy {
       execution.eventSource.close();
       execution.eventSource = undefined;
     }
+    if (execution.sseReconnectTimer) {
+      clearTimeout(execution.sseReconnectTimer);
+      execution.sseReconnectTimer = undefined;
+    }
     if (execution.pollingInterval) {
       clearInterval(execution.pollingInterval);
       execution.pollingInterval = undefined;
@@ -218,7 +261,27 @@ class TerminalStrategy implements ExecutionStrategy {
       isPolling = true;
       try {
         const status = await this.getStatus(executionId);
-        if (!status) return;
+
+        // If server is unreachable, increment poll attempts
+        if (!status) {
+          execution.pollAttempts++;
+          if (execution.pollAttempts >= MAX_POLL_ATTEMPTS) {
+            // Exhausted poll attempts — emit error so task gets re-queued on recovery
+            const errorEvent: ExecutionEvent = {
+              type: 'error',
+              data: { error: 'Server unreachable after polling timeout' },
+              timestamp: Date.now(),
+            };
+            for (const handler of execution.handlers) {
+              try { handler(errorEvent); } catch { /* handler error */ }
+            }
+            this.cleanupExecution(executionId);
+          }
+          return;
+        }
+
+        // Server responded — reset poll counter
+        execution.pollAttempts = 0;
 
         const event: ExecutionEvent = {
           type: 'status',
@@ -240,7 +303,20 @@ class TerminalStrategy implements ExecutionStrategy {
           }
           this.cleanupExecution(executionId);
         }
-      } catch { /* poll error */ }
+      } catch {
+        execution.pollAttempts++;
+        if (execution.pollAttempts >= MAX_POLL_ATTEMPTS) {
+          const errorEvent: ExecutionEvent = {
+            type: 'error',
+            data: { error: 'Polling failed after max attempts' },
+            timestamp: Date.now(),
+          };
+          for (const handler of execution.handlers) {
+            try { handler(errorEvent); } catch { /* handler error */ }
+          }
+          this.cleanupExecution(executionId);
+        }
+      }
       finally { isPolling = false; }
     }, 10_000);
   }

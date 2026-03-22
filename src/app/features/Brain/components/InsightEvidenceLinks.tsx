@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { collapse, collapseTransition } from '../lib/motionPresets';
 import {
   ExternalLink,
   Loader2,
@@ -198,10 +199,11 @@ export default function InsightEvidenceLinks({ evidence }: Props) {
                   <AnimatePresence>
                     {isExpanded && (
                       <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.15 }}
+                        variants={collapse}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        transition={collapseTransition}
                         className="overflow-hidden"
                       >
                         <div className={`px-3 py-2 border-l-2 ${colors.border} bg-zinc-800/30 space-y-1`}>

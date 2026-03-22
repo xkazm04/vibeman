@@ -249,6 +249,23 @@ export const useConductorStore = create<ConductorStoreState>()(
           const parsedLog = parseProcessLog(run.process_log);
 
           if (isTerminal) {
+            // Add to history before removing from active runs
+            const trackedRun = runs[run.id];
+            if (trackedRun) {
+              get().addToHistory({
+                id: trackedRun.id,
+                projectId: trackedRun.projectId,
+                status: run.status as PipelineStatus,
+                cycles: trackedRun.cycle,
+                metrics: {
+                  ...trackedRun.metrics,
+                  totalDurationMs: Date.now() - new Date(trackedRun.startedAt).getTime(),
+                },
+                startedAt: trackedRun.startedAt,
+                completedAt: new Date().toISOString(),
+              });
+            }
+
             // Remove from active runs
             const { [run.id]: _, ...remaining } = runs;
             const { [run.id]: __, ...remainingLogs } = get().processLogs;
@@ -281,6 +298,19 @@ export const useConductorStore = create<ConductorStoreState>()(
 
             if (isTerminal) {
               if (updatedRuns[run.id]) {
+                // Add to history before removing
+                get().addToHistory({
+                  id: updatedRuns[run.id].id,
+                  projectId: updatedRuns[run.id].projectId,
+                  status: run.status as PipelineStatus,
+                  cycles: updatedRuns[run.id].cycle,
+                  metrics: {
+                    ...updatedRuns[run.id].metrics,
+                    totalDurationMs: Date.now() - new Date(updatedRuns[run.id].startedAt).getTime(),
+                  },
+                  startedAt: updatedRuns[run.id].startedAt,
+                  completedAt: new Date().toISOString(),
+                });
                 delete updatedRuns[run.id];
                 delete updatedLogs[run.id];
               }
@@ -502,7 +532,7 @@ export const useConductorStore = create<ConductorStoreState>()(
       }),
       {
         name: 'conductor-pipeline-store',
-        version: 1,
+        version: 2,
         storage: createJSONStorage(() => localStorage),
         partialize: (state) => ({
           config: state.config,
@@ -510,12 +540,32 @@ export const useConductorStore = create<ConductorStoreState>()(
           healingPatches: state.healingPatches,
           errorClassifications: state.errorClassifications,
           nerdMode: state.nerdMode,
+          // Persist active runs so they survive refresh (like CLI sessions)
+          runs: state.runs,
+          processLogs: state.processLogs,
+          selectedRunId: state.selectedRunId,
         }),
         merge: (persistedState, currentState) => {
           const persisted = persistedState as Partial<ConductorStoreState> | undefined;
+
+          // Restore persisted runs and recompute derived fields
+          const runs = persisted?.runs && typeof persisted.runs === 'object' ? persisted.runs : {};
+          const processLogs = persisted?.processLogs && typeof persisted.processLogs === 'object' ? persisted.processLogs : {};
+          const selectedRunId = persisted?.selectedRunId && runs[persisted.selectedRunId] ? persisted.selectedRunId : Object.keys(runs)[0] || null;
+          const selectedRun = selectedRunId ? runs[selectedRunId] ?? null : null;
+
           return {
             ...currentState,
             ...persisted,
+            // Restore active run state
+            runs,
+            processLogs,
+            selectedRunId,
+            // Recompute derived fields from restored runs
+            currentRun: selectedRun,
+            isRunning: selectedRun?.status === 'running',
+            isPaused: selectedRun?.status === 'paused',
+            processLog: selectedRunId ? processLogs[selectedRunId] || [] : [],
             // Deep-merge config with defaults so new fields always have values
             config: {
               ...DEFAULT_BALANCING_CONFIG,
@@ -532,6 +582,19 @@ export const useConductorStore = create<ConductorStoreState>()(
                 : DEFAULT_BALANCING_CONFIG.modelRouting,
             },
           };
+        },
+        migrate: (persistedState: unknown, version: number) => {
+          // v1 -> v2: runs/processLogs/selectedRunId now persisted; old stores don't have them
+          if (version < 2) {
+            const state = persistedState as Record<string, unknown> | undefined;
+            return {
+              ...state,
+              runs: {},
+              processLogs: {},
+              selectedRunId: null,
+            };
+          }
+          return persistedState;
         },
       }
     ),

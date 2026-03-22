@@ -30,6 +30,8 @@ export interface QueuedTask {
   consolidatedFrom?: string[];
   /** Requirement names of consolidated constituents (for cleanup on completion) */
   consolidatedRequirementNames?: string[];
+  /** Number of times this task has been auto-retried after failure (e.g., server restart) */
+  retryCount?: number;
 }
 
 // CLISessionState is defined in ./store/cliSessionStore.ts and re-exported from ./store/index.ts

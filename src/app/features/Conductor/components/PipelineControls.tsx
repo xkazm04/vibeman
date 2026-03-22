@@ -4,7 +4,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play, Pause, Square, RotateCcw, Trash2, Activity,
@@ -14,6 +14,7 @@ import {
 import { useConductorStore } from '../lib/conductorStore';
 import type { PipelineStatus, TriageCheckpointData } from '../lib/types';
 import IntentRefinementModal from './IntentRefinementModal';
+import { UniversalModal } from '@/components/UniversalModal';
 
 const TERMINAL_STATUSES: PipelineStatus[] = ['completed', 'failed', 'interrupted'];
 
@@ -40,21 +41,27 @@ const STATUS_BADGES: Record<PipelineStatus, { label: string; className: string }
 // ============================================================================
 
 interface TriageModalProps {
-  triageData: TriageCheckpointData;
+  isOpen: boolean;
+  triageData?: TriageCheckpointData;
   runId: string;
   onClose: () => void;
 }
 
-function TriageModal({ triageData, runId, onClose }: TriageModalProps) {
-  const [decisions, setDecisions] = useState<Record<string, 'approve' | 'reject'>>(() => {
-    // Default all to approve
+function TriageModal({ isOpen, triageData, runId, onClose }: TriageModalProps) {
+  const items = triageData?.items ?? [];
+  const [decisions, setDecisions] = useState<Record<string, 'approve' | 'reject'>>({});
+  const [submitting, setSubmitting] = useState(false);
+
+  // Initialize decisions when modal opens or triage data changes
+  useEffect(() => {
+    if (!isOpen || items.length === 0) return;
     const init: Record<string, 'approve' | 'reject'> = {};
-    for (const item of triageData.items) {
+    for (const item of items) {
       init[item.id] = 'approve';
     }
-    return init;
-  });
-  const [submitting, setSubmitting] = useState(false);
+    setDecisions(init);
+    setSubmitting(false);
+  }, [isOpen, triageData]);
 
   const toggleDecision = (id: string) => {
     setDecisions((prev) => ({
@@ -65,13 +72,13 @@ function TriageModal({ triageData, runId, onClose }: TriageModalProps) {
 
   const approveAll = () => {
     const all: Record<string, 'approve' | 'reject'> = {};
-    for (const item of triageData.items) all[item.id] = 'approve';
+    for (const item of items) all[item.id] = 'approve';
     setDecisions(all);
   };
 
   const rejectAll = () => {
     const all: Record<string, 'approve' | 'reject'> = {};
-    for (const item of triageData.items) all[item.id] = 'reject';
+    for (const item of items) all[item.id] = 'reject';
     setDecisions(all);
   };
 
@@ -96,135 +103,111 @@ function TriageModal({ triageData, runId, onClose }: TriageModalProps) {
   const approvedCount = Object.values(decisions).filter((d) => d === 'approve').length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="w-full max-w-2xl max-h-[80vh] flex flex-col rounded-xl border border-gray-700 bg-gray-900 shadow-2xl"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-amber-600/20 border border-amber-600/40">
-              <ShieldAlert className="w-4 h-4 text-amber-400" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-gray-200">Triage Review</h3>
-              <p className="text-caption text-gray-500">{triageData.items.length} items awaiting your decision</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-800 text-gray-500 hover:text-gray-300 transition-colors">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+    <UniversalModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Triage Review"
+      subtitle={`${items.length} items awaiting your decision`}
+      icon={ShieldAlert}
+      iconBgColor="from-amber-600/20 to-amber-700/20"
+      iconColor="text-amber-400"
+      maxWidth="max-w-2xl"
+      maxHeight="max-h-[80vh]"
+      footerActions={[
+        { icon: X, label: 'Cancel', onClick: onClose, variant: 'secondary' },
+        {
+          icon: CheckCircle,
+          label: submitting ? 'Submitting...' : `Submit (${approvedCount} approved)`,
+          onClick: handleSubmit,
+          variant: 'success',
+          disabled: submitting,
+          loading: submitting,
+        },
+      ]}
+    >
+      {/* Bulk actions */}
+      <div className="flex items-center gap-2 mb-3 pb-2.5 border-b border-gray-800/50">
+        <button onClick={approveAll} className="text-caption px-2.5 py-1 rounded-md bg-emerald-600/10 text-emerald-400 hover:bg-emerald-600/20 border border-emerald-600/30 transition-colors">
+          Approve All
+        </button>
+        <button onClick={rejectAll} className="text-caption px-2.5 py-1 rounded-md bg-red-600/10 text-red-400 hover:bg-red-600/20 border border-red-600/30 transition-colors">
+          Reject All
+        </button>
+        <span className="ml-auto text-caption text-gray-500 font-mono">
+          {approvedCount}/{items.length} approved
+        </span>
+      </div>
 
-        {/* Bulk actions */}
-        <div className="flex items-center gap-2 px-5 py-2.5 border-b border-gray-800/50 bg-gray-900/50">
-          <button onClick={approveAll} className="text-caption px-2.5 py-1 rounded-md bg-emerald-600/10 text-emerald-400 hover:bg-emerald-600/20 border border-emerald-600/30 transition-colors">
-            Approve All
-          </button>
-          <button onClick={rejectAll} className="text-caption px-2.5 py-1 rounded-md bg-red-600/10 text-red-400 hover:bg-red-600/20 border border-red-600/30 transition-colors">
-            Reject All
-          </button>
-          <span className="ml-auto text-caption text-gray-500 font-mono">
-            {approvedCount}/{triageData.items.length} approved
-          </span>
-        </div>
-
-        {/* Items list */}
-        <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
-          {triageData.items.map((item) => {
-            const isApproved = decisions[item.id] === 'approve';
-            return (
-              <button
-                key={item.id}
-                onClick={() => toggleDecision(item.id)}
-                className={`w-full text-left p-3 rounded-lg border transition-all ${
-                  isApproved
-                    ? 'border-emerald-600/40 bg-emerald-600/5 hover:bg-emerald-600/10'
-                    : 'border-red-600/30 bg-red-600/5 hover:bg-red-600/10'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className={`mt-0.5 p-1 rounded-md ${isApproved ? 'bg-emerald-600/20' : 'bg-red-600/20'}`}>
-                    {isApproved
-                      ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                      : <XCircle className="w-3.5 h-3.5 text-red-400" />
-                    }
+      {/* Items list */}
+      <div className="space-y-2">
+        {items.map((item) => {
+          const isApproved = decisions[item.id] === 'approve';
+          return (
+            <button
+              key={item.id}
+              onClick={() => toggleDecision(item.id)}
+              className={`w-full text-left p-3 rounded-lg border transition-all ${
+                isApproved
+                  ? 'border-emerald-600/40 bg-emerald-600/5 hover:bg-emerald-600/10'
+                  : 'border-red-600/30 bg-red-600/5 hover:bg-red-600/10'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <div className={`mt-0.5 p-1 rounded-md ${isApproved ? 'bg-emerald-600/20' : 'bg-red-600/20'}`}>
+                  {isApproved
+                    ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                    : <XCircle className="w-3.5 h-3.5 text-red-400" />
+                  }
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-200 truncate">{item.title}</span>
+                    <span className="text-micro px-1.5 py-0.5 rounded bg-gray-800 text-gray-500 uppercase shrink-0">
+                      {item.category}
+                    </span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-200 truncate">{item.title}</span>
-                      <span className="text-micro px-1.5 py-0.5 rounded bg-gray-800 text-gray-500 uppercase shrink-0">
-                        {item.category}
+                  {item.description && (
+                    <p className="text-caption text-gray-500 mt-1 line-clamp-2">{item.description}</p>
+                  )}
+                  <div className="flex items-center gap-3 mt-1.5">
+                    {item.effort != null && (
+                      <span className="inline-flex items-center gap-1" title={`Effort: ${item.effort}/10`}>
+                        <span className="text-2xs text-amber-400/60 w-3 text-right font-mono">{item.effort}</span>
+                        <span className="inline-block w-20 h-2 rounded bg-gray-700/40 overflow-hidden">
+                          <span className="block h-full rounded bg-amber-400/80" style={{ width: `${Math.min(item.effort * 10, 100)}%` }} />
+                        </span>
                       </span>
-                    </div>
-                    {item.description && (
-                      <p className="text-caption text-gray-500 mt-1 line-clamp-2">{item.description}</p>
                     )}
-                    <div className="flex items-center gap-3 mt-1.5">
-                      {item.effort != null && (
-                        <span className="text-2xs text-gray-600 flex items-center gap-1" title={`Effort: ${item.effort}/10`}>
-                          Eff
-                          <span className="inline-block w-16 h-1.5 rounded-full bg-gray-700/50 overflow-hidden">
-                            <span className="block h-full rounded-full bg-amber-400/80" style={{ width: `${Math.min(item.effort * 10, 100)}%` }} />
-                          </span>
-                          <span className="text-gray-500 font-mono w-3 text-right">{item.effort}</span>
+                    {item.impact != null && (
+                      <span className="inline-flex items-center gap-1" title={`Impact: ${item.impact}/10`}>
+                        <span className="text-2xs text-emerald-400/60 w-3 text-right font-mono">{item.impact}</span>
+                        <span className="inline-block w-20 h-2 rounded bg-gray-700/40 overflow-hidden">
+                          <span className="block h-full rounded bg-emerald-400/80" style={{ width: `${Math.min(item.impact * 10, 100)}%` }} />
                         </span>
-                      )}
-                      {item.impact != null && (
-                        <span className="text-2xs text-gray-600 flex items-center gap-1" title={`Impact: ${item.impact}/10`}>
-                          Imp
-                          <span className="inline-block w-16 h-1.5 rounded-full bg-gray-700/50 overflow-hidden">
-                            <span className="block h-full rounded-full bg-emerald-400/80" style={{ width: `${Math.min(item.impact * 10, 100)}%` }} />
-                          </span>
-                          <span className="text-gray-500 font-mono w-3 text-right">{item.impact}</span>
+                      </span>
+                    )}
+                    {item.risk != null && (
+                      <span className="inline-flex items-center gap-1" title={`Risk: ${item.risk}/10`}>
+                        <span className="text-2xs text-red-400/60 w-3 text-right font-mono">{item.risk}</span>
+                        <span className="inline-block w-20 h-2 rounded bg-gray-700/40 overflow-hidden">
+                          <span className="block h-full rounded bg-red-400/80" style={{ width: `${Math.min(item.risk * 10, 100)}%` }} />
                         </span>
-                      )}
-                      {item.risk != null && (
-                        <span className="text-2xs text-gray-600 flex items-center gap-1" title={`Risk: ${item.risk}/10`}>
-                          Risk
-                          <span className="inline-block w-16 h-1.5 rounded-full bg-gray-700/50 overflow-hidden">
-                            <span className="block h-full rounded-full bg-red-400/80" style={{ width: `${Math.min(item.risk * 10, 100)}%` }} />
-                          </span>
-                          <span className="text-gray-500 font-mono w-3 text-right">{item.risk}</span>
-                        </span>
-                      )}
-                      {item.brainConflict?.hasConflict && (
-                        <span className="text-2xs text-amber-400 flex items-center gap-1">
-                          <AlertTriangle className="w-3 h-3" />
-                          {item.brainConflict.patternTitle || 'Conflict'}
-                        </span>
-                      )}
-                    </div>
+                      </span>
+                    )}
+                    {item.brainConflict?.hasConflict && (
+                      <span className="text-2xs text-amber-400 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        {item.brainConflict.patternTitle || 'Conflict'}
+                      </span>
+                    )}
                   </div>
                 </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-gray-800">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="px-5 py-2 text-sm font-medium rounded-lg bg-cyan-600/20 text-cyan-400
-              hover:bg-cyan-600/30 border border-cyan-600/40 transition-all
-              disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {submitting ? 'Submitting...' : `Submit (${approvedCount} approved)`}
-          </button>
-        </div>
-      </motion.div>
-    </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </UniversalModal>
   );
 }
 
@@ -268,6 +251,26 @@ function ToolbarBtn({
 }
 
 // ============================================================================
+// Helpers
+// ============================================================================
+
+/** Rollback a run's status and recompute derived fields. */
+function rollbackRunStatus(runId: string, status: PipelineStatus) {
+  const state = useConductorStore.getState();
+  const run = state.runs[runId];
+  if (!run) return;
+  const updatedRun = { ...run, status };
+  const updatedRuns = { ...state.runs, [runId]: updatedRun };
+  const selectedRun = state.selectedRunId === runId ? updatedRun : (state.selectedRunId ? updatedRuns[state.selectedRunId] ?? null : null);
+  useConductorStore.setState({
+    runs: updatedRuns,
+    currentRun: selectedRun,
+    isRunning: selectedRun?.status === 'running',
+    isPaused: selectedRun?.status === 'paused',
+  });
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -275,6 +278,7 @@ export default function PipelineControls({ projectId, onStart, onOpenSettings, o
   const { currentRun, isRunning, isPaused, nerdMode, toggleNerdMode, resetRun } = useConductorStore();
   const [triageOpen, setTriageOpen] = useState(false);
   const [intentOpen, setIntentOpen] = useState(false);
+  const [controlError, setControlError] = useState<string | null>(null);
 
   const status: PipelineStatus = currentRun?.status ?? 'idle';
   const isTerminal = TERMINAL_STATUSES.includes(status);
@@ -292,32 +296,66 @@ export default function PipelineControls({ projectId, onStart, onOpenSettings, o
 
   const handlePause = async () => {
     if (!currentRun) return;
-    await fetch('/api/conductor/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'pause', runId: currentRun.id, projectId }),
-    });
-    useConductorStore.getState().pauseRun();
+    setControlError(null);
+    const store = useConductorStore.getState();
+    store.pauseRun();
+    try {
+      const res = await fetch('/api/conductor/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'pause', runId: currentRun.id, projectId }),
+      });
+      if (!res.ok) {
+        store.resumeRun(); // rollback optimistic pause
+        setControlError(`Failed to pause pipeline (${res.status})`);
+      }
+    } catch {
+      useConductorStore.getState().resumeRun(); // rollback
+      setControlError('Network error — could not pause pipeline');
+    }
   };
 
   const handleResume = async () => {
     if (!currentRun) return;
-    await fetch('/api/conductor/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'resume', runId: currentRun.id, projectId }),
-    });
-    useConductorStore.getState().resumeRun();
+    setControlError(null);
+    const store = useConductorStore.getState();
+    store.resumeRun();
+    try {
+      const res = await fetch('/api/conductor/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'resume', runId: currentRun.id, projectId }),
+      });
+      if (!res.ok) {
+        store.pauseRun(); // rollback optimistic resume
+        setControlError(`Failed to resume pipeline (${res.status})`);
+      }
+    } catch {
+      useConductorStore.getState().pauseRun(); // rollback
+      setControlError('Network error — could not resume pipeline');
+    }
   };
 
   const handleStop = async () => {
     if (!currentRun) return;
-    await fetch('/api/conductor/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'stop', runId: currentRun.id, projectId }),
-    });
+    setControlError(null);
+    const previousStatus = currentRun.status;
+    const runId = currentRun.id;
     useConductorStore.getState().stopRun();
+    try {
+      const res = await fetch('/api/conductor/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'stop', runId, projectId }),
+      });
+      if (!res.ok) {
+        rollbackRunStatus(runId, previousStatus);
+        setControlError(`Failed to stop pipeline (${res.status})`);
+      }
+    } catch {
+      rollbackRunStatus(runId, previousStatus);
+      setControlError('Network error — could not stop pipeline');
+    }
   };
 
   const handlePlayPause = () => {
@@ -499,16 +537,34 @@ export default function PipelineControls({ projectId, onStart, onOpenSettings, o
         </div>
       </motion.div>
 
-      {/* Triage Modal */}
+      {/* Error Toast */}
       <AnimatePresence>
-        {triageOpen && isAtTriage && (
-          <TriageModal
-            triageData={triageData!}
-            runId={currentRun!.id}
-            onClose={() => setTriageOpen(false)}
-          />
+        {controlError && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="flex items-center gap-2 mt-2 px-3 py-2 rounded-lg border border-red-600/40 bg-red-600/10 text-red-400 text-xs"
+          >
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+            <span className="flex-1">{controlError}</span>
+            <button
+              onClick={() => setControlError(null)}
+              className="p-0.5 rounded hover:bg-red-600/20 transition-colors"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Triage Modal */}
+      <TriageModal
+        isOpen={triageOpen && !!isAtTriage}
+        triageData={triageData}
+        runId={currentRun?.id ?? ''}
+        onClose={() => setTriageOpen(false)}
+      />
 
       {/* Intent Refinement Modal */}
       {intentOpen && isAtIntent && (

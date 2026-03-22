@@ -270,6 +270,13 @@ async function handlePatch(request: NextRequest) {
         });
       }
     } else if (resolution === 'keep_this') {
+      // Guard: the other insight must exist to safely delete it
+      if (!otherInsight) {
+        return buildErrorResponse(
+          'Conflicting insight no longer exists — cannot complete keep_this resolution',
+          { status: 404 },
+        );
+      }
       // Resolve this, delete the other
       brainInsightDb.update(insightRow.id, {
         conflict_resolved: 1,
@@ -278,21 +285,24 @@ async function handlePatch(request: NextRequest) {
         conflict_with_title: null,
         conflict_type: null,
       });
-      if (otherInsight) {
-        brainInsightDb.delete(otherInsight.id);
-      }
+      brainInsightDb.delete(otherInsight.id);
     } else if (resolution === 'keep_other') {
+      // Guard: the other insight must exist before we delete the current one
+      if (!otherInsight) {
+        return buildErrorResponse(
+          'Conflicting insight no longer exists — cannot complete keep_other resolution',
+          { status: 404 },
+        );
+      }
       // Delete this, resolve the other
       brainInsightDb.delete(insightRow.id);
-      if (otherInsight) {
-        brainInsightDb.update(otherInsight.id, {
-          conflict_resolved: 1,
-          conflict_resolution: 'keep_other',
-          conflict_with_id: null,
-          conflict_with_title: null,
-          conflict_type: null,
-        });
-      }
+      brainInsightDb.update(otherInsight.id, {
+        conflict_resolved: 1,
+        conflict_resolution: 'keep_other',
+        conflict_with_id: null,
+        conflict_with_title: null,
+        conflict_type: null,
+      });
     }
 
     const remaining = brainInsightDb.countByReflection(reflectionId);

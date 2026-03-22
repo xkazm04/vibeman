@@ -14,72 +14,18 @@ import {
 } from 'lucide-react';
 import { LaunchpadIllustration } from './ConductorEmptyStates';
 import { useConductorStore } from '../lib/conductorStore';
+import { PIPELINE_STATUS_COLORS } from '../lib/stageTheme';
 import type { PipelineStatus } from '../lib/types';
 
-// Full class strings for Tailwind static analysis (no dynamic interpolation)
-const STATUS_CONFIG: Record<PipelineStatus, {
-  icon: typeof Zap;
-  iconClass: string;
-  labelClass: string;
-  selectedBg: string;
-  selectedBorder: string;
-}> = {
-  running: {
-    icon: Zap,
-    iconClass: 'text-cyan-400',
-    labelClass: 'text-cyan-400',
-    selectedBg: 'bg-cyan-500/15',
-    selectedBorder: 'border-cyan-500/40',
-  },
-  paused: {
-    icon: Pause,
-    iconClass: 'text-amber-400',
-    labelClass: 'text-amber-400',
-    selectedBg: 'bg-amber-500/15',
-    selectedBorder: 'border-amber-500/40',
-  },
-  stopping: {
-    icon: Square,
-    iconClass: 'text-red-400',
-    labelClass: 'text-red-400',
-    selectedBg: 'bg-red-500/15',
-    selectedBorder: 'border-red-500/40',
-  },
-  queued: {
-    icon: Clock,
-    iconClass: 'text-indigo-400',
-    labelClass: 'text-indigo-400',
-    selectedBg: 'bg-indigo-500/15',
-    selectedBorder: 'border-indigo-500/40',
-  },
-  completed: {
-    icon: CheckCircle2,
-    iconClass: 'text-emerald-400',
-    labelClass: 'text-emerald-400',
-    selectedBg: 'bg-emerald-500/15',
-    selectedBorder: 'border-emerald-500/40',
-  },
-  failed: {
-    icon: XCircle,
-    iconClass: 'text-red-400',
-    labelClass: 'text-red-400',
-    selectedBg: 'bg-red-500/15',
-    selectedBorder: 'border-red-500/40',
-  },
-  interrupted: {
-    icon: AlertTriangle,
-    iconClass: 'text-amber-400',
-    labelClass: 'text-amber-400',
-    selectedBg: 'bg-amber-500/15',
-    selectedBorder: 'border-amber-500/40',
-  },
-  idle: {
-    icon: Clock,
-    iconClass: 'text-gray-400',
-    labelClass: 'text-gray-400',
-    selectedBg: 'bg-gray-500/15',
-    selectedBorder: 'border-gray-500/40',
-  },
+const STATUS_ICONS: Record<PipelineStatus, typeof Zap> = {
+  running: Zap,
+  paused: Pause,
+  stopping: Square,
+  queued: Clock,
+  completed: CheckCircle2,
+  failed: XCircle,
+  interrupted: AlertTriangle,
+  idle: Clock,
 };
 
 function formatElapsed(startedAt: string): string {
@@ -130,8 +76,8 @@ export default function RunSidebar({ onNewRun }: RunSidebarProps) {
         <AnimatePresence mode="popLayout">
           {runList.map((run) => {
             const isSelected = run.id === selectedRunId;
-            const cfg = STATUS_CONFIG[run.status] || STATUS_CONFIG.idle;
-            const Icon = cfg.icon;
+            const colors = PIPELINE_STATUS_COLORS[run.status] || PIPELINE_STATUS_COLORS.idle;
+            const Icon = STATUS_ICONS[run.status] || STATUS_ICONS.idle;
             const title = run.goalTitle || run.goalId?.slice(0, 8) || 'Untitled';
 
             return (
@@ -144,14 +90,14 @@ export default function RunSidebar({ onNewRun }: RunSidebarProps) {
                 onClick={() => selectRun(run.id)}
                 className={`w-full text-left p-2 rounded-lg border transition-all ${
                   isSelected
-                    ? `${cfg.selectedBg} ${cfg.selectedBorder}`
+                    ? `${colors.selectedBg} ${colors.selectedBorder}`
                     : 'border-transparent hover:bg-gray-800/50 hover:border-gray-700/40'
                 }`}
                 whileTap={{ scale: 0.98 }}
               >
                 <div className="flex items-center gap-2">
                   <div className="relative flex-shrink-0">
-                    <Icon className={`w-3.5 h-3.5 ${cfg.iconClass}`} />
+                    <Icon className={`w-3.5 h-3.5 ${colors.iconClass}`} />
                     {run.status === 'running' && (
                       <motion.span
                         className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400"
@@ -166,7 +112,7 @@ export default function RunSidebar({ onNewRun }: RunSidebarProps) {
                   <span className="text-xs text-gray-200 truncate flex-1">{title}</span>
                 </div>
                 <div className="flex items-center gap-2 mt-1 pl-[22px]">
-                  <span className={`text-2xs ${cfg.labelClass} capitalize`}>
+                  <span className={`text-2xs ${colors.labelClass} capitalize`}>
                     {run.status}
                   </span>
                   <span className="text-2xs text-gray-600">

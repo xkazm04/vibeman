@@ -1,11 +1,13 @@
 'use client';
 
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ThumbsUp, ThumbsDown, Trash2, Copy, BookOpen, Code2, AlertTriangle, FileText, Tag } from 'lucide-react';
 import type { DbKnowledgeEntry } from '@/app/db/models/knowledge.types';
 import { KNOWLEDGE_CATEGORY_LABELS, KNOWLEDGE_LAYER_LABELS } from '@/app/db/models/knowledge.types';
 import type { KnowledgeCategory, KnowledgeLayer } from '@/app/db/models/knowledge.types';
-import { transition, fadeOnly } from '@/lib/motion';
+import { fadeOnly } from '@/lib/motion';
+import { fullDrawer, fullDrawerTransition } from '../../lib/motionPresets';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import ConfidenceBar from './ConfidenceBar';
 
@@ -32,8 +34,53 @@ const PATTERN_TYPE_COLORS: Record<string, string> = {
   optimization: 'text-cyan-400',
 };
 
+const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+const TITLE_ID = 'entry-detail-title';
+
 export default function EntryDetailPanel({ entry, onClose, onFeedback, onDelete }: EntryDetailPanelProps) {
   const prefersReduced = useReducedMotion();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Reset delete confirmation when entry changes
+  useEffect(() => { setConfirmDelete(false); }, [entry?.id]);
+
+  // Auto-focus close button on open
+  useEffect(() => {
+    if (entry) {
+      // Small delay to let framer-motion render the panel
+      const t = setTimeout(() => closeButtonRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [entry]);
+
+  // Focus trap + Escape handler
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      onClose();
+      return;
+    }
+
+    if (e.key === 'Tab') {
+      const panel = panelRef.current;
+      if (!panel) return;
+      const focusable = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  }, [onClose]);
 
   const parseJson = (str: string): string[] => {
     try { return JSON.parse(str); } catch { return []; }
@@ -59,10 +106,16 @@ export default function EntryDetailPanel({ entry, onClose, onFeedback, onDelete 
 
           {/* Panel */}
           <motion.div
-            initial={prefersReduced ? false : { x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={transition.expand}
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={TITLE_ID}
+            onKeyDown={handleKeyDown}
+            variants={fullDrawer}
+            initial={prefersReduced ? false : 'initial'}
+            animate="animate"
+            exit="exit"
+            transition={fullDrawerTransition}
             className="fixed right-0 top-0 bottom-0 w-full max-w-lg z-50 bg-zinc-900/95 backdrop-blur-xl border-l border-zinc-800/50 overflow-y-auto"
           >
             {/* Header */}
@@ -75,7 +128,7 @@ export default function EntryDetailPanel({ entry, onClose, onFeedback, onDelete 
                     <BookOpen className="w-5 h-5 text-purple-400" />
                   </div>
                   <div className="min-w-0">
-                    <h2 className="text-base font-semibold text-zinc-100 truncate">{entry.title}</h2>
+                    <h2 id={TITLE_ID} className="text-base font-semibold text-zinc-100 truncate">{entry.title}</h2>
                     <p className="text-xs text-zinc-500">
                       {KNOWLEDGE_LAYER_LABELS[entry.layer as KnowledgeLayer] ?? entry.layer}
                       <span className="mx-1">{'>'}</span>
@@ -88,7 +141,9 @@ export default function EntryDetailPanel({ entry, onClose, onFeedback, onDelete 
                   </div>
                 </div>
                 <button
+                  ref={closeButtonRef}
                   onClick={onClose}
+                  aria-label="Close detail panel"
                   className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors"
                 >
                   <X className="w-4 h-4" />
@@ -204,16 +259,34 @@ export default function EntryDetailPanel({ entry, onClose, onFeedback, onDelete 
                   Not Helpful
                 </button>
                 <div className="flex-1" />
-                <button
-                  onClick={() => {
-                    onDelete(entry.id);
-                    onClose();
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 border border-red-500/20 transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Delete
-                </button>
+                {confirmDelete ? (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => {
+                        onDelete(entry.id);
+                        onClose();
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white bg-red-600 hover:bg-red-500 border border-red-500 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Confirm
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(false)}
+                      className="px-3 py-2 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-300 bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/30 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 border border-red-500/20 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete
+                  </button>
+                )}
               </div>
             </div>
           </motion.div>

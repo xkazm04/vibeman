@@ -43,3 +43,28 @@ export const inlineExpandTransition = {
   duration: 0.15,
   ease: [0.0, 0.0, 0.2, 1] as const,
 };
+
+/** Full drawer — slides in from the right edge, covering full height */
+export const fullDrawer: Variants = {
+  initial: { x: '100%' },
+  animate: { x: 0 },
+  exit: { x: '100%' },
+};
+
+export const fullDrawerTransition = {
+  type: 'spring' as const,
+  damping: 30,
+  stiffness: 300,
+};
+
+/** Collapse — height-based expand/collapse for toggled sections within cards */
+export const collapse: Variants = {
+  initial: { height: 0, opacity: 0 },
+  animate: { height: 'auto', opacity: 1 },
+  exit: { height: 0, opacity: 0 },
+};
+
+export const collapseTransition = {
+  duration: 0.2,
+  ease: [0.0, 0.0, 0.2, 1] as const,
+};

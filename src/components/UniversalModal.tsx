@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, LucideIcon, Loader2 } from 'lucide-react';
@@ -71,6 +71,7 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
   headerActions = [],
   footerActions = [],
 }) => {
+  const titleId = useId();
   // Track if component is mounted (for portal)
   const [mounted, setMounted] = useState(false);
 
@@ -166,10 +167,13 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
           }}
           className="relative"
         >
-        <div 
+        <div
           className={`relative w-full ${maxWidth} ${maxHeight} overflow-hidden`}
           onClick={(e) => e.stopPropagation()}
           data-modal="true"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
         >
           {/* Enhanced Modal Background with Gradient and Border Effects */}
           <div className="relative bg-gradient-to-br from-slate-900/95 via-slate-900/90 to-slate-800/95 rounded-2xl overflow-hidden backdrop-blur-xl shadow-2xl border border-slate-700/40">
@@ -191,7 +195,7 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
                       </div>
                     )}
                     <div>
-                      <h2 className="text-xl font-semibold text-white tracking-wide bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">
+                      <h2 id={titleId} className="text-xl font-semibold text-white tracking-wide bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">
                         {title}
                       </h2>
                       {subtitle && (

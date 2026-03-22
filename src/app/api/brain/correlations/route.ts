@@ -8,13 +8,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { computeCorrelations } from '@/lib/brain/correlationEngine';
 import { withObservability } from '@/lib/observability/middleware';
+import { parseQueryInt } from '@/lib/api-helpers/parseQueryInt';
 
 async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
-    const windowDays = parseInt(searchParams.get('windowDays') || '14', 10);
-    const topN = parseInt(searchParams.get('topN') || '5', 10);
+    const windowDays = parseQueryInt(searchParams.get('windowDays'), {
+      default: 14, min: 1, max: 365, paramName: 'windowDays',
+    });
+    const topN = parseQueryInt(searchParams.get('topN'), {
+      default: 5, min: 1, max: 50, paramName: 'topN',
+    });
 
     if (!projectId) {
       return NextResponse.json(

@@ -206,6 +206,10 @@ body {
     opacity: 0.6;
     transform: scale(1) translateY(0);
   }
+
+  .celebration-burst {
+    display: none !important;
+  }
 }
 
 /* Glass morphism effect */
@@ -393,11 +397,14 @@ body {
     transform: translateX(-16px);
     opacity: 0;
   }
-  15% {
+  10% {
+    opacity: 0.6;
+  }
+  50% {
     opacity: 1;
   }
-  85% {
-    opacity: 1;
+  90% {
+    opacity: 0.6;
   }
   100% {
     transform: translateX(48px);
@@ -405,16 +412,153 @@ body {
   }
 }
 
+@keyframes limeSpark {
+  0% {
+    transform: translateX(-12px);
+    opacity: 0;
+    background-color: #d0e41d;
+    box-shadow: 0 0 4px #d0e41d, 0 0 8px rgba(208, 228, 29, 0.4);
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateX(52px);
+    opacity: 0;
+    background-color: #d0e41d;
+    box-shadow: 0 0 4px #d0e41d, 0 0 8px rgba(208, 228, 29, 0.4);
+  }
+}
+
 /* Pipeline completion celebration particles */
 @keyframes celebrationBurst {
   0% {
-    transform: translate(0, 0) scale(1);
+    transform: translate(0, 0) scale(0.6);
+    opacity: 0;
+  }
+  12% {
+    transform: translate(0, 0) scale(1.2);
     opacity: 1;
   }
   100% {
     transform: translate(var(--tx), var(--ty)) scale(0);
     opacity: 0;
   }
+}
+
+@keyframes celebrationGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
+  }
+  40% {
+    box-shadow: 0 0 16px 4px rgba(16, 185, 129, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.celebration-burst {
+  filter: drop-shadow(0 0 3px rgba(34, 211, 238, 0.5));
+}
+
+/* ── Pipeline connector pulse animations ── */
+@keyframes neuralPulse {
+  0%   { transform: translateX(-24px); }
+  100% { transform: translateX(48px); }
+}
+
+@keyframes neuralPulseVertical {
+  0%   { transform: translateY(-22px); }
+  100% { transform: translateY(40px); }
+}
+
+@keyframes limeSpark {
+  0%   { opacity: 0; transform: scale(0); }
+  50%  { opacity: 1; transform: scale(1.5); background: #d0e41d; }
+  100% { opacity: 0; transform: scale(0); }
+}
+
+/* ── Neural Skeleton (Brain loading states) ── */
+@keyframes neuralSignal {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(250%); }
+}
+
+@keyframes neuralNodePulse {
+  0%, 100% { opacity: 0.08; r: 1.5; }
+  50%      { opacity: 0.45; r: 2.5; }
+}
+
+@keyframes neuralPathDash {
+  to { stroke-dashoffset: -24; }
+}
+
+/* ── KB Grid-Pulse Loader (Knowledge Base branded loading) ── */
+@keyframes kbGridPulseRing {
+  0% {
+    transform: scale(0.3);
+    opacity: 0.25;
+  }
+  60% {
+    opacity: 0.08;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+@keyframes kbGridPulseRow {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes kbGridPulseShimmer {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(300%); }
+}
+
+@keyframes kbGridPulseLine {
+  0%   { opacity: 0; stroke-dashoffset: 40; }
+  50%  { opacity: 1; }
+  100% { opacity: 0.5; stroke-dashoffset: 0; }
+}
+
+.kb-grid-pulse-ring {
+  animation: kbGridPulseRing 2.5s ease-out infinite;
+}
+
+.kb-grid-pulse-row {
+  opacity: 0;
+  animation: kbGridPulseRow 0.4s ease-out forwards;
+}
+
+.kb-grid-pulse-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(6, 182, 212, 0.08) 40%,
+    rgba(6, 182, 212, 0.14) 50%,
+    rgba(6, 182, 212, 0.08) 60%,
+    transparent 100%
+  );
+  animation: kbGridPulseShimmer 2s ease-in-out infinite;
+}
+
+.kb-grid-pulse-line {
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: kbGridPulseLine 1.8s ease-out forwards;
 }
 
 /* Touch device overrides - force visibility of hover-gated interactive elements */

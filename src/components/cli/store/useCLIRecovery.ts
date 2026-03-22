@@ -27,6 +27,10 @@ export const cliLifecycle = createCLILifecycle({
  * Hook to recover CLI sessions on mount.
  * Should be called once at the top-level CLI component.
  * Recovery state is tracked per-session via CLISessionState.isRecovering.
+ *
+ * Uses a longer initial delay (500ms) because during self-editing scenarios
+ * the Next.js server may be restarting. recoverCLISessions() internally
+ * waits for the server with exponential backoff.
  */
 export function useCLIRecovery(): void {
   const hasRecovered = useRef(false);
@@ -36,10 +40,11 @@ export function useCLIRecovery(): void {
     if (hasRecovered.current) return;
     hasRecovered.current = true;
 
-    // Small delay to ensure store is hydrated from localStorage
+    // Longer delay to ensure store hydration AND give the server time
+    // to stabilize after HMR restarts (self-editing scenario)
     const timer = setTimeout(() => {
       recoverCLISessions();
-    }, 100);
+    }, 500);
 
     return () => {
       clearTimeout(timer);

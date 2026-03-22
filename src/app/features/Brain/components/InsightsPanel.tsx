@@ -6,6 +6,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Lightbulb, Filter, RefreshCw, AlertOctagon, Search, Zap, Sparkles } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import BrainPanelHeader from './BrainPanelHeader';
+import BrainEmptyState from './BrainEmptyState';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { InsightsTable } from './InsightsTable';
@@ -15,13 +16,14 @@ import { useReflectionTrigger } from '@/hooks/useReflectionTrigger';
 import { subscribeToReflectionCompletion } from '@/stores/reflectionCompletionEmitter';
 import { brainKeys, useInvalidateBrain } from '../lib/queries';
 import { CACHE_PRESETS } from '@/lib/cache/cache-config';
+import { BRAIN_CHART } from '../lib/brainChartColors';
 
 interface Props {
   scope?: 'project' | 'global';
 }
 
-const ACCENT_COLOR = '#f59e0b'; // Amber
-const GLOW_COLOR = 'rgba(245, 158, 11, 0.15)';
+const ACCENT_COLOR = BRAIN_CHART.panel.insights;
+const GLOW_COLOR = BRAIN_CHART.panel.insightsGlow;
 
 function BrainSvg({ reducedMotion }: { reducedMotion?: boolean | null }) {
   const leftPaths = [
@@ -75,10 +77,10 @@ function BrainSvg({ reducedMotion }: { reducedMotion?: boolean | null }) {
       {/* Neural pulse paths — right hemisphere */}
       {rightPaths.map((p, i) =>
         reducedMotion ? (
-          <path key={i} d={p.d} stroke="#a855f7" strokeWidth="1.2" strokeLinecap="round" opacity={p.peakOpacity} />
+          <path key={i} d={p.d} stroke={BRAIN_CHART.brand.accent} strokeWidth="1.2" strokeLinecap="round" opacity={p.peakOpacity} />
         ) : (
           <motion.path
-            key={i} d={p.d} stroke="#a855f7" strokeWidth="1.2" strokeLinecap="round"
+            key={i} d={p.d} stroke={BRAIN_CHART.brand.accent} strokeWidth="1.2" strokeLinecap="round"
             initial={{ pathLength: 0, opacity: 0 }}
             animate={{ pathLength: [0, 1, 1, 0], opacity: [0, p.peakOpacity, p.peakOpacity, 0] }}
             transition={{ duration: 3, delay: p.delay, repeat: Infinity, ease: 'easeInOut' }}
@@ -88,11 +90,11 @@ function BrainSvg({ reducedMotion }: { reducedMotion?: boolean | null }) {
       {/* Neural nodes */}
       {nodes.map(([cx, cy], i) =>
         reducedMotion ? (
-          <circle key={i} cx={cx} cy={cy} r="1.5" fill={i < 3 ? ACCENT_COLOR : i < 6 ? '#a855f7' : '#10b981'} opacity="0.8" />
+          <circle key={i} cx={cx} cy={cy} r="1.5" fill={i < 3 ? ACCENT_COLOR : i < 6 ? BRAIN_CHART.brand.accent : BRAIN_CHART.positive} opacity="0.8" />
         ) : (
           <motion.circle
             key={i} cx={cx} cy={cy} r="1.5"
-            fill={i < 3 ? ACCENT_COLOR : i < 6 ? '#a855f7' : '#10b981'}
+            fill={i < 3 ? ACCENT_COLOR : i < 6 ? BRAIN_CHART.brand.accent : BRAIN_CHART.positive}
             initial={{ opacity: 0.2 }}
             animate={{ opacity: [0.2, 0.8, 0.2] }}
             transition={{ duration: 2, delay: i * 0.3, repeat: Infinity }}
@@ -120,61 +122,36 @@ function InsightsEmptyState({ scope }: { scope: 'project' | 'global' }) {
   });
 
   return (
-    <div className="text-center py-10">
-      <motion.div
-        className="mx-auto mb-5 w-24 h-24 rounded-2xl flex items-center justify-center relative"
-        style={{
-          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.06) 0%, rgba(168, 85, 247, 0.06) 100%)',
-          border: '1px solid rgba(245, 158, 11, 0.15)',
-        }}
-        animate={prefersReducedMotion ? undefined : { scale: [1, 1.02, 1] }}
-        transition={prefersReducedMotion ? undefined : { duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        <BrainSvg reducedMotion={prefersReducedMotion} />
-        {/* Subtle ambient ring */}
-        {prefersReducedMotion ? (
-          <div
-            className="absolute inset-0 rounded-2xl"
-            style={{ border: '1px solid rgba(168, 85, 247, 0.1)', opacity: 0.5 }}
-          />
-        ) : (
-          <motion.div
-            className="absolute inset-0 rounded-2xl"
-            style={{ border: '1px solid rgba(168, 85, 247, 0.1)' }}
-            animate={{ opacity: [0.3, 0.7, 0.3] }}
-            transition={{ duration: 3, repeat: Infinity }}
-          />
-        )}
-      </motion.div>
-
-      <h3 className="text-zinc-300 text-sm font-medium mb-1">No Learning Insights Yet</h3>
-      <p className="text-zinc-600 text-xs max-w-xs mx-auto mb-5 leading-relaxed">
-        Insights are patterns, preferences, and recommendations discovered when the Brain
-        reflects on your development decisions.
-      </p>
-
-      {scope === 'project' && activeProject?.id && (
-        <motion.button
-          onClick={trigger}
-          disabled={isTriggering}
-          aria-label={isTriggering ? 'Reflecting in progress' : 'Trigger reflection'}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-mono transition-all disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none"
-          style={{
-            background: `linear-gradient(135deg, ${ACCENT_COLOR}18 0%, rgba(168, 85, 247, 0.08) 100%)`,
-            border: `1px solid ${ACCENT_COLOR}30`,
-            color: ACCENT_COLOR,
-          }}
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
-        >
-          {isTriggering ? (
-            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <Sparkles className="w-3.5 h-3.5" />
-          )}
-          {isTriggering ? 'REFLECTING...' : 'TRIGGER REFLECTION'}
-        </motion.button>
-      )}
+    <div className="py-8 flex justify-center">
+      <BrainEmptyState
+        icon={<Lightbulb className="w-10 h-10 text-zinc-600" />}
+        title="No Learning Insights Yet"
+        description="Insights are patterns, preferences, and recommendations discovered when the Brain reflects on your development decisions."
+        action={
+          scope === 'project' && activeProject?.id ? (
+            <motion.button
+              onClick={trigger}
+              disabled={isTriggering}
+              aria-label={isTriggering ? 'Reflecting in progress' : 'Trigger reflection'}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-mono transition-all disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none"
+              style={{
+                background: `linear-gradient(135deg, ${ACCENT_COLOR}18 0%, rgba(168, 85, 247, 0.08) 100%)`,
+                border: `1px solid ${ACCENT_COLOR}30`,
+                color: ACCENT_COLOR,
+              }}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              {isTriggering ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5" />
+              )}
+              {isTriggering ? 'REFLECTING...' : 'TRIGGER REFLECTION'}
+            </motion.button>
+          ) : undefined
+        }
+      />
     </div>
   );
 }

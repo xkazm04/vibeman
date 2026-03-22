@@ -3,6 +3,7 @@
 import { useCallback, useId, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import ChartTooltip from './ChartTooltip';
+import { BRAIN_CHART } from '../lib/brainChartColors';
 
 export interface AnomalyZone {
   /** Start day (0 = today) */
@@ -205,8 +206,8 @@ export default function SignalDecayCurve({ decayFactor, retentionDays, actualSig
         {/* Gradient for curve */}
         <defs aria-hidden="true">
           <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#a855f7" />
-            <stop offset="100%" stopColor="#3b82f6" />
+            <stop offset="0%" stopColor={BRAIN_CHART.decay.start} />
+            <stop offset="100%" stopColor={BRAIN_CHART.decay.end} />
           </linearGradient>
         </defs>
 
@@ -221,7 +222,7 @@ export default function SignalDecayCurve({ decayFactor, retentionDays, actualSig
               cx={x}
               cy={y}
               r={2.5}
-              fill="#10b981"
+              fill={BRAIN_CHART.decay.signal}
               className="cursor-pointer outline-none"
               tabIndex={0}
               role="graphics-symbol"

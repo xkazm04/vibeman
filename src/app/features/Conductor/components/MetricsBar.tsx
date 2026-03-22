@@ -1,5 +1,8 @@
 /**
  * MetricsBar — Real-time pipeline throughput and cost metrics
+ *
+ * Metrics are grouped into labeled sections (Tasks, Performance,
+ * Healing, Cost) for quick visual scanning during active runs.
  */
 
 'use client';
@@ -19,15 +22,27 @@ interface MetricsBarProps {
   isRunning: boolean;
 }
 
+// Static color class map — avoids dynamic Tailwind interpolation that gets purged in production
+const METRIC_COLORS: Record<string, string> = {
+  cyan: 'text-cyan-400',
+  emerald: 'text-emerald-400',
+  red: 'text-red-400',
+  purple: 'text-purple-400',
+  indigo: 'text-indigo-400',
+  pink: 'text-pink-400',
+  gray: 'text-gray-400',
+  amber: 'text-amber-400',
+};
+
 interface MetricItemProps {
   icon: typeof ListChecks;
   value: number | string;
-  color: string;
+  colorClass: string;
   delay: number;
   title: string;
 }
 
-function MetricItem({ icon: Icon, value, color, delay, title }: MetricItemProps) {
+function MetricItem({ icon: Icon, value, colorClass, delay, title }: MetricItemProps) {
   return (
     <motion.div
       className="flex items-center gap-1.5"
@@ -36,9 +51,20 @@ function MetricItem({ icon: Icon, value, color, delay, title }: MetricItemProps)
       transition={{ delay: delay * 0.05 }}
       title={title}
     >
-      <Icon className={`w-3.5 h-3.5 text-${color}-400`} />
-      <span className={`text-sm font-bold font-mono text-${color}-400`}>{value}</span>
+      <Icon className={`w-3.5 h-3.5 ${colorClass}`} />
+      <span className={`text-sm font-bold font-mono ${colorClass}`}>{value}</span>
     </motion.div>
+  );
+}
+
+function MetricGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide leading-none">{label}</span>
+      <div className="flex items-center gap-2.5">
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -60,7 +86,6 @@ export default function MetricsBar({ metrics, processLog, isRunning }: MetricsBa
   // Derive live metrics from processLog if available (most recent metrics event wins)
   const liveMetrics = useMemo(() => {
     if (!processLog || processLog.length === 0) return null;
-    // Find the last metrics event in the log
     for (let i = processLog.length - 1; i >= 0; i--) {
       if (processLog[i].event === 'metrics' && processLog[i].metrics) {
         return processLog[i].metrics!;
@@ -94,50 +119,51 @@ export default function MetricsBar({ metrics, processLog, isRunning }: MetricsBa
       data-testid="metrics-bar"
     >
       {/* Tasks */}
-      <MetricItem icon={ListChecks} value={tasksPlanned} color="cyan" delay={0} title="Tasks planned" />
-      <MetricItem icon={CheckCircle2} value={tasksCompleted} color="emerald" delay={1} title="Tasks completed" />
-      <MetricItem icon={XCircle} value={tasksFailed} color="red" delay={2} title="Tasks failed" />
+      <MetricGroup label="Tasks">
+        <MetricItem icon={ListChecks} value={tasksPlanned} colorClass={METRIC_COLORS.cyan} delay={0} title="Tasks planned" />
+        <MetricItem icon={CheckCircle2} value={tasksCompleted} colorClass={METRIC_COLORS.emerald} delay={1} title="Tasks completed" />
+        <MetricItem icon={XCircle} value={tasksFailed} colorClass={METRIC_COLORS.red} delay={2} title="Tasks failed" />
+        <div className="flex items-center gap-1.5" title="Success rate">
+          <span className={`text-sm font-bold font-mono ${
+            successRate >= 80 ? 'text-emerald-400' :
+            successRate >= 50 ? 'text-amber-400' :
+            'text-red-400'
+          }`}>
+            {successRate}%
+          </span>
+        </div>
+      </MetricGroup>
 
-      <div className="w-px h-5 bg-gray-800 flex-shrink-0" />
+      <div className="w-px h-8 bg-gray-800 flex-shrink-0" />
 
-      {/* Success Rate */}
-      <div className="flex items-center gap-1.5" title="Success rate">
-        <span className={`text-sm font-bold font-mono ${
-          successRate >= 80 ? 'text-emerald-400' :
-          successRate >= 50 ? 'text-amber-400' :
-          'text-red-400'
-        }`}>
-          {successRate}%
-        </span>
-      </div>
+      {/* Performance */}
+      <MetricGroup label="Performance">
+        <MetricItem icon={RefreshCw} value={totalCycles} colorClass={METRIC_COLORS.purple} delay={3} title="Cycles" />
+        <MetricItem icon={Brain} value={llmCallCount} colorClass={METRIC_COLORS.indigo} delay={4} title="LLM calls" />
+      </MetricGroup>
 
-      <div className="w-px h-5 bg-gray-800 flex-shrink-0" />
-
-      {/* Cycles + LLM Calls */}
-      <MetricItem icon={RefreshCw} value={totalCycles} color="purple" delay={3} title="Cycles" />
-      <MetricItem icon={Brain} value={llmCallCount} color="indigo" delay={4} title="LLM calls" />
-
-      <div className="w-px h-5 bg-gray-800 flex-shrink-0" />
+      <div className="w-px h-8 bg-gray-800 flex-shrink-0" />
 
       {/* Healing */}
-      <MetricItem icon={Wrench} value={healingPatchesApplied} color="pink" delay={5} title="Healing patches applied" />
+      <MetricGroup label="Healing">
+        <MetricItem icon={Wrench} value={healingPatchesApplied} colorClass={METRIC_COLORS.pink} delay={5} title="Healing patches applied" />
+        {worktreesCreated > 0 && (
+          <>
+            <MetricItem icon={GitBranch} value={worktreesCreated} colorClass={METRIC_COLORS.purple} delay={5.5} title="Worktrees created" />
+            {mergeConflicts > 0 && (
+              <MetricItem icon={GitMerge} value={mergeConflicts} colorClass={METRIC_COLORS.red} delay={5.7} title="Merge conflicts" />
+            )}
+          </>
+        )}
+      </MetricGroup>
 
-      {/* Worktree metrics (conditional) */}
-      {worktreesCreated > 0 && (
-        <>
-          <div className="w-px h-5 bg-gray-800 flex-shrink-0" />
-          <MetricItem icon={GitBranch} value={worktreesCreated} color="purple" delay={5.5} title="Worktrees created" />
-          {mergeConflicts > 0 && (
-            <MetricItem icon={GitMerge} value={mergeConflicts} color="red" delay={5.7} title="Merge conflicts" />
-          )}
-        </>
-      )}
-
-      {/* Duration */}
-      <MetricItem icon={Clock} value={formatDuration(totalDurationMs)} color="gray" delay={6} title="Total duration" />
+      <div className="w-px h-8 bg-gray-800 flex-shrink-0" />
 
       {/* Cost */}
-      <MetricItem icon={DollarSign} value={formatCost(estimatedCost)} color="amber" delay={7} title="Estimated cost" />
+      <MetricGroup label="Cost">
+        <MetricItem icon={Clock} value={formatDuration(totalDurationMs)} colorClass={METRIC_COLORS.gray} delay={6} title="Total duration" />
+        <MetricItem icon={DollarSign} value={formatCost(estimatedCost)} colorClass={METRIC_COLORS.amber} delay={7} title="Estimated cost" />
+      </MetricGroup>
 
       {/* Running indicator */}
       {isRunning && (

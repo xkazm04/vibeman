@@ -137,8 +137,8 @@ export const brainInsightRepository = {
         const hotDb = getHotWritesDatabase();
         const signalExistsStmt = hotDb.prepare('SELECT 1 FROM behavioral_signals WHERE id = ? LIMIT 1');
 
+        const validEvidence: EvidenceRef[] = [];
         for (const ref of input.evidence) {
-          // Validate evidence reference exists before inserting
           let exists = false;
           if (ref.type === 'direction') {
             exists = !!directionExistsStmt.get(ref.id);
@@ -149,12 +149,20 @@ export const brainInsightRepository = {
           }
 
           if (!exists) {
-            throw new Error(
-              `Evidence reference ${ref.type}:${ref.id} does not exist for insight "${input.title}"`
+            console.warn(
+              `[brain-insight] Skipping missing evidence ${ref.type}:${ref.id} for insight "${input.title}" — reference may have been decayed`
             );
+            continue;
           }
 
+          validEvidence.push(ref);
           evidenceStmt.run(input.id, ref.type, ref.id, now);
+        }
+
+        // Update stored evidence JSON if any refs were skipped
+        if (validEvidence.length !== input.evidence.length) {
+          db.prepare('UPDATE brain_insights SET evidence = ? WHERE id = ?')
+            .run(JSON.stringify(validEvidence), input.id);
         }
       }
     });
@@ -295,10 +303,10 @@ export const brainInsightRepository = {
           lineageStmt.run(conflictWithId, id, 'conflicts_with', `Conflict type: ${insight.conflict_type || 'unknown'}`, now);
         }
 
-        // Insert evidence into junction table with FK validation
+        // Insert evidence into junction table with FK validation (soft-skip invalid refs)
+        const validEvidence: EvidenceRef[] = [];
         if (insight.evidence && insight.evidence.length > 0) {
           for (const ref of insight.evidence) {
-            // Validate evidence reference exists before inserting
             let exists = false;
             if (ref.type === 'direction') {
               exists = !!directionExistsStmt.get(ref.id);
@@ -309,12 +317,20 @@ export const brainInsightRepository = {
             }
 
             if (!exists) {
-              throw new Error(
-                `Evidence reference ${ref.type}:${ref.id} does not exist for insight "${insight.title}"`
+              console.warn(
+                `[brain-insight] Skipping missing evidence ${ref.type}:${ref.id} for insight "${insight.title}" — reference may have been decayed`
               );
+              continue;
             }
 
+            validEvidence.push(ref);
             evidenceStmt.run(id, ref.type, ref.id, now);
+          }
+
+          // Update stored evidence JSON to match validated refs
+          if (validEvidence.length !== insight.evidence.length) {
+            db.prepare('UPDATE brain_insights SET evidence = ? WHERE id = ?')
+              .run(JSON.stringify(validEvidence), id);
           }
         }
 

@@ -11,22 +11,21 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   CalendarDays,
   X,
-  GitCommit,
-  Radio,
-  Layers,
-  Wrench,
   Brain,
   Terminal,
   TrendingUp,
   ChevronDown,
 } from 'lucide-react';
+import { GitNeuralPathway, ApiSignalPulse, ContextBrainLayer, CircuitComplete } from './SignalTypeIcons';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useHeatmap } from '../lib/queries';
 import GlowCard from './GlowCard';
 import BrainPanelHeader from './BrainPanelHeader';
-import { inlineExpand, inlineExpandTransition } from '../lib/motionPresets';
+import { inlineExpand, inlineExpandTransition, collapse, collapseTransition } from '../lib/motionPresets';
 import NeuralPulseLoader from './NeuralPulseLoader';
+import SectionHeading from './SectionHeading';
 import { DATA_FONT, FONT_SIZE } from '../lib/brainFonts';
+import { BRAIN_CHART, getHeatmapIntensity } from '../lib/brainChartColors';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -34,37 +33,27 @@ import type { HeatmapDayData, HeatmapContext } from '../lib/queries/apiClient';
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
-const ACCENT = '#a855f7';
-const GLOW = 'rgba(168, 85, 247, 0.15)';
+const ACCENT = BRAIN_CHART.panel.decay;
+const GLOW = BRAIN_CHART.panel.decayGlow;
 const CELL_SIZE = 13;
 const CELL_GAP = 3;
 const WEEKS_TO_SHOW = 13; // ~90 days
 const DAYS_IN_WEEK = 7;
 
 const SIGNAL_TYPE_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  git_activity: { label: 'Git Activity', icon: GitCommit, color: '#10b981' },
-  api_focus: { label: 'API Focus', icon: Radio, color: '#3b82f6' },
-  context_focus: { label: 'Context Focus', icon: Layers, color: '#8b5cf6' },
-  implementation: { label: 'Implementation', icon: Wrench, color: '#f59e0b' },
-  cross_task_analysis: { label: 'Cross-Task Analysis', icon: Brain, color: '#ec4899' },
-  cross_task_selection: { label: 'Cross-Task Selection', icon: Brain, color: '#f43f5e' },
-  cli_memory: { label: 'CLI Memory', icon: Terminal, color: '#06b6d4' },
+  git_activity: { label: 'Git Activity', icon: GitNeuralPathway, color: BRAIN_CHART.signalType.git_activity },
+  api_focus: { label: 'API Focus', icon: ApiSignalPulse, color: BRAIN_CHART.signalType.api_focus },
+  context_focus: { label: 'Context Focus', icon: ContextBrainLayer, color: BRAIN_CHART.signalType.context_focus },
+  implementation: { label: 'Implementation', icon: CircuitComplete, color: BRAIN_CHART.signalType.implementation },
+  cross_task_analysis: { label: 'Cross-Task Analysis', icon: Brain, color: BRAIN_CHART.signalType.cross_task_analysis },
+  cross_task_selection: { label: 'Cross-Task Selection', icon: Brain, color: BRAIN_CHART.signalType.cross_task_selection },
+  cli_memory: { label: 'CLI Memory', icon: Terminal, color: BRAIN_CHART.signalType.cli_memory },
 };
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAY_LABELS = ['Mon', '', 'Wed', '', 'Fri', '', ''];
 
-// ── Intensity color scale (purple ramp) ─────────────────────────────────────
-
-function getIntensityColor(value: number, max: number): string {
-  if (max === 0 || value === 0) return 'rgba(63, 63, 70, 0.3)'; // zinc-700/30
-  const ratio = Math.min(value / max, 1);
-  if (ratio < 0.2) return 'rgba(168, 85, 247, 0.15)';
-  if (ratio < 0.4) return 'rgba(168, 85, 247, 0.30)';
-  if (ratio < 0.6) return 'rgba(168, 85, 247, 0.50)';
-  if (ratio < 0.8) return 'rgba(168, 85, 247, 0.70)';
-  return 'rgba(168, 85, 247, 0.90)';
-}
+// ── Intensity color scale (purple ramp from brainChartColors) ────────────────
 
 // ── Main component ──────────────────────────────────────────────────────────
 
@@ -257,8 +246,8 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
                   width={CELL_SIZE}
                   height={CELL_SIZE}
                   rx={2}
-                  fill={getIntensityColor(weight, maxWeight)}
-                  stroke={isSelected ? '#a855f7' : 'transparent'}
+                  fill={getHeatmapIntensity(weight, maxWeight)}
+                  stroke={isSelected ? BRAIN_CHART.brand.accent : 'transparent'}
                   strokeWidth={isSelected ? 1.5 : 0}
                   className="cursor-pointer transition-colors"
                   initial={{ opacity: 0 }}
@@ -281,14 +270,12 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
         {/* Legend */}
         <div className="flex items-center gap-2 text-2xs text-zinc-500">
           <span>Less</span>
-          {[0, 0.15, 0.30, 0.50, 0.70, 0.90].map((opacity) => (
+          {[null, ...BRAIN_CHART.heatmap].map((color, i) => (
             <div
-              key={opacity}
+              key={i}
               className="w-3 h-3 rounded-sm"
               style={{
-                backgroundColor: opacity === 0
-                  ? 'rgba(63, 63, 70, 0.3)'
-                  : `rgba(168, 85, 247, ${opacity})`,
+                backgroundColor: color ?? 'rgba(63, 63, 70, 0.3)',
               }}
             />
           ))}
@@ -315,9 +302,11 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
         <AnimatePresence>
           {showTrend && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
+              variants={collapse}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={collapseTransition}
               className="overflow-hidden"
             >
               <TrendChart
@@ -383,14 +372,14 @@ function DayDrillDown({ day, onClose }: { day: HeatmapDayData; onClose: () => vo
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* By Signal Type */}
           <div className="space-y-2">
-            <span className="text-2xs text-zinc-500 uppercase tracking-wider font-medium">By Type</span>
+            <SectionHeading className="mb-0">By Type</SectionHeading>
             {typeEntries.map(([type, stats]) => {
               const meta = SIGNAL_TYPE_META[type];
               const Icon = meta?.icon ?? Brain;
               const barWidth = (stats.weight / maxTypeWeight) * 100;
               return (
                 <div key={type} className="flex items-center gap-2">
-                  <Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: meta?.color ?? '#a855f7' }} />
+                  <Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: meta?.color ?? BRAIN_CHART.brand.accent }} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between text-2xs mb-0.5">
                       <span className="text-zinc-300 truncate">{meta?.label ?? type}</span>
@@ -399,7 +388,7 @@ function DayDrillDown({ day, onClose }: { day: HeatmapDayData; onClose: () => vo
                     <div className="h-1 rounded-full bg-zinc-800 overflow-hidden">
                       <motion.div
                         className="h-full rounded-full"
-                        style={{ backgroundColor: meta?.color ?? '#a855f7' }}
+                        style={{ backgroundColor: meta?.color ?? BRAIN_CHART.brand.accent }}
                         initial={{ width: 0 }}
                         animate={{ width: `${barWidth}%` }}
                         transition={{ duration: 0.4, ease: 'easeOut' }}
@@ -414,7 +403,7 @@ function DayDrillDown({ day, onClose }: { day: HeatmapDayData; onClose: () => vo
           {/* By Context */}
           {contextEntries.length > 0 && (
             <div className="space-y-2">
-              <span className="text-2xs text-zinc-500 uppercase tracking-wider font-medium">By Context</span>
+              <SectionHeading className="mb-0">By Context</SectionHeading>
               {contextEntries.slice(0, 6).map(([ctxId, stats]) => (
                 <div key={ctxId} className="flex items-center justify-between text-2xs">
                   <span className="text-zinc-300 truncate max-w-[160px]">{stats.name}</span>
@@ -603,8 +592,8 @@ function TrendChart({
             {/* Gradient definition */}
             <defs>
               <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#a855f7" stopOpacity={0.9} />
-                <stop offset="100%" stopColor="#7c3aed" stopOpacity={0.4} />
+                <stop offset="0%" stopColor={BRAIN_CHART.brand.accent} stopOpacity={0.9} />
+                <stop offset="100%" stopColor={BRAIN_CHART.brand.accentDark} stopOpacity={0.4} />
               </linearGradient>
             </defs>
           </svg>

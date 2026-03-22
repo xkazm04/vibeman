@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState, useCallback, useReducer, useSyncExternalStore } from 'react';
 import * as d3 from 'd3';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Sparkles } from 'lucide-react';
 import type { BrainEvent, Group, UndoEntry, SignalType, FilterState } from './lib/types';
 import { BG } from './lib/constants';
 import { renderBackground, type RenderContext } from './lib/canvasRenderPipeline';
@@ -11,12 +11,12 @@ import { CanvasStore } from './lib/canvasStore';
 import { useCanvasData } from './lib/useCanvasData';
 import { renderFocused } from './lib/renderFocused';
 import { renderOverview } from './lib/renderOverview';
-import { renderEmptyState, resetEmptyState } from './lib/renderEmptyState';
 import { useCanvasInteraction } from './lib/useCanvasInteraction';
 import { EventDetailDrawer } from './components/EventDetailDrawer';
 import { CanvasToolbar } from './components/CanvasToolbar';
 import { UndoToasts } from './components/UndoToasts';
 import { canvasReducer, createInitialCanvasState } from './lib/canvasStateReducer';
+import BrainEmptyState from '../components/BrainEmptyState';
 
 const ALL_TYPES: SignalType[] = ['git_activity', 'api_focus', 'context_focus', 'implementation'];
 
@@ -33,8 +33,6 @@ export default function EventCanvasD3({ enabled = true }: EventCanvasD3Props) {
   const groupsRef = useRef<Group[]>([]);
   const zoomBehaviorRef = useRef<d3.ZoomBehavior<HTMLCanvasElement, unknown> | null>(null);
   const momentumAnimRef = useRef<number>(0);
-  const emptyFrameRef = useRef(0);
-  const emptyAnimRef = useRef<number>(0);
   const filterStateRef = useRef<FilterState>({ visibleTypes: new Set(ALL_TYPES) });
 
   // ── Canvas state machine (replaces scattered refs) ──
@@ -87,10 +85,11 @@ export default function EventCanvasD3({ enabled = true }: EventCanvasD3Props) {
     store.setDimensions(width, height);
     groupsRef.current = currentGroups;
 
-    // Empty state: animated particles
+    // Empty state: handled by React overlay
     if (currentGroups.length === 0) {
-      emptyFrameRef.current++;
-      renderEmptyState(ctx, width, height, dpr, emptyFrameRef.current);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = '#0f0f11';
+      ctx.fillRect(0, 0, width, height);
       return;
     }
 
@@ -113,9 +112,13 @@ export default function EventCanvasD3({ enabled = true }: EventCanvasD3Props) {
     animRef.current = requestAnimationFrame(render);
   }, [render]);
 
-  // Cleanup worker on unmount
+  // Cleanup worker + pending undo timeouts on unmount
   useEffect(() => {
-    return () => { store.destroy(); };
+    return () => {
+      store.destroy();
+      setUndoStack(prev => { prev.forEach(u => clearTimeout(u.timeout)); return []; });
+      pendingDeletesRef.current.clear();
+    };
   }, [store]);
 
   // Re-render canvas when snapshot changes (store data updated)
@@ -152,24 +155,32 @@ export default function EventCanvasD3({ enabled = true }: EventCanvasD3Props) {
   }, [store]);
 
   // ── Delete / Undo (mutate store directly → subscribers notified) ──
+  const pendingDeletesRef = useRef(new Set<string>());
+
   const handleDelete = useCallback((evt: BrainEvent) => {
-    store.removeEvent(evt.id, canvasState.focusedGroupId);
+    if (pendingDeletesRef.current.has(evt.id)) return; // double-delete guard
+    pendingDeletesRef.current.add(evt.id);
+
+    const groupId = canvasState.focusedGroupId; // capture at call-time
+    store.removeEvent(evt.id, groupId);
     dispatch({ type: 'EventSelected', event: null });
     const timeout = setTimeout(() => {
       setUndoStack(prev => prev.filter(u => u.event.id !== evt.id));
+      pendingDeletesRef.current.delete(evt.id);
       fetch(`/api/brain/signals?id=${evt.id}`, { method: 'DELETE' })
         .catch(() => {
-          store.restoreEvent(evt, canvasState.focusedGroupId);
+          store.restoreEvent(evt, groupId);
         });
     }, 5000);
-    setUndoStack(prev => [...prev, { event: evt, timeout }]);
+    setUndoStack(prev => [...prev, { event: evt, timeout, groupId }]);
   }, [store, canvasState.focusedGroupId]);
 
   const handleUndo = useCallback((entry: UndoEntry) => {
     clearTimeout(entry.timeout);
+    pendingDeletesRef.current.delete(entry.event.id);
     setUndoStack(prev => prev.filter(u => u.event.id !== entry.event.id));
-    store.restoreEvent(entry.event, canvasState.focusedGroupId);
-  }, [store, canvasState.focusedGroupId]);
+    store.restoreEvent(entry.event, entry.groupId);
+  }, [store]);
 
   // Canvas interaction hook
   useCanvasInteraction({
@@ -177,24 +188,6 @@ export default function EventCanvasD3({ enabled = true }: EventCanvasD3Props) {
     dimRef, groupsRef, zoomBehaviorRef, momentumAnimRef,
     requestRender, fitToView,
   });
-
-  // Empty state animation loop
-  useEffect(() => {
-    if (snapshot.isEmpty && snapshot.events.length === 0) {
-      resetEmptyState();
-      let running = true;
-      const loop = () => {
-        if (!running) return;
-        render();
-        emptyAnimRef.current = requestAnimationFrame(loop);
-      };
-      emptyAnimRef.current = requestAnimationFrame(loop);
-      return () => {
-        running = false;
-        cancelAnimationFrame(emptyAnimRef.current);
-      };
-    }
-  }, [snapshot.isEmpty, snapshot.events.length, render]);
 
   // Read from snapshot for toolbar (no more toolbarVersion hack)
   const focusedGroup = store.getFocusedGroup(canvasState.focusedGroupId);
@@ -209,6 +202,16 @@ export default function EventCanvasD3({ enabled = true }: EventCanvasD3Props) {
     <div className="flex flex-col h-full w-full overflow-hidden" style={{ background: BG }}>
       <div ref={containerRef} className="relative flex-1" style={{ minHeight: 300 }}>
         <canvas ref={canvasRef} className="absolute inset-0" />
+
+        {snapshot.isEmpty && snapshot.events.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center z-10">
+            <BrainEmptyState
+              icon={<Sparkles className="w-10 h-10 text-zinc-600" />}
+              title="No signals yet"
+              description="Brain collects signals from task execution, idea reviews & code activity."
+            />
+          </div>
+        )}
 
         {canvasState.focusedGroupId && (
           <button

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { collapse, collapseTransition } from '../lib/motionPresets';
 import {
   ChevronDown,
   ChevronRight,
@@ -107,10 +108,11 @@ export default function ReflectionHistoryItem({ entry }: Props) {
       <AnimatePresence initial={false}>
       {expanded && (
         <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.2, ease: 'easeInOut' }}
+          variants={collapse}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          transition={collapseTransition}
           className="overflow-hidden"
         >
         <div className="px-3 pb-3 pt-1 border-t border-zinc-800/30 space-y-3">

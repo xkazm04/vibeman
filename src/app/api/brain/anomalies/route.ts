@@ -8,13 +8,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { detectAnomalies } from '@/lib/brain/anomalyDetector';
 import { withObservability } from '@/lib/observability/middleware';
+import { parseQueryInt } from '@/lib/api-helpers/parseQueryInt';
 
 async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
-    const baselineDays = parseInt(searchParams.get('baselineDays') || '30', 10);
-    const windowDays = parseInt(searchParams.get('windowDays') || '3', 10);
+    const baselineDays = parseQueryInt(searchParams.get('baselineDays'), {
+      default: 30, min: 1, max: 365, paramName: 'baselineDays',
+    });
+    const windowDays = parseQueryInt(searchParams.get('windowDays'), {
+      default: 3, min: 1, max: 365, paramName: 'windowDays',
+    });
 
     if (!projectId) {
       return NextResponse.json(

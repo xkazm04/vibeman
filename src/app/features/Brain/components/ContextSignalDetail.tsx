@@ -1,9 +1,10 @@
 'use client';
 
 import { useMemo } from 'react';
-import { FileCode, GitCommit, Globe, Clock, TrendingUp, TrendingDown, Minus, AlertCircle } from 'lucide-react';
+import { FileCode, GitCommit, Globe, Clock, TrendingUp, TrendingDown, Minus, AlertCircle, Radio } from 'lucide-react';
 import type { DbBehavioralSignal, GitActivitySignalData, ApiFocusSignalData } from '@/app/db/models/brain.types';
 import type { DrillDownTarget } from './SignalDetailDrawer';
+import BrainEmptyState from './BrainEmptyState';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useSignals } from '../lib/queries';
 
@@ -79,9 +80,12 @@ export default function ContextSignalDetail({ target }: ContextSignalDetailProps
 
   if (signals.length === 0) {
     return (
-      <div className="text-center py-8">
-        <p className="text-sm text-zinc-500">No signals found for this item.</p>
-        <p className="text-xs text-zinc-600 mt-1">Signals are recorded as you work on the project.</p>
+      <div className="py-6 flex justify-center">
+        <BrainEmptyState
+          icon={<Radio className="w-10 h-10 text-zinc-600" />}
+          title="No signals found"
+          description="Signals are recorded as you work on the project."
+        />
       </div>
     );
   }

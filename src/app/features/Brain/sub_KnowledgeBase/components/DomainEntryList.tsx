@@ -3,6 +3,9 @@
 import { useState, useMemo } from 'react';
 import { Search, ArrowUpDown, X, Filter } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import BrainEmptyState from '../../components/BrainEmptyState';
+import KBNoResultsSvg from './KBNoResultsSvg';
+import KBEmptyBookSvg from './KBEmptyBookSvg';
 import type { DbKnowledgeEntry, KnowledgeDomain, KnowledgePatternType } from '@/app/db/models/knowledge.types';
 import { KNOWLEDGE_DOMAIN_LABELS } from '@/app/db/models/knowledge.types';
 import { transition } from '@/lib/motion';
@@ -164,11 +167,12 @@ export default function DomainEntryList({
           <SimpleSpinner size="md" color="purple" />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-sm text-zinc-500">No entries found</p>
-          <p className="text-xs text-zinc-600 mt-1">
-            {searchQuery ? 'Try a different search term' : 'Run a pattern scan to populate the knowledge base'}
-          </p>
+        <div className="py-10 flex justify-center">
+          <BrainEmptyState
+            icon={searchQuery ? <KBNoResultsSvg reducedMotion={prefersReduced} /> : <KBEmptyBookSvg reducedMotion={prefersReduced} />}
+            title={searchQuery ? 'No entries found' : 'No entries yet'}
+            description={searchQuery ? 'Try a different search term.' : 'Run a pattern scan to populate the knowledge base.'}
+          />
         </div>
       ) : (
         <div className="space-y-2">

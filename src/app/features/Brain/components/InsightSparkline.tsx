@@ -3,6 +3,7 @@
 import { useCallback, useState, useId } from 'react';
 import type { ConfidencePoint } from '@/app/api/brain/insights/route';
 import ChartTooltip from './ChartTooltip';
+import { BRAIN_CHART } from '../lib/brainChartColors';
 
 interface Props {
   history: ConfidencePoint[];
@@ -22,11 +23,7 @@ function getTrend(history: ConfidencePoint[]): Trend {
   return 'stable';
 }
 
-const trendColors: Record<Trend, string> = {
-  growing: '#4ade80',   // green-400
-  stable: '#a1a1aa',    // zinc-400
-  declining: '#fbbf24', // amber-400
-};
+const trendColors: Record<Trend, string> = BRAIN_CHART.sparkline;
 
 /**
  * Tiny inline SVG sparkline showing confidence over time.

@@ -91,7 +91,7 @@ export function TeamIcon({
   if (showBadge) {
     return (
       <span
-        className={`inline-flex items-center gap-1 rounded-full ${colors} ${badgeSizeClasses[size]} font-medium ${className}`}
+        className={`inline-flex items-center gap-1 rounded-full ${colors.text} ${colors.bg} ${badgeSizeClasses[size]} font-medium ${className}`}
         title={label}
       >
         <IconComponent className={sizeClasses[size]} />
@@ -102,7 +102,7 @@ export function TeamIcon({
 
   return (
     <span
-      className={`inline-flex items-center gap-1 ${colors.split(' ')[0]} ${className}`}
+      className={`inline-flex items-center gap-1 ${colors.text} ${className}`}
       title={label}
     >
       <IconComponent className={sizeClasses[size]} />

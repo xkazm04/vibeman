@@ -2,8 +2,9 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as d3 from 'd3';
-import { Maximize2 } from 'lucide-react';
+import { Maximize2, Clock } from 'lucide-react';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
+import BrainEmptyState from '../components/BrainEmptyState';
 
 import { relTime } from '../sub_MemoryCanvas/lib/helpers';
 import { COLORS, RECENCY_GLOW_HOURS, LANE_TYPES } from '../sub_MemoryCanvas/lib/constants';
@@ -149,12 +150,8 @@ export default function EventCanvasTimeline() {
     const visibleEvents = events.filter(e => visible.has(e.type));
 
     // Execute timeline render pipeline
+    // Empty state is handled by a React overlay (BrainEmptyState)
     executeTimelineRenderPipeline(renderContext, {
-      emptyState: isEmptyState ? {
-        laneTypes: SIGNAL_TYPES,
-        laneLabels: LANE_LABELS,
-        margin: MARGIN,
-      } : undefined,
       laneBackground: !isEmptyState ? {
         laneTypes: SIGNAL_TYPES,
         laneLabels: LANE_LABELS,
@@ -397,6 +394,16 @@ export default function EventCanvasTimeline() {
     <div className="flex flex-col h-full w-full bg-zinc-900 overflow-hidden">
       <div ref={containerRef} className="relative flex-1" style={{ minHeight: 300 }}>
         <canvas ref={canvasRef} className="absolute inset-0 cursor-grab active:cursor-grabbing" />
+
+        {isEmpty && (
+          <div className="absolute inset-0 flex items-center justify-center z-10">
+            <BrainEmptyState
+              icon={<Clock className="w-10 h-10 text-zinc-600" />}
+              title="No timeline data"
+              description="Brain collects data from task executions, idea reviews, and direction decisions."
+            />
+          </div>
+        )}
 
         {/* Zoom hint overlay — appears below 3x zoom until first zoom-in */}
         {!hasZoomedIn && !isEmpty && zoomLevel < 3 && (

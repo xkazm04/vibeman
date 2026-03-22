@@ -9,7 +9,7 @@ import { executeRenderPipeline, withWorldTransform, type RenderContext, type Ren
 import { hexToRgba } from '../sub_MemoryCanvas/lib/helpers';
 import { COLORS } from '../sub_MemoryCanvas/lib/constants';
 import type { SignalType } from '../sub_MemoryCanvas/lib/types';
-import { DISPLAY_FONT, FONT_SIZE } from '../lib/brainFonts';
+import { DISPLAY_FONT, DATA_FONT } from '../lib/brainFonts';
 
 // ─── Timeline Margins ─────────────────────────────────────────────────────
 
@@ -35,7 +35,7 @@ export const renderLaneBackground: RenderPassFn<LaneBackgroundConfig> = (
   const plotH = height - margin.top - margin.bottom;
   const laneH = plotH / laneTypes.length;
 
-  ctx.font = 'bold 11px ${DISPLAY_FONT}';
+  ctx.font = `bold 11px ${DISPLAY_FONT}`;
 
   laneTypes.forEach((type, i) => {
     const y = margin.top + i * laneH + laneH / 2;
@@ -71,7 +71,7 @@ export const renderTimeAxis: RenderPassFn<TimeAxisConfig> = (
 
   const plotW = width - margin.left - margin.right;
 
-  ctx.font = '10px ${DISPLAY_FONT}';
+  ctx.font = `10px ${DATA_FONT}`;
   ctx.fillStyle = '#71717a';
   ctx.textAlign = 'center';
 
@@ -130,99 +130,19 @@ export const renderTimelineGrid: RenderPassFn<TimelineGridConfig> = (
   });
 };
 
-// ─── Empty State Pass ─────────────────────────────────────────────────────
-
-export interface EmptyStateConfig {
-  laneTypes: SignalType[];
-  laneLabels: Record<SignalType, string>;
-  margin: typeof TIMELINE_MARGIN;
-  message?: {
-    title: string;
-    lines: string[];
-  };
-}
-
-export const renderEmptyState: RenderPassFn<EmptyStateConfig> = (
-  { ctx, width, height, dpr },
-  config
-) => {
-  const {
-    laneTypes,
-    laneLabels,
-    margin,
-    message = {
-      title: 'No timeline data',
-      lines: [
-        'Brain collects data from task executions,',
-        'idea reviews, and direction decisions.',
-      ],
-    },
-  } = config;
-
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-  const plotW = width - margin.left - margin.right;
-  const plotH = height - margin.top - margin.bottom;
-  const laneH = plotH / laneTypes.length;
-
-  // Ghost lane labels
-  ctx.font = 'bold 11px ${DISPLAY_FONT}';
-  laneTypes.forEach((type, i) => {
-    const y = margin.top + i * laneH + laneH / 2;
-    ctx.fillStyle = hexToRgba(COLORS[type], 0.10);
-    ctx.fillRect(8, y - 6, 8, 12);
-    ctx.fillStyle = hexToRgba('#d4d4d8', 0.10);
-    ctx.textBaseline = 'middle';
-    ctx.textAlign = 'left';
-    ctx.fillText(laneLabels[type], 24, y);
-
-    // Dotted center line
-    ctx.strokeStyle = hexToRgba('#71717a', 0.04);
-    ctx.lineWidth = 1;
-    ctx.setLineDash([6, 8]);
-    ctx.beginPath();
-    ctx.moveTo(margin.left, y);
-    ctx.lineTo(margin.left + plotW, y);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  });
-
-  // Central empty message
-  const cx = width / 2;
-  const cy = height / 2;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  ctx.fillStyle = 'rgba(161,161,170,0.6)';
-  ctx.font = '500 14px ${DISPLAY_FONT}';
-  ctx.fillText(message.title, cx, cy - 10);
-
-  ctx.fillStyle = 'rgba(113,113,122,0.5)';
-  ctx.font = '12px ${DISPLAY_FONT}';
-  message.lines.forEach((line, i) => {
-    ctx.fillText(line, cx, cy + 12 + i * 16);
-  });
-};
-
 // ─── Timeline Render Pipeline ─────────────────────────────────────────────
 
 export type TimelineRenderPipelineConfig = RenderPipelineConfig & {
   laneBackground?: LaneBackgroundConfig;
   timeAxis?: TimeAxisConfig;
   timelineGrid?: TimelineGridConfig;
-  emptyState?: EmptyStateConfig;
 };
 
 export function executeTimelineRenderPipeline(
   context: RenderContext,
   config: TimelineRenderPipelineConfig
 ): void {
-  // Timeline-specific passes first
-  if (config.emptyState) {
-    renderEmptyState(context, config.emptyState);
-    return; // Early exit for empty state
-  }
-
+  // Timeline-specific passes first (empty state handled by React overlay)
   if (config.laneBackground) {
     renderLaneBackground(context, config.laneBackground);
   }
@@ -236,6 +156,6 @@ export function executeTimelineRenderPipeline(
   }
 
   // Delegate to shared pipeline for event rendering
-  const { laneBackground, timeAxis, timelineGrid, emptyState, ...sharedPasses } = config;
+  const { laneBackground, timeAxis, timelineGrid, ...sharedPasses } = config;
   executeRenderPipeline(context, sharedPasses);
 }

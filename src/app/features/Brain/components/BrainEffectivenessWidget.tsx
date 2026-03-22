@@ -2,13 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Brain, TrendingUp, TrendingDown, Minus, AlertTriangle, Zap, ChevronDown, ChevronRight, Lightbulb, FlaskConical } from 'lucide-react';
+import { collapse, collapseTransition } from '../lib/motionPresets';
+import { Brain, TrendingUp, TrendingDown, Minus, AlertTriangle, Zap, ChevronDown, ChevronRight, Lightbulb, FlaskConical, BarChart3 } from 'lucide-react';
 import BrainPanelHeader from './BrainPanelHeader';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import InsightEffectivenessScore from './InsightEffectivenessScore';
+import BrainEmptyState from './BrainEmptyState';
 import GlowCard from './GlowCard';
 import { useEffectiveness, useInfluence, useInvalidateBrain } from '../lib/queries';
 import { subscribeToReflectionCompletion } from '@/stores/reflectionCompletionEmitter';
+import { BRAIN_CHART } from '../lib/brainChartColors';
 
 interface Props {
   scope?: 'project' | 'global';
@@ -47,29 +50,14 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
   // Determine accent color based on verdict
   const getVerdictConfig = (overallScore: number) => {
     if (overallScore > 10) {
-      return {
-        verdict: 'helpful',
-        accentColor: '#10b981',
-        glowColor: 'rgba(16, 185, 129, 0.15)',
-        borderColor: 'border-emerald-500/20',
-        Icon: TrendingUp,
-      };
+      const v = BRAIN_CHART.verdict.helpful;
+      return { verdict: 'helpful', accentColor: v.color, glowColor: v.glow, borderColor: v.border, Icon: TrendingUp };
     } else if (overallScore < -10) {
-      return {
-        verdict: 'misleading',
-        accentColor: '#ef4444',
-        glowColor: 'rgba(239, 68, 68, 0.15)',
-        borderColor: 'border-red-500/20',
-        Icon: TrendingDown,
-      };
+      const v = BRAIN_CHART.verdict.misleading;
+      return { verdict: 'misleading', accentColor: v.color, glowColor: v.glow, borderColor: v.border, Icon: TrendingDown };
     }
-    return {
-      verdict: 'neutral',
-      accentColor: '#a855f7',
-      glowColor: 'rgba(168, 85, 247, 0.15)',
-      borderColor: 'border-purple-500/20',
-      Icon: Minus,
-    };
+    const v = BRAIN_CHART.verdict.neutral;
+    return { verdict: 'neutral', accentColor: v.color, glowColor: v.glow, borderColor: v.border, Icon: Minus };
   };
 
   if (isLoading) {
@@ -80,7 +68,7 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
           background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.9) 0%, rgba(3, 7, 18, 0.95) 100%)',
         }}
       >
-        <BrainPanelHeader icon={Brain} title="Brain Effectiveness" accentColor="#a855f7" glowColor="rgba(168, 85, 247, 0.15)" />
+        <BrainPanelHeader icon={Brain} title="Brain Effectiveness" accentColor={BRAIN_CHART.verdict.neutral.color} glowColor={BRAIN_CHART.verdict.neutral.glow} />
         <div className="animate-pulse space-y-3">
           <div className="h-4 bg-zinc-800 rounded w-2/3" />
           <div className="h-10 bg-zinc-800 rounded" />
@@ -97,7 +85,7 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
           background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.9) 0%, rgba(3, 7, 18, 0.95) 100%)',
         }}
       >
-        <BrainPanelHeader icon={Brain} title="Brain Effectiveness" accentColor="#a855f7" glowColor="rgba(168, 85, 247, 0.15)" />
+        <BrainPanelHeader icon={Brain} title="Brain Effectiveness" accentColor={BRAIN_CHART.verdict.neutral.color} glowColor={BRAIN_CHART.verdict.neutral.glow} />
         <div className="text-sm text-red-400">{error.message}</div>
       </div>
     );
@@ -111,9 +99,13 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
           background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.9) 0%, rgba(3, 7, 18, 0.95) 100%)',
         }}
       >
-        <BrainPanelHeader icon={Brain} title="Brain Effectiveness" accentColor="#a855f7" glowColor="rgba(168, 85, 247, 0.15)" />
-        <div className="text-sm text-zinc-500">
-          Not enough data yet. Generate directions and reflections to see effectiveness scores.
+        <BrainPanelHeader icon={Brain} title="Brain Effectiveness" accentColor={BRAIN_CHART.verdict.neutral.color} glowColor={BRAIN_CHART.verdict.neutral.glow} />
+        <div className="py-6 flex justify-center">
+          <BrainEmptyState
+            icon={<BarChart3 className="w-10 h-10 text-zinc-600" />}
+            title="Not enough data yet"
+            description="Generate directions and reflections to see effectiveness scores."
+          />
         </div>
       </div>
     );
@@ -212,7 +204,7 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
             </div>
             <div className="grid grid-cols-3 gap-3 text-center">
               <div>
-                <div className="text-lg font-bold font-mono" style={{ color: causal.overallCausalScore > 10 ? '#10b981' : causal.overallCausalScore < -10 ? '#ef4444' : '#a855f7' }}>
+                <div className="text-lg font-bold font-mono" style={{ color: causal.overallCausalScore > 10 ? BRAIN_CHART.verdict.helpful.color : causal.overallCausalScore < -10 ? BRAIN_CHART.verdict.misleading.color : BRAIN_CHART.verdict.neutral.color }}>
                   {causal.overallCausalScore > 0 ? '+' : ''}{causal.overallCausalScore}%
                 </div>
                 <div className="text-xs text-zinc-500">Causal Score</div>
@@ -281,8 +273,10 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
         {/* Per-insight detail list */}
         {showDetails && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
+            variants={collapse}
+            initial="initial"
+            animate="animate"
+            transition={collapseTransition}
             className="mt-3 space-y-2 max-h-[300px] overflow-y-auto"
           >
             {sortedInsights.map((insight, idx) => (
@@ -321,8 +315,10 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
 
             {showCausal && (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
+                variants={collapse}
+                initial="initial"
+                animate="animate"
+                transition={collapseTransition}
                 className="mt-3 space-y-2 max-h-[300px] overflow-y-auto"
               >
                 {causal.insights

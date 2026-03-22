@@ -52,6 +52,14 @@ interface ConductorRunRow {
   pipeline_version: number | null;
 }
 
+/** V4 zombie run details for post-flight recovery */
+export interface V4ZombieRun {
+  runId: string;
+  projectId: string;
+  goalId?: string;
+  startedAt: string;
+}
+
 /** Parsed pipeline run from DB */
 export interface DbPipelineRun {
   id: string;
@@ -67,7 +75,7 @@ export interface DbPipelineRun {
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
-  pipeline_version: 2 | 3;
+  pipeline_version: 2 | 3 | 4;
 }
 
 // ============================================================================
@@ -75,7 +83,7 @@ export interface DbPipelineRun {
 // ============================================================================
 
 function parseRunRow(row: ConductorRunRow): DbPipelineRun {
-  const pipelineVersion = (row.pipeline_version === 3 ? 3 : 2) as 2 | 3;
+  const pipelineVersion = (row.pipeline_version === 4 ? 4 : row.pipeline_version === 3 ? 3 : 2) as 2 | 3 | 4;
   const defaultStage = { status: 'pending' as const, itemsIn: 0, itemsOut: 0 };
 
   let stages: Record<PipelineStage, StageState>;
@@ -146,16 +154,16 @@ export const conductorRepository = {
     id: string;
     projectId: string;
     goalId: string;
-    config: BalancingConfig | Record<string, unknown>;
-    pipelineVersion?: 2 | 3;
+    config?: BalancingConfig | Record<string, unknown>;
+    pipelineVersion?: 2 | 3 | 4;
   }): DbPipelineRun {
     const db = getDatabase();
     const now = new Date().toISOString();
     const version = params.pipelineVersion || 2;
-    const initialStage = version === 3 ? 'plan' : 'scout';
+    const initialStage = version === 4 ? 'execute' : version === 3 ? 'plan' : 'scout';
     const emptyStages = JSON.stringify(createEmptyStages());
     const emptyMetrics = JSON.stringify(createEmptyMetrics());
-    const configSnapshot = JSON.stringify(params.config);
+    const configSnapshot = JSON.stringify(params.config || {});
 
     db.prepare(`
       INSERT OR REPLACE INTO conductor_runs
@@ -289,16 +297,25 @@ export const conductorRepository = {
    * Mark all running/paused runs as interrupted (startup recovery).
    * Uses globalThis guard to prevent HMR re-triggering.
    * Returns the IDs of the affected runs.
+   *
+   * For V4 runs, returns full details needed for partial post-flight processing.
    */
-  markInterruptedRuns(): string[] {
-    if (conductorGlobal.__conductorRecoveryDone) return [];
+  markInterruptedRuns(): { runIds: string[]; v4Runs: V4ZombieRun[] } {
+    if (conductorGlobal.__conductorRecoveryDone) return { runIds: [], v4Runs: [] };
 
     const db = getDatabase();
 
-    // Query affected IDs before updating
+    // Query affected runs before updating — include V4-specific columns
     const rows = db.prepare(
-      "SELECT id FROM conductor_runs WHERE status IN ('running', 'paused')"
-    ).all() as { id: string }[];
+      `SELECT id, project_id, goal_id, pipeline_version, started_at
+       FROM conductor_runs WHERE status IN ('running', 'paused')`
+    ).all() as Array<{
+      id: string;
+      project_id: string;
+      goal_id: string | null;
+      pipeline_version: number | null;
+      started_at: string | null;
+    }>;
 
     if (rows.length > 0) {
       const now = new Date().toISOString();
@@ -308,7 +325,17 @@ export const conductorRepository = {
     }
 
     conductorGlobal.__conductorRecoveryDone = true;
-    return rows.map(r => r.id);
+
+    const v4Runs: V4ZombieRun[] = rows
+      .filter(r => r.pipeline_version === 4 && r.started_at)
+      .map(r => ({
+        runId: r.id,
+        projectId: r.project_id,
+        goalId: r.goal_id || undefined,
+        startedAt: r.started_at!,
+      }));
+
+    return { runIds: rows.map(r => r.id), v4Runs };
   },
 
   /**

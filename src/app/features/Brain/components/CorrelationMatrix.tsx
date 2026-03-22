@@ -6,8 +6,9 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { collapse, collapseTransition } from '../lib/motionPresets';
 import {
   Network,
   ArrowRight,
@@ -21,7 +22,13 @@ import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useBehavioralCorrelations } from '../lib/queries';
 import GlowCard from './GlowCard';
 import BrainPanelHeader from './BrainPanelHeader';
+import NeuralSkeleton from './NeuralSkeleton';
+import SectionHeading from './SectionHeading';
+import BrainEmptyState from './BrainEmptyState';
+import ChartTooltip from './ChartTooltip';
+import CorrelationEmptySvg from './CorrelationEmptySvg';
 import type { BehavioralSignalType } from '@/app/db/models/brain.types';
+import { BRAIN_CHART, getCorrelationCellColor } from '../lib/brainChartColors';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,8 +36,8 @@ import type { SignalCorrelation } from '../lib/queries/apiClient';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const ACCENT = '#f97316'; // Orange
-const GLOW = 'rgba(249, 115, 22, 0.15)';
+const ACCENT = BRAIN_CHART.panel.correlation;
+const GLOW = BRAIN_CHART.panel.correlationGlow;
 
 const SIGNAL_LABELS: Record<string, string> = {
   git_activity: 'Git',
@@ -52,12 +59,7 @@ const SIGNAL_TYPES_ORDER: BehavioralSignalType[] = [
   'cli_memory',
 ];
 
-const STRENGTH_COLORS: Record<string, string> = {
-  strong: '#f97316',
-  moderate: '#fb923c',
-  weak: '#fdba74',
-  none: 'rgba(63, 63, 70, 0.3)',
-};
+const STRENGTH_COLORS = BRAIN_CHART.correlation.strength;
 
 interface Props {
   scope?: 'project' | 'global';
@@ -72,6 +74,8 @@ export default function CorrelationMatrix({ scope = 'project' }: Props) {
   );
   const [expanded, setExpanded] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<{ src: string; tgt: string } | null>(null);
+  const [tooltipAnchor, setTooltipAnchor] = useState<DOMRect | null>(null);
+  const hoveredCorr = useRef<SignalCorrelation | null>(null);
 
   if (scope === 'global') {
     return (
@@ -84,9 +88,13 @@ export default function CorrelationMatrix({ scope = 'project' }: Props) {
             glowColor={GLOW}
             glow
           />
-          <p className="text-zinc-500 text-sm">
-            Select a specific project to view cross-signal correlation analysis.
-          </p>
+          <div className="py-6 flex justify-center">
+            <BrainEmptyState
+              icon={<Network className="w-10 h-10 text-zinc-600" />}
+              title="Project scope only"
+              description="Select a specific project to view cross-signal correlation analysis."
+            />
+          </div>
         </div>
       </GlowCard>
     );
@@ -103,10 +111,7 @@ export default function CorrelationMatrix({ scope = 'project' }: Props) {
             glowColor={GLOW}
             glow
           />
-          <div className="animate-pulse space-y-3">
-            <div className="h-4 bg-zinc-800 rounded w-3/4" />
-            <div className="h-32 bg-zinc-800 rounded" />
-          </div>
+          <NeuralSkeleton accentColor={ACCENT} lines={2} block />
         </div>
       </GlowCard>
     );
@@ -123,9 +128,13 @@ export default function CorrelationMatrix({ scope = 'project' }: Props) {
             glowColor={GLOW}
             glow
           />
-          <p className="text-zinc-500 text-sm">
-            Not enough signal data for correlation analysis. At least 5 signals across multiple types are needed.
-          </p>
+          <div className="py-6 flex justify-center">
+            <BrainEmptyState
+              icon={<CorrelationEmptySvg />}
+              title="Not enough signal data yet"
+              description="At least 5 signals across multiple types are needed for correlation analysis."
+            />
+          </div>
         </div>
       </GlowCard>
     );
@@ -173,9 +182,7 @@ export default function CorrelationMatrix({ scope = 'project' }: Props) {
         {/* Top Correlations Cards */}
         {topCorrelations.length > 0 && (
           <div className="space-y-2 mb-5">
-            <h3 className="text-xs font-mono text-zinc-500 uppercase tracking-wider">
-              Strongest Patterns
-            </h3>
+            <SectionHeading>Strongest Patterns</SectionHeading>
             <div className="grid grid-cols-1 gap-2">
               {topCorrelations.map((c, i) => (
                 <motion.div
@@ -258,10 +265,11 @@ export default function CorrelationMatrix({ scope = 'project' }: Props) {
         <AnimatePresence>
           {expanded && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              variants={collapse}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={collapseTransition}
               className="overflow-hidden"
             >
               <div className="mt-4 overflow-x-auto">
@@ -308,19 +316,24 @@ export default function CorrelationMatrix({ scope = 'project' }: Props) {
                           return (
                             <td key={tgtType} className="px-1 py-1 text-center">
                               <div
-                                className="w-full aspect-square rounded-md flex items-center justify-center cursor-default transition-all relative"
+                                className="w-full aspect-square rounded-md flex items-center justify-center cursor-default transition-all"
                                 style={{
-                                  background: getCellColor(coeff),
+                                  background: getCorrelationCellColor(coeff),
                                   boxShadow: isHovered
-                                    ? `0 0 12px ${getCellColor(coeff)}`
+                                    ? `0 0 12px ${getCorrelationCellColor(coeff)}`
                                     : undefined,
                                   transform: isHovered ? 'scale(1.15)' : undefined,
                                 }}
-                                onMouseEnter={() =>
-                                  setHoveredCell({ src: srcType, tgt: tgtType })
-                                }
-                                onMouseLeave={() => setHoveredCell(null)}
-                                title={corr?.description || 'No data'}
+                                onMouseEnter={(e) => {
+                                  setHoveredCell({ src: srcType, tgt: tgtType });
+                                  setTooltipAnchor(e.currentTarget.getBoundingClientRect());
+                                  hoveredCorr.current = corr ?? null;
+                                }}
+                                onMouseLeave={() => {
+                                  setHoveredCell(null);
+                                  setTooltipAnchor(null);
+                                  hoveredCorr.current = null;
+                                }}
                               >
                                 <span
                                   className="text-3xs font-mono"
@@ -335,23 +348,6 @@ export default function CorrelationMatrix({ scope = 'project' }: Props) {
                                   {coeff.toFixed(2)}
                                 </span>
                               </div>
-
-                              {/* Tooltip on hover */}
-                              {isHovered && corr && (
-                                <div className="absolute z-50 mt-1 left-1/2 -translate-x-1/2 bg-zinc-900/95 backdrop-blur-sm border border-zinc-700/50 rounded-lg px-3 py-2 text-left shadow-xl pointer-events-none whitespace-nowrap">
-                                  <div className="text-2xs text-zinc-300 font-medium mb-1">
-                                    {SIGNAL_LABELS[srcType]} → {SIGNAL_LABELS[tgtType]}
-                                  </div>
-                                  <div className="text-3xs text-zinc-500 space-y-0.5">
-                                    <div>r = {corr.coefficient.toFixed(3)}</div>
-                                    <div>{corr.sampleCount} co-occurrences</div>
-                                    {corr.avgLagMinutes > 0 && (
-                                      <div>~{Math.round(corr.avgLagMinutes)}m avg lag</div>
-                                    )}
-                                    <div>{(corr.followRate * 100).toFixed(0)}% follow rate</div>
-                                  </div>
-                                </div>
-                              )}
                             </td>
                           );
                         })}
@@ -359,6 +355,28 @@ export default function CorrelationMatrix({ scope = 'project' }: Props) {
                     ))}
                   </tbody>
                 </table>
+
+                {/* Portal-based tooltip — rendered outside overflow container */}
+                <ChartTooltip
+                  anchorRect={tooltipAnchor}
+                  visible={!!hoveredCell && !!hoveredCorr.current}
+                >
+                  {hoveredCell && hoveredCorr.current && (
+                    <>
+                      <div className="text-2xs text-zinc-300 font-medium mb-1">
+                        {SIGNAL_LABELS[hoveredCell.src]} → {SIGNAL_LABELS[hoveredCell.tgt]}
+                      </div>
+                      <div className="text-3xs text-zinc-500 space-y-0.5">
+                        <div>r = {hoveredCorr.current.coefficient.toFixed(3)}</div>
+                        <div>{hoveredCorr.current.sampleCount} co-occurrences</div>
+                        {hoveredCorr.current.avgLagMinutes > 0 && (
+                          <div>~{Math.round(hoveredCorr.current.avgLagMinutes)}m avg lag</div>
+                        )}
+                        <div>{(hoveredCorr.current.followRate * 100).toFixed(0)}% follow rate</div>
+                      </div>
+                    </>
+                  )}
+                </ChartTooltip>
 
                 {/* Legend */}
                 <div className="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-zinc-800/50">
@@ -368,7 +386,7 @@ export default function CorrelationMatrix({ scope = 'project' }: Props) {
                       <div
                         key={v}
                         className="w-4 h-3 rounded-sm"
-                        style={{ background: getCellColor(v) }}
+                        style={{ background: getCorrelationCellColor(v) }}
                       />
                     ))}
                   </div>
@@ -385,23 +403,6 @@ export default function CorrelationMatrix({ scope = 'project' }: Props) {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function getCellColor(coefficient: number): string {
-  const abs = Math.abs(coefficient);
-  if (abs < 0.05) return 'rgba(63, 63, 70, 0.2)';
-
-  if (coefficient > 0) {
-    // Orange scale for positive correlations
-    if (abs >= 0.6) return 'rgba(249, 115, 22, 0.7)';
-    if (abs >= 0.3) return 'rgba(249, 115, 22, 0.4)';
-    return 'rgba(249, 115, 22, 0.2)';
-  } else {
-    // Blue scale for negative correlations
-    if (abs >= 0.6) return 'rgba(59, 130, 246, 0.7)';
-    if (abs >= 0.3) return 'rgba(59, 130, 246, 0.4)';
-    return 'rgba(59, 130, 246, 0.2)';
-  }
-}
-
 function CoefficientBadge({
   value,
   strength,
@@ -413,8 +414,8 @@ function CoefficientBadge({
     <span
       className="text-2xs font-mono font-bold px-1.5 py-0.5 rounded"
       style={{
-        color: STRENGTH_COLORS[strength] || '#71717a',
-        background: `${STRENGTH_COLORS[strength] || '#71717a'}20`,
+        color: STRENGTH_COLORS[strength] || BRAIN_CHART.neutral,
+        background: `${STRENGTH_COLORS[strength] || BRAIN_CHART.neutral}20`,
         textShadow:
           strength === 'strong'
             ? `0 0 8px ${STRENGTH_COLORS[strength]}80`

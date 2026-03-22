@@ -2,10 +2,14 @@
 
 import { useState, useMemo } from 'react';
 import { Search, ArrowUpDown, X, Filter } from 'lucide-react';
+import KBGridPulseLoader from './KBGridPulseLoader';
+import BrainEmptyState from '../../components/BrainEmptyState';
+import KBNoResultsSvg from './KBNoResultsSvg';
+import KBEmptyBookSvg from './KBEmptyBookSvg';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import type { DbKnowledgeEntry, KnowledgePatternType } from '@/app/db/models/knowledge.types';
 import { KNOWLEDGE_CATEGORY_LABELS, KNOWLEDGE_LAYER_LABELS } from '@/app/db/models/knowledge.types';
 import type { KnowledgeCategory, KnowledgeLayer } from '@/app/db/models/knowledge.types';
-import { SimpleSpinner } from '@/components/ui';
 
 type SortField = 'confidence' | 'created_at' | 'times_applied' | 'title';
 
@@ -46,6 +50,7 @@ export default function KBEntryTable({
   const [sortField, setSortField] = useState<SortField>('confidence');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [patternFilter, setPatternFilter] = useState<KnowledgePatternType | 'all'>('all');
+  const prefersReduced = useReducedMotion();
 
   const filtered = useMemo(() => {
     let result = [...entries];
@@ -148,15 +153,14 @@ export default function KBEntryTable({
 
       {/* Table */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <SimpleSpinner size="sm" color="purple" />
-        </div>
+        <KBGridPulseLoader />
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-sm text-zinc-500">No entries found</p>
-          <p className="text-xs text-zinc-600 mt-1">
-            {searchQuery ? 'Try a different search' : 'Run /identify-patterns to populate'}
-          </p>
+        <div className="py-10 flex justify-center">
+          <BrainEmptyState
+            icon={searchQuery ? <KBNoResultsSvg reducedMotion={prefersReduced} /> : <KBEmptyBookSvg reducedMotion={prefersReduced} />}
+            title={searchQuery ? 'No matches found' : 'No entries yet'}
+            description={searchQuery ? 'Try a different search term.' : 'Run /identify-patterns from the CLI or click + add to create your first entry.'}
+          />
         </div>
       ) : (
         <div className="divide-y divide-zinc-800/30">

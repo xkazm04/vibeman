@@ -61,6 +61,7 @@ const colorMap = {
     glow: 'shadow-blue-500/40',
     shine: 'from-blue-300/20',
     ring: 'ring-blue-500/30',
+    pulse: 'bg-blue-500/20',
   },
   cyan: {
     bg: 'from-cyan-600/20 to-cyan-900/40',
@@ -69,6 +70,7 @@ const colorMap = {
     glow: 'shadow-cyan-500/40',
     shine: 'from-cyan-300/20',
     ring: 'ring-cyan-500/30',
+    pulse: 'bg-cyan-500/20',
   },
   purple: {
     bg: 'from-purple-600/20 to-purple-900/40',
@@ -77,6 +79,7 @@ const colorMap = {
     glow: 'shadow-purple-500/40',
     shine: 'from-purple-300/20',
     ring: 'ring-purple-500/30',
+    pulse: 'bg-purple-500/20',
   },
   amber: {
     bg: 'from-amber-600/20 to-amber-900/40',
@@ -85,6 +88,7 @@ const colorMap = {
     glow: 'shadow-amber-500/40',
     shine: 'from-amber-300/20',
     ring: 'ring-amber-500/30',
+    pulse: 'bg-amber-500/20',
   },
   green: {
     bg: 'from-green-600/20 to-green-900/40',
@@ -93,6 +97,7 @@ const colorMap = {
     glow: 'shadow-green-500/40',
     shine: 'from-green-300/20',
     ring: 'ring-green-500/30',
+    pulse: 'bg-green-500/20',
   },
   red: {
     bg: 'from-red-600/20 to-red-900/40',
@@ -101,6 +106,7 @@ const colorMap = {
     glow: 'shadow-red-500/40',
     shine: 'from-red-300/20',
     ring: 'ring-red-500/30',
+    pulse: 'bg-red-500/20',
   },
   pink: {
     bg: 'from-pink-600/20 to-pink-900/40',
@@ -109,6 +115,7 @@ const colorMap = {
     glow: 'shadow-pink-500/40',
     shine: 'from-pink-300/20',
     ring: 'ring-pink-500/30',
+    pulse: 'bg-pink-500/20',
   },
   indigo: {
     bg: 'from-indigo-600/20 to-indigo-900/40',
@@ -117,6 +124,7 @@ const colorMap = {
     glow: 'shadow-indigo-500/40',
     shine: 'from-indigo-300/20',
     ring: 'ring-indigo-500/30',
+    pulse: 'bg-indigo-500/20',
   },
   gray: {
     bg: 'from-gray-700/30 to-gray-900/50',
@@ -125,6 +133,7 @@ const colorMap = {
     glow: 'shadow-gray-700/20',
     shine: 'from-gray-500/10',
     ring: 'ring-gray-500/20',
+    pulse: 'bg-gray-500/20',
   },
 };
 
@@ -282,7 +291,7 @@ export default function IlluminatedButton({
           <motion.div
             animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.6, 0.3] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className={`absolute inset-0 rounded-full bg-${color}-500/20 -z-10`}
+            className={`absolute inset-0 rounded-full ${colors.pulse} -z-10`}
           />
         )}
 

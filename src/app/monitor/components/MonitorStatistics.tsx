@@ -82,25 +82,26 @@ export default function MonitorStatistics() {
       {statCards.map((stat, index) => {
         const Icon = stat.icon;
         const colorClasses = {
-          cyan: 'from-cyan-600/20 to-blue-600/20 border-cyan-500/30 text-cyan-400',
-          green: 'from-green-600/20 to-emerald-600/20 border-green-500/30 text-green-400',
-          red: 'from-red-600/20 to-rose-600/20 border-red-500/30 text-red-400',
-          blue: 'from-blue-600/20 to-indigo-600/20 border-blue-500/30 text-blue-400',
-          purple: 'from-purple-600/20 to-pink-600/20 border-purple-500/30 text-purple-400'
+          cyan: { gradient: 'from-cyan-600/20 to-blue-600/20', border: 'border-cyan-500/30', text: 'text-cyan-400' },
+          green: { gradient: 'from-green-600/20 to-emerald-600/20', border: 'border-green-500/30', text: 'text-green-400' },
+          red: { gradient: 'from-red-600/20 to-rose-600/20', border: 'border-red-500/30', text: 'text-red-400' },
+          blue: { gradient: 'from-blue-600/20 to-indigo-600/20', border: 'border-blue-500/30', text: 'text-blue-400' },
+          purple: { gradient: 'from-purple-600/20 to-pink-600/20', border: 'border-purple-500/30', text: 'text-purple-400' },
         };
+        const c = colorClasses[stat.color as keyof typeof colorClasses];
 
         return (
           <div
             key={index}
-            className={`bg-gradient-to-br ${colorClasses[stat.color as keyof typeof colorClasses]} border rounded-xl p-4 backdrop-blur-sm`}
+            className={`bg-gradient-to-br ${c.gradient} ${c.border} ${c.text} border rounded-xl p-4 backdrop-blur-sm`}
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-mono uppercase tracking-wider text-gray-400">
                 {stat.label}
               </span>
-              <Icon className={`w-4 h-4 ${colorClasses[stat.color as keyof typeof colorClasses].split(' ')[3]}`} />
+              <Icon className={`w-4 h-4 ${c.text}`} />
             </div>
-            <div className={`text-2xl font-bold font-mono ${colorClasses[stat.color as keyof typeof colorClasses].split(' ')[3]}`}>
+            <div className={`text-2xl font-bold font-mono ${c.text}`}>
               {stat.value}
             </div>
           </div>

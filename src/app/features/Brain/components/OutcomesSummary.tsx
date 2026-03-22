@@ -13,6 +13,10 @@ import { useBrainStore } from '@/stores/brainStore';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { subscribeToReflectionCompletion } from '@/stores/reflectionCompletionEmitter';
 import GlowCard from './GlowCard';
+import NeuralSkeleton from './NeuralSkeleton';
+import BrainEmptyState from './BrainEmptyState';
+import OutcomesEmptySvg from './OutcomesEmptySvg';
+import { BRAIN_CHART } from '../lib/brainChartColors';
 
 interface Props {
   isLoading: boolean;
@@ -136,17 +140,12 @@ export default function OutcomesSummary({ isLoading }: Props) {
   }, [activeProject?.id, fetchRecentOutcomes]);
 
   if (isLoading) {
+    const skeletonColors = [BRAIN_CHART.outcome.total.color, BRAIN_CHART.outcome.success.color, BRAIN_CHART.outcome.failed.color, BRAIN_CHART.outcome.pending.color];
     return (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="rounded-2xl border border-zinc-800/50 p-5 animate-pulse"
-            style={{ background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.9) 0%, rgba(3, 7, 18, 0.95) 100%)' }}
-          >
-            <div className="h-10 w-10 bg-zinc-800 rounded-xl mb-4" />
-            <div className="h-8 bg-zinc-800 rounded w-1/2 mb-2" />
-            <div className="h-4 bg-zinc-800 rounded w-3/4" />
+        {skeletonColors.map((color, i) => (
+          <div key={i} className="border border-zinc-800/70 rounded-sm p-5">
+            <NeuralSkeleton accentColor={color} lines={2} />
           </div>
         ))}
       </div>
@@ -160,15 +159,15 @@ export default function OutcomesSummary({ isLoading }: Props) {
   return (
     <div className="space-y-4">
       {/* KPI Cards Row */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <KPICard
           title="Total Tracked"
           value={outcomeStats.total}
           subtitle="IMPLEMENTATIONS"
           icon={Target}
-          accentColor="#f59e0b"
-          glowColor="rgba(245, 158, 11, 0.15)"
-          borderColor="border-amber-500/20"
+          accentColor={BRAIN_CHART.outcome.total.color}
+          glowColor={BRAIN_CHART.outcome.total.glow}
+          borderColor={BRAIN_CHART.outcome.total.border}
           delay={0}
         />
 
@@ -177,9 +176,9 @@ export default function OutcomesSummary({ isLoading }: Props) {
           value={outcomeStats.successful}
           subtitle={`${successRate}% RATE`}
           icon={CheckCircle}
-          accentColor="#10b981"
-          glowColor="rgba(16, 185, 129, 0.15)"
-          borderColor="border-emerald-500/20"
+          accentColor={BRAIN_CHART.outcome.success.color}
+          glowColor={BRAIN_CHART.outcome.success.glow}
+          borderColor={BRAIN_CHART.outcome.success.border}
           delay={0.1}
         />
 
@@ -188,9 +187,9 @@ export default function OutcomesSummary({ isLoading }: Props) {
           value={outcomeStats.failed}
           subtitle="NEEDS_REVIEW"
           icon={XCircle}
-          accentColor="#ef4444"
-          glowColor="rgba(239, 68, 68, 0.15)"
-          borderColor="border-red-500/20"
+          accentColor={BRAIN_CHART.outcome.failed.color}
+          glowColor={BRAIN_CHART.outcome.failed.glow}
+          borderColor={BRAIN_CHART.outcome.failed.border}
           delay={0.2}
         />
 
@@ -199,9 +198,9 @@ export default function OutcomesSummary({ isLoading }: Props) {
           value={outcomeStats.reverted}
           subtitle="ROLLED_BACK"
           icon={RotateCcw}
-          accentColor="#f97316"
-          glowColor="rgba(249, 115, 22, 0.15)"
-          borderColor="border-orange-500/20"
+          accentColor={BRAIN_CHART.outcome.reverted.color}
+          glowColor={BRAIN_CHART.outcome.reverted.glow}
+          borderColor={BRAIN_CHART.outcome.reverted.border}
           delay={0.3}
         />
 
@@ -210,9 +209,9 @@ export default function OutcomesSummary({ isLoading }: Props) {
           value={outcomeStats.pending}
           subtitle="AWAITING_OUTCOME"
           icon={Clock}
-          accentColor="#a855f7"
-          glowColor="rgba(168, 85, 247, 0.15)"
-          borderColor="border-purple-500/20"
+          accentColor={BRAIN_CHART.outcome.pending.color}
+          glowColor={BRAIN_CHART.outcome.pending.glow}
+          borderColor={BRAIN_CHART.outcome.pending.border}
           delay={0.4}
         />
       </div>
@@ -239,8 +238,8 @@ export default function OutcomesSummary({ isLoading }: Props) {
                 <span
                   className="text-lg font-bold font-mono tabular-nums"
                   style={{
-                    color: successRate >= 80 ? '#10b981' : successRate >= 50 ? '#f59e0b' : '#ef4444',
-                    textShadow: successRate >= 80 ? '0 0 20px rgba(16, 185, 129, 0.4)' : undefined
+                    color: successRate >= 80 ? BRAIN_CHART.positive : successRate >= 50 ? BRAIN_CHART.warning : BRAIN_CHART.negative,
+                    textShadow: successRate >= 80 ? `0 0 20px ${BRAIN_CHART.outcome.success.glow}` : undefined
                   }}
                 >
                   {successRate}%
@@ -279,15 +278,15 @@ export default function OutcomesSummary({ isLoading }: Props) {
                     className="w-6 h-6 rounded-full flex items-center justify-center"
                     style={{
                       backgroundColor: outcome.execution_success
-                        ? 'rgba(16, 185, 129, 0.2)'
+                        ? `${BRAIN_CHART.outcome.success.color}33`
                         : outcome.was_reverted
-                        ? 'rgba(249, 115, 22, 0.2)'
-                        : 'rgba(239, 68, 68, 0.2)',
+                        ? `${BRAIN_CHART.outcome.reverted.color}33`
+                        : `${BRAIN_CHART.outcome.failed.color}33`,
                       border: `1px solid ${outcome.execution_success
-                        ? 'rgba(16, 185, 129, 0.4)'
+                        ? `${BRAIN_CHART.outcome.success.color}66`
                         : outcome.was_reverted
-                        ? 'rgba(249, 115, 22, 0.4)'
-                        : 'rgba(239, 68, 68, 0.4)'}`
+                        ? `${BRAIN_CHART.outcome.reverted.color}66`
+                        : `${BRAIN_CHART.outcome.failed.color}66`}`
                     }}
                     title={outcome.execution_success ? 'Success' : outcome.was_reverted ? 'Reverted' : 'Failed'}
                   >
@@ -340,7 +339,7 @@ export default function OutcomesSummary({ isLoading }: Props) {
             const firstRate = pts[0].rate;
             const lastRate = pts[pts.length - 1].rate;
             const isImproving = lastRate >= firstRate;
-            const trendColor = isImproving ? '#10b981' : '#f59e0b'; // emerald vs amber
+            const trendColor = isImproving ? BRAIN_CHART.trend.improving : BRAIN_CHART.trend.declining;
 
             return (
               <div className="mt-3 pt-3 border-t border-zinc-800/50">
@@ -388,16 +387,13 @@ export default function OutcomesSummary({ isLoading }: Props) {
 
       {/* Empty State */}
       {outcomeStats.total === 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="text-center py-4"
-        >
-          <p className="text-zinc-500 text-sm">
-            No implementation outcomes tracked yet. Outcomes will appear here after directions are executed.
-          </p>
-        </motion.div>
+        <div className="py-6 flex justify-center">
+          <BrainEmptyState
+            icon={<OutcomesEmptySvg />}
+            title="No outcomes tracked yet"
+            description="Outcomes will appear here after directions are executed."
+          />
+        </div>
       )}
     </div>
   );

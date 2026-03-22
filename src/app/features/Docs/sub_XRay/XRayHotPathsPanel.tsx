@@ -205,17 +205,17 @@ export default function XRayHotPathsPanel({ isExpanded, onToggle }: XRayHotPaths
                 {(['pages', 'client', 'server', 'external'] as const).map((layer) => {
                   const stats = layers[layer];
                   const colors = {
-                    pages: 'text-pink-400 bg-pink-500/20',
-                    client: 'text-cyan-400 bg-cyan-500/20',
-                    server: 'text-amber-400 bg-amber-500/20',
-                    external: 'text-violet-400 bg-violet-500/20',
+                    pages: { text: 'text-pink-400', bg: 'bg-pink-500/20' },
+                    client: { text: 'text-cyan-400', bg: 'bg-cyan-500/20' },
+                    server: { text: 'text-amber-400', bg: 'bg-amber-500/20' },
+                    external: { text: 'text-violet-400', bg: 'bg-violet-500/20' },
                   };
                   return (
                     <div
                       key={layer}
-                      className={`px-2 py-1.5 rounded-lg text-center ${colors[layer].split(' ')[1]}`}
+                      className={`px-2 py-1.5 rounded-lg text-center ${colors[layer].bg}`}
                     >
-                      <div className={`text-sm font-bold ${colors[layer].split(' ')[0]}`}>
+                      <div className={`text-sm font-bold ${colors[layer].text}`}>
                         {stats?.totalRequests || 0}
                       </div>
                       <div className="text-micro text-gray-500 capitalize">{layer}</div>

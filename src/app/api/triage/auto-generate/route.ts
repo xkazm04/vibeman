@@ -4,6 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { buildAutoTriagePrompt } from '@/lib/triage/autoTriagePromptBuilder';
+import { projectDb } from '@/lib/project_database';
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,10 +20,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'maxEffort must be 1-9' }, { status: 400 });
     }
 
-    // Look up project to get path
-    const { getDatabase } = await import('@/app/db/connection');
-    const db = getDatabase();
-    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) as { path?: string } | undefined;
+    // Look up project from the projects database (separate from main app DB)
+    const project = projectDb.getProject(projectId);
 
     if (!project?.path) {
       return NextResponse.json({ success: false, error: 'Project not found or no path' }, { status: 404 });
@@ -41,7 +40,9 @@ export async function POST(request: NextRequest) {
     fs.mkdirSync(commandsDir, { recursive: true });
     fs.writeFileSync(path.join(commandsDir, `${requirementName}.md`), promptContent, 'utf-8');
 
-    // Count matching ideas for response
+    // Count matching ideas for response (ideas are in the main app DB)
+    const { getDatabase } = await import('@/app/db/connection');
+    const db = getDatabase();
     const ideaCount = db.prepare(
       `SELECT COUNT(*) as count FROM ideas WHERE project_id = ? AND status = 'pending' AND effort IS NOT NULL AND effort <= ?`
     ).get(projectId, effort) as { count: number } | undefined;

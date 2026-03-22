@@ -22,11 +22,13 @@ import {
 } from 'lucide-react';
 import GlowCard from './GlowCard';
 import BrainPanelHeader from './BrainPanelHeader';
+import BrainEmptyState from './BrainEmptyState';
 import { usePredictions, brainKeys } from '../lib/queries';
 import type { IntentPrediction } from '@/lib/brain/predictiveIntentEngine';
+import { BRAIN_CHART } from '../lib/brainChartColors';
 
-const ACCENT_COLOR = '#10b981'; // Emerald
-const GLOW_COLOR = 'rgba(16, 185, 129, 0.15)';
+const ACCENT_COLOR = BRAIN_CHART.positive;
+const GLOW_COLOR = BRAIN_CHART.outcome.success.glow;
 
 interface PredictionData {
   predictions: IntentPrediction[];
@@ -103,9 +105,13 @@ export default function NextUpCard({ projectId, scope = 'project' }: Props) {
             glowColor={GLOW_COLOR}
             glow
           />
-          <p className="text-zinc-500 text-sm">
-            Select a specific project to see predictive intent suggestions.
-          </p>
+          <div className="py-6 flex justify-center">
+            <BrainEmptyState
+              icon={<Zap className="w-10 h-10 text-zinc-600" />}
+              title="Project scope only"
+              description="Select a specific project to see predictive intent suggestions."
+            />
+          </div>
         </div>
       </GlowCard>
     );
@@ -179,34 +185,36 @@ export default function NextUpCard({ projectId, scope = 'project' }: Props) {
         )}
 
         {!hasPredictions && !hasModel && (
-          <div className="text-center py-6">
-            <Zap className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
-            <p className="text-sm text-zinc-500 mb-1">No predictions yet</p>
-            <p className="text-xs text-zinc-600 max-w-xs mx-auto">
-              The predictive engine learns from your context navigation patterns.
-              Keep working and predictions will appear after enough transitions are recorded.
-            </p>
-            <button
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="mt-3 text-xs px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50"
-              style={{
-                color: ACCENT_COLOR,
-                borderColor: `${ACCENT_COLOR}40`,
-                background: `${ACCENT_COLOR}10`,
-              }}
-            >
-              {isRefreshing ? 'Analyzing...' : 'Analyze patterns'}
-            </button>
+          <div className="py-6 flex justify-center">
+            <BrainEmptyState
+              icon={<Zap className="w-10 h-10 text-zinc-600" />}
+              title="No predictions yet"
+              description="The predictive engine learns from your context navigation patterns. Keep working and predictions will appear after enough transitions are recorded."
+              action={
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="text-xs px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50"
+                  style={{
+                    color: ACCENT_COLOR,
+                    borderColor: `${ACCENT_COLOR}40`,
+                    background: `${ACCENT_COLOR}10`,
+                  }}
+                >
+                  {isRefreshing ? 'Analyzing...' : 'Analyze patterns'}
+                </button>
+              }
+            />
           </div>
         )}
 
         {!hasPredictions && hasModel && (
-          <div className="text-center py-4">
-            <p className="text-sm text-zinc-500 mb-1">No predictions for current state</p>
-            <p className="text-xs text-zinc-600">
-              {data.modelSize} transitions recorded. Navigate to a context to get suggestions.
-            </p>
+          <div className="py-4 flex justify-center">
+            <BrainEmptyState
+              icon={<Zap className="w-10 h-10 text-zinc-600" />}
+              title="No predictions for current state"
+              description={`${data.modelSize} transitions recorded. Navigate to a context to get suggestions.`}
+            />
           </div>
         )}
 
@@ -324,7 +332,7 @@ export default function NextUpCard({ projectId, scope = 'project' }: Props) {
 
 function ConfidenceBadge({ confidence }: { confidence: number }) {
   const pct = Math.round(confidence * 100);
-  const color = pct >= 60 ? '#10b981' : pct >= 30 ? '#f59e0b' : '#6b7280';
+  const color = pct >= 60 ? BRAIN_CHART.positive : pct >= 30 ? BRAIN_CHART.warning : BRAIN_CHART.neutral;
 
   return (
     <span

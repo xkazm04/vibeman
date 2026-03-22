@@ -11,18 +11,23 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Activity, TrendingUp, TrendingDown, Minus, GitCommit, ChevronRight } from 'lucide-react';
 import BrainPanelHeader from './BrainPanelHeader';
+import BrainEmptyState from './BrainEmptyState';
+import FocusEmptySvg from './FocusEmptySvg';
 import { useBrainStore } from '@/stores/brainStore';
 import SignalDetailDrawer, { type DrillDownTarget } from './SignalDetailDrawer';
 import ContextSignalDetail from './ContextSignalDetail';
 import GlowCard from './GlowCard';
+import NeuralSkeleton from './NeuralSkeleton';
+import SectionHeading from './SectionHeading';
+import { BRAIN_CHART } from '../lib/brainChartColors';
 
 interface Props {
   isLoading: boolean;
   scope?: 'project' | 'global';
 }
 
-const ACCENT_COLOR = '#06b6d4'; // Cyan
-const GLOW_COLOR = 'rgba(6, 182, 212, 0.15)';
+const ACCENT_COLOR = BRAIN_CHART.panel.focus;
+const GLOW_COLOR = BRAIN_CHART.panel.focusGlow;
 
 export default function BehavioralFocusPanel({ isLoading, scope = 'project' }: Props) {
   const { behavioralContext } = useBrainStore();
@@ -45,39 +50,29 @@ export default function BehavioralFocusPanel({ isLoading, scope = 'project' }: P
         />
         <div className="p-6">
         {scope === 'global' ? (
-          <>
-            <p className="text-zinc-500 text-sm mb-3">
-              Global mode shows cross-project patterns from global reflections.
-              Select a specific project to see detailed behavioral focus data.
-            </p>
-            <div
-              className="p-3 rounded-lg"
-              style={{
-                background: 'rgba(168, 85, 247, 0.08)',
-                border: '1px solid rgba(168, 85, 247, 0.2)'
-              }}
-            >
-              <p className="text-xs text-purple-300/70">
-                Trigger a global reflection to analyze patterns across all your projects.
-              </p>
-            </div>
-          </>
-        ) : isLoading ? (
-          <div className="animate-pulse space-y-3">
-            <div className="h-4 bg-zinc-800 rounded w-3/4" />
-            <div className="h-4 bg-zinc-800 rounded w-1/2" />
-            <div className="h-4 bg-zinc-800 rounded w-2/3" />
+          <div className="py-6 flex justify-center">
+            <BrainEmptyState
+              icon={<Activity className="w-10 h-10 text-zinc-600" />}
+              title="Project scope only"
+              description="Select a specific project to see detailed behavioral focus data, or trigger a global reflection to analyze cross-project patterns."
+            />
           </div>
+        ) : isLoading ? (
+          <NeuralSkeleton accentColor={ACCENT_COLOR} lines={3} />
         ) : !hasData ? (
-          <p className="text-zinc-500 text-sm">
-            No behavioral data yet. Activity will be tracked as you work on directions and implementations.
-          </p>
+          <div className="py-6 flex justify-center">
+            <BrainEmptyState
+              icon={<FocusEmptySvg />}
+              title="No behavioral data yet"
+              description="Activity will be tracked as you work on directions and implementations."
+            />
+          </div>
         ) : (
           <>
             {/* Active Contexts */}
             {currentFocus!.activeContexts.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-xs font-mono text-zinc-500 mb-3 uppercase tracking-wider">Active Areas (Last 7 Days)</h3>
+                <SectionHeading>Active Areas (Last 7 Days)</SectionHeading>
                 <div className="space-y-2">
                   {currentFocus!.activeContexts.map((ctx) => (
                     <button
@@ -117,10 +112,10 @@ export default function BehavioralFocusPanel({ isLoading, scope = 'project' }: P
             {/* Recent Commit Themes */}
             {currentFocus!.recentCommitThemes.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-xs font-mono text-zinc-500 mb-3 uppercase tracking-wider flex items-center gap-2">
+                <SectionHeading className="flex items-center gap-2">
                   <GitCommit className="w-3.5 h-3.5" />
                   Recent Commit Themes
-                </h3>
+                </SectionHeading>
                 <div className="flex flex-wrap gap-2">
                   {currentFocus!.recentCommitThemes.slice(0, 5).map((theme, i) => (
                     <button
@@ -128,8 +123,8 @@ export default function BehavioralFocusPanel({ isLoading, scope = 'project' }: P
                       onClick={() => setDrillTarget({ type: 'theme', theme })}
                       className="px-3 py-1.5 text-xs rounded-lg truncate max-w-[200px] transition-all cursor-pointer font-mono focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none"
                       style={{
-                        background: 'rgba(168, 85, 247, 0.1)',
-                        border: '1px solid rgba(168, 85, 247, 0.2)',
+                        background: `${BRAIN_CHART.brand.accent}1a`,
+                        border: `1px solid ${BRAIN_CHART.brand.accent}33`,
                         color: '#c084fc'
                       }}
                       aria-label={`View commits for theme: ${theme}`}
@@ -145,7 +140,7 @@ export default function BehavioralFocusPanel({ isLoading, scope = 'project' }: P
             {/* API Trends */}
             {trending!.hotEndpoints.length > 0 && (
               <div>
-                <h3 className="text-xs font-mono text-zinc-500 mb-3 uppercase tracking-wider">API Usage Trends</h3>
+                <SectionHeading>API Usage Trends</SectionHeading>
                 <div className="space-y-2">
                   {trending!.hotEndpoints.slice(0, 5).map((endpoint, i) => (
                     <button
@@ -172,7 +167,7 @@ export default function BehavioralFocusPanel({ isLoading, scope = 'project' }: P
                         <span
                           className="text-xs font-mono font-bold"
                           style={{
-                            color: endpoint.trend === 'up' ? '#10b981' : endpoint.trend === 'down' ? '#ef4444' : '#71717a',
+                            color: endpoint.trend === 'up' ? BRAIN_CHART.positive : endpoint.trend === 'down' ? BRAIN_CHART.negative : BRAIN_CHART.neutral,
                             textShadow: endpoint.trend === 'up' ? '0 0 10px rgba(16, 185, 129, 0.5)' : undefined
                           }}
                         >
@@ -190,7 +185,7 @@ export default function BehavioralFocusPanel({ isLoading, scope = 'project' }: P
             {/* Neglected Areas */}
             {trending!.neglectedAreas.length > 0 && (
               <div className="mt-6 pt-4 border-t border-zinc-800/50">
-                <h3 className="text-xs font-mono text-zinc-600 mb-2 uppercase tracking-wider">Lower Activity Areas</h3>
+                <SectionHeading>Lower Activity Areas</SectionHeading>
                 <p className="text-xs text-zinc-600 font-mono">
                   {trending!.neglectedAreas.slice(0, 3).join(' · ')}
                 </p>
@@ -216,10 +211,10 @@ export default function BehavioralFocusPanel({ isLoading, scope = 'project' }: P
 function FreshnessBadge({ score }: { score: number }) {
   // Score ranges: 0-1 = stale, 1-3 = moderate, 3+ = fresh
   const config = score >= 3
-    ? { color: '#10b981', glow: 'rgba(16, 185, 129, 0.5)', label: 'Fresh (high activity)' }
+    ? { ...BRAIN_CHART.freshness.fresh, label: 'Fresh (high activity)' }
     : score >= 1
-    ? { color: '#f59e0b', glow: 'rgba(245, 158, 11, 0.5)', label: 'Moderate activity' }
-    : { color: '#71717a', glow: 'none', label: 'Stale (low activity)' };
+    ? { ...BRAIN_CHART.freshness.moderate, label: 'Moderate activity' }
+    : { ...BRAIN_CHART.freshness.stale, label: 'Stale (low activity)' };
 
   return (
     <span

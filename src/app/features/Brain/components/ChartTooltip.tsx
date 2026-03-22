@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 interface ChartTooltipProps {
-  /** Text content to display */
-  label: string;
+  /** Text content to display (ignored when children provided) */
+  label?: string;
+  /** Rich content alternative to label */
+  children?: ReactNode;
   /** Anchor element bounding rect (from getBoundingClientRect) */
   anchorRect: DOMRect | null;
   /** Whether the tooltip is visible */
@@ -16,7 +18,7 @@ interface ChartTooltipProps {
  * Positions via getBoundingClientRect with viewport bounds checking.
  * Supports both hover and keyboard focus triggers.
  */
-export default function ChartTooltip({ label, anchorRect, visible }: ChartTooltipProps) {
+export default function ChartTooltip({ label, children, anchorRect, visible }: ChartTooltipProps) {
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
@@ -57,7 +59,7 @@ export default function ChartTooltip({ label, anchorRect, visible }: ChartToolti
         opacity: pos ? 1 : 0,
       }}
     >
-      {label}
+      {children ?? label}
     </div>
   );
 }

@@ -92,20 +92,25 @@ async function handleGet(request: NextRequest) {
       try {
         const cached = insightEffectivenessCache.get(projectId, minDirections, windowDays);
         if (cached) {
-          logger.debug('[Effectiveness] Cache hit', { projectId, cachedAt: cached.cachedAt, version: cached.version });
-          return buildSuccessResponse(
-            {
-              insights: JSON.parse(cached.insightsJson),
-              summary: JSON.parse(cached.summaryJson),
-            },
-            {
-              meta: {
-                cached: true,
-                cachedAt: cached.cachedAt,
-                version: cached.version,
-              },
-            }
-          );
+          try {
+            const insights = JSON.parse(cached.insightsJson);
+            const summary = JSON.parse(cached.summaryJson);
+            logger.debug('[Effectiveness] Cache hit', { projectId, cachedAt: cached.cachedAt, version: cached.version });
+            return buildSuccessResponse(
+              { insights, summary },
+              {
+                meta: {
+                  cached: true,
+                  cachedAt: cached.cachedAt,
+                  version: cached.version,
+                },
+              }
+            );
+          } catch {
+            // Corrupted cache entry — invalidate and fall through to recomputation
+            logger.warn('[Effectiveness] Corrupted cache entry, invalidating', { projectId });
+            try { insightEffectivenessCache.invalidate(projectId); } catch { /* ignore */ }
+          }
         }
       } catch {
         // Cache table might not exist yet (migration pending), fall through to compute
