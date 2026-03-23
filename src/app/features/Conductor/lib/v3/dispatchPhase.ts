@@ -16,7 +16,7 @@ import { snapshotFiles, verifyExecution } from '../execution/fileVerifier';
 import { hasOverlap } from '../execution/domainScheduler';
 import { commitPerTask } from '../review/gitCommitter';
 import { routeModel } from '../balancingEngine';
-import type { CLIProvider, CLIProviderConfig } from '@/lib/claude-terminal/types';
+import type { CLIProvider, CLIProviderConfig, CLIModel } from '@/lib/claude-terminal/types';
 import type { V3Task, V3TaskResult, V3Config, V3Phase, V3Metrics, WorkspaceContext } from './types';
 import { v3ConfigToBalancing } from './types';
 import { getTaskKnowledge, resolveTaskApplications } from '@/lib/collective-memory/taskCompletionHook';
@@ -359,7 +359,7 @@ async function dispatchTask(task: V3Task, ctx: DispatchContext): Promise<V3TaskR
   // 4. Dispatch to CLI
   const providerConfig: CLIProviderConfig = {
     provider: routing.provider as CLIProvider,
-    model: routing.model,
+    model: routing.model as CLIModel | undefined,
   };
 
   const executionId = startExecution(

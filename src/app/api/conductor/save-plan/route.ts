@@ -79,9 +79,9 @@ export async function POST(request: NextRequest) {
       const run = conductorRepository.getRunById(runId);
       if (run) {
         try {
-          const config = typeof run.config_snapshot === 'string'
-            ? JSON.parse(run.config_snapshot)
-            : run.config_snapshot;
+          const config = typeof run.config === 'string'
+            ? JSON.parse(run.config)
+            : run.config;
           requiresApproval = config?.requirePlanApproval === true;
         } catch { /* use default */ }
 

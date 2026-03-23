@@ -10,6 +10,7 @@
 
 import { getDatabase } from '@/app/db/connection';
 import { conductorRepository } from '../conductor.repository';
+import type { PipelineMetrics } from '../types';
 import { logger } from '@/lib/logger';
 
 interface PostFlightResult {
@@ -147,12 +148,16 @@ export function processPostFlight(
     }
 
     // 6. Update conductor run
-    const metrics = {
+    const metrics: PipelineMetrics = {
+      ideasGenerated: 0,
+      ideasAccepted: 0,
+      ideasRejected: 0,
+      tasksCreated: logs.length,
       tasksCompleted: logs.length,
       tasksFailed: 0,
-      totalImplementations: logs.length,
-      contextsUpdated: result.contextsUpdated,
-      ideasUpdated: result.ideasUpdated,
+      healingPatchesApplied: 0,
+      totalDurationMs: 0,
+      estimatedCost: 0,
     };
 
     if (!options?.skipStatusUpdate) {

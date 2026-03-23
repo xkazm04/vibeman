@@ -12,7 +12,7 @@ export const ConfigPutBodySchema = z.object({
 
 // POST /api/conductor/run
 export const RunPostBodySchema = z.object({
-  action: z.enum(['start', 'pause', 'resume', 'stop'] as const),
+  action: z.enum(['start', 'pause', 'resume', 'stop', 'status'] as const),
   projectId: z.string().optional(),
   runId: z.string().optional(),
   config: z.record(z.string(), z.unknown()).optional(),

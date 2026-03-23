@@ -408,7 +408,7 @@ function CoefficientBadge({
   strength,
 }: {
   value: number;
-  strength: string;
+  strength: keyof typeof STRENGTH_COLORS;
 }) {
   return (
     <span

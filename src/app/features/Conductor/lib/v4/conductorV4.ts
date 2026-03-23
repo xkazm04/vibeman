@@ -64,7 +64,6 @@ export function startV4Pipeline(
     id: runId,
     projectId,
     goalId,
-    status: 'running',
     pipelineVersion: 4,
   });
 

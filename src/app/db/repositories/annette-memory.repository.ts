@@ -380,7 +380,7 @@ export const annetteKnowledgeNodeRepository = {
     const result = db.transaction(() => {
       db.prepare('DELETE FROM annette_knowledge_edges WHERE source_node_id = ? OR target_node_id = ?').run(id, id);
       return db.prepare('DELETE FROM annette_knowledge_nodes WHERE id = ?').run(id);
-    })();
+    });
     return result.changes > 0;
   },
 };

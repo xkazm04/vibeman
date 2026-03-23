@@ -27,7 +27,7 @@ function stageShort(state: StageState): string {
 
 export default function ConductorProgress() {
   const { currentRun, isRunning, isPaused, projectId } = useConductorStatus(true);
-  const { recoveredRunIds, dismissed, dismiss } = useConductorRecovery();
+  const { recoveredRunIds, dismissed, dismiss } = useConductorRecovery(projectId);
 
   // Show recovery banner if runs were interrupted and no active run
   if (!dismissed && recoveredRunIds.length > 0 && !currentRun) {

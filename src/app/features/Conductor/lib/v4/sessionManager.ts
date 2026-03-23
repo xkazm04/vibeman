@@ -9,8 +9,8 @@ import {
   startExecution,
   getExecution,
   abortExecution,
-  type CLIProviderConfig,
 } from '@/lib/claude-terminal/cli-service';
+import type { CLIProviderConfig, CLIProvider, CLIModel } from '@/lib/claude-terminal/types';
 import type { V4RunConfig, V4SessionResult } from './types';
 
 const POLL_INTERVAL_MS = 5000;
@@ -28,8 +28,8 @@ export function spawnV4Session(
   onEvent?: (event: unknown) => void,
 ): string {
   const providerConfig: CLIProviderConfig = {
-    provider: (config.provider || 'claude') as 'claude' | 'ollama',
-    model: config.model,
+    provider: (config.provider || 'claude') as CLIProvider,
+    model: config.model as CLIModel | undefined,
   };
 
   const extraEnv: Record<string, string> = {
@@ -61,8 +61,8 @@ export function resumeV4Session(
   const sessionName = `conductor-v4-${runId.substring(0, 12)}`;
 
   const providerConfig: CLIProviderConfig = {
-    provider: (config.provider || 'claude') as 'claude' | 'ollama',
-    model: config.model,
+    provider: (config.provider || 'claude') as CLIProvider,
+    model: config.model as CLIModel | undefined,
   };
 
   const extraEnv: Record<string, string> = {
@@ -138,23 +138,23 @@ export async function monitorSession(
 
       for (const event of newEvents) {
         // Extract session ID
-        if (event.type === 'init' && event.sessionId) {
-          sessionId = event.sessionId;
+        if (event.type === 'init' && event.data?.sessionId) {
+          sessionId = event.data.sessionId as string;
         }
 
         // Gap 4: Forward tool_use events to UI callback
         if (event.type === 'tool_use' && callbacks?.onToolActivity) {
-          callbacks.onToolActivity(event.name || '', event.input || {});
+          callbacks.onToolActivity((event.data?.name as string) || '', (event.data?.input as Record<string, unknown>) || {});
         }
 
         // Track implementation log calls
-        if (event.type === 'tool_use' && event.name === 'mcp__vibeman__log_implementation') {
+        if (event.type === 'tool_use' && event.data?.name === 'mcp__vibeman__log_implementation') {
           implementationLogCount++;
         }
 
         // Gap 5: Track get_memory calls for outcome resolution
-        if (event.type === 'tool_use' && event.name === 'mcp__vibeman__get_memory') {
-          const query = (event.input as Record<string, unknown>)?.query as string || '';
+        if (event.type === 'tool_use' && event.data?.name === 'mcp__vibeman__get_memory') {
+          const query = (event.data?.input as Record<string, unknown>)?.query as string || '';
           memoryQueriesTracked.push(query);
           if (callbacks?.onMemoryQuery) {
             callbacks.onMemoryQuery('', query);
@@ -177,7 +177,7 @@ export async function monitorSession(
           lastProgressPercentage,
           sessionId,
           error: execution.status === 'error'
-            ? execution.events.find(e => e.type === 'error')?.message || 'Unknown error'
+            ? (execution.events.find(e => e.type === 'error')?.data?.message as string) || 'Unknown error'
             : execution.status === 'aborted'
               ? 'Session aborted'
               : null,

@@ -9,7 +9,7 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { duration, easing } from '@/lib/motion';
-import { BrainEmptyState } from './BrainEmptyState';
+import BrainEmptyState from './BrainEmptyState';
 import {
   CalendarDays,
   X,
@@ -206,10 +206,9 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
         {/* ── Heatmap Grid ───────────────────────────────────────────── */}
         {totalSignals === 0 ? (
           <BrainEmptyState
-            icon={CalendarDays}
-            accentColor={ACCENT}
-            message="No signal activity recorded"
-            hint="The heatmap will fill in as signals are captured across your projects."
+            icon={<CalendarDays className="w-8 h-8 text-zinc-500" />}
+            title="No signal activity recorded"
+            description="The heatmap will fill in as signals are captured across your projects."
           />
         ) : (<>
         <div className="overflow-x-auto custom-scrollbar-subtle">

@@ -48,6 +48,11 @@
     "**/__tests__/**",
     "**/*.test.ts",
     "**/*.test.tsx",
-    "vibeman-bridge"
+    "vibeman-bridge",
+    "playwright.config.ts",
+    "e2e",
+    "scripts",
+    "vite.config.ts",
+    "src/shims"
   ]
 }

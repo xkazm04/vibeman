@@ -31,7 +31,7 @@ import { PROVIDER_MODELS } from '@/lib/claude-terminal/types';
 // Shared sub-components
 // ============================================================================
 
-const PROVIDERS: CLIProvider[] = ['claude', 'gemini', 'copilot', 'ollama'];
+const PROVIDERS: CLIProvider[] = ['claude', 'ollama'];
 
 const selectClass =
   'bg-gray-800 text-gray-200 text-caption rounded-md px-1.5 py-1 border border-gray-700 outline-none focus:border-cyan-600 transition-colors cursor-pointer w-full';
