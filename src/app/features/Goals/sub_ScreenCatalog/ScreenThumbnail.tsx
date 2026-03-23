@@ -4,6 +4,7 @@ import React, { useState, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { ImageIcon } from 'lucide-react';
+import { transition } from '@/lib/motion';
 
 interface ContextWithPreview {
   id: string;
@@ -59,7 +60,7 @@ export default function ScreenThumbnail({ context, onClick, index = 0 }: ScreenT
       ref={containerRef}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.05 }}
+      transition={{ ...transition.deliberate, delay: index * 0.05 }}
       onClick={onClick}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}

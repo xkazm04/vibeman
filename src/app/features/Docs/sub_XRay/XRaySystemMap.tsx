@@ -8,6 +8,7 @@
 
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { duration, easing, transition } from '@/lib/motion';
 import { Code, Activity, AlertTriangle, Zap } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { ModuleLayer } from '../sub_DocsAnalysis/lib/types';
@@ -231,7 +232,7 @@ function XRayConnectionLine({
           strokeWidth: [strokeWidth, strokeWidth * 1.2, strokeWidth],
         }}
         transition={{
-          pathLength: { duration: 1.2, ease: 'easeInOut' },
+          pathLength: { duration: duration.sweep, ease: easing.morph },
           strokeWidth: trafficIntensity > 0.5 ? { duration: 0.5, repeat: Infinity } : undefined,
         }}
       />
@@ -673,7 +674,7 @@ export default function XRaySystemMap({
       }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
+      transition={transition.slow}
     >
       {/* Scanning grid effect */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -713,7 +714,7 @@ export default function XRaySystemMap({
             }}
             initial={{ opacity: 0, scaleX: 0 }}
             animate={{ opacity: 1, scaleX: 1 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
+            transition={{ delay: 0.2, duration: duration.slow }}
           />
         ))}
       </div>

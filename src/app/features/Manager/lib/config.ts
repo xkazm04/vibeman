@@ -24,19 +24,6 @@ export const SUCCESS_RATE_HIGH = 0.8;
 export const SUCCESS_RATE_LOW = 0.5;
 
 /**
- * Milliseconds to wait after initial mount before reading DOM node positions
- * from the SystemMap. Gives the browser time to complete its first layout pass.
- */
-export const NODE_POSITION_INITIAL_DELAY_MS = 400;
-
-/**
- * Milliseconds to wait before re-reading node positions when the logs prop
- * changes. Longer than the initial delay because SystemMap may animate in
- * newly added nodes.
- */
-export const NODE_POSITION_REOBSERVE_DELAY_MS = 800;
-
-/**
  * Maximum number of individual implementation-log entries fetched and rendered
  * inside the CrossContextDetail slide-out panel. Caps the number of sequential
  * API calls made when a user opens a high-volume flow pair.

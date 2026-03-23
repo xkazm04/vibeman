@@ -1,7 +1,6 @@
 /**
- * GET /api/ideas/categories
- * Returns distinct idea categories with counts for pending ideas
- * Used for the Tinder ideas filter sidebar
+ * @route /api/ideas/categories
+ * GET - Distinct idea categories with counts (tinderItemsApi)
  */
 
 import { NextRequest, NextResponse } from 'next/server';

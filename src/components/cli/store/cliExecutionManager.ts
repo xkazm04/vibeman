@@ -30,26 +30,43 @@ import { registerTaskComplete } from '../taskRegistry';
 import { DAGScheduler, type DAGTask, type DAGTaskStatus } from '@/lib/dag/dagScheduler';
 
 // ============ Shared Task Completion Utilities ============
-// Re-exported from unified execution layer for backward compatibility.
-// Canonical implementation lives in @/lib/execution/taskCleanup.ts.
+// Client-safe implementations using fetch instead of direct DB imports.
+// Server-side callers should use @/lib/execution/taskCleanup directly.
+// Note: the server-side taskCleanup.ts transitively pulls in Node.js modules
+// (fs, crypto) via domainEmitters → brainService, so it CANNOT be imported here.
 
-import {
-  performTaskCleanup as sharedPerformTaskCleanup,
-  deleteRequirementFile as sharedDeleteRequirementFile,
-  updateIdeaImplementationStatus as sharedUpdateIdeaImplementationStatus,
-} from '@/lib/execution/taskCleanup';
+/** Delete a requirement file via API. Client-safe (fetch only). */
+export async function deleteRequirementFile(projectPath: string, requirementName: string): Promise<boolean> {
+  try {
+    const response = await fetch('/api/claude-code/requirement', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectPath, requirementName }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
 
-/** @deprecated Import from '@/lib/execution/taskCleanup' instead */
-export const deleteRequirementFile = (projectPath: string, requirementName: string) =>
-  sharedDeleteRequirementFile(projectPath, requirementName);
+/** Update idea status to 'implemented' via API. Client-safe (fetch only). */
+export async function updateIdeaImplementationStatus(requirementName: string): Promise<void> {
+  try {
+    await fetch('/api/ideas/update-implementation-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requirementName }),
+    });
+  } catch {
+    // Non-critical — idea status update must never break cleanup flow
+  }
+}
 
-/** @deprecated Import from '@/lib/execution/taskCleanup' instead */
-export const updateIdeaImplementationStatus = (requirementName: string) =>
-  sharedUpdateIdeaImplementationStatus(requirementName);
-
-/** @deprecated Import from '@/lib/execution/taskCleanup' instead */
-export const performTaskCleanup = (projectPath: string, requirementName: string, projectId?: string) =>
-  sharedPerformTaskCleanup({ projectPath, requirementName, projectId });
+/** Perform post-completion cleanup for a successful task. Client-safe (fetch only). */
+export async function performTaskCleanup(projectPath: string, requirementName: string, _projectId?: string): Promise<boolean> {
+  await updateIdeaImplementationStatus(requirementName);
+  return deleteRequirementFile(projectPath, requirementName);
+}
 
 // ============================================================================
 // Strategy-backed execution

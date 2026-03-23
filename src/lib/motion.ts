@@ -19,6 +19,12 @@ export const duration = {
   deliberate: 0.3,
   /** Expand/collapse: accordion, panel toggle */
   expand: 0.4,
+  /** Progress bars, emphasis entrances */
+  slow: 0.5,
+  /** SVG path draws, chart entrances, dramatic reveals */
+  dramatic: 0.8,
+  /** Full sweep animations: long path traces, complex choreography */
+  sweep: 1.2,
 } as const;
 
 // ── Easing curves ─────────────────────────────────────────────────────────────
@@ -40,6 +46,9 @@ export const transition = {
   deliberate: { duration: duration.deliberate, ease: easing.entrance } satisfies Transition,
   expand: { duration: duration.expand, ease: easing.morph } satisfies Transition,
   exit: { duration: duration.snappy, ease: easing.exit } satisfies Transition,
+  slow: { duration: duration.slow, ease: easing.entrance } satisfies Transition,
+  dramatic: { duration: duration.dramatic, ease: easing.entrance } satisfies Transition,
+  sweep: { duration: duration.sweep, ease: easing.morph } satisfies Transition,
   spring: { type: 'spring' as const, stiffness: 100, damping: 15 },
 } as const;
 

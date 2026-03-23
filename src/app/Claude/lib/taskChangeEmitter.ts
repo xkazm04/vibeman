@@ -18,6 +18,22 @@ export interface McpProgressData {
   metadata?: Record<string, unknown>;
 }
 
+/** Pre-classified activity data emitted server-side to avoid client re-parsing */
+export interface ClassifiedActivity {
+  phase: string;
+  percentage: number;
+  currentTool?: string;
+  currentActivityType?: string;
+  currentTarget?: string;
+  toolCounts: Record<string, number>;
+  recentEvents: Array<{
+    tool: string;
+    activityType: string;
+    target?: string;
+    timestamp: string;
+  }>;
+}
+
 export interface TaskChangeEvent {
   taskId: string;
   status: 'pending' | 'running' | 'completed' | 'failed' | 'session-limit';
@@ -25,6 +41,8 @@ export interface TaskChangeEvent {
   timestamp: string;
   /** Structured progress data from MCP bidirectional channel */
   mcpProgress?: McpProgressData;
+  /** Pre-classified activity data computed server-side */
+  activity?: ClassifiedActivity;
 }
 
 const GLOBAL_KEY = '__vibeman_taskChangeEmitter';

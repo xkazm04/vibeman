@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { duration } from '@/lib/motion';
 import { Loader2, LucideIcon } from 'lucide-react';
 import { actionColorSchemes } from './types';
 
@@ -82,7 +83,7 @@ export function TableActionButton({
           className="absolute inset-0 rounded-md bg-green-500/30"
           initial={{ opacity: 0 }}
           animate={{ opacity: [0, 1, 0] }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: duration.slow }}
         />
       )}
 

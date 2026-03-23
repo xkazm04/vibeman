@@ -8,6 +8,7 @@ import { type RecoveryAction } from '@/lib/errorClassifier';
 import { AdvisorType, LLMPromptContext, EnrichedImplementationLog, NewTaskPromptContext } from './types';
 import { buildAdvisorPrompt, buildAnalystPrompt, generateRequirementName, buildNewTaskAdvisorPrompt, buildNewTaskAnalystPrompt } from './promptTemplates';
 import { wrapRequirementForExecution } from '@/lib/prompts/requirement_file';
+import { fetchContextDescription, createRequirement } from './managerService';
 
 /**
  * Error class that carries classified error information from the LLM generate API
@@ -65,26 +66,7 @@ async function callLLMApi(prompt: string, provider: SupportedProvider, maxTokens
   return data.response;
 }
 
-/**
- * Get context description from API
- */
-async function getContextDescription(contextId: string, projectId?: string): Promise<string | undefined> {
-  try {
-    const queryParams = new URLSearchParams({ contextId });
-    if (projectId) {
-      queryParams.append('projectId', projectId);
-    }
-
-    const response = await fetch(`/api/contexts/detail?${queryParams.toString()}`);
-    if (response.ok) {
-      const data = await response.json();
-      return data.data?.description || undefined;
-    }
-  } catch (error) {
-    console.error('Error fetching context:', error);
-  }
-  return undefined;
-}
+// Context description fetching is delegated to managerService.fetchContextDescription
 
 /**
  * Generate advisor suggestion using LLM
@@ -99,7 +81,7 @@ export async function generateAdvisorSuggestion(
 
   // Fetch context description if available
   const contextDescription = log.context_id
-    ? await getContextDescription(log.context_id, log.project_id)
+    ? await fetchContextDescription(log.context_id, log.project_id)
     : undefined;
 
   // Build prompt context
@@ -135,7 +117,7 @@ export async function generateImplementationPlan(
 
   // Fetch context description if available
   const contextDescription = log.context_id
-    ? await getContextDescription(log.context_id, log.project_id)
+    ? await fetchContextDescription(log.context_id, log.project_id)
     : undefined;
 
   // Build prompt context
@@ -191,23 +173,11 @@ export async function createRequirementFromPlan(
 
     console.log('[CreateRequirement] Wrapped content length:', wrappedContent.length);
 
-    // Create requirement using API
-    const response = await fetch('/api/claude-code/requirement', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        projectPath,
-        requirementName,
-        content: wrappedContent,
-      }),
-    });
+    // Create requirement using service layer
+    const result = await createRequirement(projectPath, requirementName, wrappedContent);
 
-    console.log('[CreateRequirement] API response status:', response.status);
-
-    if (!response.ok) {
-      const data = await response.json();
-      console.log('[CreateRequirement] API error:', data);
-      throw new Error(data.error || 'Failed to create requirement');
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to create requirement');
     }
 
     return { success: true, requirementName };
@@ -234,7 +204,7 @@ export async function generateNewTaskAdvisorSuggestion(
 
   // Fetch context description if available
   const contextDescription = contextId
-    ? await getContextDescription(contextId, projectId)
+    ? await fetchContextDescription(contextId, projectId)
     : undefined;
 
   // Build prompt context
@@ -272,12 +242,12 @@ export async function generateNewTaskImplementationPlan(
 
   // Fetch primary context description if available
   const contextDescription = contextId
-    ? await getContextDescription(contextId, projectId)
+    ? await fetchContextDescription(contextId, projectId)
     : undefined;
 
   // Fetch secondary context description if multiproject mode
   const secondaryContextDescription = secondaryContextId
-    ? await getContextDescription(secondaryContextId, secondaryProjectId)
+    ? await fetchContextDescription(secondaryContextId, secondaryProjectId)
     : undefined;
 
   // Build prompt context with multiproject support

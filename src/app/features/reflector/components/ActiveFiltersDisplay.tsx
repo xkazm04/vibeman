@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Folder, Layers, CheckCircle2, Calendar } from 'lucide-react';
+import { duration } from '@/lib/motion';
 import { FilterState } from '../lib/filterIdeas';
 
 interface ActiveFiltersDisplayProps {
@@ -57,7 +58,7 @@ export default function ActiveFiltersDisplay({
       className="flex flex-wrap items-center gap-2 mb-4"
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
+      transition={{ duration: duration.normal }}
     >
       <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
         Active Filters:
@@ -150,7 +151,7 @@ function FilterTag({ icon, label, onRemove, color }: FilterTagProps) {
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.8 }}
-      transition={{ duration: 0.2 }}
+      transition={{ duration: duration.normal }}
       className={`flex items-center space-x-1.5 px-3 py-1.5 border rounded-full text-sm font-medium transition-all ${colorClasses[color]}`}
     >
       {icon}

@@ -13,7 +13,7 @@ import { getDatabase } from '@/app/db/connection';
 import { conductorRepository } from '../conductor.repository';
 import { executePlanPhase } from './planPhase';
 import { runBuildValidation } from '../execution/buildValidator';
-import { generateBrainQuestions, getBrainWarnings, feedBrainOutcome } from './brainAdvisor';
+import { generateBrainQuestions, getBrainWarnings, feedBrainOutcome, getWorkspaceContext } from './brainAdvisor';
 import { prunePatches, buildHealingContext } from '../selfHealing/promptPatcher';
 import { cleanupOrphanedWorktrees } from './worktreeManager';
 import type {
@@ -24,6 +24,7 @@ import type {
   V3Task,
   ReflectOutput,
   PhaseState,
+  WorkspaceContext,
 } from './types';
 import { createEmptyV3Metrics, createEmptyV3Phases } from './types';
 
@@ -58,6 +59,7 @@ interface DispatchPhaseInput {
   goalContext: { title: string; description: string };
   healingContext: string;
   autoCommit: boolean;
+  workspaceContext?: WorkspaceContext | null;
   abortSignal?: AbortSignal;
   onTaskUpdate?: (tasks: V3Task[]) => void;
   onLog?: (phase: V3Phase, event: string, message: string) => void;
@@ -80,6 +82,7 @@ interface ReflectPhaseInput {
   currentMetrics: V3Metrics;
   goalTitle: string;
   goalDescription: string;
+  workspaceContext?: WorkspaceContext | null;
   abortSignal?: AbortSignal;
 }
 
@@ -243,6 +246,12 @@ async function runV3Loop(
     return;
   }
 
+  // Fetch workspace context (non-blocking, null if not in a workspace)
+  const workspaceContext = getWorkspaceContext(projectId);
+  if (workspaceContext) {
+    console.log(`[ConductorV3] Workspace-aware mode: "${workspaceContext.workspaceName}" (${workspaceContext.projects.length} projects)`);
+  }
+
   // Process log
   const processLog: V3ProcessLogEntry[] = [];
   let metrics = createEmptyV3Metrics();
@@ -288,6 +297,11 @@ async function runV3Loop(
   // Load phase implementations (lazy, handles missing files)
   const executeDispatchPhase = await loadDispatchPhase();
   const executeReflectPhase = await loadReflectPhase();
+
+  // ----- Workspace context logging -----
+  if (workspaceContext) {
+    log('plan', 'info', `Workspace "${workspaceContext.workspaceName}": ${workspaceContext.projects.map(p => p.name).join(', ')} (${workspaceContext.relationships.length} relationship(s))`);
+  }
 
   // ----- Optional: Brain Q&A (pre-cycle) -----
   if (config.brainQuestionsEnabled) {
@@ -399,6 +413,7 @@ async function runV3Loop(
         previousReflection,
         healingContext,
         refinedIntent: refinedIntent || null,
+        workspaceContext,
         abortSignal: controller?.signal,
       });
     } catch (err) {
@@ -453,6 +468,7 @@ async function runV3Loop(
         },
         healingContext,
         autoCommit: config.autoCommit ?? false,
+        workspaceContext,
         abortSignal: controller?.signal,
         onTaskUpdate: (updatedTasks) => {
           // Persist task states for real-time UI updates
@@ -517,6 +533,7 @@ async function runV3Loop(
         currentMetrics: metrics,
         goalTitle: goalRecord.title,
         goalDescription: goalRecord.description,
+        workspaceContext,
         abortSignal: controller?.signal,
       });
     } catch (err) {

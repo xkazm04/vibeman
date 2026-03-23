@@ -6,6 +6,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
+import { duration } from '@/lib/motion';
 import ImplementationLogCard from './ImplementationLogCard';
 import type { EnrichedImplementationLog } from '../lib/types';
 
@@ -35,7 +36,7 @@ export default function ManagerCardGrid({
             key={log.id}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+            exit={{ opacity: 0, scale: 0.9, transition: { duration: duration.normal } }}
             transition={{ delay: index * 0.02 }}
           >
             <ImplementationLogCard

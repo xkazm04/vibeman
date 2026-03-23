@@ -1,3 +1,7 @@
+/**
+ * @route /api/ideas/update-implementation-status
+ * POST - Mark idea as implemented after task completion (cliExecutionManager)
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb, contextDb } from '@/app/db';
 import {

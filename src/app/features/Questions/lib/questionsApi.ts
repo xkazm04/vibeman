@@ -103,7 +103,7 @@ export interface ContextMapSetupResponse {
 
 export interface QuestionTreeResponse {
   success: boolean;
-  trees: import('@/app/db/repositories/question.repository').QuestionTreeNode[];
+  trees: import('@/lib/questions/questionTreeService').QuestionTreeNode[];
   treeStats: {
     rootId: string;
     rootQuestion: string;

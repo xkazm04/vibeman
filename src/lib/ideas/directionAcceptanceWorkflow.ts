@@ -18,13 +18,10 @@ import {
   directionDb,
   scanDb,
   ideaDb,
-  insightEffectivenessCache,
-  brainInsightDb,
-  insightInfluenceDb,
 } from '@/app/db';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { generateAdr } from '@/lib/directions/adrGenerator';
-import { signalCollector } from '@/lib/brain/signalCollector';
+import { emitDirectionChanged } from '@/lib/events/domainEmitters';
 import { v4 as uuidv4 } from 'uuid';
 
 // ---------------------------------------------------------------------------
@@ -160,12 +157,6 @@ export function acceptDirection(opts: AcceptDirectionOptions): AcceptDirectionOu
     summary: direction.summary,
     context_map_title: direction.context_map_title,
   });
-  const adr = generateAdr({
-    summary: direction.summary,
-    direction: direction.direction,
-    contextMapTitle: direction.context_map_title,
-    problemStatement: direction.problem_statement,
-  });
 
   // Mutable saga state shared across steps
   let filePath = '';
@@ -192,7 +183,6 @@ export function acceptDirection(opts: AcceptDirectionOptions): AcceptDirectionOu
           directionId,
           requirementId,
           filePath,
-          JSON.stringify(adr),
         );
         if (!updated) throw new Error('Failed to update direction status');
         updatedDirection = updated;
@@ -225,47 +215,6 @@ export function acceptDirection(opts: AcceptDirectionOptions): AcceptDirectionOu
         });
       },
     },
-    {
-      name: 'brainSignal',
-      execute: () => {
-        try {
-          signalCollector.recordImplementation(direction.project_id, {
-            requirementId,
-            requirementName: requirementId,
-            directionId,
-            contextId: direction.context_id || null,
-            filesCreated: [],
-            filesModified: [],
-            filesDeleted: [],
-            success: true,
-            executionTimeMs: 0,
-          });
-        } catch { /* non-critical */ }
-      },
-    },
-    {
-      name: 'cacheInvalidate',
-      execute: () => {
-        try { insightEffectivenessCache.invalidate(direction.project_id); } catch { /* non-critical */ }
-      },
-    },
-    {
-      name: 'insightInfluence',
-      execute: () => {
-        try {
-          const activeInsights = brainInsightDb.getForEffectiveness(direction.project_id);
-          if (activeInsights.length > 0) {
-            const now = new Date().toISOString();
-            insightInfluenceDb.recordInfluenceBatch(
-              direction.project_id,
-              directionId,
-              'accepted',
-              activeInsights.map(i => ({ id: i.id, title: i.title, shownAt: i.completed_at || now })),
-            );
-          }
-        } catch { /* non-critical */ }
-      },
-    },
   ];
 
   try {
@@ -277,6 +226,30 @@ export function acceptDirection(opts: AcceptDirectionOptions): AcceptDirectionOu
       message: error instanceof Error ? error.message : 'Acceptance saga failed',
     };
   }
+
+  // Emit domain event for cross-cutting side effects (signal, influence, cache)
+  emitDirectionChanged({
+    projectId: direction.project_id,
+    directionId,
+    action: 'accepted',
+    contextId: direction.context_id || null,
+    contextName: direction.context_map_title,
+    requirementId,
+  });
+
+  // Post-acceptance: generate ADR asynchronously (non-critical).
+  // Acceptance has already succeeded — ADR failure must not affect the outcome.
+  try {
+    const adr = generateAdr({
+      summary: direction.summary,
+      direction: direction.direction,
+      contextMapTitle: direction.context_map_title,
+      problemStatement: direction.problem_statement,
+    });
+    directionDb.updateDirection(directionId, { decision_record: JSON.stringify(adr) });
+    // Refresh the direction object so the response includes the ADR
+    updatedDirection = directionDb.getDirectionById(directionId) as NonNullable<typeof updatedDirection>;
+  } catch { /* ADR generation failure is non-critical — direction is already accepted */ }
 
   return {
     success: true,

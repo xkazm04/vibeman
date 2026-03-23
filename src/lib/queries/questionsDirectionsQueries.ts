@@ -103,11 +103,12 @@ export function useAnswerQuestion() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ questionId, answer }: { questionId: string; answer: string }) =>
+    mutationFn: ({ questionId, answer, projectId }: { questionId: string; answer: string; projectId: string }) =>
       answerQuestion(questionId, answer),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: questionsQueryKeys.all });
-      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.all });
+    onSuccess: (_data, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: questionsQueryKeys.list(projectId) });
+      queryClient.invalidateQueries({ queryKey: questionsQueryKeys.trees(projectId) });
+      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.combined(projectId) });
     },
   });
 }
@@ -119,60 +120,69 @@ export function useDeleteQuestion() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (questionId: string) => deleteQuestion(questionId),
-    onMutate: async (questionId) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: questionsQueryKeys.all });
+    mutationFn: ({ questionId }: { questionId: string; projectId: string }) =>
+      deleteQuestion(questionId),
+    onMutate: async ({ questionId, projectId }) => {
+      // Cancel outgoing refetches for this project
+      await queryClient.cancelQueries({ queryKey: questionsQueryKeys.list(projectId) });
 
-      // Snapshot all question queries
-      const previousData = queryClient.getQueriesData<QuestionsResponse>({
-        queryKey: questionsQueryKeys.all,
-      });
-
-      // Optimistically remove the question from all caches
-      queryClient.setQueriesData<QuestionsResponse>(
-        { queryKey: questionsQueryKeys.all },
-        (old) => {
-          if (!old) return old;
-          const deletedQuestion = old.items.find((q) => q.id === questionId);
-          return {
-            ...old,
-            items: old.items.filter((q) => q.id !== questionId),
-            grouped: old.grouped
-              .map((g) => ({
-                ...g,
-                items: g.items.filter((q) => q.id !== questionId),
-              }))
-              .filter((g) => g.items.length > 0),
-            counts: {
-              ...old.counts,
-              total: old.counts.total - 1,
-              pending:
-                deletedQuestion?.status === 'pending'
-                  ? old.counts.pending - 1
-                  : old.counts.pending,
-              answered:
-                deletedQuestion?.status === 'answered'
-                  ? old.counts.answered - 1
-                  : old.counts.answered,
-            },
-          };
-        }
+      // Snapshot question queries for this project
+      const previousQuestions = queryClient.getQueryData<QuestionsResponse>(
+        questionsQueryKeys.list(projectId)
+      );
+      const previousCombined = queryClient.getQueryData<{ questions: QuestionsResponse; directions: DirectionsResponse }>(
+        questionsDirectionsQueryKeys.combined(projectId)
       );
 
-      return { previousData };
-    },
-    onError: (_err, _questionId, context) => {
-      // Rollback on error
-      if (context?.previousData) {
-        context.previousData.forEach(([queryKey, data]) => {
-          queryClient.setQueryData(queryKey, data);
+      // Optimistically remove the question from project-scoped cache
+      const updateQuestions = (old: QuestionsResponse | undefined) => {
+        if (!old) return old;
+        const deletedQuestion = old.items.find((q) => q.id === questionId);
+        return {
+          ...old,
+          items: old.items.filter((q) => q.id !== questionId),
+          grouped: old.grouped
+            .map((g) => ({
+              ...g,
+              items: g.items.filter((q) => q.id !== questionId),
+            }))
+            .filter((g) => g.items.length > 0),
+          counts: {
+            ...old.counts,
+            total: old.counts.total - 1,
+            pending:
+              deletedQuestion?.status === 'pending'
+                ? old.counts.pending - 1
+                : old.counts.pending,
+            answered:
+              deletedQuestion?.status === 'answered'
+                ? old.counts.answered - 1
+                : old.counts.answered,
+          },
+        };
+      };
+
+      queryClient.setQueryData(questionsQueryKeys.list(projectId), updateQuestions);
+
+      if (previousCombined) {
+        queryClient.setQueryData(questionsDirectionsQueryKeys.combined(projectId), {
+          ...previousCombined,
+          questions: updateQuestions(previousCombined.questions) ?? previousCombined.questions,
         });
       }
+
+      return { previousQuestions, previousCombined, projectId };
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: questionsQueryKeys.all });
-      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.all });
+    onError: (_err, _variables, context) => {
+      if (context) {
+        queryClient.setQueryData(questionsQueryKeys.list(context.projectId), context.previousQuestions);
+        queryClient.setQueryData(questionsDirectionsQueryKeys.combined(context.projectId), context.previousCombined);
+      }
+    },
+    onSettled: (_data, _err, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: questionsQueryKeys.list(projectId) });
+      queryClient.invalidateQueries({ queryKey: questionsQueryKeys.trees(projectId) });
+      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.combined(projectId) });
     },
   });
 }
@@ -239,10 +249,12 @@ export function useGenerateFollowUp() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (questionId: string) => generateFollowUp(questionId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: questionsQueryKeys.all });
-      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.all });
+    mutationFn: ({ questionId }: { questionId: string; projectId: string }) =>
+      generateFollowUp(questionId),
+    onSuccess: (_data, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: questionsQueryKeys.list(projectId) });
+      queryClient.invalidateQueries({ queryKey: questionsQueryKeys.trees(projectId) });
+      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.combined(projectId) });
     },
   });
 }
@@ -254,10 +266,12 @@ export function useGenerateStrategicBrief() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (questionId: string) => generateStrategicBrief(questionId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: questionsQueryKeys.all });
-      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.all });
+    mutationFn: ({ questionId }: { questionId: string; projectId: string }) =>
+      generateStrategicBrief(questionId),
+    onSuccess: (_data, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: questionsQueryKeys.list(projectId) });
+      queryClient.invalidateQueries({ queryKey: questionsQueryKeys.trees(projectId) });
+      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.combined(projectId) });
     },
   });
 }
@@ -270,11 +284,13 @@ export function useAutoDeepen() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (questionId: string) => autoDeepen(questionId),
-    onSuccess: (data) => {
+    mutationFn: ({ questionId }: { questionId: string; projectId: string }) =>
+      autoDeepen(questionId),
+    onSuccess: (data, { projectId }) => {
       if (data.deepened) {
-        queryClient.invalidateQueries({ queryKey: questionsQueryKeys.all });
-        queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.all });
+        queryClient.invalidateQueries({ queryKey: questionsQueryKeys.list(projectId) });
+        queryClient.invalidateQueries({ queryKey: questionsQueryKeys.trees(projectId) });
+        queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.combined(projectId) });
       }
     },
   });
@@ -305,45 +321,53 @@ export function useAcceptDirection() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ directionId, projectPath }: { directionId: string; projectPath: string }) =>
+    mutationFn: ({ directionId, projectPath }: { directionId: string; projectPath: string; projectId: string }) =>
       acceptDirection(directionId, projectPath),
-    onMutate: async ({ directionId }) => {
-      await queryClient.cancelQueries({ queryKey: directionsQueryKeys.all });
+    onMutate: async ({ directionId, projectId }) => {
+      await queryClient.cancelQueries({ queryKey: directionsQueryKeys.list(projectId) });
 
-      const previousData = queryClient.getQueriesData<DirectionsResponse>({
-        queryKey: directionsQueryKeys.all,
-      });
-
-      queryClient.setQueriesData<DirectionsResponse>(
-        { queryKey: directionsQueryKeys.all },
-        (old) => {
-          if (!old) return old;
-          return {
-            ...old,
-            items: old.items.map((d) =>
-              d.id === directionId ? { ...d, status: 'accepted' as const } : d
-            ),
-            counts: {
-              ...old.counts,
-              pending: old.counts.pending - 1,
-              accepted: old.counts.accepted + 1,
-            },
-          };
-        }
+      const previousDirections = queryClient.getQueryData<DirectionsResponse>(
+        directionsQueryKeys.list(projectId)
+      );
+      const previousCombined = queryClient.getQueryData<{ questions: QuestionsResponse; directions: DirectionsResponse }>(
+        questionsDirectionsQueryKeys.combined(projectId)
       );
 
-      return { previousData };
-    },
-    onError: (_err, _variables, context) => {
-      if (context?.previousData) {
-        context.previousData.forEach(([queryKey, data]) => {
-          queryClient.setQueryData(queryKey, data);
+      const updateDirections = (old: DirectionsResponse | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          items: old.items.map((d) =>
+            d.id === directionId ? { ...d, status: 'accepted' as const } : d
+          ),
+          counts: {
+            ...old.counts,
+            pending: old.counts.pending - 1,
+            accepted: old.counts.accepted + 1,
+          },
+        };
+      };
+
+      queryClient.setQueryData(directionsQueryKeys.list(projectId), updateDirections);
+
+      if (previousCombined) {
+        queryClient.setQueryData(questionsDirectionsQueryKeys.combined(projectId), {
+          ...previousCombined,
+          directions: updateDirections(previousCombined.directions) ?? previousCombined.directions,
         });
       }
+
+      return { previousDirections, previousCombined, projectId };
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: directionsQueryKeys.all });
-      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.all });
+    onError: (_err, _variables, context) => {
+      if (context) {
+        queryClient.setQueryData(directionsQueryKeys.list(context.projectId), context.previousDirections);
+        queryClient.setQueryData(questionsDirectionsQueryKeys.combined(context.projectId), context.previousCombined);
+      }
+    },
+    onSettled: (_data, _err, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: directionsQueryKeys.list(projectId) });
+      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.combined(projectId) });
     },
   });
 }
@@ -355,44 +379,53 @@ export function useRejectDirection() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (directionId: string) => rejectDirection(directionId),
-    onMutate: async (directionId) => {
-      await queryClient.cancelQueries({ queryKey: directionsQueryKeys.all });
+    mutationFn: ({ directionId }: { directionId: string; projectId: string }) =>
+      rejectDirection(directionId),
+    onMutate: async ({ directionId, projectId }) => {
+      await queryClient.cancelQueries({ queryKey: directionsQueryKeys.list(projectId) });
 
-      const previousData = queryClient.getQueriesData<DirectionsResponse>({
-        queryKey: directionsQueryKeys.all,
-      });
-
-      queryClient.setQueriesData<DirectionsResponse>(
-        { queryKey: directionsQueryKeys.all },
-        (old) => {
-          if (!old) return old;
-          return {
-            ...old,
-            items: old.items.map((d) =>
-              d.id === directionId ? { ...d, status: 'rejected' as const } : d
-            ),
-            counts: {
-              ...old.counts,
-              pending: old.counts.pending - 1,
-              rejected: old.counts.rejected + 1,
-            },
-          };
-        }
+      const previousDirections = queryClient.getQueryData<DirectionsResponse>(
+        directionsQueryKeys.list(projectId)
+      );
+      const previousCombined = queryClient.getQueryData<{ questions: QuestionsResponse; directions: DirectionsResponse }>(
+        questionsDirectionsQueryKeys.combined(projectId)
       );
 
-      return { previousData };
-    },
-    onError: (_err, _directionId, context) => {
-      if (context?.previousData) {
-        context.previousData.forEach(([queryKey, data]) => {
-          queryClient.setQueryData(queryKey, data);
+      const updateDirections = (old: DirectionsResponse | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          items: old.items.map((d) =>
+            d.id === directionId ? { ...d, status: 'rejected' as const } : d
+          ),
+          counts: {
+            ...old.counts,
+            pending: old.counts.pending - 1,
+            rejected: old.counts.rejected + 1,
+          },
+        };
+      };
+
+      queryClient.setQueryData(directionsQueryKeys.list(projectId), updateDirections);
+
+      if (previousCombined) {
+        queryClient.setQueryData(questionsDirectionsQueryKeys.combined(projectId), {
+          ...previousCombined,
+          directions: updateDirections(previousCombined.directions) ?? previousCombined.directions,
         });
       }
+
+      return { previousDirections, previousCombined, projectId };
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: directionsQueryKeys.all });
-      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.all });
+    onError: (_err, _variables, context) => {
+      if (context) {
+        queryClient.setQueryData(directionsQueryKeys.list(context.projectId), context.previousDirections);
+        queryClient.setQueryData(questionsDirectionsQueryKeys.combined(context.projectId), context.previousCombined);
+      }
+    },
+    onSettled: (_data, _err, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: directionsQueryKeys.list(projectId) });
+      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.combined(projectId) });
     },
   });
 }
@@ -404,73 +437,91 @@ export function useDeleteDirection() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (directionId: string) => deleteDirection(directionId),
-    onMutate: async (directionId) => {
-      await queryClient.cancelQueries({ queryKey: directionsQueryKeys.all });
+    mutationFn: ({ directionId }: { directionId: string; projectId: string }) =>
+      deleteDirection(directionId),
+    onMutate: async ({ directionId, projectId }) => {
+      await queryClient.cancelQueries({ queryKey: directionsQueryKeys.list(projectId) });
 
-      const previousData = queryClient.getQueriesData<DirectionsResponse>({
-        queryKey: directionsQueryKeys.all,
-      });
-
-      queryClient.setQueriesData<DirectionsResponse>(
-        { queryKey: directionsQueryKeys.all },
-        (old) => {
-          if (!old) return old;
-          const deletedDirection = old.items.find((d) => d.id === directionId);
-          return {
-            ...old,
-            items: old.items.filter((d) => d.id !== directionId),
-            grouped: old.grouped
-              .map((g) => ({
-                ...g,
-                items: g.items.filter((d) => d.id !== directionId),
-              }))
-              .filter((g) => g.items.length > 0),
-            counts: {
-              ...old.counts,
-              total: old.counts.total - 1,
-              pending:
-                deletedDirection?.status === 'pending'
-                  ? old.counts.pending - 1
-                  : old.counts.pending,
-              accepted:
-                deletedDirection?.status === 'accepted'
-                  ? old.counts.accepted - 1
-                  : old.counts.accepted,
-              rejected:
-                deletedDirection?.status === 'rejected'
-                  ? old.counts.rejected - 1
-                  : old.counts.rejected,
-            },
-          };
-        }
+      const previousDirections = queryClient.getQueryData<DirectionsResponse>(
+        directionsQueryKeys.list(projectId)
+      );
+      const previousCombined = queryClient.getQueryData<{ questions: QuestionsResponse; directions: DirectionsResponse }>(
+        questionsDirectionsQueryKeys.combined(projectId)
       );
 
-      return { previousData };
-    },
-    onError: (_err, _directionId, context) => {
-      if (context?.previousData) {
-        context.previousData.forEach(([queryKey, data]) => {
-          queryClient.setQueryData(queryKey, data);
+      const updateDirections = (old: DirectionsResponse | undefined) => {
+        if (!old) return old;
+        const deletedDirection = old.items.find((d) => d.id === directionId);
+        return {
+          ...old,
+          items: old.items.filter((d) => d.id !== directionId),
+          grouped: old.grouped
+            .map((g) => ({
+              ...g,
+              items: g.items.filter((d) => d.id !== directionId),
+            }))
+            .filter((g) => g.items.length > 0),
+          counts: {
+            ...old.counts,
+            total: old.counts.total - 1,
+            pending:
+              deletedDirection?.status === 'pending'
+                ? old.counts.pending - 1
+                : old.counts.pending,
+            accepted:
+              deletedDirection?.status === 'accepted'
+                ? old.counts.accepted - 1
+                : old.counts.accepted,
+            rejected:
+              deletedDirection?.status === 'rejected'
+                ? old.counts.rejected - 1
+                : old.counts.rejected,
+          },
+        };
+      };
+
+      queryClient.setQueryData(directionsQueryKeys.list(projectId), updateDirections);
+
+      if (previousCombined) {
+        queryClient.setQueryData(questionsDirectionsQueryKeys.combined(projectId), {
+          ...previousCombined,
+          directions: updateDirections(previousCombined.directions) ?? previousCombined.directions,
         });
       }
+
+      return { previousDirections, previousCombined, projectId };
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: directionsQueryKeys.all });
-      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.all });
+    onError: (_err, _variables, context) => {
+      if (context) {
+        queryClient.setQueryData(directionsQueryKeys.list(context.projectId), context.previousDirections);
+        queryClient.setQueryData(questionsDirectionsQueryKeys.combined(context.projectId), context.previousCombined);
+      }
+    },
+    onSettled: (_data, _err, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: directionsQueryKeys.list(projectId) });
+      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.combined(projectId) });
     },
   });
 }
 
 /**
- * Hook to invalidate questions and directions queries
+ * Hook to invalidate questions and directions queries.
+ * When projectId is provided, only that project's caches are invalidated.
+ * Falls back to broad invalidation when no projectId is available.
  */
 export function useInvalidateQuestionsDirections() {
   const queryClient = useQueryClient();
 
-  return useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: questionsQueryKeys.all });
-    queryClient.invalidateQueries({ queryKey: directionsQueryKeys.all });
-    queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.all });
+  return useCallback((projectId?: string) => {
+    if (projectId) {
+      queryClient.invalidateQueries({ queryKey: questionsQueryKeys.list(projectId) });
+      queryClient.invalidateQueries({ queryKey: questionsQueryKeys.trees(projectId) });
+      queryClient.invalidateQueries({ queryKey: directionsQueryKeys.list(projectId) });
+      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.combined(projectId) });
+    } else {
+      queryClient.invalidateQueries({ queryKey: questionsQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: directionsQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: questionsDirectionsQueryKeys.all });
+    }
   }, [queryClient]);
 }

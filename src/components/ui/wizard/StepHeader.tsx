@@ -2,6 +2,7 @@
 
 import { LucideIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { duration } from '@/lib/motion';
 import Badge from './Badge';
 import { useThemeStore } from '@/stores/themeStore';
 
@@ -41,7 +42,7 @@ export function StepHeader({
     <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: 0.1 }}
+      transition={{ duration: duration.deliberate, delay: 0.1 }}
       className="flex items-start justify-between gap-4"
       data-testid={testId}
     >

@@ -4,6 +4,7 @@ import React, { ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Inbox, LucideIcon } from 'lucide-react';
 import { transition, fadeSlideUp, easing } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { TableColumn, TableStat, statColors } from './types';
 import EmptyState from '@/components/ui/EmptyState';
 
@@ -51,6 +52,8 @@ export function DataTable<T>({
   emptyState,
   className = '',
 }: DataTableProps<T>) {
+  const prefersReduced = useReducedMotion();
+
   // Loading state
   if (loading) {
     return (
@@ -88,16 +91,16 @@ export function DataTable<T>({
       {stats && stats.length > 0 && (
         <motion.div
           className="flex items-center gap-4 text-xs text-gray-400"
-          initial={{ opacity: 0, y: -10 }}
+          initial={prefersReduced ? false : { opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={transition.deliberate}
+          transition={prefersReduced ? { duration: 0 } : transition.deliberate}
         >
           {stats.map((stat, idx) => (
             <motion.span
               key={stat.label}
-              initial={{ opacity: 0 }}
+              initial={prefersReduced ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: idx * 0.05 }}
+              transition={prefersReduced ? { duration: 0 } : { delay: idx * 0.05 }}
             >
               <span className={`font-medium ${statColors[stat.colorScheme]}`}>
                 {stat.value}
@@ -111,9 +114,9 @@ export function DataTable<T>({
       {/* Table container */}
       <motion.div
         className="bg-gray-800/40 backdrop-blur-sm rounded-xl border border-gray-700/40 overflow-hidden shadow-lg"
-        variants={fadeSlideUp}
-        initial="hidden"
-        animate="visible"
+        variants={prefersReduced ? undefined : fadeSlideUp}
+        initial={prefersReduced ? false : "hidden"}
+        animate={prefersReduced ? undefined : "visible"}
       >
         <div className="overflow-x-auto">
           <table className="w-full">

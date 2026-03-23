@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { duration } from '@/lib/motion';
 import { ProviderStats } from '../lib/types';
 import { STATUS_CONFIG } from '../lib/config';
 
@@ -70,7 +71,7 @@ export default function ProviderBreakdown({ providers }: ProviderBreakdownProps)
               key={stat.provider}
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: index * 0.03, duration: 0.2 }}
+              transition={{ delay: index * 0.03, duration: duration.normal }}
               whileHover={{ scale: 1.02 }}
               className={`relative bg-gradient-to-br ${style.bgGradient} border ${style.borderColor} rounded-md p-2 backdrop-blur-sm overflow-hidden`}
               data-testid={`provider-card-${stat.provider}`}

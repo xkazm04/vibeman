@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fullDrawer, fullDrawerTransition } from '../lib/motionPresets';
+import { transition } from '@/lib/motion';
 import { X, ArrowLeft } from 'lucide-react';
 
 export type DrillDownTarget =
@@ -97,7 +98,7 @@ export default function SignalDetailDrawer({ target, onClose, children }: Signal
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={transition.normal}
             className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
             onClick={handleClose}
           />

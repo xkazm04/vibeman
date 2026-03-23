@@ -4,7 +4,7 @@
 :global(.ss-main) {
   width: 100%;
   min-height: 48px;
-  transition: all 0.3s ease;
+  transition: all var(--motion-duration-deliberate) var(--motion-ease-entrance);
 }
 
 :global(.ss-main .ss-single-selected) {
@@ -19,7 +19,7 @@
 }
 
 :global(.ss-main .ss-arrow path) {
-  transition: all 0.3s ease;
+  transition: all var(--motion-duration-deliberate) var(--motion-ease-entrance);
 }
 
 :global(.ss-content) {
@@ -38,7 +38,7 @@
 :global(.ss-option) {
   padding: 10px 16px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--motion-duration-normal) var(--motion-ease-entrance);
 }
 
 :global(.ss-option:hover) {
@@ -319,7 +319,7 @@
   filter: blur(8px);
   pointer-events: none;
   opacity: 1;
-  transition: opacity 0.3s ease;
+  transition: opacity var(--motion-duration-deliberate) var(--motion-ease-entrance);
 }
 
 /* ========================================

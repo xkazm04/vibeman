@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { Loader2, AlertCircle, FileText, BarChart3 } from 'lucide-react';
 import { useTabNavigation } from '@/hooks/useTabNavigation';
+import { duration } from '@/lib/motion';
 import FilterPanel from './FilterPanel';
 import ScanTypeCard from './ScanTypeCard';
 import AcceptanceChart, { AcceptanceBarClickData } from './AcceptanceChart';
@@ -410,6 +411,7 @@ export default function ReflectionDashboard() {
       </div>
 
       {/* Executive Insights View */}
+      <div role="tabpanel" aria-label={`${viewMode} view`}>
       {viewMode === 'executive' ? (
         <ExecutiveSummary filters={filters} />
       ) : (
@@ -478,7 +480,7 @@ export default function ReflectionDashboard() {
                           key={contextMapStat.contextMapId}
                           initial={{ scale: 0.95, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
-                          transition={{ delay: index * 0.03, duration: 0.2 }}
+                          transition={{ delay: index * 0.03, duration: duration.normal }}
                           whileHover={{ scale: 1.02 }}
                           className="bg-gradient-to-br from-cyan-500/5 to-cyan-600/2 border border-cyan-500/40 rounded-md p-2 backdrop-blur-sm"
                         >
@@ -518,6 +520,7 @@ export default function ReflectionDashboard() {
           ) : null}
         </>
       )}
+      </div>
 
       {/* Drill-Down Drawer */}
       <DrillDownDrawer

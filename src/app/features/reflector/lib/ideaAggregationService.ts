@@ -143,6 +143,7 @@ export function getAllIdeasWithMetadata(
 
     return enrichedIdeas;
   } catch (error) {
+    console.error('[ideaAggregationService] getAllIdeasWithMetadata failed:', error);
     return [];
   }
 }
@@ -229,6 +230,7 @@ export function getProjectStats(): ProjectStats[] {
     // Sort by total ideas descending
     return stats.sort((a, b) => b.totalIdeas - a.totalIdeas);
   } catch (error) {
+    console.error('[ideaAggregationService] getProjectStats failed:', error);
     return [];
   }
 }
@@ -293,6 +295,7 @@ export function getContextStats(contexts: Context[]): ContextStats[] {
     // Sort by idea count descending
     return stats.sort((a, b) => b.ideaCount - a.ideaCount);
   } catch (error) {
+    console.error('[ideaAggregationService] getContextStats failed:', error);
     return [];
   }
 }
@@ -369,6 +372,7 @@ export function getIdeasGroupedByProjectAndContext(
       .filter(group => group.totalIdeas > 0)
       .sort((a, b) => b.totalIdeas - a.totalIdeas);
   } catch (error) {
+    console.error('[ideaAggregationService] getIdeasGroupedByProjectAndContext failed:', error);
     return [];
   }
 }
@@ -438,6 +442,7 @@ export function getOverallStats(contexts: Context[]): OverallStats {
       topContexts,
     };
   } catch (error) {
+    console.error('[ideaAggregationService] getOverallStats failed:', error);
     return {
       totalIdeas: 0,
       totalProjects: 0,

@@ -1,15 +1,13 @@
 'use client';
 
-import { useEffect } from 'react';
 import { History, TrendingUp, Lightbulb, Clock, BarChart3 } from 'lucide-react';
 import BrainPanelHeader from './BrainPanelHeader';
 import GlowCard from './GlowCard';
 import NeuralPulseLoader from './NeuralPulseLoader';
 import BrainEmptyState from './BrainEmptyState';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
-import { subscribeToReflectionCompletion } from '@/stores/reflectionCompletionEmitter';
 import ReflectionHistoryItem, { type ReflectionHistoryEntry } from './ReflectionHistoryItem';
-import { useReflectionHistory, useInvalidateBrain } from '../lib/queries';
+import { useReflectionHistory, useInvalidateBrain, useReflectionRevalidation } from '../lib/queries';
 
 const ACCENT_COLOR = '#a855f7'; // Purple
 const GLOW_COLOR = 'rgba(168, 85, 247, 0.15)';
@@ -45,17 +43,7 @@ export default function ReflectionHistoryPanel({ scope = 'project' }: Props) {
   const aggregates = data?.aggregates ?? null;
 
   // Subscribe to reflection completion events for auto-refresh
-  useEffect(() => {
-    const unsubscribe = subscribeToReflectionCompletion((_reflectionId, projectId, completionScope) => {
-      if (scope === 'global' && completionScope === 'global') {
-        invalidateReflections();
-      } else if (scope === 'project' && completionScope === 'project' && projectId === activeProject?.id) {
-        invalidateReflections();
-      }
-    });
-
-    return unsubscribe;
-  }, [scope, activeProject?.id, invalidateReflections]);
+  useReflectionRevalidation(scope, activeProject?.id, invalidateReflections);
 
   return (
     <GlowCard accentColor={ACCENT_COLOR} glowColor={GLOW_COLOR} borderColorClass="border-purple-500/20" animate={!isLoading}>

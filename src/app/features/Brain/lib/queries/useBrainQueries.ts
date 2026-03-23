@@ -6,8 +6,10 @@
 
 'use client';
 
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CACHE_PRESETS } from '@/lib/cache/cache-config';
+import { subscribeToReflectionCompletion } from '@/stores/reflectionCompletionEmitter';
 import { brainKeys } from './queryKeys';
 import {
   fetchHeatmap,
@@ -16,6 +18,7 @@ import {
   fetchRhythm,
   fetchTemporal,
   fetchSignals,
+  fetchTimelineSignals,
   fetchEffectiveness,
   fetchInfluence,
   fetchInsights,
@@ -90,6 +93,15 @@ export function useContextSignals(projectId: string | undefined, contextId: stri
     queryKey: brainKeys.signalDetail(projectId ?? '', contextId ?? ''),
     queryFn: () => fetchSignals(projectId!, { contextId: contextId!, limit: 50 }),
     enabled: !!projectId && !!contextId,
+    ...CACHE_PRESETS.brainData,
+  });
+}
+
+export function useTimelineSignals(projectId: string | undefined, since: string, limit: number) {
+  return useQuery({
+    queryKey: brainKeys.signalsTimeline(projectId ?? '', since),
+    queryFn: () => fetchTimelineSignals(projectId!, since, limit),
+    enabled: !!projectId,
     ...CACHE_PRESETS.brainData,
   });
 }
@@ -201,6 +213,30 @@ export function useEvidenceRefs(evidence: Array<{ type: string; id: string }>, e
     enabled: enabled && evidence.length > 0,
     ...CACHE_PRESETS.brainInsights,
   });
+}
+
+// ── Reflection revalidation ──────────────────────────────────────────────────
+
+/**
+ * Subscribe to reflection completion events and invalidate relevant Brain caches.
+ * Replaces duplicated useEffect+subscribeToReflectionCompletion in InsightsPanel
+ * and ReflectionHistoryPanel.
+ */
+export function useReflectionRevalidation(
+  scope: 'project' | 'global',
+  projectId: string | undefined,
+  invalidate: () => void,
+) {
+  useEffect(() => {
+    const unsubscribe = subscribeToReflectionCompletion((_reflectionId, completionProjectId, completionScope) => {
+      if (scope === 'global' && completionScope === 'global') {
+        invalidate();
+      } else if (scope === 'project' && completionScope === 'project' && completionProjectId === projectId) {
+        invalidate();
+      }
+    });
+    return unsubscribe;
+  }, [scope, projectId, invalidate]);
 }
 
 // ── Invalidation helpers ─────────────────────────────────────────────────────

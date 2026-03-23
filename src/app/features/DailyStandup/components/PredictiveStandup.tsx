@@ -8,6 +8,7 @@ import {
   Loader2, RefreshCw, Sun, Sunset, Activity, Minus,
   CheckCircle, RotateCcw, Flame,
 } from 'lucide-react';
+import { duration } from '@/lib/motion';
 import type {
   PredictiveStandupData,
   GoalRiskAssessment,
@@ -355,7 +356,7 @@ function CollapsibleSection({
             exit={{ height: 0, opacity: 0 }}
             transition={{
               height: { type: 'spring', stiffness: 300, damping: 30 },
-              opacity: { duration: 0.2 },
+              opacity: { duration: duration.normal },
             }}
             className="overflow-hidden"
           >

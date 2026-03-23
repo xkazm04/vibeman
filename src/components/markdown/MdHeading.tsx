@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Hash } from 'lucide-react';
+import { duration, easing } from '@/lib/motion';
 
 interface MdHeadingProps {
   level: number;
@@ -36,7 +37,7 @@ const getHashIconSize = (level: number): string => {
 const HEADING_ANIMATION = {
   initial: { opacity: 0, x: -20 },
   animate: { opacity: 1, x: 0 },
-  transition: { duration: 0.3 }
+  transition: { duration: duration.deliberate, ease: easing.entrance }
 };
 
 export default function MdHeading({ level, content, id, renderInlineContent }: MdHeadingProps) {

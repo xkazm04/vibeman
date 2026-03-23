@@ -11,8 +11,8 @@ import {
   StandupHighlight,
   StandupFocusArea,
   DbStandupSummary,
+  PredictiveStandupData,
 } from '@/app/db/models/standup.types';
-import { generatePredictiveStandup } from '@/lib/standup/predictiveStandupEngine';
 import { STANDUP_JSON_VERSION } from '@/lib/api/schemas/standup';
 
 interface GenerationResult {
@@ -284,14 +284,17 @@ function generateFallbackSummary(
 }
 
 /**
- * Generate a standup summary using AI
+ * Generate a standup summary using AI.
+ * When `predictions` is provided (from the unified pipeline), uses them directly
+ * instead of generating them independently, avoiding duplicate DB queries.
  */
 export async function generateStandupSummary(
   projectId: string,
   sourceData: StandupSourceData,
   periodType: 'daily' | 'weekly',
   periodStart: Date,
-  periodEnd: Date
+  periodEnd: Date,
+  predictions?: PredictiveStandupData
 ): Promise<GenerationResult> {
   const periodLabel =
     periodType === 'daily'
@@ -312,25 +315,25 @@ export async function generateStandupSummary(
 
   const prompt = buildStandupPrompt(sourceData, periodType, periodLabel);
 
-  // Inject predictive intelligence into the prompt
+  // Inject predictive intelligence into the prompt (uses pre-computed predictions when available)
   let prescriptiveSection = '';
   try {
-    const predictions = generatePredictiveStandup(projectId);
-    if (predictions.goalsAtRisk.length > 0 || predictions.predictedBlockers.length > 0) {
-      const riskGoals = predictions.goalsAtRisk
+    const preds = predictions ?? (await import('@/lib/standup/predictiveStandupEngine')).generatePredictiveStandup(projectId);
+    if (preds.goalsAtRisk.length > 0 || preds.predictedBlockers.length > 0) {
+      const riskGoals = preds.goalsAtRisk
         .filter(g => g.riskLevel !== 'low')
         .map(g => `- ${g.goalTitle}: ${g.riskReason} (${g.riskLevel} risk)`)
         .join('\n');
-      const blockerList = predictions.predictedBlockers
+      const blockerList = preds.predictedBlockers
         .map(b => `- ${b.title}: ${b.preventiveAction}`)
         .join('\n');
-      const taskList = predictions.recommendedTaskOrder
+      const taskList = preds.recommendedTaskOrder
         .slice(0, 3)
         .map((t, i) => `${i + 1}. ${t.title} (${t.suggestedSlot})`)
         .join('\n');
 
       prescriptiveSection = `\n\n## Predictive Intelligence
-Velocity: ${predictions.velocityComparison.trend} (${predictions.velocityComparison.percentChange > 0 ? '+' : ''}${predictions.velocityComparison.percentChange}% vs last week)
+Velocity: ${preds.velocityComparison.trend} (${preds.velocityComparison.percentChange > 0 ? '+' : ''}${preds.velocityComparison.percentChange}% vs last week)
 
 ${riskGoals ? `Goals at risk:\n${riskGoals}\n` : ''}
 ${blockerList ? `Predicted blockers:\n${blockerList}\n` : ''}

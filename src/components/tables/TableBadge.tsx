@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { duration } from '@/lib/motion';
 import { LucideIcon } from 'lucide-react';
 import { badgeColorSchemes, BadgeConfig } from './types';
 
@@ -43,7 +44,7 @@ export function TableBadge({
         ...(animate ? { boxShadow: ['0 0 0 0 currentColor', '0 0 0 4px transparent'] } : {})
       }}
       transition={{
-        duration: 0.2,
+        duration: duration.normal,
         ...(animate ? { boxShadow: { duration: 1.5, repeat: Infinity } } : {}),
       }}
     >

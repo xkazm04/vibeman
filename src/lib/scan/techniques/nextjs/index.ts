@@ -1,6 +1,9 @@
 /**
  * Next.js scan techniques
  * Individual check functions for code quality and framework-specific patterns
+ *
+ * Generic techniques (large-file, duplication, etc.) are also available via
+ * `@/lib/scan/techniques/common` for use by other strategies.
  */
 
 // Generic code quality techniques

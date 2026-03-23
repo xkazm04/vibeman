@@ -4,124 +4,46 @@
  * GET /api/questions/[id] - Get single question
  * PUT /api/questions/[id] - Update question (answer it)
  * DELETE /api/questions/[id] - Delete question
+ *
+ * When a question is answered (PUT with an answer), emits a `question:answered`
+ * event so the auto-deepen subscriber can trigger gap analysis asynchronously.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
 import { questionDb } from '@/app/db';
-import { logger } from '@/lib/logger';
-import { InvalidTransitionError } from '@/lib/stateMachine';
+import { createEntityHandlers } from '@/lib/api-helpers/crudRouteFactory';
+import { emitQuestionAnswered } from '@/lib/events/domainEmitters';
+import type { DbQuestion } from '@/app/db/models/types';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
+const { GET, PUT, DELETE } = createEntityHandlers<DbQuestion>({
+  entityName: 'question',
+  endpoint: '/api/questions/[id]',
 
-    const question = questionDb.getQuestionById(id);
+  repo: {
+    getById: (id) => questionDb.getQuestionById(id),
+    update: (id, data) => questionDb.updateQuestion(id, data as Parameters<typeof questionDb.updateQuestion>[1]),
+    delete: (id) => questionDb.deleteQuestion(id),
+  },
 
-    if (!question) {
-      return NextResponse.json(
-        { error: 'Question not found' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      question
-    });
-
-  } catch (error) {
-    logger.error('[API] Question GET error:', { error });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const body = await request.json();
-
-    // Get existing question
-    const existingQuestion = questionDb.getQuestionById(id);
-    if (!existingQuestion) {
-      return NextResponse.json(
-        { error: 'Question not found' },
-        { status: 404 }
-      );
-    }
-
-    const { answer } = body;
-
-    // Update the question (no longer auto-creates goals)
-    const updatedQuestion = questionDb.updateQuestion(id, {
+  buildUpdatePayload: (body) => {
+    const { answer } = body as { answer?: string };
+    return {
       answer: answer ?? body.answer,
       status: answer ? 'answered' : body.status,
       question: body.question,
-      context_map_title: body.context_map_title
-    });
+      context_map_title: body.context_map_title,
+    };
+  },
 
-    if (!updatedQuestion) {
-      return NextResponse.json(
-        { error: 'Failed to update question' },
-        { status: 500 }
-      );
+  afterUpdate: (updated, body) => {
+    const answer = (body as { answer?: string }).answer;
+    if (answer && updated.status === 'answered') {
+      emitQuestionAnswered({
+        projectId: updated.project_id,
+        questionId: updated.id,
+        answer,
+      });
     }
+  },
+});
 
-    logger.info('[API] Question updated:', { questionId: id, hasAnswer: !!answer });
-
-    return NextResponse.json({
-      success: true,
-      question: updatedQuestion
-    });
-
-  } catch (error) {
-    if (error instanceof InvalidTransitionError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-    logger.error('[API] Question PUT error:', { error });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-
-    const deleted = questionDb.deleteQuestion(id);
-
-    if (!deleted) {
-      return NextResponse.json(
-        { error: 'Question not found' },
-        { status: 404 }
-      );
-    }
-
-    logger.info('[API] Question deleted:', { id });
-
-    return NextResponse.json({
-      success: true,
-      deleted: true
-    });
-
-  } catch (error) {
-    logger.error('[API] Question DELETE error:', { error });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
-}
+export { GET, PUT, DELETE };

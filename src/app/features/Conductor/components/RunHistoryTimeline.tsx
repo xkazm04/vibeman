@@ -9,6 +9,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import {
   History, ChevronDown, CheckCircle2, XCircle, Clock,
   Lightbulb, Zap, Wrench, Trash2, FileText,
@@ -153,7 +154,7 @@ export default function RunHistoryTimeline({ onViewReport }: { onViewReport?: (r
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={transition.normal}
             className="overflow-hidden"
           >
             <div className="px-3 pb-3 space-y-1.5 max-h-[250px] overflow-y-auto">

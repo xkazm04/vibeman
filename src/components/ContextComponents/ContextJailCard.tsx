@@ -1,5 +1,7 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
+import { duration } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { CheckCircle2 } from 'lucide-react';
 
 export interface ContextJailCardProps {
@@ -39,6 +41,7 @@ const ContextJailCard = React.memo<ContextJailCardProps>(({
   isSelected = false,
   className = '',
 }) => {
+  const prefersReduced = useReducedMotion();
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Memoized handlers for performance
@@ -60,19 +63,19 @@ const ContextJailCard = React.memo<ContextJailCardProps>(({
   }, [context, onClick]);
 
   // Memoized animation variants for better performance
-  const animationVariants = useMemo(() => ({
+  const animationVariants: Variants | undefined = useMemo(() => (prefersReduced ? undefined : {
     initial: { opacity: 0, scale: 0.9 },
     animate: { opacity: 1, scale: 1 },
     hover: { scale: 1.02 }
-  }), []);
+  }), [prefersReduced]);
 
-  const transitionConfig = useMemo(() => ({
-    duration: 0.3,
+  const transitionConfig = useMemo(() => (prefersReduced ? { duration: 0 } : {
+    duration: duration.deliberate,
     delay: index * 0.1,
     type: "spring" as const,
     stiffness: 300,
     damping: 30
-  }), [index]);
+  }), [index, prefersReduced]);
 
   // Get implemented tasks count
   const implementedTasks = useMemo(() => {
@@ -87,9 +90,9 @@ const ContextJailCard = React.memo<ContextJailCardProps>(({
       ref={cardRef}
       className={`relative group cursor-pointer ${className}`}
       variants={animationVariants}
-      initial="initial"
+      initial={prefersReduced ? false : "initial"}
       animate="animate"
-      whileHover="hover"
+      whileHover={prefersReduced ? undefined : "hover"}
       transition={transitionConfig}
       onClick={handleClick}
       onContextMenu={handleRightClick}
@@ -126,11 +129,11 @@ const ContextJailCard = React.memo<ContextJailCardProps>(({
               style={{
                 borderColor: `${groupColor}20`
               }}
-              initial={{ scaleY: 0 }}
+              initial={prefersReduced ? false : { scaleY: 0 }}
               animate={{ scaleY: 1 }}
-              transition={{
+              transition={prefersReduced ? { duration: 0 } : {
                 delay: index * 0.1 + barIndex * 0.02,
-                duration: 0.3
+                duration: duration.deliberate
               }}
             />
           ))}
@@ -145,11 +148,11 @@ const ContextJailCard = React.memo<ContextJailCardProps>(({
               style={{
                 borderColor: `${groupColor}20`
               }}
-              initial={{ scaleX: 0 }}
+              initial={prefersReduced ? false : { scaleX: 0 }}
               animate={{ scaleX: 1 }}
-              transition={{
+              transition={prefersReduced ? { duration: 0 } : {
                 delay: index * 0.1 + barIndex * 0.03,
-                duration: 0.3
+                duration: duration.deliberate
               }}
             />
           ))}
@@ -162,9 +165,9 @@ const ContextJailCard = React.memo<ContextJailCardProps>(({
             style={{
               backgroundImage: `linear-gradient(to right, ${groupColor}, ${groupColor}C0)`
             }}
-            initial={{ opacity: 0, scale: 0.8 }}
+            initial={prefersReduced ? false : { opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{
+            transition={prefersReduced ? { duration: 0 } : {
               delay: index * 0.1 + 0.3,
               type: "spring",
               stiffness: 300,
@@ -193,10 +196,10 @@ const ContextJailCard = React.memo<ContextJailCardProps>(({
               filter: 'blur(4px)',
               boxShadow: `0 0 20px ${groupColor}80`,
             }}
-            animate={{
+            animate={prefersReduced ? { opacity: 0.8 } : {
               opacity: [0.6, 1, 0.6],
             }}
-            transition={{
+            transition={prefersReduced ? { duration: 0 } : {
               duration: 2,
               repeat: Infinity,
               ease: 'easeInOut',

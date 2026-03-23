@@ -1,6 +1,6 @@
 /**
  * Implementation Log Review API
- * POST /api/implementation-log/review
+ * POST /api/implementation-logs/review
  *
  * Receives post-implementation review results from the post-review skill
  * and merges them into the implementation log's metadata.

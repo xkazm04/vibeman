@@ -18,6 +18,7 @@ import {
 import IdeasLoadingState from '@/app/features/Ideas/components/IdeasLoadingState';
 import LifecyclePhaseIndicator from './components/LifecyclePhaseIndicator';
 import LifecycleTimeline from './components/LifecycleTimeline';
+import { transition } from '@/lib/motion';
 import LifecycleConfigPanel from './components/LifecycleConfigPanel';
 import SimulationPreviewPanel from './components/SimulationPreviewPanel';
 import {
@@ -371,7 +372,7 @@ export default function LifecycleDashboard({
                   }`}
                   initial={{ width: 0 }}
                   animate={{ width: `${currentCycle.progress}%` }}
-                  transition={{ duration: 0.3 }}
+                  transition={transition.deliberate}
                 />
               </div>
               <p className="text-xs text-gray-400">{currentCycle.current_step}</p>
@@ -449,7 +450,7 @@ export default function LifecycleDashboard({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={transition.normal}
           >
             <LifecycleConfigPanel
               config={config}

@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { duration, easing } from '@/lib/motion';
 import { Check, Circle, ArrowRight } from 'lucide-react';
 import { useOnboardingStore, OnboardingStep, AppModule } from '@/stores/onboardingStore';
 import LiquidStepRail from '@/components/ui/LiquidStepRail';
@@ -138,7 +139,7 @@ export default function ModuleProgressBar({
           style={{ background: 'linear-gradient(90deg, #06b6d4, #3b82f6)' }}
           initial={{ width: 0 }}
           animate={{ width: `${progress.percentage}%` }}
-          transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
+          transition={{ duration: duration.dramatic, ease: easing.morph }}
         />
         {/* Predictive glow shimmer at the fill edge */}
         {!progress.isComplete && (
@@ -250,7 +251,7 @@ export function ModuleProgressRing({
           strokeDasharray={circumference}
           initial={{ strokeDashoffset: circumference }}
           animate={{ strokeDashoffset }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
+          transition={{ duration: duration.slow, ease: easing.entrance }}
         />
         <defs>
           <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">

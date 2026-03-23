@@ -9,6 +9,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { duration } from '@/lib/motion';
 import { SystemModule } from './types';
 import { getLucideIcon } from './helpers';
 
@@ -90,7 +91,7 @@ export default function ModuleNode({
           opacity: isActive ? 0.8 : 0.3,
           scale: isActive ? 2.5 : 2,
         }}
-        transition={{ duration: 0.25 }}
+        transition={{ duration: duration.normal }}
       />
 
       {/* Main node card */}
@@ -108,7 +109,7 @@ export default function ModuleNode({
         animate={{
           borderColor: isActive ? `${module.color}80` : `${module.color}40`,
         }}
-        transition={{ duration: 0.2 }}
+        transition={{ duration: duration.normal }}
       >
         <IconComponent
           className="w-6 h-6 mb-1"

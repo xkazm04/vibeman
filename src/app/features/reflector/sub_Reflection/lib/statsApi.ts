@@ -1,6 +1,7 @@
 import { ReflectionStats, ComparisonStats, DateRange, AggregatedStatsResponse, TimeWindow, DirectionStats, ContextMapStats } from './types';
 import { ExecutiveInsightReport, ExecutiveInsightRequest, ExecutiveInsightResponse } from './RuleBasedInsightTypes';
 import { SuggestionFilter } from '@/app/features/reflector/lib/unifiedTypes';
+import { calculateAcceptanceRate, combineDistributions, type StatusDistribution } from '@/app/features/reflector/lib/ideaStatsAggregator';
 
 /**
  * Fetch reflection stats using the new aggregated endpoint with caching
@@ -88,28 +89,37 @@ export async function fetchReflectionStats(
   }
 
   if (suggestionType === 'both' && ideasStats && directionsStats) {
-    // Combined mode
-    const ideasOverall = ideasStats.overall;
-    const dirsOverall = directionsStats.overall;
-    const combinedTotal = ideasOverall.total + dirsOverall.total;
-    const combinedAccepted = ideasOverall.accepted + ideasOverall.implemented + dirsOverall.accepted;
-    const combinedAcceptanceRatio = combinedTotal > 0
-      ? Math.round((combinedAccepted / combinedTotal) * 100)
-      : 0;
+    // Combined mode — use IdeaStatsAggregator for consistent acceptance ratio
+    const ideasDist: StatusDistribution = {
+      pending: ideasStats.overall.pending,
+      accepted: ideasStats.overall.accepted,
+      rejected: ideasStats.overall.rejected,
+      implemented: ideasStats.overall.implemented,
+      total: ideasStats.overall.total,
+    };
+    const dirsDist: StatusDistribution = {
+      pending: directionsStats.overall.pending,
+      accepted: directionsStats.overall.accepted,
+      rejected: directionsStats.overall.rejected,
+      implemented: 0,
+      total: directionsStats.overall.total,
+    };
+    const combined = combineDistributions(ideasDist, dirsDist);
+    const { acceptanceRate } = calculateAcceptanceRate(combined);
 
     return {
       ...ideasStats,
       contextMaps: directionsStats.contextMaps,
       directionsOverall: directionsStats.overall,
       combinedOverall: {
-        pending: ideasOverall.pending + dirsOverall.pending,
-        accepted: ideasOverall.accepted + dirsOverall.accepted,
-        rejected: ideasOverall.rejected + dirsOverall.rejected,
-        implemented: ideasOverall.implemented,
-        total: combinedTotal,
-        acceptanceRatio: combinedAcceptanceRatio,
-        ideasTotal: ideasOverall.total,
-        directionsTotal: dirsOverall.total,
+        pending: combined.pending,
+        accepted: combined.accepted,
+        rejected: combined.rejected,
+        implemented: combined.implemented,
+        total: combined.total,
+        acceptanceRatio: acceptanceRate,
+        ideasTotal: ideasDist.total,
+        directionsTotal: dirsDist.total,
       },
     };
   }
@@ -174,10 +184,12 @@ async function fetchDirectionsStats(projectId: string): Promise<{
   try {
     const response = await fetch(`/api/directions/stats?projectId=${projectId}`);
     if (!response.ok) {
+      console.warn(`[statsApi] fetchDirectionsStats returned ${response.status} ${response.statusText}`);
       return null;
     }
     const data = await response.json();
     if (!data.success) {
+      console.warn('[statsApi] fetchDirectionsStats returned unsuccessful response:', data.error || 'unknown error');
       return null;
     }
     return {
@@ -185,7 +197,8 @@ async function fetchDirectionsStats(projectId: string): Promise<{
       contextMaps: data.contextMaps,
       projects: data.projects,
     };
-  } catch {
+  } catch (error) {
+    console.error('[statsApi] fetchDirectionsStats failed:', error);
     return null;
   }
 }
@@ -238,8 +251,8 @@ export async function invalidateAnalyticsCache(
         contextId
       })
     });
-  } catch {
-    // Silently fail - cache will expire naturally
+  } catch (error) {
+    console.warn('[statsApi] invalidateAnalyticsCache failed (cache will expire naturally):', error);
   }
 }
 
@@ -253,8 +266,8 @@ export async function prewarmAnalyticsCache(): Promise<void> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'prewarm' })
     });
-  } catch {
-    // Silently fail
+  } catch (error) {
+    console.warn('[statsApi] prewarmAnalyticsCache failed:', error);
   }
 }
 

@@ -7,8 +7,7 @@ import type { RefactorOpportunity } from '@/stores/refactorStore';
 
 export function checkDynamicImports(
   file: FileAnalysis,
-  opportunities: RefactorOpportunity[]
-): void {
+): RefactorOpportunity[] {
   const hasUseClient = file.content.includes("'use client'");
   const isLarge = file.content.split('\n').length > 300;
   const hasHeavyLibs =
@@ -19,7 +18,7 @@ export function checkDynamicImports(
   if (hasUseClient && (isLarge || hasHeavyLibs)) {
     const hasDynamic = file.content.includes("from 'next/dynamic'");
     if (!hasDynamic) {
-      opportunities.push({
+      return [{
         id: `dynamic-import-${file.path}`,
         title: `Consider dynamic imports in ${file.path}`,
         description: 'This large client component could benefit from code splitting with next/dynamic.',
@@ -30,7 +29,9 @@ export function checkDynamicImports(
         files: [file.path],
         autoFixAvailable: false,
         estimatedTime: '30 minutes',
-      });
+      }];
     }
   }
+
+  return [];
 }

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { duration } from '@/lib/motion';
 import { Loader2, CheckCircle, XCircle, ExternalLink, Clock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useOnboardingStore } from '@/stores/onboardingStore';
@@ -154,7 +155,7 @@ export default function TaskProgressItem({
                 className="h-full bg-gradient-to-r from-cyan-500 to-blue-500"
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.5 }}
+                transition={{ duration: duration.slow }}
               />
             </div>
           </div>

@@ -4,6 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Target, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { duration, easing } from '@/lib/motion';
 
 interface GoalProgressRingProps {
   total: number;
@@ -60,7 +61,7 @@ export default function GoalProgressRing({
 
   // Animation config: instant transitions when user prefers reduced motion
   const segmentTransition = (delay: number) =>
-    prefersReducedMotion ? { duration: 0 } : { duration: 0.8, delay, ease: 'easeOut' as const };
+    prefersReducedMotion ? { duration: 0 } : { duration: duration.dramatic, delay, ease: easing.entrance };
   const centerTransition = prefersReducedMotion ? { duration: 0 } : { delay: 0.5 };
 
   // Calculate percentages
@@ -302,7 +303,7 @@ export function GoalProgressMini({
             strokeDasharray={`${(percent / 100) * 75.4} 75.4`}
             initial={prefersReducedMotion ? false : { strokeDasharray: '0 75.4' }}
             animate={{ strokeDasharray: `${(percent / 100) * 75.4} 75.4` }}
-            transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.5 }}
+            transition={prefersReducedMotion ? { duration: 0 } : { duration: duration.slow }}
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">

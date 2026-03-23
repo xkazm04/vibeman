@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Maximize2, X } from 'lucide-react';
 import { SimpleSpinner } from '@/components/ui';
 import { useCollectiveMemoryStore } from '@/stores/collectiveMemoryStore';
+import { duration, easing } from '@/lib/motion';
 
 const CollectiveMemoryDashboard = lazy(() => import('./CollectiveMemoryDashboard'));
 
@@ -57,7 +58,7 @@ export function CollectiveMemoryPanel({ projectId, isOpen, onToggle }: Props) {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            transition={{ duration: duration.normal, ease: easing.morph }}
             className="overflow-hidden"
           >
             <div className="mt-2 rounded-lg border border-gray-700/50 bg-gray-800/80 backdrop-blur-sm">
@@ -192,7 +193,7 @@ export function CollectiveMemoryPanel({ projectId, isOpen, onToggle }: Props) {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: duration.normal, ease: easing.entrance }}
               onClick={(e) => e.stopPropagation()}
               className="w-[90vw] max-w-5xl h-[80vh] bg-zinc-900 border border-zinc-700/50 rounded-xl shadow-2xl overflow-hidden flex flex-col"
             >

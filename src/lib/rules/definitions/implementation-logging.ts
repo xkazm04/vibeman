@@ -45,7 +45,7 @@ After completing the implementation, log your work via a simple API call.
 **DO**: Make ONE API call to log your implementation:
 
 \`\`\`bash
-curl -X POST "{{vibemanBaseUrl}}/api/implementation-log" \\
+curl -X POST "{{vibemanBaseUrl}}/api/implementation-logs" \\
   -H "Content-Type: application/json" \\
   -d '{
     "projectId": "{{projectId}}",{{contextId}}
@@ -64,7 +64,7 @@ curl -X POST "{{vibemanBaseUrl}}/api/implementation-log" \\
 
 **Example**:
 \`\`\`bash
-curl -X POST "{{vibemanBaseUrl}}/api/implementation-log" \\
+curl -X POST "{{vibemanBaseUrl}}/api/implementation-logs" \\
   -H "Content-Type: application/json" \\
   -d '{
     "projectId": "proj-123",

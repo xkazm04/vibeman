@@ -7,6 +7,7 @@
 
 import { motion } from 'framer-motion';
 import { AlertCircle } from 'lucide-react';
+import { duration } from '@/lib/motion';
 import { EnrichedImplementationLog } from '../lib/types';
 import { ScreenshotPreview, ProjectContextTags, BulletsList } from './LogPreview';
 
@@ -30,7 +31,7 @@ export default function ImplementationLogCard({
         layout
         initial={{ opacity: 0, x: 10 }}
         animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: -10, transition: { duration: 0.15 } }}
+        exit={{ opacity: 0, x: -10, transition: { duration: duration.snappy } }}
         whileHover={{ x: 4 }}
         onClick={onClick}
         data-testid={`feature-card-compact-${log.id}`}
@@ -82,11 +83,11 @@ export default function ImplementationLogCard({
       layout
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+      exit={{ opacity: 0, scale: 0.95, transition: { duration: duration.normal } }}
       transition={{
         layout: { type: 'spring', damping: 25, stiffness: 300 },
-        opacity: { duration: 0.3 },
-        scale: { duration: 0.3 }
+        opacity: { duration: duration.deliberate },
+        scale: { duration: duration.deliberate }
       }}
       whileHover={{ scale: 1.02, y: -4 }}
       onClick={onClick}

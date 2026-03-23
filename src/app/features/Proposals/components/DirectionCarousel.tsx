@@ -1,17 +1,17 @@
 'use client';
 
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion';
-import { Check, X, Code, Loader2, ChevronLeft, ChevronRight, Sparkles, MapPin, Zap, ChevronDown, ChevronUp, MessageCircleQuestion } from 'lucide-react';
+import { Check, X, Code, Loader2, Sparkles, MapPin, Zap, ChevronDown, ChevronUp, MessageCircleQuestion } from 'lucide-react';
 import { useThemeStore } from '@/stores/themeStore';
 import { getFocusRingStyles } from '@/lib/ui/focusRing';
+import { transitions } from '@/lib/design-tokens';
 import { DbDirection } from '@/app/db';
 import { DirectionProposal, toDirectionProposal } from '../types';
 import { explainDirection } from '@/app/features/Questions/lib/directionsApi';
-
-// ─── Swipe threshold for accept/decline gestures ───────────────────
-const SWIPE_THRESHOLD = 120;
-const SWIPE_VELOCITY = 500;
+import { useCarousel } from '../lib/useCarousel';
+import { SWIPE, CARD_EXIT } from '../lib/carouselConfig';
+import { ProgressBar, CarouselContainer, KeyboardHint } from './BaseCarousel';
 
 interface DirectionCarouselProps {
   directions: DbDirection[];
@@ -28,16 +28,31 @@ export default function DirectionCarousel({
   onGenerateMore,
   isLoading = false,
 }: DirectionCarouselProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [exitDirection, setExitDirection] = useState<'left' | 'right' | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [expandedContent, setExpandedContent] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [isExplaining, setIsExplaining] = useState(false);
   const [showKeyboardHint, setShowKeyboardHint] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
   const { theme } = useThemeStore();
   const focusRing = getFocusRingStyles(theme);
+
+  // Only pending directions go into the carousel
+  const proposals: DirectionProposal[] = useMemo(
+    () => directions.filter(d => d.status === 'pending').map(toDirectionProposal),
+    [directions]
+  );
+
+  const resetCardState = useCallback(() => {
+    setExplanation(null);
+    setExpandedContent(false);
+  }, []);
+
+  const [state, actions] = useCarousel({
+    items: proposals,
+    onAccept: (item) => { onAccept(item.id); resetCardState(); },
+    onDecline: (item) => { onReject(item.id); resetCardState(); },
+  });
+
+  const { currentItem: current, currentIndex, total, isProcessing, exitDirection } = state;
 
   // Show keyboard hint overlay on first visit
   useEffect(() => {
@@ -50,60 +65,20 @@ export default function DirectionCarousel({
     }
   }, []);
 
-  // Only pending directions go into the carousel
-  const proposals: DirectionProposal[] = useMemo(
-    () => directions.filter(d => d.status === 'pending').map(toDirectionProposal),
-    [directions]
-  );
-
-  const current = proposals[currentIndex] ?? null;
-  const total = proposals.length;
-
   // ─── Swipe gesture ─────────────────────────────────────────────
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-300, 0, 300], [-15, 0, 15]);
-  const acceptOpacity = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
-  const declineOpacity = useTransform(x, [-SWIPE_THRESHOLD, 0], [1, 0]);
-
-  const advance = useCallback(() => {
-    setExplanation(null);
-    setExpandedContent(false);
-    if (currentIndex < total - 1) {
-      setCurrentIndex(i => i + 1);
-    }
-  }, [currentIndex, total]);
-
-  const handleAccept = useCallback(async () => {
-    if (!current || isProcessing) return;
-    setIsProcessing(true);
-    setExitDirection('right');
-    onAccept(current.id);
-    // Brief delay for exit animation
-    await new Promise(r => setTimeout(r, 400));
-    setExitDirection(null);
-    setIsProcessing(false);
-    advance();
-  }, [current, isProcessing, onAccept, advance]);
-
-  const handleReject = useCallback(async () => {
-    if (!current || isProcessing) return;
-    setIsProcessing(true);
-    setExitDirection('left');
-    onReject(current.id);
-    await new Promise(r => setTimeout(r, 400));
-    setExitDirection(null);
-    setIsProcessing(false);
-    advance();
-  }, [current, isProcessing, onReject, advance]);
+  const rotate = useTransform(x, [-300, 0, 300], [-CARD_EXIT.rotation, 0, CARD_EXIT.rotation]);
+  const acceptOpacity = useTransform(x, [0, SWIPE.threshold], [0, 1]);
+  const declineOpacity = useTransform(x, [-SWIPE.threshold, 0], [1, 0]);
 
   const handleDragEnd = useCallback((_: unknown, info: PanInfo) => {
     const { offset, velocity } = info;
-    if (offset.x > SWIPE_THRESHOLD || velocity.x > SWIPE_VELOCITY) {
-      handleAccept();
-    } else if (offset.x < -SWIPE_THRESHOLD || velocity.x < -SWIPE_VELOCITY) {
-      handleReject();
+    if (offset.x > SWIPE.threshold || velocity.x > SWIPE.velocity) {
+      actions.accept();
+    } else if (offset.x < -SWIPE.threshold || velocity.x < -SWIPE.velocity) {
+      actions.decline();
     }
-  }, [handleAccept, handleReject]);
+  }, [actions]);
 
   const handleExplainWhy = useCallback(async () => {
     if (!current || isExplaining) return;
@@ -118,50 +93,20 @@ export default function DirectionCarousel({
     }
   }, [current, isExplaining]);
 
-  const goToPrev = useCallback(() => {
-    if (currentIndex > 0) {
-      setExplanation(null);
-      setExpandedContent(false);
-      setCurrentIndex(i => i - 1);
-    }
-  }, [currentIndex]);
+  const handleDotClick = useCallback((i: number) => {
+    actions.goToIndex(i);
+    resetCardState();
+  }, [actions, resetCardState]);
 
-  const goToNext = useCallback(() => {
-    if (currentIndex < total - 1) {
-      setExplanation(null);
-      setExpandedContent(false);
-      setCurrentIndex(i => i + 1);
-    }
-  }, [currentIndex, total]);
+  const handlePrev = useCallback(() => {
+    actions.goToPrev();
+    resetCardState();
+  }, [actions, resetCardState]);
 
-  // ─── Keyboard navigation ─────────────────────────────────────
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (isProcessing) return;
-    switch (e.key) {
-      case 'ArrowLeft':
-        e.preventDefault();
-        goToPrev();
-        break;
-      case 'ArrowRight':
-        e.preventDefault();
-        goToNext();
-        break;
-      case 'Enter':
-        e.preventDefault();
-        handleAccept();
-        break;
-      case 'Backspace':
-      case 'Delete':
-        e.preventDefault();
-        handleReject();
-        break;
-    }
-  }, [isProcessing, goToPrev, goToNext, handleAccept, handleReject]);
-
-  // Auto-focus container for keyboard events
-  useEffect(() => {
-    containerRef.current?.focus();
-  }, []);
+  const handleNext = useCallback(() => {
+    actions.goToNext();
+    resetCardState();
+  }, [actions, resetCardState]);
 
   // ─── Empty state ───────────────────────────────────────────────
   if (total === 0) {
@@ -175,7 +120,7 @@ export default function DirectionCarousel({
         {onGenerateMore && (
           <button
             onClick={onGenerateMore}
-            className="px-4 py-2 rounded-lg bg-purple-600/20 border border-purple-500/30 text-purple-300 text-sm font-medium hover:bg-purple-600/30 transition-colors"
+            className={`px-4 py-2 rounded-lg bg-purple-600/20 border border-purple-500/30 text-purple-300 text-sm font-medium hover:bg-purple-600/30 ${transitions.colors}`}
           >
             Generate Directions
           </button>
@@ -190,82 +135,21 @@ export default function DirectionCarousel({
     : null;
 
   return (
-    <div
-      ref={containerRef}
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
-      className="relative outline-none"
-      role="region"
-      aria-label="Direction carousel"
-      aria-roledescription="carousel"
+    <CarouselContainer
+      state={state}
+      actions={{ ...actions, goToPrev: handlePrev, goToNext: handleNext }}
+      label="Direction carousel"
     >
-      {/* Keyboard hint overlay */}
-      <AnimatePresence>
-        {showKeyboardHint && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="absolute -top-10 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-800/90 border border-gray-600/40 backdrop-blur-sm shadow-lg"
-          >
-            <span className="flex items-center gap-1 text-xs text-gray-300">
-              <kbd className="px-1.5 py-0.5 rounded bg-gray-700 border border-gray-600 text-2xs font-mono">&larr;</kbd>
-              <kbd className="px-1.5 py-0.5 rounded bg-gray-700 border border-gray-600 text-2xs font-mono">&rarr;</kbd>
-              <span className="ml-1">Navigate</span>
-            </span>
-            <span className="text-gray-600">|</span>
-            <span className="flex items-center gap-1 text-xs text-gray-300">
-              <kbd className="px-1.5 py-0.5 rounded bg-gray-700 border border-gray-600 text-2xs font-mono">Enter</kbd>
-              <span className="ml-1">Accept</span>
-            </span>
-            <span className="text-gray-600">|</span>
-            <span className="flex items-center gap-1 text-xs text-gray-300">
-              <kbd className="px-1.5 py-0.5 rounded bg-gray-700 border border-gray-600 text-2xs font-mono">Del</kbd>
-              <span className="ml-1">Decline</span>
-            </span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <KeyboardHint visible={showKeyboardHint} />
 
       {/* Progress bar */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-400 font-mono">
-            {currentIndex + 1} / {total}
-          </span>
-          <div className="flex gap-1">
-            {proposals.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => { setCurrentIndex(i); setExplanation(null); setExpandedContent(false); }}
-                className={`w-2 h-2 rounded-full transition-all ${
-                  i === currentIndex
-                    ? 'bg-purple-400 scale-125'
-                    : i < currentIndex
-                      ? 'bg-gray-600'
-                      : 'bg-gray-700/50'
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={goToPrev}
-            disabled={currentIndex === 0}
-            className="p-1.5 rounded-lg bg-gray-800/50 text-gray-400 hover:text-white disabled:opacity-30 transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
-            onClick={goToNext}
-            disabled={currentIndex === total - 1}
-            className="p-1.5 rounded-lg bg-gray-800/50 text-gray-400 hover:text-white disabled:opacity-30 transition-colors"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+      <ProgressBar
+        currentIndex={currentIndex}
+        total={total}
+        onPrev={handlePrev}
+        onNext={handleNext}
+        onDotClick={handleDotClick}
+      />
 
       {/* Swipe indicator overlays */}
       <div className="relative">
@@ -300,13 +184,13 @@ export default function DirectionCarousel({
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={
                 exitDirection === 'right'
-                  ? { x: 400, opacity: 0, rotate: 15 }
+                  ? { x: CARD_EXIT.distance, opacity: 0, rotate: CARD_EXIT.rotation }
                   : exitDirection === 'left'
-                    ? { x: -400, opacity: 0, rotate: -15 }
+                    ? { x: -CARD_EXIT.distance, opacity: 0, rotate: -CARD_EXIT.rotation }
                     : { opacity: 1, scale: 1, y: 0, x: 0 }
               }
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              exit={{ opacity: 0, scale: CARD_EXIT.scaleOut }}
+              transition={{ type: 'spring', ...CARD_EXIT.spring }}
             >
               <div className="relative bg-gradient-to-br from-gray-900/95 via-slate-900/40 to-blue-900/20 backdrop-blur-xl border border-gray-700/40 rounded-2xl shadow-2xl overflow-hidden">
                 {/* Grid pattern */}
@@ -365,7 +249,7 @@ export default function DirectionCarousel({
                     {current.fullContent.length > 250 && (
                       <button
                         onClick={() => setExpandedContent(!expandedContent)}
-                        className="mt-2 flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                        className={`mt-2 flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 ${transitions.colors}`}
                       >
                         {expandedContent ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                         {expandedContent ? 'Show less' : 'Read full direction'}
@@ -410,10 +294,10 @@ export default function DirectionCarousel({
                   <div className="flex items-center justify-between pt-2">
                     {/* Decline */}
                     <motion.button
-                      onClick={handleReject}
+                      onClick={() => actions.decline()}
                       disabled={isProcessing}
                       aria-label="Decline direction"
-                      className={`relative group p-3.5 bg-gradient-to-r from-red-500/15 to-orange-500/15 hover:from-red-500/25 hover:to-orange-500/25 rounded-lg border border-red-500/25 transition-all disabled:opacity-50 ${focusRing}`}
+                      className={`relative group p-3.5 bg-gradient-to-r from-red-500/15 to-orange-500/15 hover:from-red-500/25 hover:to-orange-500/25 rounded-lg border border-red-500/25 ${transitions.normal} disabled:opacity-50 ${focusRing}`}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
@@ -429,7 +313,7 @@ export default function DirectionCarousel({
                       onClick={handleExplainWhy}
                       disabled={isExplaining || !!explanation}
                       aria-label="Explain why this direction matters"
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-800/50 border border-gray-700/30 text-gray-400 hover:text-purple-300 hover:border-purple-500/30 transition-all disabled:opacity-50 ${focusRing}`}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-800/50 border border-gray-700/30 text-gray-400 hover:text-purple-300 hover:border-purple-500/30 ${transitions.normal} disabled:opacity-50 ${focusRing}`}
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.97 }}
                     >
@@ -446,9 +330,9 @@ export default function DirectionCarousel({
                     {/* Right side: Accept with Code + Accept */}
                     <div className="flex gap-2">
                       <motion.button
-                        onClick={handleAccept}
+                        onClick={() => actions.accept()}
                         disabled={isProcessing}
-                        className={`relative group p-3.5 bg-gradient-to-r from-purple-500/15 to-violet-500/15 hover:from-purple-500/25 hover:to-violet-500/25 rounded-lg border border-purple-500/25 transition-all disabled:opacity-50 ${focusRing}`}
+                        className={`relative group p-3.5 bg-gradient-to-r from-purple-500/15 to-violet-500/15 hover:from-purple-500/25 hover:to-violet-500/25 rounded-lg border border-purple-500/25 ${transitions.normal} disabled:opacity-50 ${focusRing}`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         title="Accept with Code"
@@ -456,10 +340,10 @@ export default function DirectionCarousel({
                         <Code className="w-6 h-6 text-purple-400" />
                       </motion.button>
                       <motion.button
-                        onClick={handleAccept}
+                        onClick={() => actions.accept()}
                         disabled={isProcessing}
                         aria-label="Accept direction"
-                        className={`relative group p-3.5 bg-gradient-to-r from-green-500/15 to-emerald-500/15 hover:from-green-500/25 hover:to-emerald-500/25 rounded-lg border border-green-500/25 transition-all disabled:opacity-50 ${focusRing}`}
+                        className={`relative group p-3.5 bg-gradient-to-r from-green-500/15 to-emerald-500/15 hover:from-green-500/25 hover:to-emerald-500/25 rounded-lg border border-green-500/25 ${transitions.normal} disabled:opacity-50 ${focusRing}`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         title="Accept"
@@ -495,13 +379,13 @@ export default function DirectionCarousel({
           <button
             onClick={onGenerateMore}
             disabled={isLoading}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600/15 border border-purple-500/25 text-purple-300 text-sm font-medium hover:bg-purple-600/25 transition-colors disabled:opacity-50"
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600/15 border border-purple-500/25 text-purple-300 text-sm font-medium hover:bg-purple-600/25 ${transitions.colors} disabled:opacity-50`}
           >
             {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             Generate More Directions
           </button>
         </motion.div>
       )}
-    </div>
+    </CarouselContainer>
   );
 }

@@ -8,10 +8,11 @@ import { detectComplexConditionals } from '@/lib/scan/patterns';
 
 export function checkComplexConditionals(
   file: FileAnalysis,
-  opportunities: RefactorOpportunity[]
-): void {
+): RefactorOpportunity[] {
   const issues = detectComplexConditionals(file.content);
-  if (issues.length === 0) return;
+  if (issues.length === 0) return [];
+
+  const results: RefactorOpportunity[] = [];
 
   // Group by type
   const deepNesting = issues.filter(i => i.type === 'deep-nesting');
@@ -19,7 +20,7 @@ export function checkComplexConditionals(
 
   if (deepNesting.length > 0) {
     const lines = deepNesting.map(i => i.line);
-    opportunities.push({
+    results.push({
       id: `complex-nesting-${file.path}`,
       title: `Deep conditional nesting in ${file.path}`,
       description: `Found ${deepNesting.length} deeply nested conditional blocks (>3 levels). Consider using early returns, guard clauses, or extracting to functions.`,
@@ -36,7 +37,7 @@ export function checkComplexConditionals(
 
   if (complexBoolean.length > 0) {
     const lines = complexBoolean.map(i => i.line);
-    opportunities.push({
+    results.push({
       id: `complex-boolean-${file.path}`,
       title: `Complex boolean expressions in ${file.path}`,
       description: `Found ${complexBoolean.length} complex conditions with multiple logical operators. Consider extracting to named boolean variables.`,
@@ -50,4 +51,6 @@ export function checkComplexConditionals(
       estimatedTime: '30-60 minutes',
     });
   }
+
+  return results;
 }

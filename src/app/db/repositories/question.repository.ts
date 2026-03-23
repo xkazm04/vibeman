@@ -3,6 +3,7 @@ import { DbQuestion } from '../models/types';
 import { getCurrentTimestamp, selectOne } from './repository.utils';
 import { createGenericRepository } from './generic.repository';
 import { questionTransition, QuestionStatus } from '@/lib/stateMachine';
+import { buildQuestionForest, type QuestionTreeNode } from '@/lib/questions/questionTreeService';
 
 const base = createGenericRepository<DbQuestion>({
   tableName: 'questions',
@@ -304,42 +305,7 @@ export const questionRepository = {
   },
 };
 
-// ─── Tree Helpers ───
+// ─── Tree Helpers (re-exported from QuestionTreeService for backward compat) ───
 
-export interface QuestionTreeNode extends DbQuestion {
-  children: QuestionTreeNode[];
-}
-
-/**
- * Build a forest (array of trees) from a flat list of questions.
- * Questions with parent_id = null are roots.
- */
-export function buildQuestionForest(questions: DbQuestion[]): QuestionTreeNode[] {
-  const nodeMap = new Map<string, QuestionTreeNode>();
-  const roots: QuestionTreeNode[] = [];
-
-  // Create nodes
-  for (const q of questions) {
-    nodeMap.set(q.id, { ...q, children: [] });
-  }
-
-  // Link children to parents
-  for (const q of questions) {
-    const node = nodeMap.get(q.id)!;
-    if (q.parent_id && nodeMap.has(q.parent_id)) {
-      nodeMap.get(q.parent_id)!.children.push(node);
-    } else {
-      roots.push(node);
-    }
-  }
-
-  // Sort children by created_at ascending
-  for (const node of nodeMap.values()) {
-    node.children.sort((a, b) => a.created_at.localeCompare(b.created_at));
-  }
-
-  // Sort roots by created_at descending (newest first)
-  roots.sort((a, b) => b.created_at.localeCompare(a.created_at));
-
-  return roots;
-}
+export { buildQuestionForest };
+export type { QuestionTreeNode };

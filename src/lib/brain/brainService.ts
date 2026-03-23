@@ -16,11 +16,11 @@ import { reflectionAgent } from '@/lib/brain/reflectionAgent';
 import { signalCollector } from '@/lib/brain/signalCollector';
 import { getBehavioralContext } from '@/lib/brain/behavioralContext';
 import { detectConflicts, markConflictsOnInsights } from '@/lib/brain/insightConflictDetector';
-import { tokenOverlap, DEDUP_THRESHOLD } from '@/lib/brain/insightSimilarity';
 import { autoPruneInsights, type AutoPruneResult } from '@/lib/brain/insightAutoPruner';
-import { generateInsightHash } from '@/lib/brain/insightId';
+import { InsightDeduplicator } from '@/lib/brain/InsightDeduplicator';
 import { predictiveIntentEngine } from '@/lib/brain/predictiveIntentEngine';
 import { brainReflectionDb, brainInsightDb, behavioralSignalDb } from '@/app/db';
+import { dbInsightToLearning } from '@/app/db/repositories/brain-insight.repository';
 import { getDatabase } from '@/app/db/connection';
 import { getHotWritesDatabase } from '@/app/db/hot-writes';
 import type { LearningInsight, BehavioralSignalType, ReflectionTriggerType, EvidenceRef } from '@/app/db/models/brain.types';
@@ -70,52 +70,6 @@ export function invalidateContextCache(projectId: string): void {
     const { invalidateFingerprintCache } = require('@/lib/brain/projectSimilarity');
     invalidateFingerprintCache(projectId);
   } catch { /* projectSimilarity module unavailable — skip */ }
-}
-
-// ---------------------------------------------------------------------------
-// Insight deduplication (canonical_id primary, fuzzy fallback)
-// ---------------------------------------------------------------------------
-
-function deduplicateInsights(
-  newInsights: LearningInsight[],
-  existingInsights: LearningInsight[],
-  projectId: string
-): LearningInsight[] {
-  if (existingInsights.length === 0) return newInsights;
-
-  // Build a map of canonical_id → existing insight for O(1) lookup
-  const existingByCanonical = new Map<string, LearningInsight>();
-  for (const existing of existingInsights) {
-    const hash = generateInsightHash(existing.type, existing.title, projectId);
-    existingByCanonical.set(hash, existing);
-  }
-
-  const result: LearningInsight[] = [];
-
-  for (const insight of newInsights) {
-    const hash = generateInsightHash(insight.type, insight.title, projectId);
-
-    // Primary: O(1) canonical hash match
-    let match = existingByCanonical.get(hash);
-
-    // Fallback: O(n) fuzzy match for near-duplicates not caught by hash
-    if (!match) {
-      match = existingInsights.find(existing => {
-        if (existing.type !== insight.type) return false;
-        return tokenOverlap(insight.title, existing.title) >= DEDUP_THRESHOLD;
-      });
-    }
-
-    if (!match) {
-      result.push(insight);
-    } else if (insight.confidence > match.confidence + 10) {
-      // Higher confidence → evolution of existing insight
-      result.push({ ...insight, evolves: match.title });
-    }
-    // else: duplicate with similar confidence → skip
-  }
-
-  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -361,12 +315,16 @@ export async function completeReflection(input: CompleteReflectionInput): Promis
     const db = getDatabase();
     const runCompletion = db.transaction(() => {
       // Deduplicate insights against previously stored ones (canonical_id based)
-      const existingInsights = brainInsightDb.getAllInsights(projectId);
-      dedupedInsights = deduplicateInsights(validatedInsights, existingInsights, projectId);
+      const existingDbInsights = brainInsightDb.getByProject(projectId);
+      const deduplicator = new InsightDeduplicator(projectId, existingDbInsights);
+      dedupedInsights = deduplicator.deduplicate(validatedInsights);
+
+      // Convert to LearningInsight[] for conflict detection
+      const existingLearning = existingDbInsights.map(dbInsightToLearning);
 
       // Detect conflicts between new insights and existing insights
       for (const insight of dedupedInsights) {
-        const conflicts = detectConflicts(insight, existingInsights);
+        const conflicts = detectConflicts(insight, existingLearning);
         if (conflicts.length > 0) {
           const topConflict = conflicts.sort((a, b) => b.confidence - a.confidence)[0];
           insight.conflict_with = topConflict.insight2Title;
@@ -392,7 +350,7 @@ export async function completeReflection(input: CompleteReflectionInput): Promis
       }
 
       // Insert insights into the first-class brain_insights table
-      brainInsightDb.createBatch(reflectionId, projectId, dedupedInsights);
+      brainInsightDb.createBatch(reflectionId, projectId, dedupedInsights, deduplicator);
     });
 
     runCompletion();

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Target } from 'lucide-react';
 import { Goal } from '@/types';
 import { useState, useEffect } from 'react';
+import { duration } from '@/lib/motion';
 
 interface Idea {
   status: 'pending' | 'rejected' | 'accepted' | 'implemented';
@@ -41,7 +42,7 @@ const ProgressSegment = ({ count, total, delay, bgColor, borderColor, textColor,
     <motion.div
       initial={{ width: 0 }}
       animate={{ width: `${(count / total) * 100}%` }}
-      transition={{ duration: 0.5, delay }}
+      transition={{ duration: duration.slow, delay }}
       className={`${bgColor} ${borderColor} flex items-center justify-center relative group/segment`}
       title={`${count} ${label}`}
     >
@@ -112,7 +113,7 @@ export default function GoalRow({ goal, onClick, delay = 0 }: GoalRowProps) {
     <motion.div
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ delay, duration: 0.3 }}
+      transition={{ delay, duration: duration.deliberate }}
       onClick={onClick}
       className="group relative bg-gray-800/40 border border-gray-700/40 hover:border-cyan-500/40 rounded-lg p-3 cursor-pointer transition-all hover:bg-gray-800/60"
     >

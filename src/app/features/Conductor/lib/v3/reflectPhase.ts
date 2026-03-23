@@ -19,6 +19,7 @@ import type {
   ReflectOutput,
   V3Config,
   V3Metrics,
+  WorkspaceContext,
 } from './types';
 import type { BuildResult } from '../execution/buildValidator';
 
@@ -37,6 +38,7 @@ export interface ReflectPhaseInput {
   currentMetrics: V3Metrics;
   goalTitle: string;
   goalDescription: string;
+  workspaceContext?: WorkspaceContext | null;
   abortSignal?: AbortSignal;
 }
 
@@ -82,6 +84,7 @@ export async function executeReflectPhase(input: ReflectPhaseInput): Promise<{
     currentCycle,
     maxCycles: config.maxCyclesPerRun,
     currentMetrics,
+    workspaceContext: input.workspaceContext || null,
   });
 
   // 6. Single LLM call
@@ -277,6 +280,7 @@ interface ReflectPromptInput {
   currentCycle: number;
   maxCycles: number;
   currentMetrics: V3Metrics;
+  workspaceContext: WorkspaceContext | null;
 }
 
 function buildReflectPrompt(input: ReflectPromptInput): string {
@@ -320,6 +324,16 @@ function buildReflectPrompt(input: ReflectPromptInput): string {
 
   // File diffs
   sections.push(`## File Diffs\n\n${diffs}`);
+
+  // Workspace context for cross-project correlation
+  if (input.workspaceContext) {
+    const { formatWorkspaceContextForPrompt } = require('./brainAdvisor');
+    const wsSection = formatWorkspaceContextForPrompt(input.workspaceContext);
+    if (wsSection) {
+      sections.push(wsSection);
+      sections.push(`**Reflection guidance:** Assess whether any completed tasks created cross-project impacts. Note if API contracts, shared types, or integration boundaries were modified in ways that require changes in sibling projects.`);
+    }
+  }
 
   // Output format
   sections.push(`## Instructions

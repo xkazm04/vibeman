@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { duration, easing } from '@/lib/motion';
 import { BarChart3, LucideIcon } from 'lucide-react';
 
 export interface StatItem {
@@ -126,7 +127,7 @@ export default function StatsBarChart({
                   x: 0,
                   transition: {
                     delay: index * 0.05,
-                    duration: 0.3
+                    duration: duration.deliberate
                   }
                 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -146,8 +147,8 @@ export default function StatsBarChart({
                       width: `${percentage}%`,
                       transition: {
                         delay: index * 0.05 + 0.2,
-                        duration: 0.6,
-                        ease: 'easeOut'
+                        duration: duration.slow,
+                        ease: easing.entrance
                       }
                     }}
                     className={`h-full ${color} rounded-full`}

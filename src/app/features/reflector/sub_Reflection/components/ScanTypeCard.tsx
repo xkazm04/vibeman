@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { duration } from '@/lib/motion';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { ScanTypeStats } from '../lib/types';
 import { SCAN_TYPE_CONFIG, STATUS_CONFIG } from '../lib/config';
@@ -48,7 +49,7 @@ export default function ScanTypeCard({ stats, index, onScanTypeClick }: ScanType
     <motion.div
       initial={{ scale: 0.95, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      transition={{ delay: index * 0.03, duration: 0.2 }}
+      transition={{ delay: index * 0.03, duration: duration.normal }}
       whileHover={{ scale: 1.02 }}
       onClick={handleClick}
       onKeyDown={handleKeyDown}

@@ -14,6 +14,7 @@ import { CROSS_CONTEXT_LOG_PAGE_SIZE, SUCCESS_RATE_HIGH, SUCCESS_RATE_LOW } from
 import { toast } from '@/stores/messageStore';
 import type { LogEntry } from '../lib/types';
 import { SimpleSpinner } from '@/components/ui';
+import { fetchLogsBatch } from '../lib/managerService';
 
 interface CrossContextDetailProps {
   sourceGroup: ContextGroup | undefined;
@@ -36,32 +37,21 @@ export default function CrossContextDetail({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchLogs = async () => {
-      setLoading(true);
-      try {
-        const ids = logIds.slice(0, CROSS_CONTEXT_LOG_PAGE_SIZE);
-        const res = await fetch('/api/implementation-logs/batch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ids }),
-        });
-        if (!res.ok) throw new Error(`Batch fetch failed: ${res.status}`);
-        const data = await res.json();
-        setLogs(data.success && Array.isArray(data.data) ? data.data : []);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        toast.error('Failed to load cross-context logs', msg);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (logIds.length > 0) {
-      fetchLogs();
-    } else {
+    if (logIds.length === 0) {
       setLogs([]);
       setLoading(false);
+      return;
     }
+
+    setLoading(true);
+    const ids = logIds.slice(0, CROSS_CONTEXT_LOG_PAGE_SIZE);
+    fetchLogsBatch(ids)
+      .then(setLogs)
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        toast.error('Failed to load cross-context logs', msg);
+      })
+      .finally(() => setLoading(false));
   }, [logIds]);
 
   const getSuccessColor = () => {

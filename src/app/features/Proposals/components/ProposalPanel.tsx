@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProposals } from '../lib/useProposals';
 import { ProposalCard } from './ProposalCard';
+import { ProgressDots } from './BaseCarousel';
 import { useThemeStore } from '@/stores/themeStore';
 
 interface ProposalPanelProps {
@@ -104,18 +105,11 @@ const ProposalPanel = React.memo(({ isVisible }: ProposalPanelProps) => {
               <span className="text-sm text-gray-400 font-mono">
                 {currentIndex + 1} / {totalProposals}
               </span>
-              <div className="flex space-x-1">
-                {Array.from({ length: totalProposals }).map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className={`w-2 h-2 rounded-full transition-colors duration-200 ${i === currentIndex ? colors.accent : 'bg-gray-600'
-                      }`}
-                    animate={{
-                      scale: i === currentIndex ? 1.2 : 1
-                    }}
-                  />
-                ))}
-              </div>
+              <ProgressDots
+                total={totalProposals}
+                currentIndex={currentIndex}
+                activeColor={colors.accent}
+              />
             </div>
           </motion.div>
         </motion.div>

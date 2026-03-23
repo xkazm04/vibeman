@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { duration } from '@/lib/motion';
 import { FileText, Calendar, Cpu, Zap, Database, X } from 'lucide-react';
 import { useTooltipStore } from '../stores/tooltipStore';
 
@@ -185,7 +186,7 @@ const GlobalTooltip = () => {
               initial={{ opacity: 0, scale: 0.8, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.8, y: 20 }}
-              transition={{ duration: 0.3, type: "spring", stiffness: 300, damping: 30 }}
+              transition={{ duration: duration.deliberate, type: "spring", stiffness: 300, damping: 30 }}
               className="global-tooltip-content bg-gradient-to-br from-gray-900 via-indigo-900/30 to-purple-900/40 border-2 rounded-2xl shadow-2xl p-6 backdrop-blur-xl"
               style={{
                 maxWidth: '32rem',

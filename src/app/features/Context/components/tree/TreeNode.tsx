@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition, easing } from '@/lib/motion';
 import { Folder, File, ChevronRight, FolderOpen, Check } from 'lucide-react';
 import { TreeNode as TreeNodeType } from '@/types';
 import { useStore } from '@/stores/nodeStore';
@@ -204,7 +205,7 @@ const TreeNode = React.memo(function TreeNode({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.15, ease: "easeInOut" }}
+            transition={{ ...transition.snappy, ease: easing.morph }}
             className="overflow-hidden"
           >
             {node.children!.map((child) => (

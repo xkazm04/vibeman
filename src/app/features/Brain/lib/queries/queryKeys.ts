@@ -19,6 +19,8 @@ export const brainKeys = {
     [...brainKeys.signals(), 'rhythm', projectId, days] as const,
   signalDetail: (projectId: string, contextId: string) =>
     [...brainKeys.signals(), 'detail', projectId, contextId] as const,
+  signalsTimeline: (projectId: string, since: string) =>
+    [...brainKeys.signals(), 'timeline', projectId, since] as const,
 
   // ── Insights ─────────────────────────────────────────────────────────
   insights: () => [...brainKeys.all, 'insights'] as const,

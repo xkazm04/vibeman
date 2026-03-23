@@ -26,6 +26,21 @@
   --gradient-secondary: linear-gradient(245deg, #0f172a 0%, #1e293b 100%);
 }
 
+/* ===== MOTION SYSTEM CSS CUSTOM PROPERTIES ===== */
+/* Mirror src/lib/motion.ts constants for CSS-only contexts */
+:root {
+  --motion-duration-snappy: 0.15s;
+  --motion-duration-normal: 0.2s;
+  --motion-duration-deliberate: 0.3s;
+  --motion-duration-expand: 0.4s;
+  --motion-duration-slow: 0.5s;
+  --motion-duration-dramatic: 0.8s;
+  --motion-duration-sweep: 1.2s;
+  --motion-ease-entrance: cubic-bezier(0, 0, 0.2, 1);
+  --motion-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --motion-ease-morph: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 body {
   background: var(--gradient-secondary);
   color: var(--color-foreground);

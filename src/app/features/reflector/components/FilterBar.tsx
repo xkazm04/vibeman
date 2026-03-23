@@ -6,6 +6,7 @@ import {
   Filter, X, ChevronDown, ChevronLeft, ChevronRight,
   Calendar, Sparkles, RefreshCw
 } from 'lucide-react';
+import { duration } from '@/lib/motion';
 import {
   FilterState,
   FilterBarConfig,
@@ -162,7 +163,7 @@ export default function FilterBar({
           <div className="flex items-center gap-3">
             <button
               onClick={handlePreviousWeek}
-              className="p-2 rounded-lg bg-gray-800/60 border border-gray-700/40 text-gray-400 hover:text-white hover:bg-gray-700/60 transition-all duration-200 hover:shadow-md hover:shadow-black/20 active:scale-95"
+              className="p-2 rounded-lg bg-gray-800/60 border border-gray-700/40 text-gray-400 hover:text-white hover:bg-gray-700/60 transition-all duration-200 hover:shadow-md hover:shadow-black/20 active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
               aria-label="Previous week"
               data-testid="filter-bar-prev-week-btn"
             >
@@ -182,7 +183,7 @@ export default function FilterBar({
             <button
               onClick={handleNextWeek}
               disabled={(filters.weekOffset ?? 0) >= 0}
-              className={`p-2 rounded-lg bg-gray-800/60 border border-gray-700/40 transition-all duration-200 ${
+              className={`p-2 rounded-lg bg-gray-800/60 border border-gray-700/40 transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
                 (filters.weekOffset ?? 0) >= 0
                   ? 'text-gray-600 cursor-not-allowed opacity-50'
                   : 'text-gray-400 hover:text-white hover:bg-gray-700/60 hover:shadow-md hover:shadow-black/20 active:scale-95'
@@ -196,7 +197,7 @@ export default function FilterBar({
             {(filters.weekOffset ?? 0) !== 0 && (
               <button
                 onClick={handleCurrentWeek}
-                className="px-3 py-1.5 text-xs rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-all duration-200 hover:shadow-md hover:shadow-amber-500/20 active:scale-95"
+                className="px-3 py-1.5 text-xs rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-all duration-200 hover:shadow-md hover:shadow-amber-500/20 active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
                 data-testid="filter-bar-current-week-btn"
               >
                 Current Week
@@ -238,7 +239,7 @@ export default function FilterBar({
           {onRefresh && (
             <button
               onClick={onRefresh}
-              className="p-2 rounded-lg bg-gray-800/60 border border-gray-700/40 text-gray-400 hover:text-white hover:bg-gray-700/60 transition-all duration-200 hover:shadow-md hover:shadow-black/20 active:scale-95 active:rotate-180"
+              className="p-2 rounded-lg bg-gray-800/60 border border-gray-700/40 text-gray-400 hover:text-white hover:bg-gray-700/60 transition-all duration-200 hover:shadow-md hover:shadow-black/20 active:scale-95 active:rotate-180 outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
               aria-label="Refresh"
               data-testid="filter-bar-refresh-btn"
             >
@@ -250,7 +251,7 @@ export default function FilterBar({
           {activeFilterCount > 0 && (
             <button
               onClick={handleClearAll}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30 transition-all duration-200 hover:shadow-md hover:shadow-red-500/20 active:scale-95"
+              className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30 transition-all duration-200 hover:shadow-md hover:shadow-red-500/20 active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
               data-testid="filter-bar-clear-btn"
             >
               <X className="w-3 h-3" />
@@ -269,7 +270,9 @@ export default function FilterBar({
       <div className="flex items-center space-x-3">
         <motion.button
           onClick={() => setIsPanelOpen(!isPanelOpen)}
-          className="flex items-center space-x-2 px-4 py-2 bg-gray-800/60 border border-gray-700/40 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-800/80 transition-all"
+          aria-expanded={isPanelOpen}
+          aria-label="Toggle filter panel"
+          className="flex items-center space-x-2 px-4 py-2 bg-gray-800/60 border border-gray-700/40 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-800/80 transition-all outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           data-testid="filter-bar-toggle-btn"
@@ -288,7 +291,9 @@ export default function FilterBar({
         {suggestions.length > 0 && (
           <motion.button
             onClick={() => setShowSuggestions(!showSuggestions)}
-            className="flex items-center space-x-2 px-4 py-2 bg-purple-500/20 border border-purple-500/40 rounded-lg text-sm font-medium text-purple-300 hover:bg-purple-500/30 transition-all"
+            aria-expanded={showSuggestions}
+            aria-label="Toggle smart suggestions"
+            className="flex items-center space-x-2 px-4 py-2 bg-purple-500/20 border border-purple-500/40 rounded-lg text-sm font-medium text-purple-300 hover:bg-purple-500/30 transition-all outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             data-testid="filter-bar-suggestions-btn"
@@ -302,7 +307,8 @@ export default function FilterBar({
         {activeFilterCount > 0 && (
           <motion.button
             onClick={handleClearAll}
-            className="flex items-center space-x-2 px-4 py-2 bg-red-500/20 border border-red-500/40 rounded-lg text-sm font-medium text-red-300 hover:bg-red-500/30 transition-all"
+            aria-label="Clear all filters"
+            className="flex items-center space-x-2 px-4 py-2 bg-red-500/20 border border-red-500/40 rounded-lg text-sm font-medium text-red-300 hover:bg-red-500/30 transition-all outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             data-testid="filter-bar-clear-all-btn"
@@ -321,7 +327,7 @@ export default function FilterBar({
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ type: 'spring', duration: 0.3 }}
+            transition={{ type: 'spring', duration: duration.deliberate }}
             data-testid="filter-bar-suggestions-panel"
           >
             <div className="flex items-center justify-between mb-3">
@@ -331,7 +337,8 @@ export default function FilterBar({
               </h3>
               <button
                 onClick={() => setShowSuggestions(false)}
-                className="text-gray-500 hover:text-gray-300 transition-colors"
+                aria-label="Close suggestions"
+                className="text-gray-500 hover:text-gray-300 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 rounded"
                 data-testid="filter-bar-close-suggestions-btn"
               >
                 <X className="w-4 h-4" />
@@ -444,7 +451,7 @@ export default function FilterBar({
             <div className="sticky bottom-0 bg-gray-900/80 backdrop-blur-xl border-t border-yellow-700/40 px-6 py-4">
               <button
                 onClick={handleClearAll}
-                className="w-full px-4 py-2 bg-red-500/20 border border-red-500/40 rounded-lg text-sm font-medium text-red-300 hover:bg-red-500/30 transition-all"
+                className="w-full px-4 py-2 bg-red-500/20 border border-red-500/40 rounded-lg text-sm font-medium text-red-300 hover:bg-red-500/30 transition-all outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
                 data-testid="filter-bar-footer-clear-btn"
               >
                 Clear All Filters

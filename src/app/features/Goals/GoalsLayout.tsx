@@ -20,6 +20,8 @@ import { ContextTargetsList } from '@/components/ContextComponents';
 import GoalEmptyState from './components/GoalEmptyState';
 import { GoalProgressMini } from './components/GoalProgressRing';
 import GlassCard from '@/components/cards/GlassCard';
+import { duration, easing } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 interface GoalsLayoutProps {
   projectId: string | null;
@@ -34,6 +36,7 @@ interface GoalListItemProps {
 }
 
 const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, isFocused, onClick, tabIndex }: GoalListItemProps) {
+  const prefersReduced = useReducedMotion();
   const ref = React.useRef<HTMLButtonElement>(null);
   const statusConfig = getStatusConfig(goal.status);
   const StatusIcon = statusConfig.icon;
@@ -49,7 +52,7 @@ const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, isFocu
   return (
     <motion.button
       ref={ref}
-      initial={{ opacity: 0, x: -10 }}
+      initial={prefersReduced ? false : { opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       onClick={() => onClick(goal)}
       role="option"
@@ -87,7 +90,7 @@ const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, isFocu
                 className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400"
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.6, ease: 'easeOut' }}
+                transition={{ duration: duration.slow, ease: easing.entrance }}
               />
             </div>
           )}
@@ -141,6 +144,7 @@ function AnalyticsPanels({ projectId }: { projectId: string | null }) {
 }
 
 function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
+  const prefersReduced = useReducedMotion();
   const { activeProject } = useClientProjectStore();
   const { goals, createGoal, updateGoal } = useGoalContext();
   const { showAddGoal, setShowAddGoal } = useProjectsToolbarStore();
@@ -359,10 +363,10 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
             />
             {/* Sheet */}
             <motion.div
-              initial={{ y: '100%' }}
+              initial={prefersReduced ? false : { y: '100%' }}
               animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              exit={prefersReduced ? { opacity: 0 } : { y: '100%' }}
+              transition={prefersReduced ? { duration: 0 } : { type: 'spring', damping: 30, stiffness: 300 }}
               className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] flex flex-col bg-background/95 backdrop-blur-xl border-t border-white/10 rounded-t-2xl shadow-2xl"
             >
               {/* Drag handle + close */}

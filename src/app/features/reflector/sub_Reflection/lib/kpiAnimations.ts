@@ -1,6 +1,7 @@
 'use client';
 
 import type { Easing } from 'framer-motion';
+import { duration, easing } from '@/lib/motion';
 
 /**
  * KPI Card Animation Utilities
@@ -57,6 +58,8 @@ export const confettiColors = {
 
 /**
  * Check if user prefers reduced motion
+ * @deprecated Use `useReducedMotion()` hook from `@/hooks/useReducedMotion` in components.
+ * Kept for non-React contexts (e.g. animation utility functions).
  */
 export function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined') return false;
@@ -135,15 +138,15 @@ export const valueChangeVariants = {
   pulse: {
     scale: [1, 1.1, 1],
     transition: {
-      duration: 0.3,
-      ease: 'easeOut' as Easing,
+      duration: duration.deliberate,
+      ease: easing.entrance,
     },
   },
   bounce: {
     y: [0, -8, 0],
     transition: {
-      duration: 0.4,
-      ease: [0.34, 1.56, 0.64, 1] as Easing, // Custom spring-like easing
+      duration: duration.expand,
+      ease: [0.34, 1.56, 0.64, 1] as Easing, // Custom spring-like overshoot
     },
   },
 };
@@ -166,8 +169,8 @@ export const confettiVariants = {
     scale: [0, particle.scale, particle.scale * 0.8, 0],
     opacity: [1, 1, 0.8, 0],
     transition: {
-      duration: 0.8,
-      ease: 'easeOut' as Easing,
+      duration: duration.expand * 2, // 0.8s — long celebratory burst
+      ease: easing.entrance,
     },
   }),
 };
@@ -184,8 +187,8 @@ export const glowPulseVariants = {
       `0 0 0 0 ${color}`,
     ],
     transition: {
-      duration: 0.6,
-      ease: 'easeOut' as Easing,
+      duration: duration.deliberate * 2, // 0.6s — noticeable glow effect
+      ease: easing.entrance,
     },
   }),
 };

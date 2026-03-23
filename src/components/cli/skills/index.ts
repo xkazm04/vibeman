@@ -156,7 +156,7 @@ Score the implementation 1-10:
 After assessment, report via curl (replace placeholders):
 
 \`\`\`bash
-curl -s -X POST http://localhost:3000/api/implementation-log/review \\
+curl -s -X POST http://localhost:3000/api/implementation-logs/review \\
   -H "Content-Type: application/json" \\
   -d '{
     "projectId": "<PROJECT_ID>",

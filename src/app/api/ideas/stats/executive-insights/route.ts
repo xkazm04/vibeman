@@ -1,3 +1,7 @@
+/**
+ * @route /api/ideas/stats/executive-insights
+ * GET - Executive insight reports (statsApi)
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { analyticsAggregationService } from '@/lib/services/analyticsAggregation';
 import { generateExecutiveInsightReport } from '@/app/features/reflector/sub_Reflection/lib/insightGenerator';

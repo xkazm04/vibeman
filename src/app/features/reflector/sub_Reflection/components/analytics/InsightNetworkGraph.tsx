@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { duration, easing, cssTransition } from '@/lib/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
   ArrowLeft,
@@ -537,7 +538,7 @@ export default function InsightNetworkGraph({
               key={`drill-line-${i}`}
               initial={reducedMotion ? false : { opacity: 0 }}
               animate={{ opacity: 0.4 }}
-              transition={reducedMotion ? { duration: 0 } : { duration: 0.4, delay: 0.1 + i * 0.05 }}
+              transition={reducedMotion ? { duration: 0 } : { duration: duration.expand, delay: 0.1 + i * 0.05 }}
               x1={drillNode.x}
               y1={drillNode.y}
               x2={ev.x}
@@ -574,7 +575,7 @@ export default function InsightNetworkGraph({
               style={{
                 cursor: isDrillDown ? 'default' : 'pointer',
                 opacity: groupOpacity,
-                transition: 'opacity 0.4s ease',
+                transition: cssTransition('opacity', 'expand', 'morph'),
               }}
               onMouseEnter={() => !isDrillDown && setHoveredNode(node.id)}
               onMouseLeave={() => !isDrillDown && setHoveredNode(null)}
@@ -946,7 +947,7 @@ export default function InsightNetworkGraph({
                     style={{ backgroundColor: drillNode.color }}
                     initial={{ width: 0 }}
                     animate={{ width: `${drillNode.insight.confidence}%` }}
-                    transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 }}
+                    transition={{ duration: duration.dramatic, ease: easing.entrance, delay: 0.3 }}
                   />
                 </div>
               </div>

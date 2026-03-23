@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { duration, easing } from '@/lib/motion';
 import { useThemeStore } from '@/stores/themeStore';
 
 interface ProgressBarProps {
@@ -62,7 +63,7 @@ export default function ProgressBar({
           className={`h-full bg-gradient-to-r ${variants[variant]}`}
           initial={{ width: '0%' }}
           animate={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
+          transition={{ duration: duration.slow, ease: easing.entrance }}
         />
       </div>
     </div>

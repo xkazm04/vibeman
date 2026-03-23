@@ -9,6 +9,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Move, Target } from 'lucide-react';
+import { SimpleSpinner } from '@/components/ui/Spinner';
 import type { Context, ContextGroup } from '@/stores/contextStore';
 import type { ContextGroupRelationship } from '@/lib/queries/contextQueries';
 import type { ImpactAnalysisResult, SimulationState } from '../sub_DocsAnalysis/lib/impactSimulator/types';
@@ -399,11 +400,7 @@ export default function SimulationSystemMap({
           exit={{ opacity: 0 }}
         >
           <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-800/90 border border-violet-500/30">
-            <motion.div
-              className="w-5 h-5 border-2 border-violet-500 border-t-transparent rounded-full"
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-            />
+            <SimpleSpinner size="sm" color="purple" />
             <span className="text-sm text-violet-300">Analyzing impact...</span>
           </div>
         </motion.div>

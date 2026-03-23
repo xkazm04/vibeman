@@ -5,152 +5,82 @@
  * POST /api/questions (create question - called by Claude Code)
  */
 
-import { NextRequest, NextResponse } from 'next/server';
 import { questionDb } from '@/app/db';
-import { logger } from '@/lib/logger';
-import { v4 as uuidv4 } from 'uuid';
-import { withObservability } from '@/lib/observability/middleware';
 import { isValidQuestionStatus } from '@/lib/stateMachine';
-import { groupByContextMap } from '@/lib/api-helpers/groupByContextMap';
+import { createListHandlers } from '@/lib/api-helpers/crudRouteFactory';
+import type { DbQuestion } from '@/app/db/models/types';
 
-async function handleGet(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const projectId = searchParams.get('projectId');
-    const status = searchParams.get('status'); // 'pending', 'answered', or null for all
-    const contextMapId = searchParams.get('contextMapId');
+const { GET, POST } = createListHandlers<DbQuestion>({
+  entityName: 'question',
+  endpoint: '/api/questions',
+  statusValues: ['pending', 'answered'],
+  validateStatus: isValidQuestionStatus,
+  idPrefix: 'question',
 
-    if (!projectId) {
-      return NextResponse.json(
-        { error: 'projectId query parameter is required' },
-        { status: 400 }
-      );
-    }
+  repo: {
+    getById: (id) => questionDb.getQuestionById(id),
+    create: (data) => questionDb.createQuestion(data as Parameters<typeof questionDb.createQuestion>[0]),
+  },
 
-    if (status !== null && !isValidQuestionStatus(status)) {
-      return NextResponse.json(
-        { error: `Invalid status '${status}'. Valid values: pending, answered` },
-        { status: 400 }
-      );
-    }
+  fetchItems: (projectId, { status, contextMapId }) => {
+    if (contextMapId) return questionDb.getQuestionsByContextMapId(projectId, contextMapId);
+    if (status === 'pending') return questionDb.getPendingQuestions(projectId);
+    if (status === 'answered') return questionDb.getAnsweredQuestions(projectId);
+    return questionDb.getQuestionsByProject(projectId);
+  },
 
-    let questions;
-
-    if (contextMapId) {
-      questions = questionDb.getQuestionsByContextMapId(projectId, contextMapId);
-    } else if (status === 'pending') {
-      questions = questionDb.getPendingQuestions(projectId);
-    } else if (status === 'answered') {
-      questions = questionDb.getAnsweredQuestions(projectId);
-    } else {
-      questions = questionDb.getQuestionsByProject(projectId);
-    }
-
-    // When all questions are fetched (no status/contextMap filter), derive
-    // counts and max depth from the JS array to avoid 2 extra DB roundtrips.
-    const isFullFetch = !status && !contextMapId;
-    let counts: { total: number; pending: number; answered: number };
-    let maxTreeDepth: number;
-
-    if (isFullFetch) {
-      let pending = 0, answered = 0, maxDepth = 0;
-      for (const q of questions) {
+  fetchCounts: (projectId, items, { status, contextMapId }) => {
+    // When all questions are fetched, derive counts from JS array to avoid extra DB roundtrips
+    if (!status && !contextMapId) {
+      let pending = 0, answered = 0;
+      for (const q of items) {
         if (q.status === 'pending') pending++;
         else if (q.status === 'answered') answered++;
-        if ((q.tree_depth ?? 0) > maxDepth) maxDepth = q.tree_depth ?? 0;
       }
-      counts = { total: questions.length, pending, answered };
-      maxTreeDepth = maxDepth;
-    } else {
-      counts = questionDb.getQuestionCounts(projectId);
-      maxTreeDepth = questionDb.getMaxTreeDepth(projectId);
+      return { total: items.length, pending, answered };
     }
+    return questionDb.getQuestionCounts(projectId);
+  },
 
-    return NextResponse.json({
-      success: true,
-      items: questions,
-      grouped: groupByContextMap(questions),
-      counts,
-      maxTreeDepth,
-    });
+  extraListFields: (_projectId, items) => {
+    let maxDepth = 0;
+    for (const q of items) {
+      if ((q.tree_depth ?? 0) > maxDepth) maxDepth = q.tree_depth ?? 0;
+    }
+    return { maxTreeDepth: maxDepth };
+  },
 
-  } catch (error) {
-    logger.error('[API] Questions GET error:', { error });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
-}
-
-async function handlePost(request: NextRequest) {
-  try {
-    const body = await request.json();
-
-    const {
-      project_id,
-      context_map_id,
-      context_map_title,
-      question
-    } = body;
-
-    // Validate required fields
+  validateCreate: (body) => {
+    const { project_id, context_map_id, context_map_title, question } = body as Record<string, unknown>;
     if (!project_id || !context_map_id || !context_map_title || !question) {
-      return NextResponse.json(
-        { error: 'project_id, context_map_id, context_map_title, and question are required' },
-        { status: 400 }
-      );
+      return 'project_id, context_map_id, context_map_title, and question are required';
     }
+    return null;
+  },
 
-    // Create the question
-    const id = body.id || `question_${uuidv4()}`;
-
-    // Check for duplicate ID when caller supplies one
-    if (body.id && questionDb.getQuestionById(body.id)) {
-      return NextResponse.json(
-        { error: `Question with ID '${body.id}' already exists`, code: 'DUPLICATE_ID' },
-        { status: 409 }
-      );
-    }
-
+  buildCreatePayload: (id, body) => {
     // Resolve tree depth from parent if parent_id is provided
-    let treeDepth = body.tree_depth ?? 0;
+    let treeDepth = (body.tree_depth as number) ?? 0;
     if (body.parent_id && !body.tree_depth) {
-      const parent = questionDb.getQuestionById(body.parent_id);
+      const parent = questionDb.getQuestionById(body.parent_id as string);
       if (parent) {
         treeDepth = (parent.tree_depth ?? 0) + 1;
       }
     }
 
-    const createdQuestion = questionDb.createQuestion({
+    return {
       id,
-      project_id,
-      context_map_id,
-      context_map_title,
-      question,
+      project_id: body.project_id,
+      context_map_id: body.context_map_id,
+      context_map_title: body.context_map_title,
+      question: body.question,
       answer: body.answer || null,
       status: body.status || 'pending',
       goal_id: body.goal_id || null,
       parent_id: body.parent_id || null,
       tree_depth: treeDepth,
-    });
+    };
+  },
+});
 
-    logger.info('[API] Question created:', { id: createdQuestion.id, context_map_id });
-
-    return NextResponse.json({
-      success: true,
-      question: createdQuestion
-    });
-
-  } catch (error) {
-    logger.error('[API] Questions POST error:', { error });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
-}
-
-// Export with observability tracking
-export const GET = withObservability(handleGet, '/api/questions');
-export const POST = withObservability(handlePost, '/api/questions');
+export { GET, POST };

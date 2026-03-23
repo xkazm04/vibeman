@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { implementationLogDb } from '@/app/db';
+import { randomUUID } from 'crypto';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
-import { signalCollector } from '@/lib/brain/signalCollector';
+import { emitImplementationLogged } from '@/lib/events/domainEmitters';
 
 /**
  * GET - Get recent implementation logs for a project
@@ -39,57 +40,91 @@ async function handleGet(request: NextRequest) {
 
 /**
  * POST - Create a new implementation log
+ *
+ * Accepts two input formats:
+ * - snake_case (standard): { id, project_id, context_id, requirement_name, ... }
+ * - camelCase (simplified): { projectId, requirementName, ... } — auto-generates ID
+ *
+ * Simplified mode is detected by the presence of `projectId` (camelCase) in the body.
  */
 async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, project_id, context_id, requirement_name, title, overview, overview_bullets, tested, provider, model } = body;
 
-    if (!id || !project_id || !requirement_name || !title || !overview) {
+    // Detect simplified (camelCase) mode by checking for `projectId`
+    const isSimplified = 'projectId' in body && !('project_id' in body);
+
+    const logId = isSimplified ? randomUUID() : body.id;
+    const projectId = isSimplified ? body.projectId : body.project_id;
+    const contextId = isSimplified ? (body.contextId || null) : (body.context_id || null);
+    const requirementName = isSimplified ? body.requirementName : body.requirement_name;
+    const { title, overview, provider, model } = body;
+    const overviewBullets = isSimplified ? (body.overviewBullets || null) : body.overview_bullets;
+    const screenshot = body.screenshot || null;
+    const metadata = body.metadata ? (typeof body.metadata === 'string' ? body.metadata : JSON.stringify(body.metadata)) : undefined;
+    const tested = body.tested || false;
+
+    if (!projectId || !requirementName || !title || !overview) {
+      const missing = isSimplified
+        ? ['projectId', 'requirementName', 'title', 'overview']
+        : ['project_id', 'requirement_name', 'title', 'overview'];
+      if (!isSimplified && !logId) missing.unshift('id');
       return NextResponse.json(
-        { error: 'Missing required fields: id, project_id, requirement_name, title, overview' },
+        {
+          success: false,
+          error: 'Missing required fields',
+          required: missing,
+          received: Object.keys(body),
+        },
         { status: 400 }
       );
     }
 
     const log = implementationLogDb.createLog({
-      id,
-      project_id,
-      context_id: context_id || undefined,
-      requirement_name,
+      id: logId,
+      project_id: projectId,
+      context_id: contextId || undefined,
+      requirement_name: requirementName,
       title,
       overview,
-      overview_bullets,
-      tested: tested || false,
+      overview_bullets: overviewBullets,
+      tested,
+      screenshot,
+      provider: provider || undefined,
+      model: model || undefined,
+      metadata,
+    });
+
+    logger.info('Implementation log created', {
+      id: logId,
+      projectId,
+      requirementName,
+      title,
+      mode: isSimplified ? 'simplified' : 'standard',
+    });
+
+    // Emit domain event — subscribers handle signal recording, idea status, goal checks
+    emitImplementationLogged({
+      projectId,
+      logId,
+      requirementName,
+      contextId,
       provider,
       model,
     });
 
-    // Record brain signal: implementation logged
-    try {
-      signalCollector.recordImplementation(project_id, {
-        requirementId: id,
-        requirementName: requirement_name,
-        contextId: context_id || null,
-        filesCreated: [],
-        filesModified: [],
-        filesDeleted: [],
+    // Return format depends on mode
+    if (isSimplified) {
+      return NextResponse.json({
         success: true,
-        executionTimeMs: 0,
-        provider,
-        model,
+        message: 'Implementation log created successfully',
+        log: {
+          id: log.id,
+          projectId: log.project_id,
+          requirementName: log.requirement_name,
+          title: log.title,
+        },
       });
-    } catch {
-      // Signal recording must never break the main flow
-    }
-
-    // Fire-and-forget: check if this log matches any active goals
-    if (context_id) {
-      fetch(new URL('/api/goals/check-completion', request.url).toString(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contextId: context_id, projectId: project_id }),
-      }).catch(() => {});
     }
 
     return NextResponse.json({ log });
@@ -97,8 +132,10 @@ async function handlePost(request: NextRequest) {
     logger.error('Error creating implementation log:', { error: error });
     return NextResponse.json(
       {
-        error: 'Internal server error',
+        success: false,
+        error: 'Failed to create implementation log',
         details: error instanceof Error ? error.message : 'Unknown error',
+        message: 'This error is non-blocking - continue with task completion',
       },
       { status: 500 }
     );

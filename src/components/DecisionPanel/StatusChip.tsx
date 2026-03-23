@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { transition } from '@/lib/motion';
+import { duration, easing, transition } from '@/lib/motion';
 import { LucideIcon } from 'lucide-react';
 
 export type StatusChipState = 'idle' | 'active' | 'processing' | 'error' | 'success' | 'warning';
@@ -322,9 +322,9 @@ export default function StatusChip({
               scaleY: [1, 0.6, 1],
             }}
             transition={{
-              duration: 0.4,
+              duration: duration.expand,
               repeat: Infinity,
-              ease: 'easeInOut',
+              ease: easing.morph,
             }}
           />
           <motion.div
@@ -335,9 +335,9 @@ export default function StatusChip({
               scaleY: [0.6, 1, 0.6],
             }}
             transition={{
-              duration: 0.4,
+              duration: duration.expand,
               repeat: Infinity,
-              ease: 'easeInOut',
+              ease: easing.morph,
             }}
           />
         </>

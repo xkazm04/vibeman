@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { duration, transition } from '@/lib/motion';
 import { LucideIcon } from 'lucide-react';
 
 interface BackgroundEffectsProps {
@@ -147,7 +148,7 @@ export default function ContextMenu({
             initial={{ opacity: 0, scale: 0.9, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: -10 }}
-            transition={{ duration: 0.3, type: 'spring', stiffness: 300, damping: 30 }}
+            transition={{ duration: duration.deliberate, type: 'spring', stiffness: 300, damping: 30 }}
             className={`fixed bg-gradient-to-br from-gray-900/95 via-slate-900/20 to-blue-900/30 border border-gray-700/50 rounded-2xl shadow-2xl py-4 min-w-[220px] backdrop-blur-xl ${className}`}
             style={{
               left: `${position.x}px`,
@@ -168,7 +169,7 @@ export default function ContextMenu({
                         className="absolute inset-0 border-t border-red-500/30"
                         initial={{ scaleX: 0 }}
                         animate={{ scaleX: 1 }}
-                        transition={{ delay: 0.5, duration: 0.3 }}
+                        transition={{ ...transition.deliberate, delay: 0.5 }}
                       />
                     </div>
                   );
@@ -201,7 +202,7 @@ export default function ContextMenu({
                   >
                     <motion.div
                       whileHover={item.disabled ? {} : { rotate: 15 }}
-                      transition={{ duration: 0.2 }}
+                      transition={transition.normal}
                     >
                       <Icon
                         className={`w-4 h-4 ${item.iconColor || (item.isDanger ? '' : 'text-cyan-400')}`}

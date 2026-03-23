@@ -1,6 +1,7 @@
 'use client';
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { motion, useTransform } from 'framer-motion';
+import { duration } from '@/lib/motion';
 import { DbDirection } from '@/app/db';
 import { Calendar, Compass, MapPin, Check, X, Trash2 } from 'lucide-react';
 import { formatCardDate } from '../lib/tinderUtils';
@@ -289,7 +290,7 @@ export default function DirectionCard({
         initial: { opacity: 0, y: 20 },
         animate: { opacity: 1, y: 0 },
         exit: { opacity: 0, y: -20 },
-        transition: { duration: 0.3 },
+        transition: { duration: duration.deliberate },
       }
     : {
         style: { x, rotateZ, ...style },
@@ -299,7 +300,7 @@ export default function DirectionCard({
         animate: { x: exitX, opacity: exitOpacity },
         transition: {
           x: { type: 'spring', stiffness: 300, damping: 30 },
-          opacity: { duration: 0.2 },
+          opacity: { duration: duration.normal },
         },
       };
 

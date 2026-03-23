@@ -22,6 +22,7 @@ import {
   LayoutDashboard,
 } from 'lucide-react';
 import { useTabNavigation } from '@/hooks/useTabNavigation';
+import { duration } from '@/lib/motion';
 import { ComparisonFilterState } from '../lib/types';
 import { fetchExecutiveInsights } from '../lib/statsApi';
 import {
@@ -689,7 +690,7 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.15 }}
+                    transition={{ duration: duration.snappy }}
                   >
                     {renderTabContent()}
                   </motion.div>

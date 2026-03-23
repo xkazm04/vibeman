@@ -18,12 +18,10 @@
  */
 'use client';
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { HelpCircle, Compass, RefreshCw } from 'lucide-react';
 import LiquidStepRail from '@/components/ui/LiquidStepRail';
-import { DbQuestion } from '@/app/db';
-import { useClientProjectStore } from '@/stores/clientProjectStore';
 import ContextMapSelector from './components/ContextMapSelector';
 import CombinedGeneratePanel from './components/CombinedGeneratePanel';
 import UnifiedTable from './components/UnifiedTable';
@@ -33,31 +31,7 @@ import DirectionCarousel from '@/app/features/Proposals/components/DirectionCaro
 import AnswerQuestionModal from './components/AnswerQuestionModal';
 import AutoDeepenToast from './components/AutoDeepenToast';
 import ViewModeToggle from './components/ViewModeToggle';
-import type { QuestionsViewMode } from './components/ViewModeToggle';
-import {
-  groupContextsByGroup,
-  generateQuestionRequirement,
-  setupContextMapGenerator,
-} from './lib/questionsApi';
-import {
-  generateDirectionRequirement,
-  AnsweredQuestionInput
-} from './lib/directionsApi';
-import {
-  useSqliteContexts,
-  useQuestionsAndDirections,
-  useQuestionTrees,
-  useGenerateFollowUp,
-  useGenerateStrategicBrief,
-  useAutoDeepen,
-  useAnswerQuestion,
-  useDeleteQuestion,
-  useAcceptDirection,
-  useRejectDirection,
-  useDeleteDirection,
-  useInvalidateQuestionsDirections,
-} from '@/lib/queries/questionsDirectionsQueries';
-import type { AutoDeepenResponse } from './lib/questionsApi';
+import { useQuestionsData, useGenerationOrchestrator, useViewMode } from './hooks';
 
 // Interrogative engines for programmatic access to the generate → decide → act pattern.
 // UI components continue using React Query hooks for rendering; these engines provide
@@ -70,271 +44,24 @@ interface QuestionsLayoutProps {
 }
 
 export default function QuestionsLayout({ projectId: propProjectId }: QuestionsLayoutProps) {
-  const { activeProject } = useClientProjectStore();
+  const data = useQuestionsData(propProjectId);
+  const { viewMode, setViewMode, treeData } = useViewMode(data.effectiveProjectId);
 
-  // Use prop override for project ID in data queries; fall back to store project
-  const effectiveProjectId = propProjectId || activeProject?.id;
+  const orchestrator = useGenerationOrchestrator({
+    activeProject: data.activeProject,
+    contexts: data.contexts,
+    selectedContextIds: data.selectedContextIds,
+    questions: data.questions,
+    answeredQuestions: data.answeredQuestions,
+  });
 
-  // Context selection state (local UI state)
-  const [selectedContextIds, setSelectedContextIds] = useState<string[]>([]);
+  const isLoading = data.combinedLoading;
 
-  // Answer modal state
-  const [answerModalQuestion, setAnswerModalQuestion] = useState<DbQuestion | null>(null);
-
-  // View toggle for the review section
-  const [viewMode, setViewMode] = useState<QuestionsViewMode>('table');
-
-  // React Query hooks for data fetching
-  const {
-    data: contextsData,
-    isLoading: contextLoading,
-    error: contextError,
-  } = useSqliteContexts(effectiveProjectId);
-
-  const {
-    data: combinedData,
-    isLoading: combinedLoading,
-  } = useQuestionsAndDirections(effectiveProjectId);
-  const questionsData = combinedData?.questions;
-  const directionsData = combinedData?.directions;
-
-  // Mutations
-  const answerQuestionMutation = useAnswerQuestion();
-  const deleteQuestionMutation = useDeleteQuestion();
-  const acceptDirectionMutation = useAcceptDirection();
-  const rejectDirectionMutation = useRejectDirection();
-  const deleteDirectionMutation = useDeleteDirection();
-  const invalidateAll = useInvalidateQuestionsDirections();
-
-  // Tree data & mutations
-  const { data: treeData } = useQuestionTrees(effectiveProjectId, viewMode === 'tree');
-  const generateFollowUpMutation = useGenerateFollowUp();
-  const generateBriefMutation = useGenerateStrategicBrief();
-  const autoDeepenMutation = useAutoDeepen();
-
-  // Auto-deepen notification state
-  const [autoDeepenResult, setAutoDeepenResult] = useState<AutoDeepenResponse | null>(null);
-
-  // Derived data
-  const contexts = contextsData?.contexts ?? [];
-  const contextGroups = contextsData?.groups ?? [];
-
-  // Derived: grouped contexts for display
-  const groupedContexts = useMemo(
-    () => groupContextsByGroup(contexts, contextGroups),
-    [contexts, contextGroups]
-  );
-
-  // Auto-select all contexts when they first load (one-time initialization per project)
-  // Using useEffect for side effects instead of useMemo
-  const hasInitializedRef = React.useRef(false);
-  const lastProjectIdRef = React.useRef<string | undefined>(undefined);
-
-  useEffect(() => {
-    // Reset initialization when project changes
-    if (effectiveProjectId !== lastProjectIdRef.current) {
-      lastProjectIdRef.current = effectiveProjectId;
-      hasInitializedRef.current = false;
-      // Clear selection when switching projects to avoid stale selections
-      setSelectedContextIds([]);
-    }
-
-    // Auto-select all contexts once when they first become available for this project
-    if (contexts.length > 0 && !hasInitializedRef.current) {
-      hasInitializedRef.current = true;
-      setSelectedContextIds(contexts.map(c => c.id));
-    }
-  }, [contexts, effectiveProjectId]);
-
-  const handleToggleContext = (contextId: string) => {
-    setSelectedContextIds(prev =>
-      prev.includes(contextId)
-        ? prev.filter(id => id !== contextId)
-        : [...prev, contextId]
-    );
-  };
-
-  const handleSelectAll = () => {
-    setSelectedContextIds(contexts.map(c => c.id));
-  };
-
-  const handleClearAll = () => {
-    setSelectedContextIds([]);
-  };
-
-  const handleSetupContextMap = useCallback(async () => {
-    if (!activeProject?.path) return;
-
-    await setupContextMapGenerator(activeProject.path);
-  }, [activeProject?.path]);
-
-  // Questions handlers
-  const handleGenerateQuestions = async (questionsPerContext: number) => {
-    if (!activeProject) return;
-
-    try {
-      const result = await generateQuestionRequirement({
-        projectId: activeProject.id,
-        projectName: activeProject.name,
-        projectPath: activeProject.path,
-        selectedContextIds, // Pass SQLite context IDs directly
-        questionsPerContext
-      });
-
-      return {
-        requirementPath: result.requirementPath,
-        requirementName: result.requirementName
-      };
-    } catch (error) {
-      // Re-throw with user-friendly message for upstream handling
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`Failed to generate questions: ${message}`);
-    }
-  };
-
-  const handleOpenAnswerModal = useCallback((question: DbQuestion) => {
-    setAnswerModalQuestion(question);
-  }, []);
-
-  const handleCloseAnswerModal = useCallback(() => {
-    setAnswerModalQuestion(null);
-  }, []);
-
-  /**
-   * Save an answer and trigger auto-deepening.
-   *
-   * After persisting the answer, the system analyzes it for ambiguity.
-   * If gaps are found, follow-up questions are generated automatically
-   * and a toast notification is shown (auto-dismissed after 6 seconds).
-   */
-  const handleSaveAnswer = useCallback(async (questionId: string, answer: string) => {
-    await answerQuestionMutation.mutateAsync({ questionId, answer });
-    // Fire-and-forget: auto-deepen runs in background after save completes
-    autoDeepenMutation.mutate(questionId, {
-      onSuccess: (result) => {
-        if (result.deepened || result.analysis.gapCount > 0) {
-          setAutoDeepenResult(result);
-          setTimeout(() => setAutoDeepenResult(null), 6000);
-        }
-      },
-    });
-  }, [answerQuestionMutation, autoDeepenMutation]);
-
-  const handleDeleteQuestion = useCallback(async (questionId: string) => {
-    deleteQuestionMutation.mutate(questionId);
-  }, [deleteQuestionMutation]);
-
-  // Derived data - must be defined before handlers that reference them
-  const questions = questionsData?.items || [];
-  const directions = directionsData?.items || [];
-  const answeredQuestions = useMemo(() =>
-    questions.filter(q => q.status === 'answered'),
-    [questions]
-  );
-
-  /**
-   * Generate direction proposals from selected contexts.
-   *
-   * In brainstorm mode, all contexts are used regardless of selection.
-   * Answered questions (filtered by `selectedQuestionIds`) are included
-   * as additional input to ground the LLM's direction proposals.
-   */
-  const handleGenerateDirections = async (
-    directionsPerContext: number,
-    userContext: string,
-    selectedQuestionIds: string[],
-    brainstormAll?: boolean
-  ) => {
-    if (!activeProject) return;
-
-    try {
-      // In brainstorm mode, use all contexts; otherwise use selected ones
-      const contextIdsToUse = brainstormAll
-        ? contexts.map(c => c.id)
-        : selectedContextIds;
-
-      // Build answered questions array from selected IDs
-      const answeredQuestionsInput: AnsweredQuestionInput[] = answeredQuestions
-        .filter(q => selectedQuestionIds.includes(q.id))
-        .map(q => ({
-          id: q.id,
-          question: q.question,
-          answer: q.answer || ''
-        }));
-
-      const result = await generateDirectionRequirement({
-        projectId: activeProject.id,
-        projectName: activeProject.name,
-        projectPath: activeProject.path,
-        selectedContextIds: contextIdsToUse, // Pass SQLite context IDs
-        directionsPerContext,
-        userContext: userContext.trim() || undefined,
-        answeredQuestions: answeredQuestionsInput.length > 0 ? answeredQuestionsInput : undefined,
-        brainstormAll
-      });
-
-      return {
-        requirementPath: result.requirementPath,
-        requirementName: result.requirementName
-      };
-    } catch (error) {
-      // Re-throw with user-friendly message for upstream handling
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`Failed to generate directions: ${message}`);
-    }
-  };
-
-  const handleAcceptDirection = useCallback(async (directionId: string) => {
-    if (!activeProject?.path) return;
-    acceptDirectionMutation.mutate({ directionId, projectPath: activeProject.path });
-  }, [activeProject?.path, acceptDirectionMutation]);
-
-  const handleRejectDirection = useCallback(async (directionId: string) => {
-    rejectDirectionMutation.mutate(directionId);
-  }, [rejectDirectionMutation]);
-
-  const handleDeleteDirection = useCallback(async (directionId: string) => {
-    deleteDirectionMutation.mutate(directionId);
-  }, [deleteDirectionMutation]);
-
-  // Tree handlers
-  const handleGenerateFollowUp = useCallback(async (parentId: string) => {
-    await generateFollowUpMutation.mutateAsync(parentId);
-  }, [generateFollowUpMutation]);
-
-  const handleGenerateBrief = useCallback(async (questionId: string) => {
-    await generateBriefMutation.mutateAsync(questionId);
-  }, [generateBriefMutation]);
-
-  const handleGenerateDirectionFromTree = useCallback(async (questionId: string) => {
-    if (!activeProject) return;
-    const question = questions.find(q => q.id === questionId);
-    if (!question) return;
-
-    try {
-      await generateDirectionRequirement({
-        projectId: activeProject.id,
-        projectName: activeProject.name,
-        projectPath: activeProject.path,
-        selectedContextIds: [question.context_map_id],
-        directionsPerContext: 1,
-        userContext: `Based on strategic question chain ending at: "${question.question}" with answer: "${question.answer || ''}"`,
-        answeredQuestions: [{ id: question.id, question: question.question, answer: question.answer || '' }],
-      });
-      invalidateAll();
-    } catch {
-      // Error handled by UI feedback
-    }
-  }, [activeProject, questions, invalidateAll]);
-
-  const handleRefresh = useCallback(() => {
-    invalidateAll();
-  }, [invalidateAll]);
-
-  const isLoading = combinedLoading;
-
-  // Stats
-  const totalPending = (questionsData?.counts.pending || 0) + (directionsData?.counts.pending || 0);
+  // Step rail state
+  const step1Done = data.selectedContextIds.length > 0;
+  const step2Done = data.contexts.length > 0 && data.selectedContextIds.length > 0;
+  const step3Done = data.questions.length > 0 || data.directions.length > 0;
+  const activeStep = !step1Done ? 0 : !step2Done ? 1 : 2;
 
   return (
     <div className="min-h-full bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950">
@@ -365,16 +92,16 @@ export default function QuestionsLayout({ projectId: propProjectId }: QuestionsL
 
             {/* Stats & Refresh */}
             <div className="flex items-center gap-4">
-              {totalPending > 0 && (
+              {data.totalPending > 0 && (
                 <div className="text-right">
                   <div className="text-2xl font-bold text-white">
-                    {totalPending}
+                    {data.totalPending}
                   </div>
                   <div className="text-xs text-gray-400">pending</div>
                 </div>
               )}
               <button
-                onClick={handleRefresh}
+                onClick={data.handleRefresh}
                 disabled={isLoading}
                 className="p-2 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 text-gray-400 transition-colors disabled:opacity-50"
                 title="Refresh"
@@ -386,7 +113,7 @@ export default function QuestionsLayout({ projectId: propProjectId }: QuestionsL
         </motion.div>
 
         {/* Project check */}
-        {!activeProject && (
+        {!data.activeProject && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -396,61 +123,52 @@ export default function QuestionsLayout({ projectId: propProjectId }: QuestionsL
           </motion.div>
         )}
 
-        {activeProject && (
+        {data.activeProject && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
             className="flex gap-4"
           >
-            {/* Step indicator rail — liquid SVG connectors with predictive glow */}
-            {(() => {
-              const step1Done = selectedContextIds.length > 0;
-              const step2Done = contexts.length > 0 && selectedContextIds.length > 0;
-              const step3Done = questions.length > 0 || directions.length > 0;
-              const activeStep = !step1Done ? 0 : !step2Done ? 1 : 2;
-
-              return (
-                <div className="pt-4 flex-shrink-0">
-                  <LiquidStepRail
-                    steps={[
-                      { id: 'select', label: 'Select', tooltip: 'Select Contexts', done: step1Done },
-                      { id: 'generate', label: 'Generate', tooltip: 'Generate Questions & Directions', done: step2Done },
-                      { id: 'review', label: 'Review', tooltip: 'Review Results', done: step3Done },
-                    ]}
-                    activeIndex={activeStep}
-                    direction="vertical"
-                    accentFrom="#a855f7"
-                    accentTo="#06b6d4"
-                  />
-                </div>
-              );
-            })()}
+            {/* Step indicator rail */}
+            <div className="pt-4 flex-shrink-0">
+              <LiquidStepRail
+                steps={[
+                  { id: 'select', label: 'Select', tooltip: 'Select Contexts', done: step1Done },
+                  { id: 'generate', label: 'Generate', tooltip: 'Generate Questions & Directions', done: step2Done },
+                  { id: 'review', label: 'Review', tooltip: 'Review Results', done: step3Done },
+                ]}
+                activeIndex={activeStep}
+                direction="vertical"
+                accentFrom="#a855f7"
+                accentTo="#06b6d4"
+              />
+            </div>
 
             {/* Content sections */}
             <div className="flex-1 min-w-0 space-y-6">
               {/* Context Map Selector */}
               <ContextMapSelector
-                groupedContexts={groupedContexts}
-                allContexts={contexts}
-                selectedContextIds={selectedContextIds}
-                onToggleContext={handleToggleContext}
-                onSelectAll={handleSelectAll}
-                onClearAll={handleClearAll}
-                loading={contextLoading}
-                error={contextError instanceof Error ? contextError.message : contextError ? String(contextError) : null}
-                onSetupContextMap={handleSetupContextMap}
+                groupedContexts={data.groupedContexts}
+                allContexts={data.contexts}
+                selectedContextIds={data.selectedContextIds}
+                onToggleContext={data.handleToggleContext}
+                onSelectAll={data.handleSelectAll}
+                onClearAll={data.handleClearAll}
+                loading={data.contextLoading}
+                error={data.contextError instanceof Error ? data.contextError.message : data.contextError ? String(data.contextError) : null}
+                onSetupContextMap={orchestrator.handleSetupContextMap}
               />
 
               {/* Combined Generate Panel */}
-              {contexts.length > 0 && (
+              {data.contexts.length > 0 && (
                 <CombinedGeneratePanel
-                  contexts={contexts}
-                  selectedContextIds={selectedContextIds}
-                  answeredQuestions={answeredQuestions}
-                  onGenerateQuestions={handleGenerateQuestions}
-                  onGenerateDirections={handleGenerateDirections}
-                  disabled={selectedContextIds.length === 0}
+                  contexts={data.contexts}
+                  selectedContextIds={data.selectedContextIds}
+                  answeredQuestions={data.answeredQuestions}
+                  onGenerateQuestions={orchestrator.handleGenerateQuestions}
+                  onGenerateDirections={orchestrator.handleGenerateDirections}
+                  disabled={data.selectedContextIds.length === 0}
                 />
               )}
 
@@ -463,48 +181,48 @@ export default function QuestionsLayout({ projectId: propProjectId }: QuestionsL
                   <ViewModeToggle
                     viewMode={viewMode}
                     onViewModeChange={setViewMode}
-                    pendingDirections={directionsData?.counts.pending ?? 0}
+                    pendingDirections={data.directionsData?.counts.pending ?? 0}
                     totalTrees={treeData?.totalTrees ?? 0}
                   />
                 </div>
 
                 {viewMode === 'table' && (
                   <UnifiedTable
-                    questions={questions}
-                    directions={directions}
-                    onAnswerQuestion={handleOpenAnswerModal}
-                    onAcceptDirection={handleAcceptDirection}
-                    onRejectDirection={handleRejectDirection}
-                    onDeleteQuestion={handleDeleteQuestion}
-                    onDeleteDirection={handleDeleteDirection}
+                    questions={data.questions}
+                    directions={data.directions}
+                    onAnswerQuestion={orchestrator.handleOpenAnswerModal}
+                    onAcceptDirection={orchestrator.handleAcceptDirection}
+                    onRejectDirection={orchestrator.handleRejectDirection}
+                    onDeleteQuestion={orchestrator.handleDeleteQuestion}
+                    onDeleteDirection={orchestrator.handleDeleteDirection}
                     loading={isLoading}
                   />
                 )}
                 {viewMode === 'matrix' && (
                   <DirectionMatrix
-                    directions={directions}
-                    onAcceptDirection={handleAcceptDirection}
-                    onRejectDirection={handleRejectDirection}
+                    directions={data.directions}
+                    onAcceptDirection={orchestrator.handleAcceptDirection}
+                    onRejectDirection={orchestrator.handleRejectDirection}
                   />
                 )}
                 {viewMode === 'carousel' && (
                   <DirectionCarousel
-                    directions={directions}
-                    onAccept={handleAcceptDirection}
-                    onReject={handleRejectDirection}
+                    directions={data.directions}
+                    onAccept={orchestrator.handleAcceptDirection}
+                    onReject={orchestrator.handleRejectDirection}
                     isLoading={isLoading}
                   />
                 )}
                 {viewMode === 'tree' && (
                   <QuestionTree
                     trees={treeData?.trees ?? []}
-                    onAnswerQuestion={handleOpenAnswerModal}
-                    onGenerateFollowUp={handleGenerateFollowUp}
-                    onGenerateBrief={handleGenerateBrief}
-                    onDeleteQuestion={handleDeleteQuestion}
-                    onGenerateDirection={handleGenerateDirectionFromTree}
-                    generatingFollowUp={generateFollowUpMutation.isPending ? (generateFollowUpMutation.variables ?? null) : null}
-                    generatingBrief={generateBriefMutation.isPending ? (generateBriefMutation.variables ?? null) : null}
+                    onAnswerQuestion={orchestrator.handleOpenAnswerModal}
+                    onGenerateFollowUp={orchestrator.handleGenerateFollowUp}
+                    onGenerateBrief={orchestrator.handleGenerateBrief}
+                    onDeleteQuestion={orchestrator.handleDeleteQuestion}
+                    onGenerateDirection={orchestrator.handleGenerateDirectionFromTree}
+                    generatingFollowUp={orchestrator.generateFollowUpMutation.isPending ? (orchestrator.generateFollowUpMutation.variables?.questionId ?? null) : null}
+                    generatingBrief={orchestrator.generateBriefMutation.isPending ? (orchestrator.generateBriefMutation.variables?.questionId ?? null) : null}
                   />
                 )}
               </div>
@@ -515,16 +233,16 @@ export default function QuestionsLayout({ projectId: propProjectId }: QuestionsL
 
       {/* Answer Question Modal */}
       <AnswerQuestionModal
-        question={answerModalQuestion}
-        isOpen={answerModalQuestion !== null}
-        onClose={handleCloseAnswerModal}
-        onSave={handleSaveAnswer}
+        question={orchestrator.answerModalQuestion}
+        isOpen={orchestrator.answerModalQuestion !== null}
+        onClose={orchestrator.handleCloseAnswerModal}
+        onSave={orchestrator.handleSaveAnswer}
       />
 
       {/* Auto-Deepen Notification Toast */}
       <AutoDeepenToast
-        result={autoDeepenResult}
-        onDismiss={() => setAutoDeepenResult(null)}
+        result={orchestrator.autoDeepenResult}
+        onDismiss={() => orchestrator.setAutoDeepenResult(null)}
       />
     </div>
   );

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { duration } from '@/lib/motion';
 import { TrendingUp, TrendingDown, Minus, Target, Trophy, AlertTriangle, Users, LucideIcon } from 'lucide-react';
 
 export interface PerformanceItem {
@@ -69,7 +70,7 @@ function PerformanceRow({ item, index }: { item: PerformanceItem; index: number 
     <motion.div
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.04, duration: 0.3 }}
+      transition={{ delay: index * 0.04, duration: duration.deliberate }}
       whileHover={{ scale: 1.01, x: 4 }}
       className="relative flex items-center gap-4 p-4 rounded-xl bg-gray-900/60 border border-gray-700/30 hover:border-gray-600/50 transition-all cursor-default group"
     >

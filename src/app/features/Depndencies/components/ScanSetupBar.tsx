@@ -6,6 +6,7 @@ import { Play, Network, Check, AlertCircle } from 'lucide-react';
 import { GradientButton } from '@/components/ui';
 import { Project } from '@/types';
 import { useScanContext } from '../lib/ScanContext';
+import { transition } from '@/lib/motion';
 
 interface ScanSetupBarProps {
   projects: Project[];
@@ -117,7 +118,7 @@ export default function ScanSetupBar({ projects }: ScanSetupBarProps) {
                 animate={{
                   width: `${(scanProgress.current / scanProgress.total) * 100}%`
                 }}
-                transition={{ duration: 0.3 }}
+                transition={transition.deliberate}
                 className={`h-full rounded-full ${
                   scanStatus === 'completed'
                     ? 'bg-green-500'

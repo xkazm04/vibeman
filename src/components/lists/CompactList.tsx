@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trash2, LucideIcon } from 'lucide-react';
+import { duration, easing } from '@/lib/motion';
 
 export interface CompactListItem {
   id: string;
@@ -75,7 +76,7 @@ export default function CompactList({
       className="flex flex-col bg-gray-900/40 border border-gray-700/40 rounded-lg overflow-hidden transition-all duration-200 hover:border-gray-600/60 hover:bg-gray-900/50 hover:shadow-lg hover:shadow-black/20"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -2, transition: { duration: 0.2, ease: 'easeOut' } }}
+      whileHover={{ y: -2, transition: { duration: duration.normal, ease: easing.entrance } }}
       layout
     >
       {/* Header */}
@@ -129,7 +130,7 @@ export default function CompactList({
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20, scale: 0.9 }}
-                whileHover={{ x: 3, transition: { duration: 0.15, ease: 'easeOut' } }}
+                whileHover={{ x: 3, transition: { duration: duration.snappy, ease: easing.entrance } }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => onItemClick?.(item)}
               >

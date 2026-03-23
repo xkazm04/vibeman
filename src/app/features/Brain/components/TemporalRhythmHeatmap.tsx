@@ -11,6 +11,7 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { duration, easing, transition } from '@/lib/motion';
 import { Clock, Sun, Moon, Sunrise, Sunset, TrendingUp, X } from 'lucide-react';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useTemporal } from '../lib/queries';
@@ -279,7 +280,7 @@ export default function TemporalRhythmHeatmap({ scope = 'project' }: TemporalRhy
                         className="cursor-pointer"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ duration: 0.15, delay: (d * 24 + h) * 0.001 }}
+                        transition={{ ...transition.snappy, delay: (d * 24 + h) * 0.001 }}
                         onClick={() => {
                           if (cell) setSelectedCell(cell);
                           else setSelectedCell({ hour: h, dayOfWeek: d, totalCount: 0, totalWeight: 0, byType: {} });
@@ -399,7 +400,7 @@ function CellDrillDown({ cell, onClose }: { cell: TemporalCell; onClose: () => v
                       className="h-full rounded-full bg-cyan-500/70"
                       initial={{ width: 0 }}
                       animate={{ width: `${barWidth}%` }}
-                      transition={{ duration: 0.4, ease: 'easeOut' }}
+                      transition={{ duration: duration.expand, ease: easing.entrance }}
                     />
                   </div>
                 </div>
@@ -469,7 +470,7 @@ function RhythmInsights({
                 className={`h-full ${segmentColors[seg]}`}
                 initial={{ width: 0 }}
                 animate={{ width: `${pct}%` }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
+                transition={transition.slow}
                 title={`${TIME_SEGMENTS[seg].label}: ${segmentTotals[seg]} signals (${pct.toFixed(0)}%)`}
               />
             );

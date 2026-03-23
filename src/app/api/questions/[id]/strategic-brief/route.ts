@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { questionDb } from '@/app/db';
 import { logger } from '@/lib/logger';
+import { questionTreeService } from '@/lib/questions/questionTreeService';
 
 export async function POST(
   request: NextRequest,
@@ -26,7 +27,7 @@ export async function POST(
     }
 
     // Get the full ancestry chain
-    const chain = questionDb.getAncestryChain(questionId);
+    const chain = questionTreeService.getAncestryChain(questionId);
     const answeredChain = chain.filter(q => q.status === 'answered' && q.answer);
 
     if (answeredChain.length < 3) {
@@ -68,7 +69,7 @@ export async function POST(
 
     // Save the brief on the root question of the chain
     const rootQuestion = chain[0];
-    questionDb.saveStrategicBrief(rootQuestion.id, brief);
+    questionTreeService.saveStrategicBrief(rootQuestion.id, brief);
 
     logger.info('[API] Strategic brief generated:', {
       rootQuestionId: rootQuestion.id,

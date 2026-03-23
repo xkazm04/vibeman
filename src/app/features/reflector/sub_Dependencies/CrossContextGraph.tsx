@@ -33,6 +33,7 @@ import type {
   CascadeImpact,
   EdgeType,
 } from '@/lib/ideas/crossContextGraph';
+import { cssTransition } from '@/lib/motion';
 
 // ─── Constants ───
 
@@ -400,7 +401,7 @@ export default function CrossContextGraph({
               style={{
                 cursor: 'pointer',
                 opacity: nodeOpacity,
-                transition: 'opacity 0.4s ease',
+                transition: cssTransition('opacity', 'expand', 'morph'),
               }}
               onMouseEnter={() => setHoveredNode(node.id)}
               onMouseLeave={() => setHoveredNode(null)}

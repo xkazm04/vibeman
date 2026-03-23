@@ -1,5 +1,6 @@
 /**
- * API Route: Cross-Context Dependency Graph
+ * @route /api/ideas/cross-context-graph
+ * GET - Full dependency graph with nodes, edges, and stats (CrossContextDashboard)
  *
  * GET /api/ideas/cross-context-graph?projectId=xxx
  *   Returns the full dependency graph with nodes, edges, and stats

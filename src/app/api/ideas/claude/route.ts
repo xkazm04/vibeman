@@ -1,7 +1,7 @@
 /**
- * API Route: Claude Ideas Generation
+ * @route /api/ideas/claude
+ * POST - Create Claude Code requirement files for idea generation (ideaExecutor, conductor pipeline)
  *
- * POST /api/ideas/claude
  * Creates Claude Code requirement files for idea generation
  * Uses the standard prompt builder system for consistent prompts
  */

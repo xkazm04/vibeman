@@ -1,3 +1,7 @@
+/**
+ * @route /api/ideas/effort-impact
+ * GET - Effort/impact matrix data (EffortImpactMatrix)
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb } from '@/app/db';
 

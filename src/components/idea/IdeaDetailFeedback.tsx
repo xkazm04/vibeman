@@ -1,5 +1,6 @@
 'use client';
 import { motion } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { Star } from 'lucide-react';
 
 interface IdeaDetailFeedbackProps {
@@ -52,7 +53,7 @@ export default function IdeaDetailFeedback({
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ duration: 0.2 }}
+                transition={transition.normal}
               >
                 <Star className="w-2.5 h-2.5 text-white m-auto" />
               </motion.div>

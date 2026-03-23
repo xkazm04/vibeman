@@ -10,6 +10,7 @@
 
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { duration, transition } from '@/lib/motion';
 
 import { SystemMapProps, ModuleLayer, LAYER_CONFIG } from './types';
 import { contextGroupsToModules, calculateAllPositions } from './helpers';
@@ -177,7 +178,7 @@ export default function SystemMap({
       }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
+      transition={transition.slow}
     >
       {/* Grid lines for structure */}
       <div className="absolute inset-0 pointer-events-none">
@@ -191,7 +192,7 @@ export default function SystemMap({
             }}
             initial={{ opacity: 0, scaleX: 0 }}
             animate={{ opacity: 1, scaleX: 1 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
+            transition={{ delay: 0.2, duration: duration.slow }}
           />
         ))}
       </div>

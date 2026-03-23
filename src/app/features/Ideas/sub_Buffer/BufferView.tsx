@@ -19,6 +19,7 @@ import {
 import EmptyState from '@/components/ui/EmptyState';
 import IdeasLoadingState from '@/app/features/Ideas/components/IdeasLoadingState';
 import { getCategoryConfig } from '@/app/features/Ideas/lib/ideaConfig';
+import { duration, easing } from '@/lib/motion';
 
 /** Find the dominant category color for a set of ideas */
 function getDominantCategoryColor(ideas: DbIdea[]): string | undefined {
@@ -298,7 +299,7 @@ export default function BufferView({
           key={projectId}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: duration.slow, ease: easing.entrance }}
           data-testid={`buffer-project-${projectId}`}
         >
           {/* Project Header */}

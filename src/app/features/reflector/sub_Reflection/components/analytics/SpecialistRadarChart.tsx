@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { duration as motionDuration, easing } from '@/lib/motion';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   Radar, Tooltip, ResponsiveContainer,
@@ -173,7 +174,7 @@ function MiniPerformanceBar({
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${Math.min(pct, 100)}%` }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
+          transition={{ duration: motionDuration.slow, ease: easing.entrance }}
           className={`h-full rounded-full ${pct >= avgPct ? 'bg-cyan-500' : 'bg-orange-400'}`}
         />
       </div>
@@ -201,7 +202,7 @@ function SpecialistDetailPanel({
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: 'auto' }}
       exit={{ opacity: 0, height: 0 }}
-      transition={{ duration: 0.25 }}
+      transition={{ duration: motionDuration.normal }}
       className="overflow-hidden"
     >
       <div className="border-t border-gray-700/30 p-3 mt-1 space-y-3">
@@ -303,7 +304,7 @@ function ComparisonPanel({
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: 'auto' }}
       exit={{ opacity: 0, height: 0 }}
-      transition={{ duration: 0.25 }}
+      transition={{ duration: motionDuration.normal }}
       className="overflow-hidden"
     >
       <div className="border-t border-gray-700/30 p-3 mt-1">

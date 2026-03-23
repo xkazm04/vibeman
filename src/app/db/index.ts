@@ -106,6 +106,7 @@ export * from './models/cross-project-architecture.types';
 export * from './models/cross-task.types';
 export * from './models/group-health.types';
 export * from './models/collective-memory.types';
+export { queryIdeas } from './repositories/ideaQueryBuilder';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };

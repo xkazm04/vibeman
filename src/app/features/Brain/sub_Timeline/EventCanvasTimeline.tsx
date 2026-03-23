@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import * as d3 from 'd3';
 import { Maximize2, Clock } from 'lucide-react';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
@@ -16,6 +16,7 @@ import { executeTimelineRenderPipeline, TIMELINE_MARGIN } from './timelineRender
 import BrainStatusBar from '../components/BrainStatusBar';
 import { SIGNAL_METADATA } from '@/types/signals';
 import { TIMELINE_WINDOW_DAYS, MAX_CANVAS_SIGNALS } from '@/lib/brain/config';
+import { useTimelineSignals } from '../lib/queries';
 
 // ─── Local Types ────────────────────────────────────────────────────────────
 
@@ -52,6 +53,15 @@ export default function EventCanvasTimeline() {
   const frameCounterRef = useRef(0);
 
   const activeProject = useClientProjectStore(s => s.activeProject);
+
+  const since = useMemo(
+    () => new Date(Date.now() - TIMELINE_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString(),
+    // Recompute only when project changes (not every render)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeProject?.id],
+  );
+  const { data: signalsData } = useTimelineSignals(activeProject?.id, since, MAX_CANVAS_SIGNALS);
+
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [isEmpty, setIsEmpty] = useState(false);
@@ -257,146 +267,124 @@ export default function EventCanvasTimeline() {
     (sel as any).transition().duration(600).call(d3.zoom<HTMLCanvasElement, unknown>().transform, d3.zoomIdentity);
   }, []);
 
+  // Map fetched signals to BrainEvents when data changes
+  useEffect(() => {
+    if (signalsData?.success && signalsData.signals?.length > 0) {
+      const events = mapSignalsToEvents(signalsData.signals, MAX_CANVAS_SIGNALS);
+      eventsRef.current = events;
+      setIsEmpty(false);
+
+      const hasRecent = events.some(e => (Date.now() - e.timestamp) / 3600000 < RECENCY_GLOW_HOURS);
+      if (hasRecent) startPulseAnimation();
+      else stopPulseAnimation();
+    } else if (signalsData) {
+      eventsRef.current = [];
+      setIsEmpty(true);
+      stopPulseAnimation();
+    }
+
+    // Re-position and render with current dimensions
+    const { width, height } = dimRef.current;
+    if (width > 0 && height > 0) {
+      positionEvents(eventsRef.current, width, height);
+      requestRender();
+    }
+  }, [signalsData, positionEvents, requestRender, startPulseAnimation, stopPulseAnimation]);
+
+  // Canvas setup: zoom, resize, mouse — runs once per mount / project change
   useEffect(() => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
     if (!container || !canvas) return;
 
-    const abortController = new AbortController();
+    const resize = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (w === 0 || h === 0) return;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
+      dimRef.current = { width: w, height: h };
+      positionEvents(eventsRef.current, w, h);
+      requestRender();
+    };
 
-    const loadEvents = async () => {
-      let events: BrainEvent[] = [];
+    resize();
 
-      if (activeProject?.id) {
-        try {
-          const since = new Date(Date.now() - TIMELINE_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
-          const params = new URLSearchParams({
-            projectId: activeProject.id,
-            limit: String(MAX_CANVAS_SIGNALS),
-            since,
-          });
-          const res = await fetch(`/api/brain/signals?${params.toString()}`, {
-            signal: abortController.signal,
-          });
-          const data = await res.json();
+    const zoomBehavior = d3.zoom<HTMLCanvasElement, unknown>()
+      .scaleExtent([0.4, 15])
+      .on('zoom', (event) => {
+        const prevK = prevZoomRef.current;
+        const newK = event.transform.k;
+        transformRef.current = event.transform;
+        prevZoomRef.current = newK;
+        setZoomLevel(newK);
 
-          if (data.success && data.signals?.length > 0) {
-            events = mapSignalsToEvents(data.signals, MAX_CANVAS_SIGNALS);
-            setIsEmpty(false);
+        // Detect crossing 3x threshold upward → trigger card entry animation
+        if (prevK < 3 && newK >= 3) {
+          cardEntryTimeRef.current = Date.now();
+          if (!hasZoomedInRef.current) {
+            hasZoomedInRef.current = true;
+            setHasZoomedIn(true);
           }
-        } catch (err) {
-          if (err instanceof Error && err.name === 'AbortError') return;
-          // API error - fall back to empty
         }
-      }
 
-      if (events.length === 0) {
-        setIsEmpty(true);
-      }
-
-      if (abortController.signal.aborted) return;
-      eventsRef.current = events;
-
-      // Start pulse animation if recent events exist
-      const hasRecent = events.some(e => (Date.now() - e.timestamp) / 3600000 < RECENCY_GLOW_HOURS);
-      if (hasRecent) {
-        startPulseAnimation();
-      }
-
-      const resize = () => {
-        const dpr = window.devicePixelRatio || 1;
-        const w = container.clientWidth;
-        const h = container.clientHeight;
-        if (w === 0 || h === 0) return;
-        canvas.width = w * dpr;
-        canvas.height = h * dpr;
-        canvas.style.width = `${w}px`;
-        canvas.style.height = `${h}px`;
-        dimRef.current = { width: w, height: h };
-        positionEvents(eventsRef.current, w, h);
         requestRender();
-      };
+      });
 
-      resize();
+    const sel = d3.select(canvas);
+    (sel as any).call(zoomBehavior);
 
-      const zoomBehavior = d3.zoom<HTMLCanvasElement, unknown>()
-        .scaleExtent([0.4, 15])
-        .on('zoom', (event) => {
-          const prevK = prevZoomRef.current;
-          const newK = event.transform.k;
-          transformRef.current = event.transform;
-          prevZoomRef.current = newK;
-          setZoomLevel(newK);
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const t = transformRef.current;
+      const dataX = (mx - t.x) / t.k;
+      const dataY = (my - t.y) / t.k;
 
-          // Detect crossing 3x threshold upward → trigger card entry animation
-          if (prevK < 3 && newK >= 3) {
-            cardEntryTimeRef.current = Date.now();
-            if (!hasZoomedInRef.current) {
-              hasZoomedInRef.current = true;
-              setHasZoomedIn(true);
-            }
-          }
+      let closest: BrainEvent | null = null;
+      let closestDist = Infinity;
+      const vis = visibleTypesRef.current;
+      eventsRef.current.forEach(evt => {
+        if (!vis.has(evt.type)) return;
+        const dx = evt.x - dataX;
+        const dy = evt.y - dataY;
+        const dist = dx * dx + dy * dy;
+        if (dist < closestDist) { closestDist = dist; closest = evt; }
+      });
 
-          requestRender();
-        });
-
-      const sel = d3.select(canvas);
-      (sel as any).call(zoomBehavior);
-
-      const handleMouseMove = (e: MouseEvent) => {
-        const rect = canvas.getBoundingClientRect();
-        const mx = e.clientX - rect.left;
-        const my = e.clientY - rect.top;
-        const t = transformRef.current;
-        const dataX = (mx - t.x) / t.k;
-        const dataY = (my - t.y) / t.k;
-
-        let closest: BrainEvent | null = null;
-        let closestDist = Infinity;
-        const vis = visibleTypesRef.current;
-        eventsRef.current.forEach(evt => {
-          if (!vis.has(evt.type)) return;
-          const dx = evt.x - dataX;
-          const dy = evt.y - dataY;
-          const dist = dx * dx + dy * dy;
-          if (dist < closestDist) { closestDist = dist; closest = evt; }
-        });
-
-        const threshold = (20 / t.k) ** 2;
-        if (closest && closestDist < threshold) {
-          setTooltip({ event: closest, screenX: e.clientX - rect.left, screenY: e.clientY - rect.top });
-        } else {
-          setTooltip(null);
-        }
-      };
-
-      canvas.addEventListener('mousemove', handleMouseMove);
-      canvas.addEventListener('mouseleave', () => setTooltip(null));
-
-      const resizeObs = new ResizeObserver(resize);
-      resizeObs.observe(container);
-
-      return () => {
-        resizeObs.disconnect();
-        canvas.removeEventListener('mousemove', handleMouseMove);
-      };
+      const threshold = (20 / t.k) ** 2;
+      if (closest && closestDist < threshold) {
+        setTooltip({ event: closest, screenX: e.clientX - rect.left, screenY: e.clientY - rect.top });
+      } else {
+        setTooltip(null);
+      }
     };
 
-    const cleanup = loadEvents();
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseleave', () => setTooltip(null));
+
+    const resizeObs = new ResizeObserver(resize);
+    resizeObs.observe(container);
+
     return () => {
-      abortController.abort();
+      resizeObs.disconnect();
+      canvas.removeEventListener('mousemove', handleMouseMove);
       stopPulseAnimation();
-      cleanup.then(fn => fn?.());
     };
-  }, [activeProject?.id, positionEvents, requestRender, startPulseAnimation, stopPulseAnimation]);
+  }, [activeProject?.id, positionEvents, requestRender, stopPulseAnimation]);
 
   return (
     <div className="flex flex-col h-full w-full bg-zinc-900 overflow-hidden">
       <div ref={containerRef} className="relative flex-1" style={{ minHeight: 300 }}>
         <canvas ref={canvasRef} className="absolute inset-0 cursor-grab active:cursor-grabbing" />
 
+        {/* Accessible empty state overlay — canvas empty state is invisible to screen readers */}
         {isEmpty && (
-          <div className="absolute inset-0 flex items-center justify-center z-10">
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-zinc-900/80">
             <BrainEmptyState
               icon={<Clock className="w-10 h-10 text-zinc-600" />}
               title="No timeline data"

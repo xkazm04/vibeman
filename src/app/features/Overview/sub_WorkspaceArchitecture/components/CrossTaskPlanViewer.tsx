@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import {
   X,
   Loader2,
@@ -149,7 +150,7 @@ export default function CrossTaskPlanViewer({
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ duration: 0.2 }}
+        transition={transition.normal}
         className="w-[92vw] max-w-6xl h-[90vh] bg-zinc-900 border border-zinc-700/50 rounded-xl shadow-2xl flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
@@ -336,7 +337,7 @@ export default function CrossTaskPlanViewer({
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 10 }}
-                    transition={{ duration: 0.15 }}
+                    transition={transition.snappy}
                   >
                     {plan.current_flow_analysis ? (
                       <MarkdownViewer content={plan.current_flow_analysis} />
@@ -353,7 +354,7 @@ export default function CrossTaskPlanViewer({
                     initial={{ opacity: 0, x: 10 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.15 }}
+                    transition={transition.snappy}
                   >
                     {selectedOption ? (
                       getOptionContent(selectedOption) ? (

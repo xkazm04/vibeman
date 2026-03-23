@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { AlertTriangle, X } from 'lucide-react';
 
 interface ErrorOverlayProps {
@@ -30,7 +31,7 @@ export function ErrorOverlay({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
+        transition={transition.normal}
         className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
         onClick={onDismiss}
         data-testid={`${testId}-backdrop`}

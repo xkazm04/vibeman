@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { duration, transition } from '@/lib/motion';
 import { LucideIcon, Inbox } from 'lucide-react';
 
 interface TableEmptyStateProps {
@@ -27,7 +28,7 @@ export function TableEmptyState({
       className="flex flex-col items-center justify-center py-16 text-gray-400"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: duration.expand }}
     >
       {/* Floating icons */}
       <motion.div
@@ -40,7 +41,7 @@ export function TableEmptyState({
             key={idx}
             initial={{ opacity: 0, scale: 0.5 }}
             animate={{ opacity: 0.5, scale: 1 }}
-            transition={{ delay: idx * 0.1, duration: 0.3 }}
+            transition={{ ...transition.deliberate, delay: idx * 0.1 }}
           >
             <Icon className="w-10 h-10" />
           </motion.div>
@@ -52,7 +53,7 @@ export function TableEmptyState({
         className="text-lg font-medium"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2, duration: 0.3 }}
+        transition={{ ...transition.deliberate, delay: 0.2 }}
       >
         {title}
       </motion.p>
@@ -63,7 +64,7 @@ export function TableEmptyState({
           className="text-sm text-gray-500 mt-2"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.3 }}
+          transition={{ ...transition.deliberate, delay: 0.3 }}
         >
           {description}
         </motion.p>

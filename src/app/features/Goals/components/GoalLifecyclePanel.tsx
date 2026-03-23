@@ -8,6 +8,7 @@ import {
   ListChecks, Sparkles, TrendingUp,
 } from 'lucide-react';
 import GlassCard from '@/components/cards/GlassCard';
+import { duration, easing } from '@/lib/motion';
 
 export interface GoalSignal {
   id: string;
@@ -211,7 +212,7 @@ export default function GoalLifecyclePanel({ data, projectId, onRefresh }: GoalL
             className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400"
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.8, ease: 'easeOut' }}
+            transition={{ duration: duration.dramatic, ease: easing.entrance }}
           />
           {progress >= 90 && (
             <motion.div

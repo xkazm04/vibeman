@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { Target, Box } from 'lucide-react';
 import { DbIdea, DbGoal } from '@/app/db';
 import ContextMenu from '@/components/ContextMenu';
@@ -179,7 +180,7 @@ export default function IdeaDetailMeta({ idea, onUpdate }: IdeaDetailMetaProps) 
               : '0 0 8px rgba(107, 114, 128, 0.3)'
           }}
           whileTap={{ scale: 0.98 }}
-          transition={{ duration: 0.2 }}
+          transition={transition.normal}
         >
           <Target className={`w-3 h-3 ${goalTitle ? 'text-purple-400' : 'text-gray-500'}`} />
           <span className={goalTitle ? 'text-purple-300 font-medium' : 'text-gray-500 italic'}>
@@ -210,7 +211,7 @@ export default function IdeaDetailMeta({ idea, onUpdate }: IdeaDetailMetaProps) 
               : '0 0 8px rgba(107, 114, 128, 0.3)'
           }}
           whileTap={{ scale: 0.98 }}
-          transition={{ duration: 0.2 }}
+          transition={transition.normal}
         >
           <Box className={`w-3 h-3 ${contextName ? 'text-blue-400' : 'text-gray-500'}`} />
           <span className={contextName ? 'text-blue-300 font-medium' : 'text-gray-500 italic'}>

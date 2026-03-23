@@ -17,7 +17,7 @@ import { hasOverlap } from '../execution/domainScheduler';
 import { commitPerTask } from '../review/gitCommitter';
 import { routeModel } from '../balancingEngine';
 import type { CLIProvider, CLIProviderConfig } from '@/lib/claude-terminal/types';
-import type { V3Task, V3TaskResult, V3Config, V3Phase, V3Metrics } from './types';
+import type { V3Task, V3TaskResult, V3Config, V3Phase, V3Metrics, WorkspaceContext } from './types';
 import { v3ConfigToBalancing } from './types';
 import { getTaskKnowledge, resolveTaskApplications } from '@/lib/collective-memory/taskCompletionHook';
 import {
@@ -42,6 +42,7 @@ export interface DispatchPhaseInput {
   goalContext: { title: string; description: string };
   healingContext: string;
   autoCommit: boolean;
+  workspaceContext?: WorkspaceContext | null;
   abortSignal?: AbortSignal;
   onTaskUpdate?: (tasks: V3Task[]) => void;
   onLog?: (phase: V3Phase, event: string, message: string) => void;
@@ -58,7 +59,7 @@ export async function executeDispatchPhase(input: DispatchPhaseInput): Promise<{
 }> {
   const {
     runId, projectId, projectPath, projectName, tasks, config,
-    goalContext, healingContext, autoCommit, abortSignal, onTaskUpdate, onLog,
+    goalContext, healingContext, autoCommit, workspaceContext, abortSignal, onTaskUpdate, onLog,
     metrics,
   } = input;
 
@@ -150,6 +151,7 @@ export async function executeDispatchPhase(input: DispatchPhaseInput): Promise<{
             goalContext, healingContext, errorContext,
             config: balancingConfig, v3Config: config,
             autoCommit: worktreeMode ? false : autoCommit, // Don't auto-commit in worktree — merge handles it
+            workspaceContext,
             abortSignal,
           })
             .then(result => ({ taskId: task.id, result }))
@@ -314,6 +316,7 @@ interface DispatchContext {
   config: import('../types').BalancingConfig;
   v3Config: V3Config;
   autoCommit: boolean;
+  workspaceContext?: WorkspaceContext | null;
   abortSignal?: AbortSignal;
 }
 
@@ -478,6 +481,12 @@ function composeTaskPrompt(task: V3Task, ctx: DispatchContext): string {
 
   const kbSection = getKBContextForTask(task, ctx);
 
+  let workspaceSection = '';
+  if (ctx.workspaceContext) {
+    const { formatWorkspaceContextForPrompt } = require('./brainAdvisor');
+    workspaceSection = formatWorkspaceContextForPrompt(ctx.workspaceContext);
+  }
+
   return `You are an expert software engineer. Execute the following task precisely.
 
 ## Goal Context
@@ -491,7 +500,7 @@ ${ctx.goalContext.description}
 ${task.description}
 ${targetFilesSection}
 ${healingSection}
-${kbSection ? `\n${kbSection}\n` : ''}
+${kbSection ? `\n${kbSection}\n` : ''}${workspaceSection ? `\n${workspaceSection}\n` : ''}
 ## Instructions
 
 1. Read and understand the relevant source files before making changes

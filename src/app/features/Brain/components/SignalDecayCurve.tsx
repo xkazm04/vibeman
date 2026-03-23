@@ -2,6 +2,7 @@
 
 import { useCallback, useId, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
+import { duration, easing, transition } from '@/lib/motion';
 import ChartTooltip from './ChartTooltip';
 import { BRAIN_CHART } from '../lib/brainChartColors';
 
@@ -133,7 +134,7 @@ export default function SignalDecayCurve({ decayFactor, retentionDays, actualSig
             rx={2}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.6, ease: 'easeOut' }}
+            transition={{ duration: duration.expand, delay: 0.6, ease: easing.entrance }}
           />
         )}
 
@@ -154,7 +155,7 @@ export default function SignalDecayCurve({ decayFactor, retentionDays, actualSig
                 rx={2}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.4, delay: 0.8 + i * 0.1 }}
+                transition={{ ...transition.expand, delay: 0.8 + i * 0.1 }}
               />
               <line
                 x1={x1} y1={PADDING.top}
@@ -200,7 +201,7 @@ export default function SignalDecayCurve({ decayFactor, retentionDays, actualSig
           strokeLinecap="round"
           initial={{ pathLength: 0 }}
           animate={{ pathLength: 1 }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
+          transition={transition.dramatic}
         />
 
         {/* Gradient for curve */}
@@ -230,7 +231,7 @@ export default function SignalDecayCurve({ decayFactor, retentionDays, actualSig
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.7 }}
               whileHover={{ opacity: 1, scale: 1.6 }}
-              transition={{ duration: 0.3, delay: 0.4 + i * 0.05, ease: 'easeOut' }}
+              transition={{ ...transition.deliberate, delay: 0.4 + i * 0.05 }}
               onMouseEnter={(e) => handleDotHover(e, signal)}
               onFocus={(e) => handleDotHover(e, signal)}
               onMouseLeave={handleDotLeave}

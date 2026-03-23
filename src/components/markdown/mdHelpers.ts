@@ -1,4 +1,5 @@
 import { Variants } from 'framer-motion';
+import { duration, easing } from '@/lib/motion';
 
 // Animation variants for premium micro-interactions
 export const fadeInUp: Variants = {
@@ -12,15 +13,15 @@ export const fadeInUp: Variants = {
     y: 0,
     filter: 'blur(0px)',
     transition: {
-      duration: 0.4,
-      ease: [0.25, 0.46, 0.45, 0.94]
+      duration: duration.expand,
+      ease: easing.entrance,
     }
   },
   exit: {
     opacity: 0,
     y: -10,
     filter: 'blur(2px)',
-    transition: { duration: 0.2 }
+    transition: { duration: duration.normal }
   }
 };
 
@@ -38,13 +39,13 @@ export const scaleOnHover: Variants = {
   hover: {
     scale: 1.02,
     transition: {
-      duration: 0.2,
-      ease: 'easeOut'
+      duration: duration.normal,
+      ease: easing.entrance,
     }
   },
   tap: {
     scale: 0.98,
-    transition: { duration: 0.1 }
+    transition: { duration: duration.snappy }
   }
 };
 

@@ -1,4 +1,5 @@
 export { eventBus } from './eventBus';
+export { registerDomainSubscribers } from './domainSubscribers';
 export type {
   BusEvent,
   EventKind,
@@ -10,6 +11,11 @@ export type {
   AgentEvent,
   ConductorEvent,
   ReflectionCompletedEvent,
+  BrainDirectionChangedEvent,
+  QuestionAnsweredEvent,
+  QuestionAutoDeepenedEvent,
+  ImplementationLoggedEvent,
+  TaskExecutionCompletedEvent,
   NotificationEvent,
   ProjectEvent,
   SystemEvent,

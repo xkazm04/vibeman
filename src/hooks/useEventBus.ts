@@ -94,6 +94,8 @@ export function useEventBus({
       'reflection:progress',
       'reflection:completed',
       'reflection:failed',
+      'question:answered',
+      'question:auto_deepened',
       'notification:push',
       'project:update',
       'system:heartbeat',

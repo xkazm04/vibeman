@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { duration, easing } from '@/lib/motion';
 import type { ExecutiveAIInsight } from '@/app/db/models/reflector.types';
 import type { ExecutiveInsight } from '../../lib/RuleBasedInsightTypes';
 
@@ -181,7 +182,7 @@ function ComparisonPanel({
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: 'auto' }}
       exit={{ opacity: 0, height: 0 }}
-      transition={{ duration: 0.3, ease: 'easeInOut' }}
+      transition={{ duration: duration.deliberate, ease: easing.morph }}
       className="mt-3 bg-gray-900/80 border border-gray-700/50 rounded-lg p-3 overflow-hidden"
     >
       {/* Header */}
@@ -257,7 +258,7 @@ function ComparisonPanel({
               <motion.rect
                 initial={{ height: 0, y: barChartHeight }}
                 animate={{ height: hA, y: barChartHeight - hA }}
-                transition={{ duration: 0.4, delay: i * 0.04 }}
+                transition={{ duration: duration.expand, delay: i * 0.04 }}
                 x={x + 4}
                 width={12}
                 rx={2}
@@ -267,7 +268,7 @@ function ComparisonPanel({
               <motion.rect
                 initial={{ height: 0, y: barChartHeight }}
                 animate={{ height: hB, y: barChartHeight - hB }}
-                transition={{ duration: 0.4, delay: i * 0.04 + 0.05 }}
+                transition={{ duration: duration.expand, delay: i * 0.04 + 0.05 }}
                 x={x + 18}
                 width={12}
                 rx={2}
@@ -791,7 +792,7 @@ export default function TemporalHeatmap({
               strokeLinejoin="round"
               initial={{ pathLength: 0, opacity: 0 }}
               animate={{ pathLength: 1, opacity: 1 }}
-              transition={{ duration: 1.2, ease: 'easeOut' }}
+              transition={{ duration: duration.sweep, ease: easing.entrance }}
             />
           )}
 
@@ -806,7 +807,7 @@ export default function TemporalHeatmap({
               strokeWidth={1.5}
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              transition={{ delay: 1.2, duration: 0.3 }}
+              transition={{ delay: 1.2, duration: duration.deliberate }}
             />
           )}
         </svg>
@@ -839,7 +840,7 @@ export default function TemporalHeatmap({
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.15 }}
+            transition={{ duration: duration.snappy }}
             className="absolute top-0 right-0 bg-gray-900/95 backdrop-blur-xl border border-gray-700/60 rounded-lg px-3 py-2 text-2xs pointer-events-none shadow-lg shadow-black/30"
           >
             <p className="text-gray-300 font-medium">{hoveredInfo.date}</p>

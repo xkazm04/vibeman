@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Project, ProjectDependency, LibraryRow, getLatestVersion, getVersionColor, getCellBackground, isPackageOutdated } from '../lib';
 import { upgradePackagesWithProgress, PackageUpgrade } from '../lib/directUpgrade';
 import LicenseComplianceBadge from '@/components/LicenseComplianceBadge';
+import { transition } from '@/lib/motion';
 
 interface DependencyColumnViewProps {
   projects: Project[];
@@ -264,7 +265,7 @@ export default function DependencyColumnView({
                     className="h-full bg-cyan-500"
                     initial={{ width: 0 }}
                     animate={{ width: `${upgradeProgress.percent}%` }}
-                    transition={{ duration: 0.3 }}
+                    transition={transition.deliberate}
                   />
                 </div>
               )}

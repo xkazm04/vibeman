@@ -1,12 +1,12 @@
 /**
  * Base Scan Strategy
  *
- * Abstract base class defining the common scan lifecycle:
- * 1. Prepare (validate config, setup)
- * 2. Gather files
- * 3. Analyze
- * 4. Normalize results
- * 5. Persist
+ * Abstract base class defining the common scan lifecycle via a middleware pipeline.
+ * Steps: Validate → Gather → Analyze → BuildResult → Persist
+ *
+ * Subclasses override buildPipeline() to compose only the steps they need
+ * (e.g. skip Gather for pre-loaded files, skip Persist for dry runs).
+ * Cross-cutting concerns (timing, logging) are added as middleware wrappers.
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -20,9 +20,21 @@ import type {
   ScanEventListener,
   ScanEvent,
   ScanRepository,
+  ScanContext,
+  ScanMiddleware,
 } from '../types';
 import { ScanError } from '../types';
 import { getDefaultFileGatherer } from '../fileGatherer';
+import { ScanPipeline } from '../ScanPipeline';
+import {
+  ValidateMiddleware,
+  GatherMiddleware,
+  AnalyzeMiddleware,
+  BuildResultMiddleware,
+  PersistMiddleware,
+  EventMiddleware,
+  TimingMiddleware,
+} from '../middleware';
 
 export abstract class BaseScanStrategy {
   protected fileGatherer: FileGatherer;
@@ -38,60 +50,28 @@ export abstract class BaseScanStrategy {
 
   /**
    * Main entry point for scanning.
-   * Orchestrates the full scan lifecycle.
+   * Builds and executes the middleware pipeline.
    */
   async scan(config: ScanConfig): Promise<ScanResult> {
     this.scanId = uuidv4();
     this.startTime = Date.now();
 
+    const ctx: ScanContext = {
+      config,
+      scanId: this.scanId,
+      startTime: this.startTime,
+      files: [],
+      findings: [],
+      emitEvent: (event: ScanEvent) => this.emitEvent(event),
+      repository: this.repository,
+      timings: {},
+      extras: {},
+    };
+
     try {
-      // 1. Validate configuration
-      this.validateConfig(config);
-
-      // 2. Emit start event
-      this.emitEvent({
-        type: 'scan_started',
-        scanId: this.scanId,
-        timestamp: Date.now(),
-      });
-
-      // 3. Gather files
-      const codebaseFiles = await this.gatherFiles(config);
-
-      // 4. Emit files gathered event
-      this.emitEvent({
-        type: 'files_gathered',
-        scanId: this.scanId,
-        timestamp: Date.now(),
-        progress: { current: 1, total: 3, message: `Gathered ${codebaseFiles.length} files` },
-      });
-
-      // 5. Run analysis (implemented by subclasses)
-      const findings = await this.analyze(config, codebaseFiles);
-
-      // 6. Build result
-      const result: ScanResult = {
-        success: true,
-        scanId: this.scanId,
-        category: config.scanCategory,
-        findings,
-        metadata: this.buildMetadata(config, codebaseFiles.length, findings.length),
-      };
-
-      // 7. Persist result
-      if (this.repository) {
-        await this.repository.save(result);
-      }
-
-      // 8. Emit completion event
-      this.emitEvent({
-        type: 'scan_completed',
-        scanId: this.scanId,
-        timestamp: Date.now(),
-        progress: { current: 3, total: 3, message: `Found ${findings.length} findings` },
-      });
-
-      return result;
+      const pipeline = this.buildPipeline();
+      await pipeline.execute(ctx);
+      return ctx.result!;
     } catch (error) {
       const scanError = error instanceof ScanError ? error : new ScanError(
         'scan_failed',
@@ -99,7 +79,6 @@ export abstract class BaseScanStrategy {
         { originalError: error }
       );
 
-      // Emit failure event
       this.emitEvent({
         type: 'scan_failed',
         scanId: this.scanId,
@@ -107,7 +86,6 @@ export abstract class BaseScanStrategy {
         data: { error: scanError.message },
       });
 
-      // Return failed result
       return {
         success: false,
         scanId: this.scanId,
@@ -124,30 +102,32 @@ export abstract class BaseScanStrategy {
   }
 
   /**
+   * Build the default middleware pipeline.
+   * Subclasses can override to add, remove, or reorder steps.
+   */
+  protected buildPipeline(): ScanPipeline {
+    return new ScanPipeline()
+      .use(new EventMiddleware())
+      .use(new ValidateMiddleware((ctx) => this.validateConfig(ctx.config)))
+      .use(TimingMiddleware.wrap(
+        new GatherMiddleware(this.fileGatherer, {
+          extensions: this.getDefaultFileExtensions(),
+          exclude: this.getExcludedPatterns(),
+          maxFileSize: 1024 * 1024,
+        })
+      ))
+      .use(TimingMiddleware.wrap(
+        new AnalyzeMiddleware((config, files) => this.analyze(config, files))
+      ))
+      .use(new BuildResultMiddleware())
+      .use(new PersistMiddleware());
+  }
+
+  /**
    * Validation hook (can be overridden by subclasses).
    */
   protected validateConfig(_config: ScanConfig): void {
     // Base implementation does minimal validation
-    // Subclasses can override for more specific checks
-  }
-
-  /**
-   * Gather files from the codebase.
-   */
-  protected async gatherFiles(config: ScanConfig): Promise<CodebaseFile[]> {
-    try {
-      return await this.fileGatherer.gather(config, {
-        extensions: this.getDefaultFileExtensions(),
-        exclude: this.getExcludedPatterns(),
-        maxFileSize: 1024 * 1024, // 1MB
-      });
-    } catch (error) {
-      throw new ScanError(
-        'file_gathering_failed',
-        `Failed to gather files: ${error instanceof Error ? error.message : String(error)}`,
-        { originalError: error }
-      );
-    }
   }
 
   /**
@@ -209,8 +189,6 @@ export abstract class BaseScanStrategy {
    */
   onEvent(listener: ScanEventListener): () => void {
     this.eventListeners.push(listener);
-
-    // Return unsubscribe function
     return () => {
       const idx = this.eventListeners.indexOf(listener);
       if (idx !== -1) {

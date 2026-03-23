@@ -116,6 +116,55 @@ export interface BrainDirectionChangedEvent extends BaseEvent {
   kind: 'brain:direction_changed';
   directionId: string;
   action: 'accepted' | 'rejected' | 'deleted' | 'reverted';
+  contextId?: string | null;
+  contextName?: string | null;
+  requirementId?: string | null;
+  /** Second direction ID when rejecting the other half of a pair */
+  pairedDirectionId?: string | null;
+  pairedAction?: 'accepted' | 'rejected';
+}
+
+// ── Question Events ─────────────────────────────────────────────────────────
+
+export interface QuestionAnsweredEvent extends BaseEvent {
+  kind: 'question:answered';
+  questionId: string;
+  answer: string;
+}
+
+export interface QuestionAutoDeepenedEvent extends BaseEvent {
+  kind: 'question:auto_deepened';
+  questionId: string;
+  deepened: boolean;
+  gapScore: number;
+  gapCount: number;
+  summary: string;
+  generatedCount: number;
+}
+
+// ── Domain Events (cross-cutting side effects) ──────────────────────────────
+
+export interface ImplementationLoggedEvent extends BaseEvent {
+  kind: 'domain:implementation_logged';
+  logId: string;
+  requirementName: string;
+  contextId: string | null;
+  provider?: string;
+  model?: string;
+}
+
+export interface TaskExecutionCompletedEvent extends BaseEvent {
+  kind: 'domain:task_execution_completed';
+  taskId: string;
+  requirementName: string;
+  projectPath: string;
+  contextId: string | null;
+  success: boolean;
+  durationMs?: number;
+  error?: string;
+  filesModified: string[];
+  provider?: string;
+  model?: string;
 }
 
 // ── Notification Events ──────────────────────────────────────────────────────
@@ -160,6 +209,10 @@ export type BusEvent =
   | BrainSignalDecayedEvent
   | BrainInsightPrunedEvent
   | BrainDirectionChangedEvent
+  | QuestionAnsweredEvent
+  | QuestionAutoDeepenedEvent
+  | ImplementationLoggedEvent
+  | TaskExecutionCompletedEvent
   | NotificationEvent
   | ProjectEvent
   | SystemEvent;
@@ -171,7 +224,7 @@ export type EventKind = BusEvent['kind'];
 export type EventByKind<K extends EventKind> = Extract<BusEvent, { kind: K }>;
 
 /** Wildcard pattern: match all events in a namespace (e.g., 'task:*') */
-export type EventNamespace = 'task' | 'agent' | 'conductor' | 'reflection' | 'brain' | 'notification' | 'project' | 'system';
+export type EventNamespace = 'task' | 'agent' | 'conductor' | 'reflection' | 'brain' | 'question' | 'domain' | 'notification' | 'project' | 'system';
 
 /** Subscriber callback */
 export type EventHandler<E extends BusEvent = BusEvent> = (event: E) => void;

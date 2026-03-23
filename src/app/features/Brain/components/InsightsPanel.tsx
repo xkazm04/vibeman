@@ -13,8 +13,7 @@ import { InsightsTable } from './InsightsTable';
 import type { InsightWithMeta, InsightType, SortField, SortDir } from './InsightsTable';
 import GlowCard from './GlowCard';
 import { useReflectionTrigger } from '@/hooks/useReflectionTrigger';
-import { subscribeToReflectionCompletion } from '@/stores/reflectionCompletionEmitter';
-import { brainKeys, useInvalidateBrain } from '../lib/queries';
+import { brainKeys, useInvalidateBrain, useReflectionRevalidation } from '../lib/queries';
 import { CACHE_PRESETS } from '@/lib/cache/cache-config';
 import { BRAIN_CHART } from '../lib/brainChartColors';
 
@@ -213,18 +212,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
   const isLoading = insightsQuery.isLoading;
 
   // Subscribe to reflection completion events for auto-refresh
-  useEffect(() => {
-    const unsubscribe = subscribeToReflectionCompletion((_reflectionId, projectId, completionScope) => {
-      // Refresh insights when a reflection completes for this project/scope
-      if (scope === 'global' && completionScope === 'global') {
-        invalidateInsights();
-      } else if (scope === 'project' && completionScope === 'project' && projectId === activeProject?.id) {
-        invalidateInsights();
-      }
-    });
-
-    return unsubscribe;
-  }, [scope, activeProject?.id, invalidateInsights]);
+  useReflectionRevalidation(scope, activeProject?.id, invalidateInsights);
 
   const handleDelete = async (insight: InsightWithMeta) => {
     try {

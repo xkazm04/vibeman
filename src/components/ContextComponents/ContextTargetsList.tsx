@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { Crosshair, ChevronDown, ChevronUp, Check, X, Target } from 'lucide-react';
 import { SimpleSpinner } from '@/components/ui';
 import { Context } from '@/lib/queries/contextQueries';
@@ -312,7 +313,7 @@ export default function ContextTargetsList({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={transition.normal}
             className="overflow-hidden"
           >
             <div

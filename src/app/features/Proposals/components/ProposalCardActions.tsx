@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Check, X, Loader2, Code } from 'lucide-react';
 import { useThemeStore } from '@/stores/themeStore';
 import { getFocusRingStyles } from '@/lib/ui/focusRing';
+import { transitions } from '@/lib/design-tokens';
 
 interface ProposalCardActionsProps {
   isMain?: boolean;
@@ -73,13 +74,13 @@ const ActionButton = React.memo(({
       disabled={disabled}
       onMouseEnter={handleHover}
       aria-label={ariaLabel}
-      className={`relative group p-4 bg-gradient-to-r ${classes.bg} rounded-lg border ${classes.border} transition-all duration-200 disabled:opacity-50 ${focusRingClasses}`}
+      className={`relative group p-4 bg-gradient-to-r ${classes.bg} rounded-lg border ${classes.border} ${transitions.normal} disabled:opacity-50 ${focusRingClasses}`}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
     >
       {/* Neural Glow Effect */}
       <motion.div
-        className="absolute -inset-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        className={`absolute -inset-1 rounded-lg opacity-0 group-hover:opacity-100 ${transitions.opacity}`}
         style={{
           background: `linear-gradient(45deg, ${classes.gradient}, transparent, ${classes.gradient})`,
           filter: 'blur(8px)',

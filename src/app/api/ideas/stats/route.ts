@@ -1,3 +1,7 @@
+/**
+ * @route /api/ideas/stats
+ * GET - Legacy stats endpoint (ideaQueries, statsApi fallback)
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/app/db/connection';
 import { ALL_SCAN_TYPES } from '@/app/features/Ideas/lib/scanTypes';

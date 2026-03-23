@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { FlowPair, Bottleneck, FlowAnalysisData } from '../lib/types';
+import { fetchFlowAnalysis as fetchFlowAnalysisApi } from '../lib/managerService';
 
 export type { FlowPair, Bottleneck, FlowAnalysisData };
 
@@ -24,17 +25,10 @@ export function useFlowAnalysis(projectId: string | null | undefined) {
     setError(null);
 
     try {
-      const response = await fetch(`/api/implementation-logs/flow-analysis?projectId=${projectId}`);
-      const result = await response.json();
-
-      if (result.success) {
-        setData(result.data);
-      } else {
-        setError(result.error || 'Failed to fetch flow analysis');
-      }
+      const result = await fetchFlowAnalysisApi(projectId);
+      setData(result);
     } catch (err) {
-      setError('Network error fetching flow analysis');
-      console.error('Flow analysis fetch error:', err);
+      setError(err instanceof Error ? err.message : 'Network error fetching flow analysis');
     } finally {
       setLoading(false);
     }

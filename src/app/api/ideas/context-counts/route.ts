@@ -1,7 +1,6 @@
 /**
- * GET /api/ideas/context-counts
- * Returns context_id values with counts and names for pending ideas
- * Used for the Tinder context filter sidebar
+ * @route /api/ideas/context-counts
+ * GET - Context IDs with counts for pending ideas (tinderItemsApi)
  */
 
 import { NextRequest, NextResponse } from 'next/server';

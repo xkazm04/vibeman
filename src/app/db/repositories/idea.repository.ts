@@ -1,8 +1,9 @@
 import { getDatabase } from '../connection';
-import { DbIdea, IdeaCategory } from '../models/types';
+import { DbIdea, DbIdeaWithColor, IdeaCategory } from '../models/types';
 import { getCurrentTimestamp, selectOne, validateScore } from './repository.utils';
 import { createGenericRepository } from './generic.repository';
 import { IdeaStateMachine } from '@/lib/ideas/ideaStateMachine';
+import { queryIdeas } from './ideaQueryBuilder';
 
 const base = createGenericRepository<DbIdea>({
   tableName: 'ideas',
@@ -10,227 +11,72 @@ const base = createGenericRepository<DbIdea>({
 
 /**
  * Idea Repository
- * Handles all database operations for LLM-generated ideas
+ * Handles all database operations for LLM-generated ideas.
+ *
+ * Read methods delegate to `queryIdeas()` — a composable query builder that
+ * eliminates duplicated SQL across filter/JOIN/pagination variants.
+ * Callers can also use `queryIdeas()` directly for ad-hoc compositions.
  */
 export const ideaRepository = {
-  /**
-   * Get all ideas across all projects
-   */
-  getAllIdeas: (): DbIdea[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM ideas
-      ORDER BY created_at DESC
-    `);
-    return stmt.all() as DbIdea[];
-  },
+  // ─── Query builder (public) ───────────────────────────────────────────
 
-  /**
-   * Get ideas by project
-   */
-  getIdeasByProject: (projectId: string): DbIdea[] => base.getByProject(projectId),
+  /** Composable query builder for ad-hoc idea queries */
+  query: queryIdeas,
 
-  /**
-   * Get ideas for a project within a date range (SQL-level filtering)
-   */
-  getIdeasByProjectInRange: (projectId: string, startDate: string, endDate: string): DbIdea[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM ideas
-      WHERE project_id = ? AND created_at >= ? AND created_at <= ?
-      ORDER BY created_at DESC
-    `);
-    return stmt.all(projectId, startDate, endDate) as DbIdea[];
-  },
+  // ─── Read helpers (backward-compatible facades) ───────────────────────
 
-  /**
-   * Get ideas by project and status with keyset cursor pagination.
-   * Pass after_id to page forward; returns nextCursor (last idea id) when more rows exist.
-   */
+  getAllIdeas: (): DbIdea[] =>
+    queryIdeas().execute(),
+
+  getIdeasByProject: (projectId: string): DbIdea[] =>
+    queryIdeas().project(projectId).execute(),
+
+  getIdeasByProjectInRange: (projectId: string, startDate: string, endDate: string): DbIdea[] =>
+    queryIdeas().project(projectId).dateRange(startDate, endDate).execute(),
+
   getIdeasByProjectAndStatus: (
     projectId: string,
     status: string,
     limit: number,
     after_id: string | null
-  ): { ideas: DbIdea[]; nextCursor: string | null } => {
-    const db = getDatabase();
+  ): { ideas: DbIdea[]; nextCursor: string | null } =>
+    queryIdeas().project(projectId).status(status).after(after_id).paginate(limit),
 
-    let ideas: DbIdea[];
-    if (after_id) {
-      const cursor = db.prepare('SELECT created_at FROM ideas WHERE id = ?').get(after_id) as { created_at: string } | undefined;
-      if (cursor) {
-        ideas = db.prepare(`
-          SELECT * FROM ideas
-          WHERE project_id = ? AND status = ?
-            AND (created_at < ? OR (created_at = ? AND id < ?))
-          ORDER BY created_at DESC, id DESC
-          LIMIT ?
-        `).all(projectId, status, cursor.created_at, cursor.created_at, after_id, limit) as DbIdea[];
-      } else {
-        ideas = [];
-      }
-    } else {
-      ideas = db.prepare(`
-        SELECT * FROM ideas
-        WHERE project_id = ? AND status = ?
-        ORDER BY created_at DESC, id DESC
-        LIMIT ?
-      `).all(projectId, status, limit) as DbIdea[];
-    }
-
-    const nextCursor = ideas.length === limit ? ideas[ideas.length - 1].id : null;
-    return { ideas, nextCursor };
-  },
-
-  /**
-   * Get all ideas by status with keyset cursor pagination (cross-project).
-   * Pass after_id to page forward; returns nextCursor (last idea id) when more rows exist.
-   */
   getAllIdeasByStatusPaginated: (
     status: string,
     limit: number,
     after_id: string | null
-  ): { ideas: DbIdea[]; nextCursor: string | null } => {
-    const db = getDatabase();
+  ): { ideas: DbIdea[]; nextCursor: string | null } =>
+    queryIdeas().status(status).after(after_id).paginate(limit),
 
-    let ideas: DbIdea[];
-    if (after_id) {
-      const cursor = db.prepare('SELECT created_at FROM ideas WHERE id = ?').get(after_id) as { created_at: string } | undefined;
-      if (cursor) {
-        ideas = db.prepare(`
-          SELECT * FROM ideas
-          WHERE status = ?
-            AND (created_at < ? OR (created_at = ? AND id < ?))
-          ORDER BY created_at DESC, id DESC
-          LIMIT ?
-        `).all(status, cursor.created_at, cursor.created_at, after_id, limit) as DbIdea[];
-      } else {
-        ideas = [];
-      }
-    } else {
-      ideas = db.prepare(`
-        SELECT * FROM ideas
-        WHERE status = ?
-        ORDER BY created_at DESC, id DESC
-        LIMIT ?
-      `).all(status, limit) as DbIdea[];
-    }
-
-    const nextCursor = ideas.length === limit ? ideas[ideas.length - 1].id : null;
-    return { ideas, nextCursor };
-  },
-
-  /**
-   * Get ideas by multiple project IDs and status with keyset cursor pagination.
-   * Pass after_id to page forward; returns nextCursor (last idea id) when more rows exist.
-   */
   getIdeasByProjectsAndStatus: (
     projectIds: string[],
     status: string,
     limit: number,
     after_id: string | null
-  ): { ideas: DbIdea[]; nextCursor: string | null } => {
-    if (projectIds.length === 0) return { ideas: [], nextCursor: null };
-    const db = getDatabase();
-    const placeholders = projectIds.map(() => '?').join(',');
+  ): { ideas: DbIdea[]; nextCursor: string | null } =>
+    queryIdeas().projects(projectIds).status(status).after(after_id).paginate(limit),
 
-    let ideas: DbIdea[];
-    if (after_id) {
-      const cursor = db.prepare('SELECT created_at FROM ideas WHERE id = ?').get(after_id) as { created_at: string } | undefined;
-      if (cursor) {
-        ideas = db.prepare(`
-          SELECT * FROM ideas
-          WHERE project_id IN (${placeholders}) AND status = ?
-            AND (created_at < ? OR (created_at = ? AND id < ?))
-          ORDER BY created_at DESC, id DESC
-          LIMIT ?
-        `).all(...projectIds, status, cursor.created_at, cursor.created_at, after_id, limit) as DbIdea[];
-      } else {
-        ideas = [];
-      }
-    } else {
-      ideas = db.prepare(`
-        SELECT * FROM ideas
-        WHERE project_id IN (${placeholders}) AND status = ?
-        ORDER BY created_at DESC, id DESC
-        LIMIT ?
-      `).all(...projectIds, status, limit) as DbIdea[];
-    }
+  getIdeasByStatus: (status: 'pending' | 'accepted' | 'rejected' | 'implemented'): DbIdea[] =>
+    queryIdeas().status(status).execute(),
 
-    const nextCursor = ideas.length === limit ? ideas[ideas.length - 1].id : null;
-    return { ideas, nextCursor };
-  },
+  getIdeasByContext: (contextId: string): DbIdea[] =>
+    queryIdeas().context(contextId).execute(),
 
-  /**
-   * Get ideas by status
-   */
-  getIdeasByStatus: (status: 'pending' | 'accepted' | 'rejected' | 'implemented'): DbIdea[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM ideas
-      WHERE status = ?
-      ORDER BY created_at DESC
-    `);
-    return stmt.all(status) as DbIdea[];
-  },
-
-  /**
-   * Get ideas by context
-   */
-  getIdeasByContext: (contextId: string): DbIdea[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM ideas
-      WHERE context_id = ?
-      ORDER BY created_at DESC
-    `);
-    return stmt.all(contextId) as DbIdea[];
-  },
-
-  /**
-   * Count ideas by project, date range, and optional status (SQL-filtered)
-   */
   countIdeasByProjectInRange: (
     projectId: string,
     startDate: string,
     endDate: string,
     status?: string
   ): number => {
-    const db = getDatabase();
-    if (status) {
-      const stmt = db.prepare(`
-        SELECT COUNT(*) as count FROM ideas
-        WHERE project_id = ? AND created_at >= ? AND created_at <= ? AND status = ?
-      `);
-      const result = stmt.get(projectId, startDate, endDate, status) as { count: number };
-      return result.count;
-    }
-    const stmt = db.prepare(`
-      SELECT COUNT(*) as count FROM ideas
-      WHERE project_id = ? AND created_at >= ? AND created_at <= ?
-    `);
-    const result = stmt.get(projectId, startDate, endDate) as { count: number };
-    return result.count;
+    const q = queryIdeas().project(projectId).dateRange(startDate, endDate);
+    if (status) q.status(status);
+    return q.count();
   },
 
-  /**
-   * Get ideas by scan ID
-   * More efficient than fetching all project ideas and filtering in memory
-   */
-  getIdeasByScanId: (scanId: string): DbIdea[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM ideas
-      WHERE scan_id = ?
-      ORDER BY created_at DESC
-    `);
-    return stmt.all(scanId) as DbIdea[];
-  },
+  getIdeasByScanId: (scanId: string): DbIdea[] =>
+    queryIdeas().scan(scanId).execute(),
 
-  /**
-   * Get the latest scan ID for a project and scan type
-   * Returns the most recent scan_id or null if none found
-   */
   getLatestScanId: (projectId: string, scanType: string): string | null => {
     const db = getDatabase();
     const stmt = db.prepare(`
@@ -243,75 +89,68 @@ export const ideaRepository = {
     return result?.scan_id ?? null;
   },
 
-  /**
-   * Get ideas by goal
-   */
-  getIdeasByGoal: (goalId: string): DbIdea[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM ideas
-      WHERE goal_id = ?
-      ORDER BY created_at DESC
-    `);
-    return stmt.all(goalId) as DbIdea[];
-  },
+  getIdeasByGoal: (goalId: string): DbIdea[] =>
+    queryIdeas().goal(goalId).execute(),
 
-  /**
-   * Get idea by requirement_id
-   */
   getIdeaByRequirementId: (requirementId: string): DbIdea | null => {
     const db = getDatabase();
     return selectOne<DbIdea>(db, 'SELECT * FROM ideas WHERE requirement_id = ?', requirementId);
   },
 
-  /**
-   * Get ideas by multiple requirement_ids in a single query (batch)
-   * Returns a map of requirementId -> idea (or null if not found)
-   */
   getIdeasByRequirementIds: (requirementIds: string[]): Record<string, DbIdea | null> => {
     const db = getDatabase();
     const result: Record<string, DbIdea | null> = {};
-
-    // Initialize all as null
     for (const id of requirementIds) {
       result[id] = null;
     }
-
     if (requirementIds.length === 0) {
       return result;
     }
-
-    // Use parameterized query with IN clause
     const placeholders = requirementIds.map(() => '?').join(',');
     const stmt = db.prepare(`SELECT * FROM ideas WHERE requirement_id IN (${placeholders})`);
     const ideas = stmt.all(...requirementIds) as DbIdea[];
-
-    // Map results by requirement_id
     for (const idea of ideas) {
       if (idea.requirement_id) {
         result[idea.requirement_id] = idea;
       }
     }
-
     return result;
   },
 
-  /**
-   * Get a single idea by ID
-   */
   getIdeaById: (ideaId: string): DbIdea | null => base.getById(ideaId),
 
-  /**
-   * Create a new idea
-   * @param idea.category - Accepts any string, but IdeaCategory provides standard guideline values
-   */
+  getIdeasWithNullContext: (): DbIdea[] =>
+    queryIdeas().nullContext().execute(),
+
+  getRecentIdeas: (limit: number = 10): DbIdea[] =>
+    queryIdeas().limit(limit).execute(),
+
+  // ─── Color JOIN variants ──────────────────────────────────────────────
+
+  getIdeasByStatusWithColors: (status: 'pending' | 'accepted' | 'rejected' | 'implemented'): DbIdeaWithColor[] =>
+    queryIdeas().status(status).withColors().execute(),
+
+  getAllIdeasWithColors: (): DbIdeaWithColor[] =>
+    queryIdeas().withColors().execute(),
+
+  getIdeasByProjectWithColors: (projectId: string): DbIdeaWithColor[] =>
+    queryIdeas().project(projectId).withColors().execute(),
+
+  getIdeasByProjectIds: (projectIds: string[]): DbIdea[] =>
+    queryIdeas().projects(projectIds).execute(),
+
+  getIdeasByProjectIdsWithColors: (projectIds: string[]): DbIdeaWithColor[] =>
+    queryIdeas().projects(projectIds).withColors().execute(),
+
+  // ─── Write operations ─────────────────────────────────────────────────
+
   createIdea: (idea: {
     id: string;
     scan_id: string;
     project_id: string;
     context_id?: string | null;
     scan_type: string;
-    category: string; // Accepts any string, IdeaCategory enum provides guidelines
+    category: string;
     title: string;
     description?: string;
     reasoning?: string;
@@ -330,7 +169,6 @@ export const ideaRepository = {
     const db = getDatabase();
     const now = getCurrentTimestamp();
 
-    // Validate effort, impact, and risk values (1-10 scale)
     const validatedEffort = validateScore(idea.effort);
     const validatedImpact = validateScore(idea.impact);
     const validatedRisk = validateScore(idea.risk);
@@ -372,9 +210,6 @@ export const ideaRepository = {
     return base.getById(idea.id)!;
   },
 
-  /**
-   * Update an idea
-   */
   updateIdea: (id: string, updates: {
     status?: 'pending' | 'accepted' | 'rejected' | 'implemented';
     user_feedback?: string;
@@ -388,7 +223,6 @@ export const ideaRepository = {
     requirement_id?: string | null;
     goal_id?: string | null;
   }): DbIdea | null => {
-    // Transform fields that need special handling
     const dbUpdates: Record<string, unknown> = { ...updates };
     if (updates.user_pattern !== undefined) {
       dbUpdates.user_pattern = updates.user_pattern ? 1 : 0;
@@ -402,7 +236,6 @@ export const ideaRepository = {
     if (updates.risk !== undefined) {
       dbUpdates.risk = validateScore(updates.risk);
     }
-    // Validate status transition and apply side-effects via state machine
     if (updates.status) {
       const current = base.getById(id);
       if (current) {
@@ -416,154 +249,18 @@ export const ideaRepository = {
     return base.update(id, dbUpdates);
   },
 
-  /**
-   * Delete an idea
-   */
+  // ─── Delete operations ────────────────────────────────────────────────
+
   deleteIdea: (id: string): boolean => base.deleteById(id),
 
-  /**
-   * Delete all ideas associated with a context
-   */
-  deleteIdeasByContext: (contextId: string): number => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM ideas WHERE context_id = ?');
-    const result = stmt.run(contextId);
-    return result.changes;
-  },
+  deleteIdeasByContext: (contextId: string): number =>
+    queryIdeas().context(contextId).delete(),
 
-  /**
-   * Get ideas with null context_id (General ideas)
-   */
-  getIdeasWithNullContext: (): DbIdea[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM ideas
-      WHERE context_id IS NULL
-      ORDER BY created_at DESC
-    `);
-    return stmt.all() as DbIdea[];
-  },
+  deleteIdeasWithNullContext: (): number =>
+    queryIdeas().nullContext().delete(),
 
-  /**
-   * Delete all ideas with null context_id (General ideas)
-   */
-  deleteIdeasWithNullContext: (): number => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM ideas WHERE context_id IS NULL');
-    const result = stmt.run();
-    return result.changes;
-  },
-
-  /**
-   * Delete all ideas for a specific project
-   */
   deleteIdeasByProject: (projectId: string): number => base.deleteByProject(projectId),
 
-  /**
-   * Get recent ideas (last N)
-   */
-  getRecentIdeas: (limit: number = 10): DbIdea[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT * FROM ideas
-      ORDER BY created_at DESC
-      LIMIT ?
-    `);
-    return stmt.all(limit) as DbIdea[];
-  },
-
-  /**
-   * Get ideas by status with context colors (optimized JOIN query)
-   * Returns ideas with their associated context group colors in a single query
-   */
-  getIdeasByStatusWithColors: (status: 'pending' | 'accepted' | 'rejected' | 'implemented'): Array<DbIdea & { context_color?: string | null }> => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT
-        ideas.*,
-        context_groups.color as context_color
-      FROM ideas
-      LEFT JOIN contexts ON ideas.context_id = contexts.id
-      LEFT JOIN context_groups ON contexts.group_id = context_groups.id
-      WHERE ideas.status = ?
-      ORDER BY ideas.created_at DESC
-    `);
-    return stmt.all(status) as Array<DbIdea & { context_color?: string | null }>;
-  },
-
-  /**
-   * Get all ideas with context colors (optimized JOIN query)
-   * Returns all ideas with their associated context group colors in a single query
-   */
-  getAllIdeasWithColors: (): Array<DbIdea & { context_color?: string | null }> => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT
-        ideas.*,
-        context_groups.color as context_color
-      FROM ideas
-      LEFT JOIN contexts ON ideas.context_id = contexts.id
-      LEFT JOIN context_groups ON contexts.group_id = context_groups.id
-      ORDER BY ideas.created_at DESC
-    `);
-    return stmt.all() as Array<DbIdea & { context_color?: string | null }>;
-  },
-
-  /**
-   * Get ideas by project with context colors (optimized JOIN query)
-   */
-  getIdeasByProjectWithColors: (projectId: string): Array<DbIdea & { context_color?: string | null }> => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT
-        ideas.*,
-        context_groups.color as context_color
-      FROM ideas
-      LEFT JOIN contexts ON ideas.context_id = contexts.id
-      LEFT JOIN context_groups ON contexts.group_id = context_groups.id
-      WHERE ideas.project_id = ?
-      ORDER BY ideas.created_at DESC
-    `);
-    return stmt.all(projectId) as Array<DbIdea & { context_color?: string | null }>;
-  },
-
-  /**
-   * Get ideas by multiple project IDs using SQL IN clause
-   */
-  getIdeasByProjectIds: (projectIds: string[]): DbIdea[] => {
-    const db = getDatabase();
-    const placeholders = projectIds.map(() => '?').join(',');
-    const stmt = db.prepare(`
-      SELECT * FROM ideas
-      WHERE project_id IN (${placeholders})
-      ORDER BY created_at DESC
-    `);
-    return stmt.all(...projectIds) as DbIdea[];
-  },
-
-  /**
-   * Get ideas by multiple project IDs with context colors using SQL IN clause
-   */
-  getIdeasByProjectIdsWithColors: (projectIds: string[]): Array<DbIdea & { context_color?: string | null }> => {
-    const db = getDatabase();
-    const placeholders = projectIds.map(() => '?').join(',');
-    const stmt = db.prepare(`
-      SELECT
-        ideas.*,
-        context_groups.color as context_color
-      FROM ideas
-      LEFT JOIN contexts ON ideas.context_id = contexts.id
-      LEFT JOIN context_groups ON contexts.group_id = context_groups.id
-      WHERE ideas.project_id IN (${placeholders})
-      ORDER BY ideas.created_at DESC
-    `);
-    return stmt.all(...projectIds) as Array<DbIdea & { context_color?: string | null }>;
-  },
-
-  /**
-   * Delete all ideas from the database
-   * WARNING: This is destructive and cannot be undone
-   */
   deleteAllIdeas: (): number => {
     const db = getDatabase();
     const stmt = db.prepare('DELETE FROM ideas');
@@ -571,23 +268,9 @@ export const ideaRepository = {
     return result.changes;
   },
 
-  /**
-   * Delete all pending ideas for a project (for Tinder flush)
-   */
-  deletePendingIdeasByProject: (projectId: string): number => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM ideas WHERE project_id = ? AND status = ?');
-    const result = stmt.run(projectId, 'pending');
-    return result.changes;
-  },
+  deletePendingIdeasByProject: (projectId: string): number =>
+    queryIdeas().project(projectId).status('pending').delete(),
 
-  /**
-   * Delete all pending ideas across all projects (for Tinder flush all)
-   */
-  deleteAllPendingIdeas: (): number => {
-    const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM ideas WHERE status = ?');
-    const result = stmt.run('pending');
-    return result.changes;
-  }
+  deleteAllPendingIdeas: (): number =>
+    queryIdeas().status('pending').delete(),
 };

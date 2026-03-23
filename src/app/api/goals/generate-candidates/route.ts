@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateGoalCandidates } from '@/lib/goalGenerator';
 import { goalCandidateRepository } from '@/app/db/repositories/goal-candidate.repository';
-import { goalRepository } from '@/app/db/repositories/goal.repository';
-import { getDatabase } from '@/app/db/connection';
-import { randomUUID } from 'crypto';
+import { acceptCandidate, rejectCandidate, tweakCandidate } from '@/lib/goals/goalService';
 import { withObservability } from '@/lib/observability/middleware';
 import type {
   GenerateCandidatesResponse,
@@ -100,79 +98,6 @@ async function handleGet(request: NextRequest) {
   }
 }
 
-function handleAcceptAction(candidateId: string, updates: any) {
-  const candidate = goalCandidateRepository.getCandidateById(candidateId);
-
-  if (!candidate) {
-    return createErrorResponse('Candidate not found', 404);
-  }
-
-  const db = getDatabase();
-  const acceptCandidate = db.transaction(() => {
-    const maxOrderIndex = goalRepository.getMaxOrderIndex(candidate.project_id);
-
-    const goal = goalRepository.createGoal({
-      id: randomUUID(),
-      project_id: candidate.project_id,
-      context_id: candidate.context_id || undefined,
-      title: updates?.title || candidate.title,
-      description: updates?.description || candidate.description || undefined,
-      status: candidate.suggested_status,
-      order_index: maxOrderIndex + 1
-    });
-
-    const updatedCandidate = goalCandidateRepository.updateCandidate(candidateId, {
-      user_action: 'accepted',
-      goal_id: goal.id,
-      title: updates?.title,
-      description: updates?.description
-    });
-
-    return { goal, updatedCandidate };
-  });
-
-  const { goal, updatedCandidate } = acceptCandidate();
-
-  return NextResponse.json({
-    success: true,
-    candidate: updatedCandidate,
-    goal
-  } satisfies CandidateAcceptResponse);
-}
-
-function handleRejectAction(candidateId: string, rejectionReason?: string) {
-  const updatedCandidate = goalCandidateRepository.updateCandidate(candidateId, {
-    user_action: 'rejected',
-    rejection_reason: rejectionReason || null
-  });
-
-  return NextResponse.json({
-    success: true,
-    candidate: updatedCandidate
-  } satisfies CandidateUpdateResponse);
-}
-
-function handleTweakAction(candidateId: string, updates: any) {
-  const updatedCandidate = goalCandidateRepository.updateCandidate(candidateId, {
-    user_action: 'tweaked',
-    ...updates
-  });
-
-  return NextResponse.json({
-    success: true,
-    candidate: updatedCandidate
-  } satisfies CandidateUpdateResponse);
-}
-
-function handleUpdateAction(candidateId: string, updates: any) {
-  const updatedCandidate = goalCandidateRepository.updateCandidate(candidateId, updates);
-
-  return NextResponse.json({
-    success: true,
-    candidate: updatedCandidate
-  } satisfies CandidateUpdateResponse);
-}
-
 /**
  * PUT /api/goals/generate-candidates
  * Update a goal candidate (e.g., accept, reject, tweak)
@@ -187,14 +112,36 @@ async function handlePut(request: NextRequest) {
     }
 
     switch (action) {
-      case 'accept':
-        return handleAcceptAction(candidateId, updates);
-      case 'reject':
-        return handleRejectAction(candidateId, rejectionReason);
-      case 'tweak':
-        return handleTweakAction(candidateId, updates);
-      case 'update':
-        return handleUpdateAction(candidateId, updates);
+      case 'accept': {
+        const result = acceptCandidate(candidateId, updates);
+        if (!result) return createErrorResponse('Candidate not found', 404);
+        return NextResponse.json({
+          success: true,
+          candidate: result.updatedCandidate,
+          goal: result.goal,
+        } satisfies CandidateAcceptResponse);
+      }
+      case 'reject': {
+        const updatedCandidate = rejectCandidate(candidateId, rejectionReason);
+        return NextResponse.json({
+          success: true,
+          candidate: updatedCandidate,
+        } satisfies CandidateUpdateResponse);
+      }
+      case 'tweak': {
+        const updatedCandidate = tweakCandidate(candidateId, updates);
+        return NextResponse.json({
+          success: true,
+          candidate: updatedCandidate,
+        } satisfies CandidateUpdateResponse);
+      }
+      case 'update': {
+        const updatedCandidate = goalCandidateRepository.updateCandidate(candidateId, updates);
+        return NextResponse.json({
+          success: true,
+          candidate: updatedCandidate,
+        } satisfies CandidateUpdateResponse);
+      }
       default:
         return createErrorResponse('Invalid action', 400);
     }

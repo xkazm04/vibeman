@@ -13,23 +13,17 @@
 
 import { useEffect, useState, useMemo, useRef, lazy, Suspense } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
-import { Brain, Activity, AlertCircle, Layers, Clock, Sparkles, AlertTriangle, TrendingDown, TrendingUp, X, Castle, ChevronRight, Focus, BookOpen } from 'lucide-react';
-import { SimpleSpinner } from '@/components/ui';
+import { duration, easing, transition } from '@/lib/motion';
+import { Brain, Activity, AlertCircle, Layers, Clock, Sparkles, AlertTriangle, X, Castle, Focus, BookOpen } from 'lucide-react';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useBrainStore } from '@/stores/brainStore';
 import { GridBackground } from './components/variants/GridPrimitives';
 import { useApplicationSession, useSessionAbortSignals } from '@/lib/session';
 import { useReflectionEvents } from './lib/useReflectionEvents';
-import BehavioralFocusPanel from './components/BehavioralFocusPanel';
-import OutcomesSummary from './components/OutcomesSummary';
 import ReflectionStatus from './components/ReflectionStatus';
 import ReflectionHistoryPanel from './components/ReflectionHistoryPanel';
-import BrainEffectivenessWidget from './components/BrainEffectivenessWidget';
-import InsightsPanel from './components/InsightsPanel';
-import ActivityHeatmap from './components/ActivityHeatmap';
-import CorrelationMatrix from './components/CorrelationMatrix';
-import NextUpCard from './components/NextUpCard';
-import TemporalRhythmHeatmap from './components/TemporalRhythmHeatmap';
+import { scoreWidgets, getWidgetDefinition } from './lib/widgetRegistry';
+import type { WidgetId, WidgetRenderContext } from './lib/widgetRegistry';
 import type { SignalAnomaly, AnomalySeverity } from '@/lib/brain/anomalyDetector';
 
 const EventCanvasD3 = lazy(() => import('./sub_MemoryCanvas/EventCanvasD3'));
@@ -119,67 +113,26 @@ export default function BrainLayout() {
 
   const scope: 'project' | 'global' = isGlobalMode ? 'global' : 'project';
 
-  // ── Focus Flow: priority scoring from store signals ──────────────────
+  // ── Focus Flow: priority scoring via declarative widget registry ─────
   const { outcomeStats } = useBrainStore();
   const { shouldTrigger, status: refStatus } = useBrainStore((s) => s.reflections.project);
 
-  const widgetPriorities = useMemo(() => {
-    const scores: Record<string, number> = {
-      outcomes: 10,         // KPI always visible
-      reflection: 5,        // Base priority
-      effectiveness: 5,
-      insights: 5,
-      heatmap: 4,
-      rhythm: 4,
-      correlation: 3,
-      nextUp: 3,
-      focus: 4,
-    };
-
-    // Boost Reflection when trigger is pending or running
-    if (shouldTrigger) scores.reflection += 20;
-    if (refStatus === 'running') scores.reflection += 15;
-    if (refStatus === 'failed') scores.reflection += 18;
-
-    // Boost Outcomes when failures exist
-    if (outcomeStats.failed > 0) scores.outcomes += 10;
-    if (outcomeStats.reverted > 0) scores.outcomes += 8;
-    const successRate = outcomeStats.total > 0
-      ? outcomeStats.successful / outcomeStats.total
-      : 1;
-    if (successRate < 0.5 && outcomeStats.total > 0) scores.outcomes += 12;
-
-    // Boost anomaly-related widgets
-    const hasCriticalAnomaly = anomalies.some(a => a.severity === 'critical');
-    const hasAnyAnomaly = anomalies.length > 0;
-    if (hasCriticalAnomaly) {
-      scores.heatmap += 12;
-      scores.effectiveness += 8;
-    } else if (hasAnyAnomaly) {
-      scores.heatmap += 6;
-    }
-
-    return scores;
-  }, [outcomeStats, shouldTrigger, refStatus, anomalies]);
-
-  // Split widgets into primary (score >= 10) and secondary
   const PRIMARY_THRESHOLD = 10;
   const { primaryWidgets, secondaryWidgets } = useMemo(() => {
-    type WidgetEntry = { id: string; score: number };
-    const all: WidgetEntry[] = Object.entries(widgetPriorities).map(([id, score]) => ({ id, score }));
-    all.sort((a, b) => b.score - a.score);
-
-    const primary: WidgetEntry[] = [];
-    const secondary: WidgetEntry[] = [];
-    for (const w of all) {
-      if (w.score >= PRIMARY_THRESHOLD) {
-        primary.push(w);
-      } else {
-        secondary.push(w);
-      }
-    }
+    const scored = scoreWidgets({ outcomeStats, shouldTrigger, refStatus, anomalies });
+    const primary = scored.filter((w) => w.score >= PRIMARY_THRESHOLD);
+    const secondary = scored.filter((w) => w.score < PRIMARY_THRESHOLD);
     return { primaryWidgets: primary, secondaryWidgets: secondary };
-  }, [widgetPriorities]);
+  }, [outcomeStats, shouldTrigger, refStatus, anomalies]);
+
+  const baseRenderCtx: WidgetRenderContext = useMemo(() => ({
+    scope, isGlobalMode, activeProject, isLoadingOutcomes, isLoadingContext, isLoading,
+  }), [scope, isGlobalMode, activeProject, isLoadingOutcomes, isLoadingContext, isLoading]);
+
+  const compactRenderCtx: WidgetRenderContext = useMemo(
+    () => ({ ...baseRenderCtx, compact: true }),
+    [baseRenderCtx],
+  );
 
   return (
     <div className="flex flex-col" style={{ height: 'calc(100vh - 2.5rem)' }}>
@@ -255,7 +208,7 @@ export default function BrainLayout() {
               {/* Primary widgets */}
               <div className="flex-1 min-w-0 space-y-4">
                 {primaryWidgets.map((w, i) => (
-                  <FocusWidget key={w.id} widgetId={w.id} index={i} score={w.score} scope={scope} isGlobalMode={isGlobalMode} activeProject={activeProject} isLoadingOutcomes={isLoadingOutcomes} isLoadingContext={isLoadingContext} isLoading={isLoading} />
+                  <FocusWidget key={w.id} widgetId={w.id} index={i} score={w.score} renderCtx={baseRenderCtx} />
                 ))}
               </div>
 
@@ -274,7 +227,7 @@ export default function BrainLayout() {
                     {!secondaryCollapsed && (
                       <div className="w-[320px] space-y-3">
                         {secondaryWidgets.map((w, i) => (
-                          <FocusWidget key={w.id} widgetId={w.id} index={i} score={w.score} scope={scope} isGlobalMode={isGlobalMode} activeProject={activeProject} isLoadingOutcomes={isLoadingOutcomes} isLoadingContext={isLoadingContext} isLoading={isLoading} compact />
+                          <FocusWidget key={w.id} widgetId={w.id} index={i} score={w.score} renderCtx={compactRenderCtx} />
                         ))}
                       </div>
                     )}
@@ -287,7 +240,7 @@ export default function BrainLayout() {
             {secondaryWidgets.length > 0 && (
               <div className="max-w-7xl mx-auto lg:hidden mt-4 space-y-4">
                 {secondaryWidgets.map((w, i) => (
-                  <FocusWidget key={w.id} widgetId={w.id} index={i + primaryWidgets.length} score={w.score} scope={scope} isGlobalMode={isGlobalMode} activeProject={activeProject} isLoadingOutcomes={isLoadingOutcomes} isLoadingContext={isLoadingContext} isLoading={isLoading} />
+                  <FocusWidget key={w.id} widgetId={w.id} index={i + primaryWidgets.length} score={w.score} renderCtx={baseRenderCtx} />
                 ))}
               </div>
             )}
@@ -371,7 +324,7 @@ function TabTooltip({ text, children }: { text: string; children: React.ReactNod
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.15, ease: [0.25, 0.46, 0.45, 0.94] }}
+            transition={transition.snappy}
             className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 whitespace-nowrap bg-zinc-900/95 backdrop-blur-sm border border-zinc-700/50 rounded-lg px-3 py-2 text-xs text-zinc-300 shadow-xl pointer-events-none"
           >
             {text}
@@ -385,59 +338,19 @@ function TabTooltip({ text, children }: { text: string; children: React.ReactNod
 // ── Focus Widget ─────────────────────────────────────────────────────────────
 
 interface FocusWidgetProps {
-  widgetId: string;
+  widgetId: WidgetId;
   index: number;
   score: number;
-  scope: 'project' | 'global';
-  isGlobalMode: boolean;
-  activeProject: { id: string; name?: string; path?: string } | null;
-  isLoadingOutcomes: boolean;
-  isLoadingContext: boolean;
-  isLoading: boolean;
-  compact?: boolean;
+  renderCtx: WidgetRenderContext;
 }
 
 const SMOOTH_SPRING = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
-function FocusWidget({ widgetId, index, score, scope, isGlobalMode, activeProject, isLoadingOutcomes, isLoadingContext, isLoading, compact }: FocusWidgetProps) {
+function FocusWidget({ widgetId, index, renderCtx }: FocusWidgetProps) {
+  const def = getWidgetDefinition(widgetId);
+  if (!def) return null;
+
   const delay = index * 0.03;
-
-  const content = (() => {
-    switch (widgetId) {
-      case 'outcomes':
-        return <OutcomesSummary isLoading={isLoadingOutcomes} />;
-      case 'reflection':
-        return (
-          <div className={compact ? '' : 'grid grid-cols-1 lg:grid-cols-2 gap-6'}>
-            <ReflectionStatus isLoading={isLoading} scope="project" />
-            {!compact && <ReflectionStatus isLoading={isLoading} scope="global" />}
-          </div>
-        );
-      case 'effectiveness':
-        return <BrainEffectivenessWidget scope={scope} />;
-      case 'insights':
-        return <InsightsPanel scope={scope} />;
-      case 'heatmap':
-        return <ActivityHeatmap scope={scope} />;
-      case 'rhythm':
-        return <TemporalRhythmHeatmap scope={scope} />;
-      case 'correlation':
-        return <CorrelationMatrix scope={scope} />;
-      case 'nextUp':
-        return (
-          <NextUpCard
-            projectId={isGlobalMode ? null : activeProject?.id ?? null}
-            scope={scope}
-          />
-        );
-      case 'focus':
-        return <BehavioralFocusPanel isLoading={isLoadingContext} scope={scope} />;
-      default:
-        return null;
-    }
-  })();
-
-  if (!content) return null;
 
   return (
     <motion.div
@@ -445,9 +358,9 @@ function FocusWidget({ widgetId, index, score, scope, isGlobalMode, activeProjec
       layoutId={`focus-${widgetId}`}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ delay, duration: 0.15, layout: SMOOTH_SPRING }}
+      transition={{ ...transition.snappy, delay, layout: SMOOTH_SPRING }}
     >
-      {content}
+      {def.render(renderCtx)}
     </motion.div>
   );
 }

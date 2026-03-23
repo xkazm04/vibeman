@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { transition, easing, fadeOnly } from '@/lib/motion';
+import { SimpleSpinner } from '@/components/ui/Spinner';
 
 interface LoadingOverlayProps {
   isVisible: boolean;
@@ -26,11 +27,7 @@ export default function LoadingOverlay({ isVisible }: LoadingOverlayProps) {
         transition={{ duration: transition.deliberate.duration, ease: easing.entrance }}
         className="bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-xl p-8 flex flex-col items-center gap-4"
       >
-        <motion.div
-          className="w-8 h-8 border-2 border-purple-400/30 border-t-purple-400 rounded-full"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-        />
+        <SimpleSpinner size="lg" color="purple" />
         <p className="text-gray-300 text-sm font-light">Loading...</p>
       </motion.div>
     </motion.div>

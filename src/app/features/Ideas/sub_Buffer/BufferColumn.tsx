@@ -7,6 +7,7 @@ import { DbIdea } from '@/app/db';
 import BufferItem from './BufferItem';
 import { createIdeaStagingBuffer } from '@/lib/staging-buffer';
 import { getColorAccent } from '../lib/ideaConfig';
+import { transition } from '@/lib/motion';
 
 const ideaStagingBuffer = createIdeaStagingBuffer<DbIdea>();
 
@@ -92,7 +93,7 @@ const BufferColumn = React.memo(function BufferColumn({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.8, x: -100 }}
-      transition={{ duration: 0.3 }}
+      transition={transition.deliberate}
       data-testid={`buffer-column-${contextId || 'no-context'}`}
     >
       {/* Header */}

@@ -9,6 +9,7 @@ import { Send } from 'lucide-react';
 import { SupportedProvider } from '@/lib/llm/types';
 import { AdvisorType } from '../lib/types';
 import { generateNewTaskAdvisorSuggestion, generateNewTaskImplementationPlan } from '../lib/llmHelpers';
+import { createRequirement } from '../lib/managerService';
 import LLMInputForm from './LLMInputForm';
 
 interface NewTaskInputPanelProps {
@@ -52,17 +53,11 @@ export default function NewTaskInputPanel({
         const sanitizedTitle = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 50);
         const requirementName = `${sanitizedTitle}-${timestamp}.md`;
 
-        const response = await fetch('/api/claude-code/requirement', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ projectPath, requirementName, content: plan }),
-        });
-
-        if (response.ok) {
+        const result = await createRequirement(projectPath, requirementName, plan);
+        if (result.success) {
             return { success: true, requirementName };
         }
-        const data = await response.json();
-        return { success: false, error: data.error || 'Unknown error' };
+        return { success: false, error: result.error || 'Unknown error' };
     };
 
     return (

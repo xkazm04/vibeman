@@ -1,12 +1,23 @@
 /**
  * Weekly Stats API
- * Fetches and calculates weekly statistics for Ideas and Directions
+ * Fetches and calculates weekly statistics for Ideas and Directions.
+ * Delegates status counting and acceptance-rate math to IdeaStatsAggregator
+ * so that Weekly and Reflection views always agree on the same data.
  */
 
 import { WeeklyStats, DailyStats, WeeklySpecialistStats, WeeklyContextMapStats, WeeklyFilters, ProjectImplementationStats } from './types';
-import { ScanType, ALL_SCAN_TYPES } from '@/app/features/Ideas/lib/scanTypes';
+import { ALL_SCAN_TYPES } from '@/app/features/Ideas/lib/scanTypes';
 import { SuggestionFilter } from '../../lib/unifiedTypes';
 import { safeGet } from '@/lib/apiResponseGuard';
+import {
+  countIdeaStatuses,
+  countDirectionStatuses,
+  calculateAcceptanceRate,
+  calculateFilteredAcceptanceRate,
+  combineDistributions,
+  calculateTrend,
+  trendFromDelta,
+} from '../../lib/ideaStatsAggregator';
 
 /**
  * Get week date range based on offset
@@ -95,7 +106,8 @@ export async function fetchWeeklyStats(filters: WeeklyFilters): Promise<WeeklySt
 }
 
 /**
- * Process raw ideas and directions into weekly statistics
+ * Process raw ideas and directions into weekly statistics.
+ * Uses IdeaStatsAggregator for all counting & acceptance-rate math.
  */
 function processWeeklyData(
   ideas: any[],
@@ -107,51 +119,21 @@ function processWeeklyData(
   weekLabel: string,
   suggestionType: SuggestionFilter
 ): WeeklyStats {
-  // Calculate ideas stats
-  const ideasStats = {
-    total: ideas.length,
-    accepted: ideas.filter(i => i.status === 'accepted').length,
-    rejected: ideas.filter(i => i.status === 'rejected').length,
-    implemented: ideas.filter(i => i.status === 'implemented').length,
-    pending: ideas.filter(i => i.status === 'pending').length,
-  };
+  const ideasDist = countIdeaStatuses(ideas);
+  const dirsDist = countDirectionStatuses(directions);
+  const combined = combineDistributions(ideasDist, dirsDist);
+  const { acceptanceRate } = calculateFilteredAcceptanceRate(ideasDist, dirsDist, suggestionType);
 
-  // Calculate directions stats (no implemented status for directions)
-  const directionsStats = {
-    total: directions.length,
-    accepted: directions.filter(d => d.status === 'accepted').length,
-    rejected: directions.filter(d => d.status === 'rejected').length,
-    pending: directions.filter(d => d.status === 'pending').length,
-  };
-
-  // Calculate combined overall stats
   const overall = {
-    total: ideasStats.total + directionsStats.total,
-    accepted: ideasStats.accepted + directionsStats.accepted,
-    rejected: ideasStats.rejected + directionsStats.rejected,
-    implemented: ideasStats.implemented, // Only ideas have implemented
-    pending: ideasStats.pending + directionsStats.pending,
-    acceptanceRate: 0,
-    ideasTotal: ideasStats.total,
-    directionsTotal: directionsStats.total,
+    total: combined.total,
+    accepted: combined.accepted,
+    rejected: combined.rejected,
+    implemented: combined.implemented,
+    pending: combined.pending,
+    acceptanceRate,
+    ideasTotal: ideasDist.total,
+    directionsTotal: dirsDist.total,
   };
-
-  // Calculate acceptance rate based on suggestion type
-  if (suggestionType === 'ideas') {
-    overall.acceptanceRate = ideasStats.total > 0
-      ? Math.round(((ideasStats.accepted + ideasStats.implemented) / ideasStats.total) * 100)
-      : 0;
-  } else if (suggestionType === 'directions') {
-    overall.acceptanceRate = directionsStats.total > 0
-      ? Math.round((directionsStats.accepted / directionsStats.total) * 100)
-      : 0;
-  } else {
-    // Combined: weighted acceptance
-    const totalAccepted = ideasStats.accepted + ideasStats.implemented + directionsStats.accepted;
-    overall.acceptanceRate = overall.total > 0
-      ? Math.round((totalAccepted / overall.total) * 100)
-      : 0;
-  }
 
   // Calculate daily breakdown (combined)
   const dailyBreakdown = generateDailyBreakdown(ideas, directions, weekStart);
@@ -162,17 +144,10 @@ function processWeeklyData(
   // Calculate context map stats (directions only)
   const contextMaps = calculateContextMapStats(directions, lastWeekDirections);
 
-  // Calculate comparison with last week (combined totals)
+  // Calculate comparison with last week
   const lastWeekTotal = lastWeekIdeas.length + lastWeekDirections.length;
-  const currentTotal = overall.total;
-  const comparison = {
-    lastWeekTotal,
-    changePercent: lastWeekTotal > 0
-      ? Math.round(((currentTotal - lastWeekTotal) / lastWeekTotal) * 100)
-      : currentTotal > 0 ? 100 : 0,
-    trend: currentTotal > lastWeekTotal ? 'up' as const
-      : currentTotal < lastWeekTotal ? 'down' as const : 'stable' as const,
-  };
+  const { changePercent, trend } = calculateTrend(overall.total, lastWeekTotal);
+  const comparison = { lastWeekTotal, changePercent, trend };
 
   // Find top performers (ideas - highest acceptance rate with at least 3 ideas)
   const topPerformers = specialists
@@ -224,47 +199,31 @@ function generateDailyBreakdown(ideas: any[], directions: any[], weekStart: Date
     day.setDate(weekStart.getDate() + i);
     const dayStr = day.toISOString().split('T')[0];
 
-    // Filter ideas for this day
     const dayIdeas = ideas.filter(idea => {
       const ideaDate = new Date(idea.created_at || idea.createdAt).toISOString().split('T')[0];
       return ideaDate === dayStr;
     });
 
-    // Filter directions for this day
     const dayDirections = directions.filter(dir => {
       const dirDate = new Date(dir.created_at || dir.createdAt).toISOString().split('T')[0];
       return dirDate === dayStr;
     });
 
-    // Calculate ideas stats
-    const ideasAccepted = dayIdeas.filter(i => i.status === 'accepted').length;
-    const ideasImplemented = dayIdeas.filter(i => i.status === 'implemented').length;
-    const ideasRejected = dayIdeas.filter(i => i.status === 'rejected').length;
-
-    // Calculate directions stats
-    const dirsAccepted = dayDirections.filter(d => d.status === 'accepted').length;
-    const dirsRejected = dayDirections.filter(d => d.status === 'rejected').length;
-
-    // Combined totals
-    const total = dayIdeas.length + dayDirections.length;
-    const accepted = ideasAccepted + dirsAccepted;
-    const rejected = ideasRejected + dirsRejected;
-    const implemented = ideasImplemented; // Only ideas have implemented
-
-    // Acceptance rate: (accepted + implemented) / total for ideas, accepted/total for directions
-    const totalAccepted = ideasAccepted + ideasImplemented + dirsAccepted;
-    const acceptanceRate = total > 0 ? Math.round((totalAccepted / total) * 100) : 0;
+    const ideasDist = countIdeaStatuses(dayIdeas);
+    const dirsDist = countDirectionStatuses(dayDirections);
+    const combined = combineDistributions(ideasDist, dirsDist);
+    const { acceptanceRate } = calculateAcceptanceRate(combined);
 
     dailyStats.push({
       date: dayStr,
       dayName: dayNames[i],
-      total,
-      accepted,
-      rejected,
-      implemented,
+      total: combined.total,
+      accepted: combined.accepted,
+      rejected: combined.rejected,
+      implemented: combined.implemented,
       acceptanceRate,
-      ideasTotal: dayIdeas.length,
-      directionsTotal: dayDirections.length,
+      ideasTotal: ideasDist.total,
+      directionsTotal: dirsDist.total,
     });
   }
 
@@ -276,37 +235,33 @@ function generateDailyBreakdown(ideas: any[], directions: any[], weekStart: Date
  */
 function calculateSpecialistStats(ideas: any[], lastWeekIdeas: any[]): WeeklySpecialistStats[] {
   const stats: WeeklySpecialistStats[] = [];
-  
+
   for (const scanType of ALL_SCAN_TYPES) {
     const typeIdeas = ideas.filter(i => i.scan_type === scanType);
     const lastTypeIdeas = lastWeekIdeas.filter(i => i.scan_type === scanType);
-    
+
     if (typeIdeas.length === 0 && lastTypeIdeas.length === 0) continue;
-    
-    const total = typeIdeas.length;
-    const accepted = typeIdeas.filter(i => i.status === 'accepted').length;
-    const rejected = typeIdeas.filter(i => i.status === 'rejected').length;
-    const implemented = typeIdeas.filter(i => i.status === 'implemented').length;
-    const acceptanceRate = total > 0 ? Math.round(((accepted + implemented) / total) * 100) : 0;
-    
-    const lastAcceptanceRate = lastTypeIdeas.length > 0
-      ? Math.round(((lastTypeIdeas.filter(i => i.status === 'accepted' || i.status === 'implemented').length) / lastTypeIdeas.length) * 100)
-      : 0;
-    
+
+    const dist = countIdeaStatuses(typeIdeas);
+    const { acceptanceRate } = calculateAcceptanceRate(dist);
+
+    const lastDist = countIdeaStatuses(lastTypeIdeas);
+    const { acceptanceRate: lastAcceptanceRate } = calculateAcceptanceRate(lastDist);
+
     const changeFromLastWeek = acceptanceRate - lastAcceptanceRate;
-    
+
     stats.push({
       scanType,
-      total,
-      accepted,
-      rejected,
-      implemented,
+      total: dist.total,
+      accepted: dist.accepted,
+      rejected: dist.rejected,
+      implemented: dist.implemented,
       acceptanceRate,
-      trend: changeFromLastWeek > 5 ? 'up' : changeFromLastWeek < -5 ? 'down' : 'stable',
+      trend: trendFromDelta(changeFromLastWeek),
       changeFromLastWeek,
     });
   }
-  
+
   return stats.sort((a, b) => b.total - a.total);
 }
 
@@ -345,27 +300,23 @@ function calculateContextMapStats(directions: any[], lastWeekDirections: any[]):
   for (const [contextMapId, { title, directions: cmDirections }] of contextMapGroups) {
     const lastCmDirections = lastWeekGroups.get(contextMapId) || [];
 
-    const total = cmDirections.length;
-    const accepted = cmDirections.filter(d => d.status === 'accepted').length;
-    const rejected = cmDirections.filter(d => d.status === 'rejected').length;
-    const pending = cmDirections.filter(d => d.status === 'pending').length;
-    const acceptanceRate = total > 0 ? Math.round((accepted / total) * 100) : 0;
+    const dist = countDirectionStatuses(cmDirections);
+    const { acceptanceRate } = calculateAcceptanceRate(dist);
 
-    const lastAcceptanceRate = lastCmDirections.length > 0
-      ? Math.round((lastCmDirections.filter(d => d.status === 'accepted').length / lastCmDirections.length) * 100)
-      : 0;
+    const lastDist = countDirectionStatuses(lastCmDirections);
+    const { acceptanceRate: lastAcceptanceRate } = calculateAcceptanceRate(lastDist);
 
     const changeFromLastWeek = acceptanceRate - lastAcceptanceRate;
 
     stats.push({
       contextMapId,
       contextMapTitle: title,
-      total,
-      accepted,
-      rejected,
-      pending,
+      total: dist.total,
+      accepted: dist.accepted,
+      rejected: dist.rejected,
+      pending: dist.pending,
       acceptanceRate,
-      trend: changeFromLastWeek > 5 ? 'up' : changeFromLastWeek < -5 ? 'down' : 'stable',
+      trend: trendFromDelta(changeFromLastWeek),
       changeFromLastWeek,
     });
   }

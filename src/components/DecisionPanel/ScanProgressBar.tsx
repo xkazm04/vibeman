@@ -25,7 +25,8 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { transition } from '@/lib/motion';
+import { duration, easing, transition } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 export type ScanProgressState = 'idle' | 'scanning' | 'success' | 'error';
 
@@ -58,6 +59,8 @@ export default function ScanProgressBar({
   showTokenCounts = totalTokens !== undefined,
   className = '',
 }: ScanProgressBarProps) {
+  const prefersReduced = useReducedMotion();
+
   // Calculate progress percentage (0-100)
   const progressPercentage = totalTokens
     ? Math.min(Math.max((processedTokens / totalTokens) * 100, 0), 100)
@@ -106,10 +109,10 @@ export default function ScanProgressBar({
   return (
     <motion.div
       className={`w-full ${className}`}
-      initial={{ opacity: 0, y: -10 }}
+      initial={prefersReduced ? false : { opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={transition.deliberate}
+      exit={prefersReduced ? { opacity: 0 } : { opacity: 0, y: -10 }}
+      transition={prefersReduced ? { duration: 0 } : transition.deliberate}
     >
       {/* Header with label and stats */}
       {(label || showPercentage || showTokenCounts) && (
@@ -167,9 +170,9 @@ export default function ScanProgressBar({
             className={`relative h-full bg-gradient-to-r ${colors.bg} shadow-lg ${colors.shadow}`}
             initial={{ width: 0 }}
             animate={{ width: `${progressPercentage}%` }}
-            transition={{
-              duration: 0.5,
-              ease: 'easeOut',
+            transition={prefersReduced ? { duration: 0 } : {
+              duration: duration.slow,
+              ease: easing.entrance,
             }}
           >
             {/* Static highlight - (removed shimmer animation for performance) */}
@@ -179,31 +182,38 @@ export default function ScanProgressBar({
 
         {/* Progress fill - Indeterminate mode (sliding bar) */}
         {isIndeterminate && state === 'scanning' && (
-          <motion.div
-            className={`absolute h-full bg-gradient-to-r ${colors.bg} shadow-lg ${colors.shadow}`}
-            style={{ width: '40%' }}
-            animate={{
-              x: ['-40%', '140%'],
-            }}
-            transition={{
-              duration: 1.5,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-          >
-            {/* Shimmer effect */}
+          prefersReduced ? (
+            <div
+              className={`absolute h-full bg-gradient-to-r ${colors.bg} shadow-lg ${colors.shadow}`}
+              style={{ width: '100%', opacity: 0.6 }}
+            />
+          ) : (
             <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+              className={`absolute h-full bg-gradient-to-r ${colors.bg} shadow-lg ${colors.shadow}`}
+              style={{ width: '40%' }}
               animate={{
-                x: ['-100%', '200%'],
+                x: ['-40%', '140%'],
               }}
               transition={{
-                duration: 1,
+                duration: 1.5,
                 repeat: Infinity,
-                ease: 'linear',
+                ease: 'easeInOut',
               }}
-            />
-          </motion.div>
+            >
+              {/* Shimmer effect */}
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                animate={{
+                  x: ['-100%', '200%'],
+                }}
+                transition={{
+                  duration: 1,
+                  repeat: Infinity,
+                  ease: 'linear',
+                }}
+              />
+            </motion.div>
+          )
         )}
 
         {/* Completion fill for success/error states */}
@@ -212,23 +222,25 @@ export default function ScanProgressBar({
             className={`absolute inset-0 bg-gradient-to-r ${colors.bg} shadow-lg ${colors.shadow}`}
             initial={{ width: `${progressPercentage}%` }}
             animate={{ width: '100%' }}
-            transition={{
-              duration: 0.4,
-              ease: 'easeOut',
+            transition={prefersReduced ? { duration: 0 } : {
+              duration: duration.expand,
+              ease: easing.entrance,
             }}
           >
             {/* Shimmer effect */}
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-              animate={{
-                x: ['-100%', '200%'],
-              }}
-              transition={{
-                duration: 1.5,
-                repeat: 1,
-                ease: 'linear',
-              }}
-            />
+            {!prefersReduced && (
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                animate={{
+                  x: ['-100%', '200%'],
+                }}
+                transition={{
+                  duration: 1.5,
+                  repeat: 1,
+                  ease: 'linear',
+                }}
+              />
+            )}
           </motion.div>
         )}
       </div>

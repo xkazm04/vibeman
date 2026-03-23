@@ -963,7 +963,7 @@ These endpoints follow the same conventions as above. Consult the source code in
 | **Cross-Task** | `/api/cross-task/` | Cross-task dependency management |
 | **Dependencies** | `/api/dependencies/` | Dependency scanning and upgrades |
 | **External Requirements** | `/api/external-requirements/` | Supabase-synced external requirements |
-| **Implementation Logs** | `/api/implementation-log/` | Track implementation history |
+| **Implementation Logs** | `/api/implementation-logs/` | Track implementation history |
 | **Integrations** | `/api/integrations/` | Third-party integration management |
 | **Kiro** | `/api/kiro/` | AI project review and folder analysis |
 | **Lifecycle** | `/api/lifecycle/` | Deployment lifecycle and quality gates |

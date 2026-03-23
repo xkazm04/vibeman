@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import type { TaskStatusUnion } from '../lib/types';
 import { getTheme } from '../lib/taskStatusUtils';
+import { duration, easing } from '@/lib/motion';
 
 interface TaskProgressProps {
   status: TaskStatusUnion;
@@ -64,7 +65,7 @@ export function TaskProgress({ status, className = '' }: TaskProgressProps) {
         className={`h-full ${styles.animatedColor} rounded-full`}
         initial={prefersReducedMotion ? false : { width: 0 }}
         animate={{ width: styles.width }}
-        transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.5, ease: 'easeOut' }}
+        transition={prefersReducedMotion ? { duration: 0 } : { duration: duration.slow, ease: easing.entrance }}
       />
     </div>
   );

@@ -8,12 +8,11 @@ import { detectLongFunctions } from '@/lib/scan/patterns';
 
 export function checkLongFunctions(
   file: FileAnalysis,
-  opportunities: RefactorOpportunity[]
-): void {
+): RefactorOpportunity[] {
   const longFunctions = detectLongFunctions(file.content);
-  if (longFunctions.length === 0) return;
+  if (longFunctions.length === 0) return [];
 
-  opportunities.push({
+  return [{
     id: `long-functions-${file.path}`,
     title: `Long functions in ${file.path}`,
     description: `Found ${longFunctions.length} functions exceeding 50 lines. Consider breaking them into smaller functions.`,
@@ -25,5 +24,5 @@ export function checkLongFunctions(
     lineNumbers: { [file.path]: longFunctions },
     autoFixAvailable: true,
     estimatedTime: '1-3 hours',
-  });
+  }];
 }

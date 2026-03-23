@@ -8,12 +8,11 @@ import { detectConsoleStatements } from '@/lib/scan/patterns';
 
 export function checkConsoleStatements(
   file: FileAnalysis,
-  opportunities: RefactorOpportunity[]
-): void {
+): RefactorOpportunity[] {
   const consoleStatements = detectConsoleStatements(file.content);
-  if (consoleStatements.length < 3) return; // Only flag files with 3+ console statements
+  if (consoleStatements.length < 3) return []; // Only flag files with 3+ console statements
 
-  opportunities.push({
+  return [{
     id: `console-logs-${file.path}`,
     title: `Console statements in ${file.path}`,
     description: `Found ${consoleStatements.length} console.log statements that should be removed or replaced with proper logging.`,
@@ -25,5 +24,5 @@ export function checkConsoleStatements(
     lineNumbers: { [file.path]: consoleStatements },
     autoFixAvailable: true,
     estimatedTime: '15-30 minutes',
-  });
+  }];
 }

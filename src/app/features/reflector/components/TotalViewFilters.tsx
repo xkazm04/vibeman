@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, X, ChevronDown, Sparkles } from 'lucide-react';
+import { duration } from '@/lib/motion';
 import { FilterState, getEmptyFilterState, countActiveFilters, getSuggestedFilters } from '../lib/filterIdeas';
 import ProjectFilter from './ProjectFilter';
 import ContextFilter from './ContextFilter';
@@ -109,7 +110,7 @@ export default function TotalViewFilters({ projects, filters, onChange, ideas }:
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ type: 'spring', duration: 0.3 }}
+            transition={{ type: 'spring', duration: duration.deliberate }}
           >
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-purple-300 flex items-center space-x-2">

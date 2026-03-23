@@ -13,7 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { discoverRelevantFiles } from '../fileDiscovery';
 import { getBehavioralContext, formatBehavioralForPrompt } from '@/lib/brain/behavioralContext';
 import { getCompactBrainContext } from '@/lib/brain/brainContext';
-import type { V3Task, PlanOutput, V3Config } from './types';
+import type { V3Task, PlanOutput, V3Config, WorkspaceContext } from './types';
 
 // ============================================================================
 // Input Type
@@ -31,6 +31,7 @@ export interface PlanPhaseInput {
   previousReflection: import('./types').ReflectOutput | null;
   healingContext: string;
   refinedIntent: string | null;
+  workspaceContext: WorkspaceContext | null;
   abortSignal?: AbortSignal;
 }
 
@@ -75,6 +76,7 @@ export async function executePlanPhase(input: PlanPhaseInput): Promise<PlanOutpu
     healingContext: input.healingContext,
     targetPaths: input.targetPaths,
     domains,
+    workspaceContext: input.workspaceContext,
   });
 
   // 5. Single LLM call
@@ -125,13 +127,14 @@ interface PlanPromptInput {
   healingContext: string;
   targetPaths: string[] | null;
   domains: Array<{ id: string; name: string }>;
+  workspaceContext: WorkspaceContext | null;
 }
 
 function buildPlanPrompt(input: PlanPromptInput): string {
   const {
     goalTitle, goalDescription, refinedIntent, fileTree, fileContents,
     brainWarnings, behavioralSection, brainPhilosophy, previousReflection,
-    healingContext, targetPaths, domains,
+    healingContext, targetPaths, domains, workspaceContext,
   } = input;
 
   const sections: string[] = [];
@@ -170,6 +173,15 @@ function buildPlanPrompt(input: PlanPromptInput): string {
   // Healing context
   if (healingContext) {
     sections.push(`## Healing Context\n\nPrevious errors and patches to be aware of:\n\n${healingContext}`);
+  }
+
+  // Workspace context (cross-project awareness)
+  if (workspaceContext) {
+    const { formatWorkspaceContextForPrompt } = require('./brainAdvisor');
+    const wsSection = formatWorkspaceContextForPrompt(workspaceContext);
+    if (wsSection) {
+      sections.push(wsSection);
+    }
   }
 
   // Knowledge Base context (architectural patterns & decisions)
@@ -231,7 +243,8 @@ Respond with ONLY valid JSON (no markdown fences):
 5. **Order**: Tasks are ordered by dependency — earlier tasks before later ones.
 6. **Max tasks**: Aim for 3-8 tasks per cycle. More than 10 suggests the goal needs splitting.
 7. Do NOT include testing-only tasks or documentation-only tasks unless the goal explicitly asks for them.
-8. Be specific about implementation details — vague descriptions lead to poor execution.`);
+8. Be specific about implementation details — vague descriptions lead to poor execution.
+9. If a workspace context is provided, analyze cross-project impacts. Note when tasks modify shared APIs, data contracts, or integration boundaries that affect sibling projects.`);
 
   return sections.join('\n\n');
 }

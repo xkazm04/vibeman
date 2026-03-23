@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { UseTestModeResult } from '../lib/useTestMode';
 import { TestScenarioId, ReplaySession } from '../lib/testScenarios';
+import { transition } from '@/lib/motion';
 
 interface TestModeControlsProps {
   testMode: UseTestModeResult;
@@ -118,7 +119,7 @@ export default function TestModeControls({
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              transition={transition.normal}
               className="overflow-hidden"
             >
               <div className="p-4 space-y-4">

@@ -8,12 +8,11 @@ import { detectDuplication } from '@/lib/scan/patterns';
 
 export function checkDuplication(
   file: FileAnalysis,
-  opportunities: RefactorOpportunity[]
-): void {
+): RefactorOpportunity[] {
   const duplicatePatterns = detectDuplication(file.content);
-  if (duplicatePatterns.length === 0) return;
+  if (duplicatePatterns.length === 0) return [];
 
-  opportunities.push({
+  return [{
     id: `duplication-${file.path}`,
     title: `Code duplication in ${file.path}`,
     description: `Found ${duplicatePatterns.length} duplicated code blocks that could be extracted into reusable functions.`,
@@ -24,5 +23,5 @@ export function checkDuplication(
     files: [file.path],
     autoFixAvailable: true,
     estimatedTime: '1-2 hours',
-  });
+  }];
 }

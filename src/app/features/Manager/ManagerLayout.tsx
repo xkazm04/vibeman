@@ -33,7 +33,7 @@ import DevelopmentFlowMap from './components/DevelopmentFlowMap';
 import TabEmptyState from './components/TabEmptyStates';
 import { acceptImplementation } from '@/lib/tools';
 import type { ContextGroupRelationship } from '@/lib/queries/contextQueries';
-import type { ApiResponse } from '@/types/api';
+import { fetchUntestedLogs, fetchContextGroupRelationships } from './lib/managerService';
 
 interface ManagerLayoutProps {
   /** Optional project ID override; defaults to the active project from the store. */
@@ -62,15 +62,8 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const url = effectiveProjectId
-        ? `/api/implementation-logs/untested?projectId=${effectiveProjectId}`
-        : '/api/implementation-logs/untested';
-
-      const response = await fetch(url);
-      const data: ApiResponse<EnrichedImplementationLog[]> = await response.json();
-      if (data.success) {
-        setImplementationLogs(data.data);
-      }
+      const logs = await fetchUntestedLogs(effectiveProjectId);
+      setImplementationLogs(logs);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       toast.error('Failed to load implementation logs', msg);
@@ -89,13 +82,8 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
     const pid = projectId || activeProject?.id;
     if (pid) {
       loadProjectData(pid);
-      fetch(`/api/context-group-relationships?projectId=${pid}`)
-        .then(res => res.json() as Promise<ApiResponse<ContextGroupRelationship[]>>)
-        .then(data => {
-          if (data.success) {
-            setRelationships(data.data || []);
-          }
-        })
+      fetchContextGroupRelationships(pid)
+        .then(rels => setRelationships(rels))
         .catch((err: unknown) => {
           const msg = err instanceof Error ? err.message : String(err);
           toast.error('Failed to load context relationships', msg);

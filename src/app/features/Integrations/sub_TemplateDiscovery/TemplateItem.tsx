@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { FileText, Clock, AlertCircle } from 'lucide-react';
+import { duration, easing } from '@/lib/motion';
 import type { DbDiscoveredTemplate } from '../../../db/models/types';
 
 interface TemplateItemProps {
@@ -35,7 +36,7 @@ const TemplateItem = React.memo(function TemplateItem({
       animate={{ opacity: isStale ? 0.6 : 1, x: 0 }}
       whileHover={{
         x: 3,
-        transition: { duration: 0.15, ease: 'easeOut' },
+        transition: { duration: duration.snappy, ease: easing.entrance },
       }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}

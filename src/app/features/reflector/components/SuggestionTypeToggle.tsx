@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Lightbulb, Compass, Layers } from 'lucide-react';
+import { useTabNavigation } from '@/hooks/useTabNavigation';
 import { SuggestionFilter } from '../lib/unifiedTypes';
 
 interface SuggestionTypeToggleProps {
@@ -57,6 +58,8 @@ export default function SuggestionTypeToggle({
   directionsCount,
   compact = false
 }: SuggestionTypeToggleProps) {
+  const { tablistRef, handleKeyDown } = useTabNavigation();
+
   const getCount = (option: SuggestionFilter): number | undefined => {
     if (option === 'ideas') return ideasCount;
     if (option === 'directions') return directionsCount;
@@ -67,7 +70,13 @@ export default function SuggestionTypeToggle({
   };
 
   return (
-    <div className={`flex ${compact ? 'gap-1' : 'gap-2'}`}>
+    <div
+      ref={tablistRef}
+      role="tablist"
+      aria-label="Suggestion type"
+      onKeyDown={handleKeyDown}
+      className={`flex ${compact ? 'gap-1' : 'gap-2'}`}
+    >
       {TYPE_OPTIONS.map((option) => {
         const isSelected = value === option.value;
         const Icon = option.icon;
@@ -76,9 +85,13 @@ export default function SuggestionTypeToggle({
         return (
           <motion.button
             key={option.value}
+            role="tab"
+            aria-selected={isSelected}
+            tabIndex={isSelected ? 0 : -1}
             onClick={() => onChange(option.value)}
             className={`
-              flex items-center gap-1.5 rounded-lg border transition-all
+              flex items-center gap-1.5 rounded-lg border transition-all outline-none
+              focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900
               ${compact ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'}
               ${isSelected
                 ? `${option.bgActive} ${option.textActive} ${option.borderActive}`

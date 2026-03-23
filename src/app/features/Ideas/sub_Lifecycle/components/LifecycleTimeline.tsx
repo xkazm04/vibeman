@@ -15,6 +15,7 @@ import {
   LucideIcon,
 } from 'lucide-react';
 import { LifecycleEvent, LifecyclePhase } from '../lib/lifecycleTypes';
+import { transition } from '@/lib/motion';
 
 type EventFilterCategory = 'phases' | 'scans' | 'gates' | 'errors';
 
@@ -194,7 +195,7 @@ export default function LifecycleTimeline({
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 10 }}
-              transition={{ duration: 0.2, delay: index * 0.02 }}
+              transition={{ ...transition.normal, delay: index * 0.02 }}
               className={`flex items-start gap-3 ${compact ? 'py-1' : 'py-2'}`}
               data-testid={`lifecycle-event-${event.id}`}
             >

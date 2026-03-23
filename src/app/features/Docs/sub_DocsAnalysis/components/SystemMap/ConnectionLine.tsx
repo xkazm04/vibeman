@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { duration, easing } from '@/lib/motion';
 
 interface ConnectionLineProps {
   fromPos: { x: number; y: number };
@@ -47,7 +48,7 @@ export default function ConnectionLine({
           pathLength: 1,
           opacity: isHighlighted ? 0.9 : 0.6,
         }}
-        transition={{ duration: 1.2, ease: 'easeInOut' }}
+        transition={{ duration: duration.sweep, ease: easing.morph }}
       />
 
       {/* Animated pulse on highlighted connections */}

@@ -9,6 +9,7 @@ import type { DbBrainInsight, LearningInsight, EvidenceRef } from '../models/bra
 import { getCurrentTimestamp, selectOne, selectAll } from './repository.utils';
 import { createGenericRepository } from './generic.repository';
 import { generateInsightHash } from '@/lib/brain/insightId';
+import { InsightDeduplicator } from '@/lib/brain/InsightDeduplicator';
 
 /**
  * Parse evidence JSON, handling both legacy string[] and typed EvidenceRef[] formats.
@@ -187,7 +188,8 @@ export const brainInsightRepository = {
   createBatch: (
     reflectionId: string,
     projectId: string,
-    insights: LearningInsight[]
+    insights: LearningInsight[],
+    deduplicator: InsightDeduplicator,
   ): DbBrainInsight[] => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
@@ -216,14 +218,6 @@ export const brainInsightRepository = {
         VALUES (?, ?, ?, ?, ?)
       `);
 
-      // Lookup by title (fallback) and by canonical_id (preferred)
-      const findByCanonicalStmt = db.prepare(
-        'SELECT id, title FROM brain_insights WHERE project_id = ? AND canonical_id = ? ORDER BY created_at DESC LIMIT 1'
-      );
-      const findByTitleStmt = db.prepare(
-        'SELECT id, title FROM brain_insights WHERE project_id = ? AND title = ? ORDER BY created_at DESC LIMIT 1'
-      );
-
       // Prepare FK validation queries for each evidence type
       const directionExistsStmt = db.prepare('SELECT 1 FROM directions WHERE id = ? LIMIT 1');
       const reflectionExistsStmt = db.prepare('SELECT 1 FROM brain_reflections WHERE id = ? LIMIT 1');
@@ -234,42 +228,14 @@ export const brainInsightRepository = {
         const id = `bi_${crypto.randomUUID()}`;
         const canonicalId = generateInsightHash(insight.type, insight.title, projectId);
 
-        // Resolve evolves_from_id via canonical_id, falling back to title
-        let evolvesFromId: string | null = null;
-        if (insight.evolves) {
-          // First try canonical lookup (handles rephrased titles)
-          const evolvesCanonical = generateInsightHash(insight.type, insight.evolves, projectId);
-          const byCanonical = findByCanonicalStmt.get(projectId, evolvesCanonical) as { id: string; title: string } | undefined;
-          if (byCanonical) {
-            evolvesFromId = byCanonical.id;
-          } else {
-            // Fallback to exact title match
-            const byTitle = findByTitleStmt.get(projectId, insight.evolves) as { id: string; title: string } | undefined;
-            if (byTitle) {
-              evolvesFromId = byTitle.id;
-            }
-          }
-        }
+        // Resolve relationship IDs via deduplicator (single owner of canonical hash + title lookup)
+        const evolvesFromId = insight.evolves
+          ? deduplicator.resolveEvolvesFromId(insight.type, insight.evolves)
+          : null;
 
-        // Resolve conflict_with_id via canonical_id, falling back to title
-        let conflictWithId: string | null = null;
-        if (insight.conflict_with) {
-          // Try all insight types for the conflicting insight's canonical id
-          for (const candidateType of ['preference_learned', 'pattern_detected', 'warning', 'recommendation'] as const) {
-            const conflictCanonical = generateInsightHash(candidateType, insight.conflict_with, projectId);
-            const byCanonical = findByCanonicalStmt.get(projectId, conflictCanonical) as { id: string; title: string } | undefined;
-            if (byCanonical) {
-              conflictWithId = byCanonical.id;
-              break;
-            }
-          }
-          if (!conflictWithId) {
-            const byTitle = findByTitleStmt.get(projectId, insight.conflict_with) as { id: string; title: string } | undefined;
-            if (byTitle) {
-              conflictWithId = byTitle.id;
-            }
-          }
-        }
+        const conflictWithId = insight.conflict_with
+          ? deduplicator.resolveConflictWithId(insight.conflict_with)
+          : null;
 
         stmt.run(
           id,

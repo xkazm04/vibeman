@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, X, GitCompare, Clock } from 'lucide-react';
+import { duration } from '@/lib/motion';
 import { ComparisonFilterState, TimeWindow } from '../lib/types';
 import { UniversalSelect } from '@/components/ui/UniversalSelect';
 
@@ -216,7 +217,7 @@ export default function FilterPanel({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: duration.normal }}
             className="overflow-hidden"
           >
             <div className="mt-4 pt-4 border-t border-gray-700/40">

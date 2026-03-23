@@ -286,6 +286,35 @@ export const V3_PHASE_CONFIGS: V3PhaseConfig[] = [
 ];
 
 // ============================================================================
+// Workspace Context (cross-project orchestration)
+// ============================================================================
+
+export interface WorkspaceProject {
+  id: string;
+  name: string;
+  path: string;
+  type: string;
+}
+
+export interface WorkspaceRelationship {
+  sourceProjectId: string;
+  targetProjectId: string;
+  integrationType: string;
+  label: string | null;
+  dataFlow: string | null;
+  confidence: number;
+}
+
+export interface WorkspaceContext {
+  workspaceId: string;
+  workspaceName: string;
+  projects: WorkspaceProject[];
+  relationships: WorkspaceRelationship[];
+  /** The project that triggered this pipeline run */
+  primaryProjectId: string;
+}
+
+// ============================================================================
 // Helper: Convert V3Config to BalancingConfig (for infrastructure reuse)
 // ============================================================================
 

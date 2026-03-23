@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { duration } from '@/lib/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
   Network, Calendar, Radar, Maximize2, Minimize2, Download,
@@ -210,7 +211,7 @@ export default function AnalyticsStudio({ aiInsights, report, className = '' }: 
         initial={reducedMotion ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -20 }}
-        transition={reducedMotion ? { duration: 0 } : { duration: 0.2 }}
+        transition={reducedMotion ? { duration: 0 } : { duration: duration.normal }}
         className={`bg-gray-900/50 border rounded-xl overflow-hidden backdrop-blur-sm transition-all ${
           isExpanded ? 'col-span-full' : ''
         } ${isDragging ? 'opacity-50 scale-95' : ''} ${

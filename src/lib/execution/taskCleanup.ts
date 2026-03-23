@@ -54,25 +54,29 @@ export async function deleteRequirementFile(
 
 /**
  * Update idea status to 'implemented'.
+ * Uses direct DB access instead of HTTP to avoid fire-and-forget fetch.
  */
 export async function updateIdeaImplementationStatus(
   requirementName: string,
-  baseUrl?: string
+  _baseUrl?: string
 ): Promise<void> {
   try {
-    await fetch(resolveUrl('/api/ideas/update-implementation-status', baseUrl), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requirementName }),
-    });
+    const { ideaDb, contextDb } = require('@/app/db');
+    const idea = ideaDb.getIdeaByRequirementId(requirementName);
+    if (idea && idea.status !== 'implemented') {
+      ideaDb.updateIdea(idea.id, { status: 'implemented' });
+      if (idea.context_id) {
+        contextDb.incrementImplementedTasks(idea.context_id);
+      }
+    }
   } catch {
-    // Non-critical - silently ignore
+    // Non-critical — idea status update must never break cleanup flow
   }
 }
 
 /**
  * Ensure an implementation log exists for a completed task.
- * Checks existing logs and creates a fallback if none found.
+ * Uses direct DB access instead of HTTP to avoid fire-and-forget fetch.
  * Guarantees a log is always created after execution,
  * even if the CLI agent didn't call the log_implementation MCP tool.
  */
@@ -80,31 +84,36 @@ async function ensureImplementationLog(
   projectId: string,
   requirementName: string,
   contextId?: string | null,
-  baseUrl?: string
+  _baseUrl?: string
 ): Promise<void> {
   try {
-    const resp = await fetch(
-      resolveUrl(`/api/implementation-logs?projectId=${encodeURIComponent(projectId)}&limit=50`, baseUrl)
-    );
-    if (resp.ok) {
-      const { logs } = await resp.json();
-      const exists = Array.isArray(logs) && logs.some(
-        (log: { requirement_name?: string }) => log.requirement_name === requirementName
-      );
-      if (exists) return;
-    }
+    const { implementationLogDb } = require('@/app/db');
+    const { randomUUID } = require('crypto');
 
-    await fetch(resolveUrl('/api/implementation-log', baseUrl), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        projectId,
-        requirementName,
-        title: `Implementation: ${requirementName}`,
-        overview: 'Auto-generated after successful CLI execution (no MCP log_implementation call detected).',
-        contextId: contextId || undefined,
-        metadata: { category: 'unknown' },
-      }),
+    const existingLogs = implementationLogDb.getRecentLogsByProject(projectId, 50);
+    const exists = Array.isArray(existingLogs) && existingLogs.some(
+      (log: { requirement_name?: string }) => log.requirement_name === requirementName
+    );
+    if (exists) return;
+
+    const logId = randomUUID();
+    implementationLogDb.createLog({
+      id: logId,
+      project_id: projectId,
+      context_id: contextId || undefined,
+      requirement_name: requirementName,
+      title: `Implementation: ${requirementName}`,
+      overview: 'Auto-generated after successful CLI execution (no MCP log_implementation call detected).',
+      metadata: JSON.stringify({ category: 'unknown' }),
+    });
+
+    // Emit domain event for the auto-generated log
+    const { emitImplementationLogged } = require('@/lib/events/domainEmitters');
+    emitImplementationLogged({
+      projectId,
+      logId,
+      requirementName,
+      contextId,
     });
   } catch {
     // Non-critical — best-effort fallback

@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { duration, easing, transition } from '@/lib/motion';
 import { ChevronUp, Map, GitBranch, Layers, FileText } from 'lucide-react';
 import ContextMapPanel from './ContextMapPanel';
 import ArchitectureAnalysisPanel from './ArchitectureAnalysisPanel';
@@ -154,7 +155,7 @@ export default function ArchitectureBottomBar({
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 280, opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2, ease: 'easeInOut' }}
+              transition={{ duration: duration.normal, ease: easing.morph }}
               className="overflow-hidden border-t border-cyan-500/10 bg-zinc-900/80"
             >
               {/* Tab Content - Centered with max width */}
@@ -170,7 +171,7 @@ export default function ArchitectureBottomBar({
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 10 }}
-                        transition={{ duration: 0.15 }}
+                        transition={transition.snappy}
                         className="h-full"
                       >
                         <ContextMapPanel projects={projects} />
@@ -185,7 +186,7 @@ export default function ArchitectureBottomBar({
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 10 }}
-                        transition={{ duration: 0.15 }}
+                        transition={transition.snappy}
                         className="h-full"
                       >
                         <ArchitectureAnalysisPanel
@@ -203,7 +204,7 @@ export default function ArchitectureBottomBar({
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 10 }}
-                        transition={{ duration: 0.15 }}
+                        transition={transition.snappy}
                         className="h-full"
                       >
                         <CrossTaskPanel
@@ -222,7 +223,7 @@ export default function ArchitectureBottomBar({
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 10 }}
-                        transition={{ duration: 0.15 }}
+                        transition={transition.snappy}
                         className="h-full"
                       >
                         <ImplementationPlansManager

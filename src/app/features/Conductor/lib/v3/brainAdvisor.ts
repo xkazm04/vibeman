@@ -13,7 +13,7 @@
 import { getBehavioralContext } from '@/lib/brain/behavioralContext';
 import { recordSignal } from '@/lib/brain/brainService';
 import { SignalType } from '@/types/signals';
-import type { V3Task, ReflectOutput } from './types';
+import type { V3Task, ReflectOutput, WorkspaceContext, WorkspaceProject, WorkspaceRelationship } from './types';
 
 // ============================================================================
 // Types
@@ -205,6 +205,114 @@ export function getKBContext(input: {
     console.warn('[BrainAdvisor] getKBContext failed:', err);
     return '';
   }
+}
+
+// ============================================================================
+// Moment 5: Workspace Context — Cross-Project Orchestration
+// ============================================================================
+
+/**
+ * Get workspace context for a project: sibling projects + cross-project relationships.
+ * Returns null if the project is not in a workspace or workspace has only one project.
+ * Non-blocking: returns null on any failure.
+ */
+export function getWorkspaceContext(projectId: string): WorkspaceContext | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { workspaceDb, crossProjectRelationshipDb } = require('@/app/db');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { projectDb } = require('@/lib/project_database');
+
+    // Find the workspace this project belongs to
+    const workspace = workspaceDb.getWorkspaceForProject(projectId);
+    if (!workspace) return null;
+
+    // Get all project IDs in this workspace
+    const projectIds: string[] = workspaceDb.getProjectIds(workspace.id);
+    if (projectIds.length <= 1) return null; // Single-project workspace, no cross-project value
+
+    // Resolve project details
+    const projects: WorkspaceProject[] = [];
+    for (const pid of projectIds) {
+      const proj = projectDb.getProject(pid);
+      if (proj) {
+        projects.push({
+          id: proj.id,
+          name: proj.name,
+          path: proj.path,
+          type: proj.type || 'unknown',
+        });
+      }
+    }
+
+    if (projects.length <= 1) return null;
+
+    // Get cross-project relationships for this workspace
+    const rawRelationships = crossProjectRelationshipDb.getByWorkspace(workspace.id);
+    const relationships: WorkspaceRelationship[] = rawRelationships.map(
+      (r: { source_project_id: string; target_project_id: string; integration_type: string; label: string | null; data_flow: string | null; confidence: number }) => ({
+        sourceProjectId: r.source_project_id,
+        targetProjectId: r.target_project_id,
+        integrationType: r.integration_type,
+        label: r.label,
+        dataFlow: r.data_flow,
+        confidence: r.confidence,
+      })
+    );
+
+    return {
+      workspaceId: workspace.id,
+      workspaceName: workspace.name,
+      projects,
+      relationships,
+      primaryProjectId: projectId,
+    };
+  } catch (err) {
+    console.warn('[BrainAdvisor] getWorkspaceContext failed:', err);
+    return null;
+  }
+}
+
+/**
+ * Format workspace context into a prompt section for LLM consumption.
+ * Returns empty string if no workspace context.
+ */
+export function formatWorkspaceContextForPrompt(ctx: WorkspaceContext | null): string {
+  if (!ctx) return '';
+
+  const primaryProject = ctx.projects.find(p => p.id === ctx.primaryProjectId);
+  const siblingProjects = ctx.projects.filter(p => p.id !== ctx.primaryProjectId);
+
+  const sections: string[] = [];
+  sections.push(`## Workspace Context: "${ctx.workspaceName}"`);
+  sections.push(`This project is part of a multi-project workspace. Changes may have cross-project impact.\n`);
+
+  sections.push(`**Primary project (this run):** ${primaryProject?.name || ctx.primaryProjectId} (${primaryProject?.type || 'unknown'}) — \`${primaryProject?.path || ''}\``);
+
+  sections.push(`\n**Sibling projects in workspace:**`);
+  for (const p of siblingProjects) {
+    sections.push(`- **${p.name}** (${p.type}) — \`${p.path}\``);
+  }
+
+  if (ctx.relationships.length > 0) {
+    sections.push(`\n**Cross-project dependencies:**`);
+    const nameMap = new Map(ctx.projects.map(p => [p.id, p.name]));
+    for (const rel of ctx.relationships) {
+      const src = nameMap.get(rel.sourceProjectId) || rel.sourceProjectId;
+      const tgt = nameMap.get(rel.targetProjectId) || rel.targetProjectId;
+      const flow = rel.dataFlow ? ` (${rel.dataFlow})` : '';
+      const label = rel.label ? `: ${rel.label}` : '';
+      sections.push(`- ${src} → ${tgt} [${rel.integrationType}${flow}]${label}`);
+    }
+  }
+
+  sections.push(`\n**Cross-project guidelines:**
+- Consider how changes to shared interfaces, APIs, or data contracts affect sibling projects
+- If modifying an API endpoint consumed by another project, note the downstream impact
+- Prefer backward-compatible changes when touching integration boundaries
+- Flag any tasks that require coordinated changes across multiple projects`);
+
+  return sections.join('\n');
 }
 
 // ============================================================================

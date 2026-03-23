@@ -7,6 +7,7 @@ import {
   Lightbulb, Zap, Target,
 } from 'lucide-react';
 import { DbIdea } from '@/app/db';
+import { duration } from '@/lib/motion';
 
 /** Describes what chart segment was clicked to open the drill-down */
 export interface DrillDownContext {
@@ -102,7 +103,7 @@ export default function DrillDownDrawer({ context, onClose, onIdeaAction }: Dril
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: duration.normal }}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
             onClick={onClose}
           />

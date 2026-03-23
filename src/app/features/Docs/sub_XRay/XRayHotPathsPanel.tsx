@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { transition } from '@/lib/motion';
+import { duration, transition } from '@/lib/motion';
 import { Flame, Clock, AlertCircle, TrendingUp, Zap } from 'lucide-react';
 import { useXRayHotPaths, useXRayLayers, useXRayIsConnected } from '@/stores/xrayStore';
 
@@ -185,7 +185,7 @@ export default function XRayHotPathsPanel({ isExpanded, onToggle }: XRayHotPaths
                               animate={{
                                 width: `${Math.min(100, (path.requestCount / hotPaths[0].requestCount) * 100)}%`,
                               }}
-                              transition={{ duration: 0.5, delay: index * 0.1 }}
+                              transition={{ duration: duration.slow, delay: index * 0.1 }}
                             />
                           </div>
                         </div>

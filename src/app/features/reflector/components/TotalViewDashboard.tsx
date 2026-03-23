@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { duration } from '@/lib/motion';
 import { DbIdea, DbDirection } from '@/app/db';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useContextStore } from '@/stores/contextStore';
@@ -143,7 +144,7 @@ export default function TotalViewDashboard({ ideas, directions = [], suggestionT
       className="space-y-6"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: duration.deliberate }}
     >
       {/* Header */}
       <motion.div

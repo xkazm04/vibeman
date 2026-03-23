@@ -7,11 +7,10 @@ import type { RefactorOpportunity } from '@/stores/refactorStore';
 
 export function checkLargeFile(
   file: FileAnalysis,
-  opportunities: RefactorOpportunity[]
-): void {
+): RefactorOpportunity[] {
   const lines = file.content.split('\n').length;
   // Stricter threshold: 200 lines (was 500)
-  if (lines <= 200) return;
+  if (lines <= 200) return [];
 
   // Escalate severity based on size
   let severity: RefactorOpportunity['severity'] = 'low';
@@ -32,7 +31,7 @@ export function checkLargeFile(
     estimatedTime = '1-2 hours';
   }
 
-  opportunities.push({
+  return [{
     id: `long-file-${file.path}`,
     title: `Large file detected: ${file.path}`,
     description: `This file has ${lines} lines. Consider splitting it into smaller, more focused modules. Target: Keep files under 200 lines for better maintainability.`,
@@ -43,5 +42,5 @@ export function checkLargeFile(
     files: [file.path],
     autoFixAvailable: false,
     estimatedTime,
-  });
+  }];
 }

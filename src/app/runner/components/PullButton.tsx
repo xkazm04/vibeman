@@ -13,6 +13,7 @@ import {
   ArrowDown
 } from 'lucide-react';
 import { Project, GitStatus } from '@/types';
+import { SimpleSpinner } from '@/components/ui/Spinner';
 
 interface PullButtonProps {
   project: Project;
@@ -209,11 +210,7 @@ export default function PullButton({ project, isRunning, onPullComplete }: PullB
                   }
                 >
                   {loading ? (
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="w-3 h-3 border border-current border-t-transparent rounded-full"
-                    />
+                    <SimpleSpinner size="xs" color="white" />
                   ) : (
                     <>
                       <Download size={10} />

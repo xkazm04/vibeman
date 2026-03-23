@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { Context, ContextGroup } from '../../../../stores/contextStore';
 import ContextJailCard from './ContextJailCard';
 import ContextCardsEmpty from './ContextCardsEmpty';
@@ -47,7 +48,7 @@ const ContextCards = React.memo(({ contexts, group, availableGroups, showFullScr
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.4, ease: "easeInOut" }}
+            transition={transition.expand}
             className="relative"
         >
             {contexts.length === 0 ? (
@@ -85,7 +86,7 @@ const ContextCards = React.memo(({ contexts, group, availableGroups, showFullScr
                                             }}
                                             initial={{ scaleY: 0 }}
                                             animate={{ scaleY: 1 }}
-                                            transition={{ delay: index * 0.1 + 0.5, duration: 0.3 }}
+                                            transition={{ ...transition.deliberate, delay: index * 0.1 + 0.5 }}
                                         />
                                     )}
 
@@ -97,7 +98,7 @@ const ContextCards = React.memo(({ contexts, group, availableGroups, showFullScr
                                             }}
                                             initial={{ scaleX: 0 }}
                                             animate={{ scaleX: 1 }}
-                                            transition={{ delay: index * 0.1 + 0.6, duration: 0.3 }}
+                                            transition={{ ...transition.deliberate, delay: index * 0.1 + 0.6 }}
                                         />
                                     )}
                                 </div>

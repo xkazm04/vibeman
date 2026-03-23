@@ -8,6 +8,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { Plug, FileText, Activity } from 'lucide-react';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { IntegrationsDashboard } from './IntegrationsDashboard';
@@ -103,7 +104,7 @@ export default function IntegrationsLayout({ projectId: propProjectId }: Integra
           key={activeTab}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2 }}
+          transition={transition.normal}
         >
           {renderContent()}
         </motion.div>

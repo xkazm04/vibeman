@@ -7,9 +7,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { questionDb } from '@/app/db';
 import { logger } from '@/lib/logger';
-import { buildQuestionForest, type QuestionTreeNode } from '@/app/db/repositories/question.repository';
+import { questionTreeService } from '@/lib/questions/questionTreeService';
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,21 +22,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const allQuestions = questionDb.getQuestionsByProject(projectId);
-    const trees = buildQuestionForest(allQuestions);
-    const maxDepth = questionDb.getMaxTreeDepth(projectId);
-
-    // Compute per-tree stats
-    const treeStats = trees.map(root => ({
-      rootId: root.id,
-      rootQuestion: root.question,
-      context: root.context_map_title,
-      totalNodes: countNodes(root),
-      maxDepth: computeTreeDepth(root),
-      answeredCount: countAnswered(root),
-      pendingCount: countPending(root),
-      hasStrategicBrief: !!root.strategic_brief,
-    }));
+    const trees = questionTreeService.getQuestionTrees(projectId);
+    const maxDepth = questionTreeService.getMaxTreeDepth(projectId);
+    const treeStats = questionTreeService.getTreeStats(trees);
+    const totalQuestions = trees.reduce(
+      (sum, root) => sum + treeStats.find(s => s.rootId === root.id)!.totalNodes,
+      0
+    );
 
     return NextResponse.json({
       success: true,
@@ -45,7 +36,7 @@ export async function GET(request: NextRequest) {
       treeStats,
       totalTrees: trees.length,
       maxDepth,
-      totalQuestions: allQuestions.length,
+      totalQuestions,
     });
   } catch (error) {
     logger.error('[API] Question tree GET error:', { error });
@@ -54,23 +45,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-function countNodes(node: QuestionTreeNode): number {
-  return 1 + node.children.reduce((sum, child) => sum + countNodes(child), 0);
-}
-
-function computeTreeDepth(node: QuestionTreeNode): number {
-  if (node.children.length === 0) return 0;
-  return 1 + Math.max(...node.children.map(computeTreeDepth));
-}
-
-function countAnswered(node: QuestionTreeNode): number {
-  const self = node.status === 'answered' ? 1 : 0;
-  return self + node.children.reduce((sum, child) => sum + countAnswered(child), 0);
-}
-
-function countPending(node: QuestionTreeNode): number {
-  const self = node.status === 'pending' ? 1 : 0;
-  return self + node.children.reduce((sum, child) => sum + countPending(child), 0);
 }

@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { useProjectContexts } from '@/lib/queries/contextsQueries';
 import type { Context, ContextGroup } from '@/lib/queries/contextQueries';
 import ContextRowSelection from './ContextRowSelection';
+import { duration, easing } from '@/lib/motion';
 
 interface IdeasHeaderWithFilterProps {
   projects: Array<{ id: string; name: string }>;
@@ -43,7 +44,7 @@ export default function IdeasHeaderWithFilter({
         className="relative border-b border-gray-700/40 bg-gray-900/60 backdrop-blur-xl"
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5 }}
+        transition={{ duration: duration.slow, ease: easing.entrance }}
       >
         <div className="max-w-7xl mx-auto px-6 py-4">
           {/* Context Selection Row - Only show when a specific project is selected */}

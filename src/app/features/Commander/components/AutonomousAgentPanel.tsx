@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import {
   Play,
   Pause,
@@ -230,7 +231,7 @@ export default function AutonomousAgentPanel() {
               className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-purple-500"
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.5 }}
+              transition={transition.slow}
             />
           </div>
           {goal.failedSteps > 0 && (

@@ -1,3 +1,8 @@
+/**
+ * @route /api/ideas/variants
+ * GET  - Get variants for an idea (VariantCarousel)
+ * POST - Generate variants via LLM (variantApi)
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb } from '@/app/db';
 import { generateWithLLM } from '@/lib/llm';

@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { duration } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Sparkles, Trophy, Star, PartyPopper, Rocket } from 'lucide-react';
 
 interface ProgressCelebrationProps {
@@ -77,6 +79,7 @@ export default function ProgressCelebration({
   milestone,
   onComplete,
 }: ProgressCelebrationProps) {
+  const prefersReduced = useReducedMotion();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -150,7 +153,7 @@ export default function ProgressCelebration({
         className="fixed inset-0 pointer-events-none z-50 overflow-hidden"
       >
         {/* Confetti particles */}
-        {Array.from({ length: config.confettiCount }).map((_, i) => (
+        {!prefersReduced && Array.from({ length: config.confettiCount }).map((_, i) => (
           <ConfettiParticle
             key={`confetti-${i}`}
             delay={Math.random() * 0.5}
@@ -160,7 +163,7 @@ export default function ProgressCelebration({
         ))}
 
         {/* Emoji bursts */}
-        {Array.from({ length: config.emojiCount }).map((_, i) => (
+        {!prefersReduced && Array.from({ length: config.emojiCount }).map((_, i) => (
           <EmojiBurst
             key={`emoji-${i}`}
             emoji={CELEBRATION_EMOJIS[i % CELEBRATION_EMOJIS.length]}
@@ -173,34 +176,34 @@ export default function ProgressCelebration({
           className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2
                      flex flex-col items-center gap-4 p-8 bg-gray-900/90 backdrop-blur-xl
                      rounded-2xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/20"
-          initial={{ scale: 0, rotate: -10 }}
+          initial={prefersReduced ? false : { scale: 0, rotate: -10 }}
           animate={{ scale: 1, rotate: 0 }}
-          exit={{ scale: 0, rotate: 10 }}
-          transition={{ type: 'spring', damping: 15 }}
+          exit={prefersReduced ? { opacity: 0 } : { scale: 0, rotate: 10 }}
+          transition={prefersReduced ? { duration: 0 } : { type: 'spring', damping: 15 }}
         >
           <motion.div
-            animate={{
+            animate={prefersReduced ? {} : {
               scale: [1, 1.2, 1],
               rotate: [0, 10, -10, 0],
             }}
-            transition={{ duration: 0.5, delay: 0.3 }}
+            transition={prefersReduced ? { duration: 0 } : { duration: duration.slow, delay: 0.3 }}
           >
             {config.icon}
           </motion.div>
           <div className="text-center">
             <motion.h2
               className="text-2xl font-bold text-white"
-              initial={{ y: 20, opacity: 0 }}
+              initial={prefersReduced ? false : { y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.2 }}
+              transition={prefersReduced ? { duration: 0 } : { delay: 0.2 }}
             >
               {config.message}
             </motion.h2>
             <motion.p
               className="text-gray-400 mt-1"
-              initial={{ y: 20, opacity: 0 }}
+              initial={prefersReduced ? false : { y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.3 }}
+              transition={prefersReduced ? { duration: 0 } : { delay: 0.3 }}
             >
               {config.subMessage}
             </motion.p>
@@ -268,6 +271,7 @@ export function useProgressCelebration(projectId: string) {
  * MiniCelebration - Small inline celebration effect
  */
 export function MiniCelebration({ trigger }: { trigger: boolean }) {
+  const prefersReduced = useReducedMotion();
   const [particles, setParticles] = useState<{ id: number; x: number; y: number }[]>([]);
 
   useEffect(() => {
@@ -284,6 +288,8 @@ export function MiniCelebration({ trigger }: { trigger: boolean }) {
     }
   }, [trigger]);
 
+  if (prefersReduced) return null;
+
   return (
     <div className="relative inline-block">
       <AnimatePresence>
@@ -294,7 +300,7 @@ export function MiniCelebration({ trigger }: { trigger: boolean }) {
             initial={{ x: 0, y: 0, opacity: 1 }}
             animate={{ x: p.x, y: p.y, opacity: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: duration.slow }}
           />
         ))}
       </AnimatePresence>

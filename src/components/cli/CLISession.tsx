@@ -2,6 +2,7 @@
 
 import { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { Plus, Play, CheckCircle, XCircle, Clock, Copy, Check, Github, Settings, X, AlertTriangle, RotateCcw } from 'lucide-react';
 import { CompactTerminal } from './CompactTerminal';
 import { CLIGitConfigPanel } from './CLIGitConfigPanel';
@@ -320,7 +321,7 @@ export function CLISession({
                       initial={{ opacity: 0, y: -5, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -5, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
+                      transition={transition.snappy}
                       className="absolute left-0 top-full mt-1 z-50 bg-gray-900/95 backdrop-blur-md border border-red-500/30 rounded-lg shadow-2xl shadow-red-500/10 p-3 min-w-[200px]"
                     >
                       <div className="flex items-start gap-2 mb-3">
@@ -454,7 +455,7 @@ export function CLISession({
                     initial={{ opacity: 0, y: -5, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -5, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
+                    transition={transition.snappy}
                     className="absolute right-0 top-full mt-1 z-50 bg-gray-900/95 backdrop-blur-md border border-gray-700/50 rounded-lg shadow-2xl shadow-purple-500/10 p-3 min-w-[320px]"
                   >
                     <CLIGitConfigPanel

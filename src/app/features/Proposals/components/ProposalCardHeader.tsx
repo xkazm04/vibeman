@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { SimpleSpinner } from '@/components/ui/Spinner';
 
 interface ProposalCardHeaderProps {
   isMain?: boolean;
@@ -26,15 +27,7 @@ export const ProposalCardHeader = React.memo(({ isMain = false }: ProposalCardHe
         }}
         transition={reducedMotion ? undefined : { duration: 2, repeat: Infinity }}
       >
-        {reducedMotion ? (
-          <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full" />
-        ) : (
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-            className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full"
-          />
-        )}
+        <SimpleSpinner size="md" color="cyan" />
       </motion.div>
 
       <motion.h2

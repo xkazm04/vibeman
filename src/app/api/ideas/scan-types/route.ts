@@ -1,7 +1,6 @@
 /**
- * GET /api/ideas/scan-types
- * Returns distinct scan_type values with counts for pending ideas
- * Used for the Tinder scan type filter sidebar
+ * @route /api/ideas/scan-types
+ * GET - Distinct scan types with counts (tinderItemsApi)
  */
 
 import { NextRequest, NextResponse } from 'next/server';

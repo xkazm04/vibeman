@@ -4,6 +4,8 @@
  * Each function handles the fetch + JSON parse + error throwing.
  */
 
+import type { DbBehavioralSignal } from '@/app/db/models/brain.types';
+
 // ── Generic fetch helper ─────────────────────────────────────────────────────
 
 async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
@@ -110,6 +112,11 @@ export async function fetchTemporal(projectId: string, days = 30) {
       };
     };
   }>(`/api/brain/signals/temporal?projectId=${encodeURIComponent(projectId)}&days=${days}`);
+}
+
+export async function fetchTimelineSignals(projectId: string, since: string, limit: number) {
+  const params = new URLSearchParams({ projectId, limit: String(limit), since });
+  return fetchJSON<{ success: boolean; signals: DbBehavioralSignal[] }>(`/api/brain/signals?${params}`);
 }
 
 export async function fetchSignals(projectId: string, options?: { types?: string[]; limit?: number; contextId?: string }) {

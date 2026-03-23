@@ -14,6 +14,7 @@ import {
 import { Calendar, Tag, Target } from 'lucide-react';
 import { formatCardDate } from '../lib/tinderUtils';
 import { useDragSwipe } from '../lib/tinderHooks';
+import { duration } from '@/lib/motion';
 
 interface IdeaCardProps {
   idea: DbIdea;
@@ -102,7 +103,7 @@ export default function IdeaCard({
       }}
       transition={{
         x: { type: 'spring', stiffness: 300, damping: 30 },
-        opacity: { duration: 0.2 },
+        opacity: { duration: duration.normal },
       }}
     >
       {/* Metric badges — outside overflow-hidden so they're never clipped */}

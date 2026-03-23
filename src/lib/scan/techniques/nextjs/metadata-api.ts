@@ -7,8 +7,7 @@ import type { RefactorOpportunity } from '@/stores/refactorStore';
 
 export function checkMetadataAPI(
   file: FileAnalysis,
-  opportunities: RefactorOpportunity[]
-): void {
+): RefactorOpportunity[] {
   const hasHead = /import\s+Head\s+from\s+['"]next\/head['"]/g.test(
     file.content
   );
@@ -16,7 +15,7 @@ export function checkMetadataAPI(
     file.path.startsWith('app/') || file.path.includes('/app/');
 
   if (hasHead && isAppRouter) {
-    opportunities.push({
+    return [{
       id: `metadata-api-${file.path}`,
       title: `Migrate to Metadata API in ${file.path}`,
       description: "Using next/head in App Router. Consider migrating to the Metadata API or generateMetadata() function.",
@@ -27,6 +26,8 @@ export function checkMetadataAPI(
       files: [file.path],
       autoFixAvailable: false,
       estimatedTime: '30-60 minutes',
-    });
+    }];
   }
+
+  return [];
 }

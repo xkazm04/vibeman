@@ -7,6 +7,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { Scan, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import type { DbArchitectureAnalysisSession } from '@/app/db/models/cross-project-architecture.types';
 
@@ -123,7 +124,7 @@ export function AnalysisTriggerPanel({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={transition.normal}
             className="overflow-hidden"
           >
             <div className="px-3 pb-3 space-y-3 border-t border-zinc-800/50">

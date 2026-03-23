@@ -1,3 +1,7 @@
+/**
+ * @route /api/ideas/by-requirements
+ * POST - Fetch ideas matching requirement IDs (screenshotApi, useTaskRunnerBatchData, useTaskColumnData)
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb } from '@/app/db';
 

@@ -1,3 +1,10 @@
+/**
+ * @route /api/ideas
+ * GET    - List/filter ideas (ideaQueries, weeklyApi, reflector, onboarding, lifecycle executors)
+ * POST   - Create idea (IdeaDetailModal, useLocalTinderItems)
+ * PATCH  - Update idea (ideaQueries, ideasHandlers)
+ * DELETE - Delete idea(s) (ideaQueries, ideasHandlers, IdeaDetailModal)
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb, contextDb, scanDb, DbIdea, DbIdeaWithColor } from '@/app/db';
 import { v4 as uuidv4 } from 'uuid';

@@ -7,6 +7,7 @@ import {
   TrendingUp, TrendingDown, Minus, Calendar, Zap, Lightbulb,
   AlertTriangle,
 } from 'lucide-react';
+import { transition } from '@/lib/motion';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -206,7 +207,7 @@ function TimelineEntry({ item, projectId }: { item: StandupHistoryItem; projectI
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={transition.normal}
             className="overflow-hidden"
           >
             {loadingDetail ? (

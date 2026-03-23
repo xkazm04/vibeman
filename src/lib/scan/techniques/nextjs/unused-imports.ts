@@ -8,12 +8,11 @@ import { detectUnusedImports } from '@/lib/scan/patterns';
 
 export function checkUnusedImports(
   file: FileAnalysis,
-  opportunities: RefactorOpportunity[]
-): void {
+): RefactorOpportunity[] {
   const unusedImports = detectUnusedImports(file.content);
-  if (unusedImports.length === 0) return;
+  if (unusedImports.length === 0) return [];
 
-  opportunities.push({
+  return [{
     id: `unused-imports-${file.path}`,
     title: `Unused imports in ${file.path}`,
     description: `Found ${unusedImports.length} potentially unused imports that could be removed.`,
@@ -24,5 +23,5 @@ export function checkUnusedImports(
     files: [file.path],
     autoFixAvailable: true,
     estimatedTime: '10-15 minutes',
-  });
+  }];
 }

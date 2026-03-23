@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Caveat } from 'next/font/google';
+import { duration, cssTransition } from '@/lib/motion';
 
 const caveat = Caveat({
   weight: ['400', '500', '600', '700'],
@@ -92,7 +93,7 @@ export default function OnboardingTaskItem({
       className={`relative ${isClickable ? 'cursor-pointer' : ''}`}
       style={{
         opacity: isFutureTask ? 0.4 : 1,
-        transition: 'opacity 0.3s ease',
+        transition: cssTransition('opacity', 'deliberate', 'morph'),
       }}
       onClick={onClick}
       data-testid={`onboarding-task-${task.id}`}
@@ -102,7 +103,7 @@ export default function OnboardingTaskItem({
         <motion.div
           initial={{ opacity: 0, scale: styles.useDiamond ? 0.8 : 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6, delay: baseDelay + 0.2 }}
+          transition={{ duration: duration.slow, delay: baseDelay + 0.2 }}
           className={`absolute ${styles.useDiamond ? '-inset-3' : '-inset-4'} -z-10`}
         >
           {styles.useDiamond ? (
@@ -143,7 +144,7 @@ export default function OnboardingTaskItem({
               <motion.svg
                 initial={{ pathLength: 0 }}
                 animate={{ pathLength: 1 }}
-                transition={{ duration: 0.5, delay: isClickable ? 0 : baseDelay }}
+                transition={{ duration: duration.slow, delay: isClickable ? 0 : baseDelay }}
                 className="absolute inset-0 w-full h-full p-1"
                 viewBox="0 0 24 24"
                 fill="none"
@@ -179,7 +180,7 @@ export default function OnboardingTaskItem({
               <motion.div
                 initial={{ scaleX: 0 }}
                 animate={{ scaleX: 1 }}
-                transition={{ duration: 0.6, delay: isClickable ? 0 : baseDelay + 0.1 }}
+                transition={{ duration: duration.slow, delay: isClickable ? 0 : baseDelay + 0.1 }}
                 className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-500 origin-left"
                 style={{
                   transform: `translateY(-50%) rotate(${(index % 3) * 0.8 - 1}deg)`,
@@ -207,7 +208,7 @@ export default function OnboardingTaskItem({
         <motion.div
           initial={{ scaleX: 0, opacity: 0 }}
           animate={{ scaleX: 1, opacity: 0.3 }}
-          transition={{ duration: 0.5, delay: baseDelay + 0.2 }}
+          transition={{ duration: duration.slow, delay: baseDelay + 0.2 }}
           className={`h-px bg-gradient-to-r ${styles.underlineGradient} mt-1 origin-left`}
         />
       )}

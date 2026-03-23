@@ -8,6 +8,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Plug, Plus, Check } from 'lucide-react';
 import { IntegrationListColumn, type ParsedIntegration } from './components/IntegrationListColumn';
 import { IntegrationDetailPanel } from './components/IntegrationDetailPanel';
@@ -29,6 +31,7 @@ export function IntegrationsDashboard({ projectId, projectName }: IntegrationsDa
   const [isCreating, setIsCreating] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('integrations');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const prefersReduced = useReducedMotion();
 
   // Fetch integrations
   const fetchIntegrations = useCallback(async () => {
@@ -139,9 +142,10 @@ export function IntegrationsDashboard({ projectId, projectName }: IntegrationsDa
       <AnimatePresence>
         {successMessage && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
+            initial={prefersReduced ? false : { opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
+            exit={prefersReduced ? { opacity: 0 } : { opacity: 0, y: -20 }}
+            transition={prefersReduced ? { duration: 0 } : undefined}
             className="fixed top-28 right-6 z-50 px-4 py-3 bg-green-600/20 border border-green-500/30 rounded-lg text-green-400 flex items-center gap-2"
           >
             <Check className="w-4 h-4" />
@@ -213,9 +217,10 @@ export function IntegrationsDashboard({ projectId, projectName }: IntegrationsDa
         {viewMode === 'integrations' ? (
           <motion.div
             key="integrations"
-            initial={{ opacity: 0, y: 10 }}
+            initial={prefersReduced ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            exit={prefersReduced ? { opacity: 0 } : { opacity: 0, y: -10 }}
+            transition={prefersReduced ? { duration: 0 } : undefined}
             className="space-y-6"
           >
             {/* Integration List */}
@@ -245,9 +250,9 @@ export function IntegrationsDashboard({ projectId, projectName }: IntegrationsDa
             {/* Empty State */}
             {integrations.length === 0 && !isCreating && (
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
+                initial={prefersReduced ? false : { opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4 }}
+                transition={prefersReduced ? { duration: 0 } : transition.expand}
                 className="flex flex-col items-center justify-center h-64 text-center"
               >
                 <div className="w-16 h-16 rounded-full bg-purple-500/10 flex items-center justify-center mb-4 shadow-lg shadow-purple-500/10">
@@ -271,9 +276,10 @@ export function IntegrationsDashboard({ projectId, projectName }: IntegrationsDa
         ) : (
           <motion.div
             key="events"
-            initial={{ opacity: 0, y: 10 }}
+            initial={prefersReduced ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            exit={prefersReduced ? { opacity: 0 } : { opacity: 0, y: -10 }}
+            transition={prefersReduced ? { duration: 0 } : undefined}
           >
             <EventsLog projectId={projectId} />
           </motion.div>

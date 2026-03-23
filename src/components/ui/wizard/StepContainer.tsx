@@ -2,6 +2,7 @@
 
 import { ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { easing, transition } from '@/lib/motion';
 import FocusTrap from 'focus-trap-react';
 import { FullPageSpinner } from '@/components/ui/Spinner';
 import { ErrorOverlay } from './ErrorOverlay';
@@ -62,7 +63,7 @@ export default function StepContainer({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+      transition={{ ...transition.deliberate, ease: easing.morph }}
       className={`relative space-y-6 ${className}`}
       data-testid={testId}
     >
@@ -76,7 +77,7 @@ export default function StepContainer({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={transition.normal}
           >
             {children}
           </motion.div>

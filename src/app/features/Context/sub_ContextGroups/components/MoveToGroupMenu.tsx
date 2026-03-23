@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { FolderOpen, FolderMinus } from 'lucide-react';
 import { ContextGroup } from '@/stores/contextStore';
 
@@ -143,7 +144,7 @@ const MoveToGroupMenu = React.memo<MoveToGroupMenuProps>(({
             initial={{ opacity: 0, scale: 0.95, y: -8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -8 }}
-            transition={{ duration: 0.15, ease: 'easeOut' }}
+            transition={transition.snappy}
             className="fixed bg-gray-900/95 backdrop-blur-xl border border-cyan-500/30 rounded-xl shadow-2xl py-2 min-w-[240px] overflow-hidden"
             style={{
               left: `${Math.min(position.x, window.innerWidth - 260)}px`,

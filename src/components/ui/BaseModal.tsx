@@ -1,5 +1,6 @@
 import React, { useEffect, useId } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import FocusTrap from 'focus-trap-react';
 
 interface BaseModalProps {
@@ -72,7 +73,7 @@ export default function BaseModal({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ duration: 0.2 }}
+            transition={transition.normal}
             className={`bg-gray-800 border border-gray-700 rounded-lg shadow-xl ${maxWidth} w-full ${maxHeight} overflow-hidden flex flex-col`}
             onClick={(e) => e.stopPropagation()}
             data-testid={testId}

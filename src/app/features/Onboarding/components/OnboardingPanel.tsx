@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import { Caveat } from 'next/font/google';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import GettingStartedItem from './GettingStartedItem';
+import { transition } from '@/lib/motion';
 
 const caveat = Caveat({
   weight: ['400', '500', '600', '700'],
@@ -85,7 +86,7 @@ export default function OnboardingPanel({ isOpen, onClose }: OnboardingPanelProp
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={transition.deliberate}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
             onClick={onClose}
           />

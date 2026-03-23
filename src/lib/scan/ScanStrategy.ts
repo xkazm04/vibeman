@@ -31,6 +31,17 @@ export interface DetectionProgress {
 export type ProgressCallback = (progress: DetectionProgress) => void | Promise<void>;
 
 /**
+ * A composable pattern detector that returns findings instead of mutating an external array.
+ * Each detector belongs to a group (e.g. 'code-quality', 'maintainability') for filtering.
+ */
+export interface PatternDetector {
+  /** The scan group this detector belongs to (e.g. 'code-quality', 'maintainability') */
+  readonly group: string;
+  /** Detect opportunities in a single file, returning findings */
+  detect(file: FileAnalysis): RefactorOpportunity[];
+}
+
+/**
  * ScanStrategy interface - implement this for each technology stack
  */
 export interface ScanStrategy {
@@ -121,6 +132,41 @@ export abstract class RefactorScanStrategy implements ScanStrategy {
     }
 
     return results;
+  }
+
+  /**
+   * Run a list of PatternDetectors across files with batching, group filtering, and progress.
+   * Strategies define their detector list declaratively; this method handles the pipeline.
+   */
+  protected async detectPatterns(
+    files: FileAnalysis[],
+    detectors: PatternDetector[],
+    selectedGroups?: string[],
+    onProgress?: ProgressCallback
+  ): Promise<RefactorOpportunity[]> {
+    const opportunities: RefactorOpportunity[] = [];
+    const opportunitiesRef = { count: 0 };
+
+    // Pre-filter detectors by selected groups
+    const activeDetectors = detectors.filter(d => this.shouldRunGroup(d.group, selectedGroups));
+
+    await this.processFilesInBatches(
+      files,
+      async (file) => {
+        for (const detector of activeDetectors) {
+          const findings = detector.detect(file);
+          for (const f of findings) {
+            opportunities.push(f);
+          }
+        }
+        opportunitiesRef.count = opportunities.length;
+      },
+      10,
+      onProgress,
+      opportunitiesRef
+    );
+
+    return opportunities;
   }
 
   async scanProjectFiles(projectPath: string, selectedFolders?: string[]): Promise<FileAnalysis[]> {
@@ -229,6 +275,17 @@ export abstract class RefactorScanStrategy implements ScanStrategy {
       return false;
     }
   }
+}
+
+/**
+ * Helper to create a PatternDetector from a group and detect function.
+ * Shared across all strategies to avoid duplicating this factory.
+ */
+export function detector(
+  group: string,
+  detect: (file: FileAnalysis) => RefactorOpportunity[],
+): PatternDetector {
+  return { group, detect };
 }
 
 export interface ScanStrategyMetadata {

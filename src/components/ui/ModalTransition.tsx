@@ -1,5 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence, Variants, Transition } from 'framer-motion';
+import { duration, easing, transition as motionTransition } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 /**
  * Predefined animation variants for modal transitions
@@ -96,7 +98,7 @@ export type ModalVariant = keyof typeof modalVariants;
  * Predefined transition configurations
  */
 export const modalTransitions = {
-  default: { duration: 0.2 },
+  default: { duration: duration.normal },
   spring: {
     type: "spring" as const,
     damping: 25,
@@ -105,11 +107,11 @@ export const modalTransitions = {
   },
   smooth: {
     type: "tween" as const,
-    ease: "easeInOut",
-    duration: 0.3,
+    ease: easing.morph,
+    duration: duration.deliberate,
   },
-  fast: { duration: 0.15 },
-  slow: { duration: 0.4 },
+  fast: { duration: duration.snappy },
+  slow: { duration: duration.expand },
 } as const;
 
 export type ModalTransitionType = keyof typeof modalTransitions;
@@ -181,8 +183,11 @@ export const ModalTransition: React.FC<ModalTransitionProps> = ({
   customVariants,
   customTransition,
 }) => {
+  const prefersReduced = useReducedMotion();
   const variants = customVariants || modalVariants[variant];
-  const transitionConfig = customTransition || modalTransitions[transition];
+  const transitionConfig = prefersReduced
+    ? { duration: 0 }
+    : (customTransition || modalTransitions[transition]);
 
   const handleBackdropClick = () => {
     if (closeOnBackdropClick && onClose) {
@@ -200,10 +205,10 @@ export const ModalTransition: React.FC<ModalTransitionProps> = ({
           {showBackdrop && (
             <motion.div
               key="modal-backdrop"
-              variants={variants.backdrop}
-              initial="initial"
-              animate="animate"
-              exit="exit"
+              variants={prefersReduced ? undefined : variants.backdrop}
+              initial={prefersReduced ? { opacity: 0 } : "initial"}
+              animate={prefersReduced ? { opacity: 1 } : "animate"}
+              exit={prefersReduced ? { opacity: 0 } : "exit"}
               transition={transitionConfig}
               className={
                 backdropClassName ||
@@ -217,10 +222,10 @@ export const ModalTransition: React.FC<ModalTransitionProps> = ({
           {/* Modal Container */}
           <motion.div
             key="modal-container"
-            variants={variants.modal}
-            initial="initial"
-            animate="animate"
-            exit="exit"
+            variants={prefersReduced ? undefined : variants.modal}
+            initial={prefersReduced ? { opacity: 0 } : "initial"}
+            animate={prefersReduced ? { opacity: 1 } : "animate"}
+            exit={prefersReduced ? { opacity: 0 } : "exit"}
             transition={transitionConfig}
             className={modalClassName || 'fixed inset-0 flex items-center justify-center p-4'}
             style={{ zIndex: zIndex + 1 }}

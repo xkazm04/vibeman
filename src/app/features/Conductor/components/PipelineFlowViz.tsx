@@ -9,6 +9,7 @@
 
 import { useId, useMemo, useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { PIPELINE_STAGES, V3_PIPELINE_STAGES } from '../lib/types';
 import type { PipelineRun, AnyPipelineStage, StageState } from '../lib/types';
 import { useConductorStore } from '../lib/conductorStore';
@@ -244,7 +245,7 @@ export default function PipelineFlowViz({ run, onStageClick }: PipelineFlowVizPr
       className="relative flex flex-col sm:flex-row items-center justify-center gap-0 py-6 px-4"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={transition.deliberate}
       data-testid="pipeline-flow-viz"
     >
       {stageList.map((stage, idx) => {

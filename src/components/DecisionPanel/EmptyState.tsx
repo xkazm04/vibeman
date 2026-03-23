@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { duration } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { LucideIcon } from 'lucide-react';
 
 export interface EmptyStateProps {
@@ -52,23 +54,25 @@ export default function EmptyState({
   className = '',
   animated = true,
 }: EmptyStateProps) {
+  const prefersReduced = useReducedMotion();
+  const shouldAnimate = animated && !prefersReduced;
   return (
     <motion.div
-      initial={animated ? { opacity: 0 } : undefined}
+      initial={shouldAnimate ? { opacity: 0 } : undefined}
       animate={{ opacity: 1 }}
-      exit={animated ? { opacity: 0 } : undefined}
+      exit={shouldAnimate ? { opacity: 0 } : undefined}
       className={`flex flex-col items-center justify-center ${height} bg-gray-900/30 rounded-lg border-2 border-dashed border-gray-700/50 ${className}`}
       role="status"
       aria-live="polite"
     >
       {/* Icon with subtle glow effect */}
       <motion.div
-        initial={animated ? { scale: 0.8, opacity: 0 } : false}
+        initial={shouldAnimate ? { scale: 0.8, opacity: 0 } : false}
         animate={{ scale: 1, opacity: 1 }}
-        transition={animated ? { delay: 0.1, duration: 0.3 } : undefined}
+        transition={shouldAnimate ? { delay: 0.1, duration: duration.deliberate } : undefined}
         className="relative mb-4"
       >
-        {animated ? (
+        {shouldAnimate ? (
           <motion.div
             animate={{
               opacity: [0.4, 0.6, 0.4],
@@ -86,7 +90,7 @@ export default function EmptyState({
         )}
 
         {/* Subtle glow ring */}
-        {animated && (
+        {shouldAnimate && (
           <motion.div
             className="absolute inset-0 -z-10"
             animate={{
@@ -108,9 +112,9 @@ export default function EmptyState({
 
       {/* Headline */}
       <motion.p
-        initial={animated ? { opacity: 0, y: 10 } : false}
+        initial={shouldAnimate ? { opacity: 0, y: 10 } : false}
         animate={{ opacity: 1, y: 0 }}
-        transition={animated ? { delay: 0.2, duration: 0.3 } : undefined}
+        transition={shouldAnimate ? { delay: 0.2, duration: duration.deliberate } : undefined}
         className="text-gray-400 text-lg mb-2 font-medium"
       >
         {headline}
@@ -119,9 +123,9 @@ export default function EmptyState({
       {/* Subtext */}
       {subtext && (
         <motion.p
-          initial={animated ? { opacity: 0, y: 10 } : false}
+          initial={shouldAnimate ? { opacity: 0, y: 10 } : false}
           animate={{ opacity: 1, y: 0 }}
-          transition={animated ? { delay: 0.3, duration: 0.3 } : undefined}
+          transition={shouldAnimate ? { delay: 0.3, duration: duration.deliberate } : undefined}
           className="text-gray-500 text-sm text-center max-w-md px-4"
         >
           {subtext}
@@ -131,9 +135,9 @@ export default function EmptyState({
       {/* Optional action button */}
       {action && (
         <motion.button
-          initial={animated ? { opacity: 0, y: 10 } : false}
+          initial={shouldAnimate ? { opacity: 0, y: 10 } : false}
           animate={{ opacity: 1, y: 0 }}
-          transition={animated ? { delay: 0.4, duration: 0.3 } : undefined}
+          transition={shouldAnimate ? { delay: 0.4, duration: duration.deliberate } : undefined}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={action.onClick}

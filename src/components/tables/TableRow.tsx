@@ -2,6 +2,7 @@
 
 import React, { ReactNode, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { duration } from '@/lib/motion';
 
 interface TableRowProps {
   children: ReactNode;
@@ -83,13 +84,13 @@ export function TableRow({
         opacity: 0,
         x: 20,
         scale: 0.95,
-        transition: { duration: 0.2 },
+        transition: { duration: duration.normal },
       }}
       transition={{
         layout: { type: 'spring', stiffness: 300, damping: 30 },
-        opacity: { duration: 0.3, delay: index * 0.03 },
-        x: { duration: 0.3, delay: index * 0.03 },
-        backgroundColor: { duration: 0.15 },
+        opacity: { duration: duration.deliberate, delay: index * 0.03 },
+        x: { duration: duration.deliberate, delay: index * 0.03 },
+        backgroundColor: { duration: duration.snappy },
       }}
       className={`
         group/row border-b border-gray-800/50

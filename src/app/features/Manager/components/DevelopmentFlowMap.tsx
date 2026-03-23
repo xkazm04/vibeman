@@ -22,8 +22,6 @@ import { SimpleSpinner } from '@/components/ui/Spinner';
 import type { EnrichedLogWithGroup } from './ManagerSystemMap';
 import {
   MIN_ARROW_THRESHOLD,
-  NODE_POSITION_INITIAL_DELAY_MS,
-  NODE_POSITION_REOBSERVE_DELAY_MS,
   SUCCESS_RATE_HIGH,
   SUCCESS_RATE_LOW,
 } from '../lib/config';
@@ -90,21 +88,71 @@ export default function DevelopmentFlowMap({
     setNodePositions(newPositions);
   }, []);
 
-  // Update positions after mount and on resize
+  // Observe node appearance and layout changes deterministically
   useEffect(() => {
-    const timer = setTimeout(updateNodePositions, NODE_POSITION_INITIAL_DELAY_MS);
+    const container = containerRef.current;
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateNodePositions();
+    });
+
+    // Track currently observed nodes so we can clean up
+    const observedNodes = new Set<Element>();
+
+    const observeExistingNodes = () => {
+      const nodes = container.querySelectorAll('[data-testid^="system-map-node-"]');
+      nodes.forEach((node) => {
+        if (!observedNodes.has(node)) {
+          resizeObserver.observe(node);
+          observedNodes.add(node);
+        }
+      });
+      if (nodes.length > 0) {
+        updateNodePositions();
+      }
+    };
+
+    // Watch for new nodes being added to the DOM
+    const mutationObserver = new MutationObserver((mutations) => {
+      let hasNewNodes = false;
+      for (const mutation of mutations) {
+        for (const added of mutation.addedNodes) {
+          if (!(added instanceof Element)) continue;
+          // Check if the added node itself or its children are map nodes
+          const mapNodes = added.matches?.('[data-testid^="system-map-node-"]')
+            ? [added]
+            : Array.from(added.querySelectorAll('[data-testid^="system-map-node-"]'));
+          for (const node of mapNodes) {
+            if (!observedNodes.has(node)) {
+              resizeObserver.observe(node);
+              observedNodes.add(node);
+              hasNewNodes = true;
+            }
+          }
+        }
+      }
+      if (hasNewNodes) {
+        updateNodePositions();
+      }
+    });
+
+    // Observe DOM subtree for node additions
+    mutationObserver.observe(container, { childList: true, subtree: true });
+
+    // Pick up any nodes already rendered
+    observeExistingNodes();
+
+    // Window resize still matters (viewport-relative positions)
     window.addEventListener('resize', updateNodePositions);
+
     return () => {
-      clearTimeout(timer);
+      mutationObserver.disconnect();
+      resizeObserver.disconnect();
+      observedNodes.clear();
       window.removeEventListener('resize', updateNodePositions);
     };
   }, [updateNodePositions, contextGroups, flowData]);
-
-  // Re-observe when SystemMap finishes rendering
-  useEffect(() => {
-    const timer = setTimeout(updateNodePositions, NODE_POSITION_REOBSERVE_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [logs, updateNodePositions]);
 
   // Filter pairs above threshold
   const visiblePairs = useMemo(() => {

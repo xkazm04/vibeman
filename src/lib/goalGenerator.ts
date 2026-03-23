@@ -205,14 +205,16 @@ async function scanRepository(projectPath: string, depth: 'quick' | 'standard' |
 
     // Get README if exists
     try {
-      const readmePath = ['README.md', 'readme.md', 'README.txt'].find(async (name) => {
+      let readmePath: string | undefined;
+      for (const name of ['README.md', 'readme.md', 'README.txt']) {
         try {
           await fs.access(path.join(projectPath, name));
-          return true;
+          readmePath = name;
+          break;
         } catch {
-          return false;
+          // File doesn't exist, try next
         }
-      });
+      }
 
       if (readmePath) {
         const readme = await fs.readFile(path.join(projectPath, readmePath), 'utf-8');

@@ -14,13 +14,10 @@
 
 import {
   directionDb,
-  insightEffectivenessCache,
-  brainInsightDb,
-  insightInfluenceDb,
-  directionPreferenceDb,
 } from '@/app/db';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { generatePairedAdr } from '@/lib/directions/adrGenerator';
+import { emitDirectionChanged } from '@/lib/events/domainEmitters';
 import { v4 as uuidv4 } from 'uuid';
 
 // ---------------------------------------------------------------------------
@@ -99,53 +96,51 @@ ${selectedDirection.direction}
   }
   const requirementPath = fileResult.filePath!;
 
-  // 5. Generate paired ADR
-  const adr = generatePairedAdr({
-    summary: selectedDirection.summary,
-    direction: selectedDirection.direction,
-    contextMapTitle: selectedDirection.context_map_title,
-    problemStatement: selectedDirection.problem_statement,
-    rejectedSummary: rejectedDirection.summary,
-    rejectedDirection: rejectedDirection.direction,
-    selectedVariant: variant,
-  });
-
-  // 6. Update DB status
+  // 5. Update DB status (accept without ADR — ADR is non-critical)
   const dbResult = directionDb.acceptPairedDirection(
     selectedDirection.id,
     requirementId,
     requirementPath,
-    JSON.stringify(adr),
   );
   if (!dbResult.accepted) {
     directionDb.updateDirection(selectedDirection.id, { status: 'pending' });
     return { success: false, code: 'DB_UPDATE_FAILED', message: 'Failed to update direction status' };
   }
 
-  // 7. Invalidate caches (non-critical)
-  try { insightEffectivenessCache.invalidate(selectedDirection.project_id); } catch { /* non-critical */ }
-  try { directionPreferenceDb.invalidate(selectedDirection.project_id); } catch { /* non-critical */ }
+  // 6. Emit domain event for cross-cutting side effects (signal, influence, caches)
+  emitDirectionChanged({
+    projectId: selectedDirection.project_id,
+    directionId: selectedDirection.id,
+    action: 'accepted',
+    contextId: selectedDirection.context_id || null,
+    contextName: selectedDirection.context_map_title,
+    requirementId,
+    pairedDirectionId: rejectedDirection.id,
+    pairedAction: 'rejected',
+  });
 
-  // 8. Record insight influence (non-critical)
+  // 7. Post-acceptance: generate paired ADR (non-critical).
+  // Acceptance has already succeeded — ADR failure must not affect the outcome.
+  let finalAccepted = dbResult.accepted;
   try {
-    const activeInsights = brainInsightDb.getForEffectiveness(selectedDirection.project_id);
-    if (activeInsights.length > 0) {
-      const now = new Date().toISOString();
-      const insightBatch = activeInsights.map(i => ({
-        id: i.id,
-        title: i.title,
-        shownAt: i.completed_at || now,
-      }));
-      insightInfluenceDb.recordInfluenceBatch(selectedDirection.project_id, selectedDirection.id, 'accepted', insightBatch);
-      insightInfluenceDb.recordInfluenceBatch(rejectedDirection.project_id, rejectedDirection.id, 'rejected', insightBatch);
-    }
-  } catch { /* non-critical */ }
+    const adr = generatePairedAdr({
+      summary: selectedDirection.summary,
+      direction: selectedDirection.direction,
+      contextMapTitle: selectedDirection.context_map_title,
+      problemStatement: selectedDirection.problem_statement,
+      rejectedSummary: rejectedDirection.summary,
+      rejectedDirection: rejectedDirection.direction,
+      selectedVariant: variant,
+    });
+    directionDb.updateDirection(selectedDirection.id, { decision_record: JSON.stringify(adr) });
+    finalAccepted = directionDb.getDirectionById(selectedDirection.id) ?? dbResult.accepted;
+  } catch { /* ADR generation failure is non-critical */ }
 
   return {
     success: true,
     requirementName: requirementId,
     requirementPath,
-    accepted: dbResult.accepted,
+    accepted: finalAccepted,
     rejected: dbResult.rejected,
   };
 }

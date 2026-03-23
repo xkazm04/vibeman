@@ -7,8 +7,7 @@ import type { RefactorOpportunity } from '@/stores/refactorStore';
 
 export function checkClientServerMixing(
   file: FileAnalysis,
-  opportunities: RefactorOpportunity[]
-): void {
+): RefactorOpportunity[] {
   const hasUseClient = file.content.includes("'use client'");
   const hasServerCode =
     file.content.includes('import { cookies }') ||
@@ -16,7 +15,7 @@ export function checkClientServerMixing(
     file.content.includes('import { draftMode }');
 
   if (hasUseClient && hasServerCode) {
-    opportunities.push({
+    return [{
       id: `client-server-mixing-${file.path}`,
       title: `Mixed client/server code in ${file.path}`,
       description: "This file has 'use client' directive but also imports server-only APIs. Consider splitting into separate files.",
@@ -27,6 +26,8 @@ export function checkClientServerMixing(
       files: [file.path],
       autoFixAvailable: false,
       estimatedTime: '1-2 hours',
-    });
+    }];
   }
+
+  return [];
 }

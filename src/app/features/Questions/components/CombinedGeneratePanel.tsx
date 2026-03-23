@@ -13,6 +13,7 @@ import {
   Globe2
 } from 'lucide-react';
 import { DbQuestion, DbContext } from '@/app/db';
+import { transitions } from '@/lib/design-tokens';
 
 interface GenerateResult {
   requirementPath: string;
@@ -153,7 +154,7 @@ export default function CombinedGeneratePanel({
             <button
               onClick={handleGenerateQuestions}
               disabled={disabled || isGenerating || selectedContextCount === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-purple-600/80 hover:bg-purple-500 text-white"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium ${transitions.normal} disabled:opacity-50 disabled:cursor-not-allowed bg-purple-600/80 hover:bg-purple-500 text-white`}
             >
               {generatingQuestions ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -187,7 +188,7 @@ export default function CombinedGeneratePanel({
             {/* Brainstorm All toggle */}
             <button
               onClick={() => setBrainstormAll(!brainstormAll)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium ${transitions.normal} ${
                 brainstormAll
                   ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400'
                   : 'bg-gray-800/50 border border-gray-700/50 text-gray-400 hover:text-white hover:border-gray-600/50'
@@ -214,7 +215,7 @@ export default function CombinedGeneratePanel({
             <button
               onClick={handleGenerateDirections}
               disabled={disabled || isGenerating || (!brainstormAll && selectedContextCount === 0)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-cyan-600/80 hover:bg-cyan-500 text-white"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium ${transitions.normal} disabled:opacity-50 disabled:cursor-not-allowed bg-cyan-600/80 hover:bg-cyan-500 text-white`}
             >
               {generatingDirections ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -227,7 +228,7 @@ export default function CombinedGeneratePanel({
             {/* Expand options button */}
             <button
               onClick={() => setShowDirectionOptions(!showDirectionOptions)}
-              className={`p-1.5 rounded transition-colors ${showDirectionOptions ? 'text-cyan-400 bg-cyan-500/10' : 'text-gray-500 hover:text-gray-300'}`}
+              className={`p-1.5 rounded ${transitions.colors} ${showDirectionOptions ? 'text-cyan-400 bg-cyan-500/10' : 'text-gray-500 hover:text-gray-300'}`}
               title="Direction options"
             >
               <ChevronDown className={`w-4 h-4 transition-transform ${showDirectionOptions ? 'rotate-180' : ''}`} />
@@ -272,7 +273,7 @@ export default function CombinedGeneratePanel({
                 <div>
                   <button
                     onClick={() => setShowQuestionSelector(!showQuestionSelector)}
-                    className="flex items-center gap-2 text-xs text-gray-400 hover:text-white transition-colors"
+                    className={`flex items-center gap-2 text-xs text-gray-400 hover:text-white ${transitions.colors}`}
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
                     <span>

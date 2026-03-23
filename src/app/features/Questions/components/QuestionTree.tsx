@@ -13,7 +13,8 @@ import {
   GitBranch, FileText, Zap, Compass, Sparkles, Check, Clock, Trash2, Target,
 } from 'lucide-react';
 import { DbQuestion } from '@/app/db';
-import type { QuestionTreeNode } from '@/app/db/repositories/question.repository';
+import type { QuestionTreeNode } from '@/lib/questions/questionTreeService';
+import { transitions } from '@/lib/design-tokens';
 
 // ─── Types ───
 
@@ -82,7 +83,7 @@ function TreeNode({
       <motion.div
         initial={{ opacity: 0, x: -8 }}
         animate={{ opacity: 1, x: 0 }}
-        className={`rounded-xl border ${color.border} ${color.bg} p-3 transition-all`}
+        className={`rounded-xl border ${color.border} ${color.bg} p-3 ${transitions.normal}`}
       >
         {/* Header row */}
         <div className="flex items-start gap-2">
@@ -90,7 +91,7 @@ function TreeNode({
           {hasChildren ? (
             <button
               onClick={() => setExpanded(!expanded)}
-              className="mt-0.5 p-0.5 rounded hover:bg-white/5 transition-colors flex-shrink-0"
+              className={`mt-0.5 p-0.5 rounded hover:bg-white/5 ${transitions.colors} flex-shrink-0`}
             >
               {expanded ? (
                 <ChevronDown className={`w-3.5 h-3.5 ${color.text}`} />
@@ -162,14 +163,14 @@ function TreeNode({
             {!isAnswered && (
               <button
                 onClick={() => onAnswerQuestion(node)}
-                className="px-2 py-1 text-xs rounded-lg bg-purple-600/80 hover:bg-purple-500 text-white transition-colors"
+                className={`px-2 py-1 text-xs rounded-lg bg-purple-600/80 hover:bg-purple-500 text-white ${transitions.colors}`}
               >
                 Answer
               </button>
             )}
             <button
               onClick={() => onDeleteQuestion(node.id)}
-              className="p-1 text-gray-600 hover:text-red-400 transition-colors rounded"
+              className={`p-1 text-gray-600 hover:text-red-400 ${transitions.colors} rounded`}
               title="Delete question"
             >
               <Trash2 className="w-3 h-3" />
@@ -222,7 +223,7 @@ function TreeNode({
               <button
                 onClick={() => onGenerateFollowUp(node.id)}
                 disabled={!!generatingFollowUp}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all disabled:opacity-40 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 border border-cyan-500/20"
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${transitions.normal} disabled:opacity-40 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 border border-cyan-500/20`}
               >
                 {isGeneratingFollowUp ? (
                   <Loader2 className="w-3 h-3 animate-spin" />
@@ -237,7 +238,7 @@ function TreeNode({
               <button
                 onClick={() => onGenerateBrief(node.id)}
                 disabled={!!generatingBrief}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all disabled:opacity-40 bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/20"
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${transitions.normal} disabled:opacity-40 bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/20`}
               >
                 {isGeneratingBrief ? (
                   <Loader2 className="w-3 h-3 animate-spin" />
@@ -251,7 +252,7 @@ function TreeNode({
             {canGenerateFollowUp && (
               <button
                 onClick={() => onGenerateDirection(node.id)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 border border-purple-500/20"
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${transitions.normal} bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 border border-purple-500/20`}
               >
                 <Compass className="w-3 h-3" />
                 Generate Direction

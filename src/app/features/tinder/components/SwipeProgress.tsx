@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, XCircle, Trash2, TrendingUp } from 'lucide-react';
+import { duration, easing, transition } from '@/lib/motion';
 
 interface SwipeProgressProps {
   total: number;
@@ -43,7 +44,7 @@ export default function SwipeProgress({
             className="h-full bg-gradient-to-r from-purple-500 via-purple-400 to-pink-500 shadow-sm shadow-purple-500/40"
             initial={{ width: 0 }}
             animate={{ width: `${percentComplete}%` }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
+            transition={{ duration: duration.slow, ease: easing.entrance }}
           />
         </div>
       </div>
@@ -114,7 +115,7 @@ export function SwipeProgressCompact({
           className="h-full bg-purple-500"
           initial={{ width: 0 }}
           animate={{ width: `${percent}%` }}
-          transition={{ duration: 0.3 }}
+          transition={transition.deliberate}
         />
       </div>
       <span className="text-xs text-gray-400 font-mono">

@@ -27,6 +27,7 @@ import {
   Globe,
 } from 'lucide-react';
 import ReflectorKPICard from '../../components/ReflectorKPICard';
+import { duration, easing } from '@/lib/motion';
 
 // ─── Types (matching /api/db/performance response) ────────────────
 
@@ -423,13 +424,13 @@ function WriteContentionTab({ tables }: { tables: TableContention[] }) {
                 }}
                 initial={{ width: 0 }}
                 animate={{ width: `${t.writeRatio * 100}%` }}
-                transition={{ duration: 0.6, ease: 'easeOut' }}
+                transition={{ duration: duration.slow, ease: easing.entrance }}
               />
               <motion.div
                 className="h-full rounded-r-full bg-cyan-600/40"
                 initial={{ width: 0 }}
                 animate={{ width: `${(1 - t.writeRatio) * 100}%` }}
-                transition={{ duration: 0.6, ease: 'easeOut' }}
+                transition={{ duration: duration.slow, ease: easing.entrance }}
               />
             </div>
 

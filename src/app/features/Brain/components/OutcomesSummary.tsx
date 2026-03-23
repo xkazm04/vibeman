@@ -8,6 +8,7 @@
 
 import { useId, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { duration, easing } from '@/lib/motion';
 import { Target, CheckCircle, XCircle, RotateCcw, Clock, TrendingUp } from 'lucide-react';
 import { useBrainStore } from '@/stores/brainStore';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
@@ -47,7 +48,7 @@ function KPICard({
     <motion.div
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay, duration: 0.5, ease: 'easeOut' }}
+      transition={{ delay, duration: duration.slow, ease: easing.entrance }}
     >
       <GlowCard accentColor={accentColor} glowColor={glowColor} borderColorClass={borderColor} animate={false}>
         <div className="p-5">
@@ -249,7 +250,7 @@ export default function OutcomesSummary({ isLoading }: Props) {
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${successRate}%` }}
-                  transition={{ delay: 0.6, duration: 0.8, ease: 'easeOut' }}
+                  transition={{ delay: 0.6, duration: duration.dramatic, ease: easing.entrance }}
                   className={`h-full rounded-full ${
                     successRate >= 80
                       ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'

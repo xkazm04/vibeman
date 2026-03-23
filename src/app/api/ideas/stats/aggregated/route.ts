@@ -1,3 +1,7 @@
+/**
+ * @route /api/ideas/stats/aggregated
+ * GET/POST - Aggregated analytics stats (statsApi)
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { analyticsAggregationService, CacheKey } from '@/lib/services/analyticsAggregation';
 import { logger } from '@/lib/logger';

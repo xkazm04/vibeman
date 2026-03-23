@@ -2,11 +2,11 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, X, AlertTriangle } from 'lucide-react';
-import type { AutoDeepenResponse } from '../lib/questionsApi';
+import type { QuestionAutoDeepenedEvent } from '@/lib/events/types';
 
 interface AutoDeepenToastProps {
   /** The auto-deepen result to display, or null to hide the toast. */
-  result: AutoDeepenResponse | null;
+  result: QuestionAutoDeepenedEvent | null;
   /** Called when the user dismisses the toast. */
   onDismiss: () => void;
 }
@@ -14,10 +14,10 @@ interface AutoDeepenToastProps {
 /**
  * Floating notification toast for auto-deepen results.
  *
- * Appears after a question is answered and the system detects ambiguity
- * or generates follow-up questions. Uses cyan styling for successful
- * deepening and amber for ambiguity warnings. Auto-dismissed by the
- * parent after 6 seconds.
+ * Appears when a question:auto_deepened SSE event arrives after the system
+ * detects ambiguity or generates follow-up questions. Uses cyan styling for
+ * successful deepening and amber for ambiguity warnings. Auto-dismissed by
+ * the parent after 6 seconds.
  */
 export default function AutoDeepenToast({ result, onDismiss }: AutoDeepenToastProps) {
   return (
@@ -49,11 +49,11 @@ export default function AutoDeepenToast({ result, onDismiss }: AutoDeepenToastPr
                   result.deepened ? 'text-cyan-300' : 'text-amber-300'
                 }`}>
                   {result.deepened
-                    ? `Auto-deepened: ${result.questions.length} follow-up${result.questions.length !== 1 ? 's' : ''} generated`
+                    ? `Auto-deepened: ${result.generatedCount} follow-up${result.generatedCount !== 1 ? 's' : ''} generated`
                     : 'Ambiguity detected'}
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  {result.analysis.summary}
+                  {result.summary}
                 </p>
               </div>
               <button

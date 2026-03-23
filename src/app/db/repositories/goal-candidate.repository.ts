@@ -62,56 +62,56 @@ export const goalCandidateRepository = {
     const db = getDatabase();
     const now = new Date().toISOString();
 
-    const stmt = db.prepare(`
-      INSERT INTO goal_candidates (
-        id, project_id, context_id, title, description, reasoning,
-        priority_score, source, source_metadata, suggested_status,
-        user_action, created_at, updated_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    const insertAll = db.transaction(() => {
+      const stmt = db.prepare(`
+        INSERT INTO goal_candidates (
+          id, project_id, context_id, title, description, reasoning,
+          priority_score, source, source_metadata, suggested_status,
+          user_action, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
 
-    // Insert all candidates
-    for (const candidate of candidates) {
-      stmt.run(
-        candidate.id,
-        candidate.project_id,
-        candidate.context_id || null,
-        candidate.title,
-        candidate.description || null,
-        candidate.reasoning || null,
-        candidate.priority_score,
-        candidate.source,
-        candidate.source_metadata || null,
-        candidate.suggested_status || 'open',
-        'pending',
-        now,
-        now
-      );
-    }
+      for (const candidate of candidates) {
+        stmt.run(
+          candidate.id,
+          candidate.project_id,
+          candidate.context_id || null,
+          candidate.title,
+          candidate.description || null,
+          candidate.reasoning || null,
+          candidate.priority_score,
+          candidate.source,
+          candidate.source_metadata || null,
+          candidate.suggested_status || 'open',
+          'pending',
+          now,
+          now
+        );
+      }
 
-    // Return all created candidates
-    const ids = candidates.map(c => c.id);
-    const placeholders = ids.map(() => '?').join(',');
-    const selectStmt = db.prepare(`
-      SELECT * FROM goal_candidates WHERE id IN (${placeholders})
-    `);
-    return selectStmt.all(...ids) as DbGoalCandidate[];
+      // Return all created candidates
+      const ids = candidates.map(c => c.id);
+      const placeholders = ids.map(() => '?').join(',');
+      const selectStmt = db.prepare(`
+        SELECT * FROM goal_candidates WHERE id IN (${placeholders})
+      `);
+      return selectStmt.all(...ids) as DbGoalCandidate[];
+    });
+
+    return insertAll();
   },
 
   /**
    * Update a goal candidate
    */
-  updateCandidate: (id: string, updates: {
-    title?: string;
-    description?: string;
-    priority_score?: number;
-    suggested_status?: 'open' | 'in_progress' | 'done' | 'rejected' | 'undecided';
-    user_action?: 'accepted' | 'rejected' | 'tweaked' | 'pending' | null;
-    rejection_reason?: string | null;
-    goal_id?: string | null;
-    context_id?: string | null;
-  }): DbGoalCandidate | null => base.update(id, updates as Record<string, unknown>),
+  updateCandidate: (id: string, updates: Partial<Pick<DbGoalCandidate,
+    'title' | 'description' | 'priority_score' | 'suggested_status' |
+    'user_action' | 'rejection_reason' | 'goal_id' | 'context_id'
+  >>): DbGoalCandidate | null => {
+    const serialized: Record<string, unknown> = { ...updates };
+    return base.update(id, serialized);
+  },
 
   /**
    * Delete a goal candidate

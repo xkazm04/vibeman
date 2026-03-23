@@ -1,17 +1,14 @@
 /**
- * NextJS Scan Strategy (REFACTORED VERSION)
+ * NextJS Scan Strategy
  *
- * CHANGES:
- * - Migrated to use modular techniques from @/lib/scan/techniques/nextjs
- * - Pattern detectors moved to @/lib/scan/patterns
- * - Simplified structure - techniques are now reusable across the codebase
+ * Uses composable PatternDetector pipeline for declarative detector registration.
+ * Each detector returns findings; the base class handles batching, group filtering, and progress.
  */
 
-import { RefactorScanStrategy } from '../ScanStrategy';
+import { RefactorScanStrategy, detector, type PatternDetector } from '../ScanStrategy';
 import type { FileAnalysis } from '@/app/features/RefactorWizard/lib/types';
 import type { RefactorOpportunity } from '@/stores/refactorStore';
 import {
-  // Generic code quality techniques
   checkLargeFile,
   checkDuplication,
   checkLongFunctions,
@@ -21,7 +18,6 @@ import {
   checkComplexConditionals,
   checkMagicNumbers,
   checkReactHookDeps,
-  // Next.js specific techniques
   checkClientServerMixing,
   checkImageOptimization,
   checkDynamicImports,
@@ -31,6 +27,27 @@ import {
 export class NextJSScanStrategy extends RefactorScanStrategy {
   readonly name = 'Next.js Scanner';
   readonly techStack = 'nextjs' as const;
+
+  /** Declarative list of all detectors with their group assignments */
+  private readonly detectors: PatternDetector[] = [
+    // Code Quality & Standards
+    detector('code-quality', checkConsoleStatements),
+    detector('code-quality', checkAnyTypes),
+    detector('code-quality', checkUnusedImports),
+    // Maintainability
+    detector('maintainability', checkLargeFile),
+    detector('maintainability', checkDuplication),
+    detector('maintainability', checkLongFunctions),
+    detector('maintainability', checkComplexConditionals),
+    detector('maintainability', checkMagicNumbers),
+    // React & Component Patterns
+    detector('react-specific', checkClientServerMixing),
+    detector('react-specific', checkMetadataAPI),
+    detector('react-specific', checkReactHookDeps),
+    // Performance
+    detector('performance', checkImageOptimization),
+    detector('performance', checkDynamicImports),
+  ];
 
   getScanPatterns(): string[] {
     return [
@@ -68,60 +85,12 @@ export class NextJSScanStrategy extends RefactorScanStrategy {
     ];
   }
 
-  /**
-   * Detect Next.js-specific opportunities (ASYNC)
-   * Uses modular technique functions for better reusability
-   */
   async detectOpportunities(
     files: FileAnalysis[],
     selectedGroups?: string[],
     onProgress?: import('../ScanStrategy').ProgressCallback
   ): Promise<RefactorOpportunity[]> {
-    const opportunities: RefactorOpportunity[] = [];
-    const opportunitiesRef = { count: 0 };
-
-    // Process files in batches to avoid blocking the event loop
-    await this.processFilesInBatches(
-      files,
-      async (file) => {
-        // Code Quality & Standards
-        if (this.shouldRunGroup('code-quality', selectedGroups)) {
-          checkConsoleStatements(file, opportunities);
-          checkAnyTypes(file, opportunities);
-          checkUnusedImports(file, opportunities);
-        }
-
-        // Maintainability
-        if (this.shouldRunGroup('maintainability', selectedGroups)) {
-          checkLargeFile(file, opportunities);
-          checkDuplication(file, opportunities);
-          checkLongFunctions(file, opportunities);
-          checkComplexConditionals(file, opportunities);
-          checkMagicNumbers(file, opportunities);
-        }
-
-        // React & Component Patterns
-        if (this.shouldRunGroup('react-specific', selectedGroups)) {
-          checkClientServerMixing(file, opportunities);
-          checkMetadataAPI(file, opportunities);
-          checkReactHookDeps(file, opportunities);
-        }
-
-        // Performance
-        if (this.shouldRunGroup('performance', selectedGroups)) {
-          checkImageOptimization(file, opportunities);
-          checkDynamicImports(file, opportunities);
-        }
-
-        // Update opportunities count
-        opportunitiesRef.count = opportunities.length;
-      },
-      10, // Process 10 files at a time
-      onProgress,
-      opportunitiesRef
-    );
-
-    return opportunities;
+    return this.detectPatterns(files, this.detectors, selectedGroups, onProgress);
   }
 
   async canHandle(projectPath: string, projectType?: 'nextjs' | 'fastapi' | 'express' | 'react-native' | 'other'): Promise<boolean> {

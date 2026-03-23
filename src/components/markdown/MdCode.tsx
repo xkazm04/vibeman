@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Copy, Check } from 'lucide-react';
+import { duration, easing } from '@/lib/motion';
 
 interface MdCodeProps {
   content: string;
@@ -11,7 +12,7 @@ interface MdCodeProps {
 const CODE_ANIMATION = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.3 }
+  transition: { duration: duration.deliberate, ease: easing.entrance }
 };
 
 // Code header component

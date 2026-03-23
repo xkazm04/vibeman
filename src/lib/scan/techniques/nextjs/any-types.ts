@@ -8,12 +8,11 @@ import { detectAnyTypes } from '@/lib/scan/patterns';
 
 export function checkAnyTypes(
   file: FileAnalysis,
-  opportunities: RefactorOpportunity[]
-): void {
+): RefactorOpportunity[] {
   const anyTypes = detectAnyTypes(file.content);
-  if (anyTypes.length < 3) return; // Only flag files with 3+ 'any' type usages
+  if (anyTypes.length < 3) return []; // Only flag files with 3+ 'any' type usages
 
-  opportunities.push({
+  return [{
     id: `any-types-${file.path}`,
     title: `'any' type usage in ${file.path}`,
     description: `Found ${anyTypes.length} uses of 'any' type. Consider using proper TypeScript types for better type safety.`,
@@ -25,5 +24,5 @@ export function checkAnyTypes(
     lineNumbers: { [file.path]: anyTypes },
     autoFixAvailable: false,
     estimatedTime: '30-60 minutes',
-  });
+  }];
 }

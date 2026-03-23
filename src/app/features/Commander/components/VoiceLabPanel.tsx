@@ -8,6 +8,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import {
   Send, Loader2, ChevronDown, ChevronRight, Zap, BarChart3, Cpu,
   Mic, MicOff, Volume2, BrainCircuit, Database, Radio, Globe, Play,
@@ -397,7 +398,7 @@ export default function VoiceLabPanel() {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              transition={transition.normal}
               className="overflow-hidden"
             >
               <div className="px-4 pb-3 space-y-1.5">
@@ -684,7 +685,7 @@ export default function VoiceLabPanel() {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              transition={transition.normal}
               className="overflow-hidden"
             >
               <div className="px-4 pb-4 space-y-3">

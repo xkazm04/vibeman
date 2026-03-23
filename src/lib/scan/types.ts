@@ -199,3 +199,60 @@ export interface ScanRepository {
    */
   delete(scanId: string): Promise<void>;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scan Middleware
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Mutable context passed through the middleware chain.
+ * Each middleware can read/write fields relevant to its stage.
+ */
+export interface ScanContext {
+  /** Scan configuration (immutable by convention) */
+  readonly config: ScanConfig;
+
+  /** Unique scan ID */
+  scanId: string;
+
+  /** Timestamp when the scan started */
+  startTime: number;
+
+  /** Files gathered from the codebase (populated by gather middleware) */
+  files: CodebaseFile[];
+
+  /** Findings from analysis (populated by analyze middleware) */
+  findings: ScanFinding[];
+
+  /** Final scan result (populated by result-building middleware) */
+  result?: ScanResult;
+
+  /** Event emitter callback */
+  emitEvent: (event: ScanEvent) => void;
+
+  /** Optional repository for persistence */
+  repository?: ScanRepository;
+
+  /** Timing data collected by timing middleware */
+  timings: Record<string, number>;
+
+  /** Arbitrary metadata for middleware to share state */
+  extras: Record<string, unknown>;
+}
+
+/**
+ * A single step in the scan pipeline.
+ * Follows Express/Koa-style next() semantics — call next() to continue
+ * the chain, or skip it to short-circuit.
+ */
+export interface ScanMiddleware {
+  /** Human-readable name for logging/debugging */
+  readonly name: string;
+
+  /**
+   * Execute this middleware step.
+   * @param ctx - Shared mutable context
+   * @param next - Call to invoke the next middleware in the chain
+   */
+  handle(ctx: ScanContext, next: () => Promise<void>): Promise<void>;
+}

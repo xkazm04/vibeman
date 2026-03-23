@@ -55,7 +55,7 @@ const ReflectorLayout = () => {
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-6 py-8" role="tabpanel" aria-label={`${viewMode} view`}>
         {loading && viewMode === 'weekly' ? (
           <div className="flex items-center justify-center py-24">
             <div className="text-gray-400 animate-pulse">Loading...</div>

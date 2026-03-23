@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import type { DbDiscoveredTemplate } from '../../../db/models/types';
 import TemplateItem from './TemplateItem';
 
@@ -39,7 +40,7 @@ const TemplateColumn = React.memo(function TemplateColumn({
       className="flex flex-col bg-gradient-to-b from-gray-900/50 to-gray-900/30 border border-gray-700/40 rounded-lg overflow-hidden transition-all duration-300 ease-out hover:border-gray-600/60 hover:bg-gray-900/50 hover:shadow-xl hover:shadow-black/30 backdrop-blur-sm"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={transition.deliberate}
       layout
       data-testid={`template-column-${category}`}
     >

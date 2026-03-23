@@ -5,202 +5,101 @@
  * POST /api/directions (create direction - called by Claude Code)
  */
 
-import { NextRequest, NextResponse } from 'next/server';
 import { directionDb } from '@/app/db';
-import { logger } from '@/lib/logger';
-import { v4 as uuidv4 } from 'uuid';
-import { withObservability } from '@/lib/observability/middleware';
+import { isValidDirectionStatus } from '@/lib/stateMachine';
 import { parseProjectIds } from '@/lib/api-helpers/projectFilter';
 import { signalCollector } from '@/lib/brain/signalCollector';
-import { isValidDirectionStatus } from '@/lib/stateMachine';
-import { groupByContextMap } from '@/lib/api-helpers/groupByContextMap';
+import { createListHandlers } from '@/lib/api-helpers/crudRouteFactory';
+import type { DbDirection } from '@/app/db/models/types';
 
-async function handleGet(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
+const { GET, POST } = createListHandlers<DbDirection>({
+  entityName: 'direction',
+  endpoint: '/api/directions',
+  statusValues: ['pending', 'processing', 'accepted', 'rejected'],
+  validateStatus: isValidDirectionStatus,
+  idPrefix: 'direction',
+
+  repo: {
+    getById: (id) => directionDb.getDirectionById(id),
+    create: (data) => directionDb.createDirection(data as Parameters<typeof directionDb.createDirection>[0]),
+  },
+
+  fetchItems: (_projectId, { status, contextMapId, searchParams }) => {
     const projectFilter = parseProjectIds(searchParams);
-    const status = searchParams.get('status'); // 'pending', 'accepted', 'rejected', or null for all
-    const contextMapId = searchParams.get('contextMapId');
-    // Support SQLite context filtering
+    const projectIds = projectFilter.mode === 'single'
+      ? [projectFilter.projectId!]
+      : projectFilter.projectIds || [_projectId];
+
     const contextId = searchParams.get('contextId');
     const contextGroupId = searchParams.get('contextGroupId');
 
-    if (projectFilter.mode === 'all') {
-      return NextResponse.json(
-        { error: 'projectId query parameter is required' },
-        { status: 400 }
-      );
-    }
+    if (contextId) return directionDb.getDirectionsByContextIdMultiple(projectIds, contextId);
+    if (contextGroupId) return directionDb.getDirectionsByContextGroupIdMultiple(projectIds, contextGroupId);
+    if (contextMapId) return directionDb.getDirectionsByContextMapIdMultiple(projectIds, contextMapId);
+    if (status === 'pending') return directionDb.getPendingDirectionsMultiple(projectIds);
+    if (status === 'accepted') return directionDb.getAcceptedDirectionsMultiple(projectIds);
+    if (status === 'rejected') return directionDb.getRejectedDirectionsMultiple(projectIds);
+    return directionDb.getDirectionsByProjects(projectIds);
+  },
 
-    if (status !== null && !isValidDirectionStatus(status)) {
-      return NextResponse.json(
-        { error: `Invalid status '${status}'. Valid values: pending, processing, accepted, rejected` },
-        { status: 400 }
-      );
-    }
-
-    // For multi-project: use batch queries with IN clauses for efficiency
+  fetchCounts: (_projectId, _items, { searchParams }) => {
+    const projectFilter = parseProjectIds(searchParams);
     const projectIds = projectFilter.mode === 'single'
       ? [projectFilter.projectId!]
-      : projectFilter.projectIds!;
+      : projectFilter.projectIds || [_projectId];
+    return directionDb.getDirectionCountsMultiple(projectIds);
+  },
 
-    let directions: any[];
-
-    // Use batch query methods to reduce database round-trips
-    if (contextId) {
-      directions = directionDb.getDirectionsByContextIdMultiple(projectIds, contextId);
-    } else if (contextGroupId) {
-      directions = directionDb.getDirectionsByContextGroupIdMultiple(projectIds, contextGroupId);
-    } else if (contextMapId) {
-      directions = directionDb.getDirectionsByContextMapIdMultiple(projectIds, contextMapId);
-    } else if (status === 'pending') {
-      directions = directionDb.getPendingDirectionsMultiple(projectIds);
-    } else if (status === 'accepted') {
-      directions = directionDb.getAcceptedDirectionsMultiple(projectIds);
-    } else if (status === 'rejected') {
-      directions = directionDb.getRejectedDirectionsMultiple(projectIds);
-    } else {
-      directions = directionDb.getDirectionsByProjects(projectIds);
-    }
-
-    const counts = directionDb.getDirectionCountsMultiple(projectIds);
-
-    return NextResponse.json({
-      success: true,
-      items: directions,
-      grouped: groupByContextMap(directions),
-      counts
-    });
-
-  } catch (error) {
-    logger.error('[API] Directions GET error:', { error });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
-}
-
-async function handlePost(request: NextRequest) {
-  try {
-    const body = await request.json();
-
-    const {
-      project_id,
-      context_map_id,
-      context_map_title,
-      direction,
-      summary,
-      // NEW: SQLite context fields
-      context_id,
-      context_name,
-      context_group_id,
-      // NEW: Paired directions support
-      pair_id,
-      pair_label,
-      problem_statement,
-      // Effort/impact scoring
-      effort,
-      impact,
-      // Hypothesis assertions
-      hypothesis_assertions
-    } = body;
-
-    // Validate required fields
+  validateCreate: (body) => {
+    const { project_id, context_map_id, context_map_title, direction, summary } = body as Record<string, unknown>;
     if (!project_id || !context_map_id || !context_map_title || !direction || !summary) {
-      return NextResponse.json(
-        { error: 'project_id, context_map_id, context_map_title, direction, and summary are required' },
-        { status: 400 }
-      );
+      return 'project_id, context_map_id, context_map_title, direction, and summary are required';
     }
-
-    // Validate pair_label if provided
-    if (pair_label && !['A', 'B'].includes(pair_label)) {
-      return NextResponse.json(
-        { error: 'pair_label must be "A" or "B"' },
-        { status: 400 }
-      );
+    if (body.pair_label && !['A', 'B'].includes(body.pair_label as string)) {
+      return 'pair_label must be "A" or "B"';
     }
+    return null;
+  },
 
-    // Create the direction
-    const id = body.id || `direction_${uuidv4()}`;
+  buildCreatePayload: (id, body) => ({
+    id,
+    project_id: body.project_id,
+    context_map_id: body.context_map_id,
+    context_map_title: body.context_map_title,
+    direction: body.direction,
+    summary: body.summary,
+    status: body.status || 'pending',
+    requirement_id: body.requirement_id || null,
+    requirement_path: body.requirement_path || null,
+    context_id: body.context_id || null,
+    context_name: body.context_name || null,
+    context_group_id: body.context_group_id || null,
+    pair_id: body.pair_id || null,
+    pair_label: body.pair_label || null,
+    problem_statement: body.problem_statement || null,
+    effort: typeof body.effort === 'number' ? Math.max(1, Math.min(10, body.effort as number)) : null,
+    impact: typeof body.impact === 'number' ? Math.max(1, Math.min(10, body.impact as number)) : null,
+    hypothesis_assertions: typeof body.hypothesis_assertions === 'string'
+      ? body.hypothesis_assertions
+      : Array.isArray(body.hypothesis_assertions)
+        ? JSON.stringify(body.hypothesis_assertions)
+        : null,
+  }),
 
-    // Check for duplicate ID when caller supplies one
-    if (body.id && directionDb.getDirectionById(body.id)) {
-      return NextResponse.json(
-        { error: `Direction with ID '${body.id}' already exists`, code: 'DUPLICATE_ID' },
-        { status: 409 }
-      );
-    }
-
-    const createdDirection = directionDb.createDirection({
-      id,
-      project_id,
-      context_map_id,
-      context_map_title,
-      direction,
-      summary,
-      status: body.status || 'pending',
-      requirement_id: body.requirement_id || null,
-      requirement_path: body.requirement_path || null,
-      // NEW: SQLite context fields for unified context management
-      context_id: context_id || null,
-      context_name: context_name || null,
-      context_group_id: context_group_id || null,
-      // NEW: Paired directions support
-      pair_id: pair_id || null,
-      pair_label: pair_label || null,
-      problem_statement: problem_statement || null,
-      // Effort/impact scoring
-      effort: typeof effort === 'number' ? Math.max(1, Math.min(10, effort)) : null,
-      impact: typeof impact === 'number' ? Math.max(1, Math.min(10, impact)) : null,
-      // Hypothesis assertions (stored as JSON string)
-      hypothesis_assertions: typeof hypothesis_assertions === 'string'
-        ? hypothesis_assertions
-        : Array.isArray(hypothesis_assertions)
-          ? JSON.stringify(hypothesis_assertions)
-          : null,
-    });
-
-    logger.info('[API] Direction created:', {
-      id: createdDirection.id,
-      context_map_id,
-      context_id: context_id || 'none',
-      context_group_id: context_group_id || 'none'
-    });
-
-    // Auto-record api_focus signal for direction generation
-    try {
-      signalCollector.recordApiFocus(
-        project_id,
-        {
-          endpoint: '/api/directions',
-          method: 'POST',
-          callCount: 1,
-          avgResponseTime: 0,
-          errorRate: 0,
-        },
-        context_id || undefined,
-        context_name || context_map_title
-      );
-    } catch {
-      // Signal recording must never break the main flow
-    }
-
-    return NextResponse.json({
-      success: true,
-      direction: createdDirection
-    });
-
-  } catch (error) {
-    logger.error('[API] Directions POST error:', { error });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
+  afterCreate: (_created, body) => {
+    signalCollector.recordApiFocus(
+      body.project_id as string,
+      {
+        endpoint: '/api/directions',
+        method: 'POST',
+        callCount: 1,
+        avgResponseTime: 0,
+        errorRate: 0,
+      },
+      (body.context_id as string) || undefined,
+      (body.context_name as string) || (body.context_map_title as string)
     );
-  }
-}
+  },
+});
 
-// Export with observability tracking
-export const GET = withObservability(handleGet, '/api/directions');
-export const POST = withObservability(handlePost, '/api/directions');
+export { GET, POST };

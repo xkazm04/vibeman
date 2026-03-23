@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Lightbulb, ArrowRight } from 'lucide-react';
 import { ScanType, AgentDefinition, getAgent, getAgentExamples, getAgentsByCategory } from '../lib/scanTypes';
+import { transition } from '@/lib/motion';
 
 interface ScanTypePreviewProps {
   scanType: ScanType;
@@ -44,7 +45,7 @@ export function ScanTypePreview({
         </div>
         <motion.div
           animate={{ rotate: expanded ? 180 : 0 }}
-          transition={{ duration: 0.2 }}
+          transition={transition.normal}
         >
           <ChevronDown className="w-4 h-4 opacity-60" />
         </motion.div>
@@ -57,7 +58,7 @@ export function ScanTypePreview({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={transition.normal}
             className="overflow-hidden"
           >
             <div className="p-3 bg-gray-800/50 space-y-2 border-t border-gray-700/20">

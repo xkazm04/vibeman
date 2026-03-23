@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { questionDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
+import { questionTreeService } from '@/lib/questions/questionTreeService';
 
 export async function POST(
   request: NextRequest,
@@ -37,7 +38,7 @@ export async function POST(
     }
 
     // Get the full ancestry chain for context
-    const chain = questionDb.getAncestryChain(parentId);
+    const chain = questionTreeService.getAncestryChain(parentId);
     const newDepth = (parent.tree_depth ?? 0) + 1;
 
     // Build the strategic context from the chain
@@ -47,7 +48,7 @@ export async function POST(
       .join('\n\n');
 
     // Check if follow-up children already exist
-    const existingChildren = questionDb.getChildQuestions(parentId);
+    const existingChildren = questionTreeService.getChildQuestions(parentId);
     if (existingChildren.length > 0) {
       return NextResponse.json({
         success: true,

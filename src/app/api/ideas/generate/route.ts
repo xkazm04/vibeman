@@ -1,3 +1,7 @@
+/**
+ * @route /api/ideas/generate
+ * POST - Generate ideas via AI scan (agentScanStrategy, scanApi, generateIdeas)
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { generateIdeas } from '@/app/projects/ProjectAI/ScanIdeas/generateIdeas';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';

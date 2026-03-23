@@ -63,6 +63,9 @@ export async function GET(
           status: event.status,
           progressCount: event.progressCount,
           timestamp: event.timestamp,
+          // Include pre-classified activity data so client doesn't need to re-fetch
+          ...(event.activity ? { activity: event.activity } : {}),
+          ...(event.mcpProgress ? { mcpProgress: event.mcpProgress } : {}),
         });
 
         // On terminal status, fetch full status one more time then close

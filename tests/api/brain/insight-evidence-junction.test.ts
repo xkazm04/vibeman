@@ -134,6 +134,7 @@ vi.mock('@/app/db/hot-writes', () => ({
 // ============================================================================
 
 import { brainInsightRepository } from '@/app/db/repositories/brain-insight.repository';
+import { InsightDeduplicator } from '@/lib/brain/InsightDeduplicator';
 
 // ============================================================================
 // Test suite
@@ -356,6 +357,7 @@ describe('Brain Insight Evidence Junction Table', () => {
   });
 
   it('should support batch create with junction table', () => {
+    const deduplicator = new InsightDeduplicator('proj_1', []);
     const insights = brainInsightRepository.createBatch('ref_test', 'proj_1', [
       {
         type: 'pattern_detected',
@@ -374,7 +376,7 @@ describe('Brain Insight Evidence Junction Table', () => {
           { type: 'signal', id: 'sig_abc' },
         ],
       },
-    ]);
+    ], deduplicator);
 
     expect(insights).toHaveLength(2);
 
@@ -436,6 +438,7 @@ describe('Brain Insight Evidence Junction Table', () => {
 
   it('should rollback batch transaction when any evidence FK fails', () => {
     const initialCount = (testDb.prepare('SELECT COUNT(*) as count FROM brain_insights').get() as { count: number }).count;
+    const deduplicator = new InsightDeduplicator('proj_1', []);
 
     // Try to create batch with one invalid evidence reference
     expect(() => {
@@ -464,7 +467,7 @@ describe('Brain Insight Evidence Junction Table', () => {
           confidence: 70,
           evidence: [{ type: 'direction', id: 'dir_001' }],
         },
-      ]);
+      ], deduplicator);
     }).toThrow('Evidence reference reflection:ref_nonexistent does not exist');
 
     // Verify no insights were created (entire batch rolled back)

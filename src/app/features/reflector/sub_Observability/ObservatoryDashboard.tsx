@@ -494,6 +494,7 @@ export default function ObservatoryDashboard() {
       )}
 
       {/* Content Area */}
+      <div role="tabpanel" aria-label={`${viewMode} view`}>
       {viewMode === 'database' ? (
         /* Database Health View */
         <DatabaseHealthPanel projectId={projectId} />
@@ -739,6 +740,7 @@ export default function ObservatoryDashboard() {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

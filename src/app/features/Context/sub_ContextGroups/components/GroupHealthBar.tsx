@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { transition } from '@/lib/motion';
 
 interface GroupHealthBarProps {
   healthScore: number | null | undefined;
@@ -65,7 +66,7 @@ export const GroupHealthBar: React.FC<GroupHealthBarProps> = ({
           }}
           initial={{ width: 0 }}
           animate={{ width: `${score}%` }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
+          transition={transition.dramatic}
         >
         </motion.div>
       </div>

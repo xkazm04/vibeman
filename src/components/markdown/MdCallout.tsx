@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Info, CheckCircle, AlertTriangle, AlertCircle, LucideIcon } from 'lucide-react';
+import { duration, easing } from '@/lib/motion';
 
 interface MdCalloutProps {
   content: string;
@@ -49,7 +50,7 @@ const CALLOUT_STYLES: Record<CalloutType, CalloutStyle> = {
 const CALLOUT_ANIMATION = {
   initial: { opacity: 0, scale: 0.95 },
   animate: { opacity: 1, scale: 1 },
-  transition: { duration: 0.3 }
+  transition: { duration: duration.deliberate, ease: easing.entrance }
 };
 
 // Callout content component

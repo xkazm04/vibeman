@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import ContextOverviewHeader, { TabType } from './components/ContextOverviewHeader';
 import ContextDescription from './components/ContextDescription';
@@ -131,7 +132,7 @@ const ContextOverviewInline = ({ context, groupColor, onClose }: ContextOverview
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.2 }}
+              transition={transition.normal}
             >
               <ContextPreviewManager
                 contextId={context.id}
@@ -159,7 +160,7 @@ const ContextOverviewInline = ({ context, groupColor, onClose }: ContextOverview
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.2 }}
+              transition={transition.normal}
             >
               <TestingTab
                 contextId={context.id}
@@ -185,7 +186,7 @@ const ContextOverviewInline = ({ context, groupColor, onClose }: ContextOverview
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.2 }}
+              transition={transition.normal}
             >
               <ContextDescription
                 description={context.description || ''}

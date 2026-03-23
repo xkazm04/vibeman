@@ -1,5 +1,6 @@
 /**
- * API Route: Idea Dependencies
+ * @route /api/ideas/dependencies
+ * GET/POST/DELETE - Idea dependency CRUD (IdeaDependencySection, BufferView)
  *
  * GET    /api/ideas/dependencies?ideaId=...       - Get all dependencies for an idea
  * GET    /api/ideas/dependencies?ideaId=...&discover=true - Discover related ideas

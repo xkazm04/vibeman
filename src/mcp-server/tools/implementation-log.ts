@@ -87,7 +87,7 @@ export function registerImplementationLogTool(
       // Set tested flag based on test result
       const tested = testResult === 'passed';
 
-      const result = await client.post<LogResponse>('/api/implementation-log', {
+      const result = await client.post<LogResponse>('/api/implementation-logs', {
         projectId: config.projectId,
         contextId: config.contextId || null,
         requirementName,

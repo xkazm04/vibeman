@@ -23,6 +23,9 @@ export const durations = {
   normal: duration.normal,
   slow: duration.deliberate,
   verySlow: duration.expand,
+  emphasis: duration.slow,
+  dramatic: duration.dramatic,
+  sweep: duration.sweep,
 } as const;
 
 export const scales = _scales;

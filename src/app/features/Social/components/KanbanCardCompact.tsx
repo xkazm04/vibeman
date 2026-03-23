@@ -6,6 +6,7 @@ import {
   Mail, Facebook, MessageCircle, Star, Smartphone, Instagram,
   Bug, Lightbulb, HelpCircle, Github, Loader2,
 } from 'lucide-react';
+import { duration } from '@/lib/motion';
 import type { FeedbackItem, KanbanChannel } from '../lib/types/feedbackTypes';
 import type { FeedbackAnalysisResult } from '../lib/types/aiTypes';
 import { XIcon } from './KanbanBoardConstants';
@@ -108,7 +109,7 @@ export default function KanbanCardCompact({
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
-      whileHover={{ x: 2, transition: { duration: 0.1 } }}
+      whileHover={{ x: 2, transition: { duration: duration.snappy } }}
       whileTap={{ scale: 0.98 }}
       onDragStart={handleDragStart as unknown as (event: MouseEvent | TouchEvent | PointerEvent) => void}
       onDragEnd={onDragEnd as unknown as (event: MouseEvent | TouchEvent | PointerEvent) => void}

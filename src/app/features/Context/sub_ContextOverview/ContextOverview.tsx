@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { useTooltipStore } from '@/stores/tooltipStore';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import ContextOverviewHeader, { TabType } from './components/ContextOverviewHeader';
@@ -178,7 +179,7 @@ const ContextOverview = ({
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20 }}
-                        transition={{ duration: 0.2 }}
+                        transition={transition.normal}
                       >
                         <ContextPreviewManager
                           contextId={context.id}
@@ -199,7 +200,7 @@ const ContextOverview = ({
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20 }}
-                        transition={{ duration: 0.2 }}
+                        transition={transition.normal}
                       >
                         <ContextDescription
                           description={context.description || ''}
@@ -214,7 +215,7 @@ const ContextOverview = ({
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20 }}
-                        transition={{ duration: 0.2 }}
+                        transition={transition.normal}
                       >
                         <TestingTab
                           contextId={context.id}
@@ -239,7 +240,7 @@ const ContextOverview = ({
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20 }}
-                        transition={{ duration: 0.2 }}
+                        transition={transition.normal}
                       >
                         <FilesTab
                           filePaths={context.filePaths || []}

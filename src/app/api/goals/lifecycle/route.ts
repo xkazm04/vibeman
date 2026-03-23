@@ -17,6 +17,17 @@ import {
 import { goalSubGoalRepository } from '@/app/db/repositories/goal-lifecycle.repository';
 import { goalSignalRepository } from '@/app/db/repositories/goal-lifecycle.repository';
 import type { GoalSignalType } from '@/app/db/models/types';
+import { logger } from '@/lib/logger';
+
+const VALID_SIGNAL_TYPES: GoalSignalType[] = [
+  'implementation_log',
+  'requirement_completed',
+  'git_commit',
+  'scan_completed',
+  'idea_implemented',
+  'context_updated',
+  'manual_update',
+];
 
 function errorResponse(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
@@ -44,6 +55,7 @@ export async function GET(request: NextRequest) {
 
     return errorResponse('goalId or projectId is required', 400);
   } catch (error) {
+    logger.error('Error in GET /api/goals/lifecycle:', { error });
     return errorResponse('Internal server error', 500);
   }
 }
@@ -69,6 +81,10 @@ export async function POST(request: NextRequest) {
         const { projectId, signalType, contextId, sourceId, sourceTitle, description, metadata } = body;
         if (!projectId || !signalType) {
           return errorResponse('projectId and signalType are required', 400);
+        }
+
+        if (!VALID_SIGNAL_TYPES.includes(signalType as GoalSignalType)) {
+          return errorResponse(`Invalid signalType: ${signalType}. Must be one of: ${VALID_SIGNAL_TYPES.join(', ')}`, 400);
         }
 
         const result = processSignal({
@@ -147,6 +163,7 @@ export async function POST(request: NextRequest) {
         return errorResponse(`Unknown action: ${action}`, 400);
     }
   } catch (error) {
+    logger.error('Error in POST /api/goals/lifecycle:', { error });
     return errorResponse('Internal server error', 500);
   }
 }

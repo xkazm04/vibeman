@@ -19,6 +19,7 @@ import {
   LIFECYCLE_PHASE_CONFIGS,
   isActivePhase,
 } from '../lib/lifecycleTypes';
+import { transition } from '@/lib/motion';
 
 interface LifecyclePhaseIndicatorProps {
   phase: LifecyclePhase;
@@ -114,7 +115,7 @@ export default function LifecyclePhaseIndicator({
                 className={`h-full ${config.color.replace('text-', 'bg-')}`}
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.3 }}
+                transition={transition.deliberate}
               />
             </div>
             <span className="text-xs text-gray-500 mt-0.5">{progress}%</span>

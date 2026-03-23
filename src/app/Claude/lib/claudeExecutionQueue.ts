@@ -11,12 +11,11 @@ import {
   emitTaskFailed,
   emitTaskSessionLimit,
 } from '@/lib/brain/taskNotificationEmitter';
-import { signalCollector } from '@/lib/brain/signalCollector';
-import { invalidateContextCache } from '@/lib/brain/brainService';
-import { onTaskCompleted, resolveTaskApplications } from '@/lib/collective-memory/taskCompletionHook';
+import { resolveTaskApplications } from '@/lib/collective-memory/taskCompletionHook';
+import { emitTaskExecutionCompleted } from '@/lib/events/domainEmitters';
 import { performTaskCleanup } from '@/lib/execution/taskCleanup';
 import { env } from '@/lib/config/envConfig';
-import { emitTaskChange } from './taskChangeEmitter';
+import { emitTaskChange, type ClassifiedActivity } from './taskChangeEmitter';
 import { detectErrorType, getErrorDescription } from '@/app/features/Conductor/lib/selfHealing/errorClassifier';
 import { buildHealingContext } from '@/app/features/Conductor/lib/selfHealing/promptPatcher';
 import type { ErrorType, HealingPatch } from '@/app/features/Conductor/lib/types';
@@ -78,7 +77,41 @@ class ClaudeExecutionQueue {
   }
 
   /**
-   * Notify SSE subscribers of a task state change
+   * Classify task progress server-side to avoid redundant client-side re-parsing.
+   * Returns pre-classified activity data for SSE consumers.
+   */
+  private classifyTaskActivity(task: ExecutionTask): ClassifiedActivity | undefined {
+    if (!task.progress || task.progress.length === 0) return undefined;
+    try {
+      const { processProgress, finalizeProgress } = require('@/app/features/TaskRunner/lib/progressTracker');
+      let progressState = processProgress(task.progress);
+      if (task.status === 'completed') {
+        progressState = finalizeProgress(progressState);
+      }
+      const { activity } = progressState;
+      const recentEvents = activity.activityHistory.map((evt: { tool: string; type: string; target?: string; timestamp: Date }) => ({
+        tool: evt.tool || 'unknown',
+        activityType: evt.type || 'thinking',
+        target: evt.target,
+        timestamp: evt.timestamp instanceof Date ? evt.timestamp.toISOString() : String(evt.timestamp),
+      }));
+      return {
+        phase: activity.phase,
+        percentage: progressState.percentage,
+        currentTool: activity.currentActivity?.tool,
+        currentActivityType: activity.currentActivity?.type,
+        currentTarget: activity.currentActivity?.target,
+        toolCounts: activity.toolCounts,
+        recentEvents,
+      };
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Notify SSE subscribers of a task state change.
+   * Includes pre-classified activity data so clients don't need to re-fetch.
    */
   private notifyTaskChange(task: ExecutionTask): void {
     try {
@@ -87,6 +120,7 @@ class ClaudeExecutionQueue {
         status: task.status,
         progressCount: task.progress.length,
         timestamp: new Date().toISOString(),
+        activity: this.classifyTaskActivity(task),
       });
     } catch {
       // Notification must never break execution flow
@@ -226,36 +260,18 @@ class ClaudeExecutionQueue {
       const duration = task.startTime ? Date.now() - task.startTime.getTime() : undefined;
       emitTaskCompleted(task.id, task.requirementName, task.projectId, undefined, duration);
 
-      // Auto-record implementation signal
-      try {
-        const changedFiles = this.getChangedFiles(task.projectPath);
-        signalCollector.recordImplementation(task.projectId, {
-          requirementId: task.id,
-          requirementName: task.requirementName,
-          contextId: null,
-          filesCreated: [],
-          filesModified: changedFiles,
-          filesDeleted: [],
-          success: true,
-          executionTimeMs: duration || 0,
-          provider: task.provider,
-          model: task.model,
-        });
-        // Invalidate Brain context cache so dashboard reflects new signal
-        invalidateContextCache(task.projectId);
-      } catch {
-        // Signal recording must never break the main flow
-      }
-
-      // Record learning in collective memory
-      const changedFilesForMemory = this.getChangedFiles(task.projectPath);
-      onTaskCompleted({
+      // Emit domain event — subscribers handle signal recording, cache invalidation, collective memory
+      const changedFiles = this.getChangedFiles(task.projectPath);
+      emitTaskExecutionCompleted({
         projectId: task.projectId,
         taskId: task.id,
         requirementName: task.requirementName,
+        projectPath: task.projectPath,
         success: true,
-        filesChanged: changedFilesForMemory,
         durationMs: duration,
+        filesModified: changedFiles,
+        provider: task.provider,
+        model: task.model,
       });
 
       // Resolve collective memory applications as success (closes feedback loop)
@@ -399,38 +415,19 @@ class ClaudeExecutionQueue {
       const duration = task.startTime ? Date.now() - task.startTime.getTime() : undefined;
       emitTaskFailed(task.id, task.requirementName, task.projectId, error, duration);
 
-      // Auto-record implementation signal (failure)
-      try {
-        const changedFiles = this.getChangedFiles(task.projectPath);
-        signalCollector.recordImplementation(task.projectId, {
-          requirementId: task.id,
-          requirementName: task.requirementName,
-          contextId: null,
-          filesCreated: [],
-          filesModified: changedFiles,
-          filesDeleted: [],
-          success: false,
-          executionTimeMs: duration || 0,
-          error,
-          provider: task.provider,
-          model: task.model,
-        });
-        // Invalidate Brain context cache so dashboard reflects new signal
-        invalidateContextCache(task.projectId);
-      } catch {
-        // Signal recording must never break the main flow
-      }
-
-      // Record learning in collective memory
-      const changedFilesForMemory = this.getChangedFiles(task.projectPath);
-      onTaskCompleted({
+      // Emit domain event — subscribers handle signal recording, cache invalidation, collective memory
+      const changedFiles = this.getChangedFiles(task.projectPath);
+      emitTaskExecutionCompleted({
         projectId: task.projectId,
         taskId: task.id,
         requirementName: task.requirementName,
+        projectPath: task.projectPath,
         success: false,
-        filesChanged: changedFilesForMemory,
-        errorMessage: error,
         durationMs: duration,
+        error,
+        filesModified: changedFiles,
+        provider: task.provider,
+        model: task.model,
       });
 
       // Resolve collective memory applications as failure (closes feedback loop)

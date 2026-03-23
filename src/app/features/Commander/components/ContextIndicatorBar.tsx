@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import {
   Brain,
   ChevronUp,
@@ -212,7 +213,7 @@ export default function ContextIndicatorBar({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.15 }}
+            transition={transition.snappy}
             className="overflow-hidden"
           >
             <div className="mt-1 p-3 bg-slate-800/50 border border-slate-700/30 rounded-lg space-y-3 max-h-56 overflow-y-auto"

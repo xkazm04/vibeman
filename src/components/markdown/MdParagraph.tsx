@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { duration, easing } from '@/lib/motion';
 
 interface MdParagraphProps {
   content: string;
@@ -15,7 +16,7 @@ const hasInteractiveContent = (content: string): boolean => {
 const PARAGRAPH_ANIMATION = {
   initial: { opacity: 0, y: 10 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.3 }
+  transition: { duration: duration.deliberate, ease: easing.entrance }
 };
 
 export default function MdParagraph({ content, renderInlineContent }: MdParagraphProps) {

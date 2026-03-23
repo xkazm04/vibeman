@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import { motion } from 'framer-motion';
+import { transition } from '@/lib/motion';
 import { LucideIcon } from 'lucide-react';
 import { useThemeStore } from '@/stores/themeStore';
 import { getFocusRingStyles } from '@/lib/ui/focusRing';
@@ -352,7 +353,7 @@ export default function GradientButton({
         title={title}
         whileHover={{ scale: 1.02, y: -1 }}
         whileTap={{ scale: 0.98 }}
-        transition={{ duration: 0.2 }}
+        transition={transition.normal}
       >
         {content}
       </motion.button>

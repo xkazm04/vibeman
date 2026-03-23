@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, FileText } from 'lucide-react';
 import {
   KNOWLEDGE_LANGUAGES,
   KNOWLEDGE_LAYERS, KNOWLEDGE_LAYER_LABELS,
@@ -10,6 +10,7 @@ import {
   CATEGORY_TO_LAYER,
 } from '@/app/db/models/knowledge.types';
 import type { KnowledgeCategory, KnowledgeLayer, KnowledgePatternType, KnowledgeLanguage, CreateKnowledgeEntryInput } from '@/app/db/models/knowledge.types';
+import { KB_ENTRY_TEMPLATES, type KBEntryTemplate } from '@/app/db/models/knowledge.templates';
 import { transition, fadeOnly } from '@/lib/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
@@ -38,25 +39,61 @@ const sliderCls = `w-full h-1.5 rounded-full appearance-none bg-zinc-800 cursor-
   [&::-moz-range-thumb]:transition-colors
   [&::-moz-range-track]:bg-zinc-800 [&::-moz-range-track]:rounded-full`;
 
+const DEFAULT_FORM = {
+  layer: 'frontend' as KnowledgeLayer,
+  domain: 'ui' as KnowledgeCategory,
+  pattern_type: 'best_practice' as KnowledgePatternType,
+  title: '',
+  pattern: '',
+  rationale: '',
+  code_example: '',
+  anti_pattern: '',
+  language: 'typescript' as KnowledgeLanguage,
+  tags: '',
+  confidence: 75,
+};
+
 export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEntryModalProps) {
   const prefersReduced = useReducedMotion();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [form, setForm] = useState({
-    layer: 'frontend' as KnowledgeLayer,
-    domain: 'ui' as KnowledgeCategory,
-    pattern_type: 'best_practice' as KnowledgePatternType,
-    title: '',
-    pattern: '',
-    rationale: '',
-    code_example: '',
-    anti_pattern: '',
-    language: 'typescript' as KnowledgeLanguage,
-    tags: '',
-    confidence: 75,
-  });
+  const [form, setForm] = useState({ ...DEFAULT_FORM });
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [showTemplates, setShowTemplates] = useState(true);
 
   const update = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm(prev => ({ ...prev, [key]: value }));
+
+  // Filter templates relevant to current layer/category selection
+  const relevantTemplates = useMemo(() => {
+    const exact = KB_ENTRY_TEMPLATES.filter(t => t.category === form.domain);
+    if (exact.length > 0) return exact;
+    // Fallback: show all templates for the current layer
+    return KB_ENTRY_TEMPLATES.filter(t => t.layer === form.layer);
+  }, [form.domain, form.layer]);
+
+  const applyTemplate = (template: KBEntryTemplate) => {
+    setForm({
+      layer: template.layer,
+      domain: template.category,
+      pattern_type: template.pattern_type,
+      title: template.title,
+      pattern: template.pattern,
+      rationale: template.rationale,
+      code_example: template.code_example,
+      anti_pattern: template.anti_pattern,
+      language: form.language, // keep user's language choice
+      tags: template.tags,
+      confidence: form.confidence, // keep user's confidence
+    });
+    setSelectedTemplateId(template.id);
+    setShowTemplates(false);
+  };
+
+  const clearTemplate = () => {
+    setForm({ ...DEFAULT_FORM });
+    setSelectedTemplateId(null);
+    setShowTemplates(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,12 +115,9 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
         source_type: 'manual',
       });
       onClose();
-      // Reset form
-      setForm({
-        layer: 'frontend', domain: 'ui', pattern_type: 'best_practice', title: '', pattern: '',
-        rationale: '', code_example: '', anti_pattern: '', language: 'typescript',
-        tags: '', confidence: 75,
-      });
+      setForm({ ...DEFAULT_FORM });
+      setSelectedTemplateId(null);
+      setShowTemplates(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -113,12 +147,67 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
               {/* Header */}
               <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-zinc-900/95 backdrop-blur-xl border-b border-zinc-800/50">
                 <h2 className="text-sm font-semibold text-zinc-200">Create Knowledge Entry</h2>
-                <button type="button" onClick={onClose} className="p-1 text-zinc-500 hover:text-zinc-300">
-                  <X className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {selectedTemplateId && (
+                    <button
+                      type="button"
+                      onClick={clearTemplate}
+                      className="px-2 py-1 text-[10px] font-medium text-purple-400 hover:text-purple-300 border border-purple-500/30 rounded-md transition-colors"
+                    >
+                      Clear Template
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowTemplates(!showTemplates)}
+                    className={`p-1 transition-colors ${showTemplates ? 'text-purple-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+                    title={showTemplates ? 'Hide templates' : 'Show templates'}
+                  >
+                    <FileText className="w-4 h-4" />
+                  </button>
+                  <button type="button" onClick={onClose} className="p-1 text-zinc-500 hover:text-zinc-300">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               <div className="px-6 py-5 space-y-4">
+                {/* Template Selector */}
+                <AnimatePresence>
+                  {showTemplates && relevantTemplates.length > 0 && (
+                    <motion.div
+                      initial={prefersReduced ? false : { opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={transition.normal}
+                      className="overflow-hidden"
+                    >
+                      <div className="mb-1">
+                        <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">
+                          Templates for {KNOWLEDGE_CATEGORY_LABELS[form.domain]}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5 mb-2">
+                        {relevantTemplates.map(tmpl => (
+                          <button
+                            key={tmpl.id}
+                            type="button"
+                            onClick={() => applyTemplate(tmpl)}
+                            className={`text-left px-3 py-2 rounded-lg border transition-all ${
+                              selectedTemplateId === tmpl.id
+                                ? 'border-purple-500/50 bg-purple-500/10 text-purple-300'
+                                : 'border-zinc-800/50 bg-zinc-800/20 text-zinc-400 hover:border-zinc-700 hover:text-zinc-300'
+                            }`}
+                          >
+                            <div className="text-[11px] font-medium truncate">{tmpl.label}</div>
+                            <div className="text-[10px] opacity-60 truncate">{tmpl.description}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {/* Layer + Category + Pattern Type */}
                 <div className="grid grid-cols-3 gap-3">
                   <Field label="Layer">
@@ -128,10 +217,10 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
                         const layer = e.target.value as KnowledgeLayer;
                         const cats = LAYER_CATEGORIES[layer];
                         update('layer', layer);
-                        // Auto-select first category in this layer
                         if (cats.length > 0 && !cats.includes(form.domain)) {
                           update('domain', cats[0]);
                         }
+                        setSelectedTemplateId(null);
                       }}
                       className={`${inputCls} cursor-pointer`}
                     >
@@ -143,7 +232,10 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
                   <Field label="Category">
                     <select
                       value={form.domain}
-                      onChange={e => update('domain', e.target.value as KnowledgeCategory)}
+                      onChange={e => {
+                        update('domain', e.target.value as KnowledgeCategory);
+                        setSelectedTemplateId(null);
+                      }}
                       className={`${inputCls} cursor-pointer`}
                     >
                       {LAYER_CATEGORIES[form.layer].map(c => (

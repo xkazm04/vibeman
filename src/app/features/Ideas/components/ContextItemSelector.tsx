@@ -4,6 +4,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Context, ContextGroup } from '@/lib/queries/contextQueries';
 import { getRGBFromHex } from '@/lib/design-tokens/colors';
+import { transition } from '@/lib/motion';
 
 interface ContextItemSelectorProps {
   contexts: Context[];
@@ -72,7 +73,7 @@ export default function ContextItemSelector({
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: 'auto' }}
       exit={{ opacity: 0, height: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={transition.deliberate}
     >
       <AnimatePresence mode="popLayout">
         {groupedContexts.map(({ group, contexts: groupContexts }, groupIndex) => {

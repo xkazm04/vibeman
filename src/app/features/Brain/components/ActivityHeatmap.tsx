@@ -8,6 +8,8 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { duration, easing } from '@/lib/motion';
+import { BrainEmptyState } from './BrainEmptyState';
 import {
   CalendarDays,
   X,
@@ -202,6 +204,14 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
         />
 
         {/* ── Heatmap Grid ───────────────────────────────────────────── */}
+        {totalSignals === 0 ? (
+          <BrainEmptyState
+            icon={CalendarDays}
+            accentColor={ACCENT}
+            message="No signal activity recorded"
+            hint="The heatmap will fill in as signals are captured across your projects."
+          />
+        ) : (<>
         <div className="overflow-x-auto custom-scrollbar-subtle">
           <svg width={svgWidth} height={svgHeight} className="block">
             {/* Month labels */}
@@ -281,6 +291,7 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
           ))}
           <span>More</span>
         </div>
+        </>)}
 
         {/* ── Day Drill-Down ─────────────────────────────────────────── */}
         <AnimatePresence>
@@ -391,7 +402,7 @@ function DayDrillDown({ day, onClose }: { day: HeatmapDayData; onClose: () => vo
                         style={{ backgroundColor: meta?.color ?? BRAIN_CHART.brand.accent }}
                         initial={{ width: 0 }}
                         animate={{ width: `${barWidth}%` }}
-                        transition={{ duration: 0.4, ease: 'easeOut' }}
+                        transition={{ duration: duration.expand, ease: easing.entrance }}
                       />
                     </div>
                   </div>

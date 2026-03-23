@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, FolderOpen, Eye } from 'lucide-react';
+import { duration } from '@/lib/motion';
 import { ProjectGroup } from '../lib/groupIdeasByProjectAndContext';
 import { ContextSection } from './ContextSection';
 
@@ -20,7 +21,7 @@ export function ProjectSection({ project, index, isExpanded, onToggle, onFocus }
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      transition={{ delay: index * 0.05, duration: 0.3 }}
+      transition={{ delay: index * 0.05, duration: duration.deliberate }}
       className="bg-gray-800/20 border border-gray-700/40 rounded-xl overflow-hidden backdrop-blur-sm"
       data-testid={`project-section-${project.projectId}`}
     >
@@ -36,7 +37,7 @@ export function ProjectSection({ project, index, isExpanded, onToggle, onFocus }
           <div className="flex items-center space-x-3">
             <motion.div
               animate={{ rotate: isExpanded ? 0 : -90 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: duration.normal }}
             >
               <ChevronDown className="w-5 h-5 text-yellow-400" />
             </motion.div>
@@ -72,7 +73,7 @@ export function ProjectSection({ project, index, isExpanded, onToggle, onFocus }
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: duration.deliberate }}
             className="overflow-hidden"
           >
             <div className="p-6 space-y-4">
