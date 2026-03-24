@@ -18,18 +18,18 @@ describe('Insight Effectiveness Cache', () => {
       const summary = JSON.stringify({ overallScore: 0 });
 
       // First write
-      insightEffectivenessCacheRepository.set(projectId, minDirections, insights, summary);
+      insightEffectivenessCacheRepository.set(projectId, minDirections, 90, insights, summary);
       let cached = insightEffectivenessCacheRepository.get(projectId, minDirections);
       const firstVersion = cached?.version || 0;
       expect(firstVersion).toBeGreaterThan(0);
 
       // Second write
-      insightEffectivenessCacheRepository.set(projectId, minDirections, insights, summary);
+      insightEffectivenessCacheRepository.set(projectId, minDirections, 90, insights, summary);
       cached = insightEffectivenessCacheRepository.get(projectId, minDirections);
       expect(cached?.version).toBe(firstVersion + 1);
 
       // Third write
-      insightEffectivenessCacheRepository.set(projectId, minDirections, insights, summary);
+      insightEffectivenessCacheRepository.set(projectId, minDirections, 90, insights, summary);
       cached = insightEffectivenessCacheRepository.get(projectId, minDirections);
       expect(cached?.version).toBe(firstVersion + 2);
 
@@ -44,11 +44,11 @@ describe('Insight Effectiveness Cache', () => {
       const summary = JSON.stringify({ overallScore: 0 });
 
       // Write to project 1
-      insightEffectivenessCacheRepository.set(project1, 3, insights, summary);
-      insightEffectivenessCacheRepository.set(project1, 3, insights, summary);
+      insightEffectivenessCacheRepository.set(project1, 3, 90, insights, summary);
+      insightEffectivenessCacheRepository.set(project1, 3, 90, insights, summary);
 
       // Write to project 2
-      insightEffectivenessCacheRepository.set(project2, 3, insights, summary);
+      insightEffectivenessCacheRepository.set(project2, 3, 90, insights, summary);
 
       const cached1 = insightEffectivenessCacheRepository.get(project1, 3);
       const cached2 = insightEffectivenessCacheRepository.get(project2, 3);
@@ -67,11 +67,11 @@ describe('Insight Effectiveness Cache', () => {
       const summary = JSON.stringify({ overallScore: 0 });
 
       // Write with minDirections = 3
-      insightEffectivenessCacheRepository.set(projectId, 3, insights, summary);
-      insightEffectivenessCacheRepository.set(projectId, 3, insights, summary);
+      insightEffectivenessCacheRepository.set(projectId, 3, 90, insights, summary);
+      insightEffectivenessCacheRepository.set(projectId, 3, 90, insights, summary);
 
       // Write with minDirections = 5
-      insightEffectivenessCacheRepository.set(projectId, 5, insights, summary);
+      insightEffectivenessCacheRepository.set(projectId, 5, 90, insights, summary);
 
       const cached3 = insightEffectivenessCacheRepository.get(projectId, 3);
       const cached5 = insightEffectivenessCacheRepository.get(projectId, 5);
@@ -91,9 +91,9 @@ describe('Insight Effectiveness Cache', () => {
       const summary = JSON.stringify({ overallScore: 0 });
 
       // Write multiple cache entries
-      insightEffectivenessCacheRepository.set(projectId, 3, insights, summary);
-      insightEffectivenessCacheRepository.set(projectId, 5, insights, summary);
-      insightEffectivenessCacheRepository.set(projectId, 10, insights, summary);
+      insightEffectivenessCacheRepository.set(projectId, 3, 90, insights, summary);
+      insightEffectivenessCacheRepository.set(projectId, 5, 90, insights, summary);
+      insightEffectivenessCacheRepository.set(projectId, 10, 90, insights, summary);
 
       // Verify entries exist
       expect(insightEffectivenessCacheRepository.get(projectId, 3)).toBeTruthy();
@@ -116,8 +116,8 @@ describe('Insight Effectiveness Cache', () => {
       const summary = JSON.stringify({ overallScore: 0 });
 
       // Write to multiple projects
-      insightEffectivenessCacheRepository.set(project1, 3, insights, summary);
-      insightEffectivenessCacheRepository.set(project2, 3, insights, summary);
+      insightEffectivenessCacheRepository.set(project1, 3, 90, insights, summary);
+      insightEffectivenessCacheRepository.set(project2, 3, 90, insights, summary);
 
       // Invalidate only project-1
       insightEffectivenessCacheRepository.invalidate(project1);
@@ -136,14 +136,14 @@ describe('Insight Effectiveness Cache', () => {
       const summary = JSON.stringify({ overallScore: 0 });
 
       // Write and increment version
-      insightEffectivenessCacheRepository.set(projectId, 3, insights, summary);
-      insightEffectivenessCacheRepository.set(projectId, 3, insights, summary);
+      insightEffectivenessCacheRepository.set(projectId, 3, 90, insights, summary);
+      insightEffectivenessCacheRepository.set(projectId, 3, 90, insights, summary);
 
       // Invalidate
       insightEffectivenessCacheRepository.invalidate(projectId);
 
       // Write again - version should restart at 1
-      insightEffectivenessCacheRepository.set(projectId, 3, insights, summary);
+      insightEffectivenessCacheRepository.set(projectId, 3, 90, insights, summary);
       const cached = insightEffectivenessCacheRepository.get(projectId, 3);
       expect(cached?.version).toBe(1);
 
@@ -159,7 +159,7 @@ describe('Insight Effectiveness Cache', () => {
       const summary = JSON.stringify({ overallScore: 85 });
 
       // Write cache entry
-      insightEffectivenessCacheRepository.set(projectId, 3, insights, summary);
+      insightEffectivenessCacheRepository.set(projectId, 3, 90, insights, summary);
 
       // Should return cached data
       const cached = insightEffectivenessCacheRepository.get(projectId, 3);

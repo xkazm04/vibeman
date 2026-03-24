@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Caveat } from 'next/font/google';
+import { caveat } from '@/app/fonts';
 import { Target, Code, Plus, AlertCircle, Loader2 } from 'lucide-react';
 import { Goal } from '@/types';
 import { getStatusInfo } from '@/app/features/Goals/sub_GoalModal/lib';
@@ -11,12 +11,6 @@ import { useContextStore } from '@/stores/contextStore';
 import { UniversalSelect } from '@/components/ui/UniversalSelect';
 import { useSimpleErrorHandler } from '@/hooks/useErrorHandler';
 import { InlineErrorDisplay } from '@/components/errors/ErrorBoundary';
-
-const caveat = Caveat({
-  weight: ['400', '500', '600', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-});
 
 interface Context {
   id: string;

@@ -15,9 +15,9 @@ import {
 
 describe('Canonical Signal Types', () => {
   describe('SignalType enum', () => {
-    it('should define all 7 signal types', () => {
+    it('should define all 8 signal types', () => {
       const types = Object.values(SignalType);
-      expect(types).toHaveLength(7);
+      expect(types).toHaveLength(8);
       expect(types).toContain('git_activity');
       expect(types).toContain('api_focus');
       expect(types).toContain('context_focus');
@@ -25,6 +25,7 @@ describe('Canonical Signal Types', () => {
       expect(types).toContain('cross_task_analysis');
       expect(types).toContain('cross_task_selection');
       expect(types).toContain('cli_memory');
+      expect(types).toContain('session_cluster');
     });
   });
 
@@ -62,9 +63,9 @@ describe('Canonical Signal Types', () => {
   });
 
   describe('getAllSignalTypes', () => {
-    it('should return all 7 signal types', () => {
+    it('should return all 8 signal types', () => {
       const types = getAllSignalTypes();
-      expect(types).toHaveLength(7);
+      expect(types).toHaveLength(8);
       expect(types).toEqual([
         'git_activity',
         'api_focus',
@@ -73,6 +74,7 @@ describe('Canonical Signal Types', () => {
         'cross_task_analysis',
         'cross_task_selection',
         'cli_memory',
+        'session_cluster',
       ]);
     });
   });
@@ -80,11 +82,12 @@ describe('Canonical Signal Types', () => {
   describe('getVisualizableSignalTypes', () => {
     it('should return only visualizable signal types', () => {
       const types = getVisualizableSignalTypes();
-      expect(types).toHaveLength(4);
+      expect(types).toHaveLength(5);
       expect(types).toContain('git_activity');
       expect(types).toContain('api_focus');
       expect(types).toContain('context_focus');
       expect(types).toContain('implementation');
+      expect(types).toContain('session_cluster');
       expect(types).not.toContain('cross_task_analysis');
       expect(types).not.toContain('cross_task_selection');
       expect(types).not.toContain('cli_memory');

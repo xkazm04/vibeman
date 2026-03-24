@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Layers, Map } from 'lucide-react';
-import { Caveat } from 'next/font/google';
+import { caveat } from '@/app/fonts';
 import { useShallow } from 'zustand/react/shallow';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -13,12 +13,6 @@ import { useGlobalIdeaStats } from '@/hooks/useGlobalIdeaStats';
 import { useProjectUpdatesStore } from '@/stores/projectUpdatesStore';
 import { useWorkspaceFilteredProjects } from '@/hooks/useWorkspaceFilteredProjects';
 import { useThemeStore, THEME_CONFIGS } from '@/stores/themeStore';
-
-const caveat = Caveat({
-  weight: ['400', '500', '600', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-});
 
 export default memo(function ShortcutsBar() {
   // Onboarding: data via useShallow, action via individual selector

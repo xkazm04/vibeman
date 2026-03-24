@@ -8,8 +8,9 @@
 'use client';
 
 import { useId, useMemo, useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { transition } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { PIPELINE_STAGES, V3_PIPELINE_STAGES } from '../lib/types';
 import type { PipelineRun, AnyPipelineStage, StageState } from '../lib/types';
 import { useConductorStore } from '../lib/conductorStore';
@@ -17,6 +18,7 @@ import { useThemeStore } from '@/stores/themeStore';
 import { getConnectorTheme } from '../lib/stageTheme';
 import type { ConnectorTheme } from '../lib/stageTheme';
 import StageCard from './StageCard';
+import CompletionHero from './CompletionHero';
 
 interface PipelineFlowVizProps {
   run: PipelineRun | null;
@@ -152,7 +154,7 @@ const EMPTY_V3_STAGES: Record<string, StageState> = {
   reflect: { status: 'pending', itemsIn: 0, itemsOut: 0 },
 };
 
-const BRAND_COLORS = ['#22d3ee', '#a855f7', '#10b981', '#d0e41d'] as const;
+const CELEBRATION_COLORS = ['#22d3ee', '#f59e0b', '#a855f7', '#f97316', '#ec4899'] as const;
 const SHAPES = ['circle', 'triangle', 'diamond'] as const;
 
 function generateParticles(count: number) {
@@ -162,7 +164,7 @@ function generateParticles(count: number) {
     const radius = 35 + Math.random() * 30;
     particles.push({
       shape: SHAPES[i % SHAPES.length],
-      color: BRAND_COLORS[i % BRAND_COLORS.length],
+      color: CELEBRATION_COLORS[i % CELEBRATION_COLORS.length],
       tx: Math.cos(angle) * radius,
       ty: Math.sin(angle) * radius,
       delay: (i * 0.03),
@@ -173,42 +175,79 @@ function generateParticles(count: number) {
 
 const CELEBRATION_PARTICLES = generateParticles(18);
 
-function CelebrationBurst({ show }: { show: boolean }) {
+function CelebrationBurst({ show, reduced }: { show: boolean; reduced: boolean }) {
   if (!show) return null;
 
-  return (
-    <svg
-      className="absolute inset-0 w-full h-full pointer-events-none overflow-visible celebration-burst"
-      viewBox="-60 -60 120 120"
-      aria-hidden="true"
-    >
-      {CELEBRATION_PARTICLES.map((p, i) => (
-        <g
-          key={i}
-          className="animate-[celebrationBurst_1.2s_ease-out_forwards]"
-          style={{
-            '--tx': `${p.tx}px`,
-            '--ty': `${p.ty}px`,
-            animationDelay: `${p.delay}s`,
-            transformOrigin: '0 0',
-          } as React.CSSProperties}
+  // Reduced-motion: simple green checkmark fade-in
+  if (reduced) {
+    return (
+      <AnimatePresence>
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.4 }}
+          aria-hidden="true"
         >
-          {p.shape === 'circle' && (
-            <circle cx="0" cy="0" r="3" fill={p.color} />
-          )}
-          {p.shape === 'triangle' && (
-            <polygon points="0,-3.5 3,2.5 -3,2.5" fill={p.color} />
-          )}
-          {p.shape === 'diamond' && (
-            <polygon points="0,-3.5 3.5,0 0,3.5 -3.5,0" fill={p.color} />
-          )}
-        </g>
-      ))}
-    </svg>
+          <svg viewBox="0 0 32 32" className="w-8 h-8" fill="none">
+            <circle cx="16" cy="16" r="14" fill="rgba(16, 185, 129, 0.15)" stroke="#10b981" strokeWidth="1.5" />
+            <path d="M10 16.5L14.5 21L22 12" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
+
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-visible z-10" aria-hidden="true">
+      {/* Confetti particle burst */}
+      <svg
+        className="absolute inset-0 w-full h-full overflow-visible celebration-burst"
+        viewBox="-60 -60 120 120"
+      >
+        {CELEBRATION_PARTICLES.map((p, i) => (
+          <g
+            key={i}
+            className="animate-[celebrationBurst_1.2s_ease-out_forwards]"
+            style={{
+              '--tx': `${p.tx}px`,
+              '--ty': `${p.ty}px`,
+              animationDelay: `${p.delay}s`,
+              transformOrigin: '0 0',
+            } as React.CSSProperties}
+          >
+            {p.shape === 'circle' && (
+              <circle cx="0" cy="0" r="3" fill={p.color} />
+            )}
+            {p.shape === 'triangle' && (
+              <polygon points="0,-3.5 3,2.5 -3,2.5" fill={p.color} />
+            )}
+            {p.shape === 'diamond' && (
+              <polygon points="0,-3.5 3.5,0 0,3.5 -3.5,0" fill={p.color} />
+            )}
+          </g>
+        ))}
+      </svg>
+
+      {/* Success checkmark icon that scales up */}
+      <motion.div
+        className="absolute inset-0 flex items-center justify-center"
+        initial={{ opacity: 0, scale: 0 }}
+        animate={{ opacity: [0, 1, 1, 0], scale: [0.3, 1.2, 1, 0.9] }}
+        transition={{ duration: 1.5, times: [0, 0.15, 0.6, 1], ease: 'easeOut' }}
+      >
+        <svg viewBox="0 0 32 32" className="w-8 h-8 drop-shadow-[0_0_8px_rgba(16,185,129,0.6)]" fill="none">
+          <circle cx="16" cy="16" r="14" fill="rgba(16, 185, 129, 0.2)" stroke="#10b981" strokeWidth="1.5" />
+          <path d="M10 16.5L14.5 21L22 12" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </motion.div>
+    </div>
   );
 }
 
 export default function PipelineFlowViz({ run, onStageClick }: PipelineFlowVizProps) {
+  const prefersReduced = useReducedMotion();
   const appTheme = useThemeStore((s) => s.theme);
   const connectorTheme = getConnectorTheme(appTheme);
   const isV3 = run?.pipelineVersion === 3;
@@ -225,6 +264,7 @@ export default function PipelineFlowViz({ run, onStageClick }: PipelineFlowVizPr
   // (runs are removed from the store immediately on completion,
   //  so we detect new 'completed' entries in history instead)
   const [showCelebration, setShowCelebration] = useState(false);
+  const [showHero, setShowHero] = useState(false);
   const runHistory = useConductorStore((s) => s.runHistory);
   const prevHistoryLen = useRef(runHistory.length);
   useEffect(() => {
@@ -233,9 +273,11 @@ export default function PipelineFlowViz({ run, onStageClick }: PipelineFlowVizPr
       runHistory[0]?.status === 'completed'
     ) {
       setShowCelebration(true);
-      const timer = setTimeout(() => setShowCelebration(false), 1500);
+      setShowHero(true);
+      const burstTimer = setTimeout(() => setShowCelebration(false), 1500);
+      const heroTimer = setTimeout(() => setShowHero(false), 3000);
       prevHistoryLen.current = runHistory.length;
-      return () => clearTimeout(timer);
+      return () => { clearTimeout(burstTimer); clearTimeout(heroTimer); };
     }
     prevHistoryLen.current = runHistory.length;
   }, [runHistory]);
@@ -273,11 +315,19 @@ export default function PipelineFlowViz({ run, onStageClick }: PipelineFlowVizPr
             )}
             {/* Celebration burst anchored to final stage */}
             {isLastStage && showCelebration && (
-              <CelebrationBurst show={showCelebration} />
+              <CelebrationBurst show={showCelebration} reduced={prefersReduced} />
             )}
           </div>
         );
       })}
+
+      {/* Completion hero overlay */}
+      <CompletionHero
+        show={showHero}
+        metrics={runHistory[0]?.status === 'completed' ? runHistory[0].metrics : null}
+        stageCount={stageList.length}
+        reduced={prefersReduced}
+      />
     </motion.div>
   );
 }

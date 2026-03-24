@@ -13,8 +13,10 @@
 
 import { useEffect, useState, useMemo, useRef, lazy, Suspense } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
-import { duration, easing, transition } from '@/lib/motion';
-import { Brain, Activity, AlertCircle, Layers, Clock, Sparkles, AlertTriangle, X, Castle, Focus, BookOpen } from 'lucide-react';
+import { transition } from '@/lib/motion';
+import { Brain, AlertCircle, AlertTriangle, X, Focus } from 'lucide-react';
+import { BrainPulseIcon, ThoughtSparkleIcon, NeuronClusterIcon, SynapseTimelineIcon, BrainCrossSection, PatternLibraryIcon, type BrainTabIconProps } from './components/BrainTabIcons';
+import { SimpleSpinner } from '@/components/ui';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useBrainStore } from '@/stores/brainStore';
 import { GridBackground } from './components/variants/GridPrimitives';
@@ -33,13 +35,13 @@ const KnowledgeBaseLayout = lazy(() => import('./sub_KnowledgeBase/KnowledgeBase
 
 type BrainTab = 'dashboard' | 'reflection' | 'canvas' | 'timeline' | 'palace' | 'knowledge';
 
-const tabs: Array<{ id: BrainTab; label: string; icon: React.ComponentType<{ className?: string }>; description: string }> = [
-  { id: 'dashboard', label: 'Dashboard', icon: Activity, description: 'Overview & Insights' },
-  { id: 'reflection', label: 'Reflection', icon: Sparkles, description: 'Agent & History' },
-  { id: 'canvas', label: 'Memory Canvas', icon: Layers, description: 'Grouped Clusters' },
-  { id: 'timeline', label: 'Timeline', icon: Clock, description: 'Lane View' },
-  { id: 'palace', label: 'Palace', icon: Castle, description: 'Spatial-Temporal' },
-  { id: 'knowledge', label: 'Knowledge', icon: BookOpen, description: 'Pattern Library' },
+const tabs: Array<{ id: BrainTab; label: string; icon: React.ComponentType<BrainTabIconProps>; description: string }> = [
+  { id: 'dashboard', label: 'Dashboard', icon: BrainPulseIcon, description: 'Overview & Insights' },
+  { id: 'reflection', label: 'Reflection', icon: ThoughtSparkleIcon, description: 'Agent & History' },
+  { id: 'canvas', label: 'Memory Canvas', icon: NeuronClusterIcon, description: 'Grouped Clusters' },
+  { id: 'timeline', label: 'Timeline', icon: SynapseTimelineIcon, description: 'Lane View' },
+  { id: 'palace', label: 'Palace', icon: BrainCrossSection, description: 'Spatial-Temporal' },
+  { id: 'knowledge', label: 'Knowledge', icon: PatternLibraryIcon, description: 'Pattern Library' },
 ];
 
 export default function BrainLayout() {
@@ -163,7 +165,7 @@ export default function BrainLayout() {
                       : 'text-zinc-500 hover:text-zinc-300 border border-transparent'
                     }`}
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  <Icon className="w-3.5 h-3.5" gradient={isActive} />
                   <span>{tab.label}</span>
                 </button>
               </TabTooltip>

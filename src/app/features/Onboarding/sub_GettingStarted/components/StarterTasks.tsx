@@ -1,15 +1,9 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Caveat } from 'next/font/google';
+import { caveat } from '@/app/fonts';
 import { StarterTasksProps } from '../lib/types';
 import OnboardingTaskItem from '../../components/OnboardingTaskItem';
-
-const caveat = Caveat({
-  weight: ['400', '500', '600', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-});
 
 /**
  * Starter Tasks List Component

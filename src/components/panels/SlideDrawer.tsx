@@ -5,13 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { transition, fadeOnly } from '@/lib/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { Caveat } from 'next/font/google';
-
-const caveat = Caveat({
-  weight: ['400', '500', '600', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-});
+import { caveat } from '@/app/fonts';
 
 export interface SlideDrawerProps {
   /** Whether the drawer is open */

@@ -223,8 +223,61 @@ body {
   }
 
   .celebration-burst {
-    display: none !important;
+    visibility: hidden !important;
   }
+}
+
+/* ── Pipeline connector neural pulse animations ── */
+@keyframes neuralPulse {
+  0%   { transform: translateX(-16px); opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateX(48px); opacity: 0; }
+}
+
+@keyframes neuralPulseVertical {
+  0%   { transform: translateY(-12px); opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateY(40px); opacity: 0; }
+}
+
+@keyframes limeSpark {
+  0%   { opacity: 0; transform: translateX(0); background: #d0e41d; }
+  50%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(48px); background: #d0e41d; }
+}
+
+/* Pipeline completion celebration particles */
+@keyframes celebrationBurst {
+  0% {
+    transform: translate(0, 0) scale(0.6);
+    opacity: 0;
+  }
+  12% {
+    transform: translate(0, 0) scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--tx), var(--ty)) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes celebrationGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
+  }
+  40% {
+    box-shadow: 0 0 16px 4px rgba(16, 185, 129, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.celebration-burst {
+  filter: drop-shadow(0 0 3px rgba(34, 211, 238, 0.5));
 }
 
 /* Glass morphism effect */
@@ -405,96 +458,6 @@ body {
 .animate-gradient-sweep-fast {
   animation: gradient-sweep 1.5s linear infinite;
   will-change: transform;
-}
-
-@keyframes neuralPulse {
-  0% {
-    transform: translateX(-16px);
-    opacity: 0;
-  }
-  10% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 1;
-  }
-  90% {
-    opacity: 0.6;
-  }
-  100% {
-    transform: translateX(48px);
-    opacity: 0;
-  }
-}
-
-@keyframes limeSpark {
-  0% {
-    transform: translateX(-12px);
-    opacity: 0;
-    background-color: #d0e41d;
-    box-shadow: 0 0 4px #d0e41d, 0 0 8px rgba(208, 228, 29, 0.4);
-  }
-  15% {
-    opacity: 1;
-  }
-  85% {
-    opacity: 0.8;
-  }
-  100% {
-    transform: translateX(52px);
-    opacity: 0;
-    background-color: #d0e41d;
-    box-shadow: 0 0 4px #d0e41d, 0 0 8px rgba(208, 228, 29, 0.4);
-  }
-}
-
-/* Pipeline completion celebration particles */
-@keyframes celebrationBurst {
-  0% {
-    transform: translate(0, 0) scale(0.6);
-    opacity: 0;
-  }
-  12% {
-    transform: translate(0, 0) scale(1.2);
-    opacity: 1;
-  }
-  100% {
-    transform: translate(var(--tx), var(--ty)) scale(0);
-    opacity: 0;
-  }
-}
-
-@keyframes celebrationGlow {
-  0% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
-  }
-  40% {
-    box-shadow: 0 0 16px 4px rgba(16, 185, 129, 0.4);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-  }
-}
-
-.celebration-burst {
-  filter: drop-shadow(0 0 3px rgba(34, 211, 238, 0.5));
-}
-
-/* ── Pipeline connector pulse animations ── */
-@keyframes neuralPulse {
-  0%   { transform: translateX(-24px); }
-  100% { transform: translateX(48px); }
-}
-
-@keyframes neuralPulseVertical {
-  0%   { transform: translateY(-22px); }
-  100% { transform: translateY(40px); }
-}
-
-@keyframes limeSpark {
-  0%   { opacity: 0; transform: scale(0); }
-  50%  { opacity: 1; transform: scale(1.5); background: #d0e41d; }
-  100% { opacity: 0; transform: scale(0); }
 }
 
 /* ── Neural Skeleton (Brain loading states) ── */

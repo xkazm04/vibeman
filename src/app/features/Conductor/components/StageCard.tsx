@@ -12,55 +12,9 @@ import { hover as hoverPresets, tap, pulse } from '@/lib/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useThemeStore } from '@/stores/themeStore';
 import type { AnyPipelineStage, StageState, ExecutionTaskState } from '../lib/types';
-import { getStageTheme, SPINNER_GRADIENT } from '../lib/stageTheme';
+import { getStageTheme } from '../lib/stageTheme';
 import { STAGE_ICONS, ExecuteIcon, CompletedIcon, FailedIcon, SkippedIcon, PendingIcon } from './StageIcons';
-
-function StageLoadingSpinner({ className, reduced, gradient }: { className?: string; reduced?: boolean; gradient: [string, string] }) {
-  if (reduced) {
-    return (
-      <svg viewBox="0 0 20 20" fill="none" className={className}>
-        <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5" opacity="0.3" />
-        <circle cx="10" cy="10" r="3" fill="currentColor" opacity="0.6">
-          <animate attributeName="opacity" values="0.6;0.2;0.6" dur="1.5s" repeatCount="indefinite" />
-        </circle>
-      </svg>
-    );
-  }
-  const gradId = `baton-${gradient[0].replace('#', '')}`;
-  return (
-    <svg viewBox="0 0 20 20" fill="none" className={className}>
-      <defs>
-        <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor={gradient[0]} stopOpacity="0" />
-          <stop offset="50%" stopColor={gradient[0]} stopOpacity="0.8" />
-          <stop offset="100%" stopColor={gradient[1]} stopOpacity="0.6" />
-        </linearGradient>
-      </defs>
-      {/* Orbital track */}
-      <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1" opacity="0.15" />
-      {/* Sweeping arc trail */}
-      <circle cx="10" cy="10" r="7" stroke={`url(#${gradId})`} strokeWidth="2" strokeLinecap="round"
-        strokeDasharray="11 33" fill="none">
-        <animateTransform attributeName="transform" type="rotate" from="0 10 10" to="360 10 10" dur="1s" repeatCount="indefinite" />
-      </circle>
-      {/* Trailing gradient particles */}
-      {[
-        { delay: '0.08s', r: 1.2, opacity: 0.7 },
-        { delay: '0.18s', r: 0.9, opacity: 0.45 },
-        { delay: '0.30s', r: 0.6, opacity: 0.2 },
-      ].map((p, i) => (
-        <circle key={i} cx="10" cy="3" r={p.r} fill={gradient[i === 0 ? 0 : 1]} opacity={p.opacity}>
-          <animateTransform attributeName="transform" type="rotate" from="0 10 10" to="360 10 10"
-            dur="1s" begin={p.delay} repeatCount="indefinite" />
-        </circle>
-      ))}
-      {/* Baton head */}
-      <circle cx="10" cy="3" r="1.5" fill="currentColor">
-        <animateTransform attributeName="transform" type="rotate" from="0 10 10" to="360 10 10" dur="1s" repeatCount="indefinite" />
-      </circle>
-    </svg>
-  );
-}
+import StageLoadingAnimation from './StageLoadingAnimations';
 
 const STAGE_LABELS: Record<string, string> = {
   scout: 'Scout',
@@ -86,7 +40,6 @@ export default function StageCard({ stage, state, isCurrentStage, onClick }: Sta
   const appTheme = useThemeStore((s) => s.theme);
   const Icon = STAGE_ICONS[stage] || ExecuteIcon;
   const theme = getStageTheme(stage, appTheme);
-  const spinnerGradient = SPINNER_GRADIENT[appTheme];
   const label = STAGE_LABELS[stage] || stage;
 
   const isActive = state.status === 'running';
@@ -110,7 +63,7 @@ export default function StageCard({ stage, state, isCurrentStage, onClick }: Sta
   return (
     <motion.button
       onClick={onClick}
-      className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border transition-all w-full sm:w-auto sm:min-w-[100px] overflow-hidden
+      className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border transition-all min-w-full sm:min-w-[100px] sm:w-auto overflow-hidden
         ${isActive
           ? `border-gray-600 ${theme.bg} shadow-lg ${theme.glow}`
           : isCompleted
@@ -138,7 +91,7 @@ export default function StageCard({ stage, state, isCurrentStage, onClick }: Sta
         ${isActive ? theme.bg : isCompleted ? 'bg-emerald-500/10' : isFailed ? 'bg-red-500/10' : 'bg-gray-800'}
       `}>
         {isActive ? (
-          <StageLoadingSpinner className={`w-5 h-5 ${theme.text}`} reduced={prefersReduced} gradient={spinnerGradient} />
+          <StageLoadingAnimation stage={stage} className={`w-5 h-5 ${theme.text}`} reduced={prefersReduced} />
         ) : isCompleted ? (
           <CompletedIcon className="w-5 h-5 text-emerald-400" />
         ) : isFailed ? (

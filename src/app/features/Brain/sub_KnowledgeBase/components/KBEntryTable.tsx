@@ -6,6 +6,7 @@ import KBGridPulseLoader from './KBGridPulseLoader';
 import BrainEmptyState from '../../components/BrainEmptyState';
 import KBNoResultsSvg from './KBNoResultsSvg';
 import KBEmptyBookSvg from './KBEmptyBookSvg';
+import { KBErrorBanner } from './KBErrorStates';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import type { DbKnowledgeEntry, KnowledgePatternType } from '@/app/db/models/knowledge.types';
 import { KNOWLEDGE_CATEGORY_LABELS, KNOWLEDGE_LAYER_LABELS } from '@/app/db/models/knowledge.types';
@@ -37,6 +38,8 @@ interface KBEntryTableProps {
   onSelectEntry: (entry: DbKnowledgeEntry) => void;
   isLoading: boolean;
   breadcrumb: string[];
+  error?: string | null;
+  onRetry?: () => void;
 }
 
 export default function KBEntryTable({
@@ -46,6 +49,8 @@ export default function KBEntryTable({
   onSelectEntry,
   isLoading,
   breadcrumb,
+  error,
+  onRetry,
 }: KBEntryTableProps) {
   const [sortField, setSortField] = useState<SortField>('confidence');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -152,7 +157,16 @@ export default function KBEntryTable({
       </div>
 
       {/* Table */}
-      {isLoading ? (
+      {error ? (
+        <div className="py-10 px-6 flex justify-center">
+          <KBErrorBanner
+            error={error}
+            context="fetch"
+            reducedMotion={prefersReduced}
+            onRetry={onRetry}
+          />
+        </div>
+      ) : isLoading ? (
         <KBGridPulseLoader />
       ) : filtered.length === 0 ? (
         <div className="py-10 flex justify-center">

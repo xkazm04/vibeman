@@ -1,14 +1,8 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Caveat } from 'next/font/google';
+import { caveat } from '@/app/fonts';
 import { duration, cssTransition } from '@/lib/motion';
-
-const caveat = Caveat({
-  weight: ['400', '500', '600', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-});
 
 /**
  * Theme variants for the onboarding task item

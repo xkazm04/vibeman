@@ -33,6 +33,7 @@ function createTables(db: Database.Database) {
       process_log TEXT DEFAULT '[]',
       should_abort INTEGER DEFAULT 0,
       error_message TEXT,
+      pipeline_version INTEGER DEFAULT 2,
       queued_at TEXT,
       started_at TEXT,
       completed_at TEXT,
@@ -116,51 +117,5 @@ describe('conductor state persistence (FOUND-01)', () => {
     expect(fetched!.current_stage).toBe('scout');
   });
 
-  it('marks interrupted runs on recovery', async () => {
-    const { conductorRepository } = await import(
-      '@/app/features/Conductor/lib/conductor.repository'
-    );
-
-    // Create two runs in running/paused states
-    conductorRepository.createRun({
-      id: 'run-orphan-1',
-      projectId: 'proj-1',
-      goalId: 'goal-1',
-      config: {} as any,
-    });
-    // Simulate a paused run
-    conductorRepository.updateRunStatus('run-orphan-2-setup', 'running');
-    testDb.prepare(`INSERT INTO conductor_runs (id, project_id, status, stages_state, metrics, config_snapshot) VALUES (?, ?, 'paused', '{}', '{}', '{}')`).run('run-orphan-2', 'proj-1');
-
-    // Reset the guard so markInterruptedRuns can run
-    (globalThis as any).__conductorRecoveryDone = false;
-
-    const count = conductorRepository.markInterruptedRuns();
-    expect(count).toBeGreaterThanOrEqual(2);
-
-    const r1 = conductorRepository.getRunById('run-orphan-1');
-    const r2 = conductorRepository.getRunById('run-orphan-2');
-    expect(r1!.status).toBe('interrupted');
-    expect(r2!.status).toBe('interrupted');
-  });
-
-  it('does not corrupt other runs during recovery', async () => {
-    const { conductorRepository } = await import(
-      '@/app/features/Conductor/lib/conductor.repository'
-    );
-
-    // Insert a completed run
-    testDb.prepare(`INSERT INTO conductor_runs (id, project_id, status, stages_state, metrics, config_snapshot) VALUES (?, ?, 'completed', '{}', '{}', '{}')`).run('run-safe', 'proj-1');
-    // Insert a running run
-    testDb.prepare(`INSERT INTO conductor_runs (id, project_id, status, stages_state, metrics, config_snapshot) VALUES (?, ?, 'running', '{}', '{}', '{}')`).run('run-orphan-3', 'proj-1');
-
-    (globalThis as any).__conductorRecoveryDone = false;
-    conductorRepository.markInterruptedRuns();
-
-    const safe = conductorRepository.getRunById('run-safe');
-    expect(safe!.status).toBe('completed');
-
-    const orphan = conductorRepository.getRunById('run-orphan-3');
-    expect(orphan!.status).toBe('interrupted');
-  });
+  // markInterruptedRuns was removed from the conductor repository
 });

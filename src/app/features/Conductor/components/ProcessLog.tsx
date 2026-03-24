@@ -11,10 +11,11 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Terminal, ChevronDown, AlertCircle,
-  Play, CheckCircle, XCircle, SkipForward, Info, Activity,
+  Terminal, ChevronDown,
+  Play, CheckCircle, SkipForward, Info, Activity,
 } from 'lucide-react';
 import { EmptyLogIllustration } from './ConductorEmptyStates';
+import { SoftErrorIcon, SoftDetailExpandIcon } from './HealingIcons';
 import { useThemeStore } from '@/stores/themeStore';
 import type { ProcessLogEntry } from '../lib/types';
 import { getStageTheme } from '../lib/stageTheme';
@@ -27,7 +28,7 @@ interface ProcessLogProps {
 const EVENT_ICONS: Record<ProcessLogEntry['event'], { icon: typeof Play; className: string }> = {
   started: { icon: Play, className: 'text-cyan-400' },
   completed: { icon: CheckCircle, className: 'text-emerald-400' },
-  failed: { icon: XCircle, className: 'text-red-400' },
+  failed: { icon: SoftErrorIcon, className: 'text-pink-400' },
   skipped: { icon: SkipForward, className: 'text-gray-500' },
   info: { icon: Info, className: 'text-blue-400' },
   metrics: { icon: Activity, className: 'text-cyan-400' },
@@ -63,7 +64,7 @@ function LogEntry({ entry }: { entry: ProcessLogEntry }) {
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
       className={`flex items-start gap-2 py-1.5 px-2 rounded-md transition-colors group
-        ${isFailed ? 'bg-red-950/20 hover:bg-red-950/30' : 'hover:bg-gray-800/30'}
+        ${isFailed ? 'bg-pink-950/15 hover:bg-pink-950/25' : 'hover:bg-gray-800/30'}
         ${isSkipped ? 'opacity-50' : ''}
       `}
     >
@@ -81,7 +82,7 @@ function LogEntry({ entry }: { entry: ProcessLogEntry }) {
       </span>
 
       {/* Message */}
-      <span className={`text-xs flex-1 ${isFailed ? 'text-red-300' : 'text-gray-300'}`}>
+      <span className={`text-xs flex-1 ${isFailed ? 'text-pink-300' : 'text-gray-300'}`}>
         {entry.message}
       </span>
 
@@ -103,9 +104,9 @@ function LogEntry({ entry }: { entry: ProcessLogEntry }) {
       {entry.error && (
         <button
           onClick={() => setExpanded(!expanded)}
-          className="text-red-500 hover:text-red-400 shrink-0"
+          className="text-pink-400/70 hover:text-pink-400 shrink-0"
         >
-          <AlertCircle className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+          <SoftDetailExpandIcon className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
         </button>
       )}
     </motion.div>
@@ -119,7 +120,7 @@ function LogEntry({ entry }: { entry: ProcessLogEntry }) {
           exit={{ height: 0, opacity: 0 }}
           className="overflow-hidden"
         >
-          <div className="bg-red-950/30 border-l-2 border-red-500 px-3 py-2 font-mono text-2xs text-red-300 whitespace-pre-wrap max-h-32 overflow-y-auto ml-[72px] mr-2 mb-1 rounded-r">
+          <div className="bg-pink-950/20 border-l-2 border-pink-400/40 px-3 py-2 font-mono text-2xs text-pink-300/80 whitespace-pre-wrap max-h-32 overflow-y-auto ml-[72px] mr-2 mb-1 rounded-r">
             {entry.error}
           </div>
         </motion.div>

@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Save, Plus, FolderPlus, Scan, Boxes } from 'lucide-react';
 import { transition, fadeSlideUp, scaleEntrance, expandCollapse, fadeOnly } from '@/lib/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { Caveat } from 'next/font/google';
 import { DndContext, DragOverlay, DragEndEvent } from '@dnd-kit/core';
+import { caveat } from '@/app/fonts';
 import { useContextStore, useShallow } from '../../../stores/contextStore';
 import { useClientProjectStore } from '../../../stores/clientProjectStore';
 import { useGlobalModal } from '../../../hooks/useGlobalModal';
@@ -20,12 +20,6 @@ import { SYNTHETIC_GROUP_ID } from './lib/constants';
 import { ContextEmptyState } from './components/ContextEmptyState';
 import { ContextGenerationOverlay } from './components/ContextGenerationOverlay';
 import { useContextGenerationStore } from '@/stores/contextGenerationStore';
-
-const caveat = Caveat({
-  weight: ['400', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-});
 
 interface HorizontalContextBarProps {
   selectedFilesCount: number;

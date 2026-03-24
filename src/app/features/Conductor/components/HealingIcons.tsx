@@ -1,13 +1,14 @@
 /**
- * HealingIcons — Branded 16x16 SVG icons for self-healing error types.
+ * HealingIcons — Empathetic 32x32 SVG icons for self-healing error types.
  *
- * Unified visual language:
- *   - Semi-transparent geometric substrate (background frame)
- *   - Bold error-specific symbol at center
- *   - Circuit-trace accents with dot terminals at edges
+ * Design language:
+ *   - Soft rounded shapes instead of sharp/angular forms
+ *   - Warm fills at low opacity for a comforting backdrop
+ *   - Healing motifs: small sparkles, plus signs, bandages
+ *   - Friendly, non-threatening symbols that reassure rather than alarm
+ *   - Per-type color via currentColor from parent className
  *
- * Follows the same circuit-neural motif established by StageIcons.tsx
- * but scaled to 16x16 for inline error-type display.
+ * Each icon uses a 32x32 viewBox for finer detail at small display sizes.
  */
 
 interface IconProps {
@@ -16,243 +17,329 @@ interface IconProps {
 
 /**
  * Prompt Ambiguity — amber
- * Single signal hub diverging into three uncertain paths.
- * Communicates: the AI received an unclear or multi-interpretation prompt.
+ * Soft thought bubble with gentle diverging paths and a warm "?" center.
+ * Communicates: "We received mixed signals — let's clarify."
  */
 export function PromptAmbiguityIcon({ className }: IconProps) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <rect x="1.5" y="1.5" width="13" height="13" rx="2.5" opacity="0.12" />
-      {/* Origin hub */}
-      <circle cx="4" cy="8" r="1.3" fill="currentColor" stroke="none" opacity="0.55" />
-      {/* Three diverging paths */}
-      <path d="M5.3 8H7" />
-      <path d="M7 8l4-3.5" />
-      <path d="M7 8h4.5" />
-      <path d="M7 8l4 3.5" />
-      {/* Endpoint terminals */}
-      <circle cx="11" cy="4.5" r="0.6" fill="currentColor" stroke="none" opacity="0.45" />
-      <circle cx="11.5" cy="8" r="0.6" fill="currentColor" stroke="none" opacity="0.45" />
-      <circle cx="11" cy="11.5" r="0.6" fill="currentColor" stroke="none" opacity="0.45" />
-      {/* Circuit traces */}
-      <path d="M0.5 4h1" strokeWidth="0.8" opacity="0.35" />
-      <circle cx="0.5" cy="4" r="0.4" fill="currentColor" stroke="none" opacity="0.35" />
-      <path d="M15 12.5h-1" strokeWidth="0.8" opacity="0.35" />
-      <circle cx="15" cy="12.5" r="0.4" fill="currentColor" stroke="none" opacity="0.35" />
+    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
+      {/* Warm backdrop circle */}
+      <circle cx="16" cy="16" r="14" fill="currentColor" opacity="0.08" />
+      {/* Thought bubble body */}
+      <rect x="6" y="6" width="20" height="16" rx="6" fill="currentColor" opacity="0.12" stroke="currentColor" strokeWidth="1.2" />
+      {/* Bubble tail dots */}
+      <circle cx="10" cy="25" r="1.8" fill="currentColor" opacity="0.2" />
+      <circle cx="7" cy="28" r="1.2" fill="currentColor" opacity="0.15" />
+      {/* Friendly question mark */}
+      <path d="M13.5 11a2.5 2.5 0 0 1 4.3 1.7c0 1.2-1.2 1.6-2 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" opacity="0.7" />
+      <circle cx="15.8" cy="18" r="0.9" fill="currentColor" opacity="0.6" />
+      {/* Gentle diverging paths from bubble — showing multiple interpretations */}
+      <path d="M26 10l3-2" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round" opacity="0.3" />
+      <path d="M26 14l3 0" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round" opacity="0.25" />
+      <path d="M26 18l3 2" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round" opacity="0.2" />
+      {/* Sparkle — healing hint */}
+      <g opacity="0.35" stroke="currentColor" strokeWidth="0.7" strokeLinecap="round">
+        <line x1="28" y1="6" x2="28" y2="8.5" />
+        <line x1="26.8" y1="7.2" x2="29.2" y2="7.2" />
+      </g>
     </svg>
   );
 }
 
 /**
  * Missing Context — orange
- * Document frame with data rows and a void gap marked by dashed absence.
- * Communicates: required context or data was not provided to the AI.
+ * Open file folder with a gentle gap and a sparkle suggesting it can be filled.
+ * Communicates: "We're missing a piece — help us find it."
  */
 export function MissingContextIcon({ className }: IconProps) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <rect x="3" y="1" width="10" height="14" rx="1.5" opacity="0.12" />
-      {/* Data rows */}
-      <path d="M5.5 4h5" opacity="0.5" />
-      <path d="M5.5 6.5h3" opacity="0.5" />
-      {/* Void gap — dashed missing section */}
-      <path d="M5.5 9h5" strokeDasharray="1.5 1" opacity="0.25" />
-      {/* Absence X marker */}
-      <path d="M9.5 10.5l2 2" strokeWidth="1.4" />
-      <path d="M11.5 10.5l-2 2" strokeWidth="1.4" />
-      {/* Circuit traces */}
-      <path d="M0.5 5h2" strokeWidth="0.8" opacity="0.35" />
-      <circle cx="0.5" cy="5" r="0.4" fill="currentColor" stroke="none" opacity="0.35" />
-      <path d="M14 11h1.5" strokeWidth="0.8" opacity="0.35" />
-      <circle cx="15.5" cy="11" r="0.4" fill="currentColor" stroke="none" opacity="0.35" />
+    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
+      {/* Warm backdrop */}
+      <rect x="3" y="3" width="26" height="26" rx="8" fill="currentColor" opacity="0.06" />
+      {/* Folder body */}
+      <path d="M4 10h24a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V10z" fill="currentColor" opacity="0.1" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      {/* Folder tab */}
+      <path d="M2 10V7a2 2 0 0 1 2-2h8l2 3" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" opacity="0.7" />
+      {/* Content lines — present data */}
+      <line x1="7" y1="15" x2="18" y2="15" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.4" />
+      <line x1="7" y1="19" x2="14" y2="19" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.35" />
+      {/* Missing content — gentle dashed line */}
+      <line x1="7" y1="23" x2="20" y2="23" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeDasharray="2.5 2" opacity="0.2" />
+      {/* Sparkle at the gap — "can be filled" */}
+      <g opacity="0.5" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round">
+        <line x1="24" y1="18" x2="24" y2="21" />
+        <line x1="22.5" y1="19.5" x2="25.5" y2="19.5" />
+      </g>
     </svg>
   );
 }
 
 /**
  * Rate Limit — yellow
- * Gauge arc with needle pegged past the redline mark.
- * Communicates: API calls exceeded allowed frequency.
+ * Friendly speedometer with a gentle "pause" indicator.
+ * Communicates: "We're going a bit fast — taking a breather."
  */
 export function RateLimitIcon({ className }: IconProps) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <circle cx="8" cy="9" r="6" opacity="0.12" />
-      {/* Gauge arc */}
-      <path d="M3.5 12.5a6 6 0 0 1 9 0" fill="none" opacity="0.3" />
-      <path d="M3 11.5A5.5 5.5 0 0 1 13 11.5" />
-      {/* Redline tick */}
-      <path d="M12 5.5l1-1" strokeWidth="1.5" opacity="0.5" />
-      {/* Needle pegged past max */}
-      <path d="M8 9l3.5-3.5" strokeWidth="1.5" />
-      <circle cx="8" cy="9" r="1" fill="currentColor" stroke="none" opacity="0.55" />
-      {/* Circuit traces */}
-      <path d="M0.5 7h1.5" strokeWidth="0.8" opacity="0.35" />
-      <circle cx="0.5" cy="7" r="0.4" fill="currentColor" stroke="none" opacity="0.35" />
-      <path d="M15.5 13h-1.5" strokeWidth="0.8" opacity="0.35" />
-      <circle cx="15.5" cy="13" r="0.4" fill="currentColor" stroke="none" opacity="0.35" />
+    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
+      {/* Warm backdrop */}
+      <circle cx="16" cy="16" r="14" fill="currentColor" opacity="0.06" />
+      {/* Gauge circle */}
+      <circle cx="16" cy="17" r="11" fill="currentColor" opacity="0.08" stroke="currentColor" strokeWidth="1.2" />
+      {/* Gauge arc scale marks */}
+      <g stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.25">
+        <line x1="8" y1="23" x2="9.5" y2="21.5" />
+        <line x1="6.5" y1="17" x2="8.5" y2="17" />
+        <line x1="8" y1="11" x2="9.5" y2="12.5" />
+        <line x1="16" y1="7.5" x2="16" y2="9.5" />
+      </g>
+      {/* "Too fast" zone — warm highlight */}
+      <path d="M22.5 10a11 11 0 0 1 2.5 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.35" />
+      {/* Needle — pointing at comfortable zone, not pegged */}
+      <line x1="16" y1="17" x2="21" y2="11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" opacity="0.65" />
+      <circle cx="16" cy="17" r="2" fill="currentColor" opacity="0.3" />
+      {/* Gentle pause symbol */}
+      <rect x="23" y="22" width="2" height="5" rx="0.8" fill="currentColor" opacity="0.3" />
+      <rect x="26.5" y="22" width="2" height="5" rx="0.8" fill="currentColor" opacity="0.3" />
     </svg>
   );
 }
 
 /**
- * Tool Failure — red
- * Wrench silhouette fractured by a lightning crack.
- * Communicates: an external tool or integration broke during execution.
+ * Tool Failure — red (warm coral)
+ * Wrench with a small bandage — "broken but being mended."
+ * Communicates: "A tool stumbled — we're patching it up."
  */
 export function ToolFailureIcon({ className }: IconProps) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      {/* Wrench silhouette */}
-      <path d="M10 2L6 6l1.5 1.5-5 5 1 1 5-5L10 10l4-4" opacity="0.25" />
-      <path d="M12 6l2-2" />
-      <circle cx="13.2" cy="3.2" r="1" fill="currentColor" stroke="none" opacity="0.35" />
-      {/* Lightning crack through center */}
-      <path d="M9 4l-1 2.5h2L8.5 10" strokeWidth="1.4" />
-      <circle cx="8.5" cy="10" r="0.5" fill="currentColor" stroke="none" opacity="0.5" />
-      {/* Circuit traces */}
-      <path d="M1 3h1.5" strokeWidth="0.8" opacity="0.35" />
-      <circle cx="1" cy="3" r="0.4" fill="currentColor" stroke="none" opacity="0.35" />
-      <path d="M15 13h-1.5" strokeWidth="0.8" opacity="0.35" />
-      <circle cx="15" cy="13" r="0.4" fill="currentColor" stroke="none" opacity="0.35" />
+    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
+      {/* Warm backdrop */}
+      <circle cx="16" cy="16" r="14" fill="currentColor" opacity="0.06" />
+      {/* Wrench body */}
+      <path
+        d="M21 5a5 5 0 0 0-4.5 7l-8 8a2.5 2.5 0 1 0 3.5 3.5l8-8A5 5 0 0 0 21 5z"
+        fill="currentColor" opacity="0.1" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"
+      />
+      {/* Wrench head notch */}
+      <path d="M22 6l-2 2 1 1 2-2" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" opacity="0.4" />
+      {/* Handle grip dot */}
+      <circle cx="10" cy="22" r="1.2" fill="currentColor" opacity="0.3" />
+      {/* Bandage across the wrench — "being healed" */}
+      <rect x="13" y="11" width="7" height="3" rx="1" transform="rotate(-45, 16.5, 12.5)" fill="currentColor" opacity="0.25" stroke="currentColor" strokeWidth="0.8" />
+      {/* Bandage cross marks */}
+      <g stroke="currentColor" strokeWidth="0.6" strokeLinecap="round" opacity="0.2" transform="rotate(-45, 16.5, 12.5)">
+        <line x1="15.5" y1="11.5" x2="15.5" y2="13.5" />
+        <line x1="17.5" y1="11.5" x2="17.5" y2="13.5" />
+      </g>
+      {/* Healing sparkle */}
+      <g opacity="0.4" stroke="currentColor" strokeWidth="0.7" strokeLinecap="round">
+        <line x1="25" y1="14" x2="25" y2="17" />
+        <line x1="23.5" y1="15.5" x2="26.5" y2="15.5" />
+      </g>
     </svg>
   );
 }
 
 /**
  * Timeout — purple
- * Hourglass frame with sand depleted and overflow indicator.
- * Communicates: the operation ran out of allocated time.
+ * Soft hourglass with gentle sand flow and a winding-down feeling.
+ * Communicates: "We ran out of time — adjusting the pace."
  */
 export function TimeoutIcon({ className }: IconProps) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <rect x="2" y="1.5" width="12" height="13" rx="2" opacity="0.12" />
-      {/* Hourglass top bar */}
-      <path d="M4.5 2.5h7" strokeWidth="1.3" />
+    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
+      {/* Warm backdrop */}
+      <rect x="4" y="2" width="24" height="28" rx="8" fill="currentColor" opacity="0.06" />
+      {/* Hourglass frame — top bar */}
+      <line x1="8" y1="4" x2="24" y2="4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" opacity="0.6" />
       {/* Upper chamber */}
-      <path d="M5 2.5l3 4 3-4" opacity="0.3" />
-      {/* Neck */}
-      <circle cx="8" cy="7.5" r="0.5" fill="currentColor" stroke="none" opacity="0.5" />
-      {/* Lower chamber — filled */}
-      <path d="M5 13l3-4 3 4z" fill="currentColor" stroke="none" opacity="0.18" />
-      <path d="M5 13l3-4 3 4" />
-      {/* Bottom bar */}
-      <path d="M4.5 13h7" strokeWidth="1.3" />
-      {/* Overflow alert spark */}
-      <path d="M12.5 3l1-1.5" strokeWidth="1" opacity="0.5" />
-      <path d="M13 4.5l1.5-0.5" strokeWidth="1" opacity="0.5" />
-      {/* Circuit traces */}
-      <path d="M0.5 5h1.5" strokeWidth="0.8" opacity="0.35" />
-      <circle cx="0.5" cy="5" r="0.4" fill="currentColor" stroke="none" opacity="0.35" />
-      <path d="M15.5 11h-1.5" strokeWidth="0.8" opacity="0.35" />
-      <circle cx="15.5" cy="11" r="0.4" fill="currentColor" stroke="none" opacity="0.35" />
+      <path d="M9 4l7 10 7-10" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" opacity="0.5" fill="currentColor" fillOpacity="0.04" />
+      {/* Neck — gentle pinch */}
+      <circle cx="16" cy="15" r="1" fill="currentColor" opacity="0.3" />
+      {/* Lower chamber — sand collected */}
+      <path d="M9 26l7-10 7 10z" fill="currentColor" opacity="0.12" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      {/* Sand level in lower chamber */}
+      <path d="M11 24l5-5 5 5z" fill="currentColor" opacity="0.15" />
+      {/* Hourglass frame — bottom bar */}
+      <line x1="8" y1="26" x2="24" y2="26" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" opacity="0.6" />
+      {/* Gentle spiral above — "time passing softly" */}
+      <path d="M25 8a2 2 0 1 1 0 3" stroke="currentColor" strokeWidth="0.7" strokeLinecap="round" opacity="0.25" />
+      {/* Sparkle — healing */}
+      <g opacity="0.35" stroke="currentColor" strokeWidth="0.7" strokeLinecap="round">
+        <line x1="27" y1="18" x2="27" y2="20.5" />
+        <line x1="25.8" y1="19.2" x2="28.2" y2="19.2" />
+      </g>
     </svg>
   );
 }
 
 /**
- * Permission Error — red
- * Shield frame with a locked keyhole at center.
- * Communicates: access was denied due to insufficient permissions.
+ * Permission Error — red (warm)
+ * Soft rounded shield with a friendly keyhole.
+ * Communicates: "Access is gated — requesting the right key."
  */
 export function PermissionErrorIcon({ className }: IconProps) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      {/* Shield outline */}
-      <path d="M8 1.5L2.5 4v4.5C2.5 12 8 14.5 8 14.5s5.5-2.5 5.5-6V4z" opacity="0.12" />
-      <path d="M8 2L3 4.2v4.3C3 11.7 8 14 8 14s5-2.3 5-5.5V4.2z" />
-      {/* Lock body */}
-      <rect x="6" y="7.5" width="4" height="3.5" rx="0.8" fill="currentColor" stroke="none" opacity="0.25" />
-      {/* Lock shackle */}
-      <path d="M6.8 7.5V6a1.2 1.2 0 0 1 2.4 0v1.5" strokeWidth="1.3" />
+    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
+      {/* Shield shape — soft and rounded */}
+      <path
+        d="M16 2L4 8v8c0 8 5.5 13 12 16 6.5-3 12-8 12-16V8z"
+        fill="currentColor" opacity="0.08" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"
+      />
+      {/* Inner shield ring */}
+      <path
+        d="M16 5L7 9.5v6c0 6 4.2 10 9 12.5 4.8-2.5 9-6.5 9-12.5v-6z"
+        fill="none" stroke="currentColor" strokeWidth="0.6" opacity="0.15"
+      />
+      {/* Lock body — rounded and friendly */}
+      <rect x="12" y="14.5" width="8" height="6.5" rx="2" fill="currentColor" opacity="0.2" stroke="currentColor" strokeWidth="1" />
+      {/* Lock shackle — soft arch */}
+      <path d="M13.5 14.5V12a2.5 2.5 0 0 1 5 0v2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.55" />
       {/* Keyhole */}
-      <circle cx="8" cy="9" r="0.6" fill="currentColor" stroke="none" opacity="0.6" />
-      {/* Circuit traces */}
-      <path d="M0.5 7h1.5" strokeWidth="0.8" opacity="0.35" />
-      <circle cx="0.5" cy="7" r="0.4" fill="currentColor" stroke="none" opacity="0.35" />
-      <path d="M15.5 7h-1.5" strokeWidth="0.8" opacity="0.35" />
-      <circle cx="15.5" cy="7" r="0.4" fill="currentColor" stroke="none" opacity="0.35" />
+      <circle cx="16" cy="17.5" r="1" fill="currentColor" opacity="0.4" />
+      <line x1="16" y1="18.5" x2="16" y2="19.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.3" />
+      {/* Sparkle — "we'll find the key" */}
+      <g opacity="0.35" stroke="currentColor" strokeWidth="0.7" strokeLinecap="round">
+        <line x1="24" y1="5" x2="24" y2="7.5" />
+        <line x1="22.8" y1="6.2" x2="25.2" y2="6.2" />
+      </g>
     </svg>
   );
 }
 
 /**
  * Dependency Missing — amber
- * Two nodes with a broken/dashed link between them.
- * Communicates: a required package, service, or module is absent.
+ * Two puzzle pieces with a gentle gap — "almost connected."
+ * Communicates: "A piece is missing — we're looking for it."
  */
 export function DependencyMissingIcon({ className }: IconProps) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <rect x="1.5" y="1.5" width="13" height="13" rx="2.5" opacity="0.12" />
-      {/* Left node — present dependency */}
-      <rect x="2.5" y="5.5" width="4" height="5" rx="1" />
-      <path d="M3.5 7.5h2" opacity="0.5" />
-      <path d="M3.5 9h1" opacity="0.5" />
-      {/* Right node — missing dependency */}
-      <rect x="9.5" y="5.5" width="4" height="5" rx="1" strokeDasharray="1.5 1" opacity="0.35" />
-      {/* Broken link between nodes */}
-      <path d="M6.5 8h1" />
-      <path d="M8.5 8h1" />
-      <circle cx="8" cy="8" r="0.4" fill="currentColor" stroke="none" opacity="0.5" />
-      {/* Circuit traces */}
-      <path d="M0.5 3h1" strokeWidth="0.8" opacity="0.35" />
-      <circle cx="0.5" cy="3" r="0.4" fill="currentColor" stroke="none" opacity="0.35" />
-      <path d="M15.5 13h-1" strokeWidth="0.8" opacity="0.35" />
-      <circle cx="15.5" cy="13" r="0.4" fill="currentColor" stroke="none" opacity="0.35" />
+    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
+      {/* Warm backdrop */}
+      <rect x="2" y="4" width="28" height="24" rx="8" fill="currentColor" opacity="0.06" />
+      {/* Left puzzle piece — present, solid */}
+      <path
+        d="M4 9h7v3a2 2 0 1 0 0 4v3H4z"
+        fill="currentColor" opacity="0.15" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"
+      />
+      {/* Content lines on left piece */}
+      <line x1="6" y1="12" x2="9" y2="12" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round" opacity="0.3" />
+      <line x1="6" y1="14.5" x2="8" y2="14.5" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round" opacity="0.25" />
+      {/* Right puzzle piece — missing, dashed outline */}
+      <path
+        d="M18 9h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7v-3a2 2 0 1 1 0-4z"
+        fill="none" stroke="currentColor" strokeWidth="1.2" strokeDasharray="2.5 2" strokeLinejoin="round" opacity="0.3"
+      />
+      {/* Gentle connecting arrow — "seeking" */}
+      <path d="M14 16h2.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.35" />
+      <path d="M15.5 14.5l1.5 1.5-1.5 1.5" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.3" />
+      {/* Sparkle on the gap */}
+      <g opacity="0.4" stroke="currentColor" strokeWidth="0.7" strokeLinecap="round">
+        <line x1="22" y1="6" x2="22" y2="8.5" />
+        <line x1="20.8" y1="7.2" x2="23.2" y2="7.2" />
+      </g>
+      {/* Soft dots showing connection potential */}
+      <circle cx="16" cy="22" r="0.8" fill="currentColor" opacity="0.2" />
+      <circle cx="18.5" cy="23" r="0.6" fill="currentColor" opacity="0.15" />
     </svg>
   );
 }
 
 /**
  * Invalid Output — pink
- * Clean signal waveform corrupted into glitch noise.
- * Communicates: the AI produced output that failed validation.
+ * Document with wavy corrupted lines being smoothed by a gentle hand.
+ * Communicates: "The output got tangled — we're straightening it out."
  */
 export function InvalidOutputIcon({ className }: IconProps) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M1 8h14" opacity="0.08" />
-      {/* Clean signal on left */}
-      <path d="M1.5 8l1.5-2.5L4.5 11 6 8" opacity="0.5" />
-      {/* Corruption boundary */}
-      <path d="M6 8v-3M6 8v3" strokeWidth="0.6" strokeDasharray="0.8 0.8" opacity="0.3" />
-      {/* Glitched signal on right */}
-      <path d="M6 8l1-4 .5 3 1-5 .8 6 .7-4 1 5L12 5l1.5 3h1" strokeWidth="1.3" />
-      {/* Error spark */}
-      <path d="M10 3l.5-1" strokeWidth="1" opacity="0.5" />
-      <circle cx="10.5" cy="2" r="0.4" fill="currentColor" stroke="none" opacity="0.5" />
-      {/* Circuit traces */}
-      <path d="M0.5 12h1" strokeWidth="0.8" opacity="0.35" />
-      <circle cx="0.5" cy="12" r="0.4" fill="currentColor" stroke="none" opacity="0.35" />
-      <path d="M15.5 4h-1" strokeWidth="0.8" opacity="0.35" />
-      <circle cx="15.5" cy="4" r="0.4" fill="currentColor" stroke="none" opacity="0.35" />
+    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
+      {/* Warm backdrop */}
+      <rect x="3" y="2" width="26" height="28" rx="7" fill="currentColor" opacity="0.06" />
+      {/* Document */}
+      <rect x="6" y="4" width="20" height="24" rx="3" fill="currentColor" opacity="0.08" stroke="currentColor" strokeWidth="1.2" />
+      {/* Clean lines at top — "good output" */}
+      <line x1="10" y1="9" x2="22" y2="9" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" opacity="0.4" />
+      <line x1="10" y1="13" x2="19" y2="13" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" opacity="0.35" />
+      {/* Corrupted/wavy lines — "tangled output" */}
+      <path d="M10 17c1-1.5 2.5 1.5 4 0s2.5 1.5 4 0 2.5 1.5 4 0" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" opacity="0.45" />
+      <path d="M10 21c1.5-1 2 1 3.5 0s2 1 3.5 0 2 1 3 0" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.3" />
+      {/* Smoothing wand/sparkle — "being fixed" */}
+      <line x1="24" y1="22" x2="28" y2="18" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.5" />
+      {/* Sparkles at correction point */}
+      <g opacity="0.45" stroke="currentColor" strokeWidth="0.7" strokeLinecap="round">
+        <line x1="26" y1="15" x2="26" y2="17.5" />
+        <line x1="24.8" y1="16.2" x2="27.2" y2="16.2" />
+      </g>
+      <circle cx="28.5" cy="17" r="0.7" fill="currentColor" opacity="0.3" />
     </svg>
   );
 }
 
 /**
  * Unknown Error — gray
- * Hexagonal void with static noise pattern and "?" overlay.
- * Communicates: an unclassified or novel error type.
+ * Soft cloud shape with "?" — mysterious but non-threatening.
+ * Communicates: "Something unexpected happened — we're investigating."
  */
 export function UnknownErrorIcon({ className }: IconProps) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      {/* Hexagonal frame — unfamiliar shape for unknown */}
-      <path d="M8 1.5l5.5 3.2v6.6L8 14.5l-5.5-3.2V4.7z" opacity="0.12" />
-      <path d="M8 2.5l4.5 2.6v5.3L8 13l-4.5-2.6V5.1z" />
-      {/* Static/noise marks inside */}
-      <path d="M6 5.5h.5M9 6h.5M7 10.5h.5M10 9.5h.5" strokeWidth="0.8" opacity="0.25" />
-      {/* Question mark — unknown */}
-      <path d="M6.5 6a1.5 1.5 0 0 1 2.7.8c0 .7-.7.9-1.2 1.2" strokeWidth="1.2" />
-      <circle cx="8" cy="10" r="0.5" fill="currentColor" stroke="none" />
-      {/* Circuit traces */}
-      <path d="M0.5 6h1.5" strokeWidth="0.8" opacity="0.35" />
-      <circle cx="0.5" cy="6" r="0.4" fill="currentColor" stroke="none" opacity="0.35" />
-      <path d="M15.5 10h-1.5" strokeWidth="0.8" opacity="0.35" />
-      <circle cx="15.5" cy="10" r="0.4" fill="currentColor" stroke="none" opacity="0.35" />
+    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
+      {/* Soft cloud backdrop */}
+      <path
+        d="M8 24h16a6 6 0 0 0 0-12 8 8 0 0 0-15.5-1A5 5 0 0 0 8 24z"
+        fill="currentColor" opacity="0.08" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"
+      />
+      {/* Inner cloud highlight */}
+      <path
+        d="M10 22h12a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.5-1A3.5 3.5 0 0 0 10 22z"
+        fill="currentColor" opacity="0.06"
+      />
+      {/* Friendly question mark */}
+      <path d="M13.5 13a3 3 0 0 1 5.2 2c0 1.3-1.5 1.8-2.2 2.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" opacity="0.55" />
+      <circle cx="16.5" cy="20" r="0.9" fill="currentColor" opacity="0.45" />
+      {/* Magnifying glass hint — "investigating" */}
+      <circle cx="25" cy="25" r="2.5" stroke="currentColor" strokeWidth="0.8" opacity="0.25" />
+      <line x1="27" y1="27" x2="29" y2="29" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round" opacity="0.25" />
+      {/* Sparkle */}
+      <g opacity="0.3" stroke="currentColor" strokeWidth="0.6" strokeLinecap="round">
+        <line x1="5" y1="10" x2="5" y2="12" />
+        <line x1="4" y1="11" x2="6" y2="11" />
+      </g>
+    </svg>
+  );
+}
+
+/**
+ * Soft error indicator for ProcessLog failed events.
+ * Gentle circle with a soft inner mark — warm alternative to XCircle.
+ */
+export function SoftErrorIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
+      <circle cx="16" cy="16" r="13" fill="currentColor" opacity="0.1" stroke="currentColor" strokeWidth="1.4" />
+      {/* Soft inner exclamation — not a harsh X */}
+      <line x1="16" y1="10" x2="16" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.55" />
+      <circle cx="16" cy="22" r="1.2" fill="currentColor" opacity="0.5" />
+      {/* Healing sparkle */}
+      <g opacity="0.3" stroke="currentColor" strokeWidth="0.6" strokeLinecap="round">
+        <line x1="24" y1="7" x2="24" y2="9.5" />
+        <line x1="22.8" y1="8.2" x2="25.2" y2="8.2" />
+      </g>
+    </svg>
+  );
+}
+
+/**
+ * Soft detail expand icon for ProcessLog error details.
+ * Gentle circle with a "..." — warm alternative to AlertCircle.
+ */
+export function SoftDetailExpandIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
+      <circle cx="16" cy="16" r="13" fill="currentColor" opacity="0.08" stroke="currentColor" strokeWidth="1.2" />
+      {/* Ellipsis dots — "see more" */}
+      <circle cx="10" cy="16" r="1.3" fill="currentColor" opacity="0.45" />
+      <circle cx="16" cy="16" r="1.3" fill="currentColor" opacity="0.45" />
+      <circle cx="22" cy="16" r="1.3" fill="currentColor" opacity="0.45" />
     </svg>
   );
 }

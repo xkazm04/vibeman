@@ -27,6 +27,21 @@ import {
   generateId,
 } from '@tests/setup/mock-factories';
 
+// Mock observability middleware (uses contextApiRouteDb from @/app/db transitively)
+vi.mock('@/lib/observability/middleware', () => ({
+  withObservability: (handler: Function) => handler,
+}));
+
+// Mock signal collector (uses behavioralSignalDb from @/app/db transitively)
+vi.mock('@/lib/brain/signalCollector', () => ({
+  signalCollector: {
+    recordContextFocus: vi.fn(),
+    recordGitActivity: vi.fn(),
+    recordApiFocus: vi.fn(),
+    recordImplementation: vi.fn(),
+  },
+}));
+
 // Mock external integrations
 vi.mock('@/lib/supabase/goalSync', () => ({
   fireAndForgetSync: vi.fn(),

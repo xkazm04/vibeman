@@ -1,7 +1,9 @@
 'use client';
 
 import { useMemo } from 'react';
-import { FileCode, GitCommit, Globe, Clock, TrendingUp, TrendingDown, Minus, AlertCircle, Radio } from 'lucide-react';
+import { FileCode, Clock, TrendingUp, TrendingDown, Minus, AlertCircle, Radio } from 'lucide-react';
+import { GitNeuralPathway, ApiSignalPulse, ContextBrainLayer, CircuitComplete } from './SignalTypeIcons';
+import { BRAIN_CHART } from '../lib/brainChartColors';
 import type { DbBehavioralSignal, GitActivitySignalData, ApiFocusSignalData } from '@/app/db/models/brain.types';
 import type { DrillDownTarget } from './SignalDetailDrawer';
 import BrainEmptyState from './BrainEmptyState';
@@ -134,11 +136,12 @@ function SignalCard({ signal, targetType }: { signal: DbBehavioralSignal; target
 }
 
 function SignalTypeIcon({ type }: { type: string }) {
+  const color = BRAIN_CHART.signalType[type] ?? undefined;
   switch (type) {
-    case 'git_activity': return <GitCommit className="w-3.5 h-3.5 text-green-400" />;
-    case 'api_focus': return <Globe className="w-3.5 h-3.5 text-blue-400" />;
-    case 'context_focus': return <FileCode className="w-3.5 h-3.5 text-purple-400" />;
-    case 'implementation': return <FileCode className="w-3.5 h-3.5 text-cyan-400" />;
+    case 'git_activity': return <GitNeuralPathway className="w-3.5 h-3.5" style={{ color }} />;
+    case 'api_focus': return <ApiSignalPulse className="w-3.5 h-3.5" style={{ color }} />;
+    case 'context_focus': return <ContextBrainLayer className="w-3.5 h-3.5" style={{ color }} />;
+    case 'implementation': return <CircuitComplete className="w-3.5 h-3.5" style={{ color }} />;
     default: return <FileCode className="w-3.5 h-3.5 text-zinc-400" />;
   }
 }

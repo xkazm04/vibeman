@@ -407,76 +407,69 @@ describe('Brain Insight Evidence Junction Table', () => {
     expect(junctionRows.count).toBe(0);
   });
 
-  it('should rollback transaction when evidence FK validation fails', () => {
-    // Try to create insight with non-existent direction reference
-    expect(() => {
-      brainInsightRepository.create({
-        id: 'bi_invalid',
-        reflection_id: 'ref_test',
-        project_id: 'proj_1',
-        type: 'pattern_detected',
-        title: 'Invalid Pattern',
-        description: 'Should fail',
-        confidence: 80,
-        evidence: [
-          { type: 'direction', id: 'dir_001' }, // exists
-          { type: 'direction', id: 'dir_nonexistent' }, // does not exist
-        ],
-      });
-    }).toThrow('Evidence reference direction:dir_nonexistent does not exist');
+  it('should skip missing evidence references and still create the insight', () => {
+    // Create insight with one valid and one non-existent direction reference
+    const insight = brainInsightRepository.create({
+      id: 'bi_invalid',
+      reflection_id: 'ref_test',
+      project_id: 'proj_1',
+      type: 'pattern_detected',
+      title: 'Invalid Pattern',
+      description: 'Should succeed with partial evidence',
+      confidence: 80,
+      evidence: [
+        { type: 'direction', id: 'dir_001' }, // exists
+        { type: 'direction', id: 'dir_nonexistent' }, // does not exist — skipped
+      ],
+    });
 
-    // Verify insight was not created (transaction rolled back)
-    const insight = testDb.prepare('SELECT * FROM brain_insights WHERE id = ?').get('bi_invalid');
-    expect(insight).toBeUndefined();
+    // Insight is created (missing evidence is skipped, not rolled back)
+    expect(insight).toBeDefined();
+    expect(insight.id).toBe('bi_invalid');
 
-    // Verify no junction rows were created
+    // Only the valid evidence reference should be in the junction table
     const junctionRows = testDb.prepare(
       'SELECT COUNT(*) as count FROM brain_insight_evidence WHERE insight_id = ?'
     ).get('bi_invalid') as { count: number };
-    expect(junctionRows.count).toBe(0);
+    expect(junctionRows.count).toBe(1);
   });
 
-  it('should rollback batch transaction when any evidence FK fails', () => {
+  it('should create batch with missing evidence skipped (not rolled back)', () => {
     const initialCount = (testDb.prepare('SELECT COUNT(*) as count FROM brain_insights').get() as { count: number }).count;
     const deduplicator = new InsightDeduplicator('proj_1', []);
 
-    // Try to create batch with one invalid evidence reference
-    expect(() => {
-      brainInsightRepository.createBatch('ref_test', 'proj_1', [
-        {
-          type: 'pattern_detected',
-          title: 'Valid Pattern 1',
-          description: 'First valid',
-          confidence: 75,
-          evidence: [{ type: 'direction', id: 'dir_001' }],
-        },
-        {
-          type: 'pattern_detected',
-          title: 'Invalid Pattern',
-          description: 'Has invalid evidence',
-          confidence: 85,
-          evidence: [
-            { type: 'direction', id: 'dir_002' }, // exists
-            { type: 'reflection', id: 'ref_nonexistent' }, // does not exist
-          ],
-        },
-        {
-          type: 'recommendation',
-          title: 'Valid Pattern 2',
-          description: 'Second valid',
-          confidence: 70,
-          evidence: [{ type: 'direction', id: 'dir_001' }],
-        },
-      ], deduplicator);
-    }).toThrow('Evidence reference reflection:ref_nonexistent does not exist');
+    // Create batch — invalid evidence references are skipped, not thrown
+    const results = brainInsightRepository.createBatch('ref_test', 'proj_1', [
+      {
+        type: 'pattern_detected',
+        title: 'Valid Pattern 1',
+        description: 'First valid',
+        confidence: 75,
+        evidence: [{ type: 'direction', id: 'dir_001' }],
+      },
+      {
+        type: 'pattern_detected',
+        title: 'Invalid Pattern',
+        description: 'Has invalid evidence',
+        confidence: 85,
+        evidence: [
+          { type: 'direction', id: 'dir_002' }, // exists
+          { type: 'reflection', id: 'ref_nonexistent' }, // does not exist — skipped
+        ],
+      },
+      {
+        type: 'recommendation',
+        title: 'Valid Pattern 2',
+        description: 'Second valid',
+        confidence: 70,
+        evidence: [{ type: 'direction', id: 'dir_001' }],
+      },
+    ], deduplicator);
 
-    // Verify no insights were created (entire batch rolled back)
+    // All insights are created (missing evidence is skipped)
     const finalCount = (testDb.prepare('SELECT COUNT(*) as count FROM brain_insights').get() as { count: number }).count;
-    expect(finalCount).toBe(initialCount);
-
-    // Verify no junction rows were created
-    const junctionCount = (testDb.prepare('SELECT COUNT(*) as count FROM brain_insight_evidence').get() as { count: number }).count;
-    expect(junctionCount).toBe(0);
+    expect(finalCount).toBe(initialCount + 3);
+    expect(results).toHaveLength(3);
   });
 
   it('should validate reflection evidence references', () => {
@@ -501,19 +494,22 @@ describe('Brain Insight Evidence Junction Table', () => {
 
     expect(insight.id).toBe('bi_valid_ref');
 
-    // Should fail with invalid reflection reference
-    expect(() => {
-      brainInsightRepository.create({
-        id: 'bi_invalid_ref',
-        reflection_id: 'ref_test',
-        project_id: 'proj_1',
-        type: 'pattern_detected',
-        title: 'Invalid Reflection Evidence',
-        description: 'Should fail',
-        confidence: 80,
-        evidence: [{ type: 'reflection', id: 'ref_invalid' }],
-      });
-    }).toThrow('Evidence reference reflection:ref_invalid does not exist');
+    // Invalid reflection reference is skipped (insight still created, no junction row)
+    const insight2 = brainInsightRepository.create({
+      id: 'bi_invalid_ref',
+      reflection_id: 'ref_test',
+      project_id: 'proj_1',
+      type: 'pattern_detected',
+      title: 'Invalid Reflection Evidence',
+      description: 'Should succeed with skipped evidence',
+      confidence: 80,
+      evidence: [{ type: 'reflection', id: 'ref_invalid' }],
+    });
+    expect(insight2.id).toBe('bi_invalid_ref');
+    const junctionCount = testDb.prepare(
+      'SELECT COUNT(*) as count FROM brain_insight_evidence WHERE insight_id = ?'
+    ).get('bi_invalid_ref') as { count: number };
+    expect(junctionCount.count).toBe(0);
   });
 
   it('should validate signal evidence against hot-writes DB', () => {
@@ -540,18 +536,22 @@ describe('Brain Insight Evidence Junction Table', () => {
     expect(junctionRows.count).toBe(2);
   });
 
-  it('should reject signal evidence with non-existent signal ID', () => {
-    expect(() => {
-      brainInsightRepository.create({
-        id: 'bi_bad_signal',
-        reflection_id: 'ref_test',
-        project_id: 'proj_1',
-        type: 'pattern_detected',
-        title: 'Bad Signal',
-        description: 'Should fail',
-        confidence: 80,
-        evidence: [{ type: 'signal', id: 'sig_nonexistent' }],
-      });
-    }).toThrow('Evidence reference signal:sig_nonexistent does not exist');
+  it('should skip signal evidence with non-existent signal ID', () => {
+    const insight = brainInsightRepository.create({
+      id: 'bi_bad_signal',
+      reflection_id: 'ref_test',
+      project_id: 'proj_1',
+      type: 'pattern_detected',
+      title: 'Bad Signal',
+      description: 'Should succeed with skipped evidence',
+      confidence: 80,
+      evidence: [{ type: 'signal', id: 'sig_nonexistent' }],
+    });
+    expect(insight.id).toBe('bi_bad_signal');
+    // Non-existent signal evidence should be skipped
+    const junctionRows = testDb.prepare(
+      'SELECT COUNT(*) as count FROM brain_insight_evidence WHERE insight_id = ?'
+    ).get('bi_bad_signal') as { count: number };
+    expect(junctionRows.count).toBe(0);
   });
 });

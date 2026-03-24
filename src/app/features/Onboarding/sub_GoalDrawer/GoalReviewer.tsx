@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Caveat } from 'next/font/google';
+import { caveat } from '@/app/fonts';
 import { Target, CheckCircle2, Clock, Circle } from 'lucide-react';
 import { Goal } from '@/types';
 import { useGoalContext } from '@/contexts/GoalContext';
@@ -17,11 +17,6 @@ import GoalModal from '@/app/features/Goals/sub_GoalModal/GoalModal';
 import GoalCandidatesModal from '@/app/features/Goals/sub_GoalModal/components/GoalCandidatesModal';
 import { SimpleSpinner } from '@/components/ui';
 
-const caveat = Caveat({
-  weight: ['400', '500', '600', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-});
 
 interface GoalReviewerProps {
   projectId: string;

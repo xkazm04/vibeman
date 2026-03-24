@@ -1,11 +1,5 @@
 import React from 'react';
-import { Caveat } from 'next/font/google';
-
-const caveat = Caveat({
-  weight: ['400', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-});
+import { caveat } from '@/app/fonts';
 
 interface DashboardSectionHeaderProps {
   title: string;

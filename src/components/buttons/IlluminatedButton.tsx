@@ -2,14 +2,8 @@
 
 import React, { useState, useRef } from 'react';
 import { motion, useMotionValue, useSpring } from 'framer-motion';
-import { Caveat } from 'next/font/google';
+import { caveat } from '@/app/fonts';
 import { LucideIcon } from 'lucide-react';
-
-const caveat = Caveat({
-  weight: ['600', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-});
 
 export type IlluminatedButtonColor = 'blue' | 'cyan' | 'purple' | 'amber' | 'green' | 'red' | 'pink' | 'indigo';
 export type IlluminatedButtonSize = 'xs' | 'sm' | 'md' | 'lg';

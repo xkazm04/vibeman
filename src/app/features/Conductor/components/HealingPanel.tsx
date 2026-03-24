@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wrench, AlertTriangle, CheckCircle2, Undo2, ChevronDown,
 } from 'lucide-react';
-import { NoErrorsIllustration, HealingInProgressIllustration } from './ConductorEmptyStates';
+import { NoErrorsIllustration, HealingInProgressIllustration, RepairBotIllustration } from './ConductorEmptyStates';
 import {
   PromptAmbiguityIcon, MissingContextIcon, RateLimitIcon,
   ToolFailureIcon, TimeoutIcon, PermissionErrorIcon,
@@ -180,11 +180,12 @@ export default function HealingPanel() {
       </div>
 
       <div className="max-h-[400px] overflow-y-auto">
-        {/* Healing-in-progress banner */}
+        {/* Repair-bot header — empathetic healing banner */}
         {activeErrors.length > 0 && config.healingEnabled && (
           <div className="flex flex-col items-center pt-4 pb-2 px-3">
-            <HealingInProgressIllustration className="w-[120px] h-[80px]" />
-            <p className="text-xs text-pink-400/70 mt-1.5">Actively repairing</p>
+            <RepairBotIllustration className="w-[160px] h-[60px]" />
+            <p className="text-xs text-cyan-400/70 mt-1.5 font-medium">Repair bot is on it</p>
+            <p className="text-2xs text-gray-500 mt-0.5">Self-healing is actively working to resolve issues</p>
           </div>
         )}
 

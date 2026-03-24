@@ -9,10 +9,11 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { duration, easing, transition } from '@/lib/motion';
-import { Clock, Sun, Moon, Sunrise, Sunset, TrendingUp, X } from 'lucide-react';
+import { Clock, Sun, Moon, Sunrise, Sunset, TrendingUp, X, Brain, Terminal } from 'lucide-react';
+import { GitNeuralPathway, ApiSignalPulse, ContextBrainLayer, CircuitComplete } from './SignalTypeIcons';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useTemporal } from '../lib/queries';
 import GlowCard from './GlowCard';
@@ -22,6 +23,8 @@ import NeuralPulseLoader from './NeuralPulseLoader';
 import BrainEmptyState from './BrainEmptyState';
 import SectionHeading from './SectionHeading';
 import { DATA_FONT, FONT_SIZE } from '../lib/brainFonts';
+import HeatmapTooltip from './HeatmapTooltip';
+import type { HeatmapTooltipData, TooltipTypeBreakdown } from './HeatmapTooltip';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -112,6 +115,12 @@ export default function TemporalRhythmHeatmap({ scope = 'project' }: TemporalRhy
   const error = queryError ? 'Failed to load temporal data' : null;
   const [selectedCell, setSelectedCell] = useState<TemporalCell | null>(null);
 
+  // Tooltip state
+  const [tooltipData, setTooltipData] = useState<HeatmapTooltipData | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const svgContainerRef = useRef<HTMLDivElement>(null);
+
   // Build lookup: "hour-dow" → cell
   const cellLookup = useMemo(() => {
     const map = new Map<string, TemporalCell>();
@@ -152,6 +161,52 @@ export default function TemporalRhythmHeatmap({ scope = 'project' }: TemporalRhy
     }
     return maxSeg;
   }, [segmentTotals]);
+
+  // Build tooltip data from a hovered cell
+  const handleCellEnter = useCallback(
+    (e: React.MouseEvent<SVGRectElement>, hour: number, dow: number, cell: TemporalCell | undefined) => {
+      const containerRect = svgContainerRef.current?.getBoundingClientRect();
+      if (!containerRect) return;
+      const svgRect = (e.target as SVGRectElement).getBoundingClientRect();
+      const x = svgRect.left - containerRect.left + svgRect.width / 2;
+      const y = svgRect.top - containerRect.top;
+
+      const breakdown: TooltipTypeBreakdown[] = cell
+        ? Object.entries(cell.byType)
+            .sort(([, a], [, b]) => b.weight - a.weight)
+            .map(([type, stats]) => ({
+              type,
+              label: SIGNAL_TYPE_META[type]?.label ?? type,
+              count: stats.count,
+              weight: stats.weight,
+              color: SIGNAL_TYPE_META[type]?.color ?? '#a1a1aa',
+            }))
+        : [];
+
+      const formatHour = (h: number) => {
+        if (h === 0) return '12 AM';
+        if (h < 12) return `${h} AM`;
+        if (h === 12) return '12 PM';
+        return `${h - 12} PM`;
+      };
+
+      setTooltipPos({ x, y });
+      setHoveredKey(`${hour}-${dow}`);
+      setTooltipData({
+        label: `${DAY_LABELS[dow]} ${formatHour(hour)}`,
+        count: cell?.totalCount ?? 0,
+        weight: cell?.totalWeight ?? 0,
+        breakdown,
+        accentColor: ACCENT,
+      });
+    },
+    []
+  );
+
+  const handleCellLeave = useCallback(() => {
+    setTooltipData(null);
+    setHoveredKey(null);
+  }, []);
 
   // ── Render ──────────────────────────────────────────────────────────────
 
@@ -225,7 +280,7 @@ export default function TemporalRhythmHeatmap({ scope = 'project' }: TemporalRhy
         ) : (
           <>
             {/* ── Heatmap Grid ───────────────────────────────────────── */}
-            <div className="overflow-x-auto custom-scrollbar-subtle">
+            <div className="overflow-x-auto custom-scrollbar-subtle relative" ref={svgContainerRef}>
               <svg width={svgWidth} height={svgHeight} className="block">
                 {/* Hour labels along top */}
                 {HOUR_LABELS.map((label, h) =>
@@ -265,35 +320,48 @@ export default function TemporalRhythmHeatmap({ scope = 'project' }: TemporalRhy
                     const cell = cellLookup.get(`${h}-${d}`);
                     const weight = cell?.totalWeight ?? 0;
                     const isSelected = selectedCell?.hour === h && selectedCell?.dayOfWeek === d;
+                    const cellKey = `${h}-${d}`;
+                    const isHovered = hoveredKey === cellKey;
+                    const cx = LABEL_WIDTH + h * (CELL_SIZE + CELL_GAP);
+                    const cy = LABEL_HEIGHT + d * (CELL_SIZE + CELL_GAP);
 
                     return (
                       <motion.rect
-                        key={`${h}-${d}`}
-                        x={LABEL_WIDTH + h * (CELL_SIZE + CELL_GAP)}
-                        y={LABEL_HEIGHT + d * (CELL_SIZE + CELL_GAP)}
+                        key={cellKey}
+                        x={cx}
+                        y={cy}
                         width={CELL_SIZE}
                         height={CELL_SIZE}
                         rx={3}
                         fill={getCellColor(weight, maxWeight)}
-                        stroke={isSelected ? '#06b6d4' : 'transparent'}
-                        strokeWidth={isSelected ? 1.5 : 0}
+                        stroke={isHovered ? 'rgba(6, 182, 212, 0.4)' : isSelected ? '#06b6d4' : 'transparent'}
+                        strokeWidth={isHovered || isSelected ? 1.5 : 0}
                         className="cursor-pointer"
+                        style={{
+                          transformOrigin: `${cx + CELL_SIZE / 2}px ${cy + CELL_SIZE / 2}px`,
+                          transform: isHovered ? 'scale(1.15)' : 'scale(1)',
+                          transition: 'transform 0.12s ease-out, stroke 0.12s ease-out',
+                        }}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ ...transition.snappy, delay: (d * 24 + h) * 0.001 }}
+                        transition={{ duration: 0.15, delay: (d * 24 + h) * 0.001 }}
+                        onMouseEnter={(e) => handleCellEnter(e, h, d, cell)}
+                        onMouseLeave={handleCellLeave}
                         onClick={() => {
                           if (cell) setSelectedCell(cell);
                           else setSelectedCell({ hour: h, dayOfWeek: d, totalCount: 0, totalWeight: 0, byType: {} });
                         }}
-                      >
-                        <title>
-                          {DAY_LABELS[d]} {h}:00 — {cell?.totalCount ?? 0} signals ({weight.toFixed(1)} weight)
-                        </title>
-                      </motion.rect>
+                      />
                     );
                   })
                 )}
               </svg>
+              <HeatmapTooltip
+                data={tooltipData}
+                x={tooltipPos.x}
+                y={tooltipPos.y}
+                containerWidth={svgContainerRef.current?.clientWidth ?? svgWidth}
+              />
             </div>
 
             {/* Legend */}
@@ -339,15 +407,15 @@ export default function TemporalRhythmHeatmap({ scope = 'project' }: TemporalRhy
 
 // ── Cell Drill-Down ─────────────────────────────────────────────────────────
 
-const SIGNAL_TYPE_LABELS: Record<string, string> = {
-  git_activity: 'Git Activity',
-  api_focus: 'API Focus',
-  context_focus: 'Context Focus',
-  implementation: 'Implementation',
-  cross_task_analysis: 'Cross-Task Analysis',
-  cross_task_selection: 'Cross-Task Selection',
-  cli_memory: 'CLI Memory',
-  session_cluster: 'Session Cluster',
+const SIGNAL_TYPE_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+  git_activity: { label: 'Git Activity', icon: GitNeuralPathway, color: '#10b981' },
+  api_focus: { label: 'API Focus', icon: ApiSignalPulse, color: '#3b82f6' },
+  context_focus: { label: 'Context Focus', icon: ContextBrainLayer, color: '#8b5cf6' },
+  implementation: { label: 'Implementation', icon: CircuitComplete, color: '#f59e0b' },
+  cross_task_analysis: { label: 'Cross-Task Analysis', icon: Brain, color: '#a78bfa' },
+  cross_task_selection: { label: 'Cross-Task Selection', icon: Brain, color: '#a78bfa' },
+  cli_memory: { label: 'CLI Memory', icon: Terminal, color: '#06b6d4' },
+  session_cluster: { label: 'Session Cluster', icon: Clock, color: '#a1a1aa' },
 };
 
 function CellDrillDown({ cell, onClose }: { cell: TemporalCell; onClose: () => void }) {
@@ -387,17 +455,22 @@ function CellDrillDown({ cell, onClose }: { cell: TemporalCell; onClose: () => v
         <div className="space-y-2">
           <SectionHeading className="mb-0">By Type</SectionHeading>
           {typeEntries.map(([type, stats]) => {
+            const meta = SIGNAL_TYPE_META[type];
+            const Icon = meta?.icon ?? Brain;
+            const color = meta?.color ?? '#a1a1aa';
             const barWidth = (stats.count / maxCount) * 100;
             return (
               <div key={type} className="flex items-center gap-2">
+                <Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color }} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between text-2xs mb-0.5">
-                    <span className="text-zinc-300 truncate">{SIGNAL_TYPE_LABELS[type] ?? type}</span>
+                    <span className="text-zinc-300 truncate">{meta?.label ?? type}</span>
                     <span className="text-zinc-500 tabular-nums ml-2">{stats.count} / {stats.weight.toFixed(1)}w</span>
                   </div>
                   <div className="h-1 rounded-full bg-zinc-800 overflow-hidden">
                     <motion.div
-                      className="h-full rounded-full bg-cyan-500/70"
+                      className="h-full rounded-full"
+                      style={{ backgroundColor: color }}
                       initial={{ width: 0 }}
                       animate={{ width: `${barWidth}%` }}
                       transition={{ duration: duration.expand, ease: easing.entrance }}

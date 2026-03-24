@@ -1,25 +1,28 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import {
-  Palette, Globe, Database, TestTube, Gauge, Shield, Layers, Code2,
-} from 'lucide-react';
 import type { KnowledgeDomain } from '@/app/db/models/knowledge.types';
+import {
+  IconUI, IconAPI, IconDatabase, IconTesting,
+  IconPerformance, IconSecurity, IconArchitecture, IconStateManagement,
+} from './DomainIcons';
 import { KNOWLEDGE_DOMAIN_LABELS } from '@/app/db/models/knowledge.types';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { transition } from '@/lib/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import ConfidenceBar from './ConfidenceBar';
 
-const DOMAIN_CONFIG: Partial<Record<KnowledgeDomain, { icon: typeof Palette; color: string; accent: string }>> & Record<string, { icon: typeof Palette; color: string; accent: string }> = {
-  ui:               { icon: Palette,  color: 'text-pink-400',   accent: 'rgba(236,72,153,0.12)' },
-  api:              { icon: Globe,    color: 'text-blue-400',   accent: 'rgba(59,130,246,0.12)' },
-  state_management: { icon: Layers,   color: 'text-purple-400', accent: 'rgba(168,85,247,0.12)' },
-  database:         { icon: Database, color: 'text-amber-400',  accent: 'rgba(245,158,11,0.12)' },
-  testing:          { icon: TestTube, color: 'text-green-400',  accent: 'rgba(34,197,94,0.12)' },
-  performance:      { icon: Gauge,    color: 'text-cyan-400',   accent: 'rgba(6,182,212,0.12)' },
-  architecture:     { icon: Code2,    color: 'text-indigo-400', accent: 'rgba(99,102,241,0.12)' },
-  security:         { icon: Shield,   color: 'text-red-400',    accent: 'rgba(239,68,68,0.12)' },
+type DomainIcon = React.ComponentType<{ className?: string }>;
+
+const DOMAIN_CONFIG: Partial<Record<KnowledgeDomain, { icon: DomainIcon; color: string; accent: string }>> & Record<string, { icon: DomainIcon; color: string; accent: string }> = {
+  ui:               { icon: IconUI,              color: 'text-pink-400',   accent: 'rgba(236,72,153,0.12)' },
+  api:              { icon: IconAPI,             color: 'text-blue-400',   accent: 'rgba(59,130,246,0.12)' },
+  state_management: { icon: IconStateManagement, color: 'text-purple-400', accent: 'rgba(168,85,247,0.12)' },
+  database:         { icon: IconDatabase,        color: 'text-amber-400',  accent: 'rgba(245,158,11,0.12)' },
+  testing:          { icon: IconTesting,         color: 'text-green-400',  accent: 'rgba(34,197,94,0.12)' },
+  performance:      { icon: IconPerformance,     color: 'text-cyan-400',   accent: 'rgba(6,182,212,0.12)' },
+  architecture:     { icon: IconArchitecture,    color: 'text-indigo-400', accent: 'rgba(99,102,241,0.12)' },
+  security:         { icon: IconSecurity,        color: 'text-red-400',    accent: 'rgba(239,68,68,0.12)' },
 };
 
 export { DOMAIN_CONFIG };

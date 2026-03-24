@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ThumbsUp, ThumbsDown, Trash2, Copy, BookOpen, Code2, AlertTriangle, FileText, Tag } from 'lucide-react';
+import { KBErrorBanner } from './KBErrorStates';
 import type { DbKnowledgeEntry } from '@/app/db/models/knowledge.types';
 import { KNOWLEDGE_CATEGORY_LABELS, KNOWLEDGE_LAYER_LABELS } from '@/app/db/models/knowledge.types';
 import type { KnowledgeCategory, KnowledgeLayer } from '@/app/db/models/knowledge.types';
@@ -40,11 +41,12 @@ const TITLE_ID = 'entry-detail-title';
 export default function EntryDetailPanel({ entry, onClose, onFeedback, onDelete }: EntryDetailPanelProps) {
   const prefersReduced = useReducedMotion();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Reset delete confirmation when entry changes
-  useEffect(() => { setConfirmDelete(false); }, [entry?.id]);
+  // Reset state when entry changes
+  useEffect(() => { setConfirmDelete(false); setFeedbackError(null); }, [entry?.id]);
 
   // Auto-focus close button on open
   useEffect(() => {
@@ -242,17 +244,38 @@ export default function EntryDetailPanel({ entry, onClose, onFeedback, onDelete 
                 <MetaItem label="Status" value={entry.status} />
               </div>
 
+              {/* Feedback error */}
+              <AnimatePresence>
+                {feedbackError && (
+                  <div className="pb-2">
+                    <KBErrorBanner
+                      error={feedbackError}
+                      context="feedback"
+                      compact
+                      reducedMotion={prefersReduced}
+                      onDismiss={() => setFeedbackError(null)}
+                    />
+                  </div>
+                )}
+              </AnimatePresence>
+
               {/* Actions */}
               <div className="flex items-center gap-2 pt-4 border-t border-zinc-800/50">
                 <button
-                  onClick={() => onFeedback(entry.id, true)}
+                  onClick={() => {
+                    setFeedbackError(null);
+                    try { onFeedback(entry.id, true); } catch { setFeedbackError('Failed to submit feedback'); }
+                  }}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors"
                 >
                   <ThumbsUp className="w-3.5 h-3.5" />
                   Helpful
                 </button>
                 <button
-                  onClick={() => onFeedback(entry.id, false)}
+                  onClick={() => {
+                    setFeedbackError(null);
+                    try { onFeedback(entry.id, false); } catch { setFeedbackError('Failed to submit feedback'); }
+                  }}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-zinc-400 bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/30 transition-colors"
                 >
                   <ThumbsDown className="w-3.5 h-3.5" />

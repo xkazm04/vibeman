@@ -2,16 +2,10 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
-import { Caveat } from 'next/font/google';
+import { caveat } from '@/app/fonts';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import GettingStartedItem from './GettingStartedItem';
 import { transition } from '@/lib/motion';
-
-const caveat = Caveat({
-  weight: ['400', '500', '600', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-});
 
 export interface OnboardingTask {
   id: string;

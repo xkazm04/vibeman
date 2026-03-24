@@ -7,8 +7,8 @@
 
 'use client';
 
-import { useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { useMemo, useRef, useEffect, useState } from 'react';
+import { motion, useMotionValue, useSpring } from 'framer-motion';
 import {
   ListChecks, CheckCircle2, XCircle,
   RefreshCw, Brain, Wrench, Clock, DollarSign,
@@ -42,17 +42,57 @@ interface MetricItemProps {
   title: string;
 }
 
+function AnimatedNumber({ value }: { value: number }) {
+  const motionValue = useMotionValue(value);
+  const spring = useSpring(motionValue, { duration: 0.3 });
+  const [display, setDisplay] = useState(value);
+
+  useEffect(() => {
+    motionValue.set(value);
+  }, [value, motionValue]);
+
+  useEffect(() => {
+    const unsubscribe = spring.on('change', (v) => {
+      setDisplay(Math.round(v));
+    });
+    return unsubscribe;
+  }, [spring]);
+
+  return <>{display}</>;
+}
+
 function MetricItem({ icon: Icon, value, colorClass, delay, title }: MetricItemProps) {
+  const prevValueRef = useRef(value);
+  const [flash, setFlash] = useState(false);
+
+  useEffect(() => {
+    if (prevValueRef.current !== value) {
+      prevValueRef.current = value;
+      setFlash(true);
+      const timer = setTimeout(() => setFlash(false), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [value]);
+
   return (
     <motion.div
-      className="flex items-center gap-1.5"
+      className="flex items-center gap-1.5 rounded px-1 -mx-1"
       initial={{ opacity: 0, y: 5 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: delay * 0.05 }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        backgroundColor: flash ? 'rgba(6, 182, 212, 0.05)' : 'rgba(6, 182, 212, 0)',
+      }}
+      transition={{
+        delay: delay * 0.05,
+        backgroundColor: { duration: 0.6, ease: 'easeOut' },
+      }}
       title={title}
     >
       <Icon className={`w-3.5 h-3.5 ${colorClass}`} />
-      <span className={`text-sm font-bold font-mono ${colorClass}`}>{value}</span>
+      <span className={`text-sm font-bold font-mono tabular-nums ${colorClass}`}>
+        {typeof value === 'number' ? <AnimatedNumber value={value} /> : value}
+      </span>
     </motion.div>
   );
 }
@@ -124,12 +164,12 @@ export default function MetricsBar({ metrics, processLog, isRunning }: MetricsBa
         <MetricItem icon={CheckCircle2} value={tasksCompleted} colorClass={METRIC_COLORS.emerald} delay={1} title="Tasks completed" />
         <MetricItem icon={XCircle} value={tasksFailed} colorClass={METRIC_COLORS.red} delay={2} title="Tasks failed" />
         <div className="flex items-center gap-1.5" title="Success rate">
-          <span className={`text-sm font-bold font-mono ${
+          <span className={`text-sm font-bold font-mono tabular-nums ${
             successRate >= 80 ? 'text-emerald-400' :
             successRate >= 50 ? 'text-amber-400' :
             'text-red-400'
           }`}>
-            {successRate}%
+            <AnimatedNumber value={successRate} />%
           </span>
         </div>
       </MetricGroup>

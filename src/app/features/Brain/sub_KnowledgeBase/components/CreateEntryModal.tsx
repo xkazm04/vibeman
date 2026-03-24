@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, FileText } from 'lucide-react';
+import { KBErrorBanner } from './KBErrorStates';
 import {
   KNOWLEDGE_LANGUAGES,
   KNOWLEDGE_LAYERS, KNOWLEDGE_LAYER_LABELS,
@@ -56,6 +57,7 @@ const DEFAULT_FORM = {
 export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEntryModalProps) {
   const prefersReduced = useReducedMotion();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [form, setForm] = useState({ ...DEFAULT_FORM });
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [showTemplates, setShowTemplates] = useState(true);
@@ -99,8 +101,9 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
     e.preventDefault();
     if (!form.title.trim() || !form.pattern.trim()) return;
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
-      await onCreate({
+      const result = await onCreate({
         domain: form.domain,
         layer: form.layer,
         pattern_type: form.pattern_type,
@@ -114,10 +117,17 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
         confidence: form.confidence,
         source_type: 'manual',
       });
+      if (!result) {
+        setSubmitError('Failed to create entry');
+        return;
+      }
       onClose();
+      setSubmitError(null);
       setForm({ ...DEFAULT_FORM });
       setSelectedTemplateId(null);
       setShowTemplates(true);
+    } catch {
+      setSubmitError('Failed to create entry — connection error');
     } finally {
       setIsSubmitting(false);
     }
@@ -352,7 +362,21 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
               </div>
 
               {/* Footer */}
-              <div className="sticky bottom-0 flex items-center justify-end gap-2 px-6 py-4 bg-zinc-900/95 backdrop-blur-xl border-t border-zinc-800/50">
+              <div className="sticky bottom-0 bg-zinc-900/95 backdrop-blur-xl border-t border-zinc-800/50">
+                <AnimatePresence>
+                  {submitError && (
+                    <div className="px-6 pt-3">
+                      <KBErrorBanner
+                        error={submitError}
+                        context="create"
+                        compact
+                        reducedMotion={prefersReduced}
+                        onDismiss={() => setSubmitError(null)}
+                      />
+                    </div>
+                  )}
+                </AnimatePresence>
+              <div className="flex items-center justify-end gap-2 px-6 py-4">
                 <button
                   type="button"
                   onClick={onClose}
@@ -368,6 +392,7 @@ export default function CreateEntryModal({ isOpen, onClose, onCreate }: CreateEn
                   <Plus className="w-3.5 h-3.5" />
                   {isSubmitting ? 'Creating...' : 'Create Entry'}
                 </button>
+              </div>
               </div>
             </form>
 

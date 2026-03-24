@@ -6,10 +6,9 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { duration, easing } from '@/lib/motion';
-import BrainEmptyState from './BrainEmptyState';
 import {
   CalendarDays,
   X,
@@ -23,11 +22,14 @@ import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useHeatmap } from '../lib/queries';
 import GlowCard from './GlowCard';
 import BrainPanelHeader from './BrainPanelHeader';
+import BrainEmptyState from './BrainEmptyState';
 import { inlineExpand, inlineExpandTransition, collapse, collapseTransition } from '../lib/motionPresets';
 import NeuralPulseLoader from './NeuralPulseLoader';
 import SectionHeading from './SectionHeading';
 import { DATA_FONT, FONT_SIZE } from '../lib/brainFonts';
 import { BRAIN_CHART, getHeatmapIntensity } from '../lib/brainChartColors';
+import HeatmapTooltip from './HeatmapTooltip';
+import type { HeatmapTooltipData, TooltipTypeBreakdown } from './HeatmapTooltip';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -74,6 +76,12 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
 
   // Drill-down state
   const [selectedDay, setSelectedDay] = useState<HeatmapDayData | null>(null);
+
+  // Tooltip state
+  const [tooltipData, setTooltipData] = useState<HeatmapTooltipData | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+  const svgContainerRef = useRef<HTMLDivElement>(null);
 
   // Trend chart state
   const [trendContext, setTrendContext] = useState<string>('all');
@@ -147,6 +155,50 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
     return { totalSignals: ts, totalWeight: tw, activeDays: ad };
   }, [data]);
 
+  // Build tooltip data from a hovered cell
+  const handleCellEnter = useCallback(
+    (e: React.MouseEvent<SVGRectElement>, cell: { date: string; data: HeatmapDayData | null }) => {
+      const rect = svgContainerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const svgRect = (e.target as SVGRectElement).getBoundingClientRect();
+      const x = svgRect.left - rect.left + svgRect.width / 2;
+      const y = svgRect.top - rect.top;
+
+      const dayData = cell.data;
+      const breakdown: TooltipTypeBreakdown[] = dayData
+        ? Object.entries(dayData.by_type)
+            .sort(([, a], [, b]) => b.weight - a.weight)
+            .map(([type, stats]) => ({
+              type,
+              label: SIGNAL_TYPE_META[type]?.label ?? type,
+              count: stats.count,
+              weight: stats.weight,
+              color: SIGNAL_TYPE_META[type]?.color ?? BRAIN_CHART.brand.accent,
+            }))
+        : [];
+
+      setTooltipPos({ x, y });
+      setHoveredDate(cell.date);
+      setTooltipData({
+        label: new Date(cell.date + 'T12:00:00').toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+        }),
+        count: dayData?.total_count ?? 0,
+        weight: dayData?.total_weight ?? 0,
+        breakdown,
+        accentColor: BRAIN_CHART.brand.accent,
+      });
+    },
+    []
+  );
+
+  const handleCellLeave = useCallback(() => {
+    setTooltipData(null);
+    setHoveredDate(null);
+  }, []);
+
   // ── Render ──────────────────────────────────────────────────────────────
 
   if (isLoading) {
@@ -167,7 +219,11 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
       <GlowCard accentColor={ACCENT} glowColor={GLOW} borderColorClass="border-purple-500/20">
         <div className="p-6">
           <BrainPanelHeader icon={CalendarDays} title="Signal Activity" accentColor={ACCENT} glowColor={GLOW} glow />
-          <p className="text-sm text-red-400">{error}</p>
+          <BrainEmptyState
+            icon={<CalendarDays className="w-10 h-10 text-red-400/60" />}
+            title="Unable to load activity"
+            description="Something went wrong loading heatmap data. Try refreshing."
+          />
         </div>
       </GlowCard>
     );
@@ -211,7 +267,7 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
             description="The heatmap will fill in as signals are captured across your projects."
           />
         ) : (<>
-        <div className="overflow-x-auto custom-scrollbar-subtle">
+        <div className="overflow-x-auto custom-scrollbar-subtle relative" ref={svgContainerRef}>
           <svg width={svgWidth} height={svgHeight} className="block">
             {/* Month labels */}
             {monthMarkers.map((m, i) => (
@@ -247,6 +303,7 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
             {grid.map((cell, i) => {
               const weight = cell.data?.total_weight ?? 0;
               const isSelected = selectedDay?.date === cell.date;
+              const isHovered = hoveredDate === cell.date;
               return (
                 <motion.rect
                   key={cell.date}
@@ -256,24 +313,33 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
                   height={CELL_SIZE}
                   rx={2}
                   fill={getHeatmapIntensity(weight, maxWeight)}
-                  stroke={isSelected ? BRAIN_CHART.brand.accent : 'transparent'}
-                  strokeWidth={isSelected ? 1.5 : 0}
-                  className="cursor-pointer transition-colors"
+                  stroke={isHovered ? 'rgba(139, 92, 246, 0.4)' : isSelected ? BRAIN_CHART.brand.accent : 'transparent'}
+                  strokeWidth={isHovered || isSelected ? 1.5 : 0}
+                  className="cursor-pointer"
+                  style={{
+                    transformOrigin: `${30 + cell.col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2}px ${16 + cell.row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2}px`,
+                    transform: isHovered ? 'scale(1.15)' : 'scale(1)',
+                    transition: 'transform 0.12s ease-out, stroke 0.12s ease-out',
+                  }}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.2, delay: i * 0.002 }}
+                  onMouseEnter={(e) => handleCellEnter(e, cell)}
+                  onMouseLeave={handleCellLeave}
                   onClick={() => {
                     if (cell.data) setSelectedDay(cell.data);
                     else setSelectedDay({ date: cell.date, total_count: 0, total_weight: 0, by_type: {}, by_context: {} });
                   }}
-                >
-                  <title>
-                    {cell.date}: {cell.data?.total_count ?? 0} signals ({weight.toFixed(1)} effective weight)
-                  </title>
-                </motion.rect>
+                />
               );
             })}
           </svg>
+          <HeatmapTooltip
+            data={tooltipData}
+            x={tooltipPos.x}
+            y={tooltipPos.y}
+            containerWidth={svgContainerRef.current?.clientWidth ?? svgWidth}
+          />
         </div>
 
         {/* Legend */}

@@ -1,32 +1,34 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useCanvasData } from '@/app/features/Brain/sub_MemoryCanvas/lib/useCanvasData';
 import { CanvasStore } from '@/app/features/Brain/sub_MemoryCanvas/lib/canvasStore';
 
 // Mock dependencies
-jest.mock('@/stores/clientProjectStore', () => ({
-  useClientProjectStore: jest.fn((selector) =>
+vi.mock('@/stores/clientProjectStore', () => ({
+  useClientProjectStore: vi.fn((selector) =>
     selector({ activeProject: { id: 'test-project-1', name: 'Test', path: '/test' } })
   ),
 }));
 
-jest.mock('@/hooks/usePolling', () => ({
-  usePolling: jest.fn(),
+vi.mock('@/hooks/usePolling', () => ({
+  usePolling: vi.fn(),
 }));
 
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 describe('useCanvasData polling integration', () => {
   let mockStore: CanvasStore;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockStore = {
-      setEvents: jest.fn(),
-      getState: jest.fn(),
-      subscribe: jest.fn(),
+      setEvents: vi.fn(),
+      getState: vi.fn(),
+      subscribe: vi.fn(),
     } as any;
 
-    (global.fetch as jest.Mock).mockResolvedValue({
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: async () => ({
         success: true,
@@ -89,7 +91,7 @@ describe('useCanvasData polling integration', () => {
   });
 
   it('should handle fetch errors gracefully', async () => {
-    (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
+    (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
 
     const { result } = renderHook(() =>
       useCanvasData({

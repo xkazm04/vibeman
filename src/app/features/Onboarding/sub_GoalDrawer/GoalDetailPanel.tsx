@@ -1,17 +1,11 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Caveat } from 'next/font/google';
+import { caveat } from '@/app/fonts';
 import { Target } from 'lucide-react';
 import { Goal } from '@/types';
 import { useGoalContext } from '@/contexts/GoalContext';
 import GoalsDetailModalContent from '@/app/features/Goals/sub_GoalModal/components/GoalsDetailModalContent';
-
-const caveat = Caveat({
-  weight: ['400', '500', '600', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-});
 
 interface GoalDetailPanelProps {
   goal: Goal;

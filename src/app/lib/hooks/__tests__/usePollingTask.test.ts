@@ -1,9 +1,11 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { usePollingTask, getPollingPulseAnimation } from '../usePollingTask';
 
 // Helper to create a mock polling function
 const createMockPollingFn = () => {
-  const mockFn = jest.fn();
+  const mockFn = vi.fn();
   return mockFn;
 };
 
@@ -12,18 +14,18 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 describe('usePollingTask', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.useFakeTimers();
+    vi.clearAllMocks();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
-    jest.useRealTimers();
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
   });
 
   describe('Basic Polling', () => {
     it('should execute polling function immediately on mount', async () => {
-      const mockFn = jest.fn().mockResolvedValue('test-data');
+      const mockFn = vi.fn().mockResolvedValue('test-data');
 
       renderHook(() =>
         usePollingTask(mockFn, { interval: 1000 })
@@ -38,7 +40,7 @@ describe('usePollingTask', () => {
     });
 
     it('should poll at specified interval', async () => {
-      const mockFn = jest.fn().mockResolvedValue('test-data');
+      const mockFn = vi.fn().mockResolvedValue('test-data');
 
       renderHook(() =>
         usePollingTask(mockFn, { interval: 1000 })
@@ -52,21 +54,21 @@ describe('usePollingTask', () => {
 
       // First interval
       await act(async () => {
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await Promise.resolve();
       });
       expect(mockFn).toHaveBeenCalledTimes(2);
 
       // Second interval
       await act(async () => {
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await Promise.resolve();
       });
       expect(mockFn).toHaveBeenCalledTimes(3);
     });
 
     it('should update data state with polling results', async () => {
-      const mockFn = jest.fn().mockResolvedValue('test-data');
+      const mockFn = vi.fn().mockResolvedValue('test-data');
 
       const { result } = renderHook(() =>
         usePollingTask(mockFn, { interval: 1000 })
@@ -81,7 +83,7 @@ describe('usePollingTask', () => {
     });
 
     it('should set isLoading to false after successful poll', async () => {
-      const mockFn = jest.fn().mockResolvedValue('test-data');
+      const mockFn = vi.fn().mockResolvedValue('test-data');
 
       const { result } = renderHook(() =>
         usePollingTask(mockFn, { interval: 1000 })
@@ -99,7 +101,7 @@ describe('usePollingTask', () => {
 
   describe('AbortController and Cleanup', () => {
     it('should pass AbortSignal to polling function', async () => {
-      const mockFn = jest.fn().mockResolvedValue('test-data');
+      const mockFn = vi.fn().mockResolvedValue('test-data');
 
       renderHook(() =>
         usePollingTask(mockFn, { interval: 1000 })
@@ -116,7 +118,7 @@ describe('usePollingTask', () => {
 
     it('should abort ongoing request on unmount', async () => {
       let capturedSignal: AbortSignal | null = null;
-      const mockFn = jest.fn().mockImplementation(async (signal: AbortSignal) => {
+      const mockFn = vi.fn().mockImplementation(async (signal: AbortSignal) => {
         capturedSignal = signal;
         await delay(500);
         return 'test-data';
@@ -139,7 +141,7 @@ describe('usePollingTask', () => {
     });
 
     it('should abort and restart on dependency change', async () => {
-      const mockFn = jest.fn().mockResolvedValue('test-data');
+      const mockFn = vi.fn().mockResolvedValue('test-data');
       let dependency = 'dep1';
 
       const { rerender } = renderHook(
@@ -171,7 +173,7 @@ describe('usePollingTask', () => {
     });
 
     it('should clear timeout on unmount', async () => {
-      const mockFn = jest.fn().mockResolvedValue('test-data');
+      const mockFn = vi.fn().mockResolvedValue('test-data');
 
       const { unmount } = renderHook(() =>
         usePollingTask(mockFn, { interval: 1000 })
@@ -187,7 +189,7 @@ describe('usePollingTask', () => {
 
       // Advance timers - should not trigger new poll
       await act(async () => {
-        jest.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(2000);
         await Promise.resolve();
       });
 
@@ -195,7 +197,7 @@ describe('usePollingTask', () => {
     });
 
     it('should not update state after abort', async () => {
-      const mockFn = jest.fn().mockImplementation(async (signal: AbortSignal) => {
+      const mockFn = vi.fn().mockImplementation(async (signal: AbortSignal) => {
         await delay(100);
         if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
         return 'test-data';
@@ -210,7 +212,7 @@ describe('usePollingTask', () => {
       unmount();
 
       await act(async () => {
-        jest.advanceTimersByTime(200);
+        vi.advanceTimersByTime(200);
         await Promise.resolve();
       });
 
@@ -221,7 +223,7 @@ describe('usePollingTask', () => {
 
   describe('Manual Control', () => {
     it('should cancel polling when cancel() is called', async () => {
-      const mockFn = jest.fn().mockResolvedValue('test-data');
+      const mockFn = vi.fn().mockResolvedValue('test-data');
 
       const { result } = renderHook(() =>
         usePollingTask(mockFn, { interval: 1000 })
@@ -239,7 +241,7 @@ describe('usePollingTask', () => {
 
       // Advance timers - should not trigger new poll
       await act(async () => {
-        jest.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(2000);
         await Promise.resolve();
       });
 
@@ -248,7 +250,7 @@ describe('usePollingTask', () => {
     });
 
     it('should restart polling when restart() is called', async () => {
-      const mockFn = jest.fn().mockResolvedValue('test-data');
+      const mockFn = vi.fn().mockResolvedValue('test-data');
 
       const { result } = renderHook(() =>
         usePollingTask(mockFn, { interval: 1000 })
@@ -265,7 +267,7 @@ describe('usePollingTask', () => {
       });
 
       await act(async () => {
-        jest.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(2000);
         await Promise.resolve();
       });
 
@@ -282,7 +284,7 @@ describe('usePollingTask', () => {
 
     it('should reset retry count on restart', async () => {
       let callCount = 0;
-      const mockFn = jest.fn().mockImplementation(async () => {
+      const mockFn = vi.fn().mockImplementation(async () => {
         callCount++;
         if (callCount <= 2) throw new Error('Test error');
         return 'test-data';
@@ -312,7 +314,7 @@ describe('usePollingTask', () => {
   describe('Error Handling and Retry Logic', () => {
     it('should set error state on polling failure', async () => {
       const testError = new Error('Test error');
-      const mockFn = jest.fn().mockRejectedValue(testError);
+      const mockFn = vi.fn().mockRejectedValue(testError);
 
       const { result } = renderHook(() =>
         usePollingTask(mockFn, { interval: 1000 })
@@ -327,7 +329,7 @@ describe('usePollingTask', () => {
     });
 
     it('should increment retry count on failure', async () => {
-      const mockFn = jest.fn().mockRejectedValue(new Error('Test error'));
+      const mockFn = vi.fn().mockRejectedValue(new Error('Test error'));
 
       const { result } = renderHook(() =>
         usePollingTask(mockFn, { interval: 1000, maxRetries: 3 })
@@ -340,7 +342,7 @@ describe('usePollingTask', () => {
       expect(result.current.retryCount).toBe(1);
 
       await act(async () => {
-        jest.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(2000);
         await Promise.resolve();
       });
 
@@ -348,7 +350,7 @@ describe('usePollingTask', () => {
     });
 
     it('should apply exponential backoff on retries', async () => {
-      const mockFn = jest.fn().mockRejectedValue(new Error('Test error'));
+      const mockFn = vi.fn().mockRejectedValue(new Error('Test error'));
 
       const { result } = renderHook(() =>
         usePollingTask(mockFn, { interval: 1000, maxRetries: 3, backoffMultiplier: 2 })
@@ -363,13 +365,13 @@ describe('usePollingTask', () => {
 
       // First retry - should wait 2000ms (1000 * 2^1)
       await act(async () => {
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await Promise.resolve();
       });
       expect(mockFn).toHaveBeenCalledTimes(1); // Not yet
 
       await act(async () => {
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await Promise.resolve();
       });
       expect(mockFn).toHaveBeenCalledTimes(2);
@@ -377,20 +379,20 @@ describe('usePollingTask', () => {
 
       // Second retry - should wait 4000ms (1000 * 2^2)
       await act(async () => {
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
         await Promise.resolve();
       });
       expect(mockFn).toHaveBeenCalledTimes(2); // Not yet
 
       await act(async () => {
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await Promise.resolve();
       });
       expect(mockFn).toHaveBeenCalledTimes(3);
     });
 
     it('should stop incrementing retryCount after maxRetries', async () => {
-      const mockFn = jest.fn().mockRejectedValue(new Error('Test error'));
+      const mockFn = vi.fn().mockRejectedValue(new Error('Test error'));
 
       const { result } = renderHook(() =>
         usePollingTask(mockFn, { interval: 1000, maxRetries: 2 })
@@ -404,14 +406,14 @@ describe('usePollingTask', () => {
 
       // First retry - retry count becomes 2
       await act(async () => {
-        jest.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(2000);
         await Promise.resolve();
       });
       expect(result.current.retryCount).toBe(2);
 
       // Second retry - retry count should stay at 2 (max reached)
       await act(async () => {
-        jest.advanceTimersByTime(4000);
+        vi.advanceTimersByTime(4000);
         await Promise.resolve();
       });
       expect(result.current.retryCount).toBe(2);
@@ -419,7 +421,7 @@ describe('usePollingTask', () => {
 
     it('should reset retry count on successful poll', async () => {
       let callCount = 0;
-      const mockFn = jest.fn().mockImplementation(async () => {
+      const mockFn = vi.fn().mockImplementation(async () => {
         callCount++;
         if (callCount === 1) throw new Error('Test error');
         return 'test-data';
@@ -439,7 +441,7 @@ describe('usePollingTask', () => {
 
       // Second call - success
       await act(async () => {
-        jest.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(2000);
         await Promise.resolve();
       });
 
@@ -450,7 +452,7 @@ describe('usePollingTask', () => {
 
     it('should implement stale-while-revalidate pattern', async () => {
       let callCount = 0;
-      const mockFn = jest.fn().mockImplementation(async () => {
+      const mockFn = vi.fn().mockImplementation(async () => {
         callCount++;
         if (callCount === 1) return 'first-data';
         if (callCount === 2) throw new Error('Test error');
@@ -471,7 +473,7 @@ describe('usePollingTask', () => {
 
       // Second call - error (should keep previous data)
       await act(async () => {
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await Promise.resolve();
       });
 
@@ -480,7 +482,7 @@ describe('usePollingTask', () => {
 
       // Third call - success (should update data)
       await act(async () => {
-        jest.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(2000);
         await Promise.resolve();
       });
 
@@ -489,7 +491,7 @@ describe('usePollingTask', () => {
     });
 
     it('should ignore AbortError and not update error state', async () => {
-      const mockFn = jest.fn().mockImplementation(async (signal: AbortSignal) => {
+      const mockFn = vi.fn().mockImplementation(async (signal: AbortSignal) => {
         await delay(100);
         if (signal.aborted) {
           const error = new DOMException('Aborted', 'AbortError');
@@ -505,7 +507,7 @@ describe('usePollingTask', () => {
       unmount();
 
       await act(async () => {
-        jest.advanceTimersByTime(200);
+        vi.advanceTimersByTime(200);
         await Promise.resolve();
       });
 
@@ -515,7 +517,7 @@ describe('usePollingTask', () => {
 
   describe('Start Behavior', () => {
     it('should not start polling when startImmediately is false', async () => {
-      const mockFn = jest.fn().mockResolvedValue('test-data');
+      const mockFn = vi.fn().mockResolvedValue('test-data');
 
       const { result } = renderHook(() =>
         usePollingTask(mockFn, { interval: 1000, startImmediately: false })
@@ -523,7 +525,7 @@ describe('usePollingTask', () => {
 
       await act(async () => {
         await Promise.resolve();
-        jest.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(2000);
         await Promise.resolve();
       });
 
@@ -532,7 +534,7 @@ describe('usePollingTask', () => {
     });
 
     it('should start polling when restart() is called after startImmediately: false', async () => {
-      const mockFn = jest.fn().mockResolvedValue('test-data');
+      const mockFn = vi.fn().mockResolvedValue('test-data');
 
       const { result } = renderHook(() =>
         usePollingTask(mockFn, { interval: 1000, startImmediately: false })
@@ -551,7 +553,7 @@ describe('usePollingTask', () => {
 
   describe('Race Conditions', () => {
     it('should handle rapid dependency changes without race conditions', async () => {
-      const mockFn = jest.fn().mockImplementation(async (signal: AbortSignal) => {
+      const mockFn = vi.fn().mockImplementation(async (signal: AbortSignal) => {
         await delay(100);
         if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
         return 'test-data';
@@ -593,7 +595,7 @@ describe('usePollingTask', () => {
 
     it('should not have stale closures affecting polling interval', async () => {
       const results: number[] = [];
-      const mockFn = jest.fn().mockImplementation(async () => {
+      const mockFn = vi.fn().mockImplementation(async () => {
         results.push(Date.now());
         return 'test-data';
       });
@@ -609,13 +611,13 @@ describe('usePollingTask', () => {
 
       // Second call after 1000ms
       await act(async () => {
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await Promise.resolve();
       });
 
       // Third call after another 1000ms
       await act(async () => {
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await Promise.resolve();
       });
 
@@ -631,7 +633,7 @@ describe('usePollingTask', () => {
       }
 
       const mockData: TestData = { id: 1, name: 'test' };
-      const mockFn = jest.fn().mockResolvedValue(mockData);
+      const mockFn = vi.fn().mockResolvedValue(mockData);
 
       const { result } = renderHook(() =>
         usePollingTask<TestData>(mockFn, { interval: 1000 })
@@ -647,7 +649,7 @@ describe('usePollingTask', () => {
     });
 
     it('should handle null and undefined gracefully', async () => {
-      const mockFn = jest.fn().mockResolvedValue(null);
+      const mockFn = vi.fn().mockResolvedValue(null);
 
       const { result } = renderHook(() =>
         usePollingTask<string | null>(mockFn, { interval: 1000 })

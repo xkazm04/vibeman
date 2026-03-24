@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { v4 as uuidv4 } from 'uuid';
 import { GET, POST, PATCH, DELETE } from '@/app/api/ideas/route';
 import {
   getTestDatabase,
@@ -28,6 +29,11 @@ import {
   insertTestContext,
   generateId,
 } from '@tests/setup/mock-factories';
+
+// Mock observability middleware (uses contextApiRouteDb from @/app/db transitively)
+vi.mock('@/lib/observability/middleware', () => ({
+  withObservability: (handler: Function) => handler,
+}));
 
 // Mock analytics service
 vi.mock('@/lib/services/analyticsAggregation', () => ({
@@ -180,6 +186,18 @@ vi.mock('@/app/db', async () => {
         return result.changes;
       },
     },
+    scanDb: {
+      getScanById: (id: string) => {
+        const db = getTestDatabase();
+        return db.prepare('SELECT * FROM scans WHERE id = ?').get(id);
+      },
+    },
+    contextDb: {
+      getContextById: (id: string) => {
+        const db = getTestDatabase();
+        return db.prepare('SELECT * FROM contexts WHERE id = ?').get(id);
+      },
+    },
     DbIdea: {},
     DbIdeaWithColor: {},
   };
@@ -192,9 +210,9 @@ describe('API /api/ideas', () => {
 
   beforeEach(() => {
     setupTestDatabase();
-    testProjectId = generateId('proj');
-    testScanId = generateId('scan');
-    testContextId = generateId('ctx');
+    testProjectId = uuidv4();
+    testScanId = uuidv4();
+    testContextId = uuidv4();
 
     // Insert test project
     const db = getTestDatabase();
@@ -316,7 +334,7 @@ describe('API /api/ideas', () => {
       const request = createPostRequest('/api/ideas', {
         scan_id: testScanId,
         project_id: testProjectId,
-        category: 'enhancement',
+        category: 'functionality',
         title: 'New Idea',
         description: 'Idea description',
       });
@@ -333,7 +351,7 @@ describe('API /api/ideas', () => {
         scan_id: testScanId,
         project_id: testProjectId,
         context_id: testContextId,
-        category: 'enhancement',
+        category: 'functionality',
         title: 'Idea with Context',
       });
       const response = await POST(request);
@@ -346,7 +364,7 @@ describe('API /api/ideas', () => {
     it('returns 400 when scan_id is missing', async () => {
       const request = createPostRequest('/api/ideas', {
         project_id: testProjectId,
-        category: 'enhancement',
+        category: 'functionality',
         title: 'Idea without scan',
       });
       const response = await POST(request);
@@ -357,7 +375,7 @@ describe('API /api/ideas', () => {
     it('returns 400 when project_id is missing', async () => {
       const request = createPostRequest('/api/ideas', {
         scan_id: testScanId,
-        category: 'enhancement',
+        category: 'functionality',
         title: 'Idea without project',
       });
       const response = await POST(request);
@@ -380,7 +398,7 @@ describe('API /api/ideas', () => {
       const request = createPostRequest('/api/ideas', {
         scan_id: testScanId,
         project_id: testProjectId,
-        category: 'enhancement',
+        category: 'functionality',
       });
       const response = await POST(request);
 
@@ -391,7 +409,7 @@ describe('API /api/ideas', () => {
       const request = createPostRequest('/api/ideas', {
         scan_id: testScanId,
         project_id: testProjectId,
-        category: 'enhancement',
+        category: 'functionality',
         title: 'Idea without scan_type',
       });
       const response = await POST(request);
@@ -405,7 +423,7 @@ describe('API /api/ideas', () => {
   describe('PATCH', () => {
     it('updates idea status', async () => {
       const db = getTestDatabase();
-      const idea = createTestIdea({ project_id: testProjectId, scan_id: testScanId, status: 'pending' });
+      const idea = createTestIdea({ id: uuidv4(), project_id: testProjectId, scan_id: testScanId, status: 'pending' });
       insertTestIdea(db, idea);
 
       const request = createPatchRequest('/api/ideas', {
@@ -421,7 +439,7 @@ describe('API /api/ideas', () => {
 
     it('updates idea title and description', async () => {
       const db = getTestDatabase();
-      const idea = createTestIdea({ project_id: testProjectId, scan_id: testScanId });
+      const idea = createTestIdea({ id: uuidv4(), project_id: testProjectId, scan_id: testScanId });
       insertTestIdea(db, idea);
 
       const request = createPatchRequest('/api/ideas', {
@@ -448,7 +466,7 @@ describe('API /api/ideas', () => {
 
     it('returns 404 when idea not found', async () => {
       const request = createPatchRequest('/api/ideas', {
-        id: 'nonexistent-id',
+        id: uuidv4(),
         status: 'accepted',
       });
       const response = await PATCH(request);
@@ -458,7 +476,7 @@ describe('API /api/ideas', () => {
 
     it('returns 400 for invalid status', async () => {
       const db = getTestDatabase();
-      const idea = createTestIdea({ project_id: testProjectId, scan_id: testScanId });
+      const idea = createTestIdea({ id: uuidv4(), project_id: testProjectId, scan_id: testScanId });
       insertTestIdea(db, idea);
 
       const request = createPatchRequest('/api/ideas', {
@@ -472,7 +490,7 @@ describe('API /api/ideas', () => {
 
     it('updates user feedback', async () => {
       const db = getTestDatabase();
-      const idea = createTestIdea({ project_id: testProjectId, scan_id: testScanId });
+      const idea = createTestIdea({ id: uuidv4(), project_id: testProjectId, scan_id: testScanId });
       insertTestIdea(db, idea);
 
       const request = createPatchRequest('/api/ideas', {
@@ -490,7 +508,7 @@ describe('API /api/ideas', () => {
   describe('DELETE', () => {
     it('deletes single idea', async () => {
       const db = getTestDatabase();
-      const idea = createTestIdea({ project_id: testProjectId, scan_id: testScanId });
+      const idea = createTestIdea({ id: uuidv4(), project_id: testProjectId, scan_id: testScanId });
       insertTestIdea(db, idea);
 
       const request = createDeleteRequest('/api/ideas', { id: idea.id });
@@ -533,7 +551,7 @@ describe('API /api/ideas', () => {
     });
 
     it('returns 404 when idea not found', async () => {
-      const request = createDeleteRequest('/api/ideas', { id: 'nonexistent-id' });
+      const request = createDeleteRequest('/api/ideas', { id: uuidv4() });
       const response = await DELETE(request);
 
       expect(response.status).toBe(404);

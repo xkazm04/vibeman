@@ -15,10 +15,11 @@ import {
 export default function KnowledgeBaseLayout() {
   const activeProject = useClientProjectStore(s => s.activeProject);
   const {
-    entries, stats, tree, isLoading,
+    entries, stats, tree, isLoading, error,
     selection, setSelection,
     searchQuery, setSearchQuery,
     breadcrumb,
+    fetchEntries,
     createEntry, deleteEntry, recordFeedback, exportEntries,
   } = useKnowledgeBase();
 
@@ -63,6 +64,8 @@ export default function KnowledgeBaseLayout() {
             onSelectEntry={setSelectedEntry}
             isLoading={isLoading}
             breadcrumb={breadcrumb}
+            error={error}
+            onRetry={fetchEntries}
           />
         }
       />

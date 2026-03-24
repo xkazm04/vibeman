@@ -3,6 +3,8 @@
  * Demonstrates multiple concurrent pollers and cleanup scenarios
  */
 
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { usePollingTask } from '../index';
 import {
@@ -14,22 +16,22 @@ import {
 import { POLLING_PRESETS, mergePreset } from '../presets';
 
 // Mock fetch for tests
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 describe('Polling Library Integration Tests', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.useFakeTimers();
+    vi.clearAllMocks();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
-    jest.useRealTimers();
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
   });
 
   describe('Basic Polling Functionality', () => {
     it('should poll at specified interval', async () => {
-      const fetcher = jest.fn().mockResolvedValue({ data: 'test' });
+      const fetcher = vi.fn().mockResolvedValue({ data: 'test' });
 
       const { result } = renderHook(() =>
         usePollingTask(fetcher, {
@@ -42,10 +44,10 @@ describe('Polling Library Integration Tests', () => {
       await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
 
       // Advance time and verify polling
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(3));
 
       expect(result.current.data).toEqual({ data: 'test' });
@@ -53,7 +55,7 @@ describe('Polling Library Integration Tests', () => {
     });
 
     it('should handle manual start and stop', async () => {
-      const fetcher = jest.fn().mockResolvedValue({ data: 'test' });
+      const fetcher = vi.fn().mockResolvedValue({ data: 'test' });
 
       const { result } = renderHook(() =>
         usePollingTask(fetcher, {
@@ -68,7 +70,7 @@ describe('Polling Library Integration Tests', () => {
       result.current.start();
       await waitFor(() => expect(result.current.isPolling).toBe(true));
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await waitFor(() => expect(fetcher).toHaveBeenCalled());
 
       // Stop polling
@@ -76,12 +78,12 @@ describe('Polling Library Integration Tests', () => {
       await waitFor(() => expect(result.current.isPolling).toBe(false));
 
       const callCount = fetcher.mock.calls.length;
-      jest.advanceTimersByTime(2000);
+      vi.advanceTimersByTime(2000);
       expect(fetcher).toHaveBeenCalledTimes(callCount); // No additional calls
     });
 
     it('should trigger manual poll', async () => {
-      const fetcher = jest.fn().mockResolvedValue({ data: 'manual' });
+      const fetcher = vi.fn().mockResolvedValue({ data: 'manual' });
 
       const { result } = renderHook(() =>
         usePollingTask(fetcher, {
@@ -96,7 +98,7 @@ describe('Polling Library Integration Tests', () => {
     });
 
     it('should reset state and restart polling', async () => {
-      const fetcher = jest.fn().mockResolvedValue({ data: 'test' });
+      const fetcher = vi.fn().mockResolvedValue({ data: 'test' });
 
       const { result } = renderHook(() =>
         usePollingTask(fetcher, {
@@ -108,7 +110,7 @@ describe('Polling Library Integration Tests', () => {
       await waitFor(() => expect(fetcher).toHaveBeenCalled());
 
       // Accumulate some stats
-      jest.advanceTimersByTime(3000);
+      vi.advanceTimersByTime(3000);
       await waitFor(() => expect(result.current.stats.totalPolls).toBeGreaterThan(1));
 
       // Reset
@@ -122,7 +124,7 @@ describe('Polling Library Integration Tests', () => {
 
   describe('Retry Logic', () => {
     it('should retry on failure with exponential backoff', async () => {
-      const fetcher = jest.fn()
+      const fetcher = vi.fn()
         .mockRejectedValueOnce(new Error('Fail 1'))
         .mockRejectedValueOnce(new Error('Fail 2'))
         .mockResolvedValueOnce({ data: 'success' });
@@ -142,11 +144,11 @@ describe('Polling Library Integration Tests', () => {
       expect(result.current.retryCount).toBe(1);
 
       // First retry (100ms delay)
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
       await waitFor(() => expect(result.current.retryCount).toBe(2));
 
       // Second retry (200ms delay)
-      jest.advanceTimersByTime(200);
+      vi.advanceTimersByTime(200);
       await waitFor(() => {
         expect(result.current.data).toEqual({ data: 'success' });
         expect(result.current.error).toBeNull();
@@ -155,8 +157,8 @@ describe('Polling Library Integration Tests', () => {
     });
 
     it('should stop retrying after max retries', async () => {
-      const fetcher = jest.fn().mockRejectedValue(new Error('Always fails'));
-      const onError = jest.fn();
+      const fetcher = vi.fn().mockRejectedValue(new Error('Always fails'));
+      const onError = vi.fn();
 
       const { result } = renderHook(() =>
         usePollingTask(fetcher, {
@@ -171,7 +173,7 @@ describe('Polling Library Integration Tests', () => {
       await waitFor(() => expect(result.current.error).toBeTruthy());
 
       // Wait for all retries
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await waitFor(() => expect(onError).toHaveBeenCalledTimes(3)); // Initial + 2 retries
 
       expect(result.current.error?.message).toBe('Always fails');
@@ -180,7 +182,7 @@ describe('Polling Library Integration Tests', () => {
 
   describe('Adaptive Polling', () => {
     it('should increase interval on consecutive successes', async () => {
-      const fetcher = jest.fn().mockResolvedValue({ data: 'test' });
+      const fetcher = vi.fn().mockResolvedValue({ data: 'test' });
 
       const { result } = renderHook(() =>
         usePollingTask(fetcher, {
@@ -198,10 +200,10 @@ describe('Polling Library Integration Tests', () => {
       const initialInterval = result.current.currentInterval;
 
       // Wait for 2 successful polls
-      jest.advanceTimersByTime(2000);
+      vi.advanceTimersByTime(2000);
       await waitFor(() => expect(result.current.stats.successfulPolls).toBeGreaterThan(0));
 
-      jest.advanceTimersByTime(2000);
+      vi.advanceTimersByTime(2000);
       await waitFor(() => expect(result.current.stats.consecutiveSuccesses).toBeGreaterThanOrEqual(2));
 
       // Interval should increase
@@ -210,7 +212,7 @@ describe('Polling Library Integration Tests', () => {
 
     it('should decrease interval on consecutive failures', async () => {
       let failCount = 0;
-      const fetcher = jest.fn().mockImplementation(() => {
+      const fetcher = vi.fn().mockImplementation(() => {
         if (failCount++ < 3) {
           return Promise.reject(new Error('Fail'));
         }
@@ -234,10 +236,10 @@ describe('Polling Library Integration Tests', () => {
       const initialInterval = result.current.currentInterval;
 
       // Wait for consecutive failures
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await waitFor(() => expect(result.current.stats.failedPolls).toBeGreaterThan(0));
 
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await waitFor(() => expect(result.current.stats.consecutiveFailures).toBeGreaterThanOrEqual(2));
 
       // Interval should decrease
@@ -247,9 +249,9 @@ describe('Polling Library Integration Tests', () => {
 
   describe('Multiple Concurrent Pollers', () => {
     it('should run multiple pollers independently', async () => {
-      const fetcher1 = jest.fn().mockResolvedValue({ id: 1 });
-      const fetcher2 = jest.fn().mockResolvedValue({ id: 2 });
-      const fetcher3 = jest.fn().mockResolvedValue({ id: 3 });
+      const fetcher1 = vi.fn().mockResolvedValue({ id: 1 });
+      const fetcher2 = vi.fn().mockResolvedValue({ id: 2 });
+      const fetcher3 = vi.fn().mockResolvedValue({ id: 3 });
 
       const { result: result1 } = renderHook(() =>
         usePollingTask(fetcher1, { interval: 1000, executeImmediately: true })
@@ -269,7 +271,7 @@ describe('Polling Library Integration Tests', () => {
         expect(fetcher3).toHaveBeenCalled();
       });
 
-      jest.advanceTimersByTime(6000);
+      vi.advanceTimersByTime(6000);
 
       await waitFor(() => {
         expect(result1.current.stats.totalPolls).toBeGreaterThan(result2.current.stats.totalPolls);
@@ -279,9 +281,9 @@ describe('Polling Library Integration Tests', () => {
 
     it('should clean up all pollers on unmount', async () => {
       const fetchers = [
-        jest.fn().mockResolvedValue({ id: 1 }),
-        jest.fn().mockResolvedValue({ id: 2 }),
-        jest.fn().mockResolvedValue({ id: 3 }),
+        vi.fn().mockResolvedValue({ id: 1 }),
+        vi.fn().mockResolvedValue({ id: 2 }),
+        vi.fn().mockResolvedValue({ id: 3 }),
       ];
 
       const hooks = fetchers.map(fetcher =>
@@ -298,7 +300,7 @@ describe('Polling Library Integration Tests', () => {
       const totalCalls = fetchers.reduce((sum, f) => sum + f.mock.calls.length, 0);
 
       // Advance time and verify no more calls
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       const newTotalCalls = fetchers.reduce((sum, f) => sum + f.mock.calls.length, 0);
 
       expect(newTotalCalls).toBe(totalCalls);
@@ -307,7 +309,7 @@ describe('Polling Library Integration Tests', () => {
 
   describe('Factory Functions', () => {
     it('should create log refresh poller with correct config', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.fetch as vi.Mock).mockResolvedValue({
         ok: true,
         json: async () => ['log1', 'log2', 'log3'],
       });
@@ -335,7 +337,7 @@ describe('Polling Library Integration Tests', () => {
 
     it('should create status check poller with stop condition', async () => {
       let status = 'running';
-      (global.fetch as jest.Mock).mockImplementation(async () => ({
+      (global.fetch as vi.Mock).mockImplementation(async () => ({
         ok: true,
         json: async () => ({ status }),
       }));
@@ -355,7 +357,7 @@ describe('Polling Library Integration Tests', () => {
 
       // Change status to completed
       status = 'completed';
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
 
       await waitFor(() => {
         expect(result.current.data?.status).toBe('completed');
@@ -364,7 +366,7 @@ describe('Polling Library Integration Tests', () => {
     });
 
     it('should create health monitor for multiple endpoints', async () => {
-      (global.fetch as jest.Mock)
+      (global.fetch as vi.Mock)
         .mockResolvedValueOnce({ ok: true, json: async () => ({ healthy: true }) })
         .mockResolvedValueOnce({ ok: true, json: async () => ({ healthy: true }) })
         .mockRejectedValueOnce(new Error('Endpoint down'));
@@ -388,7 +390,7 @@ describe('Polling Library Integration Tests', () => {
 
     it('should create real-time poller with history buffer', async () => {
       let counter = 0;
-      (global.fetch as jest.Mock).mockImplementation(async () => ({
+      (global.fetch as vi.Mock).mockImplementation(async () => ({
         ok: true,
         json: async () => ({ value: counter++ }),
       }));
@@ -404,7 +406,7 @@ describe('Polling Library Integration Tests', () => {
 
       // Wait for multiple polls
       for (let i = 0; i < 3; i++) {
-        jest.advanceTimersByTime(500);
+        vi.advanceTimersByTime(500);
         await waitFor(() => expect(result.current.stats.totalPolls).toBeGreaterThan(i));
       }
 
@@ -415,7 +417,7 @@ describe('Polling Library Integration Tests', () => {
 
   describe('Preset Configurations', () => {
     it('should use aggressive preset correctly', async () => {
-      const fetcher = jest.fn().mockResolvedValue({ data: 'test' });
+      const fetcher = vi.fn().mockResolvedValue({ data: 'test' });
 
       const { result } = renderHook(() =>
         usePollingTask(fetcher, POLLING_PRESETS.aggressive)
@@ -426,8 +428,8 @@ describe('Polling Library Integration Tests', () => {
     });
 
     it('should merge preset with custom options', async () => {
-      const fetcher = jest.fn().mockResolvedValue({ data: 'test' });
-      const onSuccess = jest.fn();
+      const fetcher = vi.fn().mockResolvedValue({ data: 'test' });
+      const onSuccess = vi.fn();
 
       const config = mergePreset('conservative', {
         interval: 10000,
@@ -447,7 +449,7 @@ describe('Polling Library Integration Tests', () => {
   describe('Performance Statistics', () => {
     it('should track polling statistics accurately', async () => {
       let callCount = 0;
-      const fetcher = jest.fn().mockImplementation(() => {
+      const fetcher = vi.fn().mockImplementation(() => {
         if (callCount++ % 3 === 0) {
           return Promise.reject(new Error('Periodic failure'));
         }
@@ -464,7 +466,7 @@ describe('Polling Library Integration Tests', () => {
 
       // Execute multiple polls
       for (let i = 0; i < 5; i++) {
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await waitFor(() => expect(result.current.stats.totalPolls).toBeGreaterThan(i));
       }
 
@@ -475,7 +477,7 @@ describe('Polling Library Integration Tests', () => {
     });
 
     it('should calculate average latency', async () => {
-      const fetcher = jest.fn().mockImplementation(
+      const fetcher = vi.fn().mockImplementation(
         () => new Promise(resolve => setTimeout(() => resolve({ data: 'test' }), 50))
       );
 
@@ -486,7 +488,7 @@ describe('Polling Library Integration Tests', () => {
         })
       );
 
-      jest.advanceTimersByTime(50);
+      vi.advanceTimersByTime(50);
       await waitFor(() => expect(result.current.stats.totalPolls).toBeGreaterThan(0));
 
       expect(result.current.stats.averageLatency).toBeGreaterThan(0);
@@ -495,7 +497,7 @@ describe('Polling Library Integration Tests', () => {
 
   describe('Error Scenarios', () => {
     it('should handle timeout', async () => {
-      const fetcher = jest.fn().mockImplementation(
+      const fetcher = vi.fn().mockImplementation(
         () => new Promise(resolve => setTimeout(resolve, 10000))
       );
 
@@ -507,13 +509,13 @@ describe('Polling Library Integration Tests', () => {
         })
       );
 
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
       await waitFor(() => expect(result.current.error).toBeTruthy());
       expect(result.current.error?.message).toContain('timeout');
     });
 
     it('should handle abort controller cleanup', async () => {
-      const fetcher = jest.fn().mockResolvedValue({ data: 'test' });
+      const fetcher = vi.fn().mockResolvedValue({ data: 'test' });
 
       const { result, unmount } = renderHook(() =>
         usePollingTask(fetcher, {
@@ -529,13 +531,13 @@ describe('Polling Library Integration Tests', () => {
 
       // Advance time and ensure no more calls
       const callCount = fetcher.mock.calls.length;
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       expect(fetcher).toHaveBeenCalledTimes(callCount);
     });
 
     it('should call onError callback on failures', async () => {
-      const fetcher = jest.fn().mockRejectedValue(new Error('Test error'));
-      const onError = jest.fn();
+      const fetcher = vi.fn().mockRejectedValue(new Error('Test error'));
+      const onError = vi.fn();
 
       renderHook(() =>
         usePollingTask(fetcher, {
@@ -557,7 +559,7 @@ describe('Polling Library Integration Tests', () => {
   describe('Conditional Polling', () => {
     it('should stop polling when shouldContinue returns false', async () => {
       let counter = 0;
-      const fetcher = jest.fn().mockImplementation(() => {
+      const fetcher = vi.fn().mockImplementation(() => {
         return Promise.resolve({ count: ++counter });
       });
 
@@ -571,7 +573,7 @@ describe('Polling Library Integration Tests', () => {
 
       // Poll until counter reaches 3
       for (let i = 0; i < 5; i++) {
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await waitFor(() => expect(result.current.stats.totalPolls).toBeGreaterThan(i));
 
         if (!result.current.isPolling) break;
