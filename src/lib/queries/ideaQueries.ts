@@ -76,9 +76,15 @@ async function fetchIdeas(filters?: {
   return data.ideas || [];
 }
 
-async function fetchBufferIdeas(): Promise<DbIdea[]> {
+async function fetchBufferIdeas(projectId?: string): Promise<DbIdea[]> {
   // Buffer shows pending and accepted ideas
-  const response = await fetch('/api/ideas', {
+  const params = new URLSearchParams();
+  if (projectId && projectId !== 'all') {
+    params.append('projectId', projectId);
+  }
+
+  const url = `/api/ideas${params.toString() ? `?${params.toString()}` : ''}`;
+  const response = await fetch(url, {
     cache: 'no-cache',
     headers: {
       'Cache-Control': 'no-cache',
@@ -158,12 +164,17 @@ async function deleteContextIdeasApi(
  * Hook for fetching buffer ideas (pending + accepted)
  * Uses React Query for caching, automatic refetching, and optimistic updates
  */
-export function useBufferIdeas() {
+export function useBufferIdeas(projectId?: string) {
   const queryClient = useQueryClient();
 
+  // Use project-specific cache key when filtering by project
+  const queryKey = projectId && projectId !== 'all'
+    ? [...ideaQueryKeys.buffer(), { projectId }] as const
+    : ideaQueryKeys.buffer();
+
   const query = useQuery({
-    queryKey: ideaQueryKeys.buffer(),
-    queryFn: fetchBufferIdeas,
+    queryKey,
+    queryFn: () => fetchBufferIdeas(projectId),
     staleTime: 5000, // Consider data fresh for 5 seconds
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     refetchOnWindowFocus: false,
@@ -178,7 +189,7 @@ export function useBufferIdeas() {
   // Optimistic update for a single idea
   const updateIdeaOptimistically = useCallback(
     (ideaId: string, updates: Partial<DbIdea>) => {
-      queryClient.setQueryData<DbIdea[]>(ideaQueryKeys.buffer(), (oldData) => {
+      queryClient.setQueryData<DbIdea[]>(queryKey, (oldData) => {
         if (!oldData) return oldData;
 
         return oldData.map((idea) =>
@@ -186,55 +197,55 @@ export function useBufferIdeas() {
         );
       });
     },
-    [queryClient]
+    [queryClient, queryKey]
   );
 
   // Optimistic remove for a single idea
   const removeIdeaOptimistically = useCallback(
     (ideaId: string) => {
-      queryClient.setQueryData<DbIdea[]>(ideaQueryKeys.buffer(), (oldData) => {
+      queryClient.setQueryData<DbIdea[]>(queryKey, (oldData) => {
         if (!oldData) return oldData;
         return oldData.filter((idea) => idea.id !== ideaId);
       });
     },
-    [queryClient]
+    [queryClient, queryKey]
   );
 
   // Optimistic remove for all ideas in a context
   const removeContextIdeasOptimistically = useCallback(
     (contextId: string) => {
-      queryClient.setQueryData<DbIdea[]>(ideaQueryKeys.buffer(), (oldData) => {
+      queryClient.setQueryData<DbIdea[]>(queryKey, (oldData) => {
         if (!oldData) return oldData;
         return oldData.filter((idea) => idea.context_id !== contextId);
       });
     },
-    [queryClient]
+    [queryClient, queryKey]
   );
 
   // Add idea back (for rollback)
   const addIdeaOptimistically = useCallback(
     (idea: DbIdea) => {
-      queryClient.setQueryData<DbIdea[]>(ideaQueryKeys.buffer(), (oldData) => {
+      queryClient.setQueryData<DbIdea[]>(queryKey, (oldData) => {
         if (!oldData) return [idea];
         // Only add if not already present
         if (oldData.some((i) => i.id === idea.id)) return oldData;
         return [...oldData, idea];
       });
     },
-    [queryClient]
+    [queryClient, queryKey]
   );
 
   // Add ideas back (for rollback)
   const addIdeasOptimistically = useCallback(
     (ideas: DbIdea[]) => {
-      queryClient.setQueryData<DbIdea[]>(ideaQueryKeys.buffer(), (oldData) => {
+      queryClient.setQueryData<DbIdea[]>(queryKey, (oldData) => {
         if (!oldData) return ideas;
         const existingIds = new Set(oldData.map((i) => i.id));
         const newIdeas = ideas.filter((idea) => !existingIds.has(idea.id));
         return [...oldData, ...newIdeas];
       });
     },
-    [queryClient]
+    [queryClient, queryKey]
   );
 
   return {
