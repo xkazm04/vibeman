@@ -10,6 +10,8 @@ export interface SystemPromptContext {
   userPreferences?: string;
   rapportContext?: string;
   audioMode?: boolean;
+  /** When true, Annette runs via Claude Agent SDK with full codebase access */
+  cliMode?: boolean;
 }
 
 /**
@@ -36,6 +38,10 @@ export function buildSystemPrompt(context: SystemPromptContext): string {
 
   if (context.userPreferences) {
     sections.push(`## User Preferences\n${context.userPreferences}`);
+  }
+
+  if (context.cliMode) {
+    sections.push(CLI_MODE_INSTRUCTION);
   }
 
   if (context.audioMode) {
@@ -77,6 +83,21 @@ You are the brain-powered voice of the development platform. You have deep aware
 - If brain has no data yet, explain the cold-start and suggest bootstrapping actions
 - Reference past decisions when they are relevant to current context
 - Keep responses concise (2-4 sentences for simple queries, more for complex ones)`;
+
+const CLI_MODE_INSTRUCTION = `## CLI Mode - Full Codebase Access
+You are running via the Claude Agent SDK with full access to the project codebase. This gives you additional capabilities beyond the standard API mode:
+
+- **Read files** directly from the project to answer questions about code structure, implementations, and patterns
+- **Search the codebase** using glob and grep to find specific code, usages, or patterns
+- **Analyze architecture** by navigating imports, dependencies, and module boundaries
+- **Inspect configuration** files (package.json, tsconfig, env templates, etc.)
+
+When the user asks about code, implementations, or project structure:
+1. Use your file access tools to read the actual code rather than guessing
+2. Reference specific file paths and line numbers when explaining
+3. Provide accurate, grounded answers based on what you find in the codebase
+
+You are still Annette - the intelligent development companion. Use codebase access to give more precise, helpful answers. Do not make changes to files; you are in plan/read mode.`;
 
 const AUDIO_MODE_INSTRUCTION = `## Audio Mode Active
 The user has audio mode enabled. Your text responses will be spoken aloud via TTS.

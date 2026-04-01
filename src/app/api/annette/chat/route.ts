@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { orchestrate, ConversationMessage } from '@/lib/annette/orchestrator';
+import { orchestrateCLI } from '@/lib/annette/cliOrchestrator';
 import { analyzeAndUpdateRapport } from '@/lib/annette/rapportEngine';
 import { withObservability } from '@/lib/observability/middleware';
 import { logger } from '@/lib/logger';
@@ -19,12 +20,14 @@ interface ChatRequest {
   sessionId?: string;
   conversationHistory?: ConversationMessage[];
   audioMode?: boolean;
+  /** Orchestration mode: 'api' uses Anthropic Messages API (Haiku), 'cli' uses Claude Agent SDK */
+  mode?: 'api' | 'cli';
 }
 
 async function handlePost(request: NextRequest) {
   try {
     const body: ChatRequest = await request.json();
-    const { message, projectId, projectPath, conversationHistory, audioMode } = body;
+    const { message, projectId, projectPath, conversationHistory, audioMode, mode } = body;
 
     if (!message || !projectId) {
       return NextResponse.json(
@@ -33,20 +36,27 @@ async function handlePost(request: NextRequest) {
       );
     }
 
+    const orchestrationMode = mode || 'cli';
+
     logger.info('Annette chat request', {
       projectId,
       messageLength: message.length,
       historyLength: conversationHistory?.length || 0,
+      mode: orchestrationMode,
     });
 
-    // Run orchestration
-    const result = await orchestrate({
+    // Run orchestration based on mode
+    const orchestratorInput = {
       message,
       projectId,
       projectPath,
       conversationHistory,
       audioMode,
-    });
+    };
+
+    const result = orchestrationMode === 'cli'
+      ? await orchestrateCLI(orchestratorInput)
+      : await orchestrate(orchestratorInput);
 
     logger.info('Annette chat response', {
       projectId,

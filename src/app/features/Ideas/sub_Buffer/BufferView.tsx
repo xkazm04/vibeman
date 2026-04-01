@@ -59,12 +59,12 @@ export default function BufferView({
     setTimeout(() => setErrorBanner(null), 5000);
   }, []);
 
-  // Use React Query for fetching and caching ideas
+  // Use React Query for fetching and caching ideas (server-side filtered by project)
   const {
     ideas,
     isLoading,
     refetch,
-  } = useBufferIdeas();
+  } = useBufferIdeas(filterProject);
 
   // Mutations with optimistic updates
   const deleteIdeaMutation = useDeleteIdea();
@@ -74,13 +74,8 @@ export default function BufferView({
   // Dependency counts for chain icon display
   const [dependencyCounts, setDependencyCounts] = React.useState<Record<string, number>>({});
 
-  // Filter ideas by project if needed
-  const filteredIdeas = React.useMemo(() => {
-    if (filterProject === 'all') {
-      return ideas;
-    }
-    return ideas.filter((idea) => idea.project_id === filterProject);
-  }, [ideas, filterProject]);
+  // Ideas are already filtered by project via the API query (useBufferIdeas)
+  const filteredIdeas = ideas;
 
   // Load dependency counts for visible ideas (debounced to avoid rapid-fire during filtering)
   React.useEffect(() => {
