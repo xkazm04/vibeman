@@ -23,6 +23,7 @@ import {
 import { UseTestModeResult } from '../lib/useTestMode';
 import { TestScenarioId, ReplaySession } from '../lib/testScenarios';
 import { transition } from '@/lib/motion';
+import { formatDateTimeShort } from '@/lib/formatDate';
 
 interface TestModeControlsProps {
   testMode: UseTestModeResult;
@@ -74,15 +75,6 @@ export default function TestModeControls({
     return `${seconds}s`;
   };
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   return (
     <motion.div
@@ -314,7 +306,7 @@ export default function TestModeControls({
                               session={session}
                               onReplay={() => testMode.startReplay(session.id)}
                               onDelete={() => testMode.deleteSavedSession(session.id)}
-                              formatDate={formatDate}
+                              formatDateTimeShort={formatDateTimeShort}
                               formatDuration={formatDuration}
                             />
                           ))}
@@ -383,7 +375,7 @@ interface SessionCardProps {
   session: ReplaySession;
   onReplay: () => void;
   onDelete: () => void;
-  formatDate: (dateStr: string) => string;
+  formatDateTimeShort: (dateStr: string) => string;
   formatDuration: (ms: number) => string;
 }
 
@@ -391,7 +383,7 @@ function SessionCard({
   session,
   onReplay,
   onDelete,
-  formatDate,
+  formatDateTimeShort,
   formatDuration,
 }: SessionCardProps) {
   const totalDuration = session.actions.reduce((sum, a) => sum + a.duration, 0);
@@ -405,7 +397,7 @@ function SessionCard({
           {session.scenarioId} ({session.actions.length} actions)
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-400">
-          <span>{formatDate(session.startedAt)}</span>
+          <span>{formatDateTimeShort(session.startedAt)}</span>
           <span>•</span>
           <span className="text-green-400">{acceptCount}✓</span>
           <span className="text-red-400">{rejectCount}✗</span>

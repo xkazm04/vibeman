@@ -6,13 +6,14 @@ import { collapse, collapseTransition } from '../lib/motionPresets';
 import {
   ExternalLink,
   Loader2,
-  ChevronDown,
   Radio,
   RotateCcw,
 } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
 import type { EvidenceRef } from '@/app/db/models/brain.types';
 import { useEvidenceRefs } from '../lib/queries';
 import type { ResolvedEvidence } from '../lib/queries';
+import { formatRelativeTime } from '@/lib/formatDate';
 
 interface Props {
   evidence: EvidenceRef[];
@@ -48,26 +49,6 @@ const TYPE_ICON: Record<string, typeof ExternalLink> = {
   signal: Radio,
   reflection: RotateCcw,
 };
-
-/**
- * Format a date string as relative time (e.g. "2d ago", "3h ago", "just now")
- */
-function relativeTime(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffMs = now - then;
-  if (isNaN(diffMs) || diffMs < 0) return '';
-
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  const months = Math.floor(days / 30);
-  return `${months}mo ago`;
-}
 
 /**
  * Truncate text to maxLen characters with ellipsis.
@@ -189,11 +170,9 @@ export default function InsightEvidenceLinks({ evidence }: Props) {
                     </span>
                     <span className="text-micro uppercase text-zinc-600 flex-shrink-0">{ref.type}</span>
                     <span className="text-2xs text-zinc-600 flex-shrink-0">
-                      {relativeTime(item.createdAt)}
+                      {formatRelativeTime(item.createdAt)}
                     </span>
-                    <ChevronDown
-                      className={`w-2.5 h-2.5 text-zinc-600 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                    />
+                    <ExpandChevron expanded={isExpanded} className="w-2.5 h-2.5 text-zinc-600 flex-shrink-0" />
                   </button>
 
                   <AnimatePresence>

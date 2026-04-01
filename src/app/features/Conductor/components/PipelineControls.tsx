@@ -12,9 +12,11 @@ import {
   XCircle, ShieldAlert, X, FileText, MessageSquare,
 } from 'lucide-react';
 import { useConductorStore } from '../lib/conductorStore';
+import { errorSurface } from '@/lib/design-tokens';
 import type { PipelineStatus, TriageCheckpointData } from '../lib/types';
 import IntentRefinementModal from './IntentRefinementModal';
 import { UniversalModal } from '@/components/UniversalModal';
+import { MODAL_ICON_GRADIENT } from '../lib/stageTheme';
 
 const TERMINAL_STATUSES: PipelineStatus[] = ['completed', 'failed', 'interrupted'];
 
@@ -109,8 +111,8 @@ function TriageModal({ isOpen, triageData, runId, onClose }: TriageModalProps) {
       title="Triage Review"
       subtitle={`${items.length} items awaiting your decision`}
       icon={ShieldAlert}
-      iconBgColor="from-amber-600/20 to-amber-700/20"
-      iconColor="text-amber-400"
+      iconBgColor={MODAL_ICON_GRADIENT.triage.bg}
+      iconColor={MODAL_ICON_GRADIENT.triage.text}
       maxWidth="max-w-2xl"
       maxHeight="max-h-[80vh]"
       footerActions={[
@@ -544,7 +546,7 @@ export default function PipelineControls({ projectId, onStart, onOpenSettings, o
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className="flex items-center gap-2 mt-2 px-3 py-2 rounded-lg border border-red-600/40 bg-red-600/10 text-red-400 text-xs"
+            className={`flex items-center gap-2 mt-2 px-3 py-2 rounded-lg border ${errorSurface.border} ${errorSurface.bg} ${errorSurface.text} text-xs`}
           >
             <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
             <span className="flex-1">{controlError}</span>

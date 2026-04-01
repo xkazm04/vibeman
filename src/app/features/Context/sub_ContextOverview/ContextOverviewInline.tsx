@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { transition } from '@/lib/motion';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import ContextOverviewHeader, { TabType } from './components/ContextOverviewHeader';
 import ContextDescription from './components/ContextDescription';
 import ContextPreviewManager from '@/app/features/Context/sub_ContextPreview/ContextPreviewManager';
-import TestingTab from './components/TestingTab';
 
 interface ContextOverviewInlineProps {
   context: any;
@@ -56,51 +55,6 @@ const ContextOverviewInline = ({ context, groupColor, onClose }: ContextOverview
     }
   };
 
-  // Ref for debounce timer and last saved value to prevent duplicate saves
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastSavedScenarioRef = useRef<string | null>(null);
-
-  // Save test scenario to database (debounced)
-  const saveTestScenario = useCallback((testScenario: string | null) => {
-    if (!context?.id) return;
-
-    // Skip if value hasn't changed from last save
-    if (lastSavedScenarioRef.current === testScenario) return;
-
-    // Clear any pending save
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    // Debounce: wait 1 second after last change before saving
-    saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        const response = await fetch('/api/contexts', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contextId: context.id,
-            updates: { testScenario },
-          }),
-        });
-
-        if (response.ok) {
-          lastSavedScenarioRef.current = testScenario;
-        }
-      } catch (error) {
-        console.error('[ContextOverviewInline] Failed to save test scenario:', error);
-      }
-    }, 1000);
-  }, [context]);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, []);
 
   if (!context) return null;
 
@@ -148,32 +102,6 @@ const ContextOverviewInline = ({ context, groupColor, onClose }: ContextOverview
                   setCurrentTarget(target || null);
                   setCurrentTargetFulfillment(targetFulfillment || null);
                   // Refresh context from database to get persisted data
-                  await refreshContextFromDB();
-                }}
-              />
-            </motion.div>
-          )}
-
-          {activeTab === 'testing' && (
-            <motion.div
-              key="testing"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={transition.normal}
-            >
-              <TestingTab
-                contextId={context.id}
-                contextName={context.name}
-                groupColor={groupColor}
-                testScenario={currentTestScenario}
-                onTestScenarioChange={(value) => {
-                  setCurrentTestScenario(value);
-                  // Auto-save test scenario to database
-                  saveTestScenario(value);
-                }}
-                onPreviewUpdate={async (previewPath) => {
-                  setCurrentPreview(previewPath);
                   await refreshContextFromDB();
                 }}
               />

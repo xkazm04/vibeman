@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Brain, Sparkles } from 'lucide-react';
 import { DbIdea } from '@/app/db';
+import { formatDateCompact } from '@/lib/formatDate';
 
 interface ScanRightPanelProps {
   projectId?: string;
@@ -46,10 +47,6 @@ export default function ScanRightPanel({ projectId }: ScanRightPanelProps) {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  };
 
   return (
     <motion.div
@@ -111,7 +108,7 @@ export default function ScanRightPanel({ projectId }: ScanRightPanelProps) {
               <div className="flex items-center justify-between gap-2">
                 {/* Date */}
                 <span className="text-sm text-gray-500 font-mono flex-shrink-0">
-                  {formatDate(idea.created_at)}
+                  {formatDateCompact(idea.created_at)}
                 </span>
 
                 {/* Title */}

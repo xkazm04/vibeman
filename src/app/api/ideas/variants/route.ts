@@ -33,8 +33,30 @@ interface GenerateVariantsRequest {
   pregenerated?: IdeaVariant[];
 }
 
-/** In-memory cache: ideaId → variants (survives within server process lifetime) */
+/** LRU cache: ideaId → variants. Evicts oldest entries when capacity is reached. */
+const VARIANT_CACHE_MAX = 500;
 const variantCache = new Map<string, IdeaVariant[]>();
+
+function variantCacheGet(key: string): IdeaVariant[] | undefined {
+  const value = variantCache.get(key);
+  if (value !== undefined) {
+    // Move to end (most recently used)
+    variantCache.delete(key);
+    variantCache.set(key, value);
+  }
+  return value;
+}
+
+function variantCacheSet(key: string, value: IdeaVariant[]): void {
+  if (variantCache.has(key)) {
+    variantCache.delete(key);
+  } else if (variantCache.size >= VARIANT_CACHE_MAX) {
+    // Evict oldest (first key in Map iteration order)
+    const oldest = variantCache.keys().next().value;
+    if (oldest !== undefined) variantCache.delete(oldest);
+  }
+  variantCache.set(key, value);
+}
 
 const VARIANT_SYSTEM_PROMPT = `You are an expert software architect. Given an idea for a software project, generate exactly 3 variants at different scope levels. Each variant should be a practical, actionable version of the same core idea.
 
@@ -115,7 +137,7 @@ export async function GET(request: NextRequest) {
   if (!ideaId) {
     return NextResponse.json({ error: 'ideaId required' }, { status: 400 });
   }
-  const cached = variantCache.get(ideaId);
+  const cached = variantCacheGet(ideaId);
   if (!cached) {
     return NextResponse.json({ ready: false, variants: [] });
   }
@@ -161,7 +183,7 @@ async function handlePost(request: NextRequest) {
         risk: Math.max(1, Math.min(10, Number(v.risk) || 5)),
         reasoning: String(v.reasoning || ''),
       }));
-      variantCache.set(body.ideaId, variants);
+      variantCacheSet(body.ideaId, variants);
       return NextResponse.json({ success: true, ideaId: body.ideaId, variants, cached: true });
     }
 
@@ -186,7 +208,7 @@ async function handlePost(request: NextRequest) {
     }
 
     const variants = parseVariantsResponse(result.response);
-    variantCache.set(idea.id, variants);
+    variantCacheSet(idea.id, variants);
 
     return NextResponse.json({
       success: true,

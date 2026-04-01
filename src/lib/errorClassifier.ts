@@ -312,24 +312,3 @@ export class ErrorClassifier {
   }
 }
 
-/**
- * Utility function to create an error with status code
- */
-export function createHttpError(message: string, statusCode: number): Error {
-  const error = new Error(message);
-  (error as any).status = statusCode;
-  return error;
-}
-
-/**
- * Utility function to extract error message safely
- */
-export function extractErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  if (typeof error === 'string') {
-    return error;
-  }
-  return 'An unknown error occurred';
-}

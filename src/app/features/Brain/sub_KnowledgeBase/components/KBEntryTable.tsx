@@ -9,6 +9,7 @@ import KBEmptyBookSvg from './KBEmptyBookSvg';
 import { KBErrorBanner } from './KBErrorStates';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import type { DbKnowledgeEntry, KnowledgePatternType } from '@/app/db/models/knowledge.types';
+import { getConfidenceColor } from '@/lib/confidenceColor';
 import { KNOWLEDGE_CATEGORY_LABELS, KNOWLEDGE_LAYER_LABELS } from '@/app/db/models/knowledge.types';
 import type { KnowledgeCategory, KnowledgeLayer } from '@/app/db/models/knowledge.types';
 
@@ -20,6 +21,7 @@ const PATTERN_TYPE_STYLES: Record<string, { label: string; cls: string }> = {
   convention:    { label: 'CV', cls: 'bg-blue-500/15 text-blue-400' },
   gotcha:        { label: 'GT', cls: 'bg-amber-500/15 text-amber-400' },
   optimization:  { label: 'OP', cls: 'bg-cyan-500/15 text-cyan-400' },
+  hub:           { label: 'HB', cls: 'bg-purple-500/15 text-purple-400' },
 };
 
 const PATTERN_FILTERS: { value: KnowledgePatternType | 'all'; label: string }[] = [
@@ -29,6 +31,7 @@ const PATTERN_FILTERS: { value: KnowledgePatternType | 'all'; label: string }[] 
   { value: 'convention', label: 'Conventions' },
   { value: 'gotcha', label: 'Gotchas' },
   { value: 'optimization', label: 'Optimizations' },
+  { value: 'hub', label: 'Hubs' },
 ];
 
 interface KBEntryTableProps {
@@ -212,11 +215,7 @@ export default function KBEntryTable({
                 <div className="flex items-center gap-1 flex-shrink-0 w-14">
                   <div className="flex-1 h-1 rounded-full bg-zinc-800 overflow-hidden">
                     <div
-                      className={`h-full rounded-full ${
-                        entry.confidence >= 80 ? 'bg-emerald-500' :
-                        entry.confidence >= 60 ? 'bg-cyan-500' :
-                        entry.confidence >= 30 ? 'bg-amber-500' : 'bg-red-500'
-                      }`}
+                      className={`h-full rounded-full ${getConfidenceColor(entry.confidence).barBg}`}
                       style={{ width: `${entry.confidence}%` }}
                     />
                   </div>

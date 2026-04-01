@@ -4,14 +4,13 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Settings,
-  ChevronDown,
-  ChevronUp,
   Zap,
   Shield,
   Rocket,
   Clock,
   Eye,
 } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
 import {
   LifecycleConfig,
   LifecycleTrigger,
@@ -96,11 +95,7 @@ export default function LifecycleConfigPanel({
         <Icon className="w-4 h-4 text-gray-400" />
         <span>{title}</span>
       </div>
-      {expandedSections.includes(section) ? (
-        <ChevronUp className="w-4 h-4 text-gray-500" />
-      ) : (
-        <ChevronDown className="w-4 h-4 text-gray-500" />
-      )}
+      <ExpandChevron expanded={expandedSections.includes(section)} className="w-4 h-4 text-gray-500" />
     </button>
   );
 

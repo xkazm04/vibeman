@@ -10,9 +10,10 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { transition } from '@/lib/motion';
 import {
-  Send, Loader2, ChevronDown, ChevronRight, Zap, BarChart3, Cpu,
+  Send, Loader2, Zap, BarChart3, Cpu,
   Mic, MicOff, Volume2, BrainCircuit, Database, Radio, Globe, Play,
 } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import VoiceLabTimingBar from './VoiceLabTimingBar';
 
@@ -385,10 +386,10 @@ export default function VoiceLabPanel() {
       <div className="border-b border-slate-800/50">
         <button
           onClick={() => setTechStackOpen(!techStackOpen)}
-          className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium text-slate-400 hover:text-slate-300 transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 outline-none"
+          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-slate-400 hover:text-slate-300 transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 outline-none"
           aria-label={techStackOpen ? 'Collapse pipeline overview' : 'Expand pipeline overview'}
         >
-          {techStackOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+          <ExpandChevron expanded={techStackOpen} className="w-3.5 h-3.5" />
           <Cpu className="w-3.5 h-3.5" />
           Pipeline Component Overview
         </button>
@@ -536,7 +537,7 @@ export default function VoiceLabPanel() {
         </div>
 
         {/* Custom input */}
-        <div className="flex items-center gap-2 bg-slate-800/40 border border-slate-700/30 rounded-xl px-3 py-2 focus-within:border-cyan-500/30 transition-colors">
+        <div className="flex items-center gap-2.5 bg-slate-800/40 border border-slate-700/30 rounded-xl px-3 py-2.5 focus-within:border-cyan-500/30 transition-colors">
           <input
             type="text"
             value={customInput}
@@ -579,6 +580,8 @@ export default function VoiceLabPanel() {
                 key={ex.id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
+                whileHover={{ y: -1, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
+                transition={transition.snappy}
                 className="rounded-xl bg-slate-800/30 border border-slate-700/20 p-3 space-y-2"
               >
                 {/* User prompt */}
@@ -672,10 +675,10 @@ export default function VoiceLabPanel() {
       <div className="border-t border-slate-800/50">
         <button
           onClick={() => setDirectionsOpen(!directionsOpen)}
-          className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium text-slate-400 hover:text-slate-300 transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 outline-none"
+          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-slate-400 hover:text-slate-300 transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 outline-none"
           aria-label={directionsOpen ? 'Collapse development directions' : 'Expand development directions'}
         >
-          {directionsOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+          <ExpandChevron expanded={directionsOpen} className="w-3.5 h-3.5" />
           <Zap className="w-3.5 h-3.5" />
           Development Directions ({DIRECTIONS.length})
         </button>

@@ -4,6 +4,7 @@
  */
 
 import { behavioralSignalDb, directionOutcomeDb, observabilityDb, contextDb, brainInsightDb, getDatabase } from '@/app/db';
+import { safeParseJson } from '@/lib/json-utils';
 import type {
   BehavioralContext,
   GitActivitySignalData,
@@ -61,9 +62,9 @@ export function getBehavioralContext(
       try {
         const ctx = contextDb.getContextById(c.context_id);
         if (ctx) {
-          try { base.keywords = JSON.parse(ctx.keywords || '[]'); } catch {}
-          try { base.entryPoints = JSON.parse(ctx.entry_points || '[]'); } catch {}
-          try { base.techStack = JSON.parse(ctx.tech_stack || '[]'); } catch {}
+          base.keywords = safeParseJson(ctx.keywords, []);
+          base.entryPoints = safeParseJson(ctx.entry_points, []);
+          base.techStack = safeParseJson(ctx.tech_stack, []);
         }
       } catch { /* enrichment is best-effort */ }
       return base;

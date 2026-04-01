@@ -8,6 +8,7 @@ import type { PalaceRoom, PalaceConnection, PalaceSignal, PalaceMode, ReplayKeyf
 import { COLORS } from '../sub_MemoryCanvas/lib/constants';
 import type { SignalType } from '../sub_MemoryCanvas/lib/types';
 import { sidePanel, sidePanelTransition } from '../lib/motionPresets';
+import { formatRelativeTime, formatDateTimeShort, formatDateShort } from '@/lib/formatDate';
 import { DISPLAY_FONT, FONT_SIZE } from '../lib/brainFonts';
 import NeuralPulseLoader from '../components/NeuralPulseLoader';
 import BrainEmptyState from '../components/BrainEmptyState';
@@ -574,7 +575,7 @@ export default function MemoryPalace() {
             {/* Time display */}
             <div className="flex items-center gap-1.5 text-xs text-zinc-400 shrink-0">
               <Clock className="w-3 h-3" />
-              <span>{formatDate(timelineCursor)}</span>
+              <span>{formatDateTimeShort(timelineCursor)}</span>
             </div>
 
             {/* Scrubber track */}
@@ -680,22 +681,4 @@ function diamondPoints(cx: number, cy: number, size: number): string {
   return `${cx},${cy - size} ${cx + size},${cy} ${cx},${cy + size} ${cx - size},${cy}`;
 }
 
-function formatRelativeTime(ts: number): string {
-  const diff = Date.now() - ts;
-  const hours = Math.floor(diff / 3600000);
-  if (hours < 1) return 'just now';
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return `${Math.floor(days / 7)}w ago`;
-}
 
-function formatDate(ts: number): string {
-  return new Date(ts).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
-}
-
-function formatDateShort(ts: number): string {
-  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}

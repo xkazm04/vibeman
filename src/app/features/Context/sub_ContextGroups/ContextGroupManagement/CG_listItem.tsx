@@ -11,6 +11,7 @@ interface GroupListItemProps {
   index: number;
   isEditing: boolean;
   isHovered: boolean;
+  contextCount: number;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
   onUpdate: (groupId: string, updates: { name?: string; color?: string; accentColor?: string }) => void;
@@ -24,6 +25,7 @@ export default function GroupListItem({
   index,
   isEditing,
   isHovered,
+  contextCount,
   onMouseEnter,
   onMouseLeave,
   onUpdate,
@@ -118,8 +120,7 @@ export default function GroupListItem({
 
           <div className="text-right mr-3">
             <div className="text-sm font-bold text-gray-300 font-mono">
-              {/* Context count placeholder */}
-              0
+              {contextCount}
             </div>
             <div className="text-sm text-gray-500 uppercase tracking-wider">
               Contexts

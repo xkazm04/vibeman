@@ -17,6 +17,12 @@ export interface V4RunConfig {
   autoCommit?: boolean;
   /** Gap 1: Require user approval of the plan before execution begins */
   requirePlanApproval?: boolean;
+  /** Enable LLM-powered post-run quality evaluation (default: false) */
+  enableQualityEval?: boolean;
+  /** Quality score threshold (0-100). Scores below this trigger a refinement run (default: 70) */
+  qualityThreshold?: number;
+  /** Max refinement attempts when quality is below threshold (default: 1) */
+  maxRefinementAttempts?: number;
 }
 
 export interface V4PreFlightData {
@@ -92,6 +98,12 @@ export interface V4RunState {
   resumeAttempts: number;
   startedAt: string;
   completedAt: string | null;
+  /** Quality score from post-run evaluation (0-100) */
+  qualityScore?: number;
+  /** Summary verdict from quality evaluation */
+  qualityVerdict?: string;
+  /** Number of refinement runs triggered by low quality scores */
+  refinementAttempts: number;
 }
 
 export type V4RunStatus =
@@ -114,4 +126,27 @@ export interface V4SessionResult {
   error: string | null;
   /** Gap 5: Memory entry queries tracked during session for outcome resolution */
   memoryIdsQueried?: string[];
+}
+
+/** Structured quality evaluation result from post-run LLM assessment */
+export interface V4QualityEvaluation {
+  /** Overall quality score 0-100 */
+  score: number;
+  /** One-sentence summary verdict */
+  verdict: string;
+  /** What the implementation did well */
+  strengths: string[];
+  /** Gaps or shortcomings vs the original goal */
+  gaps: string[];
+  /** Specific improvement suggestions for a refinement run */
+  suggestions: string[];
+  /** Per-dimension breakdown */
+  dimensionScores: {
+    /** How much of the goal was addressed (0-100) */
+    completeness: number;
+    /** Whether the implementation is likely correct (0-100) */
+    correctness: number;
+    /** Code quality, patterns, maintainability (0-100) */
+    codeQuality: number;
+  };
 }

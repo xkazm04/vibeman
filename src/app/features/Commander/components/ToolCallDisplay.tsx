@@ -58,9 +58,9 @@ export default function ToolCallDisplay({ toolCalls }: ToolCallDisplayProps) {
               onClick={() => handleToolClick(tool.name)}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              whileHover={{ scale: 1.05 }}
+              whileHover={{ scale: 1.05, y: -1, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
               whileTap={{ scale: 0.95 }}
-              transition={{ delay: idx * 0.05 }}
+              transition={{ duration: 0.15, delay: idx * 0.05 }}
               className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs cursor-pointer transition-colors ${
                 isCLI
                   ? 'bg-purple-500/10 border border-purple-500/20 text-purple-300 hover:bg-purple-500/20'
@@ -80,9 +80,9 @@ export default function ToolCallDisplay({ toolCalls }: ToolCallDisplayProps) {
           onClick={handleBrowseAll}
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          whileHover={{ scale: 1.05 }}
+          whileHover={{ scale: 1.05, y: -1, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
           whileTap={{ scale: 0.95 }}
-          transition={{ delay: toolCalls.length * 0.05 }}
+          transition={{ duration: 0.15, delay: toolCalls.length * 0.05 }}
           className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-white/5 border border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/10 cursor-pointer transition-colors"
           title="Browse all Annette capabilities"
         >

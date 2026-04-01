@@ -27,6 +27,21 @@ async function handleGet(request: NextRequest) {
       return buildSuccessResponse(tree);
     }
 
+    if (action === 'hub-links') {
+      const hubEntryId = searchParams.get('hubEntryId');
+      if (!hubEntryId) {
+        return buildErrorResponse('hubEntryId required', { status: 400 });
+      }
+      const links = knowledgeRepository.getHubLinks(hubEntryId);
+      return buildSuccessResponse(links);
+    }
+
+    if (action === 'hub-entries') {
+      const domain = searchParams.get('domain') as KnowledgeDomain | null;
+      const entries = knowledgeRepository.getHubEntries(domain ?? undefined);
+      return buildSuccessResponse(entries);
+    }
+
     if (action === 'list') {
       const domain = searchParams.get('domain') as KnowledgeDomain | null;
       const limit = parseInt(searchParams.get('limit') || '50', 10);
@@ -132,6 +147,30 @@ async function handlePost(request: NextRequest) {
       }
       knowledgeRepository.recordApplication(body.entryId, body.helpful);
       return buildSuccessResponse({ recorded: true });
+    }
+
+    if (action === 'add-hub-link') {
+      if (!body.hubEntryId || !body.linkedEntryId) {
+        return buildErrorResponse('hubEntryId and linkedEntryId required', { status: 400 });
+      }
+      const link = knowledgeRepository.addHubLink(body.hubEntryId, body.linkedEntryId, body.note);
+      return buildSuccessResponse(link);
+    }
+
+    if (action === 'remove-hub-link') {
+      if (!body.linkId) {
+        return buildErrorResponse('linkId required', { status: 400 });
+      }
+      const removed = knowledgeRepository.removeHubLink(body.linkId);
+      return buildSuccessResponse({ removed });
+    }
+
+    if (action === 'reorder-hub-links') {
+      if (!body.hubEntryId || !Array.isArray(body.linkIds)) {
+        return buildErrorResponse('hubEntryId and linkIds[] required', { status: 400 });
+      }
+      knowledgeRepository.reorderHubLinks(body.hubEntryId, body.linkIds);
+      return buildSuccessResponse({ reordered: true });
     }
 
     return buildErrorResponse(`Unknown action: ${action}`, { status: 400 });

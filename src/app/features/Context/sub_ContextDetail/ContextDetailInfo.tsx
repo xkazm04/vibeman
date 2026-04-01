@@ -7,6 +7,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { FileText } from 'lucide-react';
 import { Context, ContextGroup } from '../../../../stores/contextStore';
+import { BacklinksPanel } from '@/components/ui';
 
 interface ContextDetailInfoProps {
   context: Context;
@@ -54,6 +55,11 @@ export default function ContextDetailInfo({ context, contextGroup }: ContextDeta
               {contextGroup?.name || 'Ungrouped'}
             </p>
           </div>
+        </div>
+
+        {/* Cross-References */}
+        <div className="pt-4 border-t border-gray-700/40">
+          <BacklinksPanel entityType="context" entityId={context.id} />
         </div>
       </div>
     </motion.div>

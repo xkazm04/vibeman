@@ -11,6 +11,7 @@ import { directionDb, directionOutcomeDb, behavioralSignalDb, brainReflectionDb,
 import type { DbDirection, DbDirectionOutcome } from '@/app/db';
 import type { LearningInsight } from '@/app/db/models/brain.types';
 import { GitManager } from '@/lib/gitManager';
+import { safeParseJson } from '@/lib/json-utils';
 
 // ============================================================================
 // TYPES
@@ -869,10 +870,10 @@ function buildContextArchitectureSection(projectId: string): string {
       let apiSurface: Array<{ path: string; methods: string }> = [];
       let crossRefs: Array<{ contextId: string; relationship: string }> = [];
       let techStack: string[] = [];
-      try { dbTables = JSON.parse(ctx.db_tables || '[]'); } catch {}
-      try { apiSurface = JSON.parse(ctx.api_surface || '[]'); } catch {}
-      try { crossRefs = JSON.parse(ctx.cross_refs || '[]'); } catch {}
-      try { techStack = JSON.parse(ctx.tech_stack || '[]'); } catch {}
+      dbTables = safeParseJson(ctx.db_tables, []);
+      apiSurface = safeParseJson(ctx.api_surface, []);
+      crossRefs = safeParseJson(ctx.cross_refs, []);
+      techStack = safeParseJson(ctx.tech_stack, []);
 
       if (dbTables.length === 0 && apiSurface.length === 0 && crossRefs.length === 0) continue;
 

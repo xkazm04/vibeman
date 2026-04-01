@@ -7,19 +7,11 @@
  */
 
 import { knowledgeRepository } from '@/app/db/repositories/knowledge.repository';
+import { parseJsonArray } from '@/lib/json-utils';
 import { KNOWLEDGE_DOMAINS, KNOWLEDGE_DOMAIN_LABELS } from '@/app/db/models/knowledge.types';
 import type { DbKnowledgeEntry, KnowledgeDomain } from '@/app/db/models/knowledge.types';
 import fs from 'fs';
 import path from 'path';
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function safeParseJsonArray(json: string | null): string[] {
-  if (!json) return [];
-  try { return JSON.parse(json); } catch { return []; }
-}
 
 // ---------------------------------------------------------------------------
 // Domain markdown generation
@@ -84,7 +76,7 @@ function exportDomainMarkdown(
         lines.push('', '```', entry.code_example, '```');
       }
 
-      const tags = safeParseJsonArray(entry.tags);
+      const tags = parseJsonArray(entry.tags);
       if (tags.length > 0) {
         lines.push('', `**Tags**: ${tags.join(', ')}`);
       }

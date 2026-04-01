@@ -1,11 +1,11 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-03-23T12:33:22.203Z",
+  "timestamp": "2026-04-01T12:39:01.417Z",
   "files": [
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\buttons\\IlluminatedButton.tsx",
       "status": "pending",
-      "lineCount": 354,
+      "lineCount": 348,
       "colorReplacements": 7,
       "extractedComponents": []
     },
@@ -19,21 +19,14 @@
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\charts\\StatsBarChart.tsx",
       "status": "pending",
-      "lineCount": 164,
-      "colorReplacements": 1,
-      "extractedComponents": []
-    },
-    {
-      "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\cli\\AutoAssignSettingsModal.tsx",
-      "status": "pending",
-      "lineCount": 264,
+      "lineCount": 165,
       "colorReplacements": 1,
       "extractedComponents": []
     },
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\cli\\CLISession.tsx",
       "status": "pending",
-      "lineCount": 598,
+      "lineCount": 599,
       "colorReplacements": 9,
       "extractedComponents": []
     },
@@ -47,21 +40,21 @@
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\ContextComponents\\ContextJailCard.tsx",
       "status": "pending",
-      "lineCount": 220,
+      "lineCount": 223,
       "colorReplacements": 2,
       "extractedComponents": []
     },
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\ContextComponents\\ContextTargetsList.tsx",
       "status": "pending",
-      "lineCount": 437,
+      "lineCount": 438,
       "colorReplacements": 2,
       "extractedComponents": []
     },
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\ContextMenu\\ContextMenu.tsx",
       "status": "pending",
-      "lineCount": 224,
+      "lineCount": 225,
       "colorReplacements": 3,
       "extractedComponents": []
     },
@@ -82,7 +75,7 @@
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\DecisionPanel\\ScanProgressBar.tsx",
       "status": "pending",
-      "lineCount": 238,
+      "lineCount": 250,
       "colorReplacements": 2,
       "extractedComponents": []
     },
@@ -131,21 +124,21 @@
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\GlobalTaskBar\\TaskProgressItem.tsx",
       "status": "pending",
-      "lineCount": 202,
+      "lineCount": 203,
       "colorReplacements": 8,
       "extractedComponents": []
     },
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\idea\\IdeaDependencySection.tsx",
       "status": "pending",
-      "lineCount": 275,
+      "lineCount": 276,
       "colorReplacements": 8,
       "extractedComponents": []
     },
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\idea\\IdeaDetailActions.tsx",
       "status": "pending",
-      "lineCount": 161,
+      "lineCount": 162,
       "colorReplacements": 3,
       "extractedComponents": []
     },
@@ -159,7 +152,7 @@
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\idea\\IdeaDetailFeedback.tsx",
       "status": "pending",
-      "lineCount": 69,
+      "lineCount": 70,
       "colorReplacements": 4,
       "extractedComponents": []
     },
@@ -187,7 +180,7 @@
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\markdown\\mdHelpers.ts",
       "status": "pending",
-      "lineCount": 492,
+      "lineCount": 493,
       "colorReplacements": 13,
       "extractedComponents": []
     },
@@ -222,21 +215,21 @@
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\Navigation\\NotificationItem.tsx",
       "status": "pending",
-      "lineCount": 110,
+      "lineCount": 100,
       "colorReplacements": 1,
       "extractedComponents": []
     },
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\Navigation\\ShortcutsBar.tsx",
       "status": "pending",
-      "lineCount": 235,
+      "lineCount": 229,
       "colorReplacements": 3,
       "extractedComponents": []
     },
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\onboarding\\ModuleProgressBar.tsx",
       "status": "pending",
-      "lineCount": 270,
+      "lineCount": 272,
       "colorReplacements": 6,
       "extractedComponents": []
     },
@@ -250,7 +243,7 @@
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\onboarding\\ProgressCelebration.tsx",
       "status": "pending",
-      "lineCount": 304,
+      "lineCount": 310,
       "colorReplacements": 4,
       "extractedComponents": []
     },
@@ -271,7 +264,7 @@
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\tables\\TableRow.tsx",
       "status": "pending",
-      "lineCount": 111,
+      "lineCount": 112,
       "colorReplacements": 1,
       "extractedComponents": []
     },
@@ -285,8 +278,15 @@
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\Tooltip.tsx",
       "status": "pending",
-      "lineCount": 266,
+      "lineCount": 267,
       "colorReplacements": 1,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\ui\\BacklinksPanel.tsx",
+      "status": "pending",
+      "lineCount": 164,
+      "colorReplacements": 4,
       "extractedComponents": []
     },
     {
@@ -313,7 +313,7 @@
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\ui\\EmptyState.tsx",
       "status": "pending",
-      "lineCount": 117,
+      "lineCount": 176,
       "colorReplacements": 4,
       "extractedComponents": []
     },
@@ -332,9 +332,37 @@
       "extractedComponents": []
     },
     {
+      "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\ui\\SliderControl.tsx",
+      "status": "pending",
+      "lineCount": 52,
+      "colorReplacements": 3,
+      "extractedComponents": []
+    },
+    {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\ui\\Spinner.tsx",
       "status": "pending",
       "lineCount": 322,
+      "colorReplacements": 1,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\ui\\Toggle.tsx",
+      "status": "pending",
+      "lineCount": 30,
+      "colorReplacements": 1,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\ui\\ToggleGroup.tsx",
+      "status": "pending",
+      "lineCount": 42,
+      "colorReplacements": 3,
+      "extractedComponents": []
+    },
+    {
+      "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\ui\\ToggleSwitch.tsx",
+      "status": "pending",
+      "lineCount": 35,
       "colorReplacements": 1,
       "extractedComponents": []
     },
@@ -362,13 +390,13 @@
   ],
   "summary": {
     "byCategory": {
-      "text": 96,
-      "border": 57,
-      "background": 58,
-      "shadow": 12,
+      "text": 100,
+      "border": 59,
+      "background": 62,
+      "shadow": 13,
       "gradient": 56
     },
-    "filesOver200Lines": 34
+    "filesOver200Lines": 33
   },
-  "totalFiles": 51
+  "totalFiles": 55
 }

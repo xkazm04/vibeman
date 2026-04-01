@@ -89,6 +89,7 @@ import { goalSignalRepository, goalSubGoalRepository } from './repositories/goal
 import { fileWriteQueueRepository } from './repositories/file-write-queue.repository';
 import { scanResultRepository } from './repositories/scanResult.repository';
 import { triageRuleRepository } from './repositories/triage-rule.repository';
+import { savedViewRepository } from './repositories/saved-view.repository';
 
 // Export types
 export * from './models/types';
@@ -106,21 +107,25 @@ export * from './models/cross-project-architecture.types';
 export * from './models/cross-task.types';
 export * from './models/group-health.types';
 export * from './models/collective-memory.types';
+export * from './models/knowledge.types';
 export { queryIdeas } from './repositories/ideaQueryBuilder';
 
 // Export connection utilities
 export { getDatabase, closeDatabase };
 export { getHotWritesDatabase, closeHotWritesDatabase } from './hot-writes';
 
-// Initialize database on first import
-let initialized = false;
+// Initialize database on first import.
+// Store flag on globalThis so it survives Next.js HMR module reloads —
+// without this, each HMR cycle re-runs initializeTables and spawns a
+// duplicate aggregation worker.
+const GLOBAL_DB_INIT_KEY = '__dbInitialized';
 
 function ensureInitialized() {
-  if (!initialized) {
+  if (!(globalThis as Record<string, unknown>)[GLOBAL_DB_INIT_KEY]) {
     initializeTables();
     // Start hot-writes aggregation worker (rolls up obs_api_calls → obs_endpoint_stats)
     startAggregationWorker();
-    initialized = true;
+    (globalThis as Record<string, unknown>)[GLOBAL_DB_INIT_KEY] = true;
   }
 }
 
@@ -599,6 +604,15 @@ export const scanResultDb = {
  */
 export const triageRuleDb = {
   ...triageRuleRepository,
+  close: closeDatabase,
+};
+
+/**
+ * Saved View Database Operations
+ * Manages cross-entity queryable views (Bases-style)
+ */
+export const savedViewDb = {
+  ...savedViewRepository,
   close: closeDatabase,
 };
 

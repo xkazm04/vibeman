@@ -19,6 +19,7 @@ import { BaseScanStrategy } from './strategies/baseScanStrategy';
 import { AgentScanStrategy } from './strategies/agentScanStrategy';
 import { StructureScanStrategy } from './strategies/structureScanStrategy';
 import type { FileGatherer } from './types';
+import { createFileGatherer } from './fileGatherer';
 
 /**
  * Main orchestrator for unified scanning.
@@ -139,21 +140,25 @@ let orchestratorInstance: ScanOrchestrator | null = null;
 
 /**
  * Get the global scan orchestrator instance.
+ * Lazy-initializes with an HTTP file gatherer if no instance exists.
  */
 export function getScanOrchestrator(): ScanOrchestrator {
   if (!orchestratorInstance) {
-    orchestratorInstance = new ScanOrchestrator();
+    const fileGatherer = createFileGatherer('http');
+    orchestratorInstance = new ScanOrchestrator(fileGatherer);
   }
   return orchestratorInstance;
 }
 
 /**
  * Initialize the orchestrator with custom dependencies.
+ * Defaults to an HTTP file gatherer if none is provided.
  */
 export function initializeScanOrchestrator(
   fileGatherer?: FileGatherer,
   repository?: ScanRepository
 ): ScanOrchestrator {
-  orchestratorInstance = new ScanOrchestrator(fileGatherer, repository);
+  const gatherer = fileGatherer ?? createFileGatherer('http');
+  orchestratorInstance = new ScanOrchestrator(gatherer, repository);
   return orchestratorInstance;
 }

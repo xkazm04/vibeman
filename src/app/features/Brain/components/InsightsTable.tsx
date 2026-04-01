@@ -11,14 +11,13 @@ import {
   Star,
   Trash2,
   ArrowUpDown,
-  ChevronDown,
-  ChevronRight,
   AlertOctagon,
   GitMerge,
   Check,
   X,
   Zap,
 } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
 import type { LearningInsight } from '@/app/db/models/brain.types';
 import InsightEvidenceLinks from './InsightEvidenceLinks';
 import InsightSparkline from './InsightSparkline';
@@ -201,10 +200,7 @@ function InsightRow({
               className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200 transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/50 rounded outline-none"
               title={`${insight.evidence.length} evidence link${insight.evidence.length !== 1 ? 's' : ''} - click to expand`}
             >
-              {isExpanded
-                ? <ChevronDown className="w-3 h-3" />
-                : <ChevronRight className="w-3 h-3" />
-              }
+              <ExpandChevron expanded={isExpanded} className="w-3 h-3" />
               <span>{insight.evidence.length}</span>
             </button>
           ) : (

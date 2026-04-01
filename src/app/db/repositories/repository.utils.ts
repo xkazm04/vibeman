@@ -4,6 +4,7 @@
  */
 
 import type { Database, Statement } from 'better-sqlite3';
+import { parseJsonArray } from '@/lib/json-utils';
 
 /**
  * Compile-time whitelist of valid table names.
@@ -46,6 +47,7 @@ const VALID_TABLE_NAMES = [
   'context_transitions',
   'contexts',
   'cross_project_relationships',
+  'cross_task_plans',
   'developer_decisions',
   'developer_profiles',
   'direction_outcomes',
@@ -56,6 +58,7 @@ const VALID_TABLE_NAMES = [
   'execution_flows',
   'feature_interactions',
   'file_watch_config',
+  'file_write_queue',
   'fuzz_sessions',
   'generation_history',
   'goal_candidates',
@@ -109,7 +112,9 @@ const VALID_TABLE_NAMES = [
   'roadmap_milestones',
   'roadmap_simulations',
   'scan_notifications',
+  'saved_views',
   'scan_profiles',
+  'scan_results',
   'scan_queue',
   'scans',
   'schema_optimization_history',
@@ -127,8 +132,10 @@ const VALID_TABLE_NAMES = [
   'terminal_messages',
   'terminal_sessions',
   'test_knowledge',
+  'triage_rules',
   'velocity_tracking',
   'voicebot_analytics',
+  'kb_entry_links',
   'knowledge_entries',
   'vulnerability_debates',
   'workspace',
@@ -165,7 +172,7 @@ export function buildUpdateQuery<T extends Record<string, unknown>>(
 export function selectOne<T>(db: Database, query: string, ...params: unknown[]): T | null {
   const stmt = db.prepare(query);
   const result = stmt.get(...params) as T | undefined;
-  return result || null;
+  return result ?? null;
 }
 
 /**
@@ -238,18 +245,15 @@ export function generateId(prefix: string): string {
 }
 
 /**
- * Safely parse a JSON string column that should contain an array.
- * Returns an empty array if the value is null/undefined or contains malformed JSON.
+ * Escape SQL LIKE wildcard characters (% and _) in user input.
+ * Use with the ESCAPE '\' clause in LIKE expressions.
  */
-export function safeParseJsonArray<T>(value: string | null | undefined): T[] {
-  if (!value) return [];
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+export function escapeLikePattern(input: string): string {
+  return input.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
 }
+
+/** @deprecated Use `parseJsonArray` from `@/lib/json-utils` directly. */
+export const safeParseJsonArray = parseJsonArray;
 
 /**
  * Validate a score value on a 1-10 scale.

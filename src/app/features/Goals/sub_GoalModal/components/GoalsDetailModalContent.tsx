@@ -7,6 +7,7 @@ import { useGoals } from '../../../../../hooks/useGoals';
 import { validateGoalData } from '../lib';
 import GoalLifecyclePanel from '../../components/GoalLifecyclePanel';
 import type { LifecycleData } from '../../components/GoalLifecyclePanel';
+import { BacklinksPanel } from '@/components/ui';
 
 interface GoalsDetailModalContentProps {
   goal: Goal;
@@ -157,6 +158,11 @@ export default function GoalsDetailModalContent({
       {projectId && lifecycleData && (
         <GoalLifecyclePanel data={lifecycleData} projectId={projectId} onRefresh={handleLifecycleRefresh} />
       )}
+
+      {/* Cross-References */}
+      <div className="bg-white/5 rounded-xl border border-white/10 p-5 shadow-lg">
+        <BacklinksPanel entityType="goal" entityId={goal.id} />
+      </div>
 
       {/* Error Message */}
       {saveError && (

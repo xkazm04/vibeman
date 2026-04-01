@@ -1,12 +1,8 @@
 /**
  * Base Scan Strategy
  *
- * Abstract base class defining the common scan lifecycle via a middleware pipeline.
+ * Abstract base class defining the common scan lifecycle.
  * Steps: Validate → Gather → Analyze → BuildResult → Persist
- *
- * Subclasses override buildPipeline() to compose only the steps they need
- * (e.g. skip Gather for pre-loaded files, skip Persist for dry runs).
- * Cross-cutting concerns (timing, logging) are added as middleware wrappers.
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -20,21 +16,9 @@ import type {
   ScanEventListener,
   ScanEvent,
   ScanRepository,
-  ScanContext,
-  ScanMiddleware,
 } from '../types';
 import { ScanError } from '../types';
 import { getDefaultFileGatherer } from '../fileGatherer';
-import { ScanPipeline } from '../ScanPipeline';
-import {
-  ValidateMiddleware,
-  GatherMiddleware,
-  AnalyzeMiddleware,
-  BuildResultMiddleware,
-  PersistMiddleware,
-  EventMiddleware,
-  TimingMiddleware,
-} from '../middleware';
 
 export abstract class BaseScanStrategy {
   protected fileGatherer: FileGatherer;
@@ -56,22 +40,19 @@ export abstract class BaseScanStrategy {
     this.scanId = uuidv4();
     this.startTime = Date.now();
 
-    const ctx: ScanContext = {
-      config,
-      scanId: this.scanId,
-      startTime: this.startTime,
-      files: [],
-      findings: [],
-      emitEvent: (event: ScanEvent) => this.emitEvent(event),
-      repository: this.repository,
-      timings: {},
-      extras: {},
-    };
-
     try {
-      const pipeline = this.buildPipeline();
-      await pipeline.execute(ctx);
-      return ctx.result!;
+      this.validateConfig(config);
+
+      const files = await this.fileGatherer.gather(config);
+      const findings = await this.analyze(config, files);
+
+      return {
+        success: true,
+        scanId: this.scanId,
+        category: config.scanCategory,
+        findings,
+        metadata: this.buildMetadata(config, files.length, findings.length),
+      };
     } catch (error) {
       const scanError = error instanceof ScanError ? error : new ScanError(
         'scan_failed',
@@ -99,28 +80,6 @@ export abstract class BaseScanStrategy {
         },
       };
     }
-  }
-
-  /**
-   * Build the default middleware pipeline.
-   * Subclasses can override to add, remove, or reorder steps.
-   */
-  protected buildPipeline(): ScanPipeline {
-    return new ScanPipeline()
-      .use(new EventMiddleware())
-      .use(new ValidateMiddleware((ctx) => this.validateConfig(ctx.config)))
-      .use(TimingMiddleware.wrap(
-        new GatherMiddleware(this.fileGatherer, {
-          extensions: this.getDefaultFileExtensions(),
-          exclude: this.getExcludedPatterns(),
-          maxFileSize: 1024 * 1024,
-        })
-      ))
-      .use(TimingMiddleware.wrap(
-        new AnalyzeMiddleware((config, files) => this.analyze(config, files))
-      ))
-      .use(new BuildResultMiddleware())
-      .use(new PersistMiddleware());
   }
 
   /**

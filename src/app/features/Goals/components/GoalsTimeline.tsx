@@ -10,6 +10,8 @@ import {
   Calendar,
   ChevronRight,
 } from 'lucide-react';
+import EmptyState from '@/components/ui/EmptyState';
+import { formatDateFuzzy } from '@/lib/formatDate';
 
 export interface TimelineGoal {
   id: string;
@@ -60,19 +62,6 @@ const statusConfig = {
   },
 };
 
-function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return `${days} days ago`;
-  if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
 export function GoalsTimeline({
   goals,
   onGoalClick,
@@ -84,11 +73,13 @@ export function GoalsTimeline({
 
   if (goals.length === 0) {
     return (
-      <div className={`flex flex-col items-center justify-center py-8 ${className}`}>
-        <Target className="w-10 h-10 text-gray-600 mb-3" />
-        <p className="text-sm text-gray-400">No goals yet</p>
-        <p className="text-xs text-gray-500 mt-1">Create your first goal to get started</p>
-      </div>
+      <EmptyState
+        icon={Target}
+        title="No goals yet"
+        description="Create your first goal to get started"
+        variant="compact"
+        className={className}
+      />
     );
   }
 
@@ -150,7 +141,7 @@ export function GoalsTimeline({
                   {showDates && (
                     <div className="flex items-center gap-1 text-xs text-gray-500 flex-shrink-0">
                       <Calendar className="w-3 h-3" />
-                      {formatDate(goal.completedAt || goal.createdAt)}
+                      {formatDateFuzzy(goal.completedAt || goal.createdAt)}
                     </div>
                   )}
                 </div>
@@ -187,10 +178,10 @@ export function GoalsProgressBar({
   inProgress: number;
   className?: string;
 }) {
-  if (total === 0) return null;
+  if (!total || total <= 0) return null;
 
-  const completedPercent = (completed / total) * 100;
-  const inProgressPercent = (inProgress / total) * 100;
+  const completedPercent = Number.isFinite((completed / total) * 100) ? (completed / total) * 100 : 0;
+  const inProgressPercent = Number.isFinite((inProgress / total) * 100) ? (inProgress / total) * 100 : 0;
 
   return (
     <div className={`space-y-1 ${className}`}>

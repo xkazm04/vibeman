@@ -1,6 +1,6 @@
 import { getDatabase } from '../connection';
 import { DbEvent } from '../models/types';
-import { getCurrentTimestamp, selectOne } from './repository.utils';
+import { getCurrentTimestamp, selectOne, escapeLikePattern } from './repository.utils';
 import { createGenericRepository } from './generic.repository';
 
 const base = createGenericRepository<DbEvent>({
@@ -157,10 +157,10 @@ export const eventRepository = {
 
     const stmt = db.prepare(`
       SELECT * FROM events
-      WHERE project_id = ? AND title LIKE ?
+      WHERE project_id = ? AND title LIKE ? ESCAPE '\\'
       ORDER BY created_at DESC
     `);
 
-    return stmt.all(projectId, `${baseTitle}%`) as DbEvent[];
+    return stmt.all(projectId, `${escapeLikePattern(baseTitle)}%`) as DbEvent[];
   }
 };

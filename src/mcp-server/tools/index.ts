@@ -14,6 +14,7 @@ import { registerProgressTool } from './progress.js';
 import { registerRelatedTasksTool } from './related-tasks.js';
 import { registerKnowledgeTool } from './knowledge.js';
 import { registerSavePlanTool } from './save-plan.js';
+import { registerBootstrapTaskTool } from './bootstrap-task.js';
 
 /**
  * Register all Vibeman MCP tools
@@ -37,5 +38,8 @@ export function registerTools(server: McpServer, config: McpConfig) {
   registerKnowledgeTool(server, config, client);
   registerSavePlanTool(server, config, client);
 
-  console.error('[vibeman-mcp] Registered tools: log_implementation, check_test_scenario, capture_screenshot, get_context, list_contexts, get_config, get_memory, report_progress, get_related_tasks, get_knowledge, save_plan');
+  // Compound tools
+  registerBootstrapTaskTool(server, config, client);
+
+  console.error('[vibeman-mcp] Registered tools: log_implementation, check_test_scenario, capture_screenshot, get_context, list_contexts, get_config, get_memory, report_progress, get_related_tasks, get_knowledge, save_plan, bootstrap_task');
 }

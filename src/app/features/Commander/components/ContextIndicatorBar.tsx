@@ -13,6 +13,7 @@ import {
   Sparkles,
   RefreshCw,
 } from 'lucide-react';
+import EmptyState from '@/components/ui/EmptyState';
 import { useChatStore } from '@/stores/annette/chatStore';
 
 interface MemoryItem {
@@ -163,22 +164,34 @@ export default function ContextIndicatorBar({
           {hasContext && (
             <>
               {memoryCount > 0 && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 text-2xs font-medium shrink-0">
+                <motion.span
+                  whileHover={{ y: -1, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
+                  transition={transition.snappy}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 text-2xs font-medium shrink-0"
+                >
                   <Database className="w-2.5 h-2.5" />
                   {memoryCount} {memoryCount === 1 ? 'memory' : 'memories'}
-                </span>
+                </motion.span>
               )}
               {nodeCount > 0 && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 text-2xs font-medium shrink-0">
+                <motion.span
+                  whileHover={{ y: -1, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
+                  transition={transition.snappy}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 text-2xs font-medium shrink-0"
+                >
                   <Network className="w-2.5 h-2.5" />
                   {nodeCount} {nodeCount === 1 ? 'node' : 'nodes'}
-                </span>
+                </motion.span>
               )}
               {dismissedMemories.size + dismissedNodes.size > 0 && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 text-2xs font-medium shrink-0">
+                <motion.span
+                  whileHover={{ y: -1, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
+                  transition={transition.snappy}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 text-2xs font-medium shrink-0"
+                >
                   <X className="w-2.5 h-2.5" />
                   {dismissedMemories.size + dismissedNodes.size} hidden
-                </span>
+                </motion.span>
               )}
             </>
           )}
@@ -301,22 +314,20 @@ export default function ContextIndicatorBar({
 
               {/* Empty state */}
               {visibleMemories.length === 0 && visibleNodes.length === 0 && (
-                <div className="flex flex-col items-center py-3 text-center">
-                  <Sparkles className="w-5 h-5 text-slate-600 mb-1.5" />
-                  <p className="text-caption text-slate-500">
-                    {dismissedMemories.size + dismissedNodes.size > 0
-                      ? 'All context items hidden. Annette will use fresh context.'
-                      : 'No memories or knowledge yet. Start chatting to build context.'}
-                  </p>
-                  {dismissedMemories.size + dismissedNodes.size > 0 && (
-                    <button
-                      onClick={() => { setDismissedMemories(new Set()); setDismissedNodes(new Set()); }}
-                      className="mt-1.5 text-2xs text-cyan-400 hover:text-cyan-300"
-                    >
-                      Restore all hidden items
-                    </button>
-                  )}
-                </div>
+                <EmptyState
+                  icon={Sparkles}
+                  title={dismissedMemories.size + dismissedNodes.size > 0
+                    ? 'All context items hidden'
+                    : 'No memories or knowledge yet'}
+                  description={dismissedMemories.size + dismissedNodes.size > 0
+                    ? 'Annette will use fresh context.'
+                    : 'Start chatting to build context.'}
+                  variant="compact"
+                  className="py-3"
+                  actions={dismissedMemories.size + dismissedNodes.size > 0
+                    ? [{ label: 'Restore all hidden items', onClick: () => { setDismissedMemories(new Set()); setDismissedNodes(new Set()); }, variant: 'ghost' }]
+                    : undefined}
+                />
               )}
             </div>
           </motion.div>

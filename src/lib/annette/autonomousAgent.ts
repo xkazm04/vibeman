@@ -44,13 +44,6 @@ interface DecomposedStep {
 
 const runningGoals = new Map<string, { abortController: AbortController }>();
 
-/**
- * Check if an agent is currently running for a project
- */
-export function isAgentRunning(projectId: string): boolean {
-  return runningGoals.has(projectId);
-}
-
 // ─── Goal Lifecycle ───
 
 /**

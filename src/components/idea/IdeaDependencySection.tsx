@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link2, ArrowRight, Ban, Zap, ChevronDown, Plus, X, Loader2 } from 'lucide-react';
+import { Link2, ArrowRight, Ban, Zap, Plus, X, Loader2 } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
 
 interface DependencyWithTitle {
   id: string;
@@ -148,7 +149,7 @@ export default function IdeaDependencySection({ ideaId }: IdeaDependencySectionP
             {dependencies.length}
           </span>
         )}
-        <ChevronDown className={`w-3 h-3 text-gray-500 ml-auto transition-transform ${expanded ? 'rotate-180' : ''}`} />
+        <ExpandChevron expanded={expanded} className="w-3 h-3 text-gray-500 ml-auto" />
       </button>
 
       <AnimatePresence>

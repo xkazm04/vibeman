@@ -96,15 +96,5 @@ export function initializeTables(): void {
   getDbDriver().initializeTables();
 }
 
-// Cleanup handlers for graceful shutdown
-if (typeof process !== 'undefined') {
-  process.on('exit', closeDatabase);
-  process.on('SIGINT', () => {
-    closeDatabase();
-    process.exit(0);
-  });
-  process.on('SIGTERM', () => {
-    closeDatabase();
-    process.exit(0);
-  });
-}
+// NOTE: Shutdown handlers are consolidated in src/app/db/index.ts
+// to ensure deterministic ordering (stop aggregation worker → close hot DB → close main DB).

@@ -6,6 +6,7 @@
 
 import { Settings2, RotateCcw } from 'lucide-react';
 import { UniversalModal } from '@/components/UniversalModal';
+import { MODAL_ICON_GRADIENT } from '../lib/stageTheme';
 import { useConductorStore } from '../lib/conductorStore';
 import BalancingView from './BalancingView';
 
@@ -24,8 +25,8 @@ export default function BalancingModal({ isOpen, onClose }: BalancingModalProps)
       title="Pipeline Settings"
       subtitle="Configure pipeline settings"
       icon={Settings2}
-      iconBgColor="from-cyan-900/60 to-purple-900/60"
-      iconColor="text-cyan-400"
+      iconBgColor={MODAL_ICON_GRADIENT.config.bg}
+      iconColor={MODAL_ICON_GRADIENT.config.text}
       maxWidth="max-w-5xl"
       footerActions={[
         {

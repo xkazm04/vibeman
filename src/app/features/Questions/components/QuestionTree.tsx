@@ -9,12 +9,14 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronRight, ChevronDown, HelpCircle, MessageSquare, Loader2,
+  HelpCircle, MessageSquare, Loader2,
   GitBranch, FileText, Zap, Compass, Sparkles, Check, Clock, Trash2, Target,
 } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
 import { DbQuestion } from '@/app/db';
 import type { QuestionTreeNode } from '@/lib/questions/questionTreeService';
 import { transitions } from '@/lib/design-tokens';
+import EmptyState from '@/components/ui/EmptyState';
 
 // ─── Types ───
 
@@ -27,7 +29,10 @@ interface QuestionTreeProps {
   onGenerateDirection: (questionId: string) => void;
   generatingFollowUp: string | null;
   generatingBrief: string | null;
+  maxDepth?: number;
 }
+
+const DEFAULT_MAX_DEPTH = 10;
 
 // ─── Depth Colors ───
 
@@ -54,12 +59,14 @@ function TreeNode({
   onGenerateDirection,
   generatingFollowUp,
   generatingBrief,
+  maxDepth = DEFAULT_MAX_DEPTH,
 }: {
   node: QuestionTreeNode;
 } & Omit<QuestionTreeProps, 'trees'>) {
   const [expanded, setExpanded] = useState(true);
   const depth = node.tree_depth ?? 0;
   const color = getDepthColor(depth);
+  const atDepthLimit = depth >= maxDepth;
   const hasChildren = node.children.length > 0;
   const isAnswered = node.status === 'answered' && !!node.answer;
   const canGenerateFollowUp = isAnswered && !hasChildren;
@@ -93,11 +100,7 @@ function TreeNode({
               onClick={() => setExpanded(!expanded)}
               className={`mt-0.5 p-0.5 rounded hover:bg-white/5 ${transitions.colors} flex-shrink-0`}
             >
-              {expanded ? (
-                <ChevronDown className={`w-3.5 h-3.5 ${color.text}`} />
-              ) : (
-                <ChevronRight className={`w-3.5 h-3.5 ${color.text}`} />
-              )}
+              <ExpandChevron expanded={expanded} className={`w-3.5 h-3.5 ${color.text}`} />
             </button>
           ) : (
             <div className="w-4.5 flex-shrink-0" />
@@ -269,7 +272,7 @@ function TreeNode({
 
       {/* Children */}
       <AnimatePresence>
-        {expanded && hasChildren && (
+        {expanded && hasChildren && !atDepthLimit && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -293,12 +296,21 @@ function TreeNode({
                   onGenerateDirection={onGenerateDirection}
                   generatingFollowUp={generatingFollowUp}
                   generatingBrief={generatingBrief}
+                  maxDepth={maxDepth}
                 />
               </div>
             ))}
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Depth limit indicator */}
+      {hasChildren && atDepthLimit && (
+        <div className="ml-6 mt-1 pl-4 py-1.5 flex items-center gap-1.5 text-2xs text-gray-500">
+          <Zap className="w-3 h-3" />
+          <span>{node.children.length} nested question{node.children.length !== 1 ? 's' : ''} hidden (depth limit: {maxDepth})</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -316,11 +328,7 @@ function StrategicBriefDisplay({ brief }: { brief: string }) {
       >
         <Sparkles className="w-4 h-4 text-amber-400 flex-shrink-0" />
         <span className="text-xs font-medium text-amber-300">Strategic Brief</span>
-        {expanded ? (
-          <ChevronDown className="w-3 h-3 text-amber-400 ml-auto" />
-        ) : (
-          <ChevronRight className="w-3 h-3 text-amber-400 ml-auto" />
-        )}
+        <ExpandChevron expanded={expanded} className="w-3 h-3 text-amber-400 ml-auto" />
       </button>
 
       <AnimatePresence>
@@ -348,13 +356,12 @@ export default function QuestionTree(props: QuestionTreeProps) {
 
   if (trees.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        <GitBranch className="w-8 h-8 mx-auto mb-2 opacity-40" />
-        <p className="text-sm">No question trees yet</p>
-        <p className="text-xs mt-1 text-gray-600">
-          Answer a question and click &quot;Drill Deeper&quot; to start building a strategic decision tree
-        </p>
-      </div>
+      <EmptyState
+        icon={GitBranch}
+        title="No question trees yet"
+        description='Answer a question and click "Drill Deeper" to start building a strategic decision tree'
+        variant="compact"
+      />
     );
   }
 

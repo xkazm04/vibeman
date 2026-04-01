@@ -106,7 +106,10 @@ export default function TaskGroupedList({
           </div>
 
           {/* Tasks in this group */}
-          <div className="space-y-1 pl-1">
+          <div
+            className="space-y-1 pl-2 ml-1 border-l-2"
+            style={{ borderLeftColor: group.context?.color ? `${group.context.color}60` : 'rgba(75, 85, 99, 0.4)' }}
+          >
             {group.requirements.map((req) => {
               const reqId = getRequirementId(req);
               return (

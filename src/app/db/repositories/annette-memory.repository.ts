@@ -5,6 +5,7 @@
 
 import { getConnection } from '../drivers';
 import { v4 as uuidv4 } from 'uuid';
+import { escapeLikePattern } from './repository.utils';
 import type {
   DbAnnetteMemory,
   DbAnnetteKnowledgeNode,
@@ -354,10 +355,10 @@ export const annetteKnowledgeNodeRepository = {
 
   search(projectId: string, query: string, limit = 20): DbAnnetteKnowledgeNode[] {
     const db = getConnection();
-    const searchPattern = `%${query}%`;
+    const searchPattern = `%${escapeLikePattern(query)}%`;
     return db.prepare(`
       SELECT * FROM annette_knowledge_nodes
-      WHERE project_id = ? AND (name LIKE ? OR description LIKE ?)
+      WHERE project_id = ? AND (name LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')
       ORDER BY importance_score DESC
       LIMIT ?
     `).all(projectId, searchPattern, searchPattern, limit) as unknown as DbAnnetteKnowledgeNode[];

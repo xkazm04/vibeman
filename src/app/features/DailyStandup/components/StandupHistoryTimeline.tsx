@@ -3,10 +3,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  History, Loader2, AlertCircle, ChevronDown, ChevronRight,
+  History, Loader2, AlertCircle,
   TrendingUp, TrendingDown, Minus, Calendar, Zap, Lightbulb,
   AlertTriangle,
 } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
+import { formatDateShort } from '@/lib/formatDate';
 import { transition } from '@/lib/motion';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -112,11 +114,6 @@ function burnoutColor(risk: string | null) {
   return 'text-emerald-400';
 }
 
-function formatDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
 // ── Timeline Entry ───────────────────────────────────────────────────────────
 
 function TimelineEntry({ item, projectId }: { item: StandupHistoryItem; projectId: string }) {
@@ -156,8 +153,6 @@ function TimelineEntry({ item, projectId }: { item: StandupHistoryItem; projectI
     }
   }, [expanded, detail, projectId, item]);
 
-  const Chevron = expanded ? ChevronDown : ChevronRight;
-
   return (
     <div className="relative pl-6">
       {/* Timeline dot */}
@@ -172,10 +167,10 @@ function TimelineEntry({ item, projectId }: { item: StandupHistoryItem; projectI
         className="w-full text-left group"
       >
         <div className="flex items-center gap-2 mb-1">
-          <Chevron className="w-3 h-3 text-white/40 group-hover:text-white/70 transition-colors flex-shrink-0" />
+          <ExpandChevron expanded={expanded} className="w-3 h-3 text-white/40 group-hover:text-white/70 flex-shrink-0" />
           <span className="text-xs font-mono text-white/40">
-            {formatDate(item.periodStart)}
-            {item.periodType === 'weekly' && ` – ${formatDate(item.periodEnd)}`}
+            {formatDateShort(item.periodStart)}
+            {item.periodType === 'weekly' && ` – ${formatDateShort(item.periodEnd)}`}
           </span>
           <span className={`text-2xs px-1.5 py-0.5 rounded font-mono uppercase ${
             item.periodType === 'weekly'
@@ -366,7 +361,7 @@ export default function StandupHistoryTimeline({ projectId, limit = 30 }: Standu
               {trend || 'no data'}
             </span>
             <span className="text-2xs text-white/20 ml-auto font-mono">
-              {formatDate(latest.periodStart)}
+              {formatDateShort(latest.periodStart)}
             </span>
           </div>
         );

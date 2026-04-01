@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import type { FeedbackClassification, DevTeam } from '../lib/types/aiTypes';
 import type { ClassificationResult } from '../lib/feedbackClassifier';
+import { getConfidenceColor as getUnifiedConfidenceColor } from '@/lib/confidenceColor';
 
 // Extended classification type
 type ExtendedClassification = FeedbackClassification | 'question' | 'praise' | 'complaint';
@@ -129,12 +130,7 @@ export default function ClassificationBadge({
 
   const currentSize = sizeClasses[size];
 
-  // Confidence color
-  const getConfidenceColor = (conf: number) => {
-    if (conf >= 0.8) return 'text-green-400';
-    if (conf >= 0.6) return 'text-yellow-400';
-    return 'text-red-400';
-  };
+  const getConfidenceColor = (conf: number) => getUnifiedConfidenceColor(conf).text;
 
   if (variant === 'pill') {
     return (
@@ -301,13 +297,7 @@ export default function ClassificationBadge({
                 </div>
                 <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                   <motion.div
-                    className={`h-full rounded-full ${
-                      displayConfidence >= 0.8
-                        ? 'bg-green-500'
-                        : displayConfidence >= 0.6
-                        ? 'bg-yellow-500'
-                        : 'bg-red-500'
-                    }`}
+                    className={`h-full rounded-full ${getUnifiedConfidenceColor(displayConfidence).barBg}`}
                     initial={{ width: 0 }}
                     animate={{ width: `${displayConfidence * 100}%` }}
                   />

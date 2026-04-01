@@ -104,11 +104,18 @@ function NewRelationshipForm({
         <motion.button
           onClick={handleSubmit}
           disabled={!canSubmit}
-          className={`p-1.5 rounded-md transition-all flex-shrink-0 ${
+          title={
+            disabled ? 'Loading…' :
+            isSubmitting ? 'Creating…' :
+            !sourceId || !targetId ? 'Select both groups first' :
+            sourceId === targetId ? 'Select two different groups' :
+            undefined
+          }
+          className={`p-1.5 rounded-md transition-all flex-shrink-0 border ${
             canSubmit
-              ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/30'
-              : 'bg-gray-700/30 text-gray-500 cursor-not-allowed border border-gray-700/30'
-          }`}
+              ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border-cyan-500/30'
+              : 'bg-gray-700/30 text-gray-500 border-gray-700/30'
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
           whileHover={canSubmit ? { scale: 1.05 } : undefined}
           whileTap={canSubmit ? { scale: 0.95 } : undefined}
         >
@@ -189,9 +196,10 @@ function RelationshipRow({
       <motion.button
         onClick={handleDelete}
         disabled={disabled || isDeleting}
-        className="p-1 rounded hover:bg-red-500/20 text-gray-500 hover:text-red-400 transition-colors flex-shrink-0 disabled:opacity-50"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
+        title={isDeleting ? 'Deleting…' : disabled ? 'Action unavailable while loading' : undefined}
+        className="p-1 rounded hover:bg-red-500/20 text-gray-500 hover:text-red-400 transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+        whileHover={!(disabled || isDeleting) ? { scale: 1.1 } : undefined}
+        whileTap={!(disabled || isDeleting) ? { scale: 0.9 } : undefined}
       >
         <Trash2 className="w-3 h-3" />
       </motion.button>

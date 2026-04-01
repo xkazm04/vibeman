@@ -98,7 +98,7 @@ export type KnowledgeLanguage = 'typescript' | 'javascript' | 'python' | 'rust' 
 
 export const KNOWLEDGE_LANGUAGES: KnowledgeLanguage[] = ['typescript', 'javascript', 'python', 'rust', 'go', 'java', 'csharp', 'universal'];
 
-export type KnowledgePatternType = 'best_practice' | 'anti_pattern' | 'convention' | 'gotcha' | 'optimization';
+export type KnowledgePatternType = 'best_practice' | 'anti_pattern' | 'convention' | 'gotcha' | 'optimization' | 'hub';
 export type KnowledgeSourceType = 'scan' | 'insight_graduation' | 'cli_session' | 'cross_project' | 'manual';
 export type KnowledgeEntryStatus = 'active' | 'deprecated' | 'archived';
 
@@ -175,4 +175,19 @@ export interface KnowledgeExportEntry {
   tags: string[];
   times_applied: number;
   times_helpful: number;
+}
+
+/** Hub entry link — connects a hub (Map of Content) to a target knowledge entry */
+export interface DbKbEntryLink {
+  id: string;
+  hub_entry_id: string;
+  linked_entry_id: string;
+  sort_order: number;
+  note: string | null;
+  created_at: string;
+}
+
+/** Linked entry with full target data, returned by hub link queries */
+export interface HubLinkedEntry extends DbKbEntryLink {
+  entry: DbKnowledgeEntry;
 }

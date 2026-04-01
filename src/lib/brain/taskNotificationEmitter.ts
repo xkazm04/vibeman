@@ -27,7 +27,6 @@ const recentTaskEvents: Map<string, TaskNotificationEvent> = new Map();
 
 // Throttle: max 1 progress update per 30s per task
 const lastProgressTime: Map<string, number> = new Map();
-const PROGRESS_THROTTLE_MS = 30_000;
 
 /**
  * Emit a task started event
@@ -124,19 +123,6 @@ export function emitTaskSessionLimit(
 }
 
 /**
- * Check if a progress update should be emitted (throttled to 1 per 30s per task)
- */
-export function shouldEmitProgress(taskId: string): boolean {
-  const last = lastProgressTime.get(taskId) || 0;
-  const now = Date.now();
-  if (now - last >= PROGRESS_THROTTLE_MS) {
-    lastProgressTime.set(taskId, now);
-    return true;
-  }
-  return false;
-}
-
-/**
  * Get and consume recent task events for a project.
  * Events older than 5 minutes are pruned.
  * Each event is returned only once (consumed on read).
@@ -165,9 +151,3 @@ export function consumeTaskEvents(projectId: string): TaskNotificationEvent[] {
   return events;
 }
 
-/**
- * Get count of pending task events (for diagnostics)
- */
-export function getPendingEventCount(): number {
-  return recentTaskEvents.size;
-}

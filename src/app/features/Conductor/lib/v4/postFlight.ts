@@ -33,6 +33,7 @@ export function processPostFlight(
   goalId?: string,
   memoryIdsQueried?: string[],
   options?: { skipStatusUpdate?: boolean },
+  qualityScore?: number,
 ): PostFlightResult {
   const db = getDatabase();
   const result: PostFlightResult = {
@@ -139,7 +140,26 @@ export function processPostFlight(
             contextId: log.context_id,
             success: true,
             source: 'conductor-v4',
+            qualityScore: qualityScore ?? null,
           })
+        );
+      }
+
+      // Record quality evaluation signal if score available
+      if (qualityScore != null) {
+        db.prepare(
+          `INSERT OR IGNORE INTO brain_signals (id, project_id, signal_type, data, weight, created_at)
+           VALUES (?, ?, 'quality_evaluation', ?, ?, datetime('now'))`
+        ).run(
+          `v4-quality-${runId.substring(0, 8)}`,
+          projectId,
+          JSON.stringify({
+            runId,
+            qualityScore,
+            implementationCount: logs.length,
+            source: 'conductor-v4-eval',
+          }),
+          qualityScore >= 70 ? 1.5 : 0.5,
         );
       }
     } catch (signalErr) {

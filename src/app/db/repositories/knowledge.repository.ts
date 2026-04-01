@@ -6,13 +6,15 @@
 import { getDatabase } from '../connection';
 import type {
   DbKnowledgeEntry,
+  DbKbEntryLink,
+  HubLinkedEntry,
   CreateKnowledgeEntryInput,
   KnowledgeQuery,
   KnowledgeDomain,
   KnowledgeLayer,
 } from '../models/knowledge.types';
 import { CATEGORY_TO_LAYER } from '../models/knowledge.types';
-import { getCurrentTimestamp, selectOne, selectAll, generateId } from './repository.utils';
+import { getCurrentTimestamp, selectOne, selectAll, generateId, escapeLikePattern } from './repository.utils';
 import { createHash } from 'crypto';
 
 function computeCanonicalId(domain: string, title: string): string {
@@ -119,15 +121,15 @@ export const knowledgeRepository = {
     }
 
     if (q.tags?.length) {
-      const tagConditions = q.tags.map(() => 'tags LIKE ?');
+      const tagConditions = q.tags.map(() => "tags LIKE ? ESCAPE '\\'");
       conditions.push(`(${tagConditions.join(' OR ')})`);
-      params.push(...q.tags.map(t => `%"${t}"%`));
+      params.push(...q.tags.map(t => `%"${escapeLikePattern(t)}"%`));
     }
 
     if (q.applies_to?.length) {
-      const techConditions = q.applies_to.map(() => 'applies_to LIKE ?');
+      const techConditions = q.applies_to.map(() => "applies_to LIKE ? ESCAPE '\\'");
       conditions.push(`(${techConditions.join(' OR ')})`);
-      params.push(...q.applies_to.map(t => `%"${t}"%`));
+      params.push(...q.applies_to.map(t => `%"${escapeLikePattern(t)}"%`));
     }
 
     if (q.language) {
@@ -136,8 +138,8 @@ export const knowledgeRepository = {
     }
 
     if (q.search) {
-      conditions.push('(title LIKE ? OR pattern LIKE ? OR rationale LIKE ?)');
-      const term = `%${q.search}%`;
+      conditions.push("(title LIKE ? ESCAPE '\\' OR pattern LIKE ? ESCAPE '\\' OR rationale LIKE ? ESCAPE '\\')");
+      const term = `%${escapeLikePattern(q.search)}%`;
       params.push(term, term, term);
     }
 
@@ -167,8 +169,8 @@ export const knowledgeRepository = {
     if (filePaths.length === 0) return [];
 
     const limit = options?.limit ?? 10;
-    const fpConditions = filePaths.map(() => 'file_patterns LIKE ?');
-    const params: unknown[] = filePaths.map(fp => `%${fp.split('/').slice(0, 3).join('/')}%`);
+    const fpConditions = filePaths.map(() => "file_patterns LIKE ? ESCAPE '\\'");
+    const params: unknown[] = filePaths.map(fp => `%${escapeLikePattern(fp.split('/').slice(0, 3).join('/'))}%`);
 
     let layerClause = '';
     if (options?.layer) {
@@ -206,7 +208,7 @@ export const knowledgeRepository = {
     );
   },
 
-  deprecate: (id: string, reason: string): void => {
+  deprecate: (id: string, _reason?: string): void => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
     db.prepare(`
@@ -216,17 +218,21 @@ export const knowledgeRepository = {
 
   delete: (id: string): boolean => {
     const db = getDatabase();
-    const result = db.prepare('DELETE FROM knowledge_entries WHERE id = ?').run(id);
+    const transaction = db.transaction(() => {
+      db.prepare('DELETE FROM kb_entry_links WHERE hub_entry_id = ? OR linked_entry_id = ?').run(id, id);
+      return db.prepare('DELETE FROM knowledge_entries WHERE id = ?').run(id);
+    });
+    const result = transaction();
     return result.changes > 0;
   },
 
   search: (searchTerm: string, limit: number = 20): DbKnowledgeEntry[] => {
     const db = getDatabase();
-    const term = `%${searchTerm}%`;
+    const term = `%${escapeLikePattern(searchTerm)}%`;
     return selectAll<DbKnowledgeEntry>(
       db,
       `SELECT * FROM knowledge_entries
-       WHERE status = 'active' AND (title LIKE ? OR pattern LIKE ? OR rationale LIKE ? OR tags LIKE ?)
+       WHERE status = 'active' AND (title LIKE ? ESCAPE '\\' OR pattern LIKE ? ESCAPE '\\' OR rationale LIKE ? ESCAPE '\\' OR tags LIKE ? ESCAPE '\\')
        ORDER BY confidence DESC
        LIMIT ?`,
       term, term, term, term, limit
@@ -280,5 +286,122 @@ export const knowledgeRepository = {
       tree[row.language][row.layer][row.domain] = row.count;
     }
     return tree;
+  },
+
+  /** Get all hub entries (pattern_type = 'hub'), optionally filtered by category */
+  getHubEntries: (domain?: KnowledgeDomain): DbKnowledgeEntry[] => {
+    const db = getDatabase();
+    if (domain) {
+      return selectAll<DbKnowledgeEntry>(
+        db,
+        `SELECT * FROM knowledge_entries WHERE pattern_type = 'hub' AND status = 'active' AND domain = ? ORDER BY title`,
+        domain
+      );
+    }
+    return selectAll<DbKnowledgeEntry>(
+      db,
+      `SELECT * FROM knowledge_entries WHERE pattern_type = 'hub' AND status = 'active' ORDER BY title`
+    );
+  },
+
+  // ── Hub Link Methods ─────────────────────────────────────────────────
+
+  /** Add a link from a hub entry to a target entry */
+  addHubLink: (hubEntryId: string, linkedEntryId: string, note?: string): DbKbEntryLink => {
+    const db = getDatabase();
+    const now = getCurrentTimestamp();
+    const id = generateId('kbl');
+
+    // Get next sort_order
+    const maxRow = selectOne<{ max_order: number | null }>(
+      db,
+      'SELECT MAX(sort_order) as max_order FROM kb_entry_links WHERE hub_entry_id = ?',
+      hubEntryId
+    );
+    const sortOrder = (maxRow?.max_order ?? -1) + 1;
+
+    db.prepare(`
+      INSERT INTO kb_entry_links (id, hub_entry_id, linked_entry_id, sort_order, note, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(id, hubEntryId, linkedEntryId, sortOrder, note || null, now);
+
+    return { id, hub_entry_id: hubEntryId, linked_entry_id: linkedEntryId, sort_order: sortOrder, note: note || null, created_at: now };
+  },
+
+  /** Remove a link from a hub */
+  removeHubLink: (linkId: string): boolean => {
+    const db = getDatabase();
+    const result = db.prepare('DELETE FROM kb_entry_links WHERE id = ?').run(linkId);
+    return result.changes > 0;
+  },
+
+  /** Get all linked entries for a hub, with full entry data, ordered by sort_order */
+  getHubLinks: (hubEntryId: string): HubLinkedEntry[] => {
+    const db = getDatabase();
+    const rows = selectAll<DbKbEntryLink & DbKnowledgeEntry & { link_id: string; link_note: string | null; link_sort_order: number; link_created_at: string }>(
+      db,
+      `SELECT
+        l.id as link_id,
+        l.hub_entry_id,
+        l.linked_entry_id,
+        l.sort_order as link_sort_order,
+        l.note as link_note,
+        l.created_at as link_created_at,
+        e.*
+       FROM kb_entry_links l
+       JOIN knowledge_entries e ON e.id = l.linked_entry_id
+       WHERE l.hub_entry_id = ? AND e.status = 'active'
+       ORDER BY l.sort_order`,
+      hubEntryId
+    );
+
+    return rows.map(row => ({
+      id: row.link_id,
+      hub_entry_id: row.hub_entry_id,
+      linked_entry_id: row.linked_entry_id,
+      sort_order: row.link_sort_order,
+      note: row.link_note,
+      created_at: row.link_created_at,
+      entry: {
+        id: row.linked_entry_id,
+        domain: row.domain,
+        layer: row.layer,
+        pattern_type: row.pattern_type,
+        title: row.title,
+        pattern: row.pattern,
+        rationale: row.rationale,
+        code_example: row.code_example,
+        anti_pattern: row.anti_pattern,
+        applies_to: row.applies_to,
+        file_patterns: row.file_patterns,
+        tags: row.tags,
+        language: row.language,
+        confidence: row.confidence,
+        source_project_id: row.source_project_id,
+        source_type: row.source_type,
+        source_insight_id: row.source_insight_id,
+        times_applied: row.times_applied,
+        times_helpful: row.times_helpful,
+        last_applied_at: row.last_applied_at,
+        status: row.status,
+        canonical_id: row.canonical_id,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+      },
+    }));
+  },
+
+  /** Reorder links within a hub — accepts an array of link IDs in desired order */
+  reorderHubLinks: (hubEntryId: string, linkIds: string[]): void => {
+    const db = getDatabase();
+    const stmt = db.prepare(
+      'UPDATE kb_entry_links SET sort_order = ? WHERE id = ? AND hub_entry_id = ?'
+    );
+    const transaction = db.transaction(() => {
+      linkIds.forEach((linkId, index) => {
+        stmt.run(index, linkId, hubEntryId);
+      });
+    });
+    transaction();
   },
 };

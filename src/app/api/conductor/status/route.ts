@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
       // Include triage_data when at triage checkpoint
       const triageInfo = getTriageDataIfAtCheckpoint(run.id);
       const intentQuestions = getIntentQuestions(run.id);
+      const qualityGateResults = getLatestQualityGateResults(run.id);
 
       return NextResponse.json({
         success: true,
@@ -56,6 +57,7 @@ export async function GET(request: NextRequest) {
           pipelineVersion: run.pipeline_version,
           ...(triageInfo ? { triage_data: triageInfo } : {}),
           ...(intentQuestions ? { intent_questions: intentQuestions } : {}),
+          ...(qualityGateResults ? { qualityGateResults } : {}),
         },
       });
     }
@@ -66,6 +68,7 @@ export async function GET(request: NextRequest) {
     const formattedRuns = activeRuns.map(run => {
       const triageInfo = getTriageDataIfAtCheckpoint(run.id);
       const intentQs = getIntentQuestions(run.id);
+      const gateResults = getLatestQualityGateResults(run.id);
       return {
         id: run.id,
         projectId: run.project_id,
@@ -83,6 +86,7 @@ export async function GET(request: NextRequest) {
         pipelineVersion: run.pipeline_version,
         ...(triageInfo ? { triage_data: triageInfo } : {}),
         ...(intentQs ? { intent_questions: intentQs } : {}),
+        ...(gateResults ? { qualityGateResults: gateResults } : {}),
       };
     });
 
@@ -113,6 +117,35 @@ function getTriageDataIfAtCheckpoint(runId: string): unknown | null {
 
     if (row?.checkpoint_type === 'triage' && row.triage_data) {
       return JSON.parse(row.triage_data);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read latest quality gate results from the most recent reflection in reflection_history.
+ */
+function getLatestQualityGateResults(runId: string): unknown[] | null {
+  try {
+    const db = getDatabase();
+    const row = db.prepare(
+      'SELECT reflection_history FROM conductor_runs WHERE id = ?'
+    ).get(runId) as { reflection_history: string | null } | undefined;
+
+    if (!row?.reflection_history) return null;
+
+    const history = JSON.parse(row.reflection_history) as Array<{
+      qualityGateResults?: unknown[];
+    }>;
+    if (!Array.isArray(history) || history.length === 0) return null;
+
+    // Return results from the most recent reflection that has them
+    for (let i = history.length - 1; i >= 0; i--) {
+      if (Array.isArray(history[i].qualityGateResults) && history[i].qualityGateResults!.length > 0) {
+        return history[i].qualityGateResults!;
+      }
     }
     return null;
   } catch {

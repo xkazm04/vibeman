@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatRelativeTime } from '@/lib/formatDate';
 import {
   AlertTriangle,
   CheckCircle,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 import type { FeedbackItem, KanbanPriority } from '../lib/types/feedbackTypes';
 import type { FeedbackClassification, DevTeam } from '../lib/types/aiTypes';
+import EmptyState from '@/components/ui/EmptyState';
 import type { ClassificationResult } from '../lib/feedbackClassifier';
 import ClassificationBadge from './ClassificationBadge';
 
@@ -219,7 +221,7 @@ export default function LowConfidenceQueue({
                       <span>{item.channel}</span>
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {getTimeAgo(lowConfItem.addedAt)}
+                        {formatRelativeTime(lowConfItem.addedAt)}
                       </span>
                     </div>
                   </div>
@@ -468,25 +470,15 @@ export default function LowConfidenceQueue({
         </AnimatePresence>
 
         {items.length === 0 && (
-          <div className="px-4 py-8 text-center">
-            <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-400 opacity-50" />
-            <p className="text-sm text-gray-400">All caught up!</p>
-            <p className="text-xs text-gray-500 mt-1">
-              No items need manual review right now
-            </p>
-          </div>
+          <EmptyState
+            icon={CheckCircle}
+            title="All caught up!"
+            description="No items need manual review right now"
+            variant="compact"
+          />
         )}
       </div>
     </div>
   );
 }
 
-// Helper function
-function getTimeAgo(date: string): string {
-  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
-
-  if (seconds < 60) return 'just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  return `${Math.floor(seconds / 86400)}d ago`;
-}

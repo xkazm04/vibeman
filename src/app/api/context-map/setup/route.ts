@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { logger } from '@/lib/logger';
+import { validateProjectPath } from '@/lib/pathSecurity';
 
 const SKILL_SOURCE_PATH = path.join(process.cwd(), '.claude', 'skills', 'context-map-generator.md');
 
@@ -40,6 +41,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'projectPath is required' },
         { status: 400 }
+      );
+    }
+
+    const pathError = validateProjectPath(projectPath);
+    if (pathError) {
+      return NextResponse.json(
+        { error: pathError },
+        { status: 403 }
       );
     }
 

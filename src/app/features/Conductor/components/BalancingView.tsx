@@ -15,17 +15,19 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { transition } from '@/lib/motion';
 import {
-  ChevronDown, ChevronRight,
   Search, Filter, Layers, Zap, Brain, Activity,
-  Sparkles, DollarSign, GitBranch,
+  Sparkles, DollarSign, GitBranch, ShieldCheck, Plus, Trash2,
 } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
 import SliderControl from '@/components/ui/SliderControl';
 import Toggle from '@/components/ui/Toggle';
 import ToggleGroup from '@/components/ui/ToggleGroup';
 import { useConductorStore } from '../lib/conductorStore';
 import type { BalancingConfig, ScanStrategy, BatchStrategy, ModelRoutingRule } from '../lib/types';
+import type { QualityGateConfig } from '../lib/v3/types';
 import type { CLIProvider } from '@/lib/claude-terminal/types';
 import { PROVIDER_MODELS } from '@/lib/claude-terminal/types';
+import { ScrollShadow } from '@/components/ui';
 
 // ============================================================================
 // Shared sub-components
@@ -74,11 +76,7 @@ function CollapsibleSection({
       >
         <Icon className="w-3.5 h-3.5 text-gray-500" />
         <span className="font-medium flex-1 text-left">{title}</span>
-        {isOpen ? (
-          <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
-        ) : (
-          <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
-        )}
+        <ExpandChevron expanded={isOpen} />
       </button>
       <AnimatePresence>
         {isOpen && (
@@ -314,6 +312,135 @@ function SubscriptionUsage() {
 }
 
 // ============================================================================
+// Quality Gate Editor
+// ============================================================================
+
+const GATE_TYPES: { value: QualityGateConfig['type']; label: string }[] = [
+  { value: 'build', label: 'Build' },
+  { value: 'lint', label: 'Lint' },
+  { value: 'test', label: 'Test' },
+  { value: 'rubric', label: 'Rubric' },
+  { value: 'custom', label: 'Custom' },
+];
+
+function QualityGateEditor({
+  gates,
+  onChange,
+}: {
+  gates: QualityGateConfig[];
+  onChange: (gates: QualityGateConfig[]) => void;
+}) {
+  const addGate = () => {
+    onChange([...gates, { type: 'build', required: true }]);
+  };
+
+  const removeGate = (index: number) => {
+    onChange(gates.filter((_, i) => i !== index));
+  };
+
+  const updateGate = (index: number, partial: Partial<QualityGateConfig>) => {
+    onChange(gates.map((g, i) => (i === index ? { ...g, ...partial } : g)));
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+          <span className="text-xs text-gray-400">Quality Gates</span>
+        </div>
+        <button
+          onClick={addGate}
+          className="flex items-center gap-1 text-2xs text-cyan-400 hover:text-cyan-300 transition-colors"
+        >
+          <Plus className="w-3 h-3" />
+          Add Gate
+        </button>
+      </div>
+
+      {gates.length === 0 && (
+        <p className="text-2xs text-gray-600 italic">
+          No gates configured — reflect phase is purely informational
+        </p>
+      )}
+
+      {gates.map((gate, i) => (
+        <div
+          key={i}
+          className="flex items-start gap-1.5 p-2 rounded-lg bg-gray-800/40 border border-gray-800/60"
+        >
+          <div className="flex-1 space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <select
+                value={gate.type}
+                onChange={(e) => {
+                  const type = e.target.value as QualityGateConfig['type'];
+                  const updates: Partial<QualityGateConfig> = { type };
+                  if (type === 'build') {
+                    updates.command = undefined;
+                    updates.minScore = undefined;
+                  } else if (type === 'rubric') {
+                    updates.command = undefined;
+                    updates.minScore = gate.minScore ?? 3;
+                  } else {
+                    updates.minScore = undefined;
+                    if (!gate.command) updates.command = type === 'lint' ? 'npm run lint' : type === 'test' ? 'npm test' : '';
+                  }
+                  updateGate(i, updates);
+                }}
+                className={`${selectClass} w-20 flex-shrink-0`}
+              >
+                {GATE_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+              <label className="flex items-center gap-1 text-2xs text-gray-400 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={gate.required}
+                  onChange={(e) => updateGate(i, { required: e.target.checked })}
+                  className="rounded border-gray-600 bg-gray-800 text-cyan-500 focus:ring-cyan-600 w-3 h-3"
+                />
+                Required
+              </label>
+            </div>
+            {(gate.type === 'lint' || gate.type === 'test' || gate.type === 'custom') && (
+              <input
+                type="text"
+                value={gate.command || ''}
+                onChange={(e) => updateGate(i, { command: e.target.value })}
+                placeholder={gate.type === 'lint' ? 'npm run lint' : gate.type === 'test' ? 'npm test' : 'shell command'}
+                className="w-full bg-gray-800 text-gray-200 text-2xs rounded px-2 py-1 border border-gray-700 outline-none focus:border-cyan-600 transition-colors font-mono placeholder:text-gray-600"
+              />
+            )}
+            {gate.type === 'rubric' && (
+              <div className="flex items-center gap-1.5 text-2xs text-gray-400">
+                <span>Min score:</span>
+                <select
+                  value={gate.minScore ?? 3}
+                  onChange={(e) => updateGate(i, { minScore: Number(e.target.value) })}
+                  className={`${selectClass} w-12`}
+                >
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <option key={n} value={n}>{n}/5</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => removeGate(i)}
+            className="text-gray-600 hover:text-red-400 transition-colors mt-0.5"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ============================================================================
 // BalancingView — the unified content
 // ============================================================================
 
@@ -382,6 +509,10 @@ function ModalLayout({
               onModelChange={(m) => update({ reflectModel: m })}
             />
           </div>
+          <QualityGateEditor
+            gates={config.qualityGates || []}
+            onChange={(gates) => update({ qualityGates: gates })}
+          />
         </div>
       </div>
 
@@ -479,7 +610,7 @@ function InlineLayout({
   isRunning: boolean;
 }) {
   return (
-    <div className="max-h-[400px] overflow-y-auto" data-testid="balancing-panel">
+    <ScrollShadow className="max-h-[400px] overflow-y-auto" data-testid="balancing-panel">
       {/* Scout Configuration */}
       <CollapsibleSection title="Scout" icon={Search} defaultOpen>
         <ToggleGroup<ScanStrategy>
@@ -613,6 +744,6 @@ function InlineLayout({
           <span className="text-xs text-gray-500">Locked while running</span>
         </div>
       )}
-    </div>
+    </ScrollShadow>
   );
 }

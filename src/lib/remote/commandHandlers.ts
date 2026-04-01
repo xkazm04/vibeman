@@ -308,7 +308,13 @@ async function handleStartBatch(command: RemoteCommand): Promise<CommandHandlerR
       addedAt: number;
     }> = [];
 
+    const SAFE_NAME_RE = /^[a-zA-Z0-9._-]+$/;
+
     for (const reqName of payload.requirement_names) {
+      if (!SAFE_NAME_RE.test(reqName)) {
+        console.warn(`[start_batch] Invalid requirement name rejected: ${reqName}`);
+        continue;
+      }
       const reqFile = path.join(requirementsDir, `${reqName}.md`);
       if (fs.existsSync(reqFile)) {
         tasks.push({

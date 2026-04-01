@@ -66,9 +66,10 @@ function TypeSelector({
       <button
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md border transition-all min-w-[70px] justify-between ${
+        title={disabled ? 'Action unavailable while loading' : undefined}
+        className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md border transition-all min-w-[70px] justify-between disabled:opacity-50 disabled:cursor-not-allowed ${
           disabled
-            ? 'opacity-50 cursor-not-allowed bg-gray-800/30 border-gray-700/30'
+            ? 'bg-gray-800/30 border-gray-700/30'
             : 'hover:bg-gray-700/50 bg-gray-800/40 border-gray-700/40 cursor-pointer'
         }`}
         style={selectedColor ? { borderColor: `${selectedColor}50`, color: selectedColor } : undefined}

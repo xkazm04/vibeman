@@ -49,8 +49,8 @@ const ContextCard = React.memo(function ContextCard({ context, groupColor, avail
     e.dataTransfer.effectAllowed = 'move';
   }, [context.id]);
 
-  const handleRemove = useCallback(async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleRemove = useCallback(async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     try {
       await removeContext(context.id);
     } catch (error) {
@@ -141,15 +141,6 @@ const ContextCard = React.memo(function ContextCard({ context, groupColor, avail
     );
     setShowContextMenu(false);
   }, [showFullScreenModal, context, availableGroups]);
-
-  const handleDelete = useCallback(async () => {
-    try {
-      await removeContext(context.id);
-    } catch (error) {
-      // Failed to delete context
-    }
-    setShowContextMenu(false);
-  }, [removeContext, context.id]);
 
   const handleOpenFiles = useCallback(() => {
     setShowFileEditor(true);
@@ -246,10 +237,10 @@ const ContextCard = React.memo(function ContextCard({ context, groupColor, avail
       id: 'delete',
       label: 'Delete Context',
       icon: Trash2,
-      action: handleDelete,
+      action: handleRemove,
       isDanger: true,
     },
-  ], [handleOpenFiles, handleCopy, handleSelect, isSelectedForBacklog, handleToggleForBacklog, handleContextFile, isRegenerating, handleRegenerate, handleEdit, handleDelete]);
+  ], [handleOpenFiles, handleCopy, handleSelect, isSelectedForBacklog, handleToggleForBacklog, handleContextFile, isRegenerating, handleRegenerate, handleEdit, handleRemove]);
 
   return (
     <>

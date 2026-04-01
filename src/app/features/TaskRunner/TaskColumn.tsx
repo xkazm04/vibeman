@@ -6,6 +6,7 @@ import TaskColumnHeader from './components/TaskColumnHeader';
 import TaskGroupedList from './components/TaskGroupedList';
 import { useTaskColumnOrchestration, type UseTaskColumnOrchestrationProps } from './hooks/useTaskColumnOrchestration';
 import type { ContextInfo } from './hooks/useTaskColumnData';
+import { ScrollShadow } from '@/components/ui';
 
 interface TaskColumnProps extends UseTaskColumnOrchestrationProps {
   projectName: string;
@@ -65,7 +66,7 @@ const TaskColumn = React.memo(function TaskColumn({ projectName, ...orchestratio
         autoAssignCount={selectedIdleRequirements.length}
       />
 
-      <div className="flex-1 px-2 py-2 min-h-[100px] max-h-[calc(100vh-220px)] overflow-y-auto custom-scrollbar">
+      <ScrollShadow className="flex-1 px-2 py-2 min-h-[100px] max-h-[calc(100vh-220px)] overflow-y-auto custom-scrollbar scroll-smooth">
         <TaskGroupedList
           groupedRequirements={groupedRequirements}
           selectedRequirements={selectedRequirements}
@@ -77,7 +78,7 @@ const TaskColumn = React.memo(function TaskColumn({ projectName, ...orchestratio
           onReset={onReset}
           onToggleContextSelection={handleContextSelectionToggle}
         />
-      </div>
+      </ScrollShadow>
     </motion.div>
   );
 });

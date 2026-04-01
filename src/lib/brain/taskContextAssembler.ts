@@ -7,6 +7,7 @@
 import { contextDb, brainInsightDb, implementationLogDb } from '@/app/db';
 import type { DbContext } from '@/app/db/models/types';
 import type { ImplementationLogMetadata } from '@/app/db/models/types';
+import { safeParseJson } from '@/lib/json-utils';
 
 // ── Signal extraction regexes ────────────────────────────────────────
 
@@ -99,10 +100,10 @@ function matchContexts(projectId: string, signals: TaskSignals): MatchedContext[
     let dbTables: string[] = [];
     let crossRefs: Array<{ contextId: string; relationship: string }> = [];
 
-    try { keywords = JSON.parse(ctx.keywords || '[]'); } catch {}
-    try { entryPoints = JSON.parse(ctx.entry_points || '[]'); } catch {}
-    try { dbTables = JSON.parse(ctx.db_tables || '[]'); } catch {}
-    try { crossRefs = JSON.parse(ctx.cross_refs || '[]'); } catch {}
+    keywords = safeParseJson(ctx.keywords, []);
+    entryPoints = safeParseJson(ctx.entry_points, []);
+    dbTables = safeParseJson(ctx.db_tables, []);
+    crossRefs = safeParseJson(ctx.cross_refs, []);
 
     // Score by keyword overlap
     let score = 0;

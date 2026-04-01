@@ -12,7 +12,7 @@ import type {
   CollectiveMemoryType,
   ApplicationOutcome,
 } from '../models/collective-memory.types';
-import { getCurrentTimestamp, selectOne, selectAll, generateId } from './repository.utils';
+import { getCurrentTimestamp, selectOne, selectAll, generateId, escapeLikePattern } from './repository.utils';
 
 export const collectiveMemoryRepository = {
   // ─── Entry Methods ───────────────────────────────────────────────────
@@ -134,12 +134,12 @@ export const collectiveMemoryRepository = {
    */
   search: (projectId: string, query: string, limit: number = 10): DbCollectiveMemoryEntry[] => {
     const db = getDatabase();
-    const likeQuery = `%${query}%`;
+    const likeQuery = `%${escapeLikePattern(query)}%`;
     return selectAll<DbCollectiveMemoryEntry>(
       db,
       `SELECT * FROM collective_memory_entries
        WHERE project_id = ? AND (
-         title LIKE ? OR description LIKE ? OR tags LIKE ? OR code_pattern LIKE ?
+         title LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\' OR tags LIKE ? ESCAPE '\\' OR code_pattern LIKE ? ESCAPE '\\'
        )
        ORDER BY effectiveness_score DESC
        LIMIT ?`,
@@ -162,13 +162,13 @@ export const collectiveMemoryRepository = {
     const params: unknown[] = [projectId];
 
     for (const pattern of filePatterns) {
-      conditions.push('file_patterns LIKE ?');
-      params.push(`%${pattern}%`);
+      conditions.push("file_patterns LIKE ? ESCAPE '\\'");
+      params.push(`%${escapeLikePattern(pattern)}%`);
     }
 
     for (const tag of tags) {
-      conditions.push('tags LIKE ?');
-      params.push(`%${tag}%`);
+      conditions.push("tags LIKE ? ESCAPE '\\'");
+      params.push(`%${escapeLikePattern(tag)}%`);
     }
 
     if (conditions.length === 0) {
@@ -235,13 +235,16 @@ export const collectiveMemoryRepository = {
   },
 
   /**
-   * Delete a memory entry by ID
+   * Delete a memory entry by ID, cascading to its applications
    */
   delete: (id: string): boolean => {
     const db = getDatabase();
-    const stmt = db.prepare('DELETE FROM collective_memory_entries WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
+    const deleteWithCascade = db.transaction(() => {
+      db.prepare('DELETE FROM collective_memory_applications WHERE memory_id = ?').run(id);
+      const result = db.prepare('DELETE FROM collective_memory_entries WHERE id = ?').run(id);
+      return result.changes > 0;
+    });
+    return deleteWithCascade();
   },
 
   /**

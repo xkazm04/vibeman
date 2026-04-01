@@ -74,14 +74,7 @@ export function getEventRadius(weight: number, timestamp: number, baseMin = DOT_
   return base * recencyBoost;
 }
 
-export function relTime(ts: number): string {
-  const diff = Date.now() - ts;
-  const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
-}
+export { formatRelativeTime as relTime } from '@/lib/formatDate';
 
 /**
  * Greedy collision-aware label placement.

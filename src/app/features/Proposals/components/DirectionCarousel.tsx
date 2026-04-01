@@ -2,7 +2,8 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion';
-import { Check, X, Code, Loader2, Sparkles, MapPin, Zap, ChevronDown, ChevronUp, MessageCircleQuestion } from 'lucide-react';
+import { Check, X, Code, Loader2, Sparkles, MapPin, Zap, MessageCircleQuestion } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
 import { useThemeStore } from '@/stores/themeStore';
 import { getFocusRingStyles } from '@/lib/ui/focusRing';
 import { transitions } from '@/lib/design-tokens';
@@ -251,7 +252,7 @@ export default function DirectionCarousel({
                         onClick={() => setExpandedContent(!expandedContent)}
                         className={`mt-2 flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 ${transitions.colors}`}
                       >
-                        {expandedContent ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                        <ExpandChevron expanded={expandedContent} className="w-3 h-3 text-purple-400" />
                         {expandedContent ? 'Show less' : 'Read full direction'}
                       </button>
                     )}

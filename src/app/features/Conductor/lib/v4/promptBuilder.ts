@@ -5,7 +5,7 @@
  * Claude Code CLI session with 1M context window.
  */
 
-import type { V4PreFlightData } from './types';
+import type { V4PreFlightData, V4QualityEvaluation } from './types';
 
 /**
  * Build the complete V4 master prompt.
@@ -156,6 +156,65 @@ ${testingInstructions}
 - Testing is non-blocking: if impossible for any technical reason, document the reason and move on
 - Do NOT ask the user questions — make reasonable decisions autonomously
 - Commit your changes when you feel a logical unit of work is complete`;
+}
+
+/**
+ * Build a refinement prompt that injects the quality evaluation critique
+ * into the original goal context, so the refinement run addresses specific gaps.
+ */
+export function buildRefinementPrompt(
+  data: V4PreFlightData,
+  evaluation: V4QualityEvaluation,
+  attemptNumber: number,
+): string {
+  // Start with the original full prompt
+  const basePrompt = buildV4Prompt(data);
+
+  const gapsList = evaluation.gaps.length > 0
+    ? evaluation.gaps.map((g, i) => `${i + 1}. ${g}`).join('\n')
+    : 'No specific gaps identified.';
+
+  const suggestionsList = evaluation.suggestions.length > 0
+    ? evaluation.suggestions.map((s, i) => `${i + 1}. ${s}`).join('\n')
+    : 'No specific suggestions.';
+
+  const scoreBreakdown = [
+    `- Completeness: ${evaluation.dimensionScores.completeness}/100`,
+    `- Correctness: ${evaluation.dimensionScores.correctness}/100`,
+    `- Code Quality: ${evaluation.dimensionScores.codeQuality}/100`,
+  ].join('\n');
+
+  const refinementSection = `
+
+---
+
+# REFINEMENT RUN (Attempt ${attemptNumber})
+
+A quality evaluation of the previous implementation scored **${evaluation.score}/100**, which is below the required threshold.
+
+**Verdict:** ${evaluation.verdict}
+
+## Score Breakdown
+${scoreBreakdown}
+
+## Identified Gaps
+${gapsList}
+
+## Improvement Suggestions
+${suggestionsList}
+
+## REFINEMENT INSTRUCTIONS
+
+This is a refinement run. The previous implementation attempt has already been applied to the codebase.
+
+1. **DO NOT re-implement** what was already done well. Focus only on the gaps above.
+2. Read the current code state — previous changes are already in the working tree.
+3. Address each gap and suggestion systematically.
+4. Call \`log_implementation\` for each refinement you make.
+5. Call \`report_progress\` with phase="refining" to track your work.
+6. When done, call \`report_progress\` with phase="validating" and percentage=100.`;
+
+  return basePrompt + refinementSection;
 }
 
 function safeParseJSON(str: string, fallback: unknown): unknown {

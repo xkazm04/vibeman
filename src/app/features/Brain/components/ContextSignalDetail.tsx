@@ -9,21 +9,11 @@ import type { DrillDownTarget } from './SignalDetailDrawer';
 import BrainEmptyState from './BrainEmptyState';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useSignals } from '../lib/queries';
+import { safeParseJson } from '@/lib/json-utils';
+import { formatRelativeTime } from '@/lib/formatDate';
 
 interface ContextSignalDetailProps {
   target: DrillDownTarget;
-}
-
-function formatTimestamp(ts: string): string {
-  const date = new Date(ts);
-  const now = Date.now();
-  const diff = now - date.getTime();
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  if (hours < 1) return 'less than 1h ago';
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return date.toLocaleDateString();
 }
 
 export default function ContextSignalDetail({ target }: ContextSignalDetailProps) {
@@ -105,8 +95,7 @@ export default function ContextSignalDetail({ target }: ContextSignalDetailProps
 }
 
 function SignalCard({ signal, targetType }: { signal: DbBehavioralSignal; targetType: DrillDownTarget['type'] }) {
-  let parsed: Record<string, unknown> = {};
-  try { parsed = JSON.parse(signal.data); } catch { /* empty */ }
+  const parsed: Record<string, unknown> = safeParseJson(signal.data, {});
 
   return (
     <div className="p-3 rounded-lg bg-zinc-800/40 border border-zinc-800/50 space-y-2">
@@ -121,7 +110,7 @@ function SignalCard({ signal, targetType }: { signal: DbBehavioralSignal; target
         <div className="flex items-center gap-2">
           <span className="text-2xs text-zinc-500 flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            {formatTimestamp(signal.timestamp)}
+            {formatRelativeTime(signal.timestamp)}
           </span>
           <WeightBadge weight={signal.weight} />
         </div>

@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRapportData } from '@/lib/annette/rapportEngine';
 import { annetteDb } from '@/app/db';
 import { logger } from '@/lib/logger';
+import { safeParseJson } from '@/lib/json-utils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,10 +29,10 @@ export async function GET(request: NextRequest) {
     let emotionalHistory: unknown[] = [];
     let communicationSignals: Record<string, unknown> = {};
 
-    try { expertiseAreas = JSON.parse(rapport.expertise_areas || '[]'); } catch { /* empty */ }
-    try { workRhythm = JSON.parse(rapport.work_rhythm || '{}'); } catch { /* empty */ }
-    try { emotionalHistory = JSON.parse(rapport.emotional_history || '[]'); } catch { /* empty */ }
-    try { communicationSignals = JSON.parse(rapport.communication_signals || '{}'); } catch { /* empty */ }
+    expertiseAreas = safeParseJson(rapport.expertise_areas, []);
+    workRhythm = safeParseJson(rapport.work_rhythm, {});
+    emotionalHistory = safeParseJson(rapport.emotional_history, []);
+    communicationSignals = safeParseJson(rapport.communication_signals, {});
 
     return NextResponse.json({
       id: rapport.id,

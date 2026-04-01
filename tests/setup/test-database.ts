@@ -24,6 +24,7 @@ export function getTestDatabase(): Database.Database {
     }
 
     testDb = new Database(TEST_DB_PATH);
+    testDb.pragma('busy_timeout = 5000');
     testDb.pragma('journal_mode = WAL');
   }
   return testDb;

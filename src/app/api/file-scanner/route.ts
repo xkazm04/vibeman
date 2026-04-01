@@ -628,7 +628,7 @@ async function writeTestScanLog(testFiles: TestFile[], results: FileScanResult[]
 
 async function handlePost(request: NextRequest) {
   try {
-    const { action, projectPath, projectType, filePath, fileContent, fileIndex, totalFiles } = await request.json();
+    const { action, projectPath, projectType, filePath, fileContent, fileIndex, totalFiles, buildErrors, writeFiles } = await request.json();
 
     switch (action) {
       case 'full-scan':
@@ -685,7 +685,6 @@ async function handlePost(request: NextRequest) {
         if (!filePath || !request.body) {
           return NextResponse.json({ error: 'File path and build errors are required' }, { status: 400 });
         }
-        const { buildErrors, writeFiles } = await request.json();
         const fixResult = await fixBuildErrorsInFile(filePath, buildErrors, writeFiles);
         return NextResponse.json(fixResult);
 

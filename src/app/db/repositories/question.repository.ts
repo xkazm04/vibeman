@@ -237,8 +237,10 @@ export const questionRepository = {
    * Get full ancestry chain from a question up to root.
    * Returns array ordered root-first: [root, ..., parent, self]
    * Uses a recursive CTE to traverse the tree in a single query.
+   * Depth is capped at 100 to guard against circular parent_id references.
    */
   getAncestryChain: (questionId: string): DbQuestion[] => {
+    const MAX_DEPTH = 100;
     const db = getDatabase();
     const stmt = db.prepare(`
       WITH RECURSIVE ancestry AS (
@@ -246,10 +248,16 @@ export const questionRepository = {
         UNION ALL
         SELECT q.*, a._depth + 1 FROM questions q
         JOIN ancestry a ON q.id = a.parent_id
+        WHERE a._depth < ${MAX_DEPTH}
       )
       SELECT * FROM ancestry ORDER BY _depth DESC
     `);
     const rows = stmt.all(questionId) as (DbQuestion & { _depth: number })[];
+    if (rows.length > 0 && rows.some(r => r._depth >= MAX_DEPTH)) {
+      throw new Error(
+        `Question ancestry chain exceeded depth limit of ${MAX_DEPTH} — possible circular parent_id reference. Start question: ${questionId}`
+      );
+    }
     // Strip the helper column
     return rows.map(({ _depth, ...rest }) => rest as DbQuestion);
   },
@@ -258,8 +266,10 @@ export const questionRepository = {
    * Get the full subtree under a question.
    * Returns flat array including the root question, ordered by tree depth then created_at.
    * Uses a recursive CTE to traverse the tree in a single query.
+   * Depth is capped at 100 to guard against circular parent_id references.
    */
   getSubtree: (questionId: string): DbQuestion[] => {
+    const MAX_DEPTH = 100;
     const db = getDatabase();
     const stmt = db.prepare(`
       WITH RECURSIVE subtree AS (
@@ -267,10 +277,16 @@ export const questionRepository = {
         UNION ALL
         SELECT q.*, s._depth + 1 FROM questions q
         JOIN subtree s ON q.parent_id = s.id
+        WHERE s._depth < ${MAX_DEPTH}
       )
       SELECT * FROM subtree ORDER BY _depth ASC, created_at ASC
     `);
     const rows = stmt.all(questionId) as (DbQuestion & { _depth: number })[];
+    if (rows.length > 0 && rows.some(r => r._depth >= MAX_DEPTH)) {
+      throw new Error(
+        `Question subtree exceeded depth limit of ${MAX_DEPTH} — possible circular parent_id reference. Start question: ${questionId}`
+      );
+    }
     return rows.map(({ _depth, ...rest }) => rest as DbQuestion);
   },
 

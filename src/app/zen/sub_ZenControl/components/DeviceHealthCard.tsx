@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { formatRelativeTime } from '@/lib/formatDate';
 import {
   Monitor,
   Smartphone,
@@ -91,22 +92,6 @@ function getHealthBarColor(score: number): string {
   return 'bg-red-500';
 }
 
-/**
- * Format time ago
- */
-function formatTimeAgo(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHour = Math.floor(diffMin / 60);
-
-  if (diffSec < 60) return `${diffSec}s ago`;
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffHour < 24) return `${diffHour}h ago`;
-  return date.toLocaleDateString();
-}
 
 /**
  * Mini sparkline for health history
@@ -257,7 +242,7 @@ export default function DeviceHealthCard({
               <span className={getStatusColor(status)}>{status}</span>
               <span className="mx-1">•</span>
               <Clock className="w-3 h-3" />
-              <span>{formatTimeAgo(device.last_heartbeat_at)}</span>
+              <span>{formatRelativeTime(device.last_heartbeat_at)}</span>
             </div>
           </div>
         </button>

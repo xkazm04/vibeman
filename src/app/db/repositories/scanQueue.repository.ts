@@ -82,11 +82,13 @@ export const scanQueueRepository = {
           SELECT id FROM scan_queue
           WHERE project_id = ? AND status = 'queued'
           ORDER BY priority DESC, created_at ASC
+          LIMIT 10
         `)
       : db.prepare(`
           SELECT id FROM scan_queue
           WHERE status = 'queued'
           ORDER BY priority DESC, created_at ASC
+          LIMIT 10
         `);
 
     const updateStmt = db.prepare(`

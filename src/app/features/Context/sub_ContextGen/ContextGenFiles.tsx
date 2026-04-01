@@ -40,7 +40,7 @@ export default function ContextGenFiles({
         Files ({selectedPaths.length})
       </label>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left Side - File Tree */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">

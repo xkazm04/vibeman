@@ -7,7 +7,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CACHE_PRESETS } from '@/lib/cache/cache-config';
 import { subscribeToReflectionCompletion } from '@/stores/reflectionCompletionEmitter';
 import { brainKeys } from './queryKeys';
@@ -23,12 +23,7 @@ import {
   fetchInfluence,
   fetchInsights,
   fetchPredictions,
-  dismissPrediction,
-  recordPredictionClick,
   fetchReflectionHistory,
-  dismissInsight,
-  snoozeInsight,
-  linkEvidence,
   fetchEvidenceRefs,
 } from './apiClient';
 
@@ -154,53 +149,6 @@ export function useReflectionHistory(projectId: string | null, scope = 'project'
     queryFn: () => fetchReflectionHistory(projectId, scope, limit),
     enabled: scope === 'global' || !!projectId,
     ...CACHE_PRESETS.reflectionHistory,
-  });
-}
-
-// ── Mutations ────────────────────────────────────────────────────────────────
-
-export function useDismissPrediction() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: dismissPrediction,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: brainKeys.predictions() });
-    },
-  });
-}
-
-export function useRecordPredictionClick() {
-  return useMutation({ mutationFn: recordPredictionClick });
-}
-
-export function useDismissInsight() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: dismissInsight,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: brainKeys.insights() });
-    },
-  });
-}
-
-export function useSnoozeInsight() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: snoozeInsight,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: brainKeys.insights() });
-    },
-  });
-}
-
-export function useLinkEvidence() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ insightId, signalIds }: { insightId: string; signalIds: string[] }) =>
-      linkEvidence(insightId, signalIds),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: brainKeys.insights() });
-    },
   });
 }
 

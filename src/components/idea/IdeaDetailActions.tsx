@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Check, XCircle, Trash2, RefreshCw, Layers, LucideIcon } from 'lucide-react';
+import { Check, XCircle, Trash2, RefreshCw, Layers, Save, LucideIcon } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 
 interface Project {
@@ -86,14 +86,14 @@ export default function IdeaDetailActions({
 
   return (
     <div className="flex items-center justify-between px-4 py-3 border-t border-gray-700/50 bg-gray-800/50">
-      {/* Left: Delete and Reject (grouped) */}
+      {/* Left: Destructive actions */}
       <div className="flex items-center gap-2">
         <ActionButton
           onClick={onDelete}
           disabled={saving}
           icon={Trash2}
           label="Delete"
-          className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400"
+          className="bg-transparent border border-red-500/30 text-red-400 hover:bg-red-500/10"
           testId="idea-detail-delete-button"
         />
 
@@ -103,13 +103,16 @@ export default function IdeaDetailActions({
             disabled={saving}
             icon={XCircle}
             label="Reject"
-            className="bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 text-orange-300"
+            className="bg-transparent border border-red-500/30 text-red-400 hover:bg-red-500/10"
             testId="idea-detail-reject-button"
           />
         )}
       </div>
 
-      {/* Right: Variants, Accept, Regenerate, and Save (grouped) */}
+      {/* Divider between destructive and constructive groups */}
+      <div className="border-r border-zinc-700 h-6 mx-1" />
+
+      {/* Right: Secondary + Primary actions */}
       <div className="flex items-center gap-2">
         {idea.status === 'pending' && onShowVariants && (
           <ActionButton
@@ -117,19 +120,8 @@ export default function IdeaDetailActions({
             disabled={saving}
             icon={Layers}
             label="Variants"
-            className="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300"
+            className="bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 text-zinc-200"
             testId="idea-detail-variants-button"
-          />
-        )}
-
-        {idea.status !== 'accepted' && (
-          <ActionButton
-            onClick={onAccept}
-            disabled={saving}
-            icon={Check}
-            label="Accept"
-            className="bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300"
-            testId="idea-detail-accept-button"
           />
         )}
 
@@ -139,21 +131,30 @@ export default function IdeaDetailActions({
             disabled={saving}
             icon={RefreshCw}
             label="Regenerate"
-            className="bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300"
+            className="bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 text-zinc-200"
             testId="idea-detail-regenerate-button"
           />
         )}
 
-        <motion.button
+        {idea.status !== 'accepted' && (
+          <ActionButton
+            onClick={onAccept}
+            disabled={saving}
+            icon={Check}
+            label="Accept"
+            className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white shadow-lg shadow-cyan-500/20"
+            testId="idea-detail-accept-button"
+          />
+        )}
+
+        <ActionButton
           onClick={onSaveFeedback}
-          data-testid="idea-detail-save-feedback-button"
           disabled={saving}
-          className="px-4 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white rounded-lg text-xs font-medium transition-all shadow-lg shadow-cyan-500/20 disabled:opacity-50"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          {saving ? 'Saving...' : 'Save Feedback'}
-        </motion.button>
+          icon={Save}
+          label={saving ? 'Saving...' : 'Save'}
+          className="bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 text-zinc-200"
+          testId="idea-detail-save-feedback-button"
+        />
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ import { behavioralSignalDb } from '@/app/db';
 import { withObservability } from '@/lib/observability/middleware';
 import { parseQueryInt } from '@/lib/api-helpers/parseQueryInt';
 import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
+import { aggregateByKey, accumulateByType } from '@/lib/brain/aggregateByKey';
 
 async function handleGet(request: NextRequest) {
   try {
@@ -33,46 +34,29 @@ async function handleGet(request: NextRequest) {
     const rawData = behavioralSignalDb.getDailyHeatmap(projectId, days);
 
     // Aggregate into per-day totals for heatmap cells
-    const dailyMap = new Map<string, {
-      date: string;
-      total_count: number;
-      total_weight: number;
-      by_type: Record<string, { count: number; weight: number }>;
-      by_context: Record<string, { name: string; count: number; weight: number }>;
-    }>();
-
-    for (const row of rawData) {
-      let day = dailyMap.get(row.date);
-      if (!day) {
-        day = {
-          date: row.date,
-          total_count: 0,
-          total_weight: 0,
-          by_type: {},
-          by_context: {},
-        };
-        dailyMap.set(row.date, day);
-      }
-
-      day.total_count += row.signal_count;
-      day.total_weight += row.total_weight;
-
-      // By signal type
-      if (!day.by_type[row.signal_type]) {
-        day.by_type[row.signal_type] = { count: 0, weight: 0 };
-      }
-      day.by_type[row.signal_type].count += row.signal_count;
-      day.by_type[row.signal_type].weight += row.total_weight;
-
-      // By context
-      if (row.context_id) {
-        if (!day.by_context[row.context_id]) {
-          day.by_context[row.context_id] = { name: row.context_name || row.context_id, count: 0, weight: 0 };
+    const dailyMap = aggregateByKey(
+      rawData,
+      (row) => row.date,
+      (row) => ({
+        date: row.date,
+        total_count: 0,
+        total_weight: 0,
+        by_type: {} as Record<string, { count: number; weight: number }>,
+        by_context: {} as Record<string, { name: string; count: number; weight: number }>,
+      }),
+      (day, row) => {
+        day.total_count += row.signal_count;
+        day.total_weight += row.total_weight;
+        accumulateByType(day.by_type, row.signal_type, row.signal_count, row.total_weight);
+        if (row.context_id) {
+          if (!day.by_context[row.context_id]) {
+            day.by_context[row.context_id] = { name: row.context_name || row.context_id, count: 0, weight: 0 };
+          }
+          day.by_context[row.context_id].count += row.signal_count;
+          day.by_context[row.context_id].weight += row.total_weight;
         }
-        day.by_context[row.context_id].count += row.signal_count;
-        day.by_context[row.context_id].weight += row.total_weight;
-      }
-    }
+      },
+    );
 
     const days_data = Array.from(dailyMap.values()).sort(
       (a, b) => a.date.localeCompare(b.date)

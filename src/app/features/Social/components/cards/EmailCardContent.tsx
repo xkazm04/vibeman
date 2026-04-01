@@ -31,14 +31,14 @@ export default function EmailCardContent({ item }: EmailCardContentProps) {
       {/* Body excerpt */}
       <div className="text-xs text-gray-400 leading-relaxed">
         {expanded ? (
-          <span>&quot;{item.content.body}&quot;</span>
+          <span>&quot;{item.content?.body || 'No content'}&quot;</span>
         ) : (
-          <span>&quot;{item.content.excerpt || item.content.body.substring(0, 100)}...&quot;</span>
+          <span>&quot;{item.content?.excerpt || item.content?.body?.substring(0, 100) || 'No content'}...&quot;</span>
         )}
       </div>
 
       {/* Read more */}
-      {item.content.body.length > 100 && (
+      {(item.content?.body?.length ?? 0) > 100 && (
         <button
           onClick={(e) => {
             e.stopPropagation();

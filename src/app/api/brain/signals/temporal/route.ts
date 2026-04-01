@@ -17,6 +17,7 @@ import { behavioralSignalDb } from '@/app/db';
 import { withObservability } from '@/lib/observability/middleware';
 import { parseQueryInt } from '@/lib/api-helpers/parseQueryInt';
 import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
+import { aggregateByKey, accumulateByType } from '@/lib/brain/aggregateByKey';
 
 /** Aggregated cell for one (hour, dayOfWeek) slot */
 interface TemporalCell {
@@ -46,30 +47,22 @@ async function handleGet(request: NextRequest) {
     const rawRows = behavioralSignalDb.getTemporalAggregation(projectId, days);
 
     // Aggregate rows into (hour, dayOfWeek) cells with per-type breakdown
-    const cellMap = new Map<string, TemporalCell>();
-
-    for (const row of rawRows) {
-      const key = `${row.hour}-${row.day_of_week}`;
-      let cell = cellMap.get(key);
-      if (!cell) {
-        cell = {
-          hour: row.hour,
-          dayOfWeek: row.day_of_week,
-          totalCount: 0,
-          totalWeight: 0,
-          byType: {},
-        };
-        cellMap.set(key, cell);
-      }
-      cell.totalCount += row.signal_count;
-      cell.totalWeight += row.total_weight;
-
-      if (!cell.byType[row.signal_type]) {
-        cell.byType[row.signal_type] = { count: 0, weight: 0 };
-      }
-      cell.byType[row.signal_type].count += row.signal_count;
-      cell.byType[row.signal_type].weight += row.total_weight;
-    }
+    const cellMap = aggregateByKey<typeof rawRows[number], TemporalCell>(
+      rawRows,
+      (row) => `${row.hour}-${row.day_of_week}`,
+      (row) => ({
+        hour: row.hour,
+        dayOfWeek: row.day_of_week,
+        totalCount: 0,
+        totalWeight: 0,
+        byType: {},
+      }),
+      (cell, row) => {
+        cell.totalCount += row.signal_count;
+        cell.totalWeight += row.total_weight;
+        accumulateByType(cell.byType, row.signal_type, row.signal_count, row.total_weight);
+      },
+    );
 
     const cells = Array.from(cellMap.values());
 

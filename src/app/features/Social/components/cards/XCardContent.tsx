@@ -19,7 +19,7 @@ export default function XCardContent({ item }: XCardContentProps) {
           <div className="text-xs text-gray-500">{item.author.handle}</div>
         </div>
       </div>
-      <div className="text-sm text-white/90 line-clamp-2">{item.content.body.substring(0, 100)}</div>
+      <div className="text-sm text-white/90 line-clamp-2">{item.content?.body?.substring(0, 100) || 'No content'}</div>
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { logger } from '@/lib/logger';
+import { validateProjectPath } from '@/lib/pathSecurity';
 
 export interface ContextMapEntry {
   id: string;
@@ -38,6 +39,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { error: 'projectPath query parameter is required' },
         { status: 400 }
+      );
+    }
+
+    const pathError = validateProjectPath(projectPath);
+    if (pathError) {
+      return NextResponse.json(
+        { error: pathError },
+        { status: 403 }
       );
     }
 

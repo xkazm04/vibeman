@@ -3,6 +3,7 @@
  */
 
 import { contextDb } from '@/app/db';
+import { safeParseJson } from '@/lib/json-utils';
 
 export async function executeContextTools(
   name: string,
@@ -20,17 +21,11 @@ export async function executeContextTools(
           name: c.name,
           description: c.description?.substring(0, 80),
           groupId: c.group_id,
-          fileCount: (() => {
-            try {
-              return JSON.parse(c.file_paths || '[]').length;
-            } catch {
-              return 0;
-            }
-          })(),
-          keywords: (() => { try { return JSON.parse(c.keywords || '[]'); } catch { return []; } })(),
-          entryPoints: (() => { try { return JSON.parse(c.entry_points || '[]'); } catch { return []; } })(),
-          apiSurface: (() => { try { return JSON.parse(c.api_surface || '[]'); } catch { return []; } })(),
-          dbTables: (() => { try { return JSON.parse(c.db_tables || '[]'); } catch { return []; } })(),
+          fileCount: safeParseJson<string[]>(c.file_paths, []).length,
+          keywords: safeParseJson(c.keywords, []),
+          entryPoints: safeParseJson(c.entry_points, []),
+          apiSurface: safeParseJson(c.api_surface, []),
+          dbTables: safeParseJson(c.db_tables, []),
         })),
       });
     }
@@ -47,9 +42,7 @@ export async function executeContextTools(
       }
 
       let filePaths: string[] = [];
-      try {
-        filePaths = JSON.parse(context.file_paths || '[]');
-      } catch {}
+      filePaths = safeParseJson(context.file_paths, []);
 
       return JSON.stringify({
         id: context.id,
@@ -141,24 +134,24 @@ export async function executeContextTools(
         }
 
         // Keyword match (high weight)
-        try {
-          const keywords: string[] = JSON.parse(c.keywords || '[]');
+        {
+          const keywords: string[] = safeParseJson(c.keywords, []);
           for (const kw of keywords) {
             if (kw.toLowerCase().includes(query) || query.includes(kw.toLowerCase())) score += 8;
             for (const word of query.split(/\s+/)) {
               if (word.length > 2 && kw.toLowerCase().includes(word)) score += 4;
             }
           }
-        } catch {}
+        }
 
         // API surface match
-        try {
-          const surface: Array<{ path: string; description?: string }> = JSON.parse(c.api_surface || '[]');
+        {
+          const surface: Array<{ path: string; description?: string }> = safeParseJson(c.api_surface, []);
           for (const ep of surface) {
             if (ep.path.toLowerCase().includes(query)) score += 3;
             if (ep.description && ep.description.toLowerCase().includes(query)) score += 2;
           }
-        } catch {}
+        }
 
         return { context: c, score };
       });
@@ -179,9 +172,9 @@ export async function executeContextTools(
           let entryPoints: unknown[] = [];
           let filePaths: string[] = [];
           let keywords: string[] = [];
-          try { entryPoints = JSON.parse(c.entry_points || '[]'); } catch {}
-          try { filePaths = JSON.parse(c.file_paths || '[]'); } catch {}
-          try { keywords = JSON.parse(c.keywords || '[]'); } catch {}
+          entryPoints = safeParseJson(c.entry_points, []);
+          filePaths = safeParseJson(c.file_paths, []);
+          keywords = safeParseJson(c.keywords, []);
 
           return {
             id: c.id,

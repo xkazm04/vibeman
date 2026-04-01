@@ -8,6 +8,7 @@ import { Project, ProjectDependency, LibraryRow, getLatestVersion, getVersionCol
 import { upgradePackagesWithProgress, PackageUpgrade } from '../lib/directUpgrade';
 import LicenseComplianceBadge from '@/components/LicenseComplianceBadge';
 import { transition } from '@/lib/motion';
+import EmptyState from '@/components/ui/EmptyState';
 
 interface DependencyColumnViewProps {
   projects: Project[];
@@ -232,6 +233,7 @@ export default function DependencyColumnView({
                   <button
                     onClick={handleClearSelection}
                     disabled={isUpgrading}
+                    title={isUpgrading ? 'Upgrade in progress' : undefined}
                     className="px-3 py-1.5 text-sm text-gray-300 hover:text-gray-100 border border-gray-600 hover:border-gray-500 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     data-testid="clear-selection-btn"
                   >
@@ -240,6 +242,7 @@ export default function DependencyColumnView({
                   <button
                     onClick={handleDirectUpgrade}
                     disabled={selectedPackages.size === 0 || isUpgrading}
+                    title={isUpgrading ? 'Upgrade in progress' : selectedPackages.size === 0 ? 'Select packages first' : undefined}
                     className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     data-testid="upgrade-selected-btn"
                   >
@@ -405,11 +408,11 @@ export default function DependencyColumnView({
 
           {/* Empty State */}
           {libraryRows.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 text-gray-500">
-              <Package className="w-16 h-16 mb-4 opacity-30" />
-              <p className="text-lg">No dependencies found</p>
-              <p className="text-sm">Run a scan to analyze project dependencies</p>
-            </div>
+            <EmptyState
+              icon={Package}
+              title="No dependencies found"
+              description="Run a scan to analyze project dependencies"
+            />
           )}
         </div>
 

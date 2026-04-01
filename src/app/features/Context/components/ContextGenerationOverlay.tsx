@@ -54,7 +54,7 @@ function formatContent(content: string): string {
  */
 function renderSummary(summary: ContextGenerationSummary) {
   return (
-    <div className="grid grid-cols-4 gap-4 mt-4">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
       <div className="flex flex-col items-center p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
         <FolderPlus className="w-8 h-8 text-blue-400 mb-2" />
         <div className="text-2xl font-bold text-white">{summary.groupsCreated}</div>
@@ -179,15 +179,10 @@ ${'='.repeat(40)}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
           transition={{ type: 'spring', damping: 20 }}
-          className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl border shadow-2xl"
-          style={{
-            backgroundColor: '#0f172a',
-            borderColor: 'rgba(6, 182, 212, 0.3)',
-            boxShadow: '0 0 60px rgba(6, 182, 212, 0.2)',
-          }}
+          className="relative w-full md:max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/20 bg-[#0f172a]"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 via-transparent to-blue-500/10">
+          <div className="flex items-center justify-between px-3 md:px-6 py-4 border-b border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 via-transparent to-blue-500/10">
             <div className="flex items-center gap-3">
               <div
                 className={`w-3 h-3 rounded-full ${isRunning ? 'animate-pulse bg-cyan-400' : isComplete ? 'bg-green-400' : 'bg-red-400'}`}
@@ -327,7 +322,7 @@ ${'='.repeat(40)}
 
           {/* Results Section */}
           {isComplete && summary && (
-            <div className="px-6 pb-4">
+            <div className="px-3 md:px-6 pb-4">
               <div className="p-4 rounded-xl bg-gradient-to-r from-green-500/10 to-cyan-500/10 border border-green-500/20">
                 <div className="flex items-center gap-3 mb-4">
                   <CheckCircle className="w-6 h-6 text-green-400" />
@@ -345,7 +340,7 @@ ${'='.repeat(40)}
 
           {/* Error Section */}
           {isFailed && error && (
-            <div className="px-6 pb-4">
+            <div className="px-3 md:px-6 pb-4">
               <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30">
                 <div className="flex items-center gap-3">
                   <AlertCircle className="w-6 h-6 text-red-400" />
@@ -359,7 +354,7 @@ ${'='.repeat(40)}
           )}
 
           {/* Footer with Done button */}
-          <div className="flex justify-end px-6 py-4 border-t border-cyan-500/20">
+          <div className="flex justify-end px-3 md:px-6 py-4 border-t border-cyan-500/20">
             <motion.button
               onClick={handleClose}
               className={`px-6 py-2 rounded-lg font-semibold text-white transition-all ${

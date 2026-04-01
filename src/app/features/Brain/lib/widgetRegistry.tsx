@@ -15,6 +15,7 @@ import CorrelationMatrix from '../components/CorrelationMatrix';
 import NextUpCard from '../components/NextUpCard';
 import TemporalRhythmHeatmap from '../components/TemporalRhythmHeatmap';
 import BehavioralFocusPanel from '../components/BehavioralFocusPanel';
+import HarnessStabilityWidget from '../components/HarnessStabilityWidget';
 import type { SignalAnomaly } from '@/lib/brain/anomalyDetector';
 
 // ── Scoring context passed to each widget's boost function ──────────────
@@ -24,6 +25,8 @@ export interface WidgetScoringContext {
   shouldTrigger: boolean;
   refStatus: string;
   anomalies: SignalAnomaly[];
+  /** Harness instability score (0-100) computed from conductor run history */
+  harnessInstability?: number;
 }
 
 // ── Render context passed to each widget's render function ──────────────
@@ -49,7 +52,8 @@ export type WidgetId =
   | 'rhythm'
   | 'correlation'
   | 'nextUp'
-  | 'focus';
+  | 'focus'
+  | 'harnessStability';
 
 export interface WidgetDefinition {
   id: WidgetId;
@@ -146,6 +150,17 @@ export const widgetRegistry: WidgetDefinition[] = [
     render: ({ isLoadingContext, scope }) => (
       <BehavioralFocusPanel isLoading={isLoadingContext} scope={scope} />
     ),
+  },
+  {
+    id: 'harnessStability',
+    basePriority: 4,
+    boost: ({ harnessInstability = 0 }) => {
+      // Boost to primary when instability is high
+      if (harnessInstability >= 60) return 12;
+      if (harnessInstability >= 30) return 6;
+      return 0;
+    },
+    render: ({ scope }) => <HarnessStabilityWidget scope={scope} />,
   },
 ];
 

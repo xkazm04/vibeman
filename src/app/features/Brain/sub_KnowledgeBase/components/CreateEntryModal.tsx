@@ -27,6 +27,7 @@ const PATTERN_TYPES: { value: KnowledgePatternType; label: string }[] = [
   { value: 'convention', label: 'Convention' },
   { value: 'gotcha', label: 'Gotcha' },
   { value: 'optimization', label: 'Optimization' },
+  { value: 'hub', label: 'Hub (Map of Content)' },
 ];
 
 const inputCls = 'w-full px-3 py-2 rounded-lg bg-zinc-950/50 border border-zinc-800/50 text-[0.8125rem] text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-purple-500/40 transition-colors';

@@ -3,7 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { duration, easing } from '@/lib/motion';
+import { easing } from '@/lib/motion';
 
 export interface ReflectorKPICardProps {
   title: string;
@@ -62,9 +62,9 @@ export default function ReflectorKPICard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay, duration: duration.slow, ease: easing.entrance }}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.35, ease: easing.entrance }}
       whileHover={onClick ? { scale: 1.02, y: -2 } : undefined}
       onClick={onClick}
       role={onClick ? 'button' : undefined}

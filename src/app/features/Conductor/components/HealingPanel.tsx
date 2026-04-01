@@ -10,8 +10,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Wrench, AlertTriangle, CheckCircle2, Undo2, ChevronDown,
+  Wrench, AlertTriangle, CheckCircle2, Undo2,
 } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
 import { NoErrorsIllustration, HealingInProgressIllustration, RepairBotIllustration } from './ConductorEmptyStates';
 import {
   PromptAmbiguityIcon, MissingContextIcon, RateLimitIcon,
@@ -85,7 +86,7 @@ function PatchCard({ patch, onRevert }: { patch: HealingPatch; onRevert: (id: st
             {Math.round(patch.effectiveness * 100)}%
           </span>
         )}
-        <ChevronDown className={`w-3 h-3 text-gray-500 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+        <ExpandChevron expanded={expanded} className="w-3 h-3 text-gray-500" />
       </button>
 
       <AnimatePresence>

@@ -2,7 +2,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Activity, Grid3X3 } from 'lucide-react';
-import { ContextGroup } from '@/stores/contextStore';
+import { ContextGroup, useContextStore } from '@/stores/contextStore';
 import GroupListItem from './CG_listItem';
 
 interface GroupListSectionProps {
@@ -24,6 +24,7 @@ export default function GroupListSection({
   onDeleteGroup,
   setEditingGroup,
 }: GroupListSectionProps) {
+  const contexts = useContextStore(s => s.contexts);
   return (
     <motion.div 
       className="space-y-6"
@@ -70,6 +71,7 @@ export default function GroupListSection({
               index={index}
               isEditing={editingGroup === group.id}
               isHovered={hoveredGroup === group.id}
+              contextCount={contexts.filter(c => c.groupId === group.id).length}
               onMouseEnter={() => setHoveredGroup(group.id)}
               onMouseLeave={() => setHoveredGroup(null)}
               onUpdate={onUpdateGroup}

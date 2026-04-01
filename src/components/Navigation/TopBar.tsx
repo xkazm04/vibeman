@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MoreHorizontal, Component, Activity, Users, Sunrise, HelpCircle, Plug, Brain, Bot, ClipboardList, Workflow } from 'lucide-react';
+import { MoreHorizontal, Component, Activity, Users, Sunrise, HelpCircle, Plug, Brain, Bot, ClipboardList, Workflow, LayoutGrid } from 'lucide-react';
 import { useOnboardingStore, type AppModule } from '@/stores/onboardingStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -33,6 +33,7 @@ const otherNavigationItems: NavigationItem[] = [
   { module: 'questions', label: 'Questions', icon: HelpCircle },
   { module: 'reflector', label: 'Reflector', icon: Activity },
   { module: 'social', label: 'Social', icon: Users },
+  { module: 'views', label: 'Views', icon: LayoutGrid },
   { module: 'zen', label: 'Zen Mode', icon: Sunrise },
 ];
 

@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { Sentiment, KanbanPriority } from '../types/feedbackTypes';
+import { getConfidenceColor } from '@/lib/confidenceColor';
 
 // Sentiment icons mapping
 export const SENTIMENT_ICONS: Record<Sentiment, LucideIcon> = {
@@ -42,19 +43,8 @@ export const PRIORITY_BADGE_COLORS: Record<KanbanPriority, { bg: string; text: s
   low: { bg: 'bg-gray-500/15', text: 'text-gray-400', border: 'border-gray-500/30' },
 };
 
-// Confidence colors based on value
-export function getConfidenceColors(confidence: number): { bg: string; text: string; border: string } {
-  if (confidence >= 0.8) {
-    return { bg: 'bg-green-500/15', text: 'text-green-400', border: 'border-green-500/30' };
-  }
-  if (confidence >= 0.6) {
-    return { bg: 'bg-blue-500/15', text: 'text-blue-400', border: 'border-blue-500/30' };
-  }
-  if (confidence >= 0.4) {
-    return { bg: 'bg-amber-500/15', text: 'text-amber-400', border: 'border-amber-500/30' };
-  }
-  return { bg: 'bg-red-500/15', text: 'text-red-400', border: 'border-red-500/30' };
-}
+/** @deprecated Use getConfidenceColor from '@/lib/confidenceColor' directly. */
+export const getConfidenceColors = getConfidenceColor;
 
 // Sentiment badge component
 interface SentimentBadgeProps {
@@ -105,7 +95,7 @@ interface ConfidenceBadgeProps {
 }
 
 export function ConfidenceBadge({ confidence, size = 'sm' }: ConfidenceBadgeProps) {
-  const colors = getConfidenceColors(confidence);
+  const colors = getConfidenceColor(confidence);
   const textSize = size === 'sm' ? 'text-xs' : 'text-sm';
   const padding = size === 'sm' ? 'px-2 py-0.5' : 'px-2.5 py-1';
 

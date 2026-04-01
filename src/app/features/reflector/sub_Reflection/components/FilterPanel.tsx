@@ -5,6 +5,7 @@ import { Filter, X, GitCompare, Clock } from 'lucide-react';
 import { duration } from '@/lib/motion';
 import { ComparisonFilterState, TimeWindow } from '../lib/types';
 import { UniversalSelect } from '@/components/ui/UniversalSelect';
+import { formatDateISO } from '@/lib/formatDate';
 
 interface FilterPanelProps {
   filters: ComparisonFilterState;
@@ -68,20 +69,17 @@ export default function FilterPanel({
       lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
       lastWeekEnd.setHours(23, 59, 59, 999);
       
-      // Format dates as YYYY-MM-DD for input fields
-      const formatDate = (date: Date) => date.toISOString().split('T')[0];
-      
       onFilterChange({
         ...filters,
         comparisonMode: true,
         period1: {
-          startDate: formatDate(thisWeekStart),
-          endDate: formatDate(thisWeekEnd),
+          startDate: formatDateISO(thisWeekStart),
+          endDate: formatDateISO(thisWeekEnd),
           label: 'This Week'
         },
         period2: {
-          startDate: formatDate(lastWeekStart),
-          endDate: formatDate(lastWeekEnd),
+          startDate: formatDateISO(lastWeekStart),
+          endDate: formatDateISO(lastWeekEnd),
           label: 'Last Week'
         }
       });

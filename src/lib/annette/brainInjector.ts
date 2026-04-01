@@ -6,6 +6,7 @@
 import { getBehavioralContext, formatBehavioralForPrompt } from '@/lib/brain/behavioralContext';
 import { directionOutcomeDb, brainInsightDb, contextDb } from '@/app/db';
 import { logger } from '@/lib/logger';
+import { safeParseJson } from '@/lib/json-utils';
 
 export interface BrainSnapshot {
   formattedContext: string;
@@ -135,8 +136,8 @@ function getContextMapSummary(projectId: string): string {
 
       let keywords: string[] = [];
       let entryPoints: Array<{ path: string; type: string }> = [];
-      try { keywords = JSON.parse(ctx.keywords || '[]'); } catch {}
-      try { entryPoints = JSON.parse(ctx.entry_points || '[]'); } catch {}
+      keywords = safeParseJson(ctx.keywords, []);
+      entryPoints = safeParseJson(ctx.entry_points, []);
 
       if (keywords.length > 0 || entryPoints.length > 0) {
         const kwStr = keywords.length > 0 ? ` [${keywords.slice(0, 4).join(', ')}]` : '';
@@ -151,12 +152,3 @@ function getContextMapSummary(projectId: string): string {
   }
 }
 
-function getRelativeTime(isoDate: string): string {
-  const diff = Date.now() - new Date(isoDate).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}

@@ -211,22 +211,6 @@ export async function fetchPredictions(projectId: string) {
   );
 }
 
-export async function dismissPrediction(predictionId: string): Promise<void> {
-  await fetchJSON('/api/brain/predictions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'dismiss', predictionId }),
-  });
-}
-
-export async function recordPredictionClick(predictionId: string): Promise<void> {
-  await fetchJSON('/api/brain/predictions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'record_click', predictionId }),
-  });
-}
-
 // ── Reflections ──────────────────────────────────────────────────────────────
 
 export interface ReflectionHistoryEntry {
@@ -263,32 +247,6 @@ export async function fetchReflectionHistory(projectId: string | null, scope = '
   return fetchJSON<{ success: boolean; history: ReflectionHistoryEntry[]; aggregates: ReflectionAggregates }>(
     `/api/brain/reflection?${params}`
   );
-}
-
-// ── Insight mutations ────────────────────────────────────────────────────────
-
-export async function dismissInsight(insightId: string): Promise<void> {
-  await fetchJSON('/api/brain/insights', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'dismiss', insightId }),
-  });
-}
-
-export async function snoozeInsight(insightId: string): Promise<void> {
-  await fetchJSON('/api/brain/insights', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'snooze', insightId }),
-  });
-}
-
-export async function linkEvidence(insightId: string, signalIds: string[]): Promise<void> {
-  await fetchJSON('/api/brain/insights', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'link_evidence', insightId, signalIds }),
-  });
 }
 
 export interface ResolvedEvidence {

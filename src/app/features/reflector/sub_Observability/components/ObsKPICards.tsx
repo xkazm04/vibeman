@@ -31,21 +31,21 @@ export default function ObsKPICards({
         value={uniqueEndpoints}
         icon={Layers}
         accentColor="#c084fc"
-        delay={0.1}
+        delay={0.05}
       />
       <ReflectorKPICard
         title="Avg Response Time"
         value={`${avgResponseTimeMs.toFixed(0)}ms`}
         icon={Clock}
         accentColor="#fbbf24"
-        delay={0.2}
+        delay={0.1}
       />
       <ReflectorKPICard
         title="Error Rate"
         value={`${errorRate.toFixed(1)}%`}
         icon={AlertTriangle}
         accentColor={errorRate > 5 ? '#f87171' : '#4ade80'}
-        delay={0.3}
+        delay={0.15}
       />
     </div>
   );

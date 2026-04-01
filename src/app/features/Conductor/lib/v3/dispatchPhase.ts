@@ -11,6 +11,7 @@ import {
   startExecution,
   getExecution,
   abortExecution,
+  type ToolFilterOptions,
 } from '@/lib/claude-terminal/cli-service';
 import { snapshotFiles, verifyExecution } from '../execution/fileVerifier';
 import { hasOverlap } from '../execution/domainScheduler';
@@ -47,6 +48,37 @@ export interface DispatchPhaseInput {
   onTaskUpdate?: (tasks: V3Task[]) => void;
   onLog?: (phase: V3Phase, event: string, message: string) => void;
   metrics?: V3Metrics;
+}
+
+// ============================================================================
+// Scope Validation — Pre-dispatch overload prevention
+// ============================================================================
+
+interface ScopeMetrics {
+  fileCount: number;
+  directoryCount: number;
+  directories: string[];
+}
+
+const SCOPE_MAX_FILES = 5;
+const SCOPE_MAX_DIRS = 3;
+
+function computeScopeMetrics(targetFiles: string[]): ScopeMetrics {
+  const dirs = new Set<string>();
+  for (const f of targetFiles) {
+    const normalized = f.replace(/\\/g, '/');
+    const lastSlash = normalized.lastIndexOf('/');
+    dirs.add(lastSlash >= 0 ? normalized.substring(0, lastSlash) : '.');
+  }
+  return {
+    fileCount: targetFiles.length,
+    directoryCount: dirs.size,
+    directories: Array.from(dirs),
+  };
+}
+
+function isOverScoped(metrics: ScopeMetrics): boolean {
+  return metrics.fileCount > SCOPE_MAX_FILES || metrics.directoryCount > SCOPE_MAX_DIRS;
 }
 
 // ============================================================================
@@ -115,6 +147,32 @@ export async function executeDispatchPhase(input: DispatchPhaseInput): Promise<{
       const dispatched: Promise<{ taskId: string; result: V3TaskResult }>[] = [];
 
       for (const task of nextBatch) {
+        // Pre-dispatch scope validation
+        const scopeMetrics = computeScopeMetrics(task.targetFiles);
+        onLog?.('dispatch', 'info',
+          `Scope [${task.title}]: ${scopeMetrics.fileCount} files, ${scopeMetrics.directoryCount} dirs (${scopeMetrics.directories.join(', ')})`
+        );
+
+        if (isOverScoped(scopeMetrics)) {
+          onLog?.('dispatch', 'info',
+            `SCOPE FLAGGED [${task.title}]: ${scopeMetrics.fileCount} files across ${scopeMetrics.directoryCount} dirs exceeds limits (max ${SCOPE_MAX_FILES} files / ${SCOPE_MAX_DIRS} dirs) — flagging for split in reflect`
+          );
+          pending.delete(task.id);
+          failed.add(task.id);
+          task.status = 'failed';
+          task.result = {
+            success: false,
+            error: `Scope too large: ${scopeMetrics.fileCount} files across ${scopeMetrics.directoryCount} directories (limits: ${SCOPE_MAX_FILES} files, ${SCOPE_MAX_DIRS} dirs). Split this task into smaller units before dispatch.`,
+            filesChanged: [],
+            durationMs: 0,
+            provider: '',
+            model: '',
+          };
+          results.push(task.result);
+          emitUpdate();
+          continue;
+        }
+
         pending.delete(task.id);
         const taskPaths = new Set(task.targetFiles.map(f => f.replace(/\\/g, '/')));
         running.set(task.id, taskPaths);
@@ -305,6 +363,35 @@ function getNextBatch(
 // Single Task Dispatch
 // ============================================================================
 
+// ============================================================================
+// Task-Aware Tool Filtering
+// ============================================================================
+
+/**
+ * Tool presets by task complexity.
+ * Reducing available tools increases accuracy (Vercel principle: stripping
+ * 80% of tools raised accuracy from 80% → 100%).
+ *
+ * - Complexity 1 (simple, <50 LOC, single file): basic file ops only
+ * - Complexity 2 (moderate, 50-200 LOC, 2-3 files): adds Grep, Write, Agent
+ * - Complexity 3 (complex, 200+ LOC, architectural): full toolset (no filter)
+ */
+const TOOL_PRESETS: Record<number, string[] | null> = {
+  1: ['Read', 'Edit', 'Glob', 'Bash'],
+  2: ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Agent'],
+  3: null, // Full toolset — no filtering
+};
+
+function getToolFilter(complexity: number): ToolFilterOptions | undefined {
+  const allowed = TOOL_PRESETS[complexity];
+  if (!allowed) return undefined;
+  return { allowedTools: allowed };
+}
+
+// ============================================================================
+// Single Task Dispatch
+// ============================================================================
+
 interface DispatchContext {
   projectId: string;
   projectPath: string;
@@ -356,11 +443,12 @@ async function dispatchTask(task: V3Task, ctx: DispatchContext): Promise<V3TaskR
   // 3. Snapshot files before dispatch
   const beforeSnapshots = snapshotFiles(ctx.projectPath, task.targetFiles);
 
-  // 4. Dispatch to CLI
+  // 4. Dispatch to CLI with task-aware tool filtering
   const providerConfig: CLIProviderConfig = {
     provider: routing.provider as CLIProvider,
     model: routing.model as CLIModel | undefined,
   };
+  const toolFilter = getToolFilter(task.complexity);
 
   const executionId = startExecution(
     ctx.projectPath,
@@ -368,7 +456,8 @@ async function dispatchTask(task: V3Task, ctx: DispatchContext): Promise<V3TaskR
     undefined,
     undefined,
     providerConfig,
-    { VIBEMAN_PROJECT_ID: ctx.projectId, VIBEMAN_TASK_ID: task.id }
+    { VIBEMAN_PROJECT_ID: ctx.projectId, VIBEMAN_TASK_ID: task.id },
+    toolFilter,
   );
 
   // 5. Poll for completion

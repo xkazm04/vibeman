@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Calendar, X } from 'lucide-react';
+import { formatDateISO } from '@/lib/formatDate';
 
 interface DateRangeFilterProps {
   startDate: Date | null;
@@ -12,7 +13,7 @@ interface DateRangeFilterProps {
 export default function DateRangeFilter({ startDate, endDate, onChange }: DateRangeFilterProps) {
   const formatDateForInput = (date: Date | null): string => {
     if (!date) return '';
-    return date.toISOString().split('T')[0];
+    return formatDateISO(date);
   };
 
   const handleStartChange = (value: string) => {

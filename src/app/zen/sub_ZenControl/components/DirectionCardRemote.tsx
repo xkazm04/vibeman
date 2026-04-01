@@ -6,6 +6,7 @@ import { Calendar, Compass, MapPin, Wifi } from 'lucide-react';
 import { SimpleSpinner } from '@/components/ui';
 import type { RemoteDirection } from '@/stores/remoteWorkStore';
 import { stripMarkdownListPrefix } from '@/lib/stringUtils';
+import { formatRelativeTime } from '@/lib/formatDate';
 
 interface DirectionCardRemoteProps {
   direction: RemoteDirection;
@@ -165,18 +166,6 @@ export default function DirectionCardRemote({
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffHours < 1) return 'Just now';
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  };
 
   const getDirectionPreview = (content: string, maxLength: number = 300) => {
     if (content.length <= maxLength) return content;
@@ -304,7 +293,7 @@ export default function DirectionCardRemote({
             </div>
             <div className="flex items-center gap-1 text-xs text-gray-500">
               <Calendar className="w-3 h-3" />
-              <span>{formatDate(direction.created_at)}</span>
+              <span>{formatRelativeTime(direction.created_at)}</span>
             </div>
           </div>
         </div>

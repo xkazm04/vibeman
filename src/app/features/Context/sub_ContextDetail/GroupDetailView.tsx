@@ -5,6 +5,8 @@ import { Context, ContextGroup, useContextStore, useShallow } from '../../../../
 import { useGlobalModal } from '../../../../hooks/useGlobalModal';
 import { normalizePath, FilePath } from '../../../../utils/pathUtils';
 import { useFocusTrap } from '../../../../lib/accessibility';
+import { formatDateTime } from '@/lib/formatDate';
+import { getGridLayout } from '../lib/contextUtils';
 import ActionButton from './ActionButton';
 import StatCard from './StatCard';
 
@@ -63,31 +65,12 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
     );
   };
 
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
-  };
-
   // Calculate total files across all contexts
   const totalFiles = groupContexts.reduce((sum, context) => sum + context.filePaths.length, 0);
 
   const allFilePaths = Array.from(new Set(groupContexts.flatMap(context =>
     context.filePaths.map(normalizePath)
   )));
-
-  const getGridColumns = (count: number): string => {
-    if (count === 1) return 'grid-cols-1 max-w-md mx-auto';
-    if (count === 2) return 'grid-cols-1 md:grid-cols-2';
-    if (count <= 4) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-2';
-    if (count <= 6) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
-    if (count <= 9) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
-    return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
-  };
 
   if (!selectedGroup) {
     return (
@@ -244,7 +227,7 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
                     <span>Contexts in {selectedGroup.name}</span>
                   </h3>
 
-                  <div className={`grid gap-4 ${getGridColumns(groupContexts.length)}`}>
+                  <div className={`grid gap-4 ${getGridLayout(groupContexts.length)}`}>
                     {groupContexts.map((context, index) => (
                       <motion.div
                         key={context.id}
@@ -319,7 +302,7 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
                             <div className="flex items-center justify-between text-sm text-gray-500 pt-2 border-t border-gray-700/30">
                               <div className="flex items-center space-x-1">
                                 <Clock className="w-3 h-3" />
-                                <span>{formatDate(context.createdAt)}</span>
+                                <span>{formatDateTime(context.createdAt)}</span>
                               </div>
                             </div>
                           </div>

@@ -15,6 +15,7 @@ import type {
   CliMemorySignalData,
 } from '@/app/db/models/brain.types';
 import { SignalType } from '@/types/signals';
+import { safeParseJson } from '@/lib/json-utils';
 import { LRUCache } from '@/lib/brain/lruCache';
 import {
   DEFAULT_DECAY_FACTOR, DEFAULT_RETENTION_DAYS, DECAY_START_FRACTION, DECAY_START_MIN_DAYS,
@@ -186,8 +187,8 @@ export const signalCollector = {
             const parsed = JSON.parse(dataStr);
             let dbTables: string[] = [];
             let techStack: string[] = [];
-            try { dbTables = JSON.parse(ctx.db_tables || '[]'); } catch {}
-            try { techStack = JSON.parse(ctx.tech_stack || '[]'); } catch {}
+            dbTables = safeParseJson(ctx.db_tables, []);
+            techStack = safeParseJson(ctx.tech_stack, []);
             if (dbTables.length > 0) parsed.dbTables = dbTables;
             if (techStack.length > 0) parsed.techStack = techStack;
             enrichedData = JSON.stringify(parsed);

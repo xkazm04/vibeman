@@ -1,23 +1,48 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { ChevronRight, ChevronDown, FolderOpen, Folder, FileText } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { FolderOpen, Folder, FileText, Map } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
 import BrainEmptyState from '../../components/BrainEmptyState';
 import KBSidebarEmptySvg from './KBSidebarEmptySvg';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import type { KBTree, TreeSelection } from '../lib/useKnowledgeBase';
 import { KNOWLEDGE_LAYER_LABELS, KNOWLEDGE_CATEGORY_LABELS } from '@/app/db/models/knowledge.types';
-import type { KnowledgeLayer, KnowledgeCategory, KnowledgeLanguage } from '@/app/db/models/knowledge.types';
+import type { KnowledgeLayer, KnowledgeCategory, KnowledgeLanguage, DbKnowledgeEntry } from '@/app/db/models/knowledge.types';
 
 interface KBTreeSidebarProps {
   tree: KBTree | null;
   selection: TreeSelection;
   onSelect: (sel: TreeSelection) => void;
+  onSelectHubEntry?: (entry: DbKnowledgeEntry) => void;
 }
 
-export default function KBTreeSidebar({ tree, selection, onSelect }: KBTreeSidebarProps) {
+export default function KBTreeSidebar({ tree, selection, onSelect, onSelectHubEntry }: KBTreeSidebarProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [hubEntries, setHubEntries] = useState<DbKnowledgeEntry[]>([]);
   const prefersReduced = useReducedMotion();
+
+  // Fetch hub entries to display as pinned navigation anchors
+  useEffect(() => {
+    const fetchHubs = async () => {
+      try {
+        const res = await fetch('/api/knowledge-base?action=hub-entries');
+        const json = await res.json();
+        if (json.success) setHubEntries(json.data);
+      } catch { /* silently ignore */ }
+    };
+    fetchHubs();
+  }, [tree]); // Refetch when tree changes (entries may have been added/removed)
+
+  // Group hub entries by category for pinning
+  const hubsByCategory = useMemo(() => {
+    const map: Record<string, DbKnowledgeEntry[]> = {};
+    for (const hub of hubEntries) {
+      if (!map[hub.domain]) map[hub.domain] = [];
+      map[hub.domain].push(hub);
+    }
+    return map;
+  }, [hubEntries]);
 
   const languages = useMemo(() => {
     if (!tree) return [];
@@ -111,9 +136,7 @@ export default function KBTreeSidebar({ tree, selection, onSelect }: KBTreeSideb
                   onClick={() => toggle(lang)}
                   className="p-0.5 text-zinc-600 hover:text-zinc-400"
                 >
-                  {langExpanded
-                    ? <ChevronDown className="w-3 h-3" />
-                    : <ChevronRight className="w-3 h-3" />}
+                  <ExpandChevron expanded={langExpanded} className="w-3 h-3 text-zinc-600" />
                 </button>
                 <button
                   onClick={() => handleSelectLang(lang)}
@@ -146,9 +169,7 @@ export default function KBTreeSidebar({ tree, selection, onSelect }: KBTreeSideb
                             onClick={() => toggle(layerKey)}
                             className="p-0.5 text-zinc-600 hover:text-zinc-400"
                           >
-                            {layerExp
-                              ? <ChevronDown className="w-3 h-3" />
-                              : <ChevronRight className="w-3 h-3" />}
+                            <ExpandChevron expanded={layerExp} className="w-3 h-3 text-zinc-600" />
                           </button>
                           <button
                             onClick={() => handleSelectLayer(lang, layer)}
@@ -169,18 +190,36 @@ export default function KBTreeSidebar({ tree, selection, onSelect }: KBTreeSideb
                           <div className="ml-4">
                             {catEntries.map(([cat, count]) => {
                               const catSel = selection.language === lang && selection.layer === layer && selection.category === cat;
+                              const catHubs = hubsByCategory[cat] || [];
                               return (
-                                <button
-                                  key={cat}
-                                  onClick={() => handleSelectCat(lang, layer, cat)}
-                                  className={`w-full flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs transition-colors ${
-                                    catSel ? 'bg-purple-500/15 text-purple-300' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
-                                  }`}
-                                >
-                                  <FileText className="w-3 h-3 flex-shrink-0 text-zinc-600" />
-                                  <span className="truncate">{KNOWLEDGE_CATEGORY_LABELS[cat as KnowledgeCategory] ?? cat}</span>
-                                  <span className="ml-auto text-2xs text-zinc-600 tabular-nums">{count}</span>
-                                </button>
+                                <div key={cat}>
+                                  <button
+                                    onClick={() => handleSelectCat(lang, layer, cat)}
+                                    className={`w-full flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs transition-colors ${
+                                      catSel ? 'bg-purple-500/15 text-purple-300' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
+                                    }`}
+                                  >
+                                    <FileText className="w-3 h-3 flex-shrink-0 text-zinc-600" />
+                                    <span className="truncate">{KNOWLEDGE_CATEGORY_LABELS[cat as KnowledgeCategory] ?? cat}</span>
+                                    <span className="ml-auto text-2xs text-zinc-600 tabular-nums">{count}</span>
+                                  </button>
+                                  {/* Pinned hub entries for this category */}
+                                  {catHubs.length > 0 && (
+                                    <div className="ml-4">
+                                      {catHubs.map(hub => (
+                                        <button
+                                          key={hub.id}
+                                          onClick={() => onSelectHubEntry?.(hub)}
+                                          className="w-full flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-purple-400/70 hover:text-purple-300 hover:bg-purple-500/10 transition-colors"
+                                          title={`Hub: ${hub.title}`}
+                                        >
+                                          <Map className="w-3 h-3 flex-shrink-0" />
+                                          <span className="truncate">{hub.title}</span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
                               );
                             })}
                           </div>

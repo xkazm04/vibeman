@@ -10,6 +10,7 @@ import {
   DEFAULT_AUTO_ASSIGN_CONFIG,
   type AutoAssignConfig,
 } from '@/lib/autoAssignConfig';
+import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 
 interface AutoAssignSettingsModalProps {
   isOpen: boolean;
@@ -87,16 +88,12 @@ export function AutoAssignSettingsModal({ isOpen, onClose }: AutoAssignSettingsM
                   <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
                     Lightweight Rule
                   </label>
-                  <button
-                    onClick={() => setConfig({ ...config, lightweightRule: { ...config.lightweightRule, enabled: !config.lightweightRule.enabled } })}
-                    className={`relative w-9 h-5 rounded-full transition-colors ${
-                      config.lightweightRule.enabled ? 'bg-purple-500' : 'bg-gray-600'
-                    }`}
-                  >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
-                      config.lightweightRule.enabled ? 'translate-x-4' : 'translate-x-0.5'
-                    }`} />
-                  </button>
+                  <ToggleSwitch
+                    checked={config.lightweightRule.enabled}
+                    onChange={(v) => setConfig({ ...config, lightweightRule: { ...config.lightweightRule, enabled: v } })}
+                    label="Toggle lightweight rule"
+                    color="purple"
+                  />
                 </div>
 
                 {config.lightweightRule.enabled && (
@@ -173,16 +170,12 @@ export function AutoAssignSettingsModal({ isOpen, onClose }: AutoAssignSettingsM
                   <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
                     Default Rule
                   </label>
-                  <button
-                    onClick={() => setConfig({ ...config, defaultRule: { ...config.defaultRule, enabled: !config.defaultRule.enabled } })}
-                    className={`relative w-9 h-5 rounded-full transition-colors ${
-                      config.defaultRule.enabled ? 'bg-cyan-500' : 'bg-gray-600'
-                    }`}
-                  >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
-                      config.defaultRule.enabled ? 'translate-x-4' : 'translate-x-0.5'
-                    }`} />
-                  </button>
+                  <ToggleSwitch
+                    checked={config.defaultRule.enabled}
+                    onChange={(v) => setConfig({ ...config, defaultRule: { ...config.defaultRule, enabled: v } })}
+                    label="Toggle default rule"
+                    color="cyan"
+                  />
                 </div>
                 <p className="text-2xs text-gray-500">
                   Assign remaining tasks (not matched by lightweight rule) to free sessions using their current provider.
@@ -206,16 +199,12 @@ export function AutoAssignSettingsModal({ isOpen, onClose }: AutoAssignSettingsM
                       Aggregate same-role idea files across contexts before distributing to sessions.
                     </p>
                   </div>
-                  <button
-                    onClick={() => setConfig({ ...config, consolidateBeforeAssign: !config.consolidateBeforeAssign })}
-                    className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${
-                      config.consolidateBeforeAssign ? 'bg-purple-500' : 'bg-gray-600'
-                    }`}
-                  >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
-                      config.consolidateBeforeAssign ? 'translate-x-4' : 'translate-x-0.5'
-                    }`} />
-                  </button>
+                  <ToggleSwitch
+                    checked={config.consolidateBeforeAssign}
+                    onChange={(v) => setConfig({ ...config, consolidateBeforeAssign: v })}
+                    label="Toggle consolidate before assign"
+                    color="purple"
+                  />
                 </div>
 
                 <div>

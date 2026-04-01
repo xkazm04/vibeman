@@ -755,3 +755,37 @@ export interface DbTriageRule {
   created_at: string;
   updated_at: string;
 }
+
+// Saved Views types (cross-entity queryable views)
+export type ViewEntityType = 'idea' | 'goal' | 'context' | 'question' | 'direction' | 'knowledge_entry' | 'tech_debt';
+
+export interface ViewFilters {
+  statuses?: string[];
+  categories?: string[];
+  effortMin?: number;
+  effortMax?: number;
+  impactMin?: number;
+  impactMax?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  searchQuery?: string;
+  contextIds?: string[];
+}
+
+export interface DbSavedView {
+  id: string;
+  project_id: string;
+  name: string;
+  description: string | null;
+  entity_types: string; // JSON-stringified ViewEntityType[]
+  filters: string; // JSON-stringified ViewFilters
+  visible_columns: string; // JSON-stringified string[]
+  sort_field: string | null;
+  sort_direction: 'asc' | 'desc';
+  group_by: string | null;
+  icon: string | null;
+  color: string | null;
+  pinned: number; // SQLite boolean (0 | 1)
+  created_at: string;
+  updated_at: string;
+}

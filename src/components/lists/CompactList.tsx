@@ -109,11 +109,7 @@ export default function CompactList({
 
       {/* Items List */}
       <div
-        className={`flex-1 px-2 py-2 space-y-1 min-h-[100px] ${maxHeight} overflow-y-auto custom-scrollbar`}
-        style={{
-          maskImage: 'linear-gradient(to bottom, black calc(100% - 24px), transparent 100%)',
-          WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 24px), transparent 100%)',
-        }}
+        className={`flex-1 px-2 py-2 space-y-1 min-h-[100px] ${maxHeight} overflow-y-auto custom-scrollbar scroll-shadow-y`}
       >
         {items.length === 0 ? (
           <div className="flex items-center justify-center h-20 text-2xs text-gray-600">

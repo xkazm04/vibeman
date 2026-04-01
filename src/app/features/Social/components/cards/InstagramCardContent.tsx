@@ -21,7 +21,7 @@ export default function InstagramCardContent({ item }: InstagramCardContentProps
         <div className="text-sm font-semibold text-gray-200">{item.author.handle || item.author.name}</div>
       </div>
       <div className="text-sm text-gray-300 line-clamp-2">
-        {item.content.body.substring(0, 80)}
+        {item.content?.body?.substring(0, 80) || 'No content'}
       </div>
     </div>
   );

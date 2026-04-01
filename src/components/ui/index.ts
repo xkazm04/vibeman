@@ -1,4 +1,6 @@
 export { FadeIn } from './FadeIn';
+export { ToggleSwitch } from './ToggleSwitch';
+export type { ToggleSwitchProps } from './ToggleSwitch';
 export { default as BaseModal } from './BaseModal';
 export { default as FileAdd } from './FileAdd';
 export { default as ModalContent } from './ModalContent';
@@ -66,8 +68,17 @@ export {
 export { default as EmptyStateIllustration } from './EmptyStateIllustration';
 export type { IllustrationType } from './EmptyStateIllustration';
 export { default as EmptyState } from './EmptyState';
-export type { EmptyStateProps, EmptyStateAction, ActionVariant } from './EmptyState';
+export type { EmptyStateProps, EmptyStateAction, ActionVariant, EmptyStateVariant } from './EmptyState';
 
 // Wizard components (re-exported)
 export { default as Badge } from './wizard/Badge';
 export { default as CyberCard } from './wizard/CyberCard';
+
+// Expand/collapse chevron
+export { default as ExpandChevron } from './ExpandChevron';
+
+// Scroll shadow indicators
+export { default as ScrollShadow } from './ScrollShadow';
+
+// Entity cross-reference panel
+export { default as BacklinksPanel } from './BacklinksPanel';

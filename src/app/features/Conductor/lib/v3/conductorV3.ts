@@ -579,6 +579,13 @@ async function runV3Loop(
       break;
     }
 
+    if (reflectResult.output.status === 'needs_healing') {
+      // Quality gates failed — continue cycling to trigger self-healing
+      const gateResults = reflectResult.output.qualityGateResults || [];
+      const failedGates = gateResults.filter(g => g.required && !g.passed);
+      log('reflect', 'info', `Quality gates require healing: ${failedGates.map(g => g.label).join(', ')}`);
+    }
+
     if (reflectResult.output.status === 'needs_input') {
       conductorRepository.updateRunStatus(runId, 'paused');
       log('reflect', 'info', 'Waiting for user input');

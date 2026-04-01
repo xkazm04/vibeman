@@ -31,6 +31,14 @@ const SSE_RECONNECT_BASE_MS = 2000;
 /** Max poll attempts before giving up (10s * 30 = 5 minutes) */
 const MAX_POLL_ATTEMPTS = 30;
 
+/** Log handler errors with execution context instead of silently swallowing them */
+function logHandlerError(error: unknown, executionId: string, eventType: string): void {
+  console.error(
+    `[TerminalStrategy] Handler threw for execution=${executionId} event=${eventType}:`,
+    error instanceof Error ? error.stack || error.message : error,
+  );
+}
+
 interface ActiveExecution {
   executionId: string;
   eventSource?: EventSource;
@@ -188,7 +196,7 @@ class TerminalStrategy implements ExecutionStrategy {
 
         // Notify all handlers
         for (const handler of execution!.handlers) {
-          try { handler(execEvent); } catch { /* handler error */ }
+          try { handler(execEvent); } catch (err) { logHandlerError(err, executionId, execEvent.type); }
         }
 
         // On terminal events, clean up stream
@@ -196,7 +204,9 @@ class TerminalStrategy implements ExecutionStrategy {
           es.close();
           execution!.eventSource = undefined;
         }
-      } catch { /* parse error */ }
+      } catch (err) {
+        console.error(`[TerminalStrategy] Failed to parse SSE message for execution=${executionId}:`, err);
+      }
     };
 
     es.onerror = () => {
@@ -273,7 +283,7 @@ class TerminalStrategy implements ExecutionStrategy {
               timestamp: Date.now(),
             };
             for (const handler of execution.handlers) {
-              try { handler(errorEvent); } catch { /* handler error */ }
+              try { handler(errorEvent); } catch (err) { logHandlerError(err, executionId, 'error'); }
             }
             this.cleanupExecution(executionId);
           }
@@ -289,7 +299,7 @@ class TerminalStrategy implements ExecutionStrategy {
           timestamp: Date.now(),
         };
         for (const handler of execution.handlers) {
-          try { handler(event); } catch { /* handler error */ }
+          try { handler(event); } catch (err) { logHandlerError(err, executionId, 'status'); }
         }
 
         if (status.state === 'completed' || status.state === 'failed') {
@@ -299,7 +309,7 @@ class TerminalStrategy implements ExecutionStrategy {
             timestamp: Date.now(),
           };
           for (const handler of execution.handlers) {
-            try { handler(resultEvent); } catch { /* handler error */ }
+            try { handler(resultEvent); } catch (err) { logHandlerError(err, executionId, resultEvent.type); }
           }
           this.cleanupExecution(executionId);
         }
@@ -312,7 +322,7 @@ class TerminalStrategy implements ExecutionStrategy {
             timestamp: Date.now(),
           };
           for (const handler of execution.handlers) {
-            try { handler(errorEvent); } catch { /* handler error */ }
+            try { handler(errorEvent); } catch (err) { logHandlerError(err, executionId, 'error'); }
           }
           this.cleanupExecution(executionId);
         }

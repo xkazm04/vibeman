@@ -3,6 +3,7 @@
  * Syncs Goals to GitHub Projects V2 as roadmap items
  */
 
+import { formatDateISO } from '@/lib/formatDate';
 import { createLogger } from '@/lib/utils/logger';
 import { goalDb } from '@/app/db';
 import { env } from '@/lib/config/envConfig';
@@ -240,19 +241,6 @@ function getStatusOptionId(
   }
 }
 
-/**
- * Format date for GitHub (YYYY-MM-DD)
- */
-function formatDateForGitHub(dateStr: string | null): string | null {
-  if (!dateStr) return null;
-  try {
-    const date = new Date(dateStr);
-    return date.toISOString().split('T')[0];
-  } catch {
-    return null;
-  }
-}
-
 // ============================================================================
 // SYNC OPERATIONS
 // ============================================================================
@@ -305,7 +293,7 @@ export async function syncGoalToGitHub(goal: DbGoal): Promise<GitHubSyncResult> 
 
     // Update target date if configured and goal has target date
     if (config.targetDateFieldId && goal.target_date) {
-      const formattedDate = formatDateForGitHub(goal.target_date);
+      const formattedDate = goal.target_date ? formatDateISO(goal.target_date) : null;
       if (formattedDate) {
         await updateDateField(
           config.projectId,

@@ -9,6 +9,7 @@
  */
 
 import { knowledgeRepository } from '@/app/db/repositories/knowledge.repository';
+import { parseJsonArray } from '@/lib/json-utils';
 import type {
   DbKnowledgeEntry,
   CreateKnowledgeEntryInput,
@@ -108,9 +109,6 @@ function extractKeywords(text: string): string[] {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function safeParseJsonArray(json: string): string[] {
-  try { return JSON.parse(json); } catch { return []; }
-}
 
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -253,7 +251,7 @@ export const knowledgeBaseService = {
       anti_pattern: entry.anti_pattern || undefined,
       language: entry.language || 'universal',
       confidence: entry.confidence,
-      tags: safeParseJsonArray(entry.tags),
+      tags: parseJsonArray(entry.tags),
       times_applied: entry.times_applied,
       times_helpful: entry.times_helpful,
     }));

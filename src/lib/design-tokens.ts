@@ -108,21 +108,6 @@ export const opacity = {
   full: '/95',
 } as const;
 
-/**
- * Numeric opacity values (0-1 scale) for CSS/JS usage
- */
-export const opacityValues = {
-  minimal: 0.1,
-  subtle: 0.2,
-  light: 0.3,
-  medium: 0.4,
-  standard: 0.5,
-  strong: 0.6,
-  heavy: 0.7,
-  dense: 0.8,
-  nearSolid: 0.9,
-  full: 0.95,
-} as const;
 
 // =============================================================================
 // SEMANTIC BACKGROUND TOKENS
@@ -264,18 +249,6 @@ export const gradients = {
   },
 } as const;
 
-/**
- * Semantic gradient types for UI elements
- */
-export const semanticGradients = {
-  info: gradients.blue,
-  success: gradients.green,
-  warning: gradients.amber,
-  danger: gradients.red,
-  neutral: gradients.slate,
-  primary: gradients.cyan,
-  secondary: gradients.purple,
-} as const;
 
 // =============================================================================
 // BORDER TOKENS
@@ -352,18 +325,6 @@ export const borders = {
   },
 } as const;
 
-/**
- * Semantic border types
- */
-export const semanticBorders = {
-  info: borders.blue,
-  success: borders.green,
-  warning: borders.amber,
-  danger: borders.red,
-  neutral: borders.gray,
-  primary: borders.cyan,
-  secondary: borders.purple,
-} as const;
 
 // =============================================================================
 // SHADOW TOKENS
@@ -435,18 +396,6 @@ export const shadows = {
   },
 } as const;
 
-/**
- * Semantic shadow types
- */
-export const semanticShadows = {
-  info: shadows.blue,
-  success: shadows.green,
-  warning: shadows.amber,
-  danger: shadows.red,
-  neutral: shadows.gray,
-  primary: shadows.cyan,
-  secondary: shadows.purple,
-} as const;
 
 // =============================================================================
 // SPACING TOKENS
@@ -492,6 +441,24 @@ export const gaps = {
   /** Extra large gap (gap-8) */
   xl: 'gap-8',
 } as const;
+
+// =============================================================================
+// SURFACE TOKENS — semantic callout / toast styling
+// =============================================================================
+
+/**
+ * Standardized surface tokens for inline error and warning callouts.
+ * Use these instead of ad-hoc red/amber opacity combos to keep callouts consistent.
+ *
+ * Usage: `className={\`\${errorSurface.border} \${errorSurface.bg} \${errorSurface.text}\`}`
+ */
+export const errorSurface = {
+  border: 'border-red-600/40',
+  bg: 'bg-red-600/10',
+  text: 'text-red-400',
+  icon: 'text-red-400',
+} as const;
+
 
 // =============================================================================
 // BORDER RADIUS TOKENS
@@ -586,16 +553,23 @@ export type ButtonVariantToken = keyof typeof buttonVariants;
 /**
  * All color-related tokens grouped together
  */
+export const surfaces = {
+  error: errorSurface,
+  warning: {
+    border: 'border-amber-600/40',
+    bg: 'bg-amber-600/10',
+    text: 'text-amber-400',
+    icon: 'text-amber-400',
+  },
+} as const;
+
 export const colors = {
   opacity,
-  opacityValues,
   backgrounds,
   gradients,
-  semanticGradients,
   borders,
-  semanticBorders,
   shadows,
-  semanticShadows,
+  surfaces,
 } as const;
 
 /**
@@ -609,14 +583,12 @@ const designTokens = {
   animationPresets,
   colors,
   opacity,
-  opacityValues,
   backgrounds,
   gradients,
-  semanticGradients,
   borders,
-  semanticBorders,
   shadows,
-  semanticShadows,
+  surfaces,
+  errorSurface,
   spacing,
   gaps,
   borderRadius,
@@ -641,7 +613,6 @@ export type BackgroundType = keyof typeof backgrounds;
 export type GradientColor = keyof typeof gradients;
 export type BorderColor = keyof typeof borders;
 export type ShadowColor = keyof typeof shadows;
-export type SemanticColor = keyof typeof semanticGradients;
 export type Spacing = keyof typeof spacing;
 export type Gap = keyof typeof gaps;
 export type Transition = keyof typeof transitions;

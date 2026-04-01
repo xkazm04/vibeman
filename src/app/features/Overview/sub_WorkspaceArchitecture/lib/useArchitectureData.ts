@@ -112,6 +112,7 @@ export function useArchitectureData(workspaceId: string | null): UseArchitecture
     latestAnalysis: null,
     history: [],
   });
+  const [contextCounts, setContextCounts] = useState<Map<string, { contexts: number; groups: number }>>(new Map());
   const [branchInfo, setBranchInfo] = useState<Map<string, { branch: string | null; dirty: boolean }>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -151,13 +152,13 @@ export function useArchitectureData(workspaceId: string | null): UseArchitecture
         y: 0,
         width: 160,
         height: 60,
-        contextGroupCount: 0,
-        contextCount: 0,
+        contextGroupCount: contextCounts.get(project.id)?.groups || 0,
+        contextCount: contextCounts.get(project.id)?.contexts || 0,
         connectionCount: connectionCountMap.get(project.id) || 0,
         color: getTierColor(tier),
       };
     }),
-  [workspaceProjects, connectionCountMap, branchInfo]);
+  [workspaceProjects, connectionCountMap, branchInfo, contextCounts]);
 
   // Fetch relationships from API
   const fetchRelationships = useCallback(async () => {
@@ -246,16 +247,49 @@ export function useArchitectureData(workspaceId: string | null): UseArchitecture
     }
   }, [workspaceProjects]);
 
+  // Fetch context and group counts for all projects
+  const fetchContextCounts = useCallback(async () => {
+    if (workspaceProjects.length === 0) return;
+
+    try {
+      const projectIds = workspaceProjects.map(p => p.id);
+      const response = await fetch(`/api/contexts?projectId=${projectIds.join(',')}`);
+
+      if (!response.ok) return;
+
+      const data = await response.json();
+      const contexts: { project_id: string }[] = data.data?.contexts || [];
+      const groups: { project_id: string }[] = data.data?.groups || [];
+
+      const counts = new Map<string, { contexts: number; groups: number }>();
+      for (const id of projectIds) {
+        counts.set(id, { contexts: 0, groups: 0 });
+      }
+      for (const c of contexts) {
+        const entry = counts.get(c.project_id);
+        if (entry) entry.contexts++;
+      }
+      for (const g of groups) {
+        const entry = counts.get(g.project_id);
+        if (entry) entry.groups++;
+      }
+
+      setContextCounts(counts);
+    } catch (err) {
+      console.error('Error fetching context counts:', err);
+    }
+  }, [workspaceProjects]);
+
   // Combined refresh function
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      await Promise.all([fetchRelationships(), fetchAnalysisStatus(), fetchBranches()]);
+      await Promise.all([fetchRelationships(), fetchAnalysisStatus(), fetchBranches(), fetchContextCounts()]);
     } finally {
       setLoading(false);
     }
-  }, [fetchRelationships, fetchAnalysisStatus, fetchBranches]);
+  }, [fetchRelationships, fetchAnalysisStatus, fetchBranches, fetchContextCounts]);
 
   // Trigger architecture analysis
   const triggerAnalysis = useCallback(async () => {

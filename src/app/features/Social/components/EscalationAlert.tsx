@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatRelativeTime } from '@/lib/formatDate';
 import {
   AlertTriangle,
   AlertCircle,
@@ -210,7 +211,7 @@ export default function EscalationAlert({
                         {escalation.item.author.name}
                       </span>
                       <span className="text-2xs text-gray-500">
-                        {getTimeAgo(escalation.createdAt)}
+                        {formatRelativeTime(escalation.createdAt)}
                       </span>
                     </div>
                     <div className="text-xs text-gray-400 truncate">
@@ -334,7 +335,7 @@ export default function EscalationAlert({
                             <CheckCircle className="w-3 h-3" />
                             <span>
                               Acknowledged by {escalation.acknowledgedBy || 'Unknown'} • {' '}
-                              {escalation.acknowledgedAt && getTimeAgo(escalation.acknowledgedAt)}
+                              {escalation.acknowledgedAt && formatRelativeTime(escalation.acknowledgedAt)}
                             </span>
                           </div>
                         )}
@@ -394,12 +395,3 @@ export function EscalationIndicator({ severity, reasons, compact = false }: Esca
   );
 }
 
-// Helper function
-function getTimeAgo(date: string): string {
-  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
-
-  if (seconds < 60) return 'just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  return `${Math.floor(seconds / 86400)}d ago`;
-}

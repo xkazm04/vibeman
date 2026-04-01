@@ -61,6 +61,7 @@ export default function OnboardingTaskItem({
       highlightGradient: 'from-cyan-400/20 via-blue-400/15 to-cyan-500/20',
       highlightBlur: 'from-cyan-400/10 via-blue-400/5 to-cyan-500/10',
       underlineGradient: 'from-transparent via-amber-200/30 to-transparent',
+      lockedBorder: 'border-gray-600/40',
       useDiamond: true,
     },
     cyan: {
@@ -72,6 +73,7 @@ export default function OnboardingTaskItem({
       highlightGradient: 'from-cyan-400/10 via-blue-400/10 to-cyan-500/10',
       highlightBlur: '',
       underlineGradient: 'from-transparent via-cyan-200/30 to-transparent',
+      lockedBorder: 'border-cyan-800/30',
       useDiamond: false,
     },
   };
@@ -84,9 +86,9 @@ export default function OnboardingTaskItem({
       initial={{ opacity: 0, x: isClickable ? -30 : -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: baseDelay }}
-      className={`relative ${isClickable ? 'cursor-pointer' : ''}`}
+      className={`relative ${isClickable ? 'cursor-pointer' : ''} ${isFutureTask ? `border-l-2 border-dashed ${styles.lockedBorder} pl-3` : ''}`}
       style={{
-        opacity: isFutureTask ? 0.4 : 1,
+        opacity: isFutureTask ? 0.55 : 1,
         transition: cssTransition('opacity', 'deliberate', 'morph'),
       }}
       onClick={onClick}

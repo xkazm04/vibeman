@@ -11,9 +11,11 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { transition } from '@/lib/motion';
 import {
-  History, ChevronDown, CheckCircle2, XCircle, Clock,
+  History, CheckCircle2, XCircle, Clock,
   Lightbulb, Zap, Wrench, Trash2, FileText,
 } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
+import { formatRelativeTime } from '@/lib/formatDate';
 import { useConductorStore } from '../lib/conductorStore';
 import { PIPELINE_STATUS_COLORS } from '../lib/stageTheme';
 import type { PipelineRunSummary, PipelineStatus } from '../lib/types';
@@ -26,16 +28,6 @@ function formatDuration(ms: number): string {
   return `${minutes}m`;
 }
 
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const diff = now.getTime() - d.getTime();
-
-  if (diff < 60_000) return 'Just now';
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
 
 const STATUS_ICONS: Record<PipelineStatus, typeof CheckCircle2> = {
   completed: CheckCircle2,
@@ -72,7 +64,7 @@ function RunSummaryCard({ run, onViewReport }: { run: PipelineRunSummary; onView
 
       {/* Date */}
       <span className="text-caption text-gray-400 w-16 flex-shrink-0">
-        {formatDate(run.startedAt)}
+        {formatRelativeTime(run.startedAt)}
       </span>
 
       {/* Metrics row */}
@@ -145,7 +137,7 @@ export default function RunHistoryTimeline({ onViewReport }: { onViewReport?: (r
         <span className="text-2xs font-mono text-gray-500">
           {runHistory.length} runs
         </span>
-        <ChevronDown className={`w-3.5 h-3.5 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        <ExpandChevron expanded={isExpanded} />
       </button>
 
       <AnimatePresence>

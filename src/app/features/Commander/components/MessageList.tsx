@@ -8,7 +8,10 @@
 
 import { useRef, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, Sparkles, Loader2, GitBranch, ChevronUp, ChevronDown, RotateCcw, Trash2 } from 'lucide-react';
+import { Bot, Sparkles, Loader2, GitBranch, RotateCcw, Trash2 } from 'lucide-react';
+import { ScrollShadow } from '@/components/ui';
+import EmptyStateUI from '@/components/ui/EmptyState';
+import ExpandChevron from '@/components/ui/ExpandChevron';
 import type { ChatMessage, QuickOption, ConversationBranch } from '@/stores/annette/types';
 import { useChatStore } from '@/stores/annette/chatStore';
 import { ChatBubble, DecisionEventMarker } from './ChatBubble';
@@ -60,15 +63,15 @@ export default function MessageList({
   const isFull = mode === 'full';
 
   return (
-    <div 
+    <ScrollShadow
       className={`flex-1 overflow-y-auto space-y-4 ${isFull ? 'px-4 py-4' : 'px-3 py-3 space-y-2.5'} ${className}`}
-      role="log" 
-      aria-live="polite" 
-      aria-relevant="additions" 
+      role="log"
+      aria-live="polite"
+      aria-relevant="additions"
       aria-label="Chat messages"
     >
       {messages.length === 0 && (
-        <EmptyState mode={mode} onBrowse={onBrowseCapabilities} />
+        <MessageListEmptyState mode={mode} onBrowse={onBrowseCapabilities} />
       )}
 
       {/* Branch count indicator for compact mode */}
@@ -152,41 +155,24 @@ export default function MessageList({
       <span className="sr-only" role="status" aria-live="polite">
         {liveText}
       </span>
-    </div>
+    </ScrollShadow>
   );
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function EmptyState({ mode, onBrowse }: { mode: MessageListMode; onBrowse?: () => void }) {
-  if (mode === 'compact') {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center py-8">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 flex items-center justify-center mb-3">
-          <Bot className="w-5 h-5 text-cyan-400/60" />
-        </div>
-        <p className="text-slate-500 text-xs">Ask Annette anything...</p>
-      </div>
-    );
-  }
+function MessageListEmptyState({ mode, onBrowse }: { mode: MessageListMode; onBrowse?: () => void }) {
+  const isCompact = mode === 'compact';
 
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center py-12">
-      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 flex items-center justify-center mb-4">
-        <Bot className="w-7 h-7 text-cyan-400/60" />
-      </div>
-      <p className="text-slate-400 text-sm">Ask me about your project, goals, or what to work on next.</p>
-      <p className="text-slate-600 text-xs mt-1">I have access to your Brain context, directions, ideas, and more.</p>
-      {onBrowse && (
-        <button
-          onClick={onBrowse}
-          className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-medium hover:bg-cyan-500/20 transition-colors mx-auto focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 outline-none"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          Browse Capabilities
-        </button>
-      )}
-    </div>
+    <EmptyStateUI
+      icon={Bot}
+      title={isCompact ? 'Ask Annette anything...' : 'Ask me about your project, goals, or what to work on next.'}
+      description={isCompact ? '' : 'I have access to your Brain context, directions, ideas, and more.'}
+      variant={isCompact ? 'compact' : 'default'}
+      className="h-full"
+      actions={onBrowse && !isCompact ? [{ label: 'Browse Capabilities', onClick: onBrowse, icon: Sparkles }] : undefined}
+    />
   );
 }
 
@@ -271,7 +257,7 @@ function BranchIndicator({
               <span className="truncate flex-1 text-left">
                 Previous: &ldquo;{preview.length > 50 ? preview.slice(0, 50) + '...' : preview}&rdquo;
               </span>
-              {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              <ExpandChevron expanded={isExpanded} className="w-3 h-3 text-amber-400/70" />
             </button>
 
             <AnimatePresence>

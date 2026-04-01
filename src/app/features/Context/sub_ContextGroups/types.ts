@@ -13,10 +13,6 @@ export interface ContextCardsProps {
   showFullScreenModal: ShowFullScreenModalFn;
 }
 
-export interface LazyContextCardsProps extends ContextCardsProps {
-  selectedFilePaths: string[];
-}
-
 export interface ContextCardsEmptyProps {
   group?: ContextGroup;
   availableGroups: ContextGroup[];
@@ -35,7 +31,6 @@ export interface ContextSectionContentProps {
   group?: ContextGroup;
   contexts: Context[];
   availableGroups: ContextGroup[];
-  selectedFilePaths: string[];
   showFullScreenModal: ShowFullScreenModalFn;
   isExpanded: boolean;
   onMoveContext?: (contextId: string, groupId: string | null) => void;

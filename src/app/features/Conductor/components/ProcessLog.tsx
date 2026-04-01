@@ -25,7 +25,7 @@ interface ProcessLogProps {
   isRunning: boolean;
 }
 
-const EVENT_ICONS: Record<ProcessLogEntry['event'], { icon: typeof Play; className: string }> = {
+const EVENT_ICONS: Record<ProcessLogEntry['event'], { icon: React.ComponentType<{ className?: string }>; className: string }> = {
   started: { icon: Play, className: 'text-cyan-400' },
   completed: { icon: CheckCircle, className: 'text-emerald-400' },
   failed: { icon: SoftErrorIcon, className: 'text-pink-400' },
@@ -104,6 +104,8 @@ function LogEntry({ entry }: { entry: ProcessLogEntry }) {
       {entry.error && (
         <button
           onClick={() => setExpanded(!expanded)}
+          aria-label="Expand error details"
+          aria-expanded={expanded}
           className="text-pink-400/70 hover:text-pink-400 shrink-0"
         >
           <SoftDetailExpandIcon className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
@@ -208,7 +210,11 @@ export default function ProcessLog({ entries, isRunning }: ProcessLogProps) {
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="max-h-[300px] overflow-y-auto custom-scrollbar px-1 py-1"
+        role="log"
+        aria-live="polite"
+        aria-label="Pipeline process log"
+        aria-relevant="additions"
+        className="max-h-[300px] overflow-y-auto custom-scrollbar scroll-shadow-y px-1 py-1"
       >
         <AnimatePresence initial={false}>
           {entries.map((entry) => (

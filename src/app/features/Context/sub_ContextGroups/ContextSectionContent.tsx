@@ -1,6 +1,7 @@
 import React from 'react';
 import { ContextSectionContentProps } from './types';
 import ContextCards from './ContextCards';
+import { areContextArraysEqual, areGroupArraysEqual } from './lib/memoComparisons';
 import './context-section-animations.css';
 
 const ContextSectionContent = React.memo(({
@@ -66,19 +67,8 @@ const ContextSectionContent = React.memo(({
   if (prevProps.isExpanded !== nextProps.isExpanded) return false;
   if (prevProps.onMoveContext !== nextProps.onMoveContext) return false;
 
-  // Compare contexts by length + IDs
-  if (prevProps.contexts.length !== nextProps.contexts.length) return false;
-  for (let i = 0; i < prevProps.contexts.length; i++) {
-    const prev = prevProps.contexts[i];
-    const next = nextProps.contexts[i];
-    if (prev.id !== next.id || prev.groupId !== next.groupId || prev.updatedAt !== next.updatedAt) return false;
-  }
-
-  // Compare availableGroups by length + IDs
-  if (prevProps.availableGroups.length !== nextProps.availableGroups.length) return false;
-  for (let i = 0; i < prevProps.availableGroups.length; i++) {
-    if (prevProps.availableGroups[i].id !== nextProps.availableGroups[i].id) return false;
-  }
+  if (!areContextArraysEqual(prevProps.contexts, nextProps.contexts)) return false;
+  if (!areGroupArraysEqual(prevProps.availableGroups, nextProps.availableGroups)) return false;
 
   return true;
 });

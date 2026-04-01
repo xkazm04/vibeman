@@ -3,10 +3,18 @@ import * as d3 from 'd3';
 import {
   canvasReducer,
   createInitialCanvasState,
-  isInFocusMode,
-  hasSelection,
   type CanvasAction,
+  type CanvasState,
 } from '@/app/features/Brain/sub_MemoryCanvas/lib/canvasStateReducer';
+
+// Selectors were removed from the source module; define them locally for testing.
+function isInFocusMode(state: CanvasState): boolean {
+  return state.focusedGroupId !== null;
+}
+
+function hasSelection(state: CanvasState): boolean {
+  return state.selectedGroupId !== null || state.selectedEvent !== null;
+}
 
 describe('canvasStateReducer', () => {
   it('creates initial state correctly', () => {

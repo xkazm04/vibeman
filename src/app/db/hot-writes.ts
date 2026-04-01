@@ -126,7 +126,5 @@ export function closeHotWritesDatabase(): void {
   }
 }
 
-// Graceful shutdown
-if (typeof process !== 'undefined') {
-  process.on('exit', closeHotWritesDatabase);
-}
+// NOTE: Shutdown handlers are consolidated in src/app/db/index.ts
+// to ensure deterministic ordering (stop aggregation worker → close hot DB → close main DB).

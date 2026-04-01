@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Heart, Repeat2, MessageCircle, ExternalLink, Check } from 'lucide-react';
+import { formatDateTimeShort } from '@/lib/formatDate';
 import type { DiscoveredTweet } from '../lib/types';
 
 interface TweetResultCardProps {
@@ -12,19 +13,6 @@ interface TweetResultCardProps {
 }
 
 export function TweetResultCard({ tweet, isSelected, onToggleSelect }: TweetResultCardProps) {
-  const formatDate = (dateStr: string) => {
-    try {
-      return new Date(dateStr).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
@@ -59,7 +47,7 @@ export function TweetResultCard({ tweet, isSelected, onToggleSelect }: TweetResu
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-xs text-gray-500">{formatDate(tweet.createdAt)}</span>
+          <span className="text-xs text-gray-500">{formatDateTimeShort(tweet.createdAt)}</span>
           <div className={`
             w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors
             ${isSelected

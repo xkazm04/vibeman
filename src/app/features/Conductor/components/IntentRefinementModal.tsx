@@ -8,8 +8,11 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { MessageSquare, Sparkles, ChevronDown, ChevronRight } from 'lucide-react';
+import { MessageSquare, Sparkles } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
+import { errorSurface } from '@/lib/design-tokens';
 import { UniversalModal } from '@/components/UniversalModal';
+import { MODAL_ICON_GRADIENT } from '../lib/stageTheme';
 
 export interface Question {
   id: string;
@@ -107,8 +110,8 @@ export default function IntentRefinementModal({
       title="Clarifying Questions"
       subtitle="Answer all questions to refine the pipeline intent"
       icon={MessageSquare}
-      iconBgColor="from-purple-900/60 to-cyan-900/60"
-      iconColor="text-purple-400"
+      iconBgColor={MODAL_ICON_GRADIENT.refinement.bg}
+      iconColor={MODAL_ICON_GRADIENT.refinement.text}
       maxWidth="max-w-3xl"
       footerActions={footerActions}
     >
@@ -132,7 +135,7 @@ export default function IntentRefinementModal({
       </div>
 
       {error && (
-        <div className="mb-3 px-3 py-2 bg-red-900/30 border border-red-700/50 rounded-lg text-sm text-red-300">
+        <div className={`mb-3 px-3 py-2 ${errorSurface.bg} border ${errorSurface.border} rounded-lg text-sm ${errorSurface.text}`}>
           {error}
         </div>
       )}
@@ -151,7 +154,7 @@ export default function IntentRefinementModal({
                 onClick={() => setExpandedContext(prev => ({ ...prev, [q.id]: !prev[q.id] }))}
                 className="flex items-center gap-1 text-caption text-gray-500 hover:text-gray-400 transition-colors mb-2 ml-5"
               >
-                {expandedContext[q.id] ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                <ExpandChevron expanded={!!expandedContext[q.id]} className="w-3 h-3 text-gray-500" />
                 Codebase context
               </button>
             )}

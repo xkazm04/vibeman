@@ -49,6 +49,38 @@ export interface V3TaskResult {
 }
 
 // ============================================================================
+// Quality Gate Types
+// ============================================================================
+
+export interface QualityGateConfig {
+  /** Gate type identifier */
+  type: 'build' | 'lint' | 'test' | 'rubric' | 'custom';
+  /** Display label (defaults to type if omitted) */
+  label?: string;
+  /** Shell command to run (for lint, test, custom gates) */
+  command?: string;
+  /** Whether failure of this gate blocks completion (default: true) */
+  required: boolean;
+  /** Minimum rubric score (1-5) for rubric gates */
+  minScore?: number;
+}
+
+export interface QualityGateResult {
+  /** Gate type that was evaluated */
+  type: string;
+  /** Display label */
+  label: string;
+  /** Whether this gate passed */
+  passed: boolean;
+  /** Whether this gate is required to pass */
+  required: boolean;
+  /** Human-readable message (error output, score, etc.) */
+  message: string;
+  /** How long the gate took to run */
+  durationMs: number;
+}
+
+// ============================================================================
 // Phase Outputs
 // ============================================================================
 
@@ -59,11 +91,13 @@ export interface PlanOutput {
 }
 
 export interface ReflectOutput {
-  status: 'done' | 'continue' | 'needs_input';
+  status: 'done' | 'continue' | 'needs_input' | 'needs_healing';
   summary: string;
   nextTasks?: V3Task[];
   brainFeedback: string;
   lessonsLearned: string[];
+  /** Results from quality gate evaluation (present when gates are configured) */
+  qualityGateResults?: QualityGateResult[];
 }
 
 // ============================================================================
@@ -114,6 +148,9 @@ export interface V3Config {
 
   // Intent Refinement
   intentRefinementEnabled: boolean;
+
+  // Quality Gates (enforced during reflect phase)
+  qualityGates: QualityGateConfig[];
 }
 
 export const DEFAULT_V3_CONFIG: V3Config = {
@@ -168,6 +205,9 @@ export const DEFAULT_V3_CONFIG: V3Config = {
 
   // Intent Refinement
   intentRefinementEnabled: false,
+
+  // Quality Gates (empty = no enforcement, purely informational reflect)
+  qualityGates: [],
 };
 
 // ============================================================================
@@ -379,5 +419,6 @@ export function v3ConfigToBalancing(v3: V3Config): BalancingConfig {
     reflectProvider: v3.reflectProvider,
     reflectModel: v3.reflectModel,
     brainQuestionsEnabled: v3.brainQuestionsEnabled,
+    qualityGates: v3.qualityGates,
   };
 }

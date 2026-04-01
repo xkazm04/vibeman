@@ -131,6 +131,13 @@ body {
   }
 }
 
+/* Scroll shadow utility — fades top/bottom edges of bounded scroll containers
+   to signal more content beyond the visible area. Apply alongside overflow-y-auto. */
+@utility scroll-shadow-y {
+  mask-image: linear-gradient(to bottom, transparent, black 16px, black calc(100% - 16px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 16px, black calc(100% - 16px), transparent);
+}
+
 /* Custom animations */
 @keyframes float {
   0%, 100% {

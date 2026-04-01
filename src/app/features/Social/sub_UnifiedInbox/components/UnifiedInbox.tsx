@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import type { FeedbackItem, KanbanChannel, KanbanPriority } from '../../lib/types/feedbackTypes';
 import type { ConversationThread as ConversationThreadType, UnifiedCustomer } from '@/lib/social';
+import { formatRelativeTime } from '@/lib/formatDate';
 import { useUnifiedInbox } from '../hooks/useUnifiedInbox';
 import { SimpleSpinner } from '@/components/ui/Spinner';
 import { ConversationThread } from './ConversationThread';
@@ -363,7 +364,7 @@ function ConversationsList({ conversations, customers, onSelect }: Conversations
     <div className="divide-y divide-gray-800/50">
       {conversations.map((thread) => {
         const customer = customerMap.get(thread.customerId);
-        const latestMessage = thread.messages[thread.messages.length - 1];
+        const latestMessage = thread.messages.length > 0 ? thread.messages[thread.messages.length - 1] : null;
         const valueTier = customer ? getCustomerValueTier(customer.valueScore) : null;
 
         return (
@@ -428,7 +429,7 @@ function ConversationsList({ conversations, customers, onSelect }: Conversations
                   {/* Channels */}
                   <div className="flex items-center gap-1">
                     {thread.channels.slice(0, 3).map(channel => {
-                      const Icon = CHANNEL_ICONS[channel];
+                      const Icon = CHANNEL_ICONS[channel] || MessageCircle;
                       return <Icon key={channel} className="w-3 h-3 text-gray-500" />;
                     })}
                     {thread.channels.length > 3 && (
@@ -536,7 +537,7 @@ function CustomersList({ customers, onSelect }: CustomersListProps) {
                 {/* Channel icons */}
                 <div className="flex items-center gap-1 mt-2">
                   {customer.channels.map((identity, idx) => {
-                    const Icon = CHANNEL_ICONS[identity.channel];
+                    const Icon = CHANNEL_ICONS[identity.channel] || MessageCircle;
                     return <Icon key={idx} className="w-3.5 h-3.5 text-gray-500" />;
                   })}
                 </div>
@@ -547,20 +548,4 @@ function CustomersList({ customers, onSelect }: CustomersListProps) {
       })}
     </div>
   );
-}
-
-function formatRelativeTime(timestamp: string): string {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins}m`;
-  if (diffHours < 24) return `${diffHours}h`;
-  if (diffDays < 7) return `${diffDays}d`;
-
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }

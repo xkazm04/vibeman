@@ -1,5 +1,5 @@
 import * as d3 from 'd3';
-import type { BrainEvent, Group } from './types';
+import type { BrainEvent } from './types';
 
 /**
  * Canvas interaction state machine.
@@ -119,24 +119,4 @@ export function canvasReducer(state: CanvasState, action: CanvasAction): CanvasS
     default:
       return state;
   }
-}
-
-// ── Selectors ──
-
-export function isInFocusMode(state: CanvasState): boolean {
-  return state.focusedGroupId !== null;
-}
-
-export function hasSelection(state: CanvasState): boolean {
-  return state.selectedGroupId !== null || state.selectedEvent !== null;
-}
-
-export function getFocusedGroup(state: CanvasState, groups: Group[]): Group | undefined {
-  if (!state.focusedGroupId) return undefined;
-  return groups.find(g => g.id === state.focusedGroupId);
-}
-
-export function getSelectedGroup(state: CanvasState, groups: Group[]): Group | undefined {
-  if (!state.selectedGroupId) return undefined;
-  return groups.find(g => g.id === state.selectedGroupId);
 }

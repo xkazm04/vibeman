@@ -8,23 +8,9 @@ import { Context } from '../../../../stores/contextStore';
 import { normalizePath, FilePath } from '../../../../utils/pathUtils';
 import {
   GROUP_ICON_MAPPING,
-  DATE_FORMAT_OPTIONS,
   GRID_LAYOUT_CONFIG,
   FILE_DISPLAY_CONFIG
 } from './constants';
-
-/**
- * Format date with specified format option
- */
-export function formatDate(date: Date, format: 'short' | 'long' | 'time' = 'long'): string {
-  const formatOptions = format === 'short' 
-    ? DATE_FORMAT_OPTIONS.SHORT 
-    : format === 'time' 
-    ? DATE_FORMAT_OPTIONS.TIME_ONLY 
-    : DATE_FORMAT_OPTIONS.LONG;
-    
-  return new Intl.DateTimeFormat('en-US', formatOptions).format(date);
-}
 
 /**
  * Get icon component for a context group based on its name

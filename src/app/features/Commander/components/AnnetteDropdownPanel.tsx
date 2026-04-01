@@ -56,6 +56,8 @@ function NotificationBar() {
           <button
             onClick={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
             className="flex-shrink-0 p-0.5 hover:bg-white/5 rounded transition-colors"
+            aria-label="Dismiss notification"
+            title="Dismiss notification"
           >
             <X className="w-2.5 h-2.5" />
           </button>
@@ -86,7 +88,7 @@ export default function AnnetteDropdownPanel({ onClose }: { onClose: () => void 
     >
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-800/50">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-cyan-500/30 flex items-center justify-center">
             <Bot className="w-3.5 h-3.5 text-cyan-400" />
           </div>

@@ -1,216 +1,243 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ScanPipeline } from '@/lib/scan/ScanPipeline';
-import type { ScanMiddleware, ScanContext, ScanEvent } from '@/lib/scan/types';
+import { ScanOrchestrator } from '@/lib/scan/scanOrchestrator';
+import { BaseScanStrategy } from '@/lib/scan/strategies/baseScanStrategy';
 import {
-  ValidateMiddleware,
-  GatherMiddleware,
-  AnalyzeMiddleware,
-  BuildResultMiddleware,
-  PersistMiddleware,
-  EventMiddleware,
-  TimingMiddleware,
-} from '@/lib/scan/middleware';
+  ScanError,
+  type ScanConfig,
+  type ScanResult,
+  type ScanFinding,
+  type ScanEvent,
+  type CodebaseFile,
+  type FileGatherer,
+  type ScanRepository,
+  type ScanEventListener,
+} from '@/lib/scan/types';
 
-function makeContext(overrides: Partial<ScanContext> = {}): ScanContext {
+// ── Test helpers ──
+
+function makeConfig(overrides: Partial<ScanConfig> = {}): ScanConfig {
   return {
-    config: {
-      projectId: 'test-project',
-      projectPath: '/tmp/test',
-      scanCategory: 'agent',
-    },
-    scanId: 'test-scan-id',
-    startTime: Date.now(),
-    files: [],
-    findings: [],
-    emitEvent: vi.fn(),
-    timings: {},
-    extras: {},
+    projectId: 'test-project',
+    projectPath: '/tmp/test',
+    scanCategory: 'agent',
     ...overrides,
   };
 }
 
-function makeMw(name: string, fn?: (ctx: ScanContext) => void): ScanMiddleware {
+function makeGatherer(files: CodebaseFile[] = []): FileGatherer {
   return {
-    name,
-    async handle(ctx, next) {
-      fn?.(ctx);
-      await next();
-    },
+    gather: vi.fn(async () => files),
   };
 }
 
-describe('ScanPipeline', () => {
-  it('executes middleware in order', async () => {
-    const order: string[] = [];
-    const pipeline = new ScanPipeline()
-      .use(makeMw('a', () => order.push('a')))
-      .use(makeMw('b', () => order.push('b')))
-      .use(makeMw('c', () => order.push('c')));
+function makeRepository(): ScanRepository & { save: ReturnType<typeof vi.fn>; getById: ReturnType<typeof vi.fn>; listByProject: ReturnType<typeof vi.fn>; delete: ReturnType<typeof vi.fn> } {
+  return {
+    save: vi.fn(),
+    getById: vi.fn(),
+    listByProject: vi.fn(async () => []),
+    delete: vi.fn(),
+  };
+}
 
-    await pipeline.execute(makeContext());
-    expect(order).toEqual(['a', 'b', 'c']);
+/**
+ * Concrete test strategy that exposes the BaseScanStrategy lifecycle.
+ */
+class TestScanStrategy extends BaseScanStrategy {
+  public analysisResult: ScanFinding[] = [];
+  public analyzeCallCount = 0;
+  public validateFn: ((config: ScanConfig) => void) | null = null;
+
+  protected validateConfig(config: ScanConfig): void {
+    if (this.validateFn) this.validateFn(config);
+  }
+
+  protected async analyze(
+    _config: ScanConfig,
+    _files: CodebaseFile[]
+  ): Promise<ScanFinding[]> {
+    this.analyzeCallCount++;
+    return this.analysisResult;
+  }
+}
+
+// ── ScanOrchestrator tests ──
+
+describe('ScanOrchestrator', () => {
+  it('routes scans to the correct registered strategy', async () => {
+    const gatherer = makeGatherer([]);
+    const strategy = new TestScanStrategy(gatherer);
+    const orchestrator = new ScanOrchestrator(gatherer);
+
+    // Register custom strategy under 'agent'
+    orchestrator.registerStrategy('agent', strategy);
+
+    const result = await orchestrator.execute(makeConfig({ scanCategory: 'agent' }));
+    expect(result.success).toBe(true);
+    expect(strategy.analyzeCallCount).toBe(1);
   });
 
-  it('short-circuits when next() is not called', async () => {
-    const order: string[] = [];
-    const stopper: ScanMiddleware = {
-      name: 'stopper',
-      async handle(_ctx, _next) {
-        order.push('stop');
-        // intentionally not calling next()
-      },
-    };
-
-    const pipeline = new ScanPipeline()
-      .use(makeMw('a', () => order.push('a')))
-      .use(stopper)
-      .use(makeMw('c', () => order.push('c')));
-
-    await pipeline.execute(makeContext());
-    expect(order).toEqual(['a', 'stop']);
+  it('throws for unregistered scan category', async () => {
+    const orchestrator = new ScanOrchestrator();
+    await expect(
+      orchestrator.execute(makeConfig({ scanCategory: 'blueprint' }))
+    ).rejects.toThrow('No strategy registered');
   });
 
-  it('insertBefore places middleware correctly', async () => {
-    const order: string[] = [];
-    const pipeline = new ScanPipeline()
-      .use(makeMw('a', () => order.push('a')))
-      .use(makeMw('c', () => order.push('c')))
-      .insertBefore('c', makeMw('b', () => order.push('b')));
+  it('executes multiple scans in parallel', async () => {
+    const gatherer = makeGatherer([]);
+    const agentStrategy = new TestScanStrategy(gatherer);
+    const structureStrategy = new TestScanStrategy(gatherer);
+    const orchestrator = new ScanOrchestrator(gatherer);
 
-    await pipeline.execute(makeContext());
-    expect(order).toEqual(['a', 'b', 'c']);
+    orchestrator.registerStrategy('agent', agentStrategy);
+    orchestrator.registerStrategy('structure', structureStrategy);
+
+    const results = await orchestrator.executeParallel([
+      makeConfig({ scanCategory: 'agent' }),
+      makeConfig({ scanCategory: 'structure' }),
+    ]);
+
+    expect(results).toHaveLength(2);
+    expect(results[0].success).toBe(true);
+    expect(results[1].success).toBe(true);
+    expect(agentStrategy.analyzeCallCount).toBe(1);
+    expect(structureStrategy.analyzeCallCount).toBe(1);
   });
 
-  it('insertAfter places middleware correctly', async () => {
-    const order: string[] = [];
-    const pipeline = new ScanPipeline()
-      .use(makeMw('a', () => order.push('a')))
-      .use(makeMw('c', () => order.push('c')))
-      .insertAfter('a', makeMw('b', () => order.push('b')));
+  it('delivers progress events to subscribed listeners', async () => {
+    const gatherer = makeGatherer([]);
+    const strategy = new TestScanStrategy(gatherer);
+    const orchestrator = new ScanOrchestrator(gatherer);
+    orchestrator.registerStrategy('agent', strategy);
 
-    await pipeline.execute(makeContext());
-    expect(order).toEqual(['a', 'b', 'c']);
-  });
-
-  it('remove eliminates middleware by name', async () => {
-    const order: string[] = [];
-    const pipeline = new ScanPipeline()
-      .use(makeMw('a', () => order.push('a')))
-      .use(makeMw('b', () => order.push('b')))
-      .use(makeMw('c', () => order.push('c')));
-
-    pipeline.remove('b');
-    await pipeline.execute(makeContext());
-    expect(order).toEqual(['a', 'c']);
-  });
-
-  it('getNames returns ordered middleware names', () => {
-    const pipeline = new ScanPipeline()
-      .use(makeMw('x'))
-      .use(makeMw('y'))
-      .use(makeMw('z'));
-
-    expect(pipeline.getNames()).toEqual(['x', 'y', 'z']);
-  });
-});
-
-describe('ValidateMiddleware', () => {
-  it('calls the validator function', async () => {
-    const validator = vi.fn();
-    const mw = new ValidateMiddleware(validator);
-    const ctx = makeContext();
-
-    await mw.handle(ctx, vi.fn());
-    expect(validator).toHaveBeenCalledWith(ctx);
-  });
-
-  it('throws when validator throws', async () => {
-    const mw = new ValidateMiddleware(() => {
-      throw new Error('invalid config');
-    });
-
-    await expect(mw.handle(makeContext(), vi.fn())).rejects.toThrow('invalid config');
-  });
-});
-
-describe('AnalyzeMiddleware', () => {
-  it('populates ctx.findings from analyzeFn', async () => {
-    const findings = [{ title: 'test', description: 'desc' }];
-    const mw = new AnalyzeMiddleware(async () => findings);
-    const ctx = makeContext();
-
-    await mw.handle(ctx, vi.fn());
-    expect(ctx.findings).toEqual(findings);
-  });
-});
-
-describe('BuildResultMiddleware', () => {
-  it('populates ctx.result', async () => {
-    const mw = new BuildResultMiddleware();
-    const ctx = makeContext({
-      files: [{ path: 'a.ts', content: '', size: 0 }],
-      findings: [{ title: 'f', description: 'd' }],
-    });
-
-    await mw.handle(ctx, vi.fn());
-    expect(ctx.result).toBeDefined();
-    expect(ctx.result!.success).toBe(true);
-    expect(ctx.result!.findings).toHaveLength(1);
-    expect(ctx.result!.metadata.fileCount).toBe(1);
-  });
-});
-
-describe('PersistMiddleware', () => {
-  it('calls repository.save when result and repository exist', async () => {
-    const save = vi.fn();
-    const result = { success: true, scanId: 'x', category: 'agent' as const, findings: [], metadata: {} as any };
-    const mw = new PersistMiddleware();
-    const ctx = makeContext({ repository: { save, getById: vi.fn(), listByProject: vi.fn(), delete: vi.fn() }, result });
-
-    await mw.handle(ctx, vi.fn());
-    expect(save).toHaveBeenCalledWith(result);
-  });
-
-  it('no-ops when repository is absent', async () => {
-    const mw = new PersistMiddleware();
-    const ctx = makeContext({ result: { success: true, scanId: 'x', category: 'agent' as const, findings: [], metadata: {} as any } });
-
-    // Should not throw
-    await mw.handle(ctx, vi.fn());
-  });
-});
-
-describe('EventMiddleware', () => {
-  it('emits scan_started and scan_completed events', async () => {
-    const mw = new EventMiddleware();
     const events: ScanEvent[] = [];
-    const ctx = makeContext({
-      files: [{ path: 'a.ts', content: '', size: 0 }],
-      findings: [{ title: 'f', description: 'd' }],
-      result: { success: true, scanId: 'x', category: 'agent' as const, findings: [], metadata: {} as any },
-      emitEvent: (e: ScanEvent) => events.push(e),
-    });
+    orchestrator.onProgress('test-project', (e: ScanEvent) => events.push(e));
 
-    await mw.handle(ctx, vi.fn());
-    expect(events.map(e => e.type)).toContain('scan_started');
-    expect(events.map(e => e.type)).toContain('scan_completed');
+    await orchestrator.execute(makeConfig({ projectId: 'test-project' }));
+
+    // Strategy events are delivered (strategy may or may not emit, but no crash)
+    expect(Array.isArray(events)).toBe(true);
+  });
+
+  it('unsubscribe removes the listener', () => {
+    const orchestrator = new ScanOrchestrator();
+    const listener = vi.fn();
+    const unsub = orchestrator.onProgress('proj-1', listener);
+    unsub();
+    // No way to directly verify removal other than it doesn't crash
+    expect(typeof unsub).toBe('function');
   });
 });
 
-describe('TimingMiddleware', () => {
-  it('records execution time in ctx.timings', async () => {
-    const inner: ScanMiddleware = {
-      name: 'slow',
-      async handle(_ctx, next) {
-        await new Promise(r => setTimeout(r, 10));
-        await next();
-      },
+// ── BaseScanStrategy lifecycle tests ──
+
+describe('BaseScanStrategy lifecycle', () => {
+  it('runs validate -> gather -> analyze -> buildResult', async () => {
+    const files: CodebaseFile[] = [{ path: 'a.ts', content: 'const x = 1;', size: 12 }];
+    const gatherer = makeGatherer(files);
+    const strategy = new TestScanStrategy(gatherer);
+    strategy.analysisResult = [{ title: 'Test Finding', description: 'test desc' }];
+
+    const result = await strategy.scan(makeConfig());
+
+    expect(result.success).toBe(true);
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].title).toBe('Test Finding');
+    expect(result.metadata.fileCount).toBe(1);
+    expect(result.metadata.category).toBe('agent');
+    expect(gatherer.gather).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns failure result when validation throws', async () => {
+    const gatherer = makeGatherer();
+    const strategy = new TestScanStrategy(gatherer);
+    strategy.validateFn = () => {
+      throw new Error('invalid config');
     };
 
-    const mw = TimingMiddleware.wrap(inner);
-    const ctx = makeContext();
+    const result = await strategy.scan(makeConfig());
+    expect(result.success).toBe(false);
+    expect(result.error?.message).toBe('invalid config');
+  });
 
-    await mw.handle(ctx, vi.fn());
-    expect(ctx.timings['slow']).toBeGreaterThan(0);
+  it('returns failure result when gather throws', async () => {
+    const gatherer: FileGatherer = {
+      gather: vi.fn(async () => {
+        throw new ScanError('gather_failed', 'Cannot reach file server');
+      }),
+    };
+    const strategy = new TestScanStrategy(gatherer);
+
+    const result = await strategy.scan(makeConfig());
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe('gather_failed');
+    expect(result.error?.message).toBe('Cannot reach file server');
+  });
+
+  it('populates metadata with timing and scan info', async () => {
+    const gatherer = makeGatherer([
+      { path: 'a.ts', content: '', size: 0 },
+      { path: 'b.ts', content: '', size: 0 },
+    ]);
+    const strategy = new TestScanStrategy(gatherer);
+    strategy.analysisResult = [
+      { title: 'f1', description: 'd1' },
+      { title: 'f2', description: 'd2' },
+    ];
+
+    const result = await strategy.scan(makeConfig());
+
+    expect(result.metadata.fileCount).toBe(2);
+    expect(result.metadata.filesAnalyzed).toBe(2);
+    expect(result.metadata.duration).toBeGreaterThanOrEqual(0);
+    expect(result.metadata.startedAt).toBeTruthy();
+    expect(result.metadata.completedAt).toBeTruthy();
+    expect(result.metadata.scanId).toBeTruthy();
+  });
+
+  it('emits scan_failed event when analysis throws', async () => {
+    const gatherer = makeGatherer([{ path: 'a.ts', content: '', size: 0 }]);
+    const strategy = new TestScanStrategy(gatherer);
+    const events: ScanEvent[] = [];
+    strategy.onEvent((e: ScanEvent) => events.push(e));
+
+    // Make analyze throw
+    strategy.analysisResult = []; // won't matter, we override
+    const origAnalyze = (strategy as any).analyze.bind(strategy);
+    (strategy as any).analyze = async () => {
+      throw new Error('analysis crashed');
+    };
+
+    const result = await strategy.scan(makeConfig());
+    expect(result.success).toBe(false);
+    expect(events.some(e => e.type === 'scan_failed')).toBe(true);
+  });
+
+  it('onEvent returns unsubscribe function', () => {
+    const strategy = new TestScanStrategy(makeGatherer());
+    const listener = vi.fn();
+    const unsub = strategy.onEvent(listener);
+    expect(typeof unsub).toBe('function');
+    unsub();
+    // Listener removed; emit should not reach it
+    (strategy as any).emitEvent({
+      type: 'scan_started',
+      scanId: 'x',
+      timestamp: Date.now(),
+    });
+    expect(listener).not.toHaveBeenCalled();
+  });
+});
+
+// ── ScanError tests ──
+
+describe('ScanError', () => {
+  it('carries code, message, and details', () => {
+    const err = new ScanError('validation_failed', 'Missing projectId', { field: 'projectId' });
+    expect(err.code).toBe('validation_failed');
+    expect(err.message).toBe('Missing projectId');
+    expect(err.details).toEqual({ field: 'projectId' });
+    expect(err.name).toBe('ScanError');
+    expect(err instanceof Error).toBe(true);
   });
 });

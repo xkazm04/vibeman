@@ -27,6 +27,8 @@ import ReflectionHistoryPanel from './components/ReflectionHistoryPanel';
 import { scoreWidgets, getWidgetDefinition } from './lib/widgetRegistry';
 import type { WidgetId, WidgetRenderContext } from './lib/widgetRegistry';
 import type { SignalAnomaly, AnomalySeverity } from '@/lib/brain/anomalyDetector';
+import { useConductorStore } from '@/app/features/Conductor/lib/conductorStore';
+import { computeStabilityMetrics } from './components/HarnessStabilityWidget';
 
 const EventCanvasD3 = lazy(() => import('./sub_MemoryCanvas/EventCanvasD3'));
 const EventCanvasTimeline = lazy(() => import('./sub_Timeline/EventCanvasTimeline'));
@@ -119,13 +121,21 @@ export default function BrainLayout() {
   const { outcomeStats } = useBrainStore();
   const { shouldTrigger, status: refStatus } = useBrainStore((s) => s.reflections.project);
 
+  // Harness stability scoring context
+  const runHistory = useConductorStore((s) => s.runHistory);
+  const healingPatches = useConductorStore((s) => s.healingPatches);
+  const harnessInstability = useMemo(
+    () => computeStabilityMetrics(runHistory, healingPatches).instabilityScore,
+    [runHistory, healingPatches],
+  );
+
   const PRIMARY_THRESHOLD = 10;
   const { primaryWidgets, secondaryWidgets } = useMemo(() => {
-    const scored = scoreWidgets({ outcomeStats, shouldTrigger, refStatus, anomalies });
+    const scored = scoreWidgets({ outcomeStats, shouldTrigger, refStatus, anomalies, harnessInstability });
     const primary = scored.filter((w) => w.score >= PRIMARY_THRESHOLD);
     const secondary = scored.filter((w) => w.score < PRIMARY_THRESHOLD);
     return { primaryWidgets: primary, secondaryWidgets: secondary };
-  }, [outcomeStats, shouldTrigger, refStatus, anomalies]);
+  }, [outcomeStats, shouldTrigger, refStatus, anomalies, harnessInstability]);
 
   const baseRenderCtx: WidgetRenderContext = useMemo(() => ({
     scope, isGlobalMode, activeProject, isLoadingOutcomes, isLoadingContext, isLoading,

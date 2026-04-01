@@ -12,7 +12,7 @@ import {
   IntegrationStatus,
   IntegrationEventType,
 } from '../models/integration.types';
-import { generateId, getCurrentTimestamp, withTableCheck } from './repository.utils';
+import { generateId, getCurrentTimestamp, withTableCheck, escapeLikePattern } from './repository.utils';
 import { createGenericRepository } from './generic.repository';
 
 const integrationBase = createGenericRepository<DbIntegration>({
@@ -79,9 +79,9 @@ export const integrationRepository = {
       SELECT * FROM integrations
       WHERE project_id = ?
         AND status = 'active'
-        AND enabled_events LIKE ?
+        AND enabled_events LIKE ? ESCAPE '\\'
     `);
-    return stmt.all(projectId, `%"${eventType}"%`) as DbIntegration[];
+    return stmt.all(projectId, `%"${escapeLikePattern(eventType)}"%`) as DbIntegration[];
   }),
 
   /**

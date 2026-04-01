@@ -19,9 +19,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Info,
-  ChevronDown,
-  ChevronRight,
 } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
 import type { ImpactAnalysisResult, ImpactItem, ImpactSeverity } from '../sub_DocsAnalysis/lib/impactSimulator/types';
 
 interface ImpactAnalysisPanelProps {
@@ -71,11 +70,7 @@ function CollapsibleSection({
         data-testid={`impact-section-${title.toLowerCase().replace(/\s+/g, '-')}`}
       >
         <div className="flex items-center gap-2">
-          {isOpen ? (
-            <ChevronDown className="w-4 h-4 text-gray-400" />
-          ) : (
-            <ChevronRight className="w-4 h-4 text-gray-400" />
-          )}
+          <ExpandChevron expanded={isOpen} className="w-4 h-4 text-gray-400" />
           <span className="text-sm font-medium text-white">{title}</span>
         </div>
         {badge}

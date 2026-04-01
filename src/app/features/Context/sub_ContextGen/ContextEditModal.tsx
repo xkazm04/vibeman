@@ -179,7 +179,7 @@ export default function ContextEditModal({
   return (
     <div className="flex flex-col min-h-screen">
       {/* Top Section: Form and Action Buttons */}
-      <div className="flex items-start justify-between gap-6 mb-6">
+      <div className="flex flex-col md:flex-row items-start justify-between gap-6 mb-6">
         {/* Context Form Section - Left Side */}
         <div className="flex-1">
           <ContextGenForm

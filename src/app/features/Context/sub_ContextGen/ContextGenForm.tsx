@@ -81,7 +81,7 @@ export default function ContextGenForm({
   return (
     <div className="space-y-4">
       {/* Context Name and Group in same row */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">
             Context Name *
@@ -142,7 +142,7 @@ export default function ContextGenForm({
                   animate={{ opacity: 1, scale: 1, x: 0 }}
                   exit={{ opacity: 0, scale: 0.9, x: 20 }}
                   transition={{ duration: 0.2 }}
-                  className="flex items-center gap-2 px-2 py-1.5 bg-gray-800/60 border border-gray-600/40 rounded-lg"
+                  className="flex items-center gap-2 px-2 py-1.5 bg-gray-800/40 border border-gray-600/30 rounded-lg"
                 >
                   <span className="text-sm text-gray-400">Select provider:</span>
                   <ProviderSelector
@@ -217,7 +217,7 @@ export default function ContextGenForm({
             className="relative overflow-hidden"
           >
             <div
-              className={`bg-gray-800/50 border max-w-[80vw] border-gray-600/50 rounded-xl p-4 ${
+              className={`bg-gray-800/40 border max-w-[80vw] border-gray-600/30 rounded-xl p-4 ${
                 isExpanded ? 'overflow-auto' : 'overflow-hidden'
               }`}
               style={{ maxHeight: isExpanded ? 'none' : '300px' }}
@@ -229,7 +229,7 @@ export default function ContextGenForm({
             )}
           </motion.div>
         ) : (
-          <div className="bg-gray-800/50 border border-gray-600/50 rounded-xl p-4 h-[300px] flex items-center justify-center">
+          <div className="bg-gray-800/40 border border-gray-600/30 rounded-xl p-4 h-[300px] flex items-center justify-center">
             <p className="text-sm text-gray-500 text-center">
               {selectedFilePaths.length > 0
                 ? 'Click "AI Generate" to create a description from selected files'

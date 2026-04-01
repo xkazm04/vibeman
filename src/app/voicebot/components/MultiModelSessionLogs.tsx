@@ -153,7 +153,9 @@ export default function MultiModelSessionLogs({
                 </div>
 
                 {/* Model Responses Grid */}
-                <div className={`grid grid-cols-1 md:grid-cols-${Math.min(activeModels.length, 4)} gap-3`}>
+                <div className={`grid grid-cols-1 ${
+                  ({ 1: 'md:grid-cols-1', 2: 'md:grid-cols-2', 3: 'md:grid-cols-3', 4: 'md:grid-cols-4' } as Record<number, string>)[Math.min(activeModels.length, 4)] ?? 'md:grid-cols-4'
+                } gap-3`}>
                   {log.responses.map((response, ridx) => {
                     const color = getProviderColor(response.provider);
                     return (

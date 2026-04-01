@@ -1,7 +1,8 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Trash2, ChevronDown, ChevronRight, Plus, X } from 'lucide-react';
+import { Trash2, Plus, X } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
 import { useState } from 'react';
 import { StructureRule } from '@/app/api/structure-scan/structureTemplates';
 import { StyledCheckbox } from '@/components/ui';
@@ -69,11 +70,7 @@ export default function RuleEditorRow({ rule, index, onUpdate, onDelete }: RuleE
             onClick={() => setIsExpanded(!isExpanded)}
             className="p-0.5 hover:bg-gray-700/50 rounded transition-colors flex-shrink-0"
           >
-            {isExpanded ? (
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
-            ) : (
-              <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
-            )}
+            <ExpandChevron expanded={isExpanded} className="w-3.5 h-3.5 text-gray-400" />
           </button>
 
           {/* Pattern Input */}

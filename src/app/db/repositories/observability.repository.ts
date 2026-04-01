@@ -446,12 +446,20 @@ export const observabilityRepository = {
 
     if (!config) return null;
 
+    let parsedEndpoints: string[] | null = null;
+    if (config.endpoints_to_track) {
+      try {
+        parsedEndpoints = JSON.parse(config.endpoints_to_track);
+      } catch (e) {
+        console.warn(`[observability] Malformed endpoints_to_track JSON for project ${projectId}, falling back to empty array:`, e);
+        parsedEndpoints = [];
+      }
+    }
+
     return {
       ...config,
       enabled: config.enabled === 1,
-      endpoints_to_track: config.endpoints_to_track
-        ? JSON.parse(config.endpoints_to_track)
-        : null
+      endpoints_to_track: parsedEndpoints
     };
   },
 

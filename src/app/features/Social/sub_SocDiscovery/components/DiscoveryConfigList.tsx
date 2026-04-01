@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Trash2, Clock, Hash, Plus } from 'lucide-react';
 import type { DiscoveryConfig } from '../lib/types';
 import { SimpleSpinner } from '@/components/ui/Spinner';
+import { formatDateShort } from '@/lib/formatDate';
 
 interface DiscoveryConfigListProps {
   configs: DiscoveryConfig[];
@@ -23,14 +24,6 @@ export function DiscoveryConfigList({
   onDelete,
   onCreateNew,
 }: DiscoveryConfigListProps) {
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return 'Never';
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8 text-gray-500">
@@ -102,7 +95,7 @@ export function DiscoveryConfigList({
               <div className="flex items-center gap-3 mt-2 pl-6 text-xs text-gray-500">
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
-                  {formatDate(config.lastSearchAt)}
+                  {config.lastSearchAt ? formatDateShort(config.lastSearchAt) : 'Never'}
                 </span>
                 <span className="flex items-center gap-1">
                   <Hash className="w-3 h-3" />

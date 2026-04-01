@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, Play } from 'lucide-react';
 import { useZenStore, type ActivityItem } from '../lib/zenStore';
 import { cn } from '@/lib/utils';
+import { formatRelativeTime } from '@/lib/formatDate';
 import { zen } from '../lib/zenTheme';
 
 const EVENT_ICONS = {
@@ -19,22 +20,6 @@ const EVENT_COLORS = {
   running: 'bg-blue-500/10 text-blue-400',
 };
 
-function formatTimeAgo(date: Date): string {
-  const now = new Date();
-  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (seconds < 0) return 'just now';
-  if (seconds < 60) return `${seconds}s ago`;
-
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
 
 interface EventItemProps {
   event: ActivityItem;
@@ -60,7 +45,7 @@ function EventItem({ event }: EventItemProps) {
         <div className="flex-1 min-w-0">
           <p className="text-xs text-gray-300 truncate">{event.title}</p>
           <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
-            <span>{formatTimeAgo(timestamp)}</span>
+            <span>{formatRelativeTime(timestamp)}</span>
             {event.error && (
               <span className="text-red-400 truncate" title={event.error}>
                 Error

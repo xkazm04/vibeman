@@ -4,11 +4,13 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Activity, CheckCircle2, Clock, Zap, GitCommit, FileText,
-  ChevronDown, ChevronRight, Loader2, RefreshCw, Check, X,
+  Loader2, RefreshCw, Check, X,
   ListChecks, Sparkles, TrendingUp,
 } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
 import GlassCard from '@/components/cards/GlassCard';
 import { duration, easing } from '@/lib/motion';
+import { formatRelativeTime } from '@/lib/formatDate';
 
 export interface GoalSignal {
   id: string;
@@ -71,16 +73,6 @@ const SIGNAL_COLORS: Record<string, string> = {
   manual_update: 'text-gray-400',
 };
 
-function formatTimeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
 
 export default function GoalLifecyclePanel({ data, projectId, onRefresh }: GoalLifecyclePanelProps) {
   const [localData, setLocalData] = useState<LifecycleData>(data);
@@ -163,7 +155,7 @@ export default function GoalLifecyclePanel({ data, projectId, onRefresh }: GoalL
     });
   };
 
-  const progress = localData.inferredProgress;
+  const progress = Number.isFinite(localData.inferredProgress) ? localData.inferredProgress : 0;
   const totalSignals = localData.signals.length;
   const lifecycleStatus = localData.goal.lifecycle_status || 'manual';
 
@@ -223,7 +215,7 @@ export default function GoalLifecyclePanel({ data, projectId, onRefresh }: GoalL
         </div>
         <div className="flex justify-between mt-1.5">
           <span className="text-xs text-slate-400">
-            {localData.lastActivity ? `Last activity: ${formatTimeAgo(localData.lastActivity)}` : 'No activity yet'}
+            {localData.lastActivity ? `Last activity: ${formatRelativeTime(localData.lastActivity)}` : 'No activity yet'}
           </span>
           <span className="text-sm font-bold text-white">
             {progress}%
@@ -334,10 +326,7 @@ export default function GoalLifecyclePanel({ data, projectId, onRefresh }: GoalL
                 Signal Timeline
               </h4>
             </div>
-            {showSignals
-              ? <ChevronDown className="w-4 h-4 text-slate-400" />
-              : <ChevronRight className="w-4 h-4 text-slate-400" />
-            }
+            <ExpandChevron expanded={showSignals} className="w-4 h-4 text-slate-400" />
           </button>
 
           <AnimatePresence>
@@ -361,7 +350,7 @@ export default function GoalLifecyclePanel({ data, projectId, onRefresh }: GoalL
                             {signal.source_title || signal.description || signal.signal_type}
                           </p>
                           <p className="text-2xs text-slate-500">
-                            {formatTimeAgo(signal.created_at)}
+                            {formatRelativeTime(signal.created_at)}
                             {signal.progress_delta > 0 && (
                               <span className="ml-2 text-green-400">+{signal.progress_delta}%</span>
                             )}

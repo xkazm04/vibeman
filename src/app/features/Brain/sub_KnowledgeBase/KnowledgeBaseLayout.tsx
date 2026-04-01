@@ -6,6 +6,7 @@ import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useKnowledgeBase } from './lib/useKnowledgeBase';
 import EntryDetailPanel from './components/EntryDetailPanel';
 import CreateEntryModal from './components/CreateEntryModal';
+import HubEntryEditor from './components/HubEntryEditor';
 import KBEntryTable from './components/KBEntryTable';
 import KBTreeSidebar from './components/KBTreeSidebar';
 import {
@@ -21,14 +22,35 @@ export default function KnowledgeBaseLayout() {
     breadcrumb,
     fetchEntries,
     createEntry, deleteEntry, recordFeedback, exportEntries,
+    fetchHubLinks, addHubLink, removeHubLink, reorderHubLinks,
   } = useKnowledgeBase();
 
   const [selectedEntry, setSelectedEntry] = useState<DbKnowledgeEntry | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [hubEditorEntry, setHubEditorEntry] = useState<DbKnowledgeEntry | null>(null);
 
   const handleExport = useCallback(() => {
     if (activeProject?.path) exportEntries(activeProject.path);
   }, [activeProject, exportEntries]);
+
+  const handleSelectEntry = useCallback((entry: DbKnowledgeEntry) => {
+    if (entry.pattern_type === 'hub') {
+      setHubEditorEntry(entry);
+    } else {
+      setSelectedEntry(entry);
+    }
+  }, []);
+
+  const searchEntriesForHub = useCallback(async (query: string): Promise<DbKnowledgeEntry[]> => {
+    try {
+      const params = new URLSearchParams({ action: 'query', search: query, limit: '20' });
+      const res = await fetch(`/api/knowledge-base?${params}`);
+      const json = await res.json();
+      return json.success ? json.data : [];
+    } catch {
+      return [];
+    }
+  }, []);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -54,14 +76,19 @@ export default function KnowledgeBaseLayout() {
       <GridSidebarLayout
         sidebarWidth="w-56"
         sidebar={
-          <KBTreeSidebar tree={tree} selection={selection} onSelect={setSelection} />
+          <KBTreeSidebar
+            tree={tree}
+            selection={selection}
+            onSelect={setSelection}
+            onSelectHubEntry={setHubEditorEntry}
+          />
         }
         content={
           <KBEntryTable
             entries={entries}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
-            onSelectEntry={setSelectedEntry}
+            onSelectEntry={handleSelectEntry}
             isLoading={isLoading}
             breadcrumb={breadcrumb}
             error={error}
@@ -75,12 +102,25 @@ export default function KnowledgeBaseLayout() {
         onClose={() => setSelectedEntry(null)}
         onFeedback={recordFeedback}
         onDelete={deleteEntry}
+        onOpenHubEditor={setHubEditorEntry}
       />
       <CreateEntryModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreate={createEntry}
       />
+      {hubEditorEntry && (
+        <HubEntryEditor
+          entry={hubEditorEntry}
+          onClose={() => setHubEditorEntry(null)}
+          onSelectEntry={setSelectedEntry}
+          fetchHubLinks={fetchHubLinks}
+          addHubLink={addHubLink}
+          removeHubLink={removeHubLink}
+          reorderHubLinks={reorderHubLinks}
+          searchEntries={searchEntriesForHub}
+        />
+      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { WeeklyStats, DailyStats, WeeklySpecialistStats, WeeklyContextMapStats, 
 import { ALL_SCAN_TYPES } from '@/app/features/Ideas/lib/scanTypes';
 import { SuggestionFilter } from '../../lib/unifiedTypes';
 import { safeGet } from '@/lib/apiResponseGuard';
+import { formatDateShort } from '@/lib/formatDate';
 import {
   countIdeaStatuses,
   countDirectionStatuses,
@@ -38,12 +39,11 @@ export function getWeekRange(weekOffset: number = 0): { start: Date; end: Date; 
   weekEnd.setHours(23, 59, 59, 999);
   
   // Generate label
-  const formatDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const label = weekOffset === 0 
-    ? 'This Week' 
-    : weekOffset === -1 
-      ? 'Last Week' 
-      : `Week of ${formatDate(weekStart)}`;
+  const label = weekOffset === 0
+    ? 'This Week'
+    : weekOffset === -1
+      ? 'Last Week'
+      : `Week of ${formatDateShort(weekStart)}`;
   
   return { start: weekStart, end: weekEnd, label };
 }

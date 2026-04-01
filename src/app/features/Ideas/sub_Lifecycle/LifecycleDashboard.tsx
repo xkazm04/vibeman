@@ -379,30 +379,30 @@ export default function LifecycleDashboard({
             </div>
 
             {/* Cycle Stats */}
-            <div className="mt-3 grid grid-cols-4 gap-2">
-              <div className="text-center">
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="text-center min-w-0">
                 <p className="text-lg font-semibold tabular-nums text-blue-400">
                   {currentCycle.scans_completed}/{currentCycle.scans_total}
                 </p>
-                <p className="text-xs text-gray-500">Scans</p>
+                <p className="text-xs text-gray-500 truncate">Scans</p>
               </div>
-              <div className="text-center">
+              <div className="text-center min-w-0">
                 <p className="text-lg font-semibold tabular-nums text-cyan-400">
                   {currentCycle.ideas_generated}
                 </p>
-                <p className="text-xs text-gray-500">Ideas</p>
+                <p className="text-xs text-gray-500 truncate">Ideas</p>
               </div>
-              <div className="text-center">
+              <div className="text-center min-w-0">
                 <p className="text-lg font-semibold tabular-nums text-amber-400">
                   {currentCycle.ideas_resolved}
                 </p>
-                <p className="text-xs text-gray-500">Resolved</p>
+                <p className="text-xs text-gray-500 truncate">Resolved</p>
               </div>
-              <div className="text-center">
+              <div className="text-center min-w-0">
                 <p className="text-lg font-semibold tabular-nums text-green-400">
                   {currentCycle.quality_gates_passed}/{currentCycle.quality_gates_total}
                 </p>
-                <p className="text-xs text-gray-500">Gates</p>
+                <p className="text-xs text-gray-500 truncate">Gates</p>
               </div>
             </div>
           </div>
@@ -410,34 +410,34 @@ export default function LifecycleDashboard({
 
         {/* Quick Stats (when no active cycle) */}
         {!currentCycle && status && (
-          <div className="mt-4 pt-4 border-t border-gray-700/40 grid grid-cols-4 gap-2 text-center">
-            <div>
+          <div className="mt-4 pt-4 border-t border-gray-700/40 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            <div className="min-w-0">
               <p className="text-lg font-semibold tabular-nums text-blue-400">
                 {status.active_cycles}
               </p>
-              <p className="text-xs text-gray-500">Active</p>
+              <p className="text-xs text-gray-500 truncate">Active</p>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-lg font-semibold tabular-nums text-green-400">
                 {status.is_running ? 'On' : 'Off'}
               </p>
-              <p className="text-xs text-gray-500">Status</p>
+              <p className="text-xs text-gray-500 truncate">Status</p>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-lg font-semibold tabular-nums text-cyan-400">
                 {status.last_cycle_at
                   ? new Date(status.last_cycle_at).toLocaleTimeString()
                   : '—'}
               </p>
-              <p className="text-xs text-gray-500">Last Run</p>
+              <p className="text-xs text-gray-500 truncate">Last Run</p>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-lg font-semibold tabular-nums text-amber-400">
                 {status.next_scheduled_at
                   ? new Date(status.next_scheduled_at).toLocaleTimeString()
                   : '—'}
               </p>
-              <p className="text-xs text-gray-500">Next Run</p>
+              <p className="text-xs text-gray-500 truncate">Next Run</p>
             </div>
           </div>
         )}

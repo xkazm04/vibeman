@@ -88,7 +88,9 @@ function MiniSpinner({ className }: { className?: string }) {
     </svg>
   );
 }
+import { errorSurface } from '@/lib/design-tokens';
 import { UniversalModal } from '@/components/UniversalModal';
+import { MODAL_ICON_GRADIENT } from '../lib/stageTheme';
 import MarkdownViewer from '@/components/markdown/MarkdownViewer';
 import { toast } from '@/stores/messageStore';
 import type { PipelineDecision } from '../lib/v3/reportGenerator';
@@ -249,8 +251,8 @@ export default function RunReportModal({ isOpen, onClose, runId }: RunReportModa
       title="Run Report"
       subtitle="Pipeline execution summary and decisions"
       icon={FileText}
-      iconBgColor="bg-cyan-600/20"
-      iconColor="text-cyan-400"
+      iconBgColor={MODAL_ICON_GRADIENT.report.bg}
+      iconColor={MODAL_ICON_GRADIENT.report.text}
       maxWidth="max-w-4xl"
       maxHeight="max-h-[85vh]"
       footerActions={[
@@ -280,7 +282,7 @@ export default function RunReportModal({ isOpen, onClose, runId }: RunReportModa
         )}
 
         {error && (
-          <div className="px-4 py-3 rounded-lg bg-red-600/10 border border-red-600/30 text-red-400 text-sm">
+          <div className={`px-4 py-3 rounded-lg ${errorSurface.bg} border ${errorSurface.border} ${errorSurface.text} text-sm`}>
             {error}
           </div>
         )}

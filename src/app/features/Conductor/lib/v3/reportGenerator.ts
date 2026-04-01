@@ -8,6 +8,7 @@
 import type { DbPipelineRun } from '../conductor.repository';
 import type { V3Metrics, V3Task, ReflectOutput, V3ProcessLogEntry } from './types';
 import type { ProcessLogEntry } from '../types';
+import { formatDateTime } from '@/lib/formatDate';
 
 interface GoalInfo {
   title: string;
@@ -42,18 +43,6 @@ function formatTimestamp(iso: string): string {
   try {
     const d = new Date(iso);
     return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  } catch {
-    return iso;
-  }
-}
-
-function formatDate(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString(undefined, {
-      year: 'numeric', month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    });
   } catch {
     return iso;
   }
@@ -214,7 +203,7 @@ export function generateV3Report(run: DbPipelineRun, goal: GoalInfo): string {
   lines.push('');
   lines.push(`**Goal:** ${goal.title}`);
   lines.push(`**Status:** ${run.status} | **Cycles:** ${metrics.totalCycles || run.cycle} | **Duration:** ${formatDuration(metrics.totalDurationMs)}`);
-  lines.push(`**Cost:** $${metrics.estimatedCost?.toFixed(4) || '0.0000'} | **Started:** ${run.started_at ? formatDate(run.started_at) : 'N/A'}`);
+  lines.push(`**Cost:** $${metrics.estimatedCost?.toFixed(4) || '0.0000'} | **Started:** ${run.started_at ? formatDateTime(run.started_at) : 'N/A'}`);
   lines.push('');
   lines.push('---');
   lines.push('');

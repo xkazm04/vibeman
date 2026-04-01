@@ -87,25 +87,6 @@ export function getRecentEventsFromDb(limit: number = 50): XRayEvent[] {
   return dbEvents.map(dbEventToXRayEvent);
 }
 
-/**
- * Legacy eventBuffer export for backward compatibility
- * Now returns a proxy that fetches from database
- */
-export const eventBuffer: XRayEvent[] = new Proxy(recentEventBuffer, {
-  get(target, prop) {
-    if (prop === 'length') {
-      return target.length;
-    }
-    if (prop === 'filter') {
-      return (fn: (e: XRayEvent) => boolean) => target.filter(fn);
-    }
-    if (prop === 'slice') {
-      return (start?: number, end?: number) => target.slice(start, end);
-    }
-    return Reflect.get(target, prop);
-  },
-});
-
 export { subscribers };
 
 export async function GET(request: NextRequest) {

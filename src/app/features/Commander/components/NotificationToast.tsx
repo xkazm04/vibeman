@@ -55,6 +55,8 @@ function ToastItem({ notification, onDismiss }: { notification: AnnetteNotificat
       <button
         onClick={onDismiss}
         className="absolute top-2 right-2 text-slate-500 hover:text-slate-300 transition-colors"
+        aria-label="Dismiss notification"
+        title="Dismiss notification"
       >
         <X className="w-3.5 h-3.5" />
       </button>

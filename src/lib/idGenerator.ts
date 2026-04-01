@@ -60,24 +60,10 @@ export function generateHyphenatedId(prefix: string): string {
 // ============================================================================
 
 /**
- * Generate execution ID for blueprint/task execution
- */
-export function generateExecutionId(): string {
-  return generateHyphenatedId('exec');
-}
-
-/**
  * Generate queue ID for scan queue items
  */
 export function generateQueueId(): string {
   return generateHyphenatedId('queue');
-}
-
-/**
- * Generate scan ID for scan operations
- */
-export function generateScanId(): string {
-  return generateHyphenatedId('scan');
 }
 
 /**
@@ -95,59 +81,10 @@ export function generateNotificationId(): string {
 }
 
 /**
- * Generate test ID for test execution
- */
-export function generateTestId(): string {
-  return generateHyphenatedId('test');
-}
-
-/**
- * Generate replay ID for replay sessions
- */
-export function generateReplayId(): string {
-  return generateHyphenatedId('replay');
-}
-
-/**
- * Generate tech debt ID
- */
-export function generateTechDebtId(): string {
-  return generateHyphenatedId('tech-debt');
-}
-
-/**
- * Generate backlog ID
- */
-export function generateBacklogId(): string {
-  return generateHyphenatedId('backlog');
-}
-
-/**
  * Generate requirement ID
  */
 export function generateRequirementId(): string {
   return generateHyphenatedId('req');
-}
-
-/**
- * Generate security scan ID
- */
-export function generateSecurityScanId(): string {
-  return generateHyphenatedId('sec-scan');
-}
-
-/**
- * Generate security patch ID
- */
-export function generateSecurityPatchId(): string {
-  return generateHyphenatedId('sec-patch');
-}
-
-/**
- * Generate security PR ID
- */
-export function generateSecurityPrId(): string {
-  return generateHyphenatedId('sec-pr');
 }
 
 /**
@@ -193,87 +130,10 @@ export function generateInsightId(): string {
 }
 
 /**
- * Generate refactor idea ID
- */
-export function generateRefactorIdeaId(): string {
-  return generateId('idea_refactor');
-}
-
-/**
- * Generate refactor scan ID
- */
-export function generateRefactorScanId(): string {
-  return generateId('scan_refactor');
-}
-
-/**
- * Generate auto scan ID with trigger source
- */
-export function generateAutoScanId(triggerSource: string): string {
-  return `scan_auto_${triggerSource}_${Date.now()}_${generateRandomString()}`;
-}
-
-/**
- * Generate rule ID for refactor wizard
- */
-export function generateRuleId(): string {
-  return generateHyphenatedId('rule');
-}
-
-/**
- * Generate package ID
- */
-export function generatePackageId(): string {
-  return generateHyphenatedId('pkg');
-}
-
-/**
- * Generate blueprint ID
- */
-export function generateBlueprintId(): string {
-  return generateHyphenatedId('bp');
-}
-
-/**
- * Generate evidence ID
- */
-export function generateEvidenceId(): string {
-  return generateHyphenatedId('ev');
-}
-
-/**
- * Generate AI opportunity ID with index
- */
-export function generateAiOpportunityId(index: number): string {
-  return `ai-${Date.now()}-${index}-${generateRandomString(3)}`;
-}
-
-/**
  * Generate class ID for monitor
  */
 export function generateClassId(): string {
   return generateId('class');
-}
-
-/**
- * Generate stale branch ID
- */
-export function generateStaleBranchId(): string {
-  return generateId('sb');
-}
-
-/**
- * Generate security intelligence ID
- */
-export function generateSecurityIntelligenceId(): string {
-  return generateId('si');
-}
-
-/**
- * Generate alert ID
- */
-export function generateAlertId(): string {
-  return generateId('alert');
 }
 
 /**

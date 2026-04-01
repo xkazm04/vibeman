@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getScanOrchestrator, initializeScanOrchestrator } from '@/lib/scan/scanOrchestrator';
-import { createFileGatherer } from '@/lib/scan/fileGatherer';
+import { getScanOrchestrator } from '@/lib/scan/scanOrchestrator';
 import { logger } from '@/lib/logger';
 
 /**
@@ -101,17 +100,7 @@ async function handlePost(request: NextRequest): Promise<NextResponse<FullScanRe
       provider
     });
 
-    // Initialize orchestrator if needed
-    let orchestrator = getScanOrchestrator();
-    if (!orchestrator) {
-      const fileGatherer = createFileGatherer('http');
-      initializeScanOrchestrator(fileGatherer);
-      orchestrator = getScanOrchestrator();
-    }
-
-    if (!orchestrator) {
-      throw new Error('Failed to initialize ScanOrchestrator');
-    }
+    const orchestrator = getScanOrchestrator();
 
     logger.info('Executing full scan', { projectId });
 

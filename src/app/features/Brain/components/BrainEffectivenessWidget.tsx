@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { collapse, collapseTransition } from '../lib/motionPresets';
-import { Brain, TrendingUp, TrendingDown, Minus, AlertTriangle, Zap, ChevronDown, ChevronRight, Lightbulb, FlaskConical, BarChart3 } from 'lucide-react';
+import { Brain, TrendingUp, TrendingDown, Minus, AlertTriangle, Zap, Lightbulb, FlaskConical, BarChart3 } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
 import BrainPanelHeader from './BrainPanelHeader';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import InsightEffectivenessScore from './InsightEffectivenessScore';
@@ -261,11 +262,7 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
           aria-label={showDetails ? 'Hide per-insight scores' : 'Show per-insight scores'}
           className="flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-300 transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/50 rounded outline-none px-1.5 py-1 -ml-1.5 hover:bg-zinc-800/30"
         >
-          {showDetails ? (
-            <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 transition-transform" />
-          ) : (
-            <ChevronRight className="w-3.5 h-3.5 flex-shrink-0 transition-transform" />
-          )}
+          <ExpandChevron expanded={showDetails} className="w-3.5 h-3.5 flex-shrink-0" />
           <Lightbulb className="w-3.5 h-3.5 flex-shrink-0" />
           <span>Per-insight scores ({insights.length})</span>
         </button>
@@ -304,11 +301,7 @@ export default function BrainEffectivenessWidget({ scope = 'project' }: Props) {
               aria-label={showCausal ? 'Hide causal scores' : 'Show causal scores'}
               className="flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-300 transition-colors focus-visible:ring-2 focus-visible:ring-sky-500/50 rounded outline-none px-1.5 py-1 -ml-1.5 hover:bg-zinc-800/30 mt-1"
             >
-              {showCausal ? (
-                <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 transition-transform" />
-              ) : (
-                <ChevronRight className="w-3.5 h-3.5 flex-shrink-0 transition-transform" />
-              )}
+              <ExpandChevron expanded={showCausal} className="w-3.5 h-3.5 flex-shrink-0" />
               <FlaskConical className="w-3.5 h-3.5 flex-shrink-0" />
               <span>Causal per-insight ({causal.insights.length})</span>
             </button>

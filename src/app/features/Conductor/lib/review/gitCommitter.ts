@@ -6,7 +6,7 @@
  * matching the buildValidator.ts pattern.
  */
 
-import { execSync } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
 import type { BuildResult } from '../execution/buildValidator';
 import type { ReviewStageResult } from './reviewTypes';
 
@@ -51,18 +51,17 @@ export function commitChanges(
     // Stage only specific changed files
     for (const file of filesChanged) {
       const normalized = file.replace(/\\/g, '/');
-      execSync(`git add "${normalized}"`, {
+      execFileSync('git', ['add', normalized], {
         cwd: projectPath,
         encoding: 'utf-8',
         timeout: 10000,
       });
     }
 
-    // Build conventional commit message
-    const safeTitle = goalTitle.replace(/"/g, '\\"');
-    const message = `feat(conductor): ${safeTitle} - ${specsExecuted} specs executed, ${filesChanged.length} files changed`;
+    // Build conventional commit message — safe from injection via execFileSync argv
+    const message = `feat(conductor): ${goalTitle} - ${specsExecuted} specs executed, ${filesChanged.length} files changed`;
 
-    execSync(`git commit -m "${message}"`, {
+    execFileSync('git', ['commit', '-m', message], {
       cwd: projectPath,
       encoding: 'utf-8',
       timeout: 30000,
@@ -101,7 +100,7 @@ export function commitPerTask(
     for (const file of filesChanged) {
       const normalized = file.replace(/\\/g, '/');
       try {
-        execSync(`git add "${normalized}"`, {
+        execFileSync('git', ['add', normalized], {
           cwd: projectPath,
           encoding: 'utf-8',
           timeout: 10000,
@@ -112,18 +111,17 @@ export function commitPerTask(
     }
 
     // Check if there are staged changes
-    const staged = execSync('git diff --cached --name-only', {
+    const staged = execFileSync('git', ['diff', '--cached', '--name-only'], {
       cwd: projectPath,
       encoding: 'utf-8',
       timeout: 5000,
-    }).trim();
+    }).toString().trim();
 
     if (!staged) return null;
 
-    const safeTitle = specTitle.replace(/"/g, '\\"').slice(0, 72);
-    const message = `feat(conductor): ${safeTitle}`;
+    const message = `feat(conductor): ${specTitle.slice(0, 72)}`;
 
-    execSync(`git commit -m "${message}"`, {
+    execFileSync('git', ['commit', '-m', message], {
       cwd: projectPath,
       encoding: 'utf-8',
       timeout: 30000,

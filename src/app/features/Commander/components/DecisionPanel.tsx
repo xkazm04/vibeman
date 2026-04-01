@@ -8,6 +8,8 @@
 import { useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { CheckCircle2 } from 'lucide-react';
+import { ScrollShadow } from '@/components/ui';
+import EmptyState from '@/components/ui/EmptyState';
 import { useAnnetteNotificationStore } from '@/stores/annette/notificationStore';
 import DecisionCard from './DecisionCard';
 
@@ -25,7 +27,7 @@ export default function DecisionPanel() {
   return (
     <div className="flex flex-col h-full border-l border-slate-800/50">
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800/50">
+      <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-slate-800/50">
         <h3 className="text-sm font-medium text-slate-200">Decisions</h3>
         {activeNotifications.length > 0 && (
           <span className="px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 text-xs font-medium">
@@ -35,7 +37,7 @@ export default function DecisionPanel() {
       </div>
 
       {/* Cards */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+      <ScrollShadow className="flex-1 overflow-y-auto p-3 space-y-3">
         <AnimatePresence mode="popLayout">
           {activeNotifications.map((n) => (
             <DecisionCard key={n.id} notification={n} />
@@ -43,15 +45,15 @@ export default function DecisionPanel() {
         </AnimatePresence>
 
         {activeNotifications.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center py-12">
-            <CheckCircle2 className="w-8 h-8 text-slate-700 mb-3" />
-            <p className="text-xs text-slate-500">No pending decisions</p>
-            <p className="text-xs text-slate-600 mt-1">
-              Notifications will appear here as actionable cards
-            </p>
-          </div>
+          <EmptyState
+            icon={CheckCircle2}
+            title="No pending decisions"
+            description="Notifications will appear here as actionable cards"
+            variant="compact"
+            className="h-full"
+          />
         )}
-      </div>
+      </ScrollShadow>
     </div>
   );
 }

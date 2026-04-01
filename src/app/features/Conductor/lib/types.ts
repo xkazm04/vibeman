@@ -68,6 +68,8 @@ export interface PipelineRun {
   goalTitle?: string;
   /** Pipeline version: 2 (v2 5-stage) or 3 (v3 3-phase). Undefined defaults to 2. */
   pipelineVersion?: 2 | 3;
+  /** Latest quality gate results from the most recent reflect phase */
+  qualityGateResults?: import('./v3/types').QualityGateResult[];
 }
 
 /**
@@ -176,6 +178,8 @@ export interface BalancingConfig {
   brainQuestionsEnabled?: boolean;
   /** Enable git worktree isolation for parallel dispatch tasks */
   useWorktrees?: boolean;
+  /** Configurable quality gates enforced during reflect phase */
+  qualityGates?: import('./v3/types').QualityGateConfig[];
 }
 
 export const DEFAULT_BALANCING_CONFIG: BalancingConfig = {
@@ -237,6 +241,9 @@ export const DEFAULT_BALANCING_CONFIG: BalancingConfig = {
 
   // Experimental defaults
   experimentalAgentTeams: false,
+
+  // Quality gates (empty = no enforcement)
+  qualityGates: [],
 };
 
 // ============================================================================

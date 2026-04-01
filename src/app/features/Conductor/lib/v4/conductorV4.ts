@@ -10,7 +10,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '@/app/db/connection';
 import { conductorRepository } from '../conductor.repository';
-import { buildV4Prompt } from './promptBuilder';
+import { buildV4Prompt, buildRefinementPrompt } from './promptBuilder';
 import {
   spawnV4Session,
   resumeV4Session,
@@ -19,7 +19,8 @@ import {
   isRateLimitError,
 } from './sessionManager';
 import { processPostFlight, processInterruptedRun } from './postFlight';
-import type { V4RunConfig, V4PreFlightData, V4RunState } from './types';
+import { evaluateRunQuality } from './qualityEvaluator';
+import type { V4RunConfig, V4PreFlightData, V4RunState, V4QualityEvaluation } from './types';
 import { logger } from '@/lib/logger';
 
 /** Active V4 runs — maps runId to state */
@@ -53,6 +54,7 @@ export function startV4Pipeline(
     progressMessage: 'Gathering context...',
     implementationLogs: [],
     resumeAttempts: 0,
+    refinementAttempts: 0,
     startedAt: new Date().toISOString(),
     completedAt: null,
   };
@@ -199,20 +201,31 @@ async function executeV4Pipeline(
 
   // ── HANDLE RESULT ──
   if (result.completedNormally) {
-    // Clean completion — run post-flight
+    // Clean completion — run quality evaluation if enabled
+    if (config.enableQualityEval) {
+      const evaluation = await runQualityEvalLoop(
+        state, config, projectPath, projectName, preFlightData, result,
+      );
+      state.qualityScore = evaluation.score;
+      state.qualityVerdict = evaluation.verdict;
+    }
+
+    // Post-flight processing
     state.status = 'completing';
     state.progressPhase = 'post-flight';
     state.progressMessage = 'Processing results...';
 
-    processPostFlight(runId, projectId, state.startedAt, state.goalId, result.memoryIdsQueried);
+    processPostFlight(runId, projectId, state.startedAt, state.goalId, result.memoryIdsQueried, undefined, state.qualityScore);
 
     state.status = 'completed';
     state.completedAt = new Date().toISOString();
     state.progress = 100;
-    state.progressMessage = 'Pipeline completed successfully';
+    state.progressMessage = state.qualityScore != null
+      ? `Pipeline completed (quality: ${state.qualityScore}/100)`
+      : 'Pipeline completed successfully';
     activeRuns.delete(runId);
 
-    logger.info(`[V4] Pipeline ${runId} completed successfully`);
+    logger.info(`[V4] Pipeline ${runId} completed successfully${state.qualityScore != null ? ` (quality: ${state.qualityScore}/100)` : ''}`);
   } else {
     // Abnormal exit — attempt auto-resume
     await handleAbnormalExit(state, config, projectPath, result);
@@ -281,6 +294,112 @@ async function resumeAndMonitor(
   } else {
     await handleAbnormalExit(state, config, projectPath, result);
   }
+}
+
+// ============================================================================
+// Quality Evaluation & Refinement Loop
+// ============================================================================
+
+/**
+ * Run the quality evaluation loop. If the score is below threshold and
+ * refinement attempts remain, spawn a refinement run with the critique
+ * injected into the prompt, then re-evaluate.
+ */
+async function runQualityEvalLoop(
+  state: V4RunState,
+  config: V4RunConfig,
+  projectPath: string,
+  projectName: string,
+  preFlightData: V4PreFlightData,
+  lastResult: import('./types').V4SessionResult,
+): Promise<V4QualityEvaluation> {
+  const threshold = config.qualityThreshold ?? 70;
+  const maxRefinements = config.maxRefinementAttempts ?? 1;
+  const { runId, projectId, goalId } = state;
+
+  // Evaluate
+  state.progressPhase = 'evaluating';
+  state.progressMessage = 'Evaluating implementation quality...';
+
+  let evaluation = await evaluateRunQuality(
+    runId, projectId,
+    preFlightData.goal.title,
+    preFlightData.goal.description,
+    state.startedAt,
+    projectPath,
+    config,
+  );
+
+  logger.info(`[V4] Quality evaluation for ${runId}: ${evaluation.score}/100 (threshold: ${threshold})`);
+
+  // Refinement loop: if score < threshold and attempts remain, refine
+  while (
+    evaluation.score < threshold &&
+    evaluation.score > 0 && // Don't refine failed evaluations (score=0 = eval error)
+    state.refinementAttempts < maxRefinements
+  ) {
+    state.refinementAttempts++;
+    logger.info(`[V4] Quality below threshold (${evaluation.score} < ${threshold}), starting refinement ${state.refinementAttempts}/${maxRefinements}`);
+
+    state.progressPhase = 'refining';
+    state.progressMessage = `Refinement run ${state.refinementAttempts}/${maxRefinements} (score: ${evaluation.score}/100)...`;
+
+    // Build refinement prompt with critique injected
+    const refinementPrompt = buildRefinementPrompt(preFlightData, evaluation, state.refinementAttempts);
+
+    // Spawn refinement session
+    const refinementExecId = spawnV4Session(
+      runId,
+      projectPath,
+      refinementPrompt,
+      config,
+      preFlightData.isNextJS,
+    );
+
+    state.executionId = refinementExecId;
+
+    // Monitor refinement session
+    const refinementResult = await monitorSession(refinementExecId, {
+      onProgress: (phase, pct, msg) => {
+        state.progressPhase = phase;
+        state.progress = pct;
+        state.progressMessage = `[Refinement ${state.refinementAttempts}] ${msg}`;
+      },
+      onToolActivity: (toolName, _input) => {
+        state.progressMessage = `[Refinement ${state.refinementAttempts}] Using ${toolName.replace('mcp__vibeman__', '')}...`;
+      },
+    });
+
+    // Merge memory queries from refinement into the last result
+    if (refinementResult.memoryIdsQueried?.length) {
+      lastResult.memoryIdsQueried = [
+        ...(lastResult.memoryIdsQueried || []),
+        ...refinementResult.memoryIdsQueried,
+      ];
+    }
+
+    if (!refinementResult.completedNormally) {
+      logger.warn(`[V4] Refinement run ${state.refinementAttempts} did not complete normally`);
+      break;
+    }
+
+    // Re-evaluate after refinement
+    state.progressPhase = 'evaluating';
+    state.progressMessage = `Re-evaluating after refinement ${state.refinementAttempts}...`;
+
+    evaluation = await evaluateRunQuality(
+      runId, projectId,
+      preFlightData.goal.title,
+      preFlightData.goal.description,
+      state.startedAt,
+      projectPath,
+      config,
+    );
+
+    logger.info(`[V4] Post-refinement quality: ${evaluation.score}/100 (attempt ${state.refinementAttempts}/${maxRefinements})`);
+  }
+
+  return evaluation;
 }
 
 // ============================================================================

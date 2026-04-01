@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { transition } from '@/lib/motion';
 import { Scan, Loader2, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import type { DbArchitectureAnalysisSession } from '@/app/db/models/cross-project-architecture.types';
+import { formatRelativeTime } from '@/lib/formatDate';
 
 interface AnalysisTriggerPanelProps {
   isAnalyzing: boolean;
@@ -23,24 +24,6 @@ interface AnalysisTriggerPanelProps {
     error?: string;
   }>;
   onAnalysisPrompt?: (prompt: string, analysisId: string) => void;
-}
-
-function formatRelativeTime(dateStr: string | null): string {
-  if (!dateStr) return 'Never';
-
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-
-  return date.toLocaleDateString();
 }
 
 export function AnalysisTriggerPanel({
@@ -106,7 +89,7 @@ export function AnalysisTriggerPanel({
           ) : latestAnalysis?.status === 'completed' ? (
             <span className="flex items-center gap-1 text-xs text-zinc-500">
               <Clock className="w-3 h-3" />
-              {formatRelativeTime(latestAnalysis.completed_at)}
+              {latestAnalysis.completed_at ? formatRelativeTime(latestAnalysis.completed_at) : 'Never'}
             </span>
           ) : null}
           {expanded ? (

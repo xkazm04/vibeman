@@ -28,7 +28,7 @@ export const SelectedFilesList: React.FC<SelectedFilesListProps> = ({
         )}
       </div>
 
-      <div className="bg-gray-800/30 border border-gray-700/30 rounded-xl h-full overflow-hidden">
+      <div className="bg-gray-800/40 border border-gray-600/30 rounded-xl h-full overflow-hidden">
         {selectedPaths.length > 0 ? (
           <div className="h-full overflow-y-auto p-3 space-y-2" data-testid="selected-files-container">
             {selectedPaths.map((filePath, index) => (
@@ -38,18 +38,20 @@ export const SelectedFilesList: React.FC<SelectedFilesListProps> = ({
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 10 }}
                 transition={{ delay: index * 0.05 }}
-                className="flex items-center justify-between p-2 bg-gray-700/30 rounded-lg border border-gray-600/30 hover:bg-gray-700/50 transition-colors group"
+                tabIndex={0}
+                className="flex items-center justify-between p-2 bg-gray-800/40 rounded-lg border border-gray-600/30 hover:bg-gray-700/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 transition-colors group"
                 data-testid={`selected-file-item-${index}`}
               >
                 <div className="flex items-center space-x-2 flex-1 min-w-0">
                   <FileText className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                  <span className="text-sm text-gray-300 truncate font-mono">
+                  <span className="text-sm text-gray-300 truncate font-mono" title={filePath}>
                     {filePath}
                   </span>
                 </div>
                 <button
                   onClick={() => onRemoveFile(filePath)}
-                  className="p-1 hover:bg-red-500/20 rounded text-red-400 hover:text-red-300 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
+                  aria-label={`Remove ${filePath}`}
+                  className="p-1 hover:bg-red-500/20 rounded text-red-400 hover:text-red-300 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
                   data-testid={`selected-file-remove-btn-${index}`}
                 >
                   <X className="w-3 h-3" />

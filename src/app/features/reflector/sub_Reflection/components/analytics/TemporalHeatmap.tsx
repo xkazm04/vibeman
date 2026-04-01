@@ -3,6 +3,7 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { duration, easing } from '@/lib/motion';
+import { formatDateShort, formatDate } from '@/lib/formatDate';
 import type { ExecutiveAIInsight } from '@/app/db/models/reflector.types';
 import type { ExecutiveInsight } from '../../lib/RuleBasedInsightTypes';
 
@@ -95,17 +96,6 @@ function dateKey(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-function formatDateShort(d: Date): string {
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-function formatDateFull(d: Date): string {
-  return d.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Week summary types
@@ -422,7 +412,7 @@ export default function TemporalHeatmap({
     if (!cell) return null;
     const key = dateKey(cell.date);
     const count = densityMap.get(key) || 0;
-    return { date: formatDateFull(cell.date), count };
+    return { date: formatDate(cell.date), count };
   }, [hoveredCell, cells, densityMap]);
 
   // Week selection handler

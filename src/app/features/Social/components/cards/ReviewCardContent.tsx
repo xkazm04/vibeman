@@ -28,7 +28,7 @@ export default function ReviewCardContent({ item, variant = 'trustpilot' }: Revi
         )}
       </div>
       <div className="text-sm text-gray-300 line-clamp-2">
-        {item.content.body.substring(0, 80)}
+        {item.content?.body?.substring(0, 80) || 'No content'}
       </div>
     </div>
   );

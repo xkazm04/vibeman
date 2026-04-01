@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { AlertTriangle, CheckCircle, Info, Lightbulb, Zap, Clock } from 'lucide-react';
 import type { StoredNotification } from '@/stores/messageStore';
+import { formatRelativeTime } from '@/lib/formatDate';
 
 interface NotificationItemProps {
   notification: StoredNotification;
@@ -35,17 +36,6 @@ function getIconColor(type: StoredNotification['type'], priority: StoredNotifica
   }
 }
 
-function formatTimeAgo(timestamp: string): string {
-  const diff = Date.now() - new Date(timestamp).getTime();
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
 
 export default function NotificationItem({ notification, onMarkRead, onAction }: NotificationItemProps) {
   const Icon = getIcon(notification.type);
@@ -85,7 +75,7 @@ export default function NotificationItem({ notification, onMarkRead, onAction }:
 
           <div className="flex items-center justify-between mt-1.5">
             <span className="text-2xs text-gray-500">
-              {formatTimeAgo(notification.timestamp)}
+              {formatRelativeTime(notification.timestamp)}
             </span>
 
             {/* Action button */}

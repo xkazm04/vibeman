@@ -7,7 +7,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Clock } from 'lucide-react';
 import { Context } from '../../../../stores/contextStore';
-import { formatDate, calculateDaysSince } from '../lib';
+import { formatDateTime } from '@/lib/formatDate';
+import { calculateDaysSince } from '../lib';
 
 interface ContextDetailTimelineProps {
   context: Context;
@@ -29,12 +30,12 @@ export default function ContextDetailTimeline({ context }: ContextDetailTimeline
       <div className="space-y-4">
         <div>
           <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">Created</label>
-          <p className="text-white font-mono mt-1">{formatDate(context.createdAt, 'long')}</p>
+          <p className="text-white font-mono mt-1">{formatDateTime(context.createdAt)}</p>
         </div>
         
         <div>
           <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">Last Updated</label>
-          <p className="text-white font-mono mt-1">{formatDate(context.updatedAt, 'long')}</p>
+          <p className="text-white font-mono mt-1">{formatDateTime(context.updatedAt)}</p>
         </div>
         
         <div className="pt-4 border-t border-gray-700/30">

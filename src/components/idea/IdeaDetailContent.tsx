@@ -6,6 +6,7 @@ import IdeaDetailMeta from './IdeaDetailMeta';
 import IdeaDetailDescription from './IdeaDetailDescription';
 import IdeaDetailFeedback from './IdeaDetailFeedback';
 import IdeaDependencySection from './IdeaDependencySection';
+import { BacklinksPanel } from '@/components/ui';
 
 interface RequirementError {
   message: string;
@@ -106,6 +107,9 @@ export default function IdeaDetailContent({
 
       {/* Related Ideas / Dependencies */}
       <IdeaDependencySection ideaId={idea.id} />
+
+      {/* Cross-References */}
+      <BacklinksPanel entityType="idea" entityId={idea.id} />
 
       {/* User Feedback Section */}
       <IdeaDetailFeedback

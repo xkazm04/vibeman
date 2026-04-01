@@ -132,7 +132,7 @@ function CategorySidebar({
   onSelect: (id: string) => void;
 }) {
   return (
-    <div className="w-48 flex-shrink-0 border-r border-slate-700/50 py-2">
+    <div className="w-48 flex-shrink-0 border-r border-slate-700/50 py-2.5">
       {categories.map((cat) => {
         const isActive = cat.id === activeId;
         const colors = COLOR_CLASSES[cat.color] || COLOR_CLASSES.cyan;
@@ -142,7 +142,7 @@ function CategorySidebar({
           <button
             key={cat.id}
             onClick={() => onSelect(cat.id)}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-all ${
+            className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-all ${
               isActive
                 ? `${colors.bg} ${colors.text} border-r-2`
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
@@ -286,6 +286,8 @@ export default function CapabilityCatalog({
               <button
                 onClick={onClose}
                 className="p-1.5 hover:bg-slate-700/50 rounded-lg transition-colors"
+                aria-label="Close capability catalog"
+                title="Close capability catalog"
               >
                 <X className="w-4 h-4 text-slate-400" />
               </button>
@@ -325,7 +327,7 @@ export default function CapabilityCatalog({
             </div>
 
             {/* Footer hint */}
-            <div className="px-4 py-2 border-t border-slate-700/50 bg-slate-800/30">
+            <div className="px-4 py-2.5 border-t border-slate-700/50 bg-slate-800/30">
               <p className="text-xs text-slate-600 text-center">
                 Click a tool to ask Annette to use it &middot; Tools with <ChevronRight className="w-2.5 h-2.5 inline" /> will ask for details first
               </p>

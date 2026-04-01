@@ -16,6 +16,7 @@
  */
 
 import crypto from 'crypto';
+import { tokenOverlap } from './insightSimilarity';
 
 /**
  * Normalize insight title for canonical hash generation
@@ -24,7 +25,7 @@ import crypto from 'crypto';
  * - Remove punctuation
  * - Collapse whitespace
  */
-function normalizeTitle(title: string): string {
+export function normalizeTitle(title: string): string {
   // Lowercase and remove leading articles/common words
   let normalized = title.toLowerCase();
 
@@ -83,80 +84,59 @@ export function generateInsightHash(type: string, title: string, projectId: stri
 }
 
 /**
- * Check if two insights are canonical duplicates
- * @returns true if they have the same canonical ID
+ * Check if two insights are duplicates based on their canonical hash.
+ * Both must share the same type and normalized title to be considered duplicates.
  */
 export function areInsightsDuplicate(
   type1: string,
   title1: string,
   type2: string,
   title2: string,
-  projectId: string
+  projectId: string,
 ): boolean {
-  const hash1 = generateInsightHash(type1, title1, projectId);
-  const hash2 = generateInsightHash(type2, title2, projectId);
-  return hash1 === hash2;
+  return generateInsightHash(type1, title1, projectId) === generateInsightHash(type2, title2, projectId);
 }
 
 /**
- * Extract tokens from normalized title for similar insight detection
- * Used for finding near-duplicates (for review before deletion)
- *
- * @example
- * const tokens1 = extractTitleTokens('Use async/await for better performance');
- * const tokens2 = extractTitleTokens('Prefer async-await for improved performance');
- * const overlap = countTokenOverlap(tokens1, tokens2);
- * // overlap = 3 out of 5 = 60% similar (candidate for manual review)
+ * Extract normalized tokens from a title.
+ * Applies normalizeTitle (which strips common prefixes and punctuation),
+ * then splits into tokens, filtering out words with 2 or fewer characters.
  */
 export function extractTitleTokens(title: string): Set<string> {
   const normalized = normalizeTitle(title);
-  const tokens = normalized.split(/\s+/).filter((t) => t.length > 2); // Skip short words
-  return new Set(tokens);
+  const words = normalized.split(/\s+/).filter(w => w.length > 2);
+  return new Set(words);
 }
 
 /**
- * Calculate Jaccard similarity between two token sets
- * Used for finding near-duplicates (not canonical duplicates)
- *
- * @returns Similarity score from 0 (completely different) to 1 (identical)
+ * Calculate title similarity using Jaccard token overlap.
+ * Returns 0 for empty titles (unlike raw tokenOverlap which returns 1 for both-empty).
  */
 export function calculateTitleSimilarity(title1: string, title2: string): number {
-  const tokens1 = extractTitleTokens(title1);
-  const tokens2 = extractTitleTokens(title2);
-
-  if (tokens1.size === 0 || tokens2.size === 0) {
-    return 0;
-  }
-
-  // Jaccard similarity = intersection / union
-  const intersection = new Set([...tokens1].filter((t) => tokens2.has(t)));
-  const union = new Set([...tokens1, ...tokens2]);
-
-  return intersection.size / union.size;
+  if (!title1 || !title2) return 0;
+  return tokenOverlap(title1, title2);
 }
 
 /**
- * Batch deduplicate insights using canonical IDs
- *
- * @param insights - Array of insights to deduplicate
- * @param projectId - Project ID for canonical hashing
- * @returns Array of unique insights (by canonical ID), keeping first occurrence
+ * Deduplicate an array of insights by canonical hash.
+ * First insight with a given canonical hash wins; subsequent duplicates are removed.
+ * Each result gets a `canonicalId` property added.
  */
-export function deduplicateByCanonical(
-  insights: Array<{ type: string; title: string }>,
-  projectId: string
-): Array<{ type: string; title: string; canonicalId: string }> {
-  const seen = new Set<string>();
-  const unique = [];
+export function deduplicateByCanonical<T extends { type: string; title: string }>(
+  insights: T[],
+  projectId: string,
+): (T & { canonicalId: string })[] {
+  const seen = new Map<string, true>();
+  const result: (T & { canonicalId: string })[] = [];
 
   for (const insight of insights) {
     const canonicalId = generateInsightHash(insight.type, insight.title, projectId);
-
     if (!seen.has(canonicalId)) {
-      seen.add(canonicalId);
-      unique.push({ ...insight, canonicalId });
+      seen.set(canonicalId, true);
+      result.push({ ...insight, canonicalId });
     }
   }
 
-  return unique;
+  return result;
 }
+

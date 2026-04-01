@@ -4,6 +4,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Folder, Layers, CheckCircle2, Calendar } from 'lucide-react';
 import { duration } from '@/lib/motion';
+import { formatDateShort } from '@/lib/formatDate';
 import { FilterState } from '../lib/filterIdeas';
 
 interface ActiveFiltersDisplayProps {
@@ -49,9 +50,6 @@ export default function ActiveFiltersDisplay({
     onRemoveFilter('searchQuery');
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
 
   return (
     <motion.div
@@ -106,8 +104,8 @@ export default function ActiveFiltersDisplay({
           <FilterTag
             key="date-range"
             icon={<Calendar className="w-3 h-3" />}
-            label={`${filters.dateRange.start ? formatDate(filters.dateRange.start) : '...'} - ${
-              filters.dateRange.end ? formatDate(filters.dateRange.end) : '...'
+            label={`${filters.dateRange.start ? formatDateShort(filters.dateRange.start) : '...'} - ${
+              filters.dateRange.end ? formatDateShort(filters.dateRange.end) : '...'
             }`}
             onRemove={removeDateFilter}
             color="yellow"

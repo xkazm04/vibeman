@@ -2,21 +2,24 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ThumbsUp, ThumbsDown, Trash2, Copy, BookOpen, Code2, AlertTriangle, FileText, Tag } from 'lucide-react';
+import { X, ThumbsUp, ThumbsDown, Trash2, Copy, BookOpen, Code2, AlertTriangle, FileText, Tag, Map } from 'lucide-react';
 import { KBErrorBanner } from './KBErrorStates';
 import type { DbKnowledgeEntry } from '@/app/db/models/knowledge.types';
 import { KNOWLEDGE_CATEGORY_LABELS, KNOWLEDGE_LAYER_LABELS } from '@/app/db/models/knowledge.types';
 import type { KnowledgeCategory, KnowledgeLayer } from '@/app/db/models/knowledge.types';
 import { fadeOnly } from '@/lib/motion';
+import { parseJsonArray } from '@/lib/json-utils';
 import { fullDrawer, fullDrawerTransition } from '../../lib/motionPresets';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import ConfidenceBar from './ConfidenceBar';
+import { BacklinksPanel } from '@/components/ui';
 
 interface EntryDetailPanelProps {
   entry: DbKnowledgeEntry | null;
   onClose: () => void;
   onFeedback: (entryId: string, helpful: boolean) => void;
   onDelete: (id: string) => void;
+  onOpenHubEditor?: (entry: DbKnowledgeEntry) => void;
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -33,12 +36,13 @@ const PATTERN_TYPE_COLORS: Record<string, string> = {
   convention: 'text-blue-400',
   gotcha: 'text-amber-400',
   optimization: 'text-cyan-400',
+  hub: 'text-purple-400',
 };
 
 const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 const TITLE_ID = 'entry-detail-title';
 
-export default function EntryDetailPanel({ entry, onClose, onFeedback, onDelete }: EntryDetailPanelProps) {
+export default function EntryDetailPanel({ entry, onClose, onFeedback, onDelete, onOpenHubEditor }: EntryDetailPanelProps) {
   const prefersReduced = useReducedMotion();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
@@ -84,9 +88,7 @@ export default function EntryDetailPanel({ entry, onClose, onFeedback, onDelete 
     }
   }, [onClose]);
 
-  const parseJson = (str: string): string[] => {
-    try { return JSON.parse(str); } catch { return []; }
-  };
+  const parseJson = (str: string): string[] => parseJsonArray(str);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).catch(() => {});
@@ -155,6 +157,20 @@ export default function EntryDetailPanel({ entry, onClose, onFeedback, onDelete 
 
             {/* Content */}
             <div className="px-6 py-5 space-y-6">
+              {/* Hub CTA */}
+              {entry.pattern_type === 'hub' && onOpenHubEditor && (
+                <button
+                  onClick={() => { onClose(); onOpenHubEditor(entry); }}
+                  className="w-full flex items-center gap-3 p-4 rounded-lg bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/15 transition-colors text-left"
+                >
+                  <Map className="w-6 h-6 text-purple-400 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-purple-300">Open Map of Content</p>
+                    <p className="text-xs text-zinc-500">View and manage linked entries in this hub</p>
+                  </div>
+                </button>
+              )}
+
               {/* Confidence */}
               <div>
                 <SectionLabel icon={BookOpen} label="Confidence" />
@@ -231,6 +247,9 @@ export default function EntryDetailPanel({ entry, onClose, onFeedback, onDelete 
                   </div>
                 </div>
               )}
+
+              {/* Cross-References */}
+              <BacklinksPanel entityType="knowledge_entry" entityId={entry.id} />
 
               {/* Metadata */}
               <div className="grid grid-cols-2 gap-3 text-xs">

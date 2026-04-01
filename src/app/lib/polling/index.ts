@@ -64,6 +64,29 @@ export function usePollingTask<T>(
   const latencyAccumulatorRef = useRef<number[]>([]);
   const isExecutingRef = useRef(false);
 
+  // Use refs for values that change frequently to avoid re-creating executePoll
+  const retryCountRef = useRef(retryCount);
+  retryCountRef.current = retryCount;
+
+  const currentIntervalRef = useRef(currentInterval);
+  currentIntervalRef.current = currentInterval;
+
+  // Use refs for callback props to avoid dependency loop
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
+
+  const onSuccessRef = useRef(onSuccess);
+  onSuccessRef.current = onSuccess;
+
+  const shouldContinueRef = useRef(shouldContinue);
+  shouldContinueRef.current = shouldContinue;
+
+  const adaptiveRef = useRef(adaptive);
+  adaptiveRef.current = adaptive;
+
+  const fetcherRef = useRef(fetcher);
+  fetcherRef.current = fetcher;
+
   /**
    * Calculate retry delay based on backoff strategy
    */
@@ -78,6 +101,7 @@ export function usePollingTask<T>(
    * Adjust interval based on adaptive configuration
    */
   const adjustInterval = useCallback((success: boolean) => {
+    const adaptive = adaptiveRef.current;
     if (!adaptive?.enabled) return;
 
     const {
@@ -95,11 +119,9 @@ export function usePollingTask<T>(
 
       // Adjust interval based on consecutive results
       if (consecutiveSuccesses >= successThreshold) {
-        const newInterval = Math.min(currentInterval * successMultiplier, maxInterval);
-        setCurrentInterval(newInterval);
+        setCurrentInterval(prev => Math.min(prev * successMultiplier, maxInterval));
       } else if (consecutiveFailures >= failureThreshold) {
-        const newInterval = Math.max(currentInterval * failureMultiplier, minInterval);
-        setCurrentInterval(newInterval);
+        setCurrentInterval(prev => Math.max(prev * failureMultiplier, minInterval));
       }
 
       return {
@@ -108,7 +130,31 @@ export function usePollingTask<T>(
         consecutiveFailures,
       };
     });
-  }, [adaptive, currentInterval]);
+  }, []);
+
+  /**
+   * Stop polling (declared before executePoll so it can be referenced)
+   */
+  const stopRef = useRef<() => void>(undefined);
+
+  const stop = useCallback(() => {
+    setIsPolling(false);
+    if (pollTimerRef.current) {
+      clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    isExecutingRef.current = false;
+  }, []);
+
+  stopRef.current = stop;
 
   /**
    * Execute a single poll operation with timeout and retry logic
@@ -131,11 +177,11 @@ export function usePollingTask<T>(
           setTimeout(() => reject(new Error('Poll timeout')), timeout)
         );
         result = await Promise.race([
-          fetcher(),
+          fetcherRef.current(),
           timeoutPromise,
         ]);
       } else {
-        result = await fetcher();
+        result = await fetcherRef.current();
       }
 
       // Check if operation was aborted
@@ -172,16 +218,16 @@ export function usePollingTask<T>(
       });
 
       // Call success handler
-      if (onSuccess) {
-        onSuccess(result);
+      if (onSuccessRef.current) {
+        onSuccessRef.current(result);
       }
 
       // Adjust interval for adaptive polling
       adjustInterval(true);
 
       // Check if polling should continue
-      if (shouldContinue && !shouldContinue(result)) {
-        stop();
+      if (shouldContinueRef.current && !shouldContinueRef.current(result)) {
+        stopRef.current?.();
         return;
       }
 
@@ -207,23 +253,39 @@ export function usePollingTask<T>(
       adjustInterval(false);
 
       // Handle retries
-      if (!isRetry && retryCount < maxRetries) {
-        const nextRetryCount = retryCount + 1;
+      const currentRetryCount = retryCountRef.current;
+      if (!isRetry && currentRetryCount < maxRetries) {
+        const nextRetryCount = currentRetryCount + 1;
         setRetryCount(nextRetryCount);
 
-        if (onError) {
-          onError(error, nextRetryCount);
+        if (onErrorRef.current) {
+          onErrorRef.current(error, nextRetryCount);
         }
 
         // Schedule retry with backoff
         const delay = calculateRetryDelay(nextRetryCount);
         retryTimerRef.current = setTimeout(() => {
+          isExecutingRef.current = false; // Reset so retry can execute
+          executePoll(true);
+        }, delay);
+      } else if (isRetry && currentRetryCount < maxRetries) {
+        // Subsequent retry attempts
+        const nextRetryCount = currentRetryCount + 1;
+        setRetryCount(nextRetryCount);
+
+        if (onErrorRef.current) {
+          onErrorRef.current(error, nextRetryCount);
+        }
+
+        const delay = calculateRetryDelay(nextRetryCount);
+        retryTimerRef.current = setTimeout(() => {
+          isExecutingRef.current = false;
           executePoll(true);
         }, delay);
       } else {
         // Max retries reached
-        if (onError) {
-          onError(error, retryCount);
+        if (onErrorRef.current) {
+          onErrorRef.current(error, currentRetryCount);
         }
       }
     } finally {
@@ -231,14 +293,9 @@ export function usePollingTask<T>(
       isExecutingRef.current = false;
     }
   }, [
-    fetcher,
     timeout,
-    retryCount,
     maxRetries,
     calculateRetryDelay,
-    onError,
-    onSuccess,
-    shouldContinue,
     adjustInterval,
   ]);
 
@@ -247,26 +304,6 @@ export function usePollingTask<T>(
    */
   const start = useCallback(() => {
     setIsPolling(true);
-  }, []);
-
-  /**
-   * Stop polling
-   */
-  const stop = useCallback(() => {
-    setIsPolling(false);
-    if (pollTimerRef.current) {
-      clearTimeout(pollTimerRef.current);
-      pollTimerRef.current = null;
-    }
-    if (retryTimerRef.current) {
-      clearTimeout(retryTimerRef.current);
-      retryTimerRef.current = null;
-    }
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-    isExecutingRef.current = false;
   }, []);
 
   /**
@@ -328,10 +365,11 @@ export function usePollingTask<T>(
     return () => {
       if (pollTimerRef.current) {
         clearTimeout(pollTimerRef.current);
+        pollTimerRef.current = null;
       }
-      if (retryTimerRef.current) {
-        clearTimeout(retryTimerRef.current);
-      }
+      // Note: retryTimerRef is NOT cleared here -- retries are managed
+      // inside executePoll and should survive effect re-runs triggered
+      // by stats changes. Only the stop() function clears retry timers.
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }

@@ -68,6 +68,8 @@ export default function DecisionCard({ notification }: { notification: AnnetteNo
       initial={{ opacity: 0, x: 20, scale: 0.95 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: 20, scale: 0.95 }}
+      whileHover={{ y: -1, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
+      transition={{ duration: 0.15 }}
       className={`p-3 rounded-lg border ${config.color}`}
     >
       <div className="flex items-start gap-2.5">
@@ -93,6 +95,7 @@ export default function DecisionCard({ notification }: { notification: AnnetteNo
               <button
                 onClick={() => executeAction(notification)}
                 className="p-1.5 rounded-md bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/30 transition-colors"
+                aria-label="Accept action"
                 title="Accept"
               >
                 <Check className="w-3.5 h-3.5" />
@@ -101,6 +104,7 @@ export default function DecisionCard({ notification }: { notification: AnnetteNo
             <button
               onClick={() => dismissNotification(notification.id)}
               className="p-1.5 rounded-md border border-slate-600/40 text-slate-400 hover:bg-slate-500/10 transition-colors"
+              aria-label="Dismiss notification"
               title="Dismiss"
             >
               <X className="w-3.5 h-3.5" />
@@ -108,6 +112,7 @@ export default function DecisionCard({ notification }: { notification: AnnetteNo
             <button
               onClick={() => snoozeNotification(notification.id)}
               className="p-1.5 rounded-md border border-amber-500/25 text-amber-400/70 hover:bg-amber-500/10 transition-colors"
+              aria-label="Snooze for 30 minutes"
               title="Snooze 30 min"
             >
               <Clock className="w-3.5 h-3.5" />

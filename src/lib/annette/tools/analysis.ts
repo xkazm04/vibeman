@@ -10,6 +10,7 @@
 
 import { contextDb, implementationLogDb, directionOutcomeDb } from '@/app/db';
 import { getBehavioralContext } from '@/lib/brain/behavioralContext';
+import { safeParseJson } from '@/lib/json-utils';
 import { buildAnalysisPrompt, type AnalysisType } from '../prompts/analysisPrompts';
 import {
   findAnalysisLogFile,
@@ -188,9 +189,9 @@ function calculateHealthScore(
     let crossRefs: unknown[] = [];
     let entryPoints: unknown[] = [];
     let techStack: string[] = [];
-    try { crossRefs = JSON.parse((context as Record<string, unknown>).cross_refs as string || '[]'); } catch {}
-    try { entryPoints = JSON.parse((context as Record<string, unknown>).entry_points as string || '[]'); } catch {}
-    try { techStack = JSON.parse((context as Record<string, unknown>).tech_stack as string || '[]'); } catch {}
+    crossRefs = safeParseJson((context as Record<string, unknown>).cross_refs as string, []);
+    entryPoints = safeParseJson((context as Record<string, unknown>).entry_points as string, []);
+    techStack = safeParseJson((context as Record<string, unknown>).tech_stack as string, []);
 
     // Isolated contexts (no cross-refs) get a small penalty
     if (crossRefs.length === 0) score -= 3;

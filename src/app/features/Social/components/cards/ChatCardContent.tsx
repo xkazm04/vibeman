@@ -15,7 +15,7 @@ export default function ChatCardContent({ item }: ChatCardContentProps) {
         <span>Live Chat</span>
       </div>
       <div className="bg-gray-800/80 backdrop-blur-sm rounded-lg rounded-bl-none p-2 text-sm text-gray-200 shadow-sm border border-green-900/40">
-        {item.content.body.substring(0, 60)}...
+        {item.content?.body?.substring(0, 60) || 'No content'}...
       </div>
     </div>
   );

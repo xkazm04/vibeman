@@ -41,7 +41,7 @@ const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, isFocu
   const statusConfig = getStatusConfig(goal.status);
   const StatusIcon = statusConfig.icon;
   const statusColor = statusConfig.color;
-  const progress = goal.progress || 0;
+  const progress = Number.isFinite(goal.progress) ? (goal.progress as number) : 0;
 
   React.useEffect(() => {
     if (isFocused && ref.current && document.activeElement?.closest('[role="listbox"]')) {

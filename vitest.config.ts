@@ -10,11 +10,8 @@ export default defineConfig({
     setupFiles: ['./tests/setup/global-setup.ts'],
     // Ensure tests run sequentially to avoid database conflicts
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
+    maxWorkers: 1,
+    minWorkers: 1,
   },
   resolve: {
     alias: {

@@ -45,6 +45,7 @@ export const MODULE_METADATA: Record<AppModule, { label: string; description: st
   brain: { label: 'Brain', description: 'AI learning and memory system', keywords: ['brain', 'ai', 'learning', 'memory', 'signals'], icon: 'Brain' },
   commander: { label: 'Annette', description: 'Voice assistant and commander', keywords: ['annette', 'assistant', 'voice', 'commander'], icon: 'Bot' },
   conductor: { label: 'Conductor', description: 'Autonomous development pipeline', keywords: ['conductor', 'pipeline', 'autonomous', 'orchestrator'], icon: 'Workflow' },
+  views: { label: 'Views', description: 'Cross-entity queryable views', keywords: ['views', 'query', 'filter', 'bases', 'cross-entity'], icon: 'LayoutGrid' },
 };
 
 interface WorkflowState {

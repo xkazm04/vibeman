@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type {
   DbKnowledgeEntry,
+  HubLinkedEntry,
   KnowledgeCategory,
   KnowledgeLayer,
   KnowledgeLanguage,
@@ -41,6 +42,11 @@ interface UseKnowledgeBaseReturn {
   deleteEntry: (id: string) => Promise<boolean>;
   recordFeedback: (entryId: string, helpful: boolean) => Promise<void>;
   exportEntries: (projectPath: string) => Promise<void>;
+  // Hub (Map of Content) operations
+  fetchHubLinks: (hubEntryId: string) => Promise<HubLinkedEntry[]>;
+  addHubLink: (hubEntryId: string, linkedEntryId: string, note?: string) => Promise<boolean>;
+  removeHubLink: (linkId: string) => Promise<boolean>;
+  reorderHubLinks: (hubEntryId: string, linkIds: string[]) => Promise<boolean>;
 }
 
 export function useKnowledgeBase(): UseKnowledgeBaseReturn {
@@ -170,6 +176,65 @@ export function useKnowledgeBase(): UseKnowledgeBaseReturn {
     }
   }, []);
 
+  // ── Hub (Map of Content) operations ───────────────────────────────
+
+  const fetchHubLinks = useCallback(async (hubEntryId: string): Promise<HubLinkedEntry[]> => {
+    try {
+      const res = await fetch(`/api/knowledge-base?action=hub-links&hubEntryId=${hubEntryId}`);
+      const json = await res.json();
+      if (json.success) return json.data;
+      return [];
+    } catch (e) {
+      console.error('[KB] Failed to fetch hub links:', e);
+      return [];
+    }
+  }, []);
+
+  const addHubLink = useCallback(async (hubEntryId: string, linkedEntryId: string, note?: string): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/knowledge-base', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add-hub-link', hubEntryId, linkedEntryId, note }),
+      });
+      const json = await res.json();
+      return json.success;
+    } catch (e) {
+      console.error('[KB] Add hub link error:', e);
+      return false;
+    }
+  }, []);
+
+  const removeHubLink = useCallback(async (linkId: string): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/knowledge-base', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'remove-hub-link', linkId }),
+      });
+      const json = await res.json();
+      return json.success;
+    } catch (e) {
+      console.error('[KB] Remove hub link error:', e);
+      return false;
+    }
+  }, []);
+
+  const reorderHubLinks = useCallback(async (hubEntryId: string, linkIds: string[]): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/knowledge-base', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reorder-hub-links', hubEntryId, linkIds }),
+      });
+      const json = await res.json();
+      return json.success;
+    } catch (e) {
+      console.error('[KB] Reorder hub links error:', e);
+      return false;
+    }
+  }, []);
+
   // Initial load
   useEffect(() => {
     fetchStats();
@@ -189,5 +254,6 @@ export function useKnowledgeBase(): UseKnowledgeBaseReturn {
     breadcrumb,
     fetchEntries, fetchTree,
     createEntry, deleteEntry, recordFeedback, exportEntries,
+    fetchHubLinks, addHubLink, removeHubLink, reorderHubLinks,
   };
 }

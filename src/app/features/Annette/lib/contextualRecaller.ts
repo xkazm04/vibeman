@@ -14,6 +14,7 @@ import {
   type KnowledgeEdge,
 } from './unifiedKnowledgeStore';
 import { generateWithLLM } from '@/lib/llm';
+import { safeParseJson } from '@/lib/json-utils';
 import { safeParseLLMJson } from '@/lib/safeParseLLMJson';
 
 export interface RecallContext {
@@ -298,9 +299,9 @@ Respond in JSON format:
         let keywords: string[] = [];
         let entryPoints: Array<{ path: string; type: string }> = [];
         let apiSurface: Array<{ path: string; methods: string }> = [];
-        try { keywords = JSON.parse(ctx.keywords || '[]'); } catch {}
-        try { entryPoints = JSON.parse(ctx.entry_points || '[]'); } catch {}
-        try { apiSurface = JSON.parse(ctx.api_surface || '[]'); } catch {}
+        keywords = safeParseJson(ctx.keywords, []);
+        entryPoints = safeParseJson(ctx.entry_points, []);
+        apiSurface = safeParseJson(ctx.api_surface, []);
 
         if (keywords.length === 0) continue;
 

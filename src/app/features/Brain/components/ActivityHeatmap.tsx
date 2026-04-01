@@ -15,8 +15,8 @@ import {
   Brain,
   Terminal,
   TrendingUp,
-  ChevronDown,
 } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
 import { GitNeuralPathway, ApiSignalPulse, ContextBrainLayer, CircuitComplete } from './SignalTypeIcons';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useHeatmap } from '../lib/queries';
@@ -372,7 +372,7 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
         >
           <TrendingUp className="w-3.5 h-3.5" />
           <span>Time-Series Trends</span>
-          <ChevronDown className={`w-3 h-3 transition-transform ${showTrend ? 'rotate-180' : ''}`} />
+          <ExpandChevron expanded={showTrend} className="w-3 h-3" />
         </button>
 
         <AnimatePresence>

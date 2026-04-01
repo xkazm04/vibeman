@@ -108,7 +108,7 @@ export default function ReflectionHistoryPanel({ scope = 'project' }: Props) {
           )}
 
           {/* History list */}
-          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+          <div className="space-y-2 max-h-[400px] overflow-y-auto scroll-shadow-y">
             {history.map((entry) => (
               <ReflectionHistoryItem key={entry.id} entry={entry} />
             ))}

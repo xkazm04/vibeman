@@ -343,6 +343,16 @@ export const PIPELINE_STATUS_COLORS: Record<PipelineStatus, PipelineStatusColors
   },
 };
 
+// ── Modal icon gradients (UniversalModal iconBgColor) ───────────
+export type ModalIconPurpose = 'config' | 'report' | 'refinement' | 'triage';
+
+export const MODAL_ICON_GRADIENT: Record<ModalIconPurpose, { bg: string; text: string }> = {
+  config:     { bg: 'from-cyan-900/60 to-purple-900/60',   text: 'text-cyan-400' },
+  report:     { bg: 'from-cyan-900/60 to-indigo-900/60',   text: 'text-cyan-400' },
+  refinement: { bg: 'from-purple-900/60 to-cyan-900/60',   text: 'text-purple-400' },
+  triage:     { bg: 'from-amber-900/60 to-orange-900/60',  text: 'text-amber-400' },
+};
+
 const DEFAULT_THEME: AppTheme = 'midnight';
 
 export function getStageTheme(stage: string, appTheme?: AppTheme): StageColorTheme {

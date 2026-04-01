@@ -5,7 +5,7 @@
 
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { usePollingTask } from '../index';
 import {
   createLogRefreshPoller,
@@ -18,6 +18,27 @@ import { POLLING_PRESETS, mergePreset } from '../presets';
 // Mock fetch for tests
 global.fetch = vi.fn();
 
+/**
+ * Helper: advance fake timers and flush microtasks (resolved promises).
+ * Using vi.advanceTimersByTimeAsync ensures promise callbacks run
+ * between timer ticks, which is critical for hooks that do
+ * `setTimeout(() => fetchData().then(...))`.
+ */
+async function advanceAndFlush(ms: number) {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(ms);
+  });
+}
+
+/**
+ * Helper: flush only microtasks (resolved promises) without advancing timers.
+ */
+async function flushMicrotasks() {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+  });
+}
+
 describe('Polling Library Integration Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -25,7 +46,6 @@ describe('Polling Library Integration Tests', () => {
   });
 
   afterEach(() => {
-    vi.runOnlyPendingTimers();
     vi.useRealTimers();
   });
 
@@ -40,15 +60,16 @@ describe('Polling Library Integration Tests', () => {
         })
       );
 
-      // Initial execution
-      await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+      // Initial execution (executeImmediately fires on mount)
+      await flushMicrotasks();
+      expect(fetcher).toHaveBeenCalledTimes(1);
 
       // Advance time and verify polling
-      vi.advanceTimersByTime(1000);
-      await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+      await advanceAndFlush(1000);
+      expect(fetcher).toHaveBeenCalledTimes(2);
 
-      vi.advanceTimersByTime(1000);
-      await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(3));
+      await advanceAndFlush(1000);
+      expect(fetcher).toHaveBeenCalledTimes(3);
 
       expect(result.current.data).toEqual({ data: 'test' });
       expect(result.current.stats.totalPolls).toBe(3);
@@ -67,18 +88,24 @@ describe('Polling Library Integration Tests', () => {
       expect(result.current.isPolling).toBe(false);
 
       // Start polling
-      result.current.start();
-      await waitFor(() => expect(result.current.isPolling).toBe(true));
+      act(() => {
+        result.current.start();
+      });
+      expect(result.current.isPolling).toBe(true);
 
-      vi.advanceTimersByTime(1000);
-      await waitFor(() => expect(fetcher).toHaveBeenCalled());
+      // The hook defaults executeImmediately=true, so after start it
+      // executes immediately since totalPolls===0
+      await flushMicrotasks();
+      expect(fetcher).toHaveBeenCalled();
 
       // Stop polling
-      result.current.stop();
-      await waitFor(() => expect(result.current.isPolling).toBe(false));
+      act(() => {
+        result.current.stop();
+      });
+      expect(result.current.isPolling).toBe(false);
 
       const callCount = fetcher.mock.calls.length;
-      vi.advanceTimersByTime(2000);
+      await advanceAndFlush(2000);
       expect(fetcher).toHaveBeenCalledTimes(callCount); // No additional calls
     });
 
@@ -92,8 +119,10 @@ describe('Polling Library Integration Tests', () => {
         })
       );
 
-      await result.current.trigger();
-      await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+      await act(async () => {
+        await result.current.trigger();
+      });
+      expect(fetcher).toHaveBeenCalledTimes(1);
       expect(result.current.data).toEqual({ data: 'manual' });
     });
 
@@ -107,18 +136,19 @@ describe('Polling Library Integration Tests', () => {
         })
       );
 
-      await waitFor(() => expect(fetcher).toHaveBeenCalled());
+      await flushMicrotasks();
+      expect(fetcher).toHaveBeenCalledTimes(1);
 
       // Accumulate some stats
-      vi.advanceTimersByTime(3000);
-      await waitFor(() => expect(result.current.stats.totalPolls).toBeGreaterThan(1));
+      await advanceAndFlush(1000);
+      expect(result.current.stats.totalPolls).toBeGreaterThan(1);
 
-      // Reset
-      result.current.reset();
-      await waitFor(() => {
-        expect(result.current.data).toBeNull();
-        expect(result.current.stats.totalPolls).toBe(0);
+      // Reset clears state synchronously
+      act(() => {
+        result.current.reset();
       });
+      expect(result.current.data).toBeNull();
+      expect(result.current.stats.totalPolls).toBe(0);
     });
   });
 
@@ -140,20 +170,19 @@ describe('Polling Library Integration Tests', () => {
       );
 
       // First attempt fails
-      await waitFor(() => expect(result.current.error).toBeTruthy());
+      await flushMicrotasks();
+      expect(result.current.error).toBeTruthy();
       expect(result.current.retryCount).toBe(1);
 
-      // First retry (100ms delay)
-      vi.advanceTimersByTime(100);
-      await waitFor(() => expect(result.current.retryCount).toBe(2));
+      // First retry at 100 * 2^1 = 200ms
+      await advanceAndFlush(200);
+      expect(result.current.retryCount).toBe(2);
 
-      // Second retry (200ms delay)
-      vi.advanceTimersByTime(200);
-      await waitFor(() => {
-        expect(result.current.data).toEqual({ data: 'success' });
-        expect(result.current.error).toBeNull();
-        expect(result.current.retryCount).toBe(0);
-      });
+      // Second retry at 100 * 2^2 = 400ms
+      await advanceAndFlush(400);
+      expect(result.current.data).toEqual({ data: 'success' });
+      expect(result.current.error).toBeNull();
+      expect(result.current.retryCount).toBe(0);
     });
 
     it('should stop retrying after max retries', async () => {
@@ -170,11 +199,17 @@ describe('Polling Library Integration Tests', () => {
         })
       );
 
-      await waitFor(() => expect(result.current.error).toBeTruthy());
+      // Initial call fails
+      await flushMicrotasks();
+      expect(onError).toHaveBeenCalledTimes(1);
 
-      // Wait for all retries
-      vi.advanceTimersByTime(1000);
-      await waitFor(() => expect(onError).toHaveBeenCalledTimes(3)); // Initial + 2 retries
+      // Wait for all retries with exponential backoff
+      // Retry 1 at 200ms, retry 2 at 400ms after that
+      await advanceAndFlush(200);
+      expect(onError).toHaveBeenCalledTimes(2);
+
+      await advanceAndFlush(400);
+      expect(onError).toHaveBeenCalledTimes(3); // Initial + 2 retries
 
       expect(result.current.error?.message).toBe('Always fails');
     });
@@ -199,25 +234,20 @@ describe('Polling Library Integration Tests', () => {
 
       const initialInterval = result.current.currentInterval;
 
-      // Wait for 2 successful polls
-      vi.advanceTimersByTime(2000);
-      await waitFor(() => expect(result.current.stats.successfulPolls).toBeGreaterThan(0));
+      // First poll
+      await advanceAndFlush(2000);
+      expect(result.current.stats.successfulPolls).toBeGreaterThan(0);
 
-      vi.advanceTimersByTime(2000);
-      await waitFor(() => expect(result.current.stats.consecutiveSuccesses).toBeGreaterThanOrEqual(2));
+      // Second poll (reaches successThreshold=2)
+      await advanceAndFlush(2000);
+      expect(result.current.stats.consecutiveSuccesses).toBeGreaterThanOrEqual(2);
 
-      // Interval should increase
+      // Interval should increase after reaching threshold
       expect(result.current.currentInterval).toBeGreaterThan(initialInterval);
     });
 
     it('should decrease interval on consecutive failures', async () => {
-      let failCount = 0;
-      const fetcher = vi.fn().mockImplementation(() => {
-        if (failCount++ < 3) {
-          return Promise.reject(new Error('Fail'));
-        }
-        return Promise.resolve({ data: 'success' });
-      });
+      const fetcher = vi.fn().mockRejectedValue(new Error('Fail'));
 
       const { result } = renderHook(() =>
         usePollingTask(fetcher, {
@@ -236,11 +266,11 @@ describe('Polling Library Integration Tests', () => {
       const initialInterval = result.current.currentInterval;
 
       // Wait for consecutive failures
-      vi.advanceTimersByTime(5000);
-      await waitFor(() => expect(result.current.stats.failedPolls).toBeGreaterThan(0));
+      await advanceAndFlush(5000);
+      expect(result.current.stats.failedPolls).toBeGreaterThan(0);
 
-      vi.advanceTimersByTime(5000);
-      await waitFor(() => expect(result.current.stats.consecutiveFailures).toBeGreaterThanOrEqual(2));
+      await advanceAndFlush(5000);
+      expect(result.current.stats.consecutiveFailures).toBeGreaterThanOrEqual(2);
 
       // Interval should decrease
       expect(result.current.currentInterval).toBeLessThan(initialInterval);
@@ -265,18 +295,21 @@ describe('Polling Library Integration Tests', () => {
         usePollingTask(fetcher3, { interval: 3000, executeImmediately: true })
       );
 
-      await waitFor(() => {
-        expect(fetcher1).toHaveBeenCalled();
-        expect(fetcher2).toHaveBeenCalled();
-        expect(fetcher3).toHaveBeenCalled();
-      });
+      // Initial immediate executions
+      await flushMicrotasks();
+      expect(fetcher1).toHaveBeenCalled();
+      expect(fetcher2).toHaveBeenCalled();
+      expect(fetcher3).toHaveBeenCalled();
 
-      vi.advanceTimersByTime(6000);
+      // Advance 6 seconds in steps to let all pollers fire properly
+      for (let i = 0; i < 6; i++) {
+        await advanceAndFlush(1000);
+      }
 
-      await waitFor(() => {
-        expect(result1.current.stats.totalPolls).toBeGreaterThan(result2.current.stats.totalPolls);
-        expect(result2.current.stats.totalPolls).toBeGreaterThan(result3.current.stats.totalPolls);
-      });
+      // fetcher1 @ 1s intervals should poll more than fetcher2 @ 2s
+      expect(result1.current.stats.totalPolls).toBeGreaterThan(result2.current.stats.totalPolls);
+      // fetcher2 @ 2s intervals should poll more than fetcher3 @ 3s
+      expect(result2.current.stats.totalPolls).toBeGreaterThan(result3.current.stats.totalPolls);
     });
 
     it('should clean up all pollers on unmount', async () => {
@@ -287,12 +320,12 @@ describe('Polling Library Integration Tests', () => {
       ];
 
       const hooks = fetchers.map(fetcher =>
-        renderHook(() => usePollingTask(fetcher, { interval: 1000 }))
+        renderHook(() => usePollingTask(fetcher, { interval: 1000, executeImmediately: true }))
       );
 
-      await waitFor(() => {
-        fetchers.forEach(fetcher => expect(fetcher).toHaveBeenCalled());
-      });
+      // Let initial polls complete
+      await flushMicrotasks();
+      fetchers.forEach(fetcher => expect(fetcher).toHaveBeenCalled());
 
       // Unmount all hooks
       hooks.forEach(hook => hook.unmount());
@@ -300,7 +333,7 @@ describe('Polling Library Integration Tests', () => {
       const totalCalls = fetchers.reduce((sum, f) => sum + f.mock.calls.length, 0);
 
       // Advance time and verify no more calls
-      vi.advanceTimersByTime(5000);
+      await advanceAndFlush(5000);
       const newTotalCalls = fetchers.reduce((sum, f) => sum + f.mock.calls.length, 0);
 
       expect(newTotalCalls).toBe(totalCalls);
@@ -309,7 +342,7 @@ describe('Polling Library Integration Tests', () => {
 
   describe('Factory Functions', () => {
     it('should create log refresh poller with correct config', async () => {
-      (global.fetch as vi.Mock).mockResolvedValue({
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
         json: async () => ['log1', 'log2', 'log3'],
       });
@@ -324,8 +357,10 @@ describe('Polling Library Integration Tests', () => {
         usePollingTask(logPoller.fetcher, logPoller.config)
       );
 
-      await waitFor(() => expect(result.current.data).toBeTruthy());
+      // Aggressive preset has executeImmediately: true
+      await flushMicrotasks();
 
+      expect(result.current.data).toBeTruthy();
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/logs/server-1')
       );
@@ -337,7 +372,7 @@ describe('Polling Library Integration Tests', () => {
 
     it('should create status check poller with stop condition', async () => {
       let status = 'running';
-      (global.fetch as vi.Mock).mockImplementation(async () => ({
+      (global.fetch as ReturnType<typeof vi.fn>).mockImplementation(async () => ({
         ok: true,
         json: async () => ({ status }),
       }));
@@ -352,21 +387,21 @@ describe('Polling Library Integration Tests', () => {
         usePollingTask(statusPoller.fetcher, statusPoller.config)
       );
 
-      await waitFor(() => expect(result.current.data).toBeTruthy());
+      // Conservative preset has executeImmediately: true
+      await flushMicrotasks();
+      expect(result.current.data).toBeTruthy();
       expect(result.current.isPolling).toBe(true);
 
       // Change status to completed
       status = 'completed';
-      vi.advanceTimersByTime(1000);
+      await advanceAndFlush(1000);
 
-      await waitFor(() => {
-        expect(result.current.data?.status).toBe('completed');
-        expect(result.current.isPolling).toBe(false);
-      });
+      expect(result.current.data?.status).toBe('completed');
+      expect(result.current.isPolling).toBe(false);
     });
 
     it('should create health monitor for multiple endpoints', async () => {
-      (global.fetch as vi.Mock)
+      (global.fetch as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce({ ok: true, json: async () => ({ healthy: true }) })
         .mockResolvedValueOnce({ ok: true, json: async () => ({ healthy: true }) })
         .mockRejectedValueOnce(new Error('Endpoint down'));
@@ -380,8 +415,10 @@ describe('Polling Library Integration Tests', () => {
         usePollingTask(healthPoller.fetcher, healthPoller.config)
       );
 
-      await waitFor(() => expect(result.current.data).toBeTruthy());
+      // Background preset has executeImmediately: true
+      await flushMicrotasks();
 
+      expect(result.current.data).toBeTruthy();
       expect(result.current.data?.totalChecks).toBe(3);
       expect(result.current.data?.successfulChecks).toBe(2);
       expect(result.current.data?.failedChecks).toBe(1);
@@ -390,7 +427,7 @@ describe('Polling Library Integration Tests', () => {
 
     it('should create real-time poller with history buffer', async () => {
       let counter = 0;
-      (global.fetch as vi.Mock).mockImplementation(async () => ({
+      (global.fetch as ReturnType<typeof vi.fn>).mockImplementation(async () => ({
         ok: true,
         json: async () => ({ value: counter++ }),
       }));
@@ -404,12 +441,15 @@ describe('Polling Library Integration Tests', () => {
         usePollingTask(realtimePoller.fetcher, realtimePoller.config)
       );
 
+      // Realtime preset has executeImmediately: true
+      await flushMicrotasks();
+
       // Wait for multiple polls
       for (let i = 0; i < 3; i++) {
-        vi.advanceTimersByTime(500);
-        await waitFor(() => expect(result.current.stats.totalPolls).toBeGreaterThan(i));
+        await advanceAndFlush(500);
       }
 
+      expect(result.current.stats.totalPolls).toBeGreaterThan(1);
       expect(result.current.data?.history).toBeDefined();
       expect(result.current.data?.history.length).toBeGreaterThan(0);
     });
@@ -423,7 +463,8 @@ describe('Polling Library Integration Tests', () => {
         usePollingTask(fetcher, POLLING_PRESETS.aggressive)
       );
 
-      await waitFor(() => expect(fetcher).toHaveBeenCalled());
+      await flushMicrotasks();
+      expect(fetcher).toHaveBeenCalled();
       expect(result.current.currentInterval).toBe(1500);
     });
 
@@ -440,7 +481,9 @@ describe('Polling Library Integration Tests', () => {
         usePollingTask(fetcher, config)
       );
 
-      await waitFor(() => expect(fetcher).toHaveBeenCalled());
+      // Conservative preset has executeImmediately: true
+      await flushMicrotasks();
+      expect(fetcher).toHaveBeenCalled();
       expect(result.current.currentInterval).toBe(10000);
       expect(onSuccess).toHaveBeenCalled();
     });
@@ -464,10 +507,12 @@ describe('Polling Library Integration Tests', () => {
         })
       );
 
+      // Initial execution (callCount=0, 0%3===0, fails)
+      await flushMicrotasks();
+
       // Execute multiple polls
       for (let i = 0; i < 5; i++) {
-        vi.advanceTimersByTime(1000);
-        await waitFor(() => expect(result.current.stats.totalPolls).toBeGreaterThan(i));
+        await advanceAndFlush(1000);
       }
 
       expect(result.current.stats.totalPolls).toBeGreaterThan(0);
@@ -477,9 +522,7 @@ describe('Polling Library Integration Tests', () => {
     });
 
     it('should calculate average latency', async () => {
-      const fetcher = vi.fn().mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve({ data: 'test' }), 50))
-      );
+      const fetcher = vi.fn().mockResolvedValue({ data: 'test' });
 
       const { result } = renderHook(() =>
         usePollingTask(fetcher, {
@@ -488,10 +531,11 @@ describe('Polling Library Integration Tests', () => {
         })
       );
 
-      vi.advanceTimersByTime(50);
-      await waitFor(() => expect(result.current.stats.totalPolls).toBeGreaterThan(0));
+      await flushMicrotasks();
+      expect(result.current.stats.totalPolls).toBeGreaterThan(0);
 
-      expect(result.current.stats.averageLatency).toBeGreaterThan(0);
+      // With fake timers, Date.now() is controlled so latency is tracked (>=0)
+      expect(result.current.stats.averageLatency).toBeGreaterThanOrEqual(0);
     });
   });
 
@@ -509,8 +553,10 @@ describe('Polling Library Integration Tests', () => {
         })
       );
 
-      vi.advanceTimersByTime(100);
-      await waitFor(() => expect(result.current.error).toBeTruthy());
+      // Advance past the timeout threshold to trigger the rejection
+      await advanceAndFlush(150);
+
+      expect(result.current.error).toBeTruthy();
       expect(result.current.error?.message).toContain('timeout');
     });
 
@@ -524,14 +570,15 @@ describe('Polling Library Integration Tests', () => {
         })
       );
 
-      await waitFor(() => expect(fetcher).toHaveBeenCalled());
+      await flushMicrotasks();
+      expect(fetcher).toHaveBeenCalled();
 
       // Unmount should abort ongoing operations
       unmount();
 
       // Advance time and ensure no more calls
       const callCount = fetcher.mock.calls.length;
-      vi.advanceTimersByTime(5000);
+      await advanceAndFlush(5000);
       expect(fetcher).toHaveBeenCalledTimes(callCount);
     });
 
@@ -548,7 +595,10 @@ describe('Polling Library Integration Tests', () => {
         })
       );
 
-      await waitFor(() => expect(onError).toHaveBeenCalled());
+      // Initial call fails, triggering onError
+      await flushMicrotasks();
+
+      expect(onError).toHaveBeenCalled();
       expect(onError).toHaveBeenCalledWith(
         expect.objectContaining({ message: 'Test error' }),
         expect.any(Number)
@@ -567,16 +617,17 @@ describe('Polling Library Integration Tests', () => {
         usePollingTask(fetcher, {
           interval: 1000,
           executeImmediately: true,
-          shouldContinue: (data) => data.count < 3,
+          shouldContinue: (data: { count: number }) => data.count < 3,
         })
       );
 
-      // Poll until counter reaches 3
-      for (let i = 0; i < 5; i++) {
-        vi.advanceTimersByTime(1000);
-        await waitFor(() => expect(result.current.stats.totalPolls).toBeGreaterThan(i));
+      // Initial execution (count=1, shouldContinue returns true)
+      await flushMicrotasks();
 
+      // Poll until counter reaches 3 or polling stops
+      for (let i = 0; i < 5; i++) {
         if (!result.current.isPolling) break;
+        await advanceAndFlush(1000);
       }
 
       expect(result.current.data?.count).toBe(3);

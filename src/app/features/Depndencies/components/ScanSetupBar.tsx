@@ -46,13 +46,15 @@ export default function ScanSetupBar({ projects }: ScanSetupBarProps) {
             {/* Select All / Clear Button */}
             <motion.button
               onClick={allSelected ? clearSelection : () => selectAllProjects(projects)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+              disabled={scanning}
+              title={scanning ? 'Scan in progress' : undefined}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
                 allSelected
                   ? 'bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30'
                   : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 hover:bg-yellow-500/30'
               }`}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={scanning ? undefined : { scale: 1.02 }}
+              whileTap={scanning ? undefined : { scale: 0.98 }}
             >
               {allSelected ? '✕ Clear All' : '✓ Select All'}
             </motion.button>
@@ -64,13 +66,15 @@ export default function ScanSetupBar({ projects }: ScanSetupBarProps) {
                 <motion.button
                   key={project.id}
                   onClick={() => toggleProject(project.id)}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                  disabled={scanning}
+                  title={scanning ? 'Scan in progress' : undefined}
+                  className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                     isSelected
                       ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40'
                       : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60 hover:text-gray-300'
                   }`}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={scanning ? undefined : { scale: 1.02 }}
+                  whileTap={scanning ? undefined : { scale: 0.98 }}
                 >
                   {isSelected && <Check className="w-3.5 h-3.5" />}
                   {project.name}
@@ -90,6 +94,7 @@ export default function ScanSetupBar({ projects }: ScanSetupBarProps) {
             iconPosition="left"
             size="md"
             className="shrink-0"
+            title={scanning ? 'Scan in progress' : selectedProjects.length === 0 ? 'Select projects first' : undefined}
           >
             {scanning ? 'Scanning...' : `Run Scan (${selectedProjects.length})`}
           </GradientButton>

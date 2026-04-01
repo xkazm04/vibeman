@@ -132,19 +132,26 @@ export default function InsightSparkline({ history, width = 48, height = 18 }: P
           </linearGradient>
         </defs>
         <style>{`
-          @keyframes sparkline-draw-${safeGradientId} {
-            from { stroke-dashoffset: ${dashLength}; }
-            to { stroke-dashoffset: 0; }
+          @media (prefers-reduced-motion: no-preference) {
+            @keyframes sparkline-draw-${safeGradientId} {
+              from { stroke-dashoffset: ${dashLength}; }
+              to { stroke-dashoffset: 0; }
+            }
+            @keyframes sparkline-fill-${safeGradientId} {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
           }
-          @keyframes sparkline-fill-${safeGradientId} {
-            from { opacity: 0; }
-            to { opacity: 1; }
+          @media (prefers-reduced-motion: reduce) {
+            .sparkline-area { opacity: 1 !important; animation: none !important; }
+            .sparkline-line { stroke-dashoffset: 0 !important; animation: none !important; }
           }
         `}</style>
         {/* Gradient-filled area under the line */}
         <path
           d={areaD}
           fill={`url(#${safeGradientId})`}
+          className="sparkline-area"
           style={{
             animation: `sparkline-fill-${safeGradientId} 0.8s ease-out forwards`,
             opacity: 0,
@@ -158,6 +165,7 @@ export default function InsightSparkline({ history, width = 48, height = 18 }: P
           strokeWidth={1.5}
           strokeLinecap="round"
           strokeLinejoin="round"
+          className="sparkline-line"
           strokeDasharray={dashLength}
           strokeDashoffset={dashLength}
           style={{

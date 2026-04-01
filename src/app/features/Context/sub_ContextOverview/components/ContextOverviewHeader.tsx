@@ -2,9 +2,9 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { X, FileText, Calendar, Wrench, BookOpen, TestTube, Lightbulb, Vault, FolderOpen } from 'lucide-react';
+import { X, FileText, Calendar, Wrench, BookOpen, Lightbulb, Vault, FolderOpen } from 'lucide-react';
 
-export type TabType = 'manager' | 'docs' | 'testing' | 'files';
+export type TabType = 'manager' | 'docs' | 'files';
 
 interface Tab {
   id: TabType;
@@ -27,7 +27,6 @@ interface ContextOverviewHeaderProps {
 
 const TABS: Tab[] = [
   { id: 'manager', label: 'Manager', icon: Wrench },
-  { id: 'testing', label: 'Testing', icon: TestTube },
   { id: 'files', label: 'Files', icon: FolderOpen },
   { id: 'docs', label: 'Docs', icon: BookOpen },
 ];

@@ -35,6 +35,9 @@ async function main() {
     },
     instructions: `Vibeman MCP server provides tools for:
 
+Quick start (compound tool):
+- bootstrap_task: Gather ALL relevant context in a single call — knowledge base, collective memory, context details, and related tasks fetched in parallel. Use this FIRST at the start of any task instead of calling get_knowledge, get_memory, get_context, and get_related_tasks separately. Saves 4-5 round-trips.
+
 Post-implementation:
 - log_implementation: Log implementation work to Vibeman database (call after completing tasks)
 - check_test_scenario: Check if a context has a test scenario before capturing screenshots
@@ -45,9 +48,10 @@ Context & config:
 - get_config: Get current Vibeman configuration (projectId, contextId, etc.)
 
 Bidirectional execution channel (use during implementation):
-- get_memory: Query collective memory for relevant knowledge about files, patterns, or errors. Call when you encounter unfamiliar code, need context about a module, or want proven solutions to similar problems.
+- get_memory: Query collective memory for relevant knowledge about files, patterns, or errors. Call when you encounter unfamiliar code mid-task.
 - report_progress: Report structured progress (phase, percentage, current step, files changed). Call at each major phase transition to provide real-time dashboard updates.
 - get_related_tasks: Check status of other tasks running in parallel. Call to coordinate file changes and avoid conflicts during batch execution.
+- get_knowledge: Query knowledge base for specific patterns. Use bootstrap_task at task start; use this for targeted mid-task lookups.
 
 Use these tools instead of curl commands for better reliability and error handling.
 Configuration is provided via environment variables (VIBEMAN_PROJECT_ID, VIBEMAN_CONTEXT_ID, etc.).`,

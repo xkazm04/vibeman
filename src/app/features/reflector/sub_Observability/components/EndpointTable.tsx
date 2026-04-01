@@ -92,6 +92,7 @@ export default function EndpointTable({ endpoints, trends = [] }: EndpointTableP
     <th
       className={`px-3 py-2 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-200 transition-colors ${className}`}
       onClick={() => handleSort(field)}
+      aria-sort={sortField === field ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
     >
       <div className="flex items-center gap-1">
         {children}

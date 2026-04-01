@@ -4,7 +4,7 @@
  */
 
 import { getDatabase } from '../connection';
-import { generateId, getCurrentTimestamp } from './repository.utils';
+import { generateId, getCurrentTimestamp, escapeLikePattern } from './repository.utils';
 import type {
   DbCrossTaskPlan,
   CreateCrossTaskPlanInput,
@@ -350,12 +350,12 @@ export const crossTaskPlanRepository = {
   ): DbCrossTaskPlan[] => {
     ensureTables();
     const db = getDatabase();
-    const searchPattern = `%${query}%`;
+    const searchPattern = `%${escapeLikePattern(query)}%`;
 
     if (workspaceId) {
       const stmt = db.prepare(`
         SELECT * FROM cross_task_plans
-        WHERE workspace_id = ? AND (requirement LIKE ? OR requirement_summary LIKE ?)
+        WHERE workspace_id = ? AND (requirement LIKE ? ESCAPE '\\' OR requirement_summary LIKE ? ESCAPE '\\')
         ORDER BY created_at DESC
         LIMIT ?
       `);
@@ -363,7 +363,7 @@ export const crossTaskPlanRepository = {
     } else {
       const stmt = db.prepare(`
         SELECT * FROM cross_task_plans
-        WHERE workspace_id IS NULL AND (requirement LIKE ? OR requirement_summary LIKE ?)
+        WHERE workspace_id IS NULL AND (requirement LIKE ? ESCAPE '\\' OR requirement_summary LIKE ? ESCAPE '\\')
         ORDER BY created_at DESC
         LIMIT ?
       `);

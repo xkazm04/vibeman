@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getScanOrchestrator, initializeScanOrchestrator } from '@/lib/scan/scanOrchestrator';
+import { getScanOrchestrator } from '@/lib/scan/scanOrchestrator';
 import { ScanConfig, ScanResult } from '@/lib/scan/types';
-import { createFileGatherer } from '@/lib/scan/fileGatherer';
 import { logger } from '@/lib/logger';
 
 /**
@@ -91,17 +90,7 @@ async function handlePost(request: NextRequest): Promise<NextResponse<UnifiedSca
       provider
     });
 
-    // Initialize orchestrator if needed
-    const orchestrator = getScanOrchestrator();
-    if (!orchestrator) {
-      const fileGatherer = createFileGatherer('http');
-      initializeScanOrchestrator(fileGatherer);
-    }
-
     const scanOrchestrator = getScanOrchestrator();
-    if (!scanOrchestrator) {
-      throw new Error('Failed to initialize ScanOrchestrator');
-    }
 
     // Build scan config
     const scanConfig: ScanConfig = {
@@ -187,16 +176,7 @@ async function handleParallelScan(
       }
     }
 
-    const orchestrator = getScanOrchestrator();
-    if (!orchestrator) {
-      const fileGatherer = createFileGatherer('http');
-      initializeScanOrchestrator(fileGatherer);
-    }
-
     const scanOrchestrator = getScanOrchestrator();
-    if (!scanOrchestrator) {
-      throw new Error('Failed to initialize ScanOrchestrator');
-    }
 
     logger.info('Executing parallel scans', { count: body.scans.length });
 

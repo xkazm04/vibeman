@@ -2,14 +2,20 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, FolderOpen, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, FolderOpen, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import type { DbWorkspace } from '@/app/db/models/types';
 import { useUserConfigStore } from '@/stores/userConfigStore';
 import FolderBrowserInput from './FolderBrowserInput';
 
-const COLORS = [
-  '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
-  '#f97316', '#eab308', '#22c55e', '#06b6d4',
+const COLORS: { hex: string; name: string }[] = [
+  { hex: '#6366f1', name: 'indigo' },
+  { hex: '#8b5cf6', name: 'violet' },
+  { hex: '#ec4899', name: 'pink' },
+  { hex: '#ef4444', name: 'red' },
+  { hex: '#f97316', name: 'orange' },
+  { hex: '#eab308', name: 'yellow' },
+  { hex: '#22c55e', name: 'green' },
+  { hex: '#06b6d4', name: 'cyan' },
 ];
 
 interface WorkspaceFormProps {
@@ -22,7 +28,7 @@ export default function WorkspaceForm({ workspace, onSubmit, onCancel }: Workspa
   const { basePath: defaultBasePath } = useUserConfigStore();
   const [name, setName] = useState(workspace?.name || '');
   const [description, setDescription] = useState(workspace?.description || '');
-  const [color, setColor] = useState(workspace?.color || COLORS[0]);
+  const [color, setColor] = useState(workspace?.color || COLORS[0].hex);
   const [basePath, setBasePath] = useState(workspace?.base_path || '');
   const [showAdvanced, setShowAdvanced] = useState(!!workspace?.base_path);
 
@@ -82,19 +88,28 @@ export default function WorkspaceForm({ workspace, onSubmit, onCancel }: Workspa
       <fieldset className="flex items-center gap-2">
         <legend className="sr-only">Workspace color</legend>
         <span className="text-xs text-gray-500" aria-hidden="true">Color:</span>
-        {COLORS.map(c => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => setColor(c)}
-            aria-label={`Select color ${c}`}
-            aria-pressed={color === c}
-            className={`w-5 h-5 rounded-full border-2 transition-all ${
-              color === c ? 'border-white scale-110' : 'border-transparent opacity-60 hover:opacity-100'
-            }`}
-            style={{ backgroundColor: c }}
-          />
-        ))}
+        {COLORS.map(({ hex, name }) => {
+          const isSelected = color === hex;
+          return (
+            <button
+              key={hex}
+              type="button"
+              onClick={() => setColor(hex)}
+              aria-label={`Select ${name} color`}
+              aria-pressed={isSelected}
+              className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                isSelected
+                  ? 'scale-110 ring-2 ring-offset-2 ring-offset-[#0f0f23] ring-white'
+                  : 'opacity-60 hover:opacity-100'
+              }`}
+              style={{ backgroundColor: hex }}
+            >
+              {isSelected && (
+                <Check className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" />
+              )}
+            </button>
+          );
+        })}
       </fieldset>
 
       {/* Advanced Settings Toggle */}

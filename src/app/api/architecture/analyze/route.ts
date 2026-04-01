@@ -128,11 +128,10 @@ export async function GET(request: NextRequest) {
       return successResponse({ analysis });
     }
 
-    if (workspaceId !== null) {
-      const wsId = workspaceId || null;
-      const running = architectureAnalysisDb.getRunning('workspace', wsId);
-      const latest = architectureAnalysisDb.getLatestCompleted('workspace', wsId);
-      const history = architectureAnalysisDb.getHistory('workspace', wsId, 10);
+    if (workspaceId) {
+      const running = architectureAnalysisDb.getRunning('workspace', workspaceId);
+      const latest = architectureAnalysisDb.getLatestCompleted('workspace', workspaceId);
+      const history = architectureAnalysisDb.getHistory('workspace', workspaceId, 10);
 
       return successResponse({
         isRunning: !!running,

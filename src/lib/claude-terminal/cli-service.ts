@@ -202,10 +202,17 @@ interface SpawnConfig {
   stdinPrompt: boolean;
 }
 
+/** Optional tool filtering for task-aware dispatch */
+export interface ToolFilterOptions {
+  allowedTools?: string[];
+  disallowedTools?: string[];
+}
+
 function buildSpawnConfig(
   prompt: string,
   resumeSessionId?: string,
-  providerConfig?: CLIProviderConfig
+  providerConfig?: CLIProviderConfig,
+  toolFilter?: ToolFilterOptions
 ): SpawnConfig {
   const provider = providerConfig?.provider || 'claude';
   const model = providerConfig?.model;
@@ -235,6 +242,13 @@ function buildSpawnConfig(
       '--model', model || 'qwen3.5:cloud',
     ];
     if (resumeSessionId) args.push('--resume', resumeSessionId);
+    // Tool filtering (task-aware dispatch)
+    if (toolFilter?.allowedTools?.length) {
+      args.push('--allowedTools', toolFilter.allowedTools.join(','));
+    }
+    if (toolFilter?.disallowedTools?.length) {
+      args.push('--disallowedTools', toolFilter.disallowedTools.join(','));
+    }
 
     const env = { ...baseEnv };
     env.ANTHROPIC_BASE_URL = ollamaBaseUrl;
@@ -256,6 +270,13 @@ function buildSpawnConfig(
   }
   if (model) args.push('--model', model);
   if (resumeSessionId) args.push('--resume', resumeSessionId);
+  // Tool filtering (task-aware dispatch)
+  if (toolFilter?.allowedTools?.length) {
+    args.push('--allowedTools', toolFilter.allowedTools.join(','));
+  }
+  if (toolFilter?.disallowedTools?.length) {
+    args.push('--disallowedTools', toolFilter.disallowedTools.join(','));
+  }
 
   const env = { ...baseEnv };
   delete env.ANTHROPIC_API_KEY; // Force web subscription auth
@@ -318,7 +339,8 @@ export function startExecution(
   resumeSessionId?: string,
   onEvent?: (event: CLIExecutionEvent) => void,
   providerConfig?: CLIProviderConfig,
-  extraEnv?: Record<string, string>
+  extraEnv?: Record<string, string>,
+  toolFilter?: ToolFilterOptions
 ): string {
   // Resource protection: enforce global concurrency limit
   const runningCount = Array.from(activeExecutions.values()).filter(e => e.status === 'running').length;
@@ -333,6 +355,7 @@ export function startExecution(
   const now = Date.now();
   for (const [id, exec] of activeExecutions) {
     if (exec.status !== 'running' && exec.endTime && (now - exec.endTime > EXECUTION_CLEANUP_DELAY_MS)) {
+      if (exec.sessionId) sessionToExecution.delete(exec.sessionId);
       activeExecutions.delete(id);
     }
   }
@@ -406,7 +429,7 @@ export function startExecution(
   // Build provider-specific spawn configuration
   // On Windows, shell resolves both .exe and .cmd installs automatically
   const isWindows = process.platform === 'win32';
-  const spawnConfig = buildSpawnConfig(prompt, resumeSessionId, providerConfig);
+  const spawnConfig = buildSpawnConfig(prompt, resumeSessionId, providerConfig, toolFilter);
 
   // Merge extra env vars (e.g., VIBEMAN_PROJECT_ID, VIBEMAN_TASK_ID for MCP bidirectional channel)
   if (extraEnv) {
@@ -766,6 +789,7 @@ export function cleanupExecutions(maxAgeMs: number = 3600000): void {
   const now = Date.now();
   for (const [id, execution] of activeExecutions) {
     if (execution.status !== 'running' && execution.endTime && now - execution.endTime > maxAgeMs) {
+      if (execution.sessionId) sessionToExecution.delete(execution.sessionId);
       activeExecutions.delete(id);
     }
   }

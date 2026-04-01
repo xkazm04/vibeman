@@ -50,7 +50,7 @@ export default function ChatPanel() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="mx-4 mb-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center gap-2"
+            className="mx-4 mb-2 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center gap-2.5"
           >
             <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
             <p className="text-xs text-red-300 flex-1">{error}</p>
@@ -65,8 +65,8 @@ export default function ChatPanel() {
       <ContextIndicatorBar projectId={projectId} />
 
       {/* Input area */}
-      <div className="px-4 pb-4 pt-2 border-t border-slate-800/50">
-        <div className="flex items-center gap-2 bg-slate-800/40 border border-slate-700/30 rounded-xl px-3 py-2 focus-within:border-cyan-500/30 transition-colors">
+      <div className="px-4 pb-4 pt-2.5 border-t border-slate-800/50">
+        <div className="flex items-center gap-2.5 bg-slate-800/40 border border-slate-700/30 rounded-xl px-3 py-2.5 focus-within:border-cyan-500/30 transition-colors">
           <input
             ref={inputRef}
             type="text"

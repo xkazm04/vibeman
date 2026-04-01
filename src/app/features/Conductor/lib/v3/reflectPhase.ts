@@ -20,6 +20,8 @@ import type {
   V3Config,
   V3Metrics,
   WorkspaceContext,
+  QualityGateConfig,
+  QualityGateResult,
 } from './types';
 import type { BuildResult } from '../execution/buildValidator';
 
@@ -40,6 +42,103 @@ export interface ReflectPhaseInput {
   goalDescription: string;
   workspaceContext?: WorkspaceContext | null;
   abortSignal?: AbortSignal;
+}
+
+// ============================================================================
+// Quality Gate Runner
+// ============================================================================
+
+/**
+ * Run configured quality gates sequentially and collect results.
+ * Gate types:
+ *   - build: uses the already-computed buildResult
+ *   - lint/test/custom: runs a shell command
+ *   - rubric: checks the LLM rubric score (derived from task success rate)
+ */
+function runQualityGates(
+  gates: QualityGateConfig[],
+  buildResult: BuildResult,
+  summary: ResultsSummary,
+  projectPath: string,
+): QualityGateResult[] {
+  const results: QualityGateResult[] = [];
+
+  for (const gate of gates) {
+    const label = gate.label || gate.type;
+
+    if (gate.type === 'build') {
+      results.push({
+        type: 'build',
+        label,
+        passed: buildResult.passed || !!buildResult.skipped,
+        required: gate.required,
+        message: buildResult.passed
+          ? `Build passed (${buildResult.durationMs}ms)`
+          : buildResult.skipped
+            ? `Build skipped: ${buildResult.reason}`
+            : `Build failed: ${(buildResult.errorOutput || '').slice(0, 300)}`,
+        durationMs: buildResult.durationMs,
+      });
+    } else if (gate.type === 'rubric') {
+      const minScore = gate.minScore ?? 3;
+      // Derive rubric score 1-5 from task success rate
+      const successRate = summary.total > 0
+        ? summary.completed / summary.total
+        : 0;
+      const rubricScore = Math.round(1 + successRate * 4); // 1-5 scale
+      const passed = rubricScore >= minScore;
+      results.push({
+        type: 'rubric',
+        label,
+        passed,
+        required: gate.required,
+        message: `Rubric score: ${rubricScore}/5 (min: ${minScore}, success rate: ${Math.round(successRate * 100)}%)`,
+        durationMs: 0,
+      });
+    } else if (gate.command) {
+      // lint, test, custom — run shell command
+      const start = Date.now();
+      try {
+        execSync(gate.command, {
+          cwd: projectPath,
+          encoding: 'utf-8',
+          timeout: 120000,
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        results.push({
+          type: gate.type,
+          label,
+          passed: true,
+          required: gate.required,
+          message: `Command passed: ${gate.command}`,
+          durationMs: Date.now() - start,
+        });
+      } catch (error: unknown) {
+        const err = error as Error & { stderr?: string; stdout?: string };
+        const output = (err.stderr || err.stdout || String(error)).slice(0, 300);
+        results.push({
+          type: gate.type,
+          label,
+          passed: false,
+          required: gate.required,
+          message: `Command failed: ${output}`,
+          durationMs: Date.now() - start,
+        });
+      }
+    } else {
+      // Gate with no command and not build/rubric — skip as misconfigured
+      results.push({
+        type: gate.type,
+        label,
+        passed: true,
+        required: false,
+        message: 'Skipped: no command configured',
+        durationMs: 0,
+      });
+    }
+  }
+
+  return results;
 }
 
 // ============================================================================
@@ -131,7 +230,29 @@ export async function executeReflectPhase(input: ReflectPhaseInput): Promise<{
     reflectOutput.nextTasks = undefined;
   }
 
-  // 9. Update metrics
+  // 9. Run quality gates (if configured)
+  if (config.qualityGates.length > 0) {
+    const gateResults = runQualityGates(
+      config.qualityGates,
+      buildResult,
+      summary,
+      projectPath,
+    );
+    reflectOutput.qualityGateResults = gateResults;
+
+    // If LLM said "done" but required gates failed, override to needs_healing
+    if (reflectOutput.status === 'done') {
+      const failedRequired = gateResults.filter(g => g.required && !g.passed);
+      if (failedRequired.length > 0) {
+        const failedNames = failedRequired.map(g => g.label).join(', ');
+        reflectOutput.status = 'needs_healing';
+        reflectOutput.summary += ` [Quality gates failed: ${failedNames}]`;
+        console.log(`[v3:reflect] Quality gates overriding done → needs_healing (failed: ${failedNames})`);
+      }
+    }
+  }
+
+  // 10. Update metrics
   const updatedMetrics = updateMetrics(currentMetrics, summary);
 
   return { output: reflectOutput, updatedMetrics, errors };

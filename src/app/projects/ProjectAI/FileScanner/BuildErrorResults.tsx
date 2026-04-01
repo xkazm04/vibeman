@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, AlertCircle, AlertTriangle, FileText, Code, Wrench, Zap, HelpCircle } from 'lucide-react';
 import { BuildError, BuildScanStats } from '@/lib/scanner/buildErrorScanner';
+import { getCategoricalConfidenceColor } from '@/lib/confidenceColor';
 
 interface BuildErrorResultsProps {
   isOpen: boolean;
@@ -115,12 +116,8 @@ export default function BuildErrorResults({
   };
 
   const getConfidenceColor = (confidence: 'high' | 'medium' | 'low') => {
-    const colors = {
-      high: 'bg-green-500/20 text-green-400',
-      medium: 'bg-yellow-500/20 text-yellow-400',
-      low: 'bg-orange-500/20 text-orange-400'
-    };
-    return colors[confidence];
+    const c = getCategoricalConfidenceColor(confidence);
+    return `${c.bg} ${c.text}`;
   };
 
   const getIssueBorderColor = (severity: string) => {

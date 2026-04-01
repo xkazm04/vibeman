@@ -21,11 +21,13 @@ import PipelineControls from './PipelineControls';
 import MetricsBar from './MetricsBar';
 import ProcessLog from './ProcessLog';
 import HealingPanel from './HealingPanel';
+import QualityGateChecklist from './QualityGateChecklist';
 import BalancingModal from './BalancingModal';
 import RunHistoryTimeline from './RunHistoryTimeline';
 import ConductorNerdView from './ConductorNerdView';
 import RunReportModal from './RunReportModal';
 import type { AnyPipelineStage } from '../lib/types';
+import type { QualityGateResult } from '../lib/v3/types';
 
 interface ConductorViewProps {
   projectId?: string | null;
@@ -80,10 +82,12 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
+        if (goals.length === 0) return;
         setFocusedIndex((prev) => (prev + 1) % goals.length);
         break;
       case 'ArrowUp':
         e.preventDefault();
+        if (goals.length === 0) return;
         setFocusedIndex((prev) => (prev - 1 + goals.length) % goals.length);
         break;
       case 'Enter':
@@ -304,6 +308,17 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
 
       {/* Metrics Bar */}
       <MetricsBar metrics={currentRun?.metrics ?? null} processLog={processLog} isRunning={isRunning} />
+
+      {/* Quality Gate Checklist */}
+      {currentRun?.qualityGateResults && currentRun.qualityGateResults.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+        >
+          <QualityGateChecklist results={currentRun.qualityGateResults as QualityGateResult[]} />
+        </motion.div>
+      )}
 
       {/* Process Log + Self-Healing */}
       <motion.div

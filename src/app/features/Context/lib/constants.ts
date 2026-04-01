@@ -47,28 +47,6 @@ export const ICON_OPTIONS = [
 ] as const;
 
 /**
- * Timeline format options for date formatting
- */
-export const DATE_FORMAT_OPTIONS = {
-  SHORT: {
-    year: 'numeric' as const,
-    month: 'short' as const,
-    day: 'numeric' as const,
-  },
-  LONG: {
-    year: 'numeric' as const,
-    month: 'long' as const,
-    day: 'numeric' as const,
-    hour: '2-digit' as const,
-    minute: '2-digit' as const,
-  },
-  TIME_ONLY: {
-    hour: '2-digit' as const,
-    minute: '2-digit' as const,
-  }
-};
-
-/**
  * Grid layout configurations based on item count
  */
 export const GRID_LAYOUT_CONFIG = {

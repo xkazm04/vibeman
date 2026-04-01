@@ -27,7 +27,9 @@ import {
   Globe,
 } from 'lucide-react';
 import ReflectorKPICard from '../../components/ReflectorKPICard';
+import EmptyStateShared from '@/components/ui/EmptyState';
 import { duration, easing } from '@/lib/motion';
+import { useTabNavigation } from '@/hooks/useTabNavigation';
 
 // ─── Types (matching /api/db/performance response) ────────────────
 
@@ -101,6 +103,7 @@ export default function DatabaseHealthPanel({ projectId }: { projectId: string }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('slow_queries');
+  const { tablistRef, handleKeyDown: handleTabKeyDown } = useTabNavigation();
 
   const loadData = useCallback(async () => {
     if (!projectId) return;
@@ -220,12 +223,21 @@ export default function DatabaseHealthPanel({ projectId }: { projectId: string }
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex items-center gap-1 bg-gray-800/40 rounded-lg p-1 border border-gray-700/50">
+      <div
+        ref={tablistRef}
+        role="tablist"
+        aria-label="Database health views"
+        onKeyDown={handleTabKeyDown}
+        className="flex items-center gap-1 bg-gray-800/40 rounded-lg p-1 border border-gray-700/50"
+      >
         {TABS.map((tab) => (
           <button
             key={tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            tabIndex={activeTab === tab.id ? 0 : -1}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center gap-2 ${
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
               activeTab === tab.id
                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                 : 'text-gray-400 hover:text-gray-200'
@@ -250,22 +262,22 @@ export default function DatabaseHealthPanel({ projectId }: { projectId: string }
       {/* Tab Content */}
       <AnimatePresence mode="wait">
         {activeTab === 'slow_queries' && (
-          <motion.div key="slow_queries" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+          <motion.div key="slow_queries" role="tabpanel" aria-label="Slow Queries" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
             <SlowQueriesTab queries={data.slowQueries} />
           </motion.div>
         )}
         {activeTab === 'write_contention' && (
-          <motion.div key="write_contention" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+          <motion.div key="write_contention" role="tabpanel" aria-label="Write Contention" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
             <WriteContentionTab tables={data.tableContention} />
           </motion.div>
         )}
         {activeTab === 'index_advisor' && (
-          <motion.div key="index_advisor" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+          <motion.div key="index_advisor" role="tabpanel" aria-label="Index Advisor" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
             <IndexAdvisorTab suggestions={data.indexSuggestions} />
           </motion.div>
         )}
         {activeTab === 'routes' && (
-          <motion.div key="routes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+          <motion.div key="routes" role="tabpanel" aria-label="Route Load" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
             <RouteCorrelationsTab routes={data.routeCorrelations} />
           </motion.div>
         )}
@@ -281,10 +293,11 @@ function SlowQueriesTab({ queries }: { queries: SlowQuery[] }) {
 
   if (queries.length === 0) {
     return (
-      <EmptyState
+      <EmptyStateShared
         icon={Gauge}
         title="No slow queries detected"
         description="Query patterns are collected as the app runs. Check back after some activity."
+        variant="compact"
       />
     );
   }
@@ -385,10 +398,11 @@ function SlowQueriesTab({ queries }: { queries: SlowQuery[] }) {
 function WriteContentionTab({ tables }: { tables: TableContention[] }) {
   if (tables.length === 0) {
     return (
-      <EmptyState
+      <EmptyStateShared
         icon={HardDrive}
         title="No write contention detected"
         description="Write patterns are analyzed from INSERT, UPDATE, and DELETE query patterns."
+        variant="compact"
       />
     );
   }
@@ -459,10 +473,11 @@ function IndexAdvisorTab({ suggestions }: { suggestions: IndexSuggestion[] }) {
 
   if (suggestions.length === 0) {
     return (
-      <EmptyState
+      <EmptyStateShared
         icon={Search}
         title="No missing indexes detected"
         description="All frequently filtered columns appear to have indexes."
+        variant="compact"
       />
     );
   }
@@ -529,10 +544,11 @@ function IndexAdvisorTab({ suggestions }: { suggestions: IndexSuggestion[] }) {
 function RouteCorrelationsTab({ routes }: { routes: RouteCorrelation[] }) {
   if (routes.length === 0) {
     return (
-      <EmptyState
+      <EmptyStateShared
         icon={Globe}
         title="No route correlations available"
         description="API call data from the observability middleware will appear here once endpoints are active."
+        variant="compact"
       />
     );
   }
@@ -658,12 +674,3 @@ function DbLoadBar({ load }: { load: number }) {
   );
 }
 
-function EmptyState({ icon: Icon, title, description }: { icon: React.ElementType; title: string; description: string }) {
-  return (
-    <div className="rounded-xl bg-gray-800/40 border border-gray-700/50 p-10 text-center">
-      <Icon className="w-10 h-10 text-gray-600 mx-auto mb-3" />
-      <p className="text-gray-300 font-medium mb-1">{title}</p>
-      <p className="text-xs text-gray-500">{description}</p>
-    </div>
-  );
-}

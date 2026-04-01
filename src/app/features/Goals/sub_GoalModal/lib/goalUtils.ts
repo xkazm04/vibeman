@@ -1,4 +1,5 @@
 import { Goal } from '@/types';
+import { formatDate as sharedFormatDate } from '@/lib/formatDate';
 
 /**
  * Sort goals by order
@@ -72,40 +73,4 @@ export function validateGoalData(goal: Partial<Goal>): boolean {
   return Boolean(goal.title && goal.title.trim().length > 0);
 }
 
-/**
- * Format configuration presets for date display
- */
-const DATE_FORMAT_OPTIONS = {
-  long: {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  } as const,
-  short: {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  } as const,
-};
-
-/**
- * Normalize date to Date object
- * @param date - Date string or Date object
- * @returns Date object
- */
-function normalizeDate(date: string | Date): Date {
-  return typeof date === 'string' ? new Date(date) : date;
-}
-
-/**
- * Format date for display
- * @param date - Date string or Date object
- * @param format - Date format ('short' | 'long')
- * @returns Formatted date string
- */
-export function formatDate(date: string | Date, format: 'short' | 'long' = 'short'): string {
-  const dateObj = normalizeDate(date);
-  const options = DATE_FORMAT_OPTIONS[format];
-  return dateObj.toLocaleDateString('en-US', options);
-}
+export { sharedFormatDate as formatDate };

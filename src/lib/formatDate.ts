@@ -1,17 +1,25 @@
 /**
  * Shared date formatting utilities
+ *
+ * All date formatting should go through these functions to avoid
+ * duplicate implementations scattered across components.
  */
+
+type DateInput = Date | string | number;
+
+function toDate(input: DateInput): Date {
+  return input instanceof Date ? input : new Date(input);
+}
+
+// ── Relative time ────────────────────────────────────────────────────────────
 
 /**
  * Format a date as relative time (e.g., "just now", "5m ago", "2h ago", "3d ago")
  * Falls back to a short date format for dates older than a week.
- *
- * @param date - Date object or ISO date string
- * @returns Relative time string
  */
-export function formatRelativeTime(date: Date | string): string {
+export function formatRelativeTime(date: DateInput): string {
   try {
-    const dateObj = date instanceof Date ? date : new Date(date);
+    const dateObj = toDate(date);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - dateObj.getTime()) / 1000);
 
@@ -27,7 +35,7 @@ export function formatRelativeTime(date: Date | string): string {
 }
 
 /**
- * Format a Date object as relative time (similar to date-fns formatDistanceToNow)
+ * Format a Date as verbose relative time (e.g., "3 minutes ago", "1 hour ago")
  */
 export function formatDistanceToNow(date: Date): string {
   try {
@@ -55,5 +63,128 @@ export function formatDistanceToNow(date: Date): string {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   } catch {
     return 'unknown';
+  }
+}
+
+// ── Absolute date formats ────────────────────────────────────────────────────
+
+/**
+ * Short date: "Jan 5, 2026"
+ */
+export function formatDate(input: DateInput): string {
+  try {
+    return toDate(input).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return typeof input === 'string' ? input : 'unknown';
+  }
+}
+
+/**
+ * Compact date (no year): "Jan 5"
+ */
+export function formatDateShort(input: DateInput): string {
+  try {
+    return toDate(input).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch {
+    return typeof input === 'string' ? input : 'unknown';
+  }
+}
+
+/**
+ * Date + time: "Jan 5, 2026, 02:30 PM"
+ */
+export function formatDateTime(input: DateInput): string {
+  try {
+    return toDate(input).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return typeof input === 'string' ? input : 'unknown';
+  }
+}
+
+/**
+ * Compact date + time (no year): "Jan 5, 02:30 PM"
+ */
+export function formatDateTimeShort(input: DateInput): string {
+  try {
+    return toDate(input).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return typeof input === 'string' ? input : 'unknown';
+  }
+}
+
+/**
+ * ISO date only: "2026-01-05" (for input fields & APIs)
+ */
+export function formatDateISO(input: DateInput): string {
+  try {
+    return toDate(input).toISOString().split('T')[0];
+  } catch {
+    return typeof input === 'string' ? input : '';
+  }
+}
+
+/**
+ * Zero-padded month-day: "01-05"
+ */
+export function formatDateCompact(input: DateInput): string {
+  try {
+    const d = toDate(input);
+    return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  } catch {
+    return typeof input === 'string' ? input : 'unknown';
+  }
+}
+
+/**
+ * Relative date with Today/Yesterday labels and time, falling back to short relative.
+ * "Today 14:30", "Yesterday 09:15", "5d ago", locale date for older
+ */
+export function formatDateWithDayLabel(input: DateInput | null): string {
+  if (!input) return '—';
+  try {
+    const date = toDate(input);
+    const now = Date.now();
+    const diffDays = Math.floor((now - date.getTime()) / 86400000);
+    if (diffDays === 0) return `Today ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    if (diffDays === 1) return `Yesterday ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  } catch {
+    return typeof input === 'string' ? input : 'unknown';
+  }
+}
+
+/**
+ * Fuzzy relative: "Today", "Yesterday", "3 days ago", "2 weeks ago", then short date
+ */
+export function formatDateFuzzy(input: DateInput): string {
+  try {
+    const date = toDate(input);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return `${days} days ago`;
+    if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch {
+    return typeof input === 'string' ? input : 'unknown';
   }
 }

@@ -351,61 +351,6 @@ function extractImports(filePath: string, sourceCode: string): ImportInfo[] {
 }
 
 /**
- * Resolve import path to absolute file path
- */
-async function resolveImportPath(
-  importPath: string,
-  fromFile: string,
-  projectPath: string,
-  tsConfig?: any
-): Promise<string | null> {
-  try {
-    // Handle relative imports
-    if (importPath.startsWith('.')) {
-      const fromDir = path.dirname(fromFile);
-      const resolved = path.resolve(fromDir, importPath);
-
-      // Try with extensions
-      for (const ext of ['.tsx', '.ts', '.jsx', '.js', '/index.tsx', '/index.ts']) {
-        const withExt = resolved + ext;
-        try {
-          await fs.access(withExt);
-          return withExt;
-        } catch {
-          // File doesn't exist with this extension, try next
-        }
-      }
-
-      return resolved;
-    }
-
-    // Handle alias imports (@/...)
-    if (importPath.startsWith('@/')) {
-      const withoutAlias = importPath.replace('@/', '');
-      const resolved = path.join(projectPath, 'src', withoutAlias);
-
-      // Try with extensions
-      for (const ext of ['.tsx', '.ts', '.jsx', '.js', '/index.tsx', '/index.ts']) {
-        const withExt = resolved + ext;
-        try {
-          await fs.access(withExt);
-          return withExt;
-        } catch {
-          // File doesn't exist with this extension, try next
-        }
-      }
-
-      return resolved;
-    }
-
-    // Skip external modules (node_modules)
-    return null;
-  } catch (error) {
-    return null;
-  }
-}
-
-/**
  * Normalize path separators for consistent pattern matching
  */
 function normalizePath(filePath: string): string {

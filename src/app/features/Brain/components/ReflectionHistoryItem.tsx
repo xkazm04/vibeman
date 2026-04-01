@@ -4,8 +4,6 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { collapse, collapseTransition } from '../lib/motionPresets';
 import {
-  ChevronDown,
-  ChevronRight,
   Clock,
   Lightbulb,
   FileText,
@@ -13,6 +11,8 @@ import {
   XCircle,
   Loader2,
 } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
+import { formatDateWithDayLabel } from '@/lib/formatDate';
 import type { LearningInsight } from '@/app/db/models/brain.types';
 
 export interface ReflectionHistoryEntry {
@@ -46,16 +46,6 @@ function formatDuration(ms: number | null): string {
   return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
 }
 
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '—';
-  const date = new Date(dateStr);
-  const now = Date.now();
-  const diffDays = Math.floor((now - date.getTime()) / 86400000);
-  if (diffDays === 0) return `Today ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-  if (diffDays === 1) return `Yesterday ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
-}
 
 function StatusIcon({ status }: { status: string }) {
   if (status === 'completed') return <CheckCircle className="w-3.5 h-3.5 text-green-400" />;
@@ -75,16 +65,12 @@ export default function ReflectionHistoryItem({ entry }: Props) {
         aria-label={`${expanded ? 'Collapse' : 'Expand'} reflection details`}
         className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-800/30 transition-colors text-left focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none"
       >
-        {expanded ? (
-          <ChevronDown className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" />
-        ) : (
-          <ChevronRight className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" />
-        )}
+        <ExpandChevron expanded={expanded} className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" />
 
         <StatusIcon status={entry.status} />
 
         <span className="text-sm text-zinc-300 flex-1 truncate">
-          {formatDate(entry.completedAt || entry.startedAt || entry.createdAt)}
+          {formatDateWithDayLabel(entry.completedAt || entry.startedAt || entry.createdAt)}
         </span>
 
         {/* Compact stats */}

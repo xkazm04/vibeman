@@ -20,6 +20,7 @@ import {
   ChevronRight, Play, Square, Settings2, Loader2, Hand,
 } from 'lucide-react';
 import { useVoiceCompanionStore } from '@/stores/voiceCompanionStore';
+import EmptyState from '@/components/ui/EmptyState';
 
 // ─── Audio Level Visualizer ───
 
@@ -152,7 +153,7 @@ export default function AmbientVoicePanel() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-800/50">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <Ear className="w-4 h-4 text-cyan-400" />
           <span className="text-xs font-medium text-slate-300">Voice Companion</span>
           <StateBadge state={engineState} />
@@ -169,9 +170,9 @@ export default function AmbientVoicePanel() {
       </div>
 
       {/* ── Controls Row ── */}
-      <div className="px-4 py-2 border-b border-slate-800/30 space-y-2">
+      <div className="px-4 py-2.5 border-b border-slate-800/30 space-y-2.5">
         {/* Power + Mode */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={handleToggleActive}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all focus-visible:ring-2 focus-visible:ring-cyan-500/50 outline-none ${
@@ -256,7 +257,7 @@ export default function AmbientVoicePanel() {
             transition={transition.snappy}
             className="overflow-hidden border-b border-slate-800/30"
           >
-            <div className="px-4 py-2 space-y-2">
+            <div className="px-4 py-2.5 space-y-2.5">
               {/* Pipeline */}
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-500 w-16">Pipeline</span>
@@ -328,7 +329,7 @@ export default function AmbientVoicePanel() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="px-4 py-2 bg-red-500/10 border-b border-red-500/20"
+            className="px-4 py-2.5 bg-red-500/10 border-b border-red-500/20"
           >
             <div className="flex items-center justify-between text-xs text-red-300">
               <span>{error}</span>
@@ -352,7 +353,7 @@ export default function AmbientVoicePanel() {
             exit={{ opacity: 0, height: 0 }}
             className="border-b border-slate-800/30"
           >
-            <div className="px-4 py-2 space-y-1.5">
+            <div className="px-4 py-2.5 space-y-1.5">
               {activeSuggestions.slice(-3).map((s) => (
                 <div
                   key={s.id}
@@ -380,25 +381,23 @@ export default function AmbientVoicePanel() {
       </AnimatePresence>
 
       {/* ── Transcript Feed ── */}
-      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
+      <div className="flex-1 overflow-y-auto px-4 py-2.5 space-y-1">
         {recentTranscripts.length === 0 && isActive && (
-          <div className="flex flex-col items-center justify-center py-8 text-slate-600">
-            <Ear className="w-6 h-6 mb-2 opacity-40" />
-            <p className="text-xs">
-              {mode === 'ambient' ? 'Listening for speech...' : 'Press and hold to speak'}
-            </p>
-            <p className="text-2xs mt-1 text-slate-700">
-              Say &quot;Hey Annette&quot; to talk to me
-            </p>
-          </div>
+          <EmptyState
+            icon={Ear}
+            title={mode === 'ambient' ? 'Listening for speech...' : 'Press and hold to speak'}
+            description='Say "Hey Annette" to talk to me'
+            variant="compact"
+          />
         )}
 
         {!isActive && (
-          <div className="flex flex-col items-center justify-center py-8 text-slate-600">
-            <MicOff className="w-6 h-6 mb-2 opacity-40" />
-            <p className="text-xs">Voice companion is off</p>
-            <p className="text-2xs mt-1 text-slate-700">Click Start to begin</p>
-          </div>
+          <EmptyState
+            icon={MicOff}
+            title="Voice companion is off"
+            description="Click Start to begin"
+            variant="compact"
+          />
         )}
 
         <AnimatePresence mode="popLayout">

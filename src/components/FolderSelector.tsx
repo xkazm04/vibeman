@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Folder, FolderOpen, File, ChevronRight, ChevronDown } from 'lucide-react';
+import { Folder, FolderOpen, File } from 'lucide-react';
+import ExpandChevron from '@/components/ui/ExpandChevron';
 import { transition, expandCollapse } from '@/lib/motion';
 import { useClientProjectStore } from '../stores/clientProjectStore';
 import { useThemeStore } from '@/stores/themeStore';
@@ -135,11 +136,7 @@ export default function FolderSelector({ onSelect, selectedPath, className = '' 
               }}
               className="p-0.5 hover:bg-gray-700 rounded transition-colors"
             >
-              {isExpanded ? (
-                <ChevronDown className="w-3 h-3" />
-              ) : (
-                <ChevronRight className="w-3 h-3" />
-              )}
+              <ExpandChevron expanded={isExpanded} className="w-3 h-3" />
             </button>
           )}
           

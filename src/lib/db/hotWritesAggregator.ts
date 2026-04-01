@@ -18,7 +18,18 @@ import { observabilityRepository } from '@/app/db/repositories/observability.rep
 const AGGREGATION_INTERVAL_MS = 5 * 60 * 1000; // Every 5 minutes
 const RAW_CALL_RETENTION_HOURS = 24; // Keep raw calls for 24h after aggregation
 
-let timer: ReturnType<typeof setInterval> | null = null;
+// Store timer on globalThis so it survives Next.js HMR module reloads.
+// Without this, each HMR cycle resets `timer` to null, bypasses the
+// `if (timer) return` guard, and spawns a duplicate setInterval worker.
+const GLOBAL_TIMER_KEY = '__hotWritesAggregatorTimer' as const;
+
+function getTimer(): ReturnType<typeof setInterval> | null {
+  return (globalThis as Record<string, unknown>)[GLOBAL_TIMER_KEY] as ReturnType<typeof setInterval> | null ?? null;
+}
+
+function setTimer(value: ReturnType<typeof setInterval> | null): void {
+  (globalThis as Record<string, unknown>)[GLOBAL_TIMER_KEY] = value;
+}
 
 /**
  * Run a single aggregation cycle.
@@ -63,27 +74,30 @@ export function runAggregationCycle(): { obsCallsAggregated: number; obsCallsPru
  * No-op if already running.
  */
 export function startAggregationWorker(): void {
-  if (timer) return;
+  if (getTimer()) return;
 
   // Run first cycle after a short delay (let DB init complete)
   setTimeout(() => {
     runAggregationCycle();
   }, 10_000);
 
-  timer = setInterval(runAggregationCycle, AGGREGATION_INTERVAL_MS);
+  const interval = setInterval(runAggregationCycle, AGGREGATION_INTERVAL_MS);
 
   // Allow Node to exit even if the timer is still active
-  if (timer && typeof timer === 'object' && 'unref' in timer) {
-    timer.unref();
+  if (interval && typeof interval === 'object' && 'unref' in interval) {
+    interval.unref();
   }
+
+  setTimer(interval);
 }
 
 /**
  * Stop the background aggregation worker.
  */
 export function stopAggregationWorker(): void {
+  const timer = getTimer();
   if (timer) {
     clearInterval(timer);
-    timer = null;
+    setTimer(null);
   }
 }

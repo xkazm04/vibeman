@@ -28,6 +28,8 @@ export default function MiniChatInput() {
           onClick={handleSend}
           disabled={!canSend}
           className="p-1.5 rounded-md bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          aria-label="Send message"
+          title="Send message"
         >
           <Send className="w-3.5 h-3.5" />
         </button>
