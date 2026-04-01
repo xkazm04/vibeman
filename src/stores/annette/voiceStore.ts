@@ -6,16 +6,22 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 
+type TtsProvider = 'openai' | 'elevenlabs';
+
 interface VoiceState {
   isRecording: boolean;
   isSpeaking: boolean;
   audioEnabled: boolean;
+  ttsProvider: TtsProvider;
+  elevenlabsVoiceId?: string;
 }
 
 interface VoiceActions {
   setRecording: (recording: boolean) => void;
   setSpeaking: (speaking: boolean) => void;
   toggleAudio: () => void;
+  setTtsProvider: (provider: TtsProvider) => void;
+  setElevenlabsVoiceId: (voiceId: string | undefined) => void;
   reset: () => void;
 }
 
@@ -25,6 +31,8 @@ const initialState: VoiceState = {
   isRecording: false,
   isSpeaking: false,
   audioEnabled: false,
+  ttsProvider: 'elevenlabs',
+  elevenlabsVoiceId: undefined,
 };
 
 export const useVoiceStore = create<VoiceStore>()(
@@ -35,6 +43,8 @@ export const useVoiceStore = create<VoiceStore>()(
       setRecording: (recording) => set({ isRecording: recording }),
       setSpeaking: (speaking) => set({ isSpeaking: speaking }),
       toggleAudio: () => set((state) => ({ audioEnabled: !state.audioEnabled })),
+      setTtsProvider: (provider) => set({ ttsProvider: provider }),
+      setElevenlabsVoiceId: (voiceId) => set({ elevenlabsVoiceId: voiceId }),
 
       reset: () => set(initialState),
     }),
