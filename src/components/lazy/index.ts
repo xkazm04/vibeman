@@ -15,3 +15,5 @@ export {
   createDeferredWidget,
   DeferredWidgetPresets,
 } from './DeferredWidget';
+export { default as StaggeredReveal } from './StaggeredReveal';
+export { usePrefetchModules } from './usePrefetchModule';

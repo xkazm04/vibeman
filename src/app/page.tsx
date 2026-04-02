@@ -9,25 +9,77 @@ import FrozenComponent from '../components/FrozenComponent';
 import LazyContentSection from '../components/Navigation/LazyContentSection';
 import GlobalTaskBar from '@/components/GlobalTaskBar';
 import { Toaster } from 'sonner';
+import { createLazyFeature, LazyFeaturePresets } from '@/components/lazy';
+import { usePrefetchModules } from '@/components/lazy/usePrefetchModule';
 
-// Direct imports for feature layouts (no lazy loading)
-import IdeasLayout from './features/Ideas/IdeasLayout';
-import TinderLayout from './features/tinder/TinderLayout';
-import TaskRunnerLayout from './features/TaskRunner/TaskRunnerLayout';
-import ReflectorLayout from './features/reflector/ReflectorLayout';
-import ManagerLayout from './features/Manager/ManagerLayout';
-import GoalsLayout from './features/Goals/GoalsLayout';
-import HallOfFameLayout from './features/HallOfFame/HallOfFameLayout';
-import ContextLayout from './features/Context/ContextLayout';
-import SocialLayout from './features/Social/SocialLayout';
-import ZenLayout from './zen/ZenLayout';
-import QuestionsLayout from './features/Questions/QuestionsLayout';
-import IntegrationsLayout from './features/Integrations/IntegrationsLayout';
-import { BrainLayout } from './features/Brain';
-import { CommanderLayout } from './features/Commander';
-import ConductorLayout from './features/Conductor/ConductorLayout';
-import ViewsLayout from './features/Views/ViewsLayout';
+// ── Direct import: default module (instant) ────────────────────────────
 import { OverviewLayout } from './features/Overview';
+
+// ── Lazy imports: loaded on-demand per module switch ────────────────────
+const LazyGoalsLayout = createLazyFeature(
+  () => import('./features/Goals/GoalsLayout'),
+  LazyFeaturePresets.withCards('Goals')
+);
+const LazyContextLayout = createLazyFeature(
+  () => import('./features/Context/ContextLayout'),
+  LazyFeaturePresets.withSidebar('Context')
+);
+const LazyIdeasLayout = createLazyFeature(
+  () => import('./features/Ideas/IdeasLayout'),
+  LazyFeaturePresets.withCards('Ideas')
+);
+const LazyTinderLayout = createLazyFeature(
+  () => import('./features/tinder/TinderLayout'),
+  LazyFeaturePresets.withCards('Tinder')
+);
+const LazyTaskRunnerLayout = createLazyFeature(
+  () => import('./features/TaskRunner/TaskRunnerLayout'),
+  LazyFeaturePresets.withTable('TaskRunner')
+);
+const LazyReflectorLayout = createLazyFeature(
+  () => import('./features/reflector/ReflectorLayout'),
+  LazyFeaturePresets.minimal('Reflector')
+);
+const LazyManagerLayout = createLazyFeature(
+  () => import('./features/Manager/ManagerLayout'),
+  LazyFeaturePresets.withCards('Manager')
+);
+const LazyHallOfFameLayout = createLazyFeature(
+  () => import('./features/HallOfFame/HallOfFameLayout'),
+  LazyFeaturePresets.minimal('HallOfFame')
+);
+const LazySocialLayout = createLazyFeature(
+  () => import('./features/Social/SocialLayout'),
+  LazyFeaturePresets.minimal('Social')
+);
+const LazyZenLayout = createLazyFeature(
+  () => import('./zen/ZenLayout'),
+  LazyFeaturePresets.minimal('Zen')
+);
+const LazyQuestionsLayout = createLazyFeature(
+  () => import('./features/Questions/QuestionsLayout'),
+  LazyFeaturePresets.withTable('Questions')
+);
+const LazyIntegrationsLayout = createLazyFeature(
+  () => import('./features/Integrations/IntegrationsLayout'),
+  LazyFeaturePresets.withCards('Integrations')
+);
+const LazyBrainLayout = createLazyFeature(
+  () => import('./features/Brain/BrainLayout'),
+  LazyFeaturePresets.withSidebar('Brain')
+);
+const LazyCommanderLayout = createLazyFeature(
+  () => import('./features/Commander/CommanderLayout'),
+  LazyFeaturePresets.withSidebar('Commander')
+);
+const LazyConductorLayout = createLazyFeature(
+  () => import('./features/Conductor/ConductorLayout'),
+  LazyFeaturePresets.minimal('Conductor')
+);
+const LazyViewsLayout = createLazyFeature(
+  () => import('./features/Views/ViewsLayout'),
+  LazyFeaturePresets.minimal('Views')
+);
 
 
 export default function Home() {
@@ -35,9 +87,11 @@ export default function Home() {
   const { activeModule } = useOnboardingStore();
   const { activeProject } = useClientProjectStore();
   const { selectedProjectId } = useClientProjectStore();
-  
   // Initialize application session coordinator on app load
   useSessionInitialize();
+
+  // Prefetch neighbor modules during idle time
+  usePrefetchModules(activeModule);
 
   // Smooth transition variants for module and project switching
   const moduleVariants = {
@@ -53,37 +107,37 @@ export default function Home() {
       case 'overview':
         return <OverviewLayout key="overview" />;
       case 'coder':
-        return <GoalsLayout key="coder" projectId={projectId} />;
+        return <LazyGoalsLayout key="coder" projectId={projectId} />;
       case 'contexts':
-        return <ContextLayout key="contexts" selectedFilesCount={0} />;
+        return <LazyContextLayout key="contexts" selectedFilesCount={0} />;
       case 'ideas':
-        return <IdeasLayout key="ideas" selectedProjectId={selectedProjectId} />;
+        return <LazyIdeasLayout key="ideas" selectedProjectId={selectedProjectId} />;
       case 'tinder':
-        return <TinderLayout key="tinder" />;
+        return <LazyTinderLayout key="tinder" />;
       case 'tasker':
-        return <TaskRunnerLayout key="tasker" />;
+        return <LazyTaskRunnerLayout key="tasker" />;
       case 'reflector':
-        return <ReflectorLayout key="reflector" />;
+        return <LazyReflectorLayout key="reflector" />;
       case 'manager':
-        return <ManagerLayout key="manager" projectId={projectId} />;
+        return <LazyManagerLayout key="manager" projectId={projectId} />;
       case 'halloffame':
-        return <HallOfFameLayout key="halloffame" />;
+        return <LazyHallOfFameLayout key="halloffame" />;
       case 'social':
-        return <SocialLayout key="social" />;
+        return <LazySocialLayout key="social" />;
       case 'zen':
-        return <ZenLayout key="zen" />;
+        return <LazyZenLayout key="zen" />;
       case 'questions':
-        return <QuestionsLayout key="questions" />;
+        return <LazyQuestionsLayout key="questions" />;
       case 'integrations':
-        return <IntegrationsLayout key="integrations" projectId={projectId} />;
+        return <LazyIntegrationsLayout key="integrations" projectId={projectId} />;
       case 'brain':
-        return <BrainLayout key="brain" />;
+        return <LazyBrainLayout key="brain" />;
       case 'commander':
-        return <CommanderLayout key="commander" />;
+        return <LazyCommanderLayout key="commander" />;
       case 'conductor':
-        return <ConductorLayout key="conductor" projectId={projectId} />;
+        return <LazyConductorLayout key="conductor" projectId={projectId} />;
       case 'views':
-        return <ViewsLayout key="views" />;
+        return <LazyViewsLayout key="views" />;
       default:
         return <OverviewLayout key="overview" />;
     }
