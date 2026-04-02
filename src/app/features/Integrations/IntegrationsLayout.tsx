@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { transition } from '@/lib/motion';
 import { Plug, FileText, Activity } from 'lucide-react';
+import StaggeredReveal from '@/components/lazy/StaggeredReveal';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { IntegrationsDashboard } from './IntegrationsDashboard';
 import { TemplateDiscoveryPanel } from './sub_TemplateDiscovery/TemplateDiscoveryPanel';
@@ -65,6 +66,7 @@ export default function IntegrationsLayout({ projectId: propProjectId }: Integra
 
   return (
     <div className="min-h-screen bg-background">
+      <StaggeredReveal stagger={0.15} distance={18}>
       {/* Header with tabs */}
       <div className="sticky top-24 z-30 bg-background/80 backdrop-blur-xl border-b border-primary/10">
         <div className="max-w-7xl mx-auto px-6 py-4">
@@ -109,6 +111,7 @@ export default function IntegrationsLayout({ projectId: propProjectId }: Integra
           {renderContent()}
         </motion.div>
       </div>
+      </StaggeredReveal>
     </div>
   );
 }

@@ -118,7 +118,7 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
   return (
     <div className="min-h-full bg-gradient-to-br from-gray-900 via-gray-900/95 to-gray-800">
         {/* Header with Project Filter */}
-        <LazyContentSection delay={0}>
+        <LazyContentSection delay={0.05}>
           <IdeasHeaderWithFilter
             projects={projects}
             selectedProjectId={selectedProjectId}
@@ -131,7 +131,7 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
         </LazyContentSection>
 
         {/* Scan Initiator - Now includes scan type selector inline */}
-        <LazyContentSection delay={0.1}>
+        <LazyContentSection delay={0.18}>
           <div className="w-full px-6 py-4">
             <ScanInitiator
               onScanComplete={handleScanComplete}
@@ -144,7 +144,7 @@ const IdeasLayout = ({ selectedProjectId: propSelectedProjectId }: IdeasLayoutPr
         </LazyContentSection>
 
         {/* View mode toggle + Content */}
-        <LazyContentSection delay={0.2}>
+        <LazyContentSection delay={0.35}>
           <div className="w-full px-6 py-8">
             {/* View toggle */}
             <div className="flex items-center gap-1 mb-4">

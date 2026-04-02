@@ -8,6 +8,7 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { SimpleSpinner } from '@/components/ui';
 import { getWorkspaceProjects } from '@/lib/workspaceProjects';
+import StaggeredReveal from '@/components/lazy/StaggeredReveal';
 
 // Lazy load views
 const MatrixDiagramCanvas = lazy(() => import('./sub_WorkspaceArchitecture/views/MatrixDiagramCanvas'));
@@ -72,53 +73,55 @@ export default function OverviewLayout() {
       <div className="absolute top-0 left-1/4 w-1/3 h-1/3 bg-cyan-500/5 blur-[100px] pointer-events-none" />
       <div className="absolute bottom-1/4 right-0 w-1/4 h-1/4 bg-purple-500/5 blur-[80px] pointer-events-none" />
 
-      {/* View Toggle Header */}
-      <div className="flex-shrink-0 relative z-10">
-        <ViewToggleHeader
-          view={view}
-          onViewChange={setView}
-          selectedProjectName={selectedProjectName}
-          onBack={view === 'observatory' && selectedProjectName ? handleBack : undefined}
-        />
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 overflow-hidden relative z-10" style={{ minHeight: 0 }}>
-        <div className="absolute inset-0">
-          {view === 'architecture' && (
-            <Suspense fallback={<LoadingFallback />}>
-              <MatrixDiagramCanvas
-                workspaceId={activeWorkspaceId}
-                onProjectSelect={handleProjectSelect}
-              />
-            </Suspense>
-          )}
-          {view === 'observatory' && (
-            <div className="w-full h-full overflow-auto">
-              <ObservatoryDashboard />
-            </div>
-          )}
-          {view === 'playground' && (
-            <Suspense fallback={<LoadingFallback />}>
-              <ArchitecturePlayground
-                workspaceId={activeWorkspaceId}
-                projects={workspaceProjects}
-                onClose={() => setView('architecture')}
-              />
-            </Suspense>
-          )}
-        </div>
-      </div>
-
-      {/* Bottom Bar - only show in architecture view */}
-      {view === 'architecture' && (
-        <div className="relative z-10">
-          <ArchitectureBottomBar
-            workspaceId={activeWorkspaceId}
-            projects={workspaceProjects}
+      <StaggeredReveal stagger={0.15} distance={20} className="flex flex-col flex-1 min-h-0">
+        {/* View Toggle Header */}
+        <div className="flex-shrink-0 relative z-10">
+          <ViewToggleHeader
+            view={view}
+            onViewChange={setView}
+            selectedProjectName={selectedProjectName}
+            onBack={view === 'observatory' && selectedProjectName ? handleBack : undefined}
           />
         </div>
-      )}
+
+        {/* Main Content */}
+        <div className="flex-1 overflow-hidden relative z-10" style={{ minHeight: 0 }}>
+          <div className="absolute inset-0">
+            {view === 'architecture' && (
+              <Suspense fallback={<LoadingFallback />}>
+                <MatrixDiagramCanvas
+                  workspaceId={activeWorkspaceId}
+                  onProjectSelect={handleProjectSelect}
+                />
+              </Suspense>
+            )}
+            {view === 'observatory' && (
+              <div className="w-full h-full overflow-auto">
+                <ObservatoryDashboard />
+              </div>
+            )}
+            {view === 'playground' && (
+              <Suspense fallback={<LoadingFallback />}>
+                <ArchitecturePlayground
+                  workspaceId={activeWorkspaceId}
+                  projects={workspaceProjects}
+                  onClose={() => setView('architecture')}
+                />
+              </Suspense>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom Bar - only show in architecture view */}
+        {view === 'architecture' && (
+          <div className="relative z-10">
+            <ArchitectureBottomBar
+              workspaceId={activeWorkspaceId}
+              projects={workspaceProjects}
+            />
+          </div>
+        )}
+      </StaggeredReveal>
     </div>
   );
 }

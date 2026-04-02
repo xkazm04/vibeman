@@ -32,6 +32,7 @@ import AnswerQuestionModal from './components/AnswerQuestionModal';
 import AutoDeepenToast from './components/AutoDeepenToast';
 import ViewModeToggle from './components/ViewModeToggle';
 import { useQuestionsData, useGenerationOrchestrator, useViewMode } from './hooks';
+import StaggeredReveal from '@/components/lazy/StaggeredReveal';
 
 // Interrogative engines for programmatic access to the generate → decide → act pattern.
 // UI components continue using React Query hooks for rendering; these engines provide
@@ -66,9 +67,10 @@ export default function QuestionsLayout({ projectId: propProjectId }: QuestionsL
   return (
     <div className="min-h-full bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950">
       <div className="max-w-7xl mx-auto px-6 py-8">
+        <StaggeredReveal stagger={0.15} distance={22}>
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           className="mb-6"
         >
@@ -229,6 +231,7 @@ export default function QuestionsLayout({ projectId: propProjectId }: QuestionsL
             </div>
           </motion.div>
         )}
+        </StaggeredReveal>
       </div>
 
       {/* Answer Question Modal */}

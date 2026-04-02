@@ -34,6 +34,7 @@ import TabEmptyState from './components/TabEmptyStates';
 import { acceptImplementation } from '@/lib/tools';
 import type { ContextGroupRelationship } from '@/lib/queries/contextQueries';
 import { fetchUntestedLogs, fetchContextGroupRelationships } from './lib/managerService';
+import StaggeredReveal from '@/components/lazy/StaggeredReveal';
 
 interface ManagerLayoutProps {
   /** Optional project ID override; defaults to the active project from the store. */
@@ -135,6 +136,7 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6" data-testid="manager-layout">
+      <StaggeredReveal stagger={0.14} distance={20}>
       <ManagerHeader
         implementationLogs={implementationLogs}
         viewMode={viewMode}
@@ -252,6 +254,8 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
           )}
         </AnimatePresence>
       )}
+
+      </StaggeredReveal>
 
       {/* Detail Modal */}
       <AnimatePresence>

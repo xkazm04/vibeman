@@ -29,6 +29,7 @@ import type { WidgetId, WidgetRenderContext } from './lib/widgetRegistry';
 import type { SignalAnomaly, AnomalySeverity } from '@/lib/brain/anomalyDetector';
 import { useConductorStore } from '@/app/features/Conductor/lib/conductorStore';
 import { computeStabilityMetrics } from './components/HarnessStabilityWidget';
+import StaggeredReveal from '@/components/lazy/StaggeredReveal';
 
 const EventCanvasD3 = lazy(() => import('./sub_MemoryCanvas/EventCanvasD3'));
 const EventCanvasTimeline = lazy(() => import('./sub_Timeline/EventCanvasTimeline'));
@@ -148,6 +149,7 @@ export default function BrainLayout() {
 
   return (
     <div className="flex flex-col" style={{ height: 'calc(100vh - 2.5rem)' }}>
+      <StaggeredReveal stagger={0.13} distance={16} className="flex flex-col flex-1 min-h-0">
       {/* Header */}
       {/* Error banner — separate from tabs so tabs stay stable */}
       {error && (
@@ -302,6 +304,7 @@ export default function BrainLayout() {
           </Suspense>
         </div>
       )}
+      </StaggeredReveal>
     </div>
   );
 }

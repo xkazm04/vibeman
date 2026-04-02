@@ -14,6 +14,7 @@ import CrossContextDashboard from '@/app/features/reflector/sub_Dependencies/Cro
 import ReflectionDashboard from '@/app/features/reflector/sub_Reflection/components/ReflectionDashboard';
 import { WeeklyDashboard } from '@/app/features/reflector/sub_Weekly/components';
 import ObservatoryDashboard from '@/app/features/reflector/sub_Observability/ObservatoryDashboard';
+import StaggeredReveal from '@/components/lazy/StaggeredReveal';
 
 const ReflectorLayout = () => {
   const [ideas, setIdeas] = useState<DbIdea[]>([]);
@@ -44,6 +45,7 @@ const ReflectorLayout = () => {
 
   return (
     <div className="min-h-full bg-gradient-to-br from-gray-900 via-yellow-900/10 to-gray-900">
+      <StaggeredReveal stagger={0.14} distance={18}>
       {/* Header with Stats */}
       <ReflectorHeader stats={stats} />
 
@@ -72,6 +74,7 @@ const ReflectorLayout = () => {
           <ObservatoryDashboard />
         ) : null}
       </div>
+      </StaggeredReveal>
     </div>
   );
 };

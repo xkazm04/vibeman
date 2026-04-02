@@ -17,6 +17,7 @@ import { useTestMode, useTestModeIdeas } from '@/app/features/tinder/lib/useTest
 import { fetchContextsForProjects } from '@/app/features/Ideas/lib/contextLoader';
 import { Context } from '@/lib/queries/contextQueries';
 import { useDeviceMeshStore, useSelectedDevice } from '@/stores/deviceMeshStore';
+import StaggeredReveal from '@/components/lazy/StaggeredReveal';
 
 const TinderLayout = () => {
   const { initializeProjects, projects } = useServerProjectStore();
@@ -164,6 +165,7 @@ const TinderLayout = () => {
 
   return (
     <div className="h-dvh flex flex-col bg-gradient-to-br from-gray-900 via-purple-900/15 to-gray-900 overflow-hidden">
+      <StaggeredReveal stagger={0.14} distance={18} className="flex flex-col flex-1 min-h-0 overflow-hidden">
       {/* Top bar — fixed height */}
       <div className="flex-shrink-0">
       {/* Test Mode Controls - Only visible when test mode is enabled */}
@@ -415,6 +417,7 @@ const TinderLayout = () => {
 
       {/* Keyboard shortcut overlay — toggle with '?' */}
       <KeyboardShortcutOverlay open={showShortcuts} onClose={() => setShowShortcuts(false)} />
+      </StaggeredReveal>
     </div>
   );
 };

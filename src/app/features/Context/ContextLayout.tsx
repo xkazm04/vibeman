@@ -340,7 +340,7 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
                               animate="visible"
                               transition={{
                                 ...transition.spring,
-                                delay: prefersReduced ? 0 : index * 0.05,
+                                delay: prefersReduced ? 0 : 0.1 + index * 0.1,
                               }}
                               className="h-full"
                             >

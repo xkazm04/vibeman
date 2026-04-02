@@ -9,6 +9,7 @@ import {
   Filter, Columns, Eye, EyeOff,
 } from 'lucide-react';
 import { transition, fadeSlideUp } from '@/lib/motion';
+import StaggeredReveal from '@/components/lazy/StaggeredReveal';
 import ExpandChevron from '@/components/ui/ExpandChevron';
 import { useViewsStore } from '@/stores/viewsStore';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
@@ -187,7 +188,7 @@ export default function ViewsLayout() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] overflow-hidden">
+    <StaggeredReveal stagger={0.15} distance={16} direction="left" className="flex h-[calc(100vh-7rem)] overflow-hidden">
       {/* ── Sidebar: Saved Views + Query Builder ─────────────────── */}
       <AnimatePresence initial={false}>
         {sidebarOpen && (
@@ -442,7 +443,7 @@ export default function ViewsLayout() {
           )}
         </div>
       </div>
-    </div>
+    </StaggeredReveal>
   );
 }
 

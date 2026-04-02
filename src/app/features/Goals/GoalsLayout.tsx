@@ -22,6 +22,7 @@ import { GoalProgressMini } from './components/GoalProgressRing';
 import GlassCard from '@/components/cards/GlassCard';
 import { duration, easing } from '@/lib/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import StaggeredReveal from '@/components/lazy/StaggeredReveal';
 
 interface GoalsLayoutProps {
   projectId: string | null;
@@ -212,6 +213,7 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden">
+      <StaggeredReveal stagger={0.14} distance={20} className="flex flex-col flex-1 min-h-0 overflow-hidden">
       {/* Projects Toolbar */}
       <div className="z-20">
         <ProjectsLayout />
@@ -337,6 +339,7 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
 
         </div>
       </div>
+      </StaggeredReveal>
 
       {/* Mobile/Tablet: floating button to open analytics bottom sheet */}
       {isMobile && !bottomSheetOpen && (

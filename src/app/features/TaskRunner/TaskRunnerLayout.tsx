@@ -129,7 +129,7 @@ const TaskRunnerLayout = () => {
 
       <div className="relative max-w-[1600px] mx-auto space-y-8">
         {/* Header */}
-        <LazyContentSection delay={0}>
+        <LazyContentSection delay={0.05}>
           <TaskRunnerHeader
             selectedCount={selectedRequirements.size}
             totalCount={requirements.length}
@@ -145,12 +145,12 @@ const TaskRunnerLayout = () => {
         </LazyContentSection>
 
         {/* Conductor Compact Cards — always visible with empty state + quick-start */}
-        <LazyContentSection delay={0.1}>
+        <LazyContentSection delay={0.18}>
           <ConductorRow runs={conductorRuns} onRunStarted={refreshConductor} />
         </LazyContentSection>
 
         {/* Requirements Grid - Column Layout */}
-        <LazyContentSection delay={0.2}>
+        <LazyContentSection delay={0.35}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
             {/* External Requirements Column (Supabase) — always first */}
             <ExternalRequirementsColumn

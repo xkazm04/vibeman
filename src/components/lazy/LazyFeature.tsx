@@ -2,7 +2,6 @@
 
 import React, { Suspense, useEffect, useRef, ComponentType } from 'react';
 import dynamic from 'next/dynamic';
-import { FeatureSpinner } from '@/components/ui/Spinner';
 import {
   markLazyLoadStart,
   markLazyLoadEnd,
@@ -52,15 +51,9 @@ export function createLazyFeature<P extends object>(
       loadStartTime = markLazyLoadStart(featureName);
     }
 
-    return loadingComponent ? (
-      <>{loadingComponent}</>
-    ) : (
-      <FeatureSpinner
-        featureName={featureName}
-        variant={spinnerVariant}
-        data-testid={`lazy-loading-${featureName.toLowerCase()}`}
-      />
-    );
+    // Silent load — no visible spinner to avoid sub-second blink artifacts.
+    // The module's own StaggeredReveal handles the visual entrance.
+    return loadingComponent ? <>{loadingComponent}</> : null;
   };
 
   // Create the dynamic import with tracking
