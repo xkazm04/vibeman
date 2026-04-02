@@ -3,17 +3,16 @@
 import { useState, useMemo, useCallback } from 'react';
 import {
   Mail,
-  Facebook,
   MessageCircle,
   Star,
   Smartphone,
-  Instagram,
   AlertCircle,
   AlertTriangle,
   Circle,
   Minus,
   type LucideIcon,
 } from 'lucide-react';
+import { Facebook, Instagram } from '@/components/icons/brand-icons';
 import React from 'react';
 
 // Custom X icon component

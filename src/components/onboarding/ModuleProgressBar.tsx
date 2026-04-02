@@ -16,6 +16,7 @@ interface ModuleProgressBarProps {
 // Map modules to their associated onboarding steps
 const MODULE_STEPS: Record<AppModule, OnboardingStep | null> = {
   overview: null,
+  mini: null,
   coder: 'create-project',
   blueprint: 'run-blueprint',
   contexts: 'review-contexts',

@@ -6,11 +6,11 @@ import {
   Bot,
   CheckCircle,
   RotateCcw,
-  Github,
   MessageCircle,
   Share2,
   type LucideIcon,
 } from 'lucide-react';
+import { Github } from '@/components/icons/brand-icons';
 import type { FeedbackItem } from '../../lib/types/feedbackTypes';
 import { getTimeAgo } from '../../lib/utils/timeUtils';
 import { SLABadge } from '../sla';

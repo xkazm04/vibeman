@@ -3,9 +3,10 @@
 import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Mail, Facebook, MessageCircle, Star, Smartphone, Instagram,
-  Bug, Lightbulb, HelpCircle, Github, Loader2,
+  Mail, MessageCircle, Star, Smartphone,
+  Bug, Lightbulb, HelpCircle, Loader2,
 } from 'lucide-react';
+import { Facebook, Instagram, Github } from '@/components/icons/brand-icons';
 import { duration } from '@/lib/motion';
 import type { FeedbackItem, KanbanChannel } from '../lib/types/feedbackTypes';
 import type { FeedbackAnalysisResult } from '../lib/types/aiTypes';

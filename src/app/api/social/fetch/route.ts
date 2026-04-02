@@ -4,6 +4,15 @@ import { decryptCredentials } from '@/app/features/Social/sub_SocConfig/lib/encr
 import type { SocialChannelType, DiscordCredentials, XCredentials, InstagramCredentials, FacebookCredentials, GmailCredentials } from '@/app/db/models/social-config.types';
 import { v4 as uuidv4 } from 'uuid';
 
+function safeParseConfigJson(configJson: string, channelType: string): Record<string, unknown> {
+  try {
+    return JSON.parse(configJson);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown parse error';
+    throw new Error(`Malformed config_json for ${channelType} channel: ${message}`);
+  }
+}
+
 interface FetchedItem {
   external_id: string;
   content: string;
@@ -178,8 +187,8 @@ async function fetchDiscordMessages(
   configJson: string,
   limit: number
 ): Promise<FetchedItem[]> {
-  const config = JSON.parse(configJson);
-  const channelIds: string[] = config.channelIds || [];
+  const config = safeParseConfigJson(configJson, 'discord');
+  const channelIds: string[] = (config.channelIds as string[]) || [];
 
   if (channelIds.length === 0) {
     return [];
@@ -232,7 +241,7 @@ async function fetchXMentions(
     return [];
   }
 
-  const config = JSON.parse(configJson);
+  const config = safeParseConfigJson(configJson, 'x');
   const username = config.username;
 
   if (!username) {
@@ -342,7 +351,7 @@ async function fetchFacebookComments(
   configJson: string,
   limit: number
 ): Promise<FetchedItem[]> {
-  const config = JSON.parse(configJson);
+  const config = safeParseConfigJson(configJson, 'facebook');
   const pageId = config.pageId;
   const token = credentials.pageAccessToken || credentials.accessToken;
 
@@ -424,19 +433,22 @@ async function fetchGmailMessages(
     const accessToken = tokenData.access_token;
 
     // Parse config for filters
-    const config = JSON.parse(configJson);
+    const config = safeParseConfigJson(configJson, 'gmail');
     let query = 'in:inbox';
 
     if (config.excludeSpam) query += ' -in:spam';
     if (config.excludePromotions) query += ' -category:promotions';
-    if (config.senderFilters?.length > 0) {
-      query += ` from:(${config.senderFilters.join(' OR ')})`;
+    const senderFilters = config.senderFilters as string[] | undefined;
+    const subjectFilters = config.subjectFilters as string[] | undefined;
+    const labelFilters = config.labelFilters as string[] | undefined;
+    if (senderFilters?.length) {
+      query += ` from:(${senderFilters.join(' OR ')})`;
     }
-    if (config.subjectFilters?.length > 0) {
-      query += ` subject:(${config.subjectFilters.join(' OR ')})`;
+    if (subjectFilters?.length) {
+      query += ` subject:(${subjectFilters.join(' OR ')})`;
     }
-    if (config.labelFilters?.length > 0) {
-      query += ` label:(${config.labelFilters.join(' OR ')})`;
+    if (labelFilters?.length) {
+      query += ` label:(${labelFilters.join(' OR ')})`;
     }
 
     // List messages

@@ -20,7 +20,11 @@ export type ToolCategory =
   | 'tasks'
   | 'projects'
   | 'standup'
-  | 'analysis';
+  | 'analysis'
+  | 'scanning'
+  | 'triage'
+  | 'taskrunner'
+  | 'codebaseIntel';
 
 export interface ToolInputProperty {
   type: string;
@@ -75,6 +79,10 @@ export const CATEGORY_META: CategoryMeta[] = [
   { id: 'projects',   label: 'Project',               description: 'Project structure, files, and information',                           icon: 'FolderOpen',    color: 'slate' },
   { id: 'standup',    label: 'Standup & Reporting',   description: 'Standups, automation, and progress reports',                          icon: 'ClipboardList', color: 'indigo' },
   { id: 'analysis',   label: 'Analysis',              description: 'Codebase health assessment and deep context analysis',                icon: 'Search',        color: 'rose' },
+  { id: 'scanning',   label: 'Scanning',              description: 'Trigger and monitor AI agent scans for idea generation',               icon: 'Scan',          color: 'emerald' },
+  { id: 'triage',     label: 'Triage',                description: 'Accept/reject ideas and directions in bulk or individually',            icon: 'Filter',        color: 'orange' },
+  { id: 'taskrunner', label: 'Task Runner',            description: 'Manage terminal sessions, executions, and requirements',               icon: 'Play',          color: 'violet' },
+  { id: 'codebaseIntel', label: 'Codebase Intelligence', description: 'Project analysis, health assessment, and backlog generation',         icon: 'FileSearch',    color: 'teal' },
 ];
 
 // ── Tool definitions ─────────────────────────────────────────────────
@@ -624,6 +632,217 @@ export const TOOL_DEFINITIONS: UnifiedToolDef[] = [
     label: 'Directions from Analysis',
     triggerPrompt: 'Create directions from the analysis findings',
     requiresInput: true,
+  },
+
+  // ── Scanning ──────────────────────────────────────────────────────
+  {
+    name: 'trigger_idea_scan',
+    category: 'scanning',
+    description: 'Trigger an idea scan using a specific agent type (e.g. bug_hunter, zen_architect, perf_optimizer). Uses the unified scan API to generate ideas.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scanType: { type: 'string', description: 'Agent type to use for scanning (e.g. bug_hunter, zen_architect, perf_optimizer, security_protector)' },
+        contextId: { type: 'string', description: 'Optional context ID to focus the scan on a specific area' },
+      },
+      required: ['scanType'],
+    },
+    label: 'Trigger Scan',
+    triggerPrompt: 'Run an idea scan',
+    requiresInput: true,
+  },
+  {
+    name: 'list_scan_agents',
+    category: 'scanning',
+    description: 'List all available scan agent types with descriptions and categories. Useful for choosing which agent to use for a scan.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        category: { type: 'string', description: 'Filter by agent category', enum: ['technical', 'user', 'business', 'mastermind'] },
+      },
+    },
+    label: 'Scan Agents',
+    triggerPrompt: 'Show me available scan agents',
+  },
+  {
+    name: 'get_scan_results',
+    category: 'scanning',
+    description: 'Get results from recent scans including idea counts and token usage. Optionally filter by scan type.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scanType: { type: 'string', description: 'Filter by scan type (e.g. bug_hunter)' },
+        limit: { type: 'string', description: 'Max number of scan results to return (default: 10)' },
+      },
+    },
+    label: 'Scan Results',
+    triggerPrompt: 'Show me recent scan results',
+  },
+
+  // ── Triage ────────────────────────────────────────────────────────
+  {
+    name: 'get_pending_triage',
+    category: 'triage',
+    description: 'Get pending ideas and/or directions that need triage (accept/reject). Supports filtering by item type and category.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        itemType: { type: 'string', description: 'Filter by item type', enum: ['idea', 'direction', 'all'] },
+        limit: { type: 'string', description: 'Max items to return (default: 20)' },
+        category: { type: 'string', description: 'Filter ideas by category' },
+      },
+    },
+    label: 'Pending Triage',
+    triggerPrompt: 'Show me items pending triage',
+  },
+  {
+    name: 'triage_item',
+    category: 'triage',
+    description: 'Accept or reject a single idea or direction with optional reasoning.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        itemId: { type: 'string', description: 'The ID of the item to triage' },
+        itemType: { type: 'string', description: 'Type of item', enum: ['idea', 'direction'] },
+        action: { type: 'string', description: 'Triage action', enum: ['accept', 'reject'] },
+        reason: { type: 'string', description: 'Optional reason for the decision' },
+      },
+      required: ['itemId', 'itemType', 'action'],
+    },
+    label: 'Triage Item',
+    triggerPrompt: 'Triage an item',
+    requiresInput: true,
+  },
+  {
+    name: 'bulk_triage',
+    category: 'triage',
+    description: 'Accept or reject multiple ideas/directions at once. Process a batch of triage decisions efficiently.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        items: { type: 'string', description: 'JSON array of items: [{ "id": "...", "type": "idea|direction", "action": "accept|reject" }]' },
+      },
+      required: ['items'],
+    },
+    label: 'Bulk Triage',
+    triggerPrompt: 'Bulk triage multiple items',
+    requiresInput: true,
+  },
+  {
+    name: 'get_triage_stats',
+    category: 'triage',
+    description: 'Get triage statistics: pending, accepted, rejected counts for both ideas and directions.',
+    inputSchema: { type: 'object', properties: {} },
+    label: 'Triage Stats',
+    triggerPrompt: 'Show me triage statistics',
+  },
+
+  // ── Task Runner ───────────────────────────────────────────────────
+  {
+    name: 'list_active_sessions',
+    category: 'taskrunner',
+    description: 'List all Claude terminal sessions with their status, token usage, and cost. Shows both active and recent sessions.',
+    inputSchema: { type: 'object', properties: {} },
+    label: 'Active Sessions',
+    triggerPrompt: 'Show me active terminal sessions',
+  },
+  {
+    name: 'get_runner_execution_status',
+    category: 'taskrunner',
+    description: 'Get detailed status of a specific running execution or overall execution state. Shows progress, token usage, and cost.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sessionId: { type: 'string', description: 'Optional specific session ID to check' },
+      },
+    },
+    label: 'Execution Status',
+    triggerPrompt: 'What is the execution status?',
+  },
+  {
+    name: 'create_requirement',
+    category: 'taskrunner',
+    description: 'Create a new development requirement for Claude Code execution. The requirement will be saved and can be executed later.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Requirement title/name' },
+        description: { type: 'string', description: 'Detailed requirement content/instructions' },
+        contextId: { type: 'string', description: 'Optional context ID to associate with' },
+      },
+      required: ['title', 'description'],
+    },
+    label: 'Create Requirement',
+    triggerPrompt: 'Create a new requirement',
+    requiresInput: true,
+  },
+
+  // ── Brain (enhanced) ──────────────────────────────────────────────
+  {
+    name: 'get_project_health',
+    category: 'brain',
+    description: 'Comprehensive project health assessment combining Brain insights, implementation outcomes, direction/idea stats, and behavioral signals into strengths and weaknesses.',
+    inputSchema: { type: 'object', properties: {} },
+    label: 'Project Health',
+    triggerPrompt: 'How healthy is my project?',
+  },
+  {
+    name: 'get_learning_timeline',
+    category: 'brain',
+    description: 'Timeline of what the Brain has learned over time. Shows reflections, insights, and confidence trends within a date window.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        days: { type: 'string', description: 'Number of days to look back (default: 30)' },
+      },
+    },
+    label: 'Learning Timeline',
+    triggerPrompt: 'Show me the brain learning timeline',
+  },
+
+  // ── Codebase Intelligence ────────────────────────────────────────────
+  {
+    name: 'analyze_codebase_structure',
+    category: 'codebaseIntel',
+    description: 'Analyze project file structure and dependencies. Counts files by extension, identifies major directories and their sizes, checks for key config files, and reads package.json for dependency counts.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        depth: { type: 'string', description: 'Max directory depth to scan (default: 2)' },
+      },
+    },
+    label: 'Codebase Structure',
+    triggerPrompt: 'Analyze my codebase structure',
+  },
+  {
+    name: 'generate_backlog_items',
+    category: 'codebaseIntel',
+    description: 'Generate a development backlog from codebase analysis. Checks existing goals, pending ideas, and brain insights to produce prioritized backlog items categorized by type.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        focus: { type: 'string', description: 'Focus area for backlog generation', enum: ['technical', 'quality', 'features', 'all'] },
+        contextId: { type: 'string', description: 'Optional context ID to scope backlog to a specific area' },
+      },
+    },
+    label: 'Generate Backlog',
+    triggerPrompt: 'Generate a development backlog for my project',
+  },
+  {
+    name: 'assess_project_health',
+    category: 'codebaseIntel',
+    description: 'Honest assessment of project strengths and weaknesses. Checks test coverage proxy, linting config, TypeScript strict mode, CI/CD, brain insights, idea acceptance ratio, git status, and goal progress.',
+    inputSchema: { type: 'object', properties: {} },
+    label: 'Project Health Assessment',
+    triggerPrompt: 'Give me an honest health assessment of my project',
+  },
+  {
+    name: 'get_dependency_analysis',
+    category: 'codebaseIntel',
+    description: 'Analyze project dependencies from package.json. Counts deps and devDeps, identifies framework groups, security-relevant packages, wildcard versions, and dependency size assessment.',
+    inputSchema: { type: 'object', properties: {} },
+    label: 'Dependency Analysis',
+    triggerPrompt: 'Analyze my project dependencies',
   },
 ];
 

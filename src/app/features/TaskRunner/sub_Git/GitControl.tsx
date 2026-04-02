@@ -1,5 +1,5 @@
 'use client';
-import { Github } from 'lucide-react';
+import { Github } from '@/components/icons/brand-icons';
 import { useGitConfig } from './useGitConfig';
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import GitConfigModalContent from './GitConfigModalContent';

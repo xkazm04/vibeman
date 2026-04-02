@@ -16,9 +16,9 @@ import {
   Wrench,
   Link2,
   Target,
-  Youtube,
   type LucideIcon
 } from 'lucide-react';
+import { Youtube } from '@/components/icons/brand-icons';
 
 export interface ScanTypeConfig {
   label: string;

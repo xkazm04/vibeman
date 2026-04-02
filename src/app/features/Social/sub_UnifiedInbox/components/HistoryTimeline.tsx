@@ -11,13 +11,11 @@ import {
   FileText,
   Clock,
   Mail,
-  Twitter,
-  Facebook,
-  Instagram,
   MessageCircle,
   Star,
   Smartphone,
 } from 'lucide-react';
+import { Twitter, Facebook, Instagram } from '@/components/icons/brand-icons';
 import type { InteractionHistoryEntry } from '@/lib/social';
 import type { KanbanChannel } from '../../lib/types/feedbackTypes';
 import { formatRelativeTime } from '@/lib/formatDate';

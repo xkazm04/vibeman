@@ -15,6 +15,7 @@ import { useChatStore } from '@/stores/annette/chatStore';
 import { useEditingStore } from '@/stores/annette/editingStore';
 import ToolCallDisplay from './ToolCallDisplay';
 import ToolExecutionInline from './ToolExecutionInline';
+import ChatMarkdown from './ChatMarkdown';
 
 export type BubbleSize = 'full' | 'compact';
 
@@ -150,7 +151,11 @@ export function ChatBubble({ message, size = 'full' }: { message: ChatMessage; s
                     : `bg-slate-800/60 border border-slate-700/30 text-slate-300 ${s.assistantCorner}`
                 }`}
               >
-                <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                {isUser ? (
+                  <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                ) : (
+                  <ChatMarkdown content={message.content} />
+                )}
 
                 {/* Edit button - hover overlay for user messages */}
                 {isUser && !isLoading && (

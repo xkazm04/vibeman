@@ -385,6 +385,17 @@ export async function completeReflection(input: CompleteReflectionInput): Promis
     console.warn('[Brain] Knowledge graduation failed:', err);
   }
 
+  // Cross-project pattern promotion (best-effort, non-blocking)
+  try {
+    const { promoteRecurringInsights } = await import('./crossProjectPatterns');
+    const promoted = promoteRecurringInsights(2);
+    if (promoted.length > 0) {
+      console.log(`[Brain] Promoted ${promoted.length} cross-project pattern(s)`);
+    }
+  } catch (err) {
+    console.warn('[Brain] Cross-project promotion failed:', err);
+  }
+
   const updatedReflection = brainReflectionDb.getById(reflectionId);
 
   return {
@@ -453,4 +464,73 @@ export function applySignalDecay(
   const deleted = behavioralSignalDb.deleteOld(projectId, retentionDays);
   invalidateContextCache(projectId);
   return { decayed, deleted };
+}
+
+// ============================================================================
+// Cross-Project Knowledge Synthesis
+// ============================================================================
+
+export interface CrossProjectSynthesisResult {
+  patternsPromoted: number;
+  driftReports: import('./architectureDrift').DriftReport[];
+  goalsGenerated: number;
+}
+
+/**
+ * Run cross-project knowledge synthesis:
+ * 1. Promote recurring insights to global patterns
+ * 2. Detect architecture drift for specified projects
+ * 3. Generate proactive goals from patterns + drift
+ *
+ * Best called after global reflection or periodically.
+ */
+export async function runCrossProjectSynthesis(
+  projectIds?: string[]
+): Promise<CrossProjectSynthesisResult> {
+  const { promoteRecurringInsights } = await import('./crossProjectPatterns');
+  const { detectArchitectureDrift } = await import('./architectureDrift');
+  const { generateProactiveGoals, createGoalFromCandidate } = await import('./proactiveGoals');
+
+  // 1. Promote recurring insights across all projects
+  let patternsPromoted = 0;
+  try {
+    const promoted = promoteRecurringInsights(2);
+    patternsPromoted = promoted.length;
+  } catch (err) {
+    console.warn('[Brain] Cross-project pattern promotion failed:', err);
+  }
+
+  // 2. Detect drift for specified projects (or skip if none specified)
+  const driftReports: import('./architectureDrift').DriftReport[] = [];
+  if (projectIds && projectIds.length > 0) {
+    for (const pid of projectIds) {
+      try {
+        const report = detectArchitectureDrift(pid);
+        driftReports.push(report);
+      } catch (err) {
+        console.warn(`[Brain] Drift detection failed for ${pid}:`, err);
+      }
+    }
+  }
+
+  // 3. Generate proactive goals from patterns + drift
+  let goalsGenerated = 0;
+  if (projectIds && projectIds.length > 0) {
+    for (const pid of projectIds) {
+      try {
+        const candidates = generateProactiveGoals(pid);
+        // Auto-create goals for high-confidence candidates only
+        for (const candidate of candidates) {
+          if (candidate.confidence >= 0.8 && candidate.priority !== 'low') {
+            createGoalFromCandidate(candidate);
+            goalsGenerated++;
+          }
+        }
+      } catch (err) {
+        console.warn(`[Brain] Proactive goal generation failed for ${pid}:`, err);
+      }
+    }
+  }
+
+  return { patternsPromoted, driftReports, goalsGenerated };
 }

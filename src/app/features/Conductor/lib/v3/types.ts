@@ -54,7 +54,7 @@ export interface V3TaskResult {
 
 export interface QualityGateConfig {
   /** Gate type identifier */
-  type: 'build' | 'lint' | 'test' | 'rubric' | 'custom';
+  type: 'build' | 'lint' | 'test' | 'rubric' | 'custom' | 'verification';
   /** Display label (defaults to type if omitted) */
   label?: string;
   /** Shell command to run (for lint, test, custom gates) */
@@ -63,6 +63,8 @@ export interface QualityGateConfig {
   required: boolean;
   /** Minimum rubric score (1-5) for rubric gates */
   minScore?: number;
+  /** Minimum confidence score (0-100) for verification gates */
+  minConfidence?: number;
 }
 
 export interface QualityGateResult {
@@ -90,6 +92,15 @@ export interface PlanOutput {
   brainWarningsApplied: string[];
 }
 
+export interface VerificationResult {
+  testsGenerated: number;
+  testsPassed: number;
+  testsFailed: number;
+  testErrors: string[];
+  confidenceScore: import('../verification/confidenceScorer').ConfidenceScore;
+  testFilePaths: string[];
+}
+
 export interface ReflectOutput {
   status: 'done' | 'continue' | 'needs_input' | 'needs_healing';
   summary: string;
@@ -98,6 +109,8 @@ export interface ReflectOutput {
   lessonsLearned: string[];
   /** Results from quality gate evaluation (present when gates are configured) */
   qualityGateResults?: QualityGateResult[];
+  /** Verification engine results (present when verification gate is configured) */
+  verificationResult?: VerificationResult;
 }
 
 // ============================================================================
@@ -211,6 +224,25 @@ export const DEFAULT_V3_CONFIG: V3Config = {
 };
 
 // ============================================================================
+// Baseline Metrics (Harness Pattern: measure before cutting)
+// ============================================================================
+
+export interface BaselineMetrics {
+  /** TypeScript compilation error count before any work */
+  typeErrors: number;
+  /** TypeScript error output (truncated) for foundation-first injection */
+  typeErrorOutput: string;
+  /** Test pass count before any work */
+  testsPassed: number;
+  /** Test total count before any work */
+  testsTotal: number;
+  /** Whether build was passing before any work */
+  buildPassing: boolean;
+  /** ISO timestamp of baseline capture */
+  capturedAt: string;
+}
+
+// ============================================================================
 // V3 Metrics
 // ============================================================================
 
@@ -225,6 +257,10 @@ export interface V3Metrics {
   healingPatchesApplied: number;
   worktreesCreated: number;
   mergeConflicts: number;
+  /** DAG scheduling metrics (present when DAG scheduler is used) */
+  dagMetrics?: import('./dagScheduler').DAGMetrics;
+  /** Pre-execution baseline (Harness pattern: measure before cutting) */
+  baseline?: BaselineMetrics;
 }
 
 export function createEmptyV3Metrics(): V3Metrics {

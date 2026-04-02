@@ -4,11 +4,9 @@ import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mail,
-  Facebook,
   MessageCircle,
   Star,
   Smartphone,
-  Instagram,
   MoreHorizontal,
   Frown,
   Meh,
@@ -17,8 +15,8 @@ import {
   Bot,
   User,
   Loader2,
-  Github,
 } from 'lucide-react';
+import { Facebook, Instagram, Github } from '@/components/icons/brand-icons';
 import type { FeedbackItem, KanbanChannel } from '../lib/types/feedbackTypes';
 import type { FeedbackAnalysisResult, AIProcessingStatus } from '../lib/types/aiTypes';
 import { getTimeAgo } from '../lib/utils/timeUtils';

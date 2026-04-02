@@ -60,13 +60,90 @@ function runQualityGates(
   buildResult: BuildResult,
   summary: ResultsSummary,
   projectPath: string,
+  tasks?: V3Task[],
+  projectId?: string,
 ): QualityGateResult[] {
   const results: QualityGateResult[] = [];
 
   for (const gate of gates) {
     const label = gate.label || gate.type;
 
-    if (gate.type === 'build') {
+    if (gate.type === 'verification' && tasks && projectId) {
+      const start = Date.now();
+      try {
+        const { generateVerificationTests, writeTestFiles, cleanupTestFiles, parseVitestJsonOutput } =
+          require('../verification/testGenerator');
+        const { computeConfidence } = require('../verification/confidenceScorer');
+
+        // Generate and run verification tests
+        const allTests: import('../verification/testGenerator').GeneratedTest[] = [];
+        for (const task of tasks.filter(t => t.status === 'completed')) {
+          const tests = generateVerificationTests({ task, projectPath, projectId });
+          allTests.push(...tests);
+        }
+
+        let testsPassed = 0;
+        let testsFailed = 0;
+        const testErrors: string[] = [];
+
+        if (allTests.length > 0) {
+          const writtenPaths = writeTestFiles(projectPath, allTests);
+          try {
+            const jsonOutput = execSync(
+              `npx vitest run --reporter=json ${writtenPaths.map((p: string) => `"${p}"`).join(' ')}`,
+              { cwd: projectPath, encoding: 'utf-8', timeout: 60000, stdio: ['pipe', 'pipe', 'pipe'] }
+            );
+            const parsed = parseVitestJsonOutput(jsonOutput);
+            testsPassed = parsed.passed;
+            testsFailed = parsed.failed;
+            testErrors.push(...parsed.errors);
+          } catch (err: unknown) {
+            const e = err as Error & { stdout?: string };
+            // vitest exits non-zero on test failures — parse stdout
+            if (e.stdout) {
+              const parsed = parseVitestJsonOutput(e.stdout);
+              testsPassed = parsed.passed;
+              testsFailed = parsed.failed;
+              testErrors.push(...parsed.errors);
+            } else {
+              testsFailed = allTests.length;
+              testErrors.push('Verification test run failed');
+            }
+          } finally {
+            cleanupTestFiles(projectPath, allTests);
+          }
+        }
+
+        const confidence = computeConfidence({
+          buildPassed: buildResult.passed || !!buildResult.skipped,
+          testsGenerated: allTests.length,
+          testsPassed,
+          testsFailed,
+          filesVerified: true, // file verification already passed at dispatch
+          llmReviewQuality: 0.8, // base quality for structured reflect response
+          taskSuccessRate: summary.total > 0 ? summary.completed / summary.total : 0,
+        });
+
+        const minConfidence = gate.minConfidence ?? 60;
+        results.push({
+          type: 'verification',
+          label,
+          passed: confidence.overall >= minConfidence,
+          required: gate.required,
+          message: `Verification score: ${confidence.overall}/100 (grade: ${confidence.grade}, min: ${minConfidence}). Tests: ${testsPassed}/${allTests.length} passed.`,
+          durationMs: Date.now() - start,
+        });
+      } catch (err) {
+        results.push({
+          type: 'verification',
+          label,
+          passed: false,
+          required: gate.required,
+          message: `Verification engine error: ${err instanceof Error ? err.message : String(err)}`,
+          durationMs: Date.now() - start,
+        });
+      }
+    } else if (gate.type === 'build') {
       results.push({
         type: 'build',
         label,
@@ -237,6 +314,8 @@ export async function executeReflectPhase(input: ReflectPhaseInput): Promise<{
       buildResult,
       summary,
       projectPath,
+      plannedTasks,
+      projectId,
     );
     reflectOutput.qualityGateResults = gateResults;
 

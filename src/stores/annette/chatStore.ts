@@ -38,6 +38,8 @@ interface ChatState {
   projectId: string | null;
   isLoading: boolean;
   error: string | null;
+  conversationMode: 'api' | 'cli';
+  processingStartedAt: number | null;
 }
 
 interface ChatActions {
@@ -50,6 +52,7 @@ interface ChatActions {
   sendMessage: (text: string) => Promise<void>;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setConversationMode: (mode: 'api' | 'cli') => void;
   reset: () => void;
 }
 
@@ -61,6 +64,8 @@ const initialState: ChatState = {
   projectId: null,
   isLoading: false,
   error: null,
+  conversationMode: 'cli',
+  processingStartedAt: null,
 };
 
 export const useChatStore = create<ChatStore>()(
@@ -90,8 +95,10 @@ export const useChatStore = create<ChatStore>()(
       setSession: (sessionId, projectId) => set({ sessionId, projectId }),
       clearSession: () => set({ sessionId: null, projectId: null, messages: [] }),
 
+      setConversationMode: (mode) => set({ conversationMode: mode }),
+
       sendMessage: async (text) => {
-        const { projectId, messages, sessionId } = get();
+        const { projectId, messages, sessionId, conversationMode } = get();
         const { useVoiceStore } = await getVoiceStore();
         const audioEnabled = useVoiceStore.getState().audioEnabled;
 
@@ -110,6 +117,7 @@ export const useChatStore = create<ChatStore>()(
           messages: [...state.messages, userMsg],
           isLoading: true,
           error: null,
+          processingStartedAt: Date.now(),
         }));
 
         try {
@@ -127,6 +135,7 @@ export const useChatStore = create<ChatStore>()(
               sessionId,
               conversationHistory,
               audioMode: audioEnabled,
+              mode: conversationMode,
             }),
           });
 
@@ -168,6 +177,7 @@ export const useChatStore = create<ChatStore>()(
           set((state) => ({
             messages: [...state.messages, assistantMsg],
             isLoading: false,
+            processingStartedAt: null,
           }));
 
           // Auto-surface actionable assistant responses as DecisionCards
@@ -227,6 +237,7 @@ export const useChatStore = create<ChatStore>()(
             messages: state.messages.filter((m) => m.id !== userMsg.id),
             isLoading: false,
             error: errorMessage,
+            processingStartedAt: null,
           }));
           throw error;
         }

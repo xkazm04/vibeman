@@ -6,20 +6,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
   Mail,
-  Facebook,
   MessageCircle,
   Star,
   Smartphone,
-  Instagram,
   Share2,
   Search,
   UserCog,
   Bot,
   CheckCircle,
   RotateCcw,
-  Github,
   type LucideIcon,
 } from 'lucide-react';
+import { Facebook, Instagram, Github } from '@/components/icons/brand-icons';
 import type { FeedbackItem, KanbanChannel } from '../lib/types/feedbackTypes';
 import { getTimeAgo } from '../lib/utils/timeUtils';
 import { SLABadge } from './sla';

@@ -312,18 +312,23 @@ export const knowledgeRepository = {
     const now = getCurrentTimestamp();
     const id = generateId('kbl');
 
-    // Get next sort_order
-    const maxRow = selectOne<{ max_order: number | null }>(
-      db,
-      'SELECT MAX(sort_order) as max_order FROM kb_entry_links WHERE hub_entry_id = ?',
-      hubEntryId
-    );
-    const sortOrder = (maxRow?.max_order ?? -1) + 1;
+    // Wrap SELECT MAX + INSERT in a transaction to prevent duplicate sort_order
+    const transaction = db.transaction(() => {
+      const maxRow = selectOne<{ max_order: number | null }>(
+        db,
+        'SELECT MAX(sort_order) as max_order FROM kb_entry_links WHERE hub_entry_id = ?',
+        hubEntryId
+      );
+      const sortOrder = (maxRow?.max_order ?? -1) + 1;
 
-    db.prepare(`
-      INSERT INTO kb_entry_links (id, hub_entry_id, linked_entry_id, sort_order, note, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(id, hubEntryId, linkedEntryId, sortOrder, note || null, now);
+      db.prepare(`
+        INSERT INTO kb_entry_links (id, hub_entry_id, linked_entry_id, sort_order, note, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(id, hubEntryId, linkedEntryId, sortOrder, note || null, now);
+
+      return sortOrder;
+    });
+    const sortOrder = transaction();
 
     return { id, hub_entry_id: hubEntryId, linked_entry_id: linkedEntryId, sort_order: sortOrder, note: note || null, created_at: now };
   },

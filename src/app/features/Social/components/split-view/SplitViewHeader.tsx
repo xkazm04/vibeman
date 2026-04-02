@@ -6,13 +6,12 @@ import {
   ChevronRight,
   Columns3,
   Mail,
-  Facebook,
   MessageCircle,
   Star,
   Smartphone,
-  Instagram,
   type LucideIcon,
 } from 'lucide-react';
+import { Facebook, Instagram } from '@/components/icons/brand-icons';
 
 // Custom X (formerly Twitter) icon component
 const XIcon = (({ className }: { className?: string }) => (

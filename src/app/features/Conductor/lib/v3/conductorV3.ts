@@ -16,6 +16,7 @@ import { runBuildValidation } from '../execution/buildValidator';
 import { generateBrainQuestions, getBrainWarnings, feedBrainOutcome, getWorkspaceContext } from './brainAdvisor';
 import { prunePatches, buildHealingContext } from '../selfHealing/promptPatcher';
 import { cleanupOrphanedWorktrees } from './worktreeManager';
+import { captureBaseline, generateFoundationTask, prependFoundationTask } from './baselineCapture';
 import type {
   V3Config,
   V3Metrics,
@@ -24,6 +25,7 @@ import type {
   V3Task,
   ReflectOutput,
   PhaseState,
+  BaselineMetrics,
   WorkspaceContext,
 } from './types';
 import { createEmptyV3Metrics, createEmptyV3Phases } from './types';
@@ -64,6 +66,8 @@ interface DispatchPhaseInput {
   onTaskUpdate?: (tasks: V3Task[]) => void;
   onLog?: (phase: V3Phase, event: string, message: string) => void;
   metrics?: V3Metrics;
+  /** Pre-execution baseline for inter-wave quality gates (Harness pattern) */
+  baseline?: BaselineMetrics;
 }
 
 interface DispatchPhaseResult {
@@ -368,6 +372,23 @@ async function runV3Loop(
     }
   }
 
+  // ----- Baseline Capture (Harness Pattern: measure before cutting) -----
+  let baseline: BaselineMetrics | undefined;
+  try {
+    log('plan', 'info', 'Capturing baseline metrics...');
+    baseline = captureBaseline(projectPath);
+    metrics.baseline = baseline;
+
+    if (baseline.typeErrors > 0) {
+      log('plan', 'info', `Baseline: ${baseline.typeErrors} TypeScript error(s) — foundation-first task will be injected`);
+    } else {
+      log('plan', 'info', `Baseline: clean build, ${baseline.testsPassed}/${baseline.testsTotal} tests passing`);
+    }
+    persistState();
+  } catch (err) {
+    log('plan', 'info', `Baseline capture failed (non-blocking): ${err}`);
+  }
+
   // ----- Main Cycle Loop -----
   while (cycle <= config.maxCyclesPerRun) {
     if (shouldAbort(runId)) break;
@@ -440,6 +461,17 @@ async function runV3Loop(
       break;
     }
 
+    // Foundation-first: inject wave-0 fix task if baseline has type errors (Harness Tier 0)
+    if (cycle === 1 && baseline && baseline.typeErrors > 0) {
+      const foundationTask = generateFoundationTask(baseline, projectPath);
+      if (foundationTask) {
+        planOutput.tasks = prependFoundationTask(planOutput.tasks, foundationTask);
+        metrics.tasksPlanned++;
+        log('plan', 'info', `Foundation-first: injected type-fix task as wave 0 (${baseline.typeErrors} baseline errors)`);
+        persistState();
+      }
+    }
+
     if (shouldAbort(runId)) break;
 
     // ===================== DISPATCH =====================
@@ -469,6 +501,7 @@ async function runV3Loop(
         healingContext,
         autoCommit: config.autoCommit ?? false,
         workspaceContext,
+        baseline,
         abortSignal: controller?.signal,
         onTaskUpdate: (updatedTasks) => {
           // Persist task states for real-time UI updates

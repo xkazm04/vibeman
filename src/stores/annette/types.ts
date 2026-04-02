@@ -42,3 +42,10 @@ export interface ConversationBranch {
   messages: ChatMessage[];
   timestamp: string;
 }
+
+export interface ChatSettings {
+  conversationMode: 'api' | 'cli';
+  ttsEnabled: boolean;
+  ttsProvider: 'openai' | 'elevenlabs';
+  autoSpeak: boolean;
+}

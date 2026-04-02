@@ -15,6 +15,7 @@ interface NavigationItem {
 // Main navigation items (visible in top bar)
 const mainNavigationItems: NavigationItem[] = [
   { module: 'overview', label: 'Overview' },
+  { module: 'mini', label: 'Mini' },
   { module: 'coder', label: 'Project' },
   { module: 'contexts', label: 'Contexts' },
   { module: 'ideas', label: 'Ideas' },

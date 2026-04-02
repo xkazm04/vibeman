@@ -28,6 +28,9 @@ import {
   cleanupRunWorktrees,
   type WorktreeInfo,
 } from './worktreeManager';
+import { prepareDAGSchedule } from './dagScheduler';
+import { matchAgentProfile, enrichPromptWithProfile } from './agentProfiles';
+import { runInterWaveGate, loadLearnings, filterLearningsForTask } from './baselineCapture';
 
 // ============================================================================
 // Input/Output Types
@@ -48,6 +51,8 @@ export interface DispatchPhaseInput {
   onTaskUpdate?: (tasks: V3Task[]) => void;
   onLog?: (phase: V3Phase, event: string, message: string) => void;
   metrics?: V3Metrics;
+  /** Pre-execution baseline for inter-wave quality gates (Harness pattern) */
+  baseline?: import('./types').BaselineMetrics;
 }
 
 // ============================================================================
@@ -92,7 +97,7 @@ export async function executeDispatchPhase(input: DispatchPhaseInput): Promise<{
   const {
     runId, projectId, projectPath, projectName, tasks, config,
     goalContext, healingContext, autoCommit, workspaceContext, abortSignal, onTaskUpdate, onLog,
-    metrics,
+    metrics, baseline,
   } = input;
 
   const results: V3TaskResult[] = [];
@@ -100,6 +105,35 @@ export async function executeDispatchPhase(input: DispatchPhaseInput): Promise<{
   const maxRetries = 2;
   const balancingConfig = v3ConfigToBalancing(config);
   const worktreeMode = config.useWorktrees === true;
+
+  // Load accumulated learnings for prompt injection (Harness pattern)
+  let projectLearnings = '';
+  try {
+    projectLearnings = loadLearnings(projectPath);
+    if (projectLearnings) {
+      onLog?.('dispatch', 'info', 'Loaded accumulated learnings for prompt injection');
+    }
+  } catch {
+    // Best-effort — don't block dispatch
+  }
+
+  // DAG pre-analysis: validate graph, resolve conflicts, compute waves
+  let dagWaves: V3Task[][] | null = null;
+  try {
+    const dagResult = prepareDAGSchedule(tasks, maxParallel);
+    if (dagResult) {
+      dagWaves = dagResult.schedule.waves;
+      if (metrics) metrics.dagMetrics = dagResult.metrics;
+      onLog?.('dispatch', 'info',
+        `DAG analysis: ${dagResult.schedule.totalWaves} waves, ` +
+        `critical path length ${dagResult.schedule.criticalPathLength}, ` +
+        `max parallelism ${dagResult.validation.maxParallelism}, ` +
+        `${dagResult.metrics.fileConflictsResolved} conflicts resolved`
+      );
+    }
+  } catch (err) {
+    onLog?.('dispatch', 'info', `DAG analysis failed, using fallback scheduler: ${err instanceof Error ? err.message : String(err)}`);
+  }
 
   // Retry tracking
   const retryCount = new Map<string, number>();
@@ -116,6 +150,9 @@ export async function executeDispatchPhase(input: DispatchPhaseInput): Promise<{
 
   const taskMap = new Map(tasks.map(t => [t.id, t]));
   const emitUpdate = () => onTaskUpdate?.(tasks);
+
+  // Wave-based execution index (used when DAG scheduler is active)
+  let currentWaveIndex = 0;
 
   try {
     // Execution loop
@@ -134,7 +171,24 @@ export async function executeDispatchPhase(input: DispatchPhaseInput): Promise<{
         break;
       }
 
-      const nextBatch = getNextBatch(tasks, pending, running, completed, failed, maxParallel, worktreeMode);
+      // Use DAG waves when available, fall back to getNextBatch
+      let nextBatch: V3Task[];
+      if (dagWaves && currentWaveIndex < dagWaves.length) {
+        // Filter wave to only include tasks still pending
+        nextBatch = dagWaves[currentWaveIndex].filter(t => pending.has(t.id));
+        if (nextBatch.length === 0 && running.size === 0) {
+          currentWaveIndex++;
+          continue;
+        }
+        if (nextBatch.length === 0 && running.size > 0) {
+          await new Promise(r => setTimeout(r, 2000));
+          continue;
+        }
+        // Advance wave index once all tasks in this wave are dispatched
+        if (nextBatch.length > 0) currentWaveIndex++;
+      } else {
+        nextBatch = getNextBatch(tasks, pending, running, completed, failed, maxParallel, worktreeMode);
+      }
 
       if (nextBatch.length === 0 && running.size > 0) {
         await new Promise(r => setTimeout(r, 2000));
@@ -211,6 +265,7 @@ export async function executeDispatchPhase(input: DispatchPhaseInput): Promise<{
             autoCommit: worktreeMode ? false : autoCommit, // Don't auto-commit in worktree — merge handles it
             workspaceContext,
             abortSignal,
+            learnings: projectLearnings,
           })
             .then(result => ({ taskId: task.id, result }))
             .catch(error => ({
@@ -292,6 +347,31 @@ export async function executeDispatchPhase(input: DispatchPhaseInput): Promise<{
         }
       }
       emitUpdate();
+
+      // Inter-wave quality gate (Harness pattern: verify between waves)
+      // Only run when using DAG waves AND baseline is available AND we have more waves pending
+      if (dagWaves && baseline && pending.size > 0 && running.size === 0) {
+        try {
+          const gateResult = runInterWaveGate(projectPath, baseline);
+          if (!gateResult.passed) {
+            onLog?.('dispatch', 'info',
+              `Inter-wave gate: ${gateResult.newErrorsIntroduced} new TypeScript error(s) introduced. ` +
+              `Injecting error context into remaining tasks.`
+            );
+            // Inject error context into pending tasks so they can self-heal
+            for (const taskId of pending) {
+              const existing = retryErrors.get(taskId) || '';
+              retryErrors.set(taskId,
+                existing + `\n[WAVE GATE FAILURE] Previous wave introduced ${gateResult.newErrorsIntroduced} TypeScript error(s):\n${gateResult.errorOutput.slice(0, 500)}`
+              );
+            }
+          } else {
+            onLog?.('dispatch', 'info', 'Inter-wave gate: passed (no new type errors)');
+          }
+        } catch {
+          // Non-blocking — don't halt dispatch on gate failure
+        }
+      }
 
       if (rateLimitDetected) {
         onLog?.('dispatch', 'info', 'Rate limit detected, backing off 60s');
@@ -405,6 +485,8 @@ interface DispatchContext {
   autoCommit: boolean;
   workspaceContext?: WorkspaceContext | null;
   abortSignal?: AbortSignal;
+  /** Accumulated learnings for prompt injection (Harness pattern) */
+  learnings?: string;
 }
 
 async function dispatchTask(task: V3Task, ctx: DispatchContext): Promise<V3TaskResult> {
@@ -419,6 +501,13 @@ async function dispatchTask(task: V3Task, ctx: DispatchContext): Promise<V3TaskR
 
   // 2. Compose prompt (no LLM — direct template)
   let prompt = composeTaskPrompt(task, ctx);
+
+  // 2a. Enrich with agent profile specialization
+  const profile = matchAgentProfile(task);
+  if (profile) {
+    prompt = enrichPromptWithProfile(prompt, profile);
+  }
+
   if (ctx.errorContext) {
     prompt = `PREVIOUS ATTEMPT FAILED\nThe previous attempt to implement this task failed with:\n${ctx.errorContext}\nPlease fix the issues and try again.\n---\n${prompt}`;
   }
@@ -568,6 +657,11 @@ function composeTaskPrompt(task: V3Task, ctx: DispatchContext): string {
     ? `\n## Previous Errors to Avoid\n\n${ctx.healingContext}`
     : '';
 
+  // Inject relevant learnings (Harness pattern: accumulated knowledge)
+  const learningsSection = ctx.learnings
+    ? filterLearningsForTask(ctx.learnings, task.targetFiles)
+    : '';
+
   const kbSection = getKBContextForTask(task, ctx);
 
   let workspaceSection = '';
@@ -589,7 +683,7 @@ ${ctx.goalContext.description}
 ${task.description}
 ${targetFilesSection}
 ${healingSection}
-${kbSection ? `\n${kbSection}\n` : ''}${workspaceSection ? `\n${workspaceSection}\n` : ''}
+${learningsSection ? `\n${learningsSection}\n` : ''}${kbSection ? `\n${kbSection}\n` : ''}${workspaceSection ? `\n${workspaceSection}\n` : ''}
 ## Instructions
 
 1. Read and understand the relevant source files before making changes

@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Target, ChevronDown, Zap, Youtube } from 'lucide-react';
+import { Target, ChevronDown, Zap } from 'lucide-react';
+import { Youtube } from '@/components/icons/brand-icons';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { toast } from '@/stores/messageStore';
 import { ScanType } from '../lib/scanTypes';

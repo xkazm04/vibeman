@@ -67,6 +67,10 @@ export async function startQuery(
     disallowedTools: options.disallowedTools,
     maxTurns: options.maxTurns,
     model: options.model,
+    // Token budget — lets the model pace tool use within a limit
+    ...(options.taskBudget ? { taskBudget: options.taskBudget } : {}),
+    // Periodic AI-generated progress summaries for subagents
+    ...(options.agentProgressSummaries ? { agentProgressSummaries: true } : {}),
     // Load project settings including CLAUDE.md
     settingSources: ['project'],
     // Use Claude Code's system prompt with optional append

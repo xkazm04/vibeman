@@ -1,12 +1,11 @@
 import {
   Mail,
-  Facebook,
   MessageCircle,
   Star,
   Smartphone,
-  Instagram,
   type LucideIcon,
 } from 'lucide-react';
+import { Facebook, Instagram } from '@/components/icons/brand-icons';
 import type { KanbanChannel } from '../lib/types/feedbackTypes';
 
 // Custom X (formerly Twitter) icon component

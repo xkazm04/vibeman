@@ -3,12 +3,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import {
-  Instagram,
-  Facebook,
   Mail,
   MessageCircle,
   type LucideIcon,
 } from 'lucide-react';
+import { Instagram, Facebook } from '@/components/icons/brand-icons';
 import type { SocialChannelType } from '../lib/types';
 
 // X icon component (Twitter rebranded)

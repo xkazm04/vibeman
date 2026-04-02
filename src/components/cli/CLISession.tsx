@@ -3,7 +3,8 @@
 import { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { transition } from '@/lib/motion';
-import { Plus, Play, CheckCircle, XCircle, Clock, Copy, Check, Github, Settings, X, AlertTriangle, RotateCcw } from 'lucide-react';
+import { Plus, Play, CheckCircle, XCircle, Clock, Copy, Check, Settings, X, AlertTriangle, RotateCcw } from 'lucide-react';
+import { Github } from '@/components/icons/brand-icons';
 import { CompactTerminal } from './CompactTerminal';
 import { CLIGitConfigPanel } from './CLIGitConfigPanel';
 import type { QueuedTask } from './types';

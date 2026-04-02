@@ -16,9 +16,7 @@ const eslintConfig = [
   {
     files: ["src/app/api/**/*.ts", "src/app/api/**/*.tsx"],
     rules: {
-      "no-console": ["error", {
-        allow: [] // Disallow all console methods in API routes
-      }]
+      "no-console": "error"
     }
   }
 ];

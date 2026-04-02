@@ -17,14 +17,12 @@ import {
   Clock,
   Award,
   Users,
-  Twitter,
-  Facebook,
-  Instagram,
   MessageCircle,
   Star,
   Smartphone,
   ArrowLeft,
 } from 'lucide-react';
+import { Twitter, Facebook, Instagram } from '@/components/icons/brand-icons';
 import type { UnifiedCustomer, ConversationThread, InteractionHistoryEntry } from '@/lib/social';
 import type { KanbanChannel } from '../../lib/types/feedbackTypes';
 import { formatRelativeTime } from '@/lib/formatDate';

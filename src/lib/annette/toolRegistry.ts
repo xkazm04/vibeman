@@ -28,6 +28,10 @@ const toolModules: Record<ToolCategory, () => Promise<ToolExecutor>> = {
   projects:   () => import('./tools/projects').then(m => m.executeProjectTools),
   standup:    () => import('./tools/standup').then(m => m.executeStandupTools),
   analysis:   () => import('./tools/analysis').then(m => m.executeAnalysisTools),
+  scanning:   () => import('./tools/scanning').then(m => m.executeScanningTools),
+  triage:     () => import('./tools/triage').then(m => m.executeTriageTools),
+  taskrunner: () => import('./tools/taskRunner').then(m => m.executeTaskRunnerTools),
+  codebaseIntel: () => import('./tools/codebaseIntel').then(m => m.executeCodebaseIntelTools),
 };
 
 const resolvedModules = new Map<ToolCategory, ToolExecutor>();

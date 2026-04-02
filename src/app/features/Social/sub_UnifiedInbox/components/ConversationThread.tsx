@@ -11,9 +11,6 @@ import {
   Tag,
   MessageSquare,
   Mail,
-  Twitter,
-  Facebook,
-  Instagram,
   MessageCircle,
   Star,
   Smartphone,
@@ -21,6 +18,7 @@ import {
   RefreshCw,
   XCircle,
 } from 'lucide-react';
+import { Twitter, Facebook, Instagram } from '@/components/icons/brand-icons';
 import type { ConversationThread as ConversationThreadType, UnifiedCustomer, ThreadMessage } from '@/lib/social';
 import type { KanbanChannel } from '../../lib/types/feedbackTypes';
 import { formatRelativeTime } from '@/lib/formatDate';

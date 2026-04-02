@@ -8,11 +8,11 @@ import {
   Bot,
   CheckCircle,
   RotateCcw,
-  Github,
   Link,
   MoreVertical,
   type LucideIcon,
 } from 'lucide-react';
+import { Github } from '@/components/icons/brand-icons';
 import type { FeedbackItem, KanbanStatus } from '../lib/types/feedbackTypes';
 
 // Full menu props (with item)

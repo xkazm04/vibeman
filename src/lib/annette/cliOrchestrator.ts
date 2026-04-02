@@ -1,22 +1,23 @@
 /**
  * Annette CLI Orchestrator
- * Alternative conversation engine using Claude Agent SDK (query()) instead of direct Anthropic API calls.
+ * Conversation engine using Claude CLI subprocess (`claude -p`) which uses
+ * the user's subscription/Max plan — no API credits consumed.
  *
- * Uses @anthropic-ai/claude-agent-sdk to run deep, quality processing through Claude Code
- * with full codebase awareness and built-in tools.
+ * Uses startExecution() from cli-service.ts to spawn `claude -p` with
+ * --output-format stream-json. Collects text and tool_use events from
+ * the stream, supports session resumption via --resume for multi-turn chat.
  *
- * Flow: user message -> memory recall -> brain context injection -> SDK query() -> collect responses -> return
+ * Flow: user message -> memory recall -> brain context injection -> CLI subprocess -> collect responses -> return
  */
 
-import { query } from '@anthropic-ai/claude-agent-sdk';
-import type {
-  SDKMessage,
-  SDKAssistantMessage,
-  SDKResultMessage,
-  SDKResultSuccess,
-  SDKResultError,
-  Options,
-} from '@anthropic-ai/claude-agent-sdk';
+import {
+  startExecution,
+  getExecution,
+  extractTextContent,
+  extractToolUses,
+  type CLIExecutionEvent,
+  type CLIExecution,
+} from '@/lib/claude-terminal/cli-service';
 
 import { buildSystemPrompt } from './systemPrompt';
 import { formatBrainForPrompt } from './brainInjector';
@@ -32,22 +33,40 @@ import type {
 } from './orchestrator';
 
 // Defaults
-const DEFAULT_MODEL = 'sonnet';
-const DEFAULT_MAX_TURNS = 15;
-const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const DEFAULT_TIMEOUT_MS = 50 * 60 * 1000; // 50 minutes — CLI sessions can be long
+const POLL_INTERVAL_MS = 200;
 
 export interface CLIOrchestratorOptions {
-  /** Model alias: 'sonnet', 'opus', 'haiku', or full model ID */
+  /** Model alias: 'sonnet', 'opus' — passed to claude CLI --model */
   model?: string;
-  /** Max SDK turns (default 15) */
-  maxTurns?: number;
   /** Timeout in ms (default 5 min) */
   timeoutMs?: number;
+  /** Resume a previous CLI session by ID for multi-turn conversation */
+  resumeSessionId?: string;
+}
+
+/**
+ * Active Annette session IDs per project, enabling multi-turn conversation
+ * via --resume. Persisted in memory across requests.
+ */
+const projectSessions = new Map<string, string>();
+
+/**
+ * Get the stored CLI session ID for a project (for conversation resumption).
+ */
+export function getProjectSessionId(projectId: string): string | undefined {
+  return projectSessions.get(projectId);
+}
+
+/**
+ * Clear the stored CLI session for a project (e.g., on "clear chat").
+ */
+export function clearProjectSession(projectId: string): void {
+  projectSessions.delete(projectId);
 }
 
 /**
  * Parse <quick_options> JSON from response text, returning cleaned text and options.
- * Duplicated from orchestrator.ts to keep CLI orchestrator self-contained.
  */
 function parseQuickOptions(text: string): { cleanText: string; options: QuickOption[] } {
   const match = text.match(/<quick_options>\s*([\s\S]*?)\s*<\/quick_options>/);
@@ -101,92 +120,68 @@ async function recallConversationMemories(
 }
 
 /**
- * Build the contextual preamble that gets prepended to the user message.
- * This gives the SDK session context about brain state, recalled memories,
- * and conversation history without requiring explicit system prompt injection.
+ * Build the full prompt for the CLI subprocess.
+ * Includes brain context, recalled memories, conversation history,
+ * and system instructions prepended to the user's message.
  */
-function buildContextualPreamble(
+function buildCLIPrompt(
+  userMessage: string,
   brainContext: string,
   recalledContext: string,
+  systemInstructions: string,
   sessionSummary?: string,
   conversationHistory?: ConversationMessage[],
+  isResume?: boolean,
 ): string {
   const parts: string[] = [];
 
-  if (brainContext && brainContext !== 'No brain data available yet. The system will learn from your decisions over time.') {
-    parts.push(`[Brain Context]\n${brainContext}`);
+  // Only include full context on first message (non-resume).
+  // On resume, the CLI session already has context from prior turns.
+  if (!isResume) {
+    parts.push(`<system_instructions>\n${systemInstructions}\n</system_instructions>`);
+
+    if (brainContext && brainContext !== 'No brain data available yet. The system will learn from your decisions over time.') {
+      parts.push(`<brain_context>\n${brainContext}\n</brain_context>`);
+    }
   }
 
   if (recalledContext) {
-    parts.push(`[Recalled Memories]\n${recalledContext}`);
+    parts.push(`<recalled_memories>\n${recalledContext}\n</recalled_memories>`);
   }
 
   if (sessionSummary) {
-    parts.push(`[Session Summary]\n${sessionSummary}`);
+    parts.push(`<session_summary>\n${sessionSummary}\n</session_summary>`);
   }
 
-  // Include a brief conversation summary if there is history
-  if (conversationHistory && conversationHistory.length > 0) {
+  // Include brief conversation summary only on first message
+  if (!isResume && conversationHistory && conversationHistory.length > 0) {
     const recentExchanges = conversationHistory.slice(-6);
     const summaryLines = recentExchanges.map(
-      (m) => `${m.role === 'user' ? 'User' : 'Annette'}: ${m.content.slice(0, 200)}${m.content.length > 200 ? '...' : ''}`,
+      (m) =>
+        `${m.role === 'user' ? 'User' : 'Annette'}: ${m.content.slice(0, 200)}${m.content.length > 200 ? '...' : ''}`,
     );
-    parts.push(`[Recent Conversation]\n${summaryLines.join('\n')}`);
+    parts.push(`<recent_conversation>\n${summaryLines.join('\n')}\n</recent_conversation>`);
   }
 
-  return parts.length > 0 ? parts.join('\n\n') + '\n\n---\n\n' : '';
+  parts.push(userMessage);
+
+  return parts.join('\n\n');
 }
 
 /**
- * Extract text content from an SDK assistant message.
- */
-function extractTextFromAssistantMessage(message: SDKAssistantMessage): string {
-  const content = message.message.content;
-  if (typeof content === 'string') {
-    return content;
-  }
-  if (Array.isArray(content)) {
-    return content
-      .filter((block) => block.type === 'text')
-      .map((block) => (block as { type: 'text'; text: string }).text)
-      .join('\n');
-  }
-  return '';
-}
-
-/**
- * Extract tool uses from an SDK assistant message.
- */
-function extractToolUsesFromAssistantMessage(
-  message: SDKAssistantMessage,
-): Array<{ name: string; input: Record<string, unknown> }> {
-  const content = message.message.content;
-  if (!Array.isArray(content)) {
-    return [];
-  }
-
-  return content
-    .filter((block) => block.type === 'tool_use')
-    .map((block) => {
-      const toolBlock = block as { type: 'tool_use'; id: string; name: string; input: unknown };
-      return {
-        name: toolBlock.name,
-        input: toolBlock.input as Record<string, unknown>,
-      };
-    });
-}
-
-/**
- * Run Annette orchestration via the Claude Agent SDK.
- * This is the CLI-based alternative to the API-based orchestrate() function.
+ * Run Annette orchestration via the Claude CLI subprocess.
+ * Uses the user's subscription — no API credits consumed.
  */
 export async function orchestrateCLI(
   input: OrchestratorInput,
   cliOptions?: CLIOrchestratorOptions,
 ): Promise<OrchestratorOutput> {
-  const model = cliOptions?.model ?? DEFAULT_MODEL;
-  const maxTurns = cliOptions?.maxTurns ?? DEFAULT_MAX_TURNS;
   const timeoutMs = cliOptions?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const model = cliOptions?.model;
+
+  // Look up existing session for conversation resumption
+  const resumeSessionId = cliOptions?.resumeSessionId || projectSessions.get(input.projectId);
+  const isResume = !!resumeSessionId;
 
   // Recall semantically relevant memories
   const recalledContext = await recallConversationMemories(
@@ -195,109 +190,121 @@ export async function orchestrateCLI(
     input.conversationHistory || [],
   );
 
-  // Merge recalled memory context with caller-provided session summary
-  const sessionSummary =
-    [input.sessionSummary, recalledContext].filter(Boolean).join('\n\n') || undefined;
-
   // Build system prompt components
   const brainContext = formatBrainForPrompt(input.projectId);
   const rapportContext = buildRapportPromptContext(input.projectId);
-  const systemPromptAppend = buildSystemPrompt({
+  const systemInstructions = buildSystemPrompt({
     brainContext,
     rapportContext,
-    sessionSummary,
+    sessionSummary: input.sessionSummary,
     relevantTopics: input.relevantTopics,
     userPreferences: input.userPreferences,
     audioMode: input.audioMode,
     cliMode: true,
   });
 
-  // Build the prompt: contextual preamble + user message
-  const preamble = buildContextualPreamble(
+  // Build the full prompt for the CLI
+  const fullPrompt = buildCLIPrompt(
+    input.message,
     brainContext,
     recalledContext,
+    systemInstructions,
     input.sessionSummary,
     input.conversationHistory,
+    isResume,
   );
-  const fullPrompt = preamble + input.message;
 
-  // Configure abort controller with timeout
-  const abortController = new AbortController();
-  const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
-
-  // Build SDK options
-  const sdkOptions: Options = {
-    abortController,
-    cwd: input.projectPath || process.cwd(),
-    permissionMode: 'plan',
-    model,
-    maxTurns,
-    persistSession: false,
-    systemPrompt: {
-      type: 'preset',
-      preset: 'claude_code',
-      append: systemPromptAppend,
-    },
-    tools: { type: 'preset', preset: 'claude_code' },
-    // Auto-approve all tools since Annette is read-oriented in plan mode
-    canUseTool: async () => ({ behavior: 'allow' as const }),
-  };
-
-  // Collect results from the SDK message stream
+  // Collect results from stream events
   const collectedText: string[] = [];
   const toolsUsed: OrchestratorOutput['toolsUsed'] = [];
   let usageInput = 0;
   let usageOutput = 0;
-  let resultModel = `claude-sdk-${model}`;
+  let resultModel = 'claude-cli';
+  let capturedSessionId: string | undefined;
+
+  const onEvent = (event: CLIExecutionEvent) => {
+    switch (event.type) {
+      case 'init': {
+        const data = event.data as Record<string, unknown>;
+        if (data.sessionId) {
+          capturedSessionId = data.sessionId as string;
+        }
+        if (data.model) {
+          resultModel = data.model as string;
+        }
+        break;
+      }
+      case 'text': {
+        // cli-service emits { content: string, model: string }
+        const content = (event.data as Record<string, unknown>).content as string;
+        if (content) {
+          collectedText.push(content);
+        }
+        break;
+      }
+      case 'tool_use': {
+        // cli-service emits { id, name, input }
+        const data = event.data as Record<string, unknown>;
+        toolsUsed.push({
+          name: (data.name as string) || 'unknown',
+          input: (data.input as Record<string, unknown>) || {},
+          result: '',
+        });
+        break;
+      }
+      case 'result': {
+        const data = event.data as Record<string, unknown>;
+        const usage = data.usage as { input_tokens?: number; output_tokens?: number } | undefined;
+        if (usage) {
+          usageInput = usage.input_tokens || 0;
+          usageOutput = usage.output_tokens || 0;
+        }
+        if (data.sessionId) {
+          capturedSessionId = data.sessionId as string;
+        }
+        break;
+      }
+    }
+  };
+
+  const projectPath = input.projectPath || process.cwd();
 
   try {
-    logger.info('CLI orchestrator: starting SDK query', {
+    logger.info('CLI orchestrator: starting subprocess', {
       projectId: input.projectId,
-      model,
-      maxTurns,
+      model: model || 'default',
+      resumeSession: isResume,
       promptLength: fullPrompt.length,
     });
 
-    const q = query({ prompt: fullPrompt, options: sdkOptions });
+    // Start the CLI execution — this spawns `claude -p` as a subprocess
+    const executionId = startExecution(
+      projectPath,
+      fullPrompt,
+      resumeSessionId,
+      onEvent,
+      {
+        provider: 'claude',
+        model: model as 'sonnet' | 'opus' | undefined,
+      },
+    );
 
-    for await (const message of q) {
-      handleSDKMessage(message, collectedText, toolsUsed);
+    // Wait for the execution to complete
+    await waitForExecutionComplete(executionId, timeoutMs);
 
-      // Capture result data
-      if (message.type === 'result') {
-        const resultMsg = message as SDKResultMessage;
-        usageInput = resultMsg.usage.input_tokens;
-        usageOutput = resultMsg.usage.output_tokens;
-
-        if (resultMsg.subtype === 'success') {
-          const successMsg = resultMsg as SDKResultSuccess;
-          // If the result has text, add it
-          if (successMsg.result && !collectedText.includes(successMsg.result)) {
-            collectedText.push(successMsg.result);
-          }
-        } else {
-          const errorMsg = resultMsg as SDKResultError;
-          logger.warn('CLI orchestrator: SDK query ended with error', {
-            subtype: errorMsg.subtype,
-            errors: errorMsg.errors,
-          });
-        }
-      }
+    // Store session ID for conversation resumption
+    if (capturedSessionId) {
+      projectSessions.set(input.projectId, capturedSessionId);
     }
   } catch (error) {
-    if (abortController.signal.aborted) {
-      logger.warn('CLI orchestrator: SDK query timed out', { timeoutMs });
-    } else {
-      logger.error('CLI orchestrator: SDK query failed', { error });
-      throw error;
-    }
-  } finally {
-    clearTimeout(timeoutId);
+    logger.error('CLI orchestrator: subprocess failed', { error });
+    throw error;
   }
 
   // Assemble final response text
-  const rawResponse = collectedText.join('\n').trim()
-    || 'I processed your request but have no additional response.';
+  const rawResponse =
+    collectedText.join('\n').trim() ||
+    'I processed your request but have no additional response.';
   const { cleanText, options: quickOptions } = parseQuickOptions(rawResponse);
 
   logger.info('CLI orchestrator: complete', {
@@ -305,6 +312,7 @@ export async function orchestrateCLI(
     toolsUsed: toolsUsed.length,
     tokensUsed: usageInput + usageOutput,
     model: resultModel,
+    sessionId: capturedSessionId,
   });
 
   return {
@@ -321,46 +329,38 @@ export async function orchestrateCLI(
 }
 
 /**
- * Process a single SDK message and collect relevant data.
+ * Wait for a CLI execution to complete by polling its status.
  */
-function handleSDKMessage(
-  message: SDKMessage,
-  collectedText: string[],
-  toolsUsed: OrchestratorOutput['toolsUsed'],
-): void {
-  switch (message.type) {
-    case 'assistant': {
-      const asstMsg = message as SDKAssistantMessage;
+function waitForExecutionComplete(executionId: string, timeoutMs: number): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const startTime = Date.now();
 
-      // Collect text content (skip sub-agent/tool-nested responses)
-      if (!asstMsg.parent_tool_use_id) {
-        const text = extractTextFromAssistantMessage(asstMsg);
-        if (text) {
-          collectedText.push(text);
+    const poll = () => {
+      const execution = getExecution(executionId);
+
+      if (!execution) {
+        reject(new Error(`Execution ${executionId} not found`));
+        return;
+      }
+
+      if (execution.status !== 'running') {
+        if (execution.status === 'error' || execution.status === 'aborted') {
+          // Still resolve — we may have partial text collected via onEvent
+          resolve();
+        } else {
+          resolve();
         }
+        return;
       }
 
-      // Track tool uses
-      const tools = extractToolUsesFromAssistantMessage(asstMsg);
-      for (const tool of tools) {
-        toolsUsed.push({
-          name: tool.name,
-          input: tool.input,
-          result: '', // SDK handles tool execution internally; we just track the call
-        });
+      if (Date.now() - startTime > timeoutMs) {
+        reject(new Error(`CLI execution timed out after ${Math.round(timeoutMs / 1000)}s`));
+        return;
       }
-      break;
-    }
 
-    case 'user': {
-      // User messages in SDK flow are typically tool_result returns.
-      // We can capture tool result content if needed.
-      // For now, skip -- the SDK manages the tool loop internally.
-      break;
-    }
+      setTimeout(poll, POLL_INTERVAL_MS);
+    };
 
-    // stream_event, system, etc. -- skip for output collection
-    default:
-      break;
-  }
+    poll();
+  });
 }

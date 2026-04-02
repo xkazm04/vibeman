@@ -3,14 +3,14 @@
  * Uses DOMPurify to sanitize user-generated content before rendering
  */
 
-import DOMPurify from 'dompurify';
+import DOMPurify, { type Config } from 'dompurify';
 
 /**
  * Configuration for DOMPurify sanitization
  * - Removes script tags, inline event handlers, and dangerous URLs
  * - Allows safe HTML and markdown formatting tags
  */
-const SANITIZE_CONFIG: DOMPurify.Config = {
+const SANITIZE_CONFIG: Config = {
   // Allow only safe HTML tags
   ALLOWED_TAGS: [
     'a', 'b', 'br', 'code', 'div', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
@@ -49,7 +49,7 @@ const SANITIZE_CONFIG: DOMPurify.Config = {
  */
 export function sanitizeContent(
   content: string,
-  options?: Partial<DOMPurify.Config>
+  options?: Partial<Config>
 ): string {
   if (!content || typeof content !== 'string') {
     return '';

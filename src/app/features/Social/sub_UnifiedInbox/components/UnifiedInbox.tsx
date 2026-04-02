@@ -14,15 +14,13 @@ import {
   X,
   ChevronDown,
   Mail,
-  Twitter,
-  Facebook,
-  Instagram,
   MessageCircle,
   Star,
   Smartphone,
   TrendingUp,
   Award,
 } from 'lucide-react';
+import { Twitter, Facebook, Instagram } from '@/components/icons/brand-icons';
 import type { FeedbackItem, KanbanChannel, KanbanPriority } from '../../lib/types/feedbackTypes';
 import type { ConversationThread as ConversationThreadType, UnifiedCustomer } from '@/lib/social';
 import { formatRelativeTime } from '@/lib/formatDate';

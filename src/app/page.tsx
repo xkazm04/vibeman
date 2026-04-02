@@ -80,6 +80,10 @@ const LazyViewsLayout = createLazyFeature(
   () => import('./features/Views/ViewsLayout'),
   LazyFeaturePresets.minimal('Views')
 );
+const LazyMiniLayout = createLazyFeature(
+  () => import('./features/Mini/MiniLayout'),
+  LazyFeaturePresets.minimal('Mini')
+);
 
 
 export default function Home() {
@@ -106,6 +110,8 @@ export default function Home() {
     switch (activeModule) {
       case 'overview':
         return <OverviewLayout key="overview" />;
+      case 'mini':
+        return <LazyMiniLayout key="mini" />;
       case 'coder':
         return <LazyGoalsLayout key="coder" projectId={projectId} />;
       case 'contexts':

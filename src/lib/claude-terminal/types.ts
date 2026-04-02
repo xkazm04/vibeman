@@ -145,6 +145,10 @@ export interface TerminalQueryOptions {
   permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan';
   systemPromptAppend?: string;
   model?: string;
+  /** API-side token budget — model paces tool use within this limit */
+  taskBudget?: { total: number };
+  /** Enable periodic AI-generated progress summaries for subagents */
+  agentProgressSummaries?: boolean;
 }
 
 // SSE event types

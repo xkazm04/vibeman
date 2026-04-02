@@ -92,10 +92,27 @@ export { subscribers };
 export async function GET(request: NextRequest) {
   const encoder = new TextEncoder();
 
+  // Shared cleanup state — accessible from both start() and cancel()
+  let heartbeat: ReturnType<typeof setInterval> | null = null;
+  let callback: ((event: XRayEvent) => void) | null = null;
+  let cleaned = false;
+
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    if (heartbeat !== null) {
+      clearInterval(heartbeat);
+      heartbeat = null;
+    }
+    if (callback !== null) {
+      subscribers.delete(callback);
+      callback = null;
+    }
+  };
+
   const stream = new ReadableStream({
     start(controller) {
       // Send initial batch of recent events from database
-      // This ensures events survive server restart
       const recentEvents = getRecentEventsFromDb(50);
       if (recentEvents.length > 0) {
         const data = JSON.stringify({ type: 'batch', payload: recentEvents });
@@ -103,38 +120,37 @@ export async function GET(request: NextRequest) {
       }
 
       // Subscribe to new real-time events
-      const callback = (event: XRayEvent) => {
+      callback = (event: XRayEvent) => {
+        if (cleaned) return;
         try {
-          // Enrich event with additional data for visualization
-          const enrichedEvent = {
-            ...event,
-            // Include context info for X-Ray visualization
-          };
+          const enrichedEvent = { ...event };
           const data = JSON.stringify({ type: 'event', payload: enrichedEvent });
           controller.enqueue(encoder.encode(`data: ${data}\n\n`));
         } catch {
-          // Connection closed
-          subscribers.delete(callback);
+          cleanup();
         }
       };
 
       subscribers.add(callback);
 
       // Heartbeat to keep connection alive
-      const heartbeat = setInterval(() => {
+      heartbeat = setInterval(() => {
+        if (cleaned) {
+          cleanup();
+          return;
+        }
         try {
           controller.enqueue(encoder.encode(`: heartbeat\n\n`));
         } catch {
-          clearInterval(heartbeat);
-          subscribers.delete(callback);
+          cleanup();
         }
       }, 30000);
 
-      // Cleanup on close
-      request.signal.addEventListener('abort', () => {
-        clearInterval(heartbeat);
-        subscribers.delete(callback);
-      });
+      // Cleanup on client disconnect
+      request.signal.addEventListener('abort', cleanup);
+    },
+    cancel() {
+      cleanup();
     },
   });
 

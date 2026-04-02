@@ -76,6 +76,7 @@ import { migrate217KnowledgeLayer } from './217_knowledge_layer';
 import { migrate218EffectivenessCacheWindowDays } from './218_effectiveness_cache_window_days';
 import { migrate219SavedViews } from './219_saved_views';
 import { migrate220KbHubEntries } from './220_kb_hub_entries';
+import { migrate221CrossProjectPatterns } from './221_cross_project_patterns';
 
 /**
  * Migration logger utility
@@ -302,6 +303,7 @@ export function runMigrations() {
     once('m218', () => migrate218EffectivenessCacheWindowDays(db as any, migrationLogger));
     once('m219', () => migrate219SavedViews(db as any, migrationLogger));
     once('m220', () => migrate220KbHubEntries(db as any, migrationLogger));
+    once('m221', () => migrate221CrossProjectPatterns(db as any, migrationLogger));
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {

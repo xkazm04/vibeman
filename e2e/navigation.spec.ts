@@ -60,11 +60,12 @@ async function assertModuleLoaded(page: Page, label: string, errors: string[]) {
 }
 
 async function openOtherDropdown(page: Page) {
-  // The dropdown has a fixed inset-0 z-40 backdrop overlay.
-  // Need force:true to click through it, or dismiss it first.
+  // Wait for Framer Motion entrance animations (elements start at opacity:0)
+  await page.waitForTimeout(2000);
   const dropdown = page.getByTestId('nav-other-dropdown');
+  await dropdown.waitFor({ state: 'attached', timeout: 10000 });
   await dropdown.click({ force: true });
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(500);
 }
 
 async function clickOtherItem(page: Page, testId: string) {

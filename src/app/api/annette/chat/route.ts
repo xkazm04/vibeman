@@ -1,14 +1,15 @@
 /**
  * POST /api/annette/chat
- * Main Annette 2.0 chat endpoint
+ * Main Annette chat endpoint
  *
- * Receives user message, orchestrates with claude-haiku-4-5 + tool_use,
- * returns AI response with brain context awareness.
+ * Two modes:
+ * - 'cli' (default): Spawns Claude CLI subprocess using user's subscription (no API credits)
+ * - 'api': Direct Anthropic Messages API (Haiku, requires ANTHROPIC_API_KEY + credits)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { orchestrate, ConversationMessage } from '@/lib/annette/orchestrator';
-import { orchestrateCLI } from '@/lib/annette/cliOrchestrator';
+import { orchestrateCLI, clearProjectSession } from '@/lib/annette/cliOrchestrator';
 import { analyzeAndUpdateRapport } from '@/lib/annette/rapportEngine';
 import { withObservability } from '@/lib/observability/middleware';
 import { logger } from '@/lib/logger';
@@ -20,20 +21,27 @@ interface ChatRequest {
   sessionId?: string;
   conversationHistory?: ConversationMessage[];
   audioMode?: boolean;
-  /** Orchestration mode: 'api' uses Anthropic Messages API (Haiku), 'cli' uses Claude Agent SDK */
+  /** Orchestration mode: 'api' uses Anthropic API (credits), 'cli' uses Claude CLI (subscription) */
   mode?: 'api' | 'cli';
+  /** Clear the CLI session for this project (start fresh conversation) */
+  clearSession?: boolean;
 }
 
 async function handlePost(request: NextRequest) {
   try {
     const body: ChatRequest = await request.json();
-    const { message, projectId, projectPath, conversationHistory, audioMode, mode } = body;
+    const { message, projectId, projectPath, conversationHistory, audioMode, mode, clearSession } = body;
 
     if (!message || !projectId) {
       return NextResponse.json(
         { error: 'message and projectId are required' },
         { status: 400 }
       );
+    }
+
+    // Clear CLI session if requested (e.g., user clicked "clear chat")
+    if (clearSession) {
+      clearProjectSession(projectId);
     }
 
     const orchestrationMode = mode || 'cli';

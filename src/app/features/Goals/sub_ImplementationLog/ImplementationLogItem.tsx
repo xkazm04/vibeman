@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileCode, CheckCircle2, ChevronRight, Github } from 'lucide-react';
+import { FileCode, CheckCircle2, ChevronRight } from 'lucide-react';
+import { Github } from '@/components/icons/brand-icons';
 import { formatRelativeTime } from '@/lib/formatDate';
 
 export interface ImplementationLog {

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-04-01T12:39:01.417Z",
+  "timestamp": "2026-04-02T09:48:39.224Z",
   "files": [
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\buttons\\IlluminatedButton.tsx",
@@ -26,7 +26,7 @@
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\cli\\CLISession.tsx",
       "status": "pending",
-      "lineCount": 599,
+      "lineCount": 600,
       "colorReplacements": 9,
       "extractedComponents": []
     },
@@ -229,7 +229,7 @@
     {
       "path": "C:\\Users\\mkdol\\dolla\\vibeman\\src\\components\\onboarding\\ModuleProgressBar.tsx",
       "status": "pending",
-      "lineCount": 272,
+      "lineCount": 273,
       "colorReplacements": 6,
       "extractedComponents": []
     },

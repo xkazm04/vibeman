@@ -2,7 +2,7 @@
  * Brain Tools - Implementation for Annette's brain-related tool calls
  */
 
-import { behavioralSignalDb, directionOutcomeDb, brainReflectionDb, brainInsightDb, directionDb } from '@/app/db';
+import { behavioralSignalDb, directionOutcomeDb, brainReflectionDb, brainInsightDb, directionDb, contextDb, ideaDb } from '@/app/db';
 import { BehavioralSignalType } from '@/app/db';
 import { getBehavioralContext } from '@/lib/brain/behavioralContext';
 
@@ -142,6 +142,148 @@ export async function executeBrainTools(
         reflectionDate: lastReflection?.completed_at ?? null,
         directionsAnalyzed: lastReflection?.directions_analyzed ?? 0,
         insights,
+      });
+    }
+
+    case 'get_project_health': {
+      const ctx = getBehavioralContext(projectId, 14);
+
+      // Get outcome stats
+      const outcomeStats = directionOutcomeDb.getStats(projectId, 30);
+      const successRate = outcomeStats.total > 0
+        ? Math.round((outcomeStats.successful / outcomeStats.total) * 100)
+        : null;
+
+      // Get direction counts
+      const directions = directionDb.getDirectionsByProject(projectId);
+      const directionStats = {
+        total: directions.length,
+        pending: directions.filter(d => d.status === 'pending').length,
+        accepted: directions.filter(d => d.status === 'accepted').length,
+        rejected: directions.filter(d => d.status === 'rejected').length,
+      };
+
+      // Get idea counts
+      const ideas = ideaDb.getIdeasByProject(projectId);
+      const ideaStats = {
+        total: ideas.length,
+        pending: ideas.filter(i => i.status === 'pending').length,
+        accepted: ideas.filter(i => i.status === 'accepted').length,
+        implemented: ideas.filter(i => i.status === 'implemented').length,
+      };
+
+      // Get context count
+      const contexts = contextDb.getContextsByProject(projectId);
+
+      // Get reflection stats
+      const reflectionStats = brainReflectionDb.getStats(projectId);
+
+      // Build strengths / weaknesses from behavioral data
+      const strengths: string[] = [];
+      const weaknesses: string[] = [];
+
+      if (successRate !== null && successRate >= 70) {
+        strengths.push(`High implementation success rate (${successRate}%)`);
+      } else if (successRate !== null && successRate < 50) {
+        weaknesses.push(`Low implementation success rate (${successRate}%)`);
+      }
+
+      if (ctx.hasData && ctx.patterns.revertedCount > 0) {
+        weaknesses.push(`${ctx.patterns.revertedCount} reverted implementations recently`);
+      }
+
+      if (directionStats.pending > 20) {
+        weaknesses.push(`Large triage backlog (${directionStats.pending} pending directions)`);
+      }
+
+      if (ctx.hasData && ctx.trending.neglectedAreas.length > 0) {
+        weaknesses.push(`Neglected areas: ${ctx.trending.neglectedAreas.slice(0, 3).join(', ')}`);
+      }
+
+      if (reflectionStats.totalInsights > 10) {
+        strengths.push(`Rich learning history (${reflectionStats.totalInsights} brain insights)`);
+      }
+
+      if (ctx.hasData && ctx.trending.activeFeatures.length > 0) {
+        strengths.push(`Active development in ${ctx.trending.activeFeatures.length} features`);
+      }
+
+      return JSON.stringify({
+        contexts: contexts.length,
+        ideas: ideaStats,
+        directions: directionStats,
+        outcomes: {
+          successRate,
+          total: outcomeStats.total,
+          successful: outcomeStats.successful,
+          failed: outcomeStats.failed,
+          reverted: outcomeStats.reverted,
+        },
+        reflections: {
+          total: reflectionStats.total,
+          completed: reflectionStats.completed,
+          lastReflection: reflectionStats.lastReflection,
+          totalInsights: reflectionStats.totalInsights,
+        },
+        strengths,
+        weaknesses,
+      });
+    }
+
+    case 'get_learning_timeline': {
+      const days = parseInt(String(input.days || '30'), 10);
+      const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+      // Get reflections within the window
+      const reflections = brainReflectionDb.getByProject(projectId, 50);
+      const recentReflections = reflections.filter(
+        r => r.status === 'completed' && r.completed_at && r.completed_at >= cutoffDate
+      );
+
+      // Get insights for recent reflections
+      const timeline: Array<{
+        date: string;
+        reflectionId: string;
+        directionsAnalyzed: number;
+        insights: Array<{
+          type: string;
+          title: string;
+          confidence: number;
+        }>;
+      }> = [];
+
+      for (const reflection of recentReflections) {
+        const insightRows = brainInsightDb.getByReflection(reflection.id);
+        timeline.push({
+          date: reflection.completed_at!,
+          reflectionId: reflection.id,
+          directionsAnalyzed: reflection.directions_analyzed ?? 0,
+          insights: insightRows.map(i => ({
+            type: i.type,
+            title: i.title,
+            confidence: i.confidence,
+          })),
+        });
+      }
+
+      // Sort chronologically (oldest first)
+      timeline.sort((a, b) => a.date.localeCompare(b.date));
+
+      // Compute summary
+      const totalInsights = timeline.reduce((sum, t) => sum + t.insights.length, 0);
+      const insightTypes: Record<string, number> = {};
+      for (const entry of timeline) {
+        for (const insight of entry.insights) {
+          insightTypes[insight.type] = (insightTypes[insight.type] || 0) + 1;
+        }
+      }
+
+      return JSON.stringify({
+        days,
+        reflections: recentReflections.length,
+        totalInsights,
+        insightsByType: insightTypes,
+        timeline,
       });
     }
 
