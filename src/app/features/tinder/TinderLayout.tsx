@@ -12,6 +12,7 @@ import EffortRiskFilterSidebar from '@/app/features/tinder/components/EffortRisk
 import ContextFilterSidebar from '@/app/features/tinder/components/ContextFilterSidebar';
 import KeyboardShortcutOverlay from '@/app/features/tinder/components/KeyboardShortcutOverlay';
 import AutoTriageButton from '@/app/features/tinder/components/AutoTriageButton';
+import AcceptAllButton from '@/app/features/tinder/components/AcceptAllButton';
 import { useTinderItems, useTinderItemsKeyboardShortcuts } from '@/app/features/tinder/lib/useTinderItems';
 import { useTestMode, useTestModeIdeas } from '@/app/features/tinder/lib/useTestMode';
 import { fetchContextsForProjects } from '@/app/features/Ideas/lib/contextLoader';
@@ -196,6 +197,12 @@ const TinderLayout = () => {
               <AutoTriageButton
                 selectedProjectId={selectedProjectId}
                 disabled={loading || processing}
+              />
+              <AcceptAllButton
+                selectedProjectId={selectedProjectId}
+                disabled={loading || processing}
+                remainingCount={remainingCount}
+                onComplete={loadItems}
               />
             </>
           )}

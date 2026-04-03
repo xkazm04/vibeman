@@ -419,6 +419,61 @@
       "filePaths": ["package.json", "vite.config.ts"],
       "tags": ["multi-tier", "feature-gates", "product-sku", "build-variants"],
       "confidence": 84
+    },
+    {
+      "domain": "ui",
+      "title": "Skeleton/shimmer loading placeholders add complexity without user value",
+      "description": "Adding skeleton screens, shimmer effects, and loading placeholder animations to components like gallery cards, chart containers, and list views adds visual complexity, animation overhead, and maintenance burden without meaningful UX improvement. The app loads fast enough locally that skeleton states flash briefly and create visual noise rather than smooth perceived performance. Prefer instant empty states or simple spinners where needed.",
+      "pattern_type": "anti_pattern",
+      "language": "typescript",
+      "codePattern": "// Anti-pattern: skeleton shimmer for local-first app\n<div className=\"animate-pulse bg-muted rounded h-4 w-3/4\" />\n<div className=\"animate-pulse bg-muted rounded h-4 w-1/2\" />\n\n// Preferred: simple conditional render\n{isLoading ? <Spinner size=\"sm\" /> : <Content />}",
+      "filePaths": [],
+      "tags": ["skeleton", "shimmer", "loading-state", "perceived-performance", "over-engineering"],
+      "confidence": 85
+    },
+    {
+      "domain": "ui",
+      "title": "Staggered entrance and micro-animations add jank without justification",
+      "description": "Proposals to add staggered entrance animations (animation-delay per index), directional slide transitions between wizard steps, phase transition micro-animations with exit variants, and chat message fade-in effects add CSS complexity, potential jank on slower hardware, and accessibility concerns (motion sensitivity) without solving any user problem. The app is a productivity tool, not a showcase. Animations should only be added when they serve a specific functional purpose (e.g., indicating state change direction).",
+      "pattern_type": "anti_pattern",
+      "language": "typescript",
+      "codePattern": "// Anti-pattern: decorative staggered animations\nstyle={{ animationDelay: `${index * 40}ms` }}\nclassName=\"animate-in slide-from-left\"\n\n// Anti-pattern: phase transition exit variants\nconst variants = { exit: { opacity: 0, x: -20 }, enter: { opacity: 1, x: 0 } };\n<motion.div variants={variants} />\n\n// Preferred: instant render, no animation overhead\n{items.map(item => <Card key={item.id} {...item} />)}",
+      "filePaths": [],
+      "tags": ["animation", "entrance-animation", "micro-animation", "motion", "accessibility", "over-engineering"],
+      "confidence": 85
+    },
+    {
+      "domain": "security",
+      "title": "SSRF-safe DNS resolution for outbound HTTP requests",
+      "description": "When making HTTP requests to user-supplied URLs (healthchecks, webhooks, API probes), validate the resolved IP address at connection time — not just the hostname before the request. DNS rebinding attacks pass hostname validation with a public IP, then rebind to internal IPs (169.254.169.254, 10.x, etc.) before the HTTP client connects. Use a custom DNS resolver that rejects private/loopback IPs at the socket level.",
+      "pattern_type": "best_practice",
+      "language": "rust",
+      "codePattern": "struct SsrfSafeDnsResolver;\nimpl Resolve for SsrfSafeDnsResolver {\n  fn resolve(&self, name: Name) -> Resolving {\n    Box::pin(async move {\n      let addrs = tokio::net::lookup_host((name.as_str(), 0)).await?;\n      let safe: Vec<_> = addrs.filter(|a| !is_private_ip(a.ip())).collect();\n      if safe.is_empty() { return Err(\"resolved to private IP\".into()); }\n      Ok(Box::new(safe.into_iter()) as Addrs)\n    })\n  }\n}",
+      "filePaths": ["src-tauri/src/commands/credentials/credential_design.rs"],
+      "tags": ["ssrf", "dns-rebinding", "private-ip", "reqwest-resolver"],
+      "confidence": 90
+    },
+    {
+      "domain": "database",
+      "title": "Atomic status transitions with WHERE clause guard",
+      "description": "When updating status fields (event status, execution status, pipeline state), use UPDATE ... WHERE status = ?expected instead of SELECT + validate + UPDATE. The SELECT-then-UPDATE pattern has a TOCTOU gap where concurrent threads can create illegal transitions. The atomic UPDATE checks rows_affected to detect conflicts.",
+      "pattern_type": "best_practice",
+      "language": "rust",
+      "codePattern": "let rows = conn.execute(\n  \"UPDATE events SET status = ?1 WHERE id = ?2 AND status = ?3\",\n  params![new_status, id, expected_status],\n)?;\nif rows == 0 {\n  return Err(AppError::Conflict(\"status already changed\".into()));\n}",
+      "filePaths": ["src-tauri/src/db/repos/communication/events.rs"],
+      "tags": ["toctou", "atomic-update", "status-transition", "race-condition"],
+      "confidence": 92
+    },
+    {
+      "domain": "security",
+      "title": "Never silently fall back to plaintext on encryption failure",
+      "description": "When encrypting sensitive data (trigger configs, credential fields, webhook secrets), encryption failure must return an error — never fall back to storing the raw value. Silent plaintext fallback creates a false sense of security where the developer believes data is encrypted but it's stored in cleartext in SQLite.",
+      "pattern_type": "anti_pattern",
+      "language": "rust",
+      "codePattern": "// Anti-pattern: silent plaintext fallback\nfn encrypt_config(config: &str) -> String {\n  match crypto::encrypt(config) {\n    Ok(enc) => enc,\n    Err(_) => { warn!(\"encryption failed\"); config.to_string() } // WRONG\n  }\n}\n\n// Correct: propagate the error\nfn encrypt_config(config: &str) -> Result<String, AppError> {\n  crypto::encrypt(config).map_err(|e| AppError::Encryption(e.to_string()))\n}",
+      "filePaths": ["src-tauri/src/db/repos/resources/triggers.rs"],
+      "tags": ["encryption", "plaintext-fallback", "silent-failure", "security"],
+      "confidence": 95
     }
   ]
 }

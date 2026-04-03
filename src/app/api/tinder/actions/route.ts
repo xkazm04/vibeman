@@ -23,7 +23,6 @@ import { deleteRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { type WrapperMode } from '@/lib/prompts/requirement_file';
 import { signalCollector } from '@/lib/brain/signalCollector';
 import { withObservability } from '@/lib/observability/middleware';
-import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
 import {
   IdeasErrorCode,
   createIdeasErrorResponse,
@@ -338,6 +337,6 @@ async function handlePost(request: NextRequest) {
 }
 
 export const POST = withObservability(
-  withRateLimit(handlePost, '/api/tinder/actions', 'strict'),
+  handlePost,
   '/api/tinder/actions'
 );
