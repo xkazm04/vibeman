@@ -29,25 +29,25 @@ export default function ContextDetailInfo({ context, contextGroup }: ContextDeta
       
       <div className="space-y-4">
         <div>
-          <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">Name</label>
+          <label className="text-sm font-medium text-gray-300 uppercase tracking-wider">Name</label>
           <p className="text-lg font-bold text-white font-mono mt-1">{context.name}</p>
         </div>
         
         {context.description && (
           <div>
-            <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">Description</label>
+            <label className="text-sm font-medium text-gray-300 uppercase tracking-wider">Description</label>
             <p className="text-gray-300 mt-1 leading-relaxed">{context.description}</p>
           </div>
         )}
         
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">Files</label>
+            <label className="text-sm font-medium text-gray-300 uppercase tracking-wider">Files</label>
             <p className="text-2xl font-bold text-white font-mono mt-1">{context.filePaths.length}</p>
           </div>
           
           <div>
-            <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">Group</label>
+            <label className="text-sm font-medium text-gray-300 uppercase tracking-wider">Group</label>
             <p 
               className="text-lg font-bold font-mono mt-1"
               style={{ color: contextGroup?.color || '#8B5CF6' }}

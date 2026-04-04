@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { zIndex } from '@/lib/design-tokens';
 import {
   Activity,
   Zap,
@@ -268,7 +269,8 @@ export default function PollingDashboard({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="fixed bottom-4 right-4 z-[9999] pointer-events-auto"
+      className="fixed bottom-4 right-4 pointer-events-auto"
+      style={{ zIndex: zIndex.devtools }}
     >
       <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl overflow-hidden">
         {/* Header */}

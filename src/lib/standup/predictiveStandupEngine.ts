@@ -291,7 +291,9 @@ function detectPredictedBlockers(
   let untestedLogs: Array<{ id: string }> = [];
   try {
     untestedLogs = implementationLogDb.getUntestedLogsByProject(projectId);
-  } catch { /* silent */ }
+  } catch (error) {
+    logger.warn('[PredictiveStandup] Failed to fetch untested logs for blockers:', { projectId, error });
+  }
 
   return buildBlockerList(goalsAtRisk, behavioralCtx, untestedLogs);
 }
@@ -365,7 +367,9 @@ function buildTaskRecommendations(
   let untestedLogs: Array<{ id: string }> = [];
   try {
     untestedLogs = implementationLogDb.getUntestedLogsByProject(projectId);
-  } catch { /* silent */ }
+  } catch (error) {
+    logger.warn('[PredictiveStandup] Failed to fetch untested logs for task recommendations:', { projectId, error });
+  }
 
   return buildTaskList(goalsAtRisk, contextAlerts, velocity, untestedLogs);
 }

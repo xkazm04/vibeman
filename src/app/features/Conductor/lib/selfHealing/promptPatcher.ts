@@ -152,20 +152,6 @@ export function prunePatches(projectId: string): HealingPatch[] {
   return surviving;
 }
 
-/**
- * Update application/success counts for a patch.
- * Increments application_count by 1, and success_count by 1 if success is true.
- */
-export function updatePatchStats(patchId: string, success: boolean): void {
-  const db = getDatabase();
-  db.prepare(`
-    UPDATE conductor_healing_patches
-    SET application_count = application_count + 1,
-        success_count = success_count + ${success ? 1 : 0}
-    WHERE id = ?
-  `).run(patchId);
-}
-
 // ============================================================================
 // Patch Injection
 // ============================================================================
@@ -207,35 +193,3 @@ export function getConfigPatches(
     }));
 }
 
-// ============================================================================
-// Effectiveness Measurement
-// ============================================================================
-
-/**
- * Measure patch effectiveness by comparing error rates before and after.
- *
- * Returns a value between 0 (not effective) and 1 (fully effective).
- */
-export function measureEffectiveness(
-  patch: HealingPatch,
-  errorsBefore: number,
-  errorsAfter: number
-): number {
-  if (errorsBefore === 0) return 1;
-  if (errorsAfter >= errorsBefore) return 0;
-
-  return 1 - errorsAfter / errorsBefore;
-}
-
-/**
- * Check if a patch should be auto-reverted due to low effectiveness.
- *
- * Auto-revert criteria:
- * - Patch has been measured at least twice
- * - Effectiveness is below 30%
- */
-export function shouldAutoRevert(patch: HealingPatch): boolean {
-  if (patch.reverted) return false;
-  if (patch.effectiveness === undefined) return false;
-  return patch.effectiveness < 0.3;
-}

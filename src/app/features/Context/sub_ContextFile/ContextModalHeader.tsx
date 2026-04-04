@@ -26,6 +26,7 @@ function ModeButton({ mode, currentMode, onClick, icon, label }: ModeButtonProps
   return (
     <button
       onClick={onClick}
+      aria-pressed={isActive}
       className={`px-3 py-1 text-sm rounded-md transition-colors ${
         isActive
           ? 'bg-gray-700 text-white'
@@ -113,6 +114,7 @@ export default function ContextModalHeader({
 
         <button
           onClick={onClose}
+          aria-label="Close modal"
           className="p-1 hover:bg-gray-700 rounded-sm transition-colors"
         >
           <X className="w-4 h-4 text-gray-400" />

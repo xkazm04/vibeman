@@ -34,20 +34,7 @@ const EVENT_ICONS: Record<ProcessLogEntry['event'], { icon: React.ComponentType<
   metrics: { icon: Activity, className: 'text-cyan-400' },
 };
 
-function formatTime(timestamp: string): string {
-  return new Date(timestamp).toLocaleTimeString('en-US', {
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  const seconds = Math.round(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-}
+import { formatDuration, formatTime } from '../lib/format';
 
 function LogEntry({ entry }: { entry: ProcessLogEntry }) {
   const [expanded, setExpanded] = useState(false);

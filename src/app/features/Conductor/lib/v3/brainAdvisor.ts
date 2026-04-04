@@ -177,38 +177,8 @@ export function getBrainWarnings(input: GetBrainWarningsInput): string[] {
 }
 
 // ============================================================================
-// Moment 4: Get Knowledge Base Context for Plan Phase
 // ============================================================================
-
-/**
- * Retrieve relevant Knowledge Base entries for a goal context.
- * Uses dynamic require to avoid circular dependencies.
- * Non-blocking: returns empty string on any failure.
- */
-export function getKBContext(input: {
-  projectId: string;
-  goalTitle: string;
-  goalDescription: string;
-}): string {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { knowledgeBaseService } = require('@/lib/knowledge-base/knowledgeBaseService');
-    const entries = knowledgeBaseService.getRelevantForTask({
-      taskTitle: input.goalTitle,
-      taskDescription: input.goalDescription,
-      projectId: input.projectId,
-      limit: 10,
-    });
-    if (entries.length === 0) return '';
-    return knowledgeBaseService.formatKBForPrompt(entries);
-  } catch (err) {
-    console.warn('[BrainAdvisor] getKBContext failed:', err);
-    return '';
-  }
-}
-
-// ============================================================================
-// Moment 5: Workspace Context — Cross-Project Orchestration
+// Moment 4: Workspace Context — Cross-Project Orchestration
 // ============================================================================
 
 /**

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { transition } from '@/lib/motion';
+import { zIndex } from '@/lib/design-tokens';
 import { FolderOpen, FolderMinus } from 'lucide-react';
 import { ContextGroup } from '@/stores/contextStore';
 
@@ -133,7 +134,7 @@ const MoveToGroupMenu = React.memo<MoveToGroupMenuProps>(({
           {/* Backdrop */}
           <div
             className="fixed inset-0 bg-black/20"
-            style={{ zIndex: 999998 }}
+            style={{ zIndex: zIndex.dropdown }}
             onClick={onClose}
             data-testid="move-menu-backdrop"
           />
@@ -149,7 +150,7 @@ const MoveToGroupMenu = React.memo<MoveToGroupMenuProps>(({
             style={{
               left: `${Math.min(position.x, window.innerWidth - 260)}px`,
               top: `${Math.min(position.y, window.innerHeight - 300)}px`,
-              zIndex: 999999,
+              zIndex: zIndex.dropdown + 1,
               boxShadow:
                 '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(6, 182, 212, 0.2)',
             }}

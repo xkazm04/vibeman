@@ -18,10 +18,11 @@ import {
   Zap,
 } from 'lucide-react';
 import ExpandChevron from '@/components/ui/ExpandChevron';
-import type { LearningInsight } from '@/app/db/models/brain.types';
+import type { LearningInsight, InsightWithMeta, ConfidencePoint } from '@/app/db/models/brain.types';
 import InsightEvidenceLinks from './InsightEvidenceLinks';
 import InsightSparkline from './InsightSparkline';
-import type { ConfidencePoint } from '@/app/api/brain/insights/route';
+
+export type { InsightWithMeta, ConfidencePoint };
 
 // Dynamically import react-window to avoid SSR issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,12 +31,6 @@ const ReactWindowList = dynamic(
   { ssr: false }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) as any;
-
-export interface InsightWithMeta extends LearningInsight {
-  project_id: string;
-  reflection_id: string;
-  confidenceHistory?: ConfidencePoint[];
-}
 
 export type InsightType = LearningInsight['type'];
 export type SortField = 'type' | 'title' | 'confidence' | 'evidence';

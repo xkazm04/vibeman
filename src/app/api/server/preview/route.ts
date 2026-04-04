@@ -157,7 +157,7 @@ async function startPreviewServer(
     // Spawn the process
     previewProcess = spawn(command, args, {
       cwd: projectPath,
-      shell: true,
+      shell: false,
       detached: false,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: {

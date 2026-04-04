@@ -10,12 +10,7 @@ import {
   Tag,
   FileText,
   Clock,
-  Mail,
-  MessageCircle,
-  Star,
-  Smartphone,
 } from 'lucide-react';
-import { Twitter, Facebook, Instagram } from '@/components/icons/brand-icons';
 import type { InteractionHistoryEntry } from '@/lib/social';
 import type { KanbanChannel } from '../../lib/types/feedbackTypes';
 import { formatRelativeTime } from '@/lib/formatDate';
@@ -71,15 +66,7 @@ const TYPE_CONFIG: Record<InteractionHistoryEntry['type'], {
   },
 };
 
-const CHANNEL_ICONS: Record<KanbanChannel, React.ElementType> = {
-  email: Mail,
-  x: Twitter,
-  facebook: Facebook,
-  instagram: Instagram,
-  support_chat: MessageCircle,
-  trustpilot: Star,
-  app_store: Smartphone,
-};
+import { CHANNEL_ICONS } from '../../lib/channelConstants';
 
 export function HistoryTimeline({
   history,

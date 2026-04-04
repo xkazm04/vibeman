@@ -5,6 +5,15 @@
 
 import { DbConnection } from '../drivers/types';
 
+/** Safe SQL identifier: letters, digits, underscores; must start with letter or underscore */
+const SAFE_IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+function assertSafeIdentifier(name: string, label: string): void {
+  if (!SAFE_IDENTIFIER_RE.test(name)) {
+    throw new Error(`${label} contains unsafe characters: "${name}"`);
+  }
+}
+
 export interface ColumnInfo {
   cid: number;
   name: string;
@@ -24,6 +33,7 @@ export interface MigrationLogger {
  * Get table column information
  */
 export function getTableInfo(db: DbConnection, tableName: string): ColumnInfo[] {
+  assertSafeIdentifier(tableName, 'tableName');
   return db.prepare(`PRAGMA table_info(${tableName})`).all() as unknown as ColumnInfo[];
 }
 
@@ -45,6 +55,9 @@ export function addColumnIfNotExists(
   columnDefinition: string,
   logger?: MigrationLogger
 ): boolean {
+  assertSafeIdentifier(tableName, 'tableName');
+  assertSafeIdentifier(columnName, 'columnName');
+
   // First check if table exists - if not, skip (table will be created with column by schema)
   if (!tableExists(db, tableName)) {
     logger?.info(`Table ${tableName} does not exist yet, skipping column addition`);

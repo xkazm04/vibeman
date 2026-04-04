@@ -13,7 +13,7 @@ import {
   serializeAssertions,
   type HypothesisAssertion,
 } from '@/lib/directions/hypothesisEngine';
-import { withObservability } from '@/lib/observability/middleware';
+import { createParamsRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
 /**
  * GET /api/directions/[id]/validate
@@ -23,8 +23,7 @@ async function handleGet(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params;
+  const { id } = await params;
 
     const direction = directionDb.getDirectionById(id);
     if (!direction) {
@@ -47,19 +46,12 @@ async function handleGet(
     const outcome = directionOutcomeDb.getByDirectionId(id);
     const validation = validateAssertions(id, assertions, outcome);
 
-    return NextResponse.json({
-      success: true,
-      hasAssertions: true,
-      hasOutcome: !!outcome,
-      validation,
-    });
-  } catch (error) {
-    console.error('[API] Direction validate GET error:', error);
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({
+    success: true,
+    hasAssertions: true,
+    hasOutcome: !!outcome,
+    validation,
+  });
 }
 
 /**
@@ -74,9 +66,8 @@ async function handlePost(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params;
-    const body = await request.json();
+  const { id } = await params;
+  const body = await request.json();
 
     const direction = directionDb.getDirectionById(id);
     if (!direction) {
@@ -112,15 +103,14 @@ async function handlePost(
       response.hasOutcome = !!outcome;
     }
 
-    return NextResponse.json(response);
-  } catch (error) {
-    console.error('[API] Direction validate POST error:', error);
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(response);
 }
 
-export const GET = withObservability(handleGet, '/api/directions/[id]/validate');
-export const POST = withObservability(handlePost, '/api/directions/[id]/validate');
+export const GET = createParamsRouteHandler(handleGet, {
+  endpoint: '/api/directions/[id]/validate',
+  method: 'GET',
+});
+export const POST = createParamsRouteHandler(handlePost, {
+  endpoint: '/api/directions/[id]/validate',
+  method: 'POST',
+});

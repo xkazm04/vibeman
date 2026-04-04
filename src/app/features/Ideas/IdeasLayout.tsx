@@ -28,7 +28,7 @@ import { useProjectContexts } from '@/lib/queries/contextsQueries';
 import IdeasHeaderWithFilter from '@/app/features/Ideas/components/IdeasHeaderWithFilter';
 import BufferView, { useInvalidateIdeas } from '@/app/features/Ideas/sub_Buffer/BufferView';
 import KanbanBoard from '@/app/features/Ideas/sub_Kanban/KanbanBoard';
-import IdeaDetailModal from '@/app/features/Ideas/components/IdeaDetailModal';
+import IdeaDetailModal from '@/components/idea/IdeaDetailModal';
 import { ScanType } from '@/app/features/Ideas/sub_IdeasSetup/ScanTypeSelector';
 import ScanInitiator from '@/app/features/Ideas/sub_IdeasSetup/ScanInitiator';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';

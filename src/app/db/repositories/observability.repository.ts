@@ -123,74 +123,81 @@ export const observabilityRepository = {
   upsertEndpointStats: (data: CreateObsEndpointStats): DbObsEndpointStats => {
     const db = getDatabase();
 
-    // Check if stats exist for this period
-    const existingStmt = db.prepare(`
-      SELECT * FROM obs_endpoint_stats
-      WHERE project_id = ? AND endpoint = ? AND method = ? AND period_start = ?
-    `);
-    const existing = existingStmt.get(
-      data.project_id,
-      data.endpoint,
-      data.method,
-      data.period_start
-    ) as DbObsEndpointStats | undefined;
-
-    if (existing) {
-      // Update existing stats
-      const updateStmt = db.prepare(`
-        UPDATE obs_endpoint_stats
-        SET call_count = call_count + ?,
-            avg_response_time_ms = ((avg_response_time_ms * call_count) + ?) / (call_count + 1),
-            max_response_time_ms = MAX(COALESCE(max_response_time_ms, 0), ?),
-            error_count = error_count + ?,
-            total_request_bytes = total_request_bytes + ?,
-            total_response_bytes = total_response_bytes + ?
-        WHERE id = ?
+    // Wrap SELECT+INSERT/UPDATE in a transaction to prevent duplicate inserts
+    // from concurrent requests that both read no-existing-record
+    const upsert = db.transaction(() => {
+      const existingStmt = db.prepare(`
+        SELECT * FROM obs_endpoint_stats
+        WHERE project_id = ? AND endpoint = ? AND method = ? AND period_start = ?
       `);
-      updateStmt.run(
+      const existing = existingStmt.get(
+        data.project_id,
+        data.endpoint,
+        data.method,
+        data.period_start
+      ) as DbObsEndpointStats | undefined;
+
+      if (existing) {
+        // Fix: use correct running average formula
+        const updateStmt = db.prepare(`
+          UPDATE obs_endpoint_stats
+          SET call_count = call_count + ?,
+              avg_response_time_ms = ((avg_response_time_ms * call_count) + (? * ?)) / (call_count + ?),
+              max_response_time_ms = MAX(COALESCE(max_response_time_ms, 0), ?),
+              error_count = error_count + ?,
+              total_request_bytes = total_request_bytes + ?,
+              total_response_bytes = total_response_bytes + ?
+          WHERE id = ?
+        `);
+        updateStmt.run(
+          data.call_count,
+          data.avg_response_time_ms ?? 0,
+          data.call_count,
+          data.call_count,
+          data.max_response_time_ms ?? 0,
+          data.error_count ?? 0,
+          data.total_request_bytes ?? 0,
+          data.total_response_bytes ?? 0,
+          existing.id
+        );
+
+        return existing.id;
+      }
+
+      // Create new stats
+      const id = uuidv4();
+      const now = new Date().toISOString();
+
+      const insertStmt = db.prepare(`
+        INSERT INTO obs_endpoint_stats (
+          id, project_id, endpoint, method, period_start, period_end,
+          call_count, avg_response_time_ms, max_response_time_ms,
+          error_count, total_request_bytes, total_response_bytes, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      insertStmt.run(
+        id,
+        data.project_id,
+        data.endpoint,
+        data.method,
+        data.period_start,
+        data.period_end,
         data.call_count,
-        data.avg_response_time_ms ?? 0,
-        data.max_response_time_ms ?? 0,
+        data.avg_response_time_ms ?? null,
+        data.max_response_time_ms ?? null,
         data.error_count ?? 0,
         data.total_request_bytes ?? 0,
         data.total_response_bytes ?? 0,
-        existing.id
+        now
       );
 
-      const selectStmt = db.prepare('SELECT * FROM obs_endpoint_stats WHERE id = ?');
-      return selectStmt.get(existing.id) as DbObsEndpointStats;
-    }
+      return id;
+    });
 
-    // Create new stats
-    const id = uuidv4();
-    const now = new Date().toISOString();
-
-    const insertStmt = db.prepare(`
-      INSERT INTO obs_endpoint_stats (
-        id, project_id, endpoint, method, period_start, period_end,
-        call_count, avg_response_time_ms, max_response_time_ms,
-        error_count, total_request_bytes, total_response_bytes, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    insertStmt.run(
-      id,
-      data.project_id,
-      data.endpoint,
-      data.method,
-      data.period_start,
-      data.period_end,
-      data.call_count,
-      data.avg_response_time_ms ?? null,
-      data.max_response_time_ms ?? null,
-      data.error_count ?? 0,
-      data.total_request_bytes ?? 0,
-      data.total_response_bytes ?? 0,
-      now
-    );
-
+    const resultId = upsert();
     const selectStmt = db.prepare('SELECT * FROM obs_endpoint_stats WHERE id = ?');
-    return selectStmt.get(id) as DbObsEndpointStats;
+    return selectStmt.get(resultId) as DbObsEndpointStats;
   },
 
   /**

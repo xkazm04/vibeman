@@ -8,21 +8,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { directionDb, questionDb } from '@/app/db';
 import { logger } from '@/lib/logger';
+import { createParamsRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
-export async function POST(
+async function handlePost(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params;
+  const { id } = await params;
 
-    const direction = directionDb.getDirectionById(id);
-    if (!direction) {
-      return NextResponse.json(
-        { error: 'Direction not found' },
-        { status: 404 }
-      );
-    }
+  const direction = directionDb.getDirectionById(id);
+  if (!direction) {
+    return NextResponse.json(
+      { error: 'Direction not found' },
+      { status: 404 }
+    );
+  }
 
     // Gather context: related questions for this context map
     const relatedQuestions = questionDb
@@ -99,11 +99,10 @@ Be specific to THIS project, not generic. Write in second person ("you" / "your 
       explanation,
       directionId: id,
     });
-  } catch (error) {
-    logger.error('[API] Direction explain error:', { error });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
 }
+
+export const POST = createParamsRouteHandler(handlePost, {
+  endpoint: '/api/directions/[id]/explain',
+  method: 'POST',
+  middleware: { rateLimit: { tier: 'expensive' } },
+});

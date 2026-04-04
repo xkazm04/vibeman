@@ -12,9 +12,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDependencyRepository } from '@/app/db/repositories/idea-dependency.repository';
 import { logger } from '@/lib/logger';
+import { createRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
-export async function GET(request: NextRequest) {
-  try {
+async function handleGet(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const ideaId = searchParams.get('ideaId');
     const ideaIds = searchParams.get('ideaIds');
@@ -51,15 +51,9 @@ export async function GET(request: NextRequest) {
       prerequisites,
       unlocks,
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to get dependencies';
-    logger.error('[IdeaDependencies] GET error:', error);
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
 }
 
-export async function POST(request: NextRequest) {
-  try {
+async function handlePost(request: NextRequest) {
     const body = await request.json();
     const { sourceId, targetId, relationshipType } = body;
 
@@ -86,15 +80,9 @@ export async function POST(request: NextRequest) {
 
     const dependency = ideaDependencyRepository.create(sourceId, targetId, relationshipType);
     return NextResponse.json({ success: true, data: dependency });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create dependency';
-    logger.error('[IdeaDependencies] POST error:', error);
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
 }
 
-export async function DELETE(request: NextRequest) {
-  try {
+async function handleDelete(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -114,9 +102,17 @@ export async function DELETE(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true, message: 'Dependency deleted' });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to delete dependency';
-    logger.error('[IdeaDependencies] DELETE error:', error);
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
 }
+
+export const GET = createRouteHandler(handleGet, {
+  endpoint: '/api/ideas/dependencies',
+  method: 'GET',
+});
+export const POST = createRouteHandler(handlePost, {
+  endpoint: '/api/ideas/dependencies',
+  method: 'POST',
+});
+export const DELETE = createRouteHandler(handleDelete, {
+  endpoint: '/api/ideas/dependencies',
+  method: 'DELETE',
+});

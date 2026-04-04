@@ -108,17 +108,24 @@ export async function monitorSession(
     let implementationLogCount = 0;
     let lastEventIndex = 0;
     const memoryQueriesTracked: string[] = [];
-    const monitorStartTime = Date.now();
+    // Shared cancelled flag — checked at the top of each interval tick
+    // to ensure both the interval and safety timeout use atomic cleanup.
+    let cancelled = false;
 
-    const cleanup = (interval: ReturnType<typeof setInterval>, safetyTimeout: ReturnType<typeof setTimeout>) => {
+    const cleanup = () => {
+      if (cancelled) return;
+      cancelled = true;
       clearInterval(interval);
       clearTimeout(safetyTimeout);
     };
 
     const interval = setInterval(() => {
+      // Guard: if already resolved by safety timeout or previous tick, skip
+      if (cancelled) return;
+
       const execution = getExecution(executionId);
       if (!execution) {
-        cleanup(interval, safetyTimeout);
+        cleanup();
         resolve({
           exitCode: -1,
           completedNormally: false,
@@ -164,7 +171,7 @@ export async function monitorSession(
 
       // Check for terminal status (includes 'aborted' from external abort via stopV4Pipeline)
       if (execution.status === 'completed' || execution.status === 'error' || execution.status === 'aborted') {
-        cleanup(interval, safetyTimeout);
+        cleanup();
 
         const exitCode = execution.status === 'completed' ? 0 : 1;
         const completedNormally = lastProgressPhase === 'validating' && lastProgressPercentage >= 100;
@@ -187,9 +194,10 @@ export async function monitorSession(
     }, POLL_INTERVAL_MS);
 
     // Safety timeout: unconditionally clear the interval after MAX_MONITOR_DURATION_MS
-    // to prevent leaked intervals from polling indefinitely
+    // to prevent leaked intervals from polling indefinitely.
+    // Uses the shared `cancelled` flag so the interval callback won't double-resolve.
     const safetyTimeout = setTimeout(() => {
-      clearInterval(interval);
+      cleanup();
       resolve({
         exitCode: 1,
         completedNormally: false,

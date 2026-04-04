@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { unifiedKnowledgeStore } from '@/app/features/Annette/lib/unifiedKnowledgeStore';
 import { contextualRecaller } from '@/app/features/Annette/lib/contextualRecaller';
 import type { AnnetteMemoryType } from '@/app/db/models/annette.types';
+import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
 
 /**
  * GET /api/annette/memory
@@ -216,6 +217,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const projectId = searchParams.get('projectId');
 
     if (!id) {
       return NextResponse.json(
@@ -223,6 +225,16 @@ export async function DELETE(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    if (!projectId) {
+      return NextResponse.json(
+        { error: 'projectId is required' },
+        { status: 400 }
+      );
+    }
+
+    const denied = checkProjectAccess(projectId, request);
+    if (denied) return denied;
 
     const success = unifiedKnowledgeStore.deleteMemory(id);
 
@@ -243,7 +255,7 @@ export async function DELETE(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, importanceScore } = body;
+    const { id, importanceScore, projectId } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -251,6 +263,16 @@ export async function PATCH(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    if (!projectId) {
+      return NextResponse.json(
+        { error: 'projectId is required' },
+        { status: 400 }
+      );
+    }
+
+    const denied = checkProjectAccess(projectId, request);
+    if (denied) return denied;
 
     if (importanceScore !== undefined) {
       unifiedKnowledgeStore.updateMemoryImportance(id, importanceScore);

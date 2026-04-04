@@ -109,6 +109,7 @@ export default function KBTreeSidebar({ tree, selection, onSelect, onSelectHubEn
         {/* All entries root */}
         <button
           onClick={handleSelectAll}
+          aria-current={!selection.language ? 'page' : undefined}
           className={`w-full flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors mb-1 ${
             !selection.language ? 'bg-purple-500/15 text-purple-300' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
           }`}
@@ -134,12 +135,16 @@ export default function KBTreeSidebar({ tree, selection, onSelect, onSelectHubEn
               <div className="flex items-center">
                 <button
                   onClick={() => toggle(lang)}
+                  aria-expanded={langExpanded}
+                  aria-label={`Toggle ${lang} entries`}
                   className="p-0.5 text-zinc-600 hover:text-zinc-400"
                 >
                   <ExpandChevron expanded={langExpanded} className="w-3 h-3 text-zinc-600" />
                 </button>
                 <button
                   onClick={() => handleSelectLang(lang)}
+                  aria-selected={langSelected}
+                  aria-current={langSelected ? 'page' : undefined}
                   className={`flex-1 flex items-center gap-1.5 px-1.5 py-1 rounded text-xs transition-colors ${
                     langSelected ? 'bg-purple-500/15 text-purple-300' : 'text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800/50'
                   }`}
@@ -167,6 +172,8 @@ export default function KBTreeSidebar({ tree, selection, onSelect, onSelectHubEn
                         <div className="flex items-center">
                           <button
                             onClick={() => toggle(layerKey)}
+                            aria-expanded={layerExp}
+                            aria-label={`Toggle ${KNOWLEDGE_LAYER_LABELS[layer as KnowledgeLayer] ?? layer} entries`}
                             className="p-0.5 text-zinc-600 hover:text-zinc-400"
                           >
                             <ExpandChevron expanded={layerExp} className="w-3 h-3 text-zinc-600" />

@@ -170,9 +170,8 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
     }
   }, [effectiveProjectId, activeProject, startRun, selectedGoalId]);
 
-  const handleStageClick = useCallback((stage: AnyPipelineStage) => {
+  const handleStageClick = useCallback((_stage: AnyPipelineStage) => {
     // Future: open stage detail modal
-    console.log('Stage clicked:', stage);
   }, []);
 
   // Empty state when no project is selected

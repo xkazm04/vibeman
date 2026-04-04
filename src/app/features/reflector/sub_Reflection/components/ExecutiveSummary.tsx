@@ -478,11 +478,13 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
   }, [filters.projectId, fetchAnalysisStatus]);
 
   // Poll for status when analysis is running
+  // Capture projectId at effect creation to prevent cross-project contamination
   useEffect(() => {
     if (analysisStatus !== 'running') return;
 
+    const capturedProjectId = filters.projectId;
     const interval = setInterval(() => {
-      fetchAnalysisStatus(filters.projectId);
+      fetchAnalysisStatus(capturedProjectId);
     }, 5000);
 
     return () => clearInterval(interval);

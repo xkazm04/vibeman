@@ -1,9 +1,9 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { DbIdea } from '@/app/db';
+import type { IdeaStatus } from '@/lib/ideas/ideaStateMachine';
 
-// Idea status type for filtering
-export type IdeaStatus = 'pending' | 'accepted' | 'rejected' | 'implemented';
+export type { IdeaStatus };
 
 // Query key factory for consistent cache keys
 export const ideaQueryKeys = {

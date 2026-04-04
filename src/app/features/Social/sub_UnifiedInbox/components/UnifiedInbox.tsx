@@ -15,12 +15,9 @@ import {
   ChevronDown,
   Mail,
   MessageCircle,
-  Star,
-  Smartphone,
   TrendingUp,
   Award,
 } from 'lucide-react';
-import { Twitter, Facebook, Instagram } from '@/components/icons/brand-icons';
 import type { FeedbackItem, KanbanChannel, KanbanPriority } from '../../lib/types/feedbackTypes';
 import type { ConversationThread as ConversationThreadType, UnifiedCustomer } from '@/lib/social';
 import { formatRelativeTime } from '@/lib/formatDate';
@@ -33,31 +30,12 @@ import {
   VALUE_TIER_COLORS,
   VALUE_TIER_LABELS,
 } from '../lib/types';
+import { CHANNEL_ICONS, CHANNEL_LABELS } from '../../lib/channelConstants';
 
 interface UnifiedInboxProps {
   projectId: string;
   feedbackItems?: FeedbackItem[];
 }
-
-const CHANNEL_ICONS: Record<KanbanChannel, React.ElementType> = {
-  email: Mail,
-  x: Twitter,
-  facebook: Facebook,
-  instagram: Instagram,
-  support_chat: MessageCircle,
-  trustpilot: Star,
-  app_store: Smartphone,
-};
-
-const CHANNEL_LABELS: Record<KanbanChannel, string> = {
-  email: 'Email',
-  x: 'X',
-  facebook: 'Facebook',
-  instagram: 'Instagram',
-  support_chat: 'Chat',
-  trustpilot: 'Trustpilot',
-  app_store: 'App Store',
-};
 
 export function UnifiedInbox({ projectId, feedbackItems = [] }: UnifiedInboxProps) {
   const [showFilters, setShowFilters] = useState(false);
@@ -137,12 +115,12 @@ export function UnifiedInbox({ projectId, feedbackItems = [] }: UnifiedInboxProp
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" aria-live="polite">
           <StatCard
             icon={MessageSquare}
             label="Total"
             value={inbox.stats.totalConversations}
-            color="text-gray-400"
+            color="text-gray-300"
           />
           <StatCard
             icon={AlertCircle}
@@ -178,6 +156,8 @@ export function UnifiedInbox({ projectId, feedbackItems = [] }: UnifiedInboxProp
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
+            aria-expanded={showFilters}
+            aria-label="Toggle filters"
             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               showFilters || inbox.filters.channels.length > 0 || inbox.filters.status.length > 0
                 ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'

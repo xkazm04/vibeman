@@ -229,9 +229,10 @@ After generating all questions, summarize:
 `;
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const body: GenerateQuestionsRequest = await request.json();
+import { createRouteHandler } from '@/lib/api-helpers/createRouteHandler';
+
+async function handlePost(request: NextRequest) {
+  const body: GenerateQuestionsRequest = await request.json();
 
     const {
       projectId,
@@ -356,13 +357,11 @@ export async function POST(request: NextRequest) {
       requirementPath,
       contextCount: unifiedContexts.length,
       expectedQuestions: unifiedContexts.length * questionsPerContext
-    });
-
-  } catch (error) {
-    logger.error('[API] Questions generate error:', { error });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
+  });
 }
+
+export const POST = createRouteHandler(handlePost, {
+  endpoint: '/api/questions/generate',
+  method: 'POST',
+  middleware: { rateLimit: { tier: 'expensive' } },
+});

@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       name: 'API Key Configuration',
       status: apiKey ? 'PASS' : 'FAIL',
       message: apiKey
-        ? `API key is configured (${apiKey.substring(0, 10)}...${apiKey.substring(apiKey.length - 4)})`
+        ? 'API key is configured'
         : 'ANTHROPIC_API_KEY not found in environment variables',
     });
 

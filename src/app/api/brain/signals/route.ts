@@ -14,6 +14,7 @@ import { withObservability } from '@/lib/observability/middleware';
 import { recordSignal, deleteSignal } from '@/lib/brain/brainService';
 import { parseQueryInt } from '@/lib/api-helpers/parseQueryInt';
 import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
+import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
 
 /**
  * Validate signal data shape matches the expected type.
@@ -184,10 +185,18 @@ async function handleDelete(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const projectId = searchParams.get('projectId');
 
     if (!id) {
       return buildErrorResponse('id is required', { status: 400 });
     }
+
+    if (!projectId) {
+      return buildErrorResponse('projectId is required', { status: 400 });
+    }
+
+    const denied = checkProjectAccess(projectId, request);
+    if (denied) return denied;
 
     const deleted = deleteSignal(id);
 

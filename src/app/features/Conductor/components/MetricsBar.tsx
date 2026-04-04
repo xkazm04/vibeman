@@ -15,6 +15,7 @@ import {
   GitBranch, GitMerge,
 } from 'lucide-react';
 import type { PipelineMetrics, ProcessLogEntry } from '../lib/types';
+import { formatDuration, formatCost } from '../lib/format';
 
 interface MetricsBarProps {
   metrics: PipelineMetrics | null;
@@ -100,26 +101,12 @@ function MetricItem({ icon: Icon, value, colorClass, delay, title }: MetricItemP
 function MetricGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide leading-none">{label}</span>
+      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide leading-none">{label}</span>
       <div className="flex items-center gap-2.5">
         {children}
       </div>
     </div>
   );
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return '0s';
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSecs = seconds % 60;
-  return `${minutes}m${remainingSecs > 0 ? ` ${remainingSecs}s` : ''}`;
-}
-
-function formatCost(cost: number): string {
-  if (cost < 0.01) return '$0.00';
-  return `$${cost.toFixed(2)}`;
 }
 
 export default function MetricsBar({ metrics, processLog, isRunning }: MetricsBarProps) {
@@ -157,7 +144,16 @@ export default function MetricsBar({ metrics, processLog, isRunning }: MetricsBa
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       data-testid="metrics-bar"
+      role="status"
     >
+      {/* Visually hidden live region for screen readers */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        Pipeline progress: {tasksCompleted} of {tasksPlanned} tasks complete,
+        {tasksFailed > 0 ? ` ${tasksFailed} failed,` : ''}
+        {` success rate ${successRate}%,`}
+        {` ${totalCycles} cycles, ${llmCallCount} LLM calls,`}
+        {` duration ${formatDuration(totalDurationMs)}, cost ${formatCost(estimatedCost)}`}
+      </div>
       {/* Tasks */}
       <MetricGroup label="Tasks">
         <MetricItem icon={ListChecks} value={tasksPlanned} colorClass={METRIC_COLORS.cyan} delay={0} title="Tasks planned" />
@@ -208,6 +204,8 @@ export default function MetricsBar({ metrics, processLog, isRunning }: MetricsBa
       {/* Running indicator */}
       {isRunning && (
         <motion.div
+          role="status"
+          aria-label="Pipeline running"
           className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-auto flex-shrink-0"
           animate={{ opacity: [1, 0.3, 1] }}
           transition={{ duration: 1, repeat: Infinity }}

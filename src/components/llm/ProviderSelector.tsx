@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { SupportedProvider } from '@/lib/llm/types';
@@ -46,8 +46,36 @@ export default function ProviderSelector({
     );
   }
 
+  const groupRef = useRef<HTMLDivElement>(null);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (!groupRef.current) return;
+    const buttons = Array.from(groupRef.current.querySelectorAll('button')) as HTMLElement[];
+    const currentIndex = buttons.findIndex(btn => btn === document.activeElement);
+    if (currentIndex === -1) return;
+
+    let nextIndex = -1;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      nextIndex = currentIndex < buttons.length - 1 ? currentIndex + 1 : 0;
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      nextIndex = currentIndex > 0 ? currentIndex - 1 : buttons.length - 1;
+    }
+
+    if (nextIndex >= 0 && buttons[nextIndex]) {
+      buttons[nextIndex].focus();
+    }
+  }, []);
+
   return (
-    <div className={`flex items-center ${compact ? 'gap-1.5' : 'gap-2'}`}>
+    <div
+      ref={groupRef}
+      role="radiogroup"
+      aria-label="LLM Provider"
+      onKeyDown={handleKeyDown}
+      className={`flex items-center ${compact ? 'gap-1.5' : 'gap-2'}`}
+    >
       {availableProviders.map((provider) => {
         const isConfigured = configured[provider.value];
         const status = providers[provider.value];
@@ -60,6 +88,10 @@ export default function ProviderSelector({
         return (
           <motion.button
             key={provider.value}
+            role="radio"
+            aria-checked={selectedProvider === provider.value}
+            aria-label={tooltip}
+            tabIndex={selectedProvider === provider.value ? 0 : -1}
             onClick={() => onSelectProvider(provider.value)}
             disabled={disabled}
             className={`group relative ${compact ? 'w-8 h-8' : 'w-10 h-10'} rounded-lg border-2 transition-all duration-300 ${

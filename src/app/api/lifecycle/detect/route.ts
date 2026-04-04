@@ -8,27 +8,25 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { DetectionResult } from '@/app/features/Ideas/sub_Lifecycle/lib/lifecycleTypes';
 import { logger } from '@/lib/logger';
+import { createRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
 const execAsync = promisify(exec);
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { projectPath } = body;
+async function handlePost(request: NextRequest) {
+  const body = await request.json();
+  const { projectPath } = body;
 
-    const cwd = projectPath || process.cwd();
+  const cwd = projectPath || process.cwd();
 
-    const result = await detectChanges(cwd);
+  const result = await detectChanges(cwd);
 
-    return NextResponse.json(result);
-  } catch (error) {
-    logger.error('Error detecting changes:', { error });
-    return NextResponse.json(
-      { error: 'Failed to detect changes', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(result);
 }
+
+export const POST = createRouteHandler(handlePost, {
+  endpoint: '/api/lifecycle/detect',
+  method: 'POST',
+});
 
 async function detectChanges(cwd: string): Promise<DetectionResult> {
   try {

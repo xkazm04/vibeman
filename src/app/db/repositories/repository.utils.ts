@@ -145,9 +145,13 @@ export type TableName = (typeof VALID_TABLE_NAMES)[number];
 
 const VALID_TABLE_SET: ReadonlySet<string> = new Set(VALID_TABLE_NAMES);
 
+/** Safe SQL identifier: letters, digits, underscores; must start with letter or underscore */
+const SAFE_SQL_IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
 /**
  * Build dynamic update query
- * Reduces duplication in repository update methods
+ * Reduces duplication in repository update methods.
+ * Column names are validated against a safe identifier pattern to prevent SQL injection.
  */
 export function buildUpdateQuery<T extends Record<string, unknown>>(
   updates: T,
@@ -158,6 +162,9 @@ export function buildUpdateQuery<T extends Record<string, unknown>>(
 
   Object.entries(updates).forEach(([key, value]) => {
     if (!excludeFields.includes(key) && value !== undefined) {
+      if (!SAFE_SQL_IDENTIFIER_RE.test(key)) {
+        throw new Error(`buildUpdateQuery: invalid column name "${key}"`);
+      }
       fields.push(`${key} = ?`);
       values.push(value === undefined ? null : value);
     }

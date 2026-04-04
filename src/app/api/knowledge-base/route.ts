@@ -11,6 +11,7 @@ import type { KnowledgeDomain, KnowledgeQuery, KnowledgeLayer, KnowledgeLanguage
 import { KNOWLEDGE_DOMAINS, KNOWLEDGE_LANGUAGES, KNOWLEDGE_LAYERS } from '@/app/db/models/knowledge.types';
 import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
 import { withObservability } from '@/lib/observability/middleware';
+import { validateProjectPath } from '@/lib/pathSecurity';
 
 async function handleGet(request: NextRequest) {
   try {
@@ -126,6 +127,10 @@ async function handlePost(request: NextRequest) {
     if (action === 'export') {
       if (!body.projectPath) {
         return buildErrorResponse('projectPath required', { status: 400 });
+      }
+      const pathError = validateProjectPath(body.projectPath);
+      if (pathError) {
+        return buildErrorResponse(pathError, { status: 400 });
       }
       const { exportToFiles } = await import('@/lib/knowledge-base/knowledgeExporter');
       const result = exportToFiles(body.projectPath);

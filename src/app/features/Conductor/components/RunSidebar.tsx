@@ -7,6 +7,7 @@
 
 'use client';
 
+import { useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Zap, Clock, Pause, Square,
@@ -43,10 +44,36 @@ export default function RunSidebar({ onNewRun }: RunSidebarProps) {
   const runs = useConductorStore((s) => s.runs);
   const selectedRunId = useConductorStore((s) => s.selectedRunId);
   const selectRun = useConductorStore((s) => s.selectRun);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const runList = Object.values(runs).sort(
     (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
   );
+
+  const handleListKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (!listRef.current || runList.length === 0) return;
+    const buttons = Array.from(listRef.current.querySelectorAll('[role="option"]')) as HTMLElement[];
+    const currentIndex = buttons.findIndex(btn => btn === document.activeElement);
+
+    let nextIndex = -1;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      nextIndex = currentIndex < buttons.length - 1 ? currentIndex + 1 : 0;
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      nextIndex = currentIndex > 0 ? currentIndex - 1 : buttons.length - 1;
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      nextIndex = 0;
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      nextIndex = buttons.length - 1;
+    }
+
+    if (nextIndex >= 0 && buttons[nextIndex]) {
+      buttons[nextIndex].focus();
+    }
+  }, [runList.length]);
 
   return (
     <motion.div
@@ -62,6 +89,7 @@ export default function RunSidebar({ onNewRun }: RunSidebarProps) {
           className="p-1 rounded-md bg-cyan-600/20 text-cyan-400 hover:bg-cyan-600/30
             border border-cyan-600/40 transition-colors"
           title="New Pipeline"
+          aria-label="Start new pipeline"
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
         >
@@ -72,7 +100,13 @@ export default function RunSidebar({ onNewRun }: RunSidebarProps) {
       <div className="h-px bg-gray-700/40 mb-2" />
 
       {/* Run List */}
-      <div className="flex-1 overflow-y-auto space-y-1 max-h-[60vh] scrollbar-hide">
+      <div
+        ref={listRef}
+        role="listbox"
+        aria-label="Pipeline runs"
+        onKeyDown={handleListKeyDown}
+        className="flex-1 overflow-y-auto space-y-1 max-h-[60vh] scrollbar-hide"
+      >
         <AnimatePresence mode="popLayout">
           {runList.map((run) => {
             const isSelected = run.id === selectedRunId;
@@ -84,10 +118,20 @@ export default function RunSidebar({ onNewRun }: RunSidebarProps) {
               <motion.button
                 key={run.id}
                 layout
+                role="option"
+                aria-selected={isSelected}
+                aria-label={`${title} - ${run.status}`}
+                tabIndex={isSelected ? 0 : -1}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
                 onClick={() => selectRun(run.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    selectRun(run.id);
+                  }
+                }}
                 className={`w-full text-left p-2 rounded-lg border transition-all ${
                   isSelected
                     ? `${colors.selectedBg} ${colors.selectedBorder}`

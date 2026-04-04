@@ -14,11 +14,12 @@ import { logger } from '@/lib/logger';
 import { env } from '@/lib/config/envConfig';
 import fs from 'fs';
 import path from 'path';
+import { validateProjectPath as validateProjectPathSecurity } from '@/lib/pathSecurity';
 import { ContextMapEntry } from '../../context-map/route';
 import { getBrainContext, formatBrainForDirections, getObservabilityContext, formatObservabilityForBrain } from '@/lib/brain/brainContext';
 import { getBehavioralContext, formatBehavioralForPrompt } from '@/lib/brain/behavioralContext';
 import { computePreferenceProfile, formatPreferenceForPrompt } from '@/lib/directions/preferenceEngine';
-import { withObservability } from '@/lib/observability/middleware';
+import { createRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 import { aiOrchestrator } from '@/lib/ai/aiOrchestrator';
 import { contextDb, contextGroupDb, directionPreferenceDb } from '@/app/db';
 import type { DbContext, DbContextGroup } from '@/app/db';
@@ -540,8 +541,7 @@ After generating all directions, provide:
 }
 
 async function handlePost(request: NextRequest) {
-  try {
-    const body: GenerateDirectionsRequest = await request.json();
+  const body: GenerateDirectionsRequest = await request.json();
 
     const {
       projectId,
@@ -559,6 +559,15 @@ async function handlePost(request: NextRequest) {
     if (!projectId || !projectName || !projectPath) {
       return NextResponse.json(
         { error: 'projectId, projectName, and projectPath are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate projectPath against path traversal
+    const pathError = validateProjectPathSecurity(projectPath);
+    if (pathError) {
+      return NextResponse.json(
+        { error: pathError },
         { status: 400 }
       );
     }
@@ -743,16 +752,11 @@ async function handlePost(request: NextRequest) {
       preferenceContextUsed: !!preferenceSection,
       brainstormAll,
       usedSqliteContexts: !!selectedContextIds && selectedContextIds.length > 0
-    });
-
-  } catch (error) {
-    logger.error('[API] Directions generate error:', { error });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
+  });
 }
 
-// Export with observability tracking
-export const POST = withObservability(handlePost, '/api/directions/generate');
+export const POST = createRouteHandler(handlePost, {
+  endpoint: '/api/directions/generate',
+  method: 'POST',
+  middleware: { rateLimit: { tier: 'expensive' } },
+});

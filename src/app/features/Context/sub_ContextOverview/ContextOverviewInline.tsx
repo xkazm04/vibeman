@@ -52,6 +52,7 @@ const ContextOverviewInline = ({ context, groupColor, onClose }: ContextOverview
         }
       }
     } catch (error) {
+      console.error('[ContextOverviewInline] Failed to refresh context from DB:', error);
     }
   };
 

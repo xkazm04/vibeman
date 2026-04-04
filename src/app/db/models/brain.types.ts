@@ -287,6 +287,25 @@ export interface BehavioralContext {
 }
 
 /**
+ * Confidence history point for InsightWithMeta sparklines
+ */
+export interface ConfidencePoint {
+  confidence: number;
+  date: string;
+  reflectionId: string;
+}
+
+/**
+ * Enriched insight with project/reflection metadata — single source of truth.
+ * Used by the insights API route and all Brain UI components.
+ */
+export interface InsightWithMeta extends LearningInsight {
+  project_id: string;
+  reflection_id: string;
+  confidenceHistory?: ConfidencePoint[];
+}
+
+/**
  * Reflection configuration
  */
 export interface ReflectionConfig {

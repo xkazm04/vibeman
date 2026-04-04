@@ -11,8 +11,7 @@
 
 import { getDatabase } from '../connection';
 import type { DbIdea, DbIdeaWithColor } from '../models/types';
-
-type IdeaStatus = 'pending' | 'accepted' | 'rejected' | 'implemented';
+import type { IdeaStatus } from '@/lib/ideas/ideaStateMachine';
 
 interface WhereClause {
   sql: string;

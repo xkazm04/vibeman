@@ -8,9 +8,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { lifecycleOrchestrator } from '@/app/features/Ideas/sub_Lifecycle/lib/lifecycleOrchestrator';
 import { LifecycleTrigger, LifecycleConfig } from '@/app/features/Ideas/sub_Lifecycle/lib/lifecycleTypes';
 import { logger } from '@/lib/logger';
+import { createRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
-export async function GET(request: NextRequest) {
-  try {
+async function handleGet(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const includeHistory = searchParams.get('includeHistory') === 'true';
     const includeEvents = searchParams.get('includeEvents') === 'true';
@@ -34,18 +34,10 @@ export async function GET(request: NextRequest) {
       response.events = lifecycleOrchestrator.getEventHistory(eventLimit);
     }
 
-    return NextResponse.json(response);
-  } catch (error) {
-    logger.error('Error getting lifecycle status:', { error });
-    return NextResponse.json(
-      { error: 'Failed to get lifecycle status', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(response);
 }
 
-export async function POST(request: NextRequest) {
-  try {
+async function handlePost(request: NextRequest) {
     const body = await request.json();
     const { action, projectId, trigger, triggerMetadata, config } = body;
 
@@ -137,11 +129,13 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
     }
-  } catch (error) {
-    logger.error('Error controlling lifecycle:', { error });
-    return NextResponse.json(
-      { error: 'Failed to control lifecycle', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
 }
+
+export const GET = createRouteHandler(handleGet, {
+  endpoint: '/api/lifecycle',
+  method: 'GET',
+});
+export const POST = createRouteHandler(handlePost, {
+  endpoint: '/api/lifecycle',
+  method: 'POST',
+});

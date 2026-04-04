@@ -10,15 +10,10 @@ import {
   AlertCircle,
   Tag,
   MessageSquare,
-  Mail,
-  MessageCircle,
-  Star,
-  Smartphone,
   MoreVertical,
   RefreshCw,
   XCircle,
 } from 'lucide-react';
-import { Twitter, Facebook, Instagram } from '@/components/icons/brand-icons';
 import type { ConversationThread as ConversationThreadType, UnifiedCustomer, ThreadMessage } from '@/lib/social';
 import type { KanbanChannel } from '../../lib/types/feedbackTypes';
 import { formatRelativeTime } from '@/lib/formatDate';
@@ -38,25 +33,7 @@ interface ConversationThreadProps {
   onReopen: () => void;
 }
 
-const CHANNEL_ICONS: Record<KanbanChannel, React.ElementType> = {
-  email: Mail,
-  x: Twitter,
-  facebook: Facebook,
-  instagram: Instagram,
-  support_chat: MessageCircle,
-  trustpilot: Star,
-  app_store: Smartphone,
-};
-
-const CHANNEL_COLORS: Record<KanbanChannel, string> = {
-  email: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
-  x: 'bg-gray-700/50 text-gray-200 border-gray-600',
-  facebook: 'bg-blue-600/10 text-blue-500 border-blue-600/30',
-  instagram: 'bg-pink-500/10 text-pink-400 border-pink-500/30',
-  support_chat: 'bg-green-500/10 text-green-400 border-green-500/30',
-  trustpilot: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-  app_store: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
-};
+import { CHANNEL_ICONS, CHANNEL_BADGE_COLORS as CHANNEL_COLORS } from '../../lib/channelConstants';
 
 const PRIORITY_COLORS: Record<string, string> = {
   low: 'bg-gray-500/10 text-gray-400',

@@ -9,7 +9,6 @@ import { initializeTables } from './schema';
 import { startAggregationWorker, stopAggregationWorker } from '@/lib/db/hotWritesAggregator';
 import { goalRepository } from './repositories/goal.repository';
 import { goalCandidateRepository } from './repositories/goal-candidate.repository';
-// Removed - feature deprecated (backlog)
 import { contextGroupRepository } from './repositories/context-group.repository';
 import { contextGroupRelationshipRepository } from './repositories/context-group-relationship.repository';
 import { contextRepository } from './repositories/context.repository';
@@ -17,21 +16,8 @@ import { eventRepository } from './repositories/event.repository';
 import { scanRepository } from './repositories/scan.repository';
 import { ideaRepository } from './repositories/idea.repository';
 import { implementationLogRepository } from './repositories/implementation-log.repository';
-// Removed - feature deprecated (conversation)
 import { scanQueueRepository } from './repositories/scanQueue.repository';
-// Removed - feature deprecated (test-selector)
-// Removed - feature deprecated (test-scenario)
-// Removed - feature deprecated (security-patch)
-// Removed - feature deprecated (scan-prediction)
-// Adaptive learning repositories removed - feature deprecated
-// Removed - feature deprecated (debt-prediction)
-// Security Intelligence repositories removed - feature deprecated
-// Developer Mind-Meld repositories removed - feature deprecated
-// Hypothesis Testing repositories removed - feature deprecated
 import { standupRepository } from './repositories/standup.repository';
-// Red Team repositories removed - feature deprecated
-// Focus Mode repositories removed - feature deprecated
-// Offload repository removed - migrated to Supabase
 import {
   sessionRepository,
   sessionTaskRepository,
@@ -93,10 +79,7 @@ import { savedViewRepository } from './repositories/saved-view.repository';
 
 // Export types
 export * from './models/types';
-// Removed - feature deprecated (conversation, security-patch, test-scenario, scan-prediction, debt-prediction types)
-// Security Intelligence types removed - feature deprecated
 export * from './models/standup.types';
-// Offload types removed - migrated to Supabase
 export * from './models/session.types';
 export * from './models/integration.types';
 export * from './models/observability.types';
@@ -118,14 +101,24 @@ export { getHotWritesDatabase, closeHotWritesDatabase } from './hot-writes';
 // Store flag on globalThis so it survives Next.js HMR module reloads —
 // without this, each HMR cycle re-runs initializeTables and spawns a
 // duplicate aggregation worker.
+// Use a distinct key to prevent TOCTOU race when multiple API routes
+// import db/index.ts concurrently during Next.js server startup.
 const GLOBAL_DB_INIT_KEY = '__dbInitialized';
 
 function ensureInitialized() {
-  if (!(globalThis as Record<string, unknown>)[GLOBAL_DB_INIT_KEY]) {
-    initializeTables();
-    // Start hot-writes aggregation worker (rolls up obs_api_calls → obs_endpoint_stats)
-    startAggregationWorker();
-    (globalThis as Record<string, unknown>)[GLOBAL_DB_INIT_KEY] = true;
+  const g = globalThis as Record<string, unknown>;
+  if (!g[GLOBAL_DB_INIT_KEY]) {
+    // Set flag BEFORE initializing so concurrent callers skip immediately
+    g[GLOBAL_DB_INIT_KEY] = true;
+    try {
+      initializeTables();
+      // Start hot-writes aggregation worker (rolls up obs_api_calls -> obs_endpoint_stats)
+      startAggregationWorker();
+    } catch (err) {
+      // Reset flag so next import retries initialization
+      g[GLOBAL_DB_INIT_KEY] = undefined;
+      throw err;
+    }
   }
 }
 
@@ -167,8 +160,6 @@ export const goalSubGoalDb = {
   ...goalSubGoalRepository,
   close: closeDatabase
 };
-
-// Removed - feature deprecated (backlogDb)
 
 /**
  * Context Group Database Operations
@@ -233,8 +224,6 @@ export const implementationLogDb = {
   close: closeDatabase
 };
 
-// Removed - feature deprecated (conversationDb)
-
 /**
  * Scan Queue Database Operations
  * Handles scan queue, progress tracking, notifications, and file watch config
@@ -243,21 +232,6 @@ export const scanQueueDb = {
   ...scanQueueRepository,
   close: closeDatabase
 };
-
-// Removed - feature deprecated (testSelectorDb)
-
-// Removed - feature deprecated (securityScanDb, securityPatchDb, securityPrDb)
-
-// Removed - feature deprecated (testScenarioDb, testExecutionDb, visualDiffDb)
-
-// Removed - feature deprecated (scanHistoryDb, scanPredictionDb, fileChangePatternDb)
-
-// Removed - feature deprecated (debtPatternDb, debtPredictionDb, complexityHistoryDb, opportunityCardDb, preventionActionDb, codeChangeEventDb)
-
-// Security Intelligence DB exports removed - feature deprecated
-// Developer Mind-Meld DB exports removed - feature deprecated
-// Hypothesis Testing DB exports removed - feature deprecated
-
 
 /**
  * Standup Summary Database Operations
@@ -268,13 +242,7 @@ export const standupDb = {
   close: closeDatabase,
 };
 
-// Red Team DB exports removed - feature deprecated
-// Focus Mode DB exports removed - feature deprecated
 
-
-
-
-// Device Pair and Offload Queue removed - migrated to Supabase Realtime
 
 /**
  * Claude Code Session Database Operations

@@ -13,13 +13,15 @@ import type {
   QuotaLimits,
   StageState,
   ProcessLogEntry,
+  V3PipelineStage,
 } from '../types';
 
 // ============================================================================
 // Phase Identifiers
 // ============================================================================
 
-export type V3Phase = 'plan' | 'dispatch' | 'reflect';
+/** Alias for V3PipelineStage from parent types — single source of truth */
+export type V3Phase = V3PipelineStage;
 
 export const V3_PHASES: V3Phase[] = ['plan', 'dispatch', 'reflect'];
 

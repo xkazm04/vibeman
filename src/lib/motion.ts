@@ -148,6 +148,24 @@ export const pulse = {
   }),
 };
 
+// ── Stagger presets ──────────────────────────────────────────────────────────
+
+/**
+ * Named stagger delay tiers for consistent cascade rhythm across views.
+ *
+ * - row:   table rows, list items (fast cascade)
+ * - card:  grid cards, KPI panels (medium cascade)
+ * - panel: large panels, section reveals (deliberate cascade)
+ */
+export const stagger = {
+  /** Table rows, list items — 20ms between each */
+  row: 0.02,
+  /** Grid cards, KPI panels — 40ms between each */
+  card: 0.04,
+  /** Large panels, section reveals — 60ms between each */
+  panel: 0.06,
+} as const;
+
 // ── Stagger helper ────────────────────────────────────────────────────────────
 
 /** Returns a stagger container variant for orchestrating children */

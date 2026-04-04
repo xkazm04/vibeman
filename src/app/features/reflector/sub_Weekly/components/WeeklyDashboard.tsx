@@ -49,19 +49,12 @@ export default function WeeklyDashboard() {
     initializeProjects();
   }, [initializeProjects]);
 
-  const loadStats = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  // Single fetch counter used for retry triggering
+  const [fetchTrigger, setFetchTrigger] = useState(0);
 
-    try {
-      const data = await fetchWeeklyStats(filters);
-      setStats(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load weekly stats');
-    } finally {
-      setLoading(false);
-    }
-  }, [filters]);
+  const loadStats = useCallback(() => {
+    setFetchTrigger(t => t + 1);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,7 +74,7 @@ export default function WeeklyDashboard() {
 
     load();
     return () => { cancelled = true; };
-  }, [filters]);
+  }, [filters, fetchTrigger]);
 
   const handleFilterChange = useCallback((newFilters: FilterState) => {
     setUnifiedFilters(newFilters);

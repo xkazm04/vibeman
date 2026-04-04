@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useState, useId } from 'react';
-import type { ConfidencePoint } from '@/app/api/brain/insights/route';
+import type { ConfidencePoint } from '@/app/db/models/brain.types';
 import ChartTooltip from './ChartTooltip';
 import { BRAIN_CHART } from '../lib/brainChartColors';
 

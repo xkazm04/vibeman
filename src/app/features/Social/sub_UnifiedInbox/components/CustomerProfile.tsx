@@ -17,12 +17,8 @@ import {
   Clock,
   Award,
   Users,
-  MessageCircle,
-  Star,
-  Smartphone,
   ArrowLeft,
 } from 'lucide-react';
-import { Twitter, Facebook, Instagram } from '@/components/icons/brand-icons';
 import type { UnifiedCustomer, ConversationThread, InteractionHistoryEntry } from '@/lib/social';
 import type { KanbanChannel } from '../../lib/types/feedbackTypes';
 import { formatRelativeTime } from '@/lib/formatDate';
@@ -45,25 +41,7 @@ interface CustomerProfileProps {
   onBack: () => void;
 }
 
-const CHANNEL_ICONS: Record<KanbanChannel, React.ElementType> = {
-  email: Mail,
-  x: Twitter,
-  facebook: Facebook,
-  instagram: Instagram,
-  support_chat: MessageCircle,
-  trustpilot: Star,
-  app_store: Smartphone,
-};
-
-const CHANNEL_COLORS: Record<KanbanChannel, string> = {
-  email: 'text-blue-400',
-  x: 'text-gray-200',
-  facebook: 'text-blue-500',
-  instagram: 'text-pink-400',
-  support_chat: 'text-green-400',
-  trustpilot: 'text-emerald-400',
-  app_store: 'text-purple-400',
-};
+import { CHANNEL_ICONS, CHANNEL_TEXT_COLORS as CHANNEL_COLORS } from '../../lib/channelConstants';
 
 export function CustomerProfile({
   customer,

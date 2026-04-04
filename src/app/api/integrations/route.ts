@@ -3,18 +3,18 @@
  * Handles CRUD operations for external integrations
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { integrationDb, webhookDb } from '@/app/db';
 import type { IntegrationProvider, IntegrationEventType } from '@/app/db/models/integration.types';
 import { isTableMissingError } from '@/app/db/repositories/repository.utils';
 import { encryptField } from '@/lib/integrations/credentialCrypto';
+import { createRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
 /**
  * GET /api/integrations
  * Get all integrations for a project
  */
-export async function GET(request: Request) {
-  try {
+async function handleGet(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
     const provider = searchParams.get('provider') as IntegrationProvider | null;
@@ -42,28 +42,14 @@ export async function GET(request: Request) {
       credentials: integration.credentials ? '[REDACTED]' : null,
     }));
 
-    return NextResponse.json({ success: true, integrations: parsed });
-  } catch (error) {
-    if (isTableMissingError(error)) {
-      return NextResponse.json(
-        { success: false, error: 'Integrations feature requires database setup. Run migrations and restart the app.' },
-        { status: 503 }
-      );
-    }
-    console.error('Error fetching integrations:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch integrations' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({ success: true, integrations: parsed });
 }
 
 /**
  * POST /api/integrations
  * Create a new integration
  */
-export async function POST(request: Request) {
-  try {
+async function handlePost(request: NextRequest) {
     const body = await request.json();
     const {
       projectId,
@@ -136,28 +122,14 @@ export async function POST(request: Request) {
         enabled_events: safeJsonParse(integration.enabled_events, []),
         credentials: integration.credentials ? '[REDACTED]' : null,
       },
-    });
-  } catch (error) {
-    if (isTableMissingError(error)) {
-      return NextResponse.json(
-        { success: false, error: 'Integrations feature requires database setup. Run migrations and restart the app.' },
-        { status: 503 }
-      );
-    }
-    console.error('Error creating integration:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to create integration' },
-      { status: 500 }
-    );
-  }
+  });
 }
 
 /**
  * PUT /api/integrations
  * Update an existing integration
  */
-export async function PUT(request: Request) {
-  try {
+async function handlePut(request: NextRequest) {
     const body = await request.json();
     const {
       id,
@@ -202,28 +174,14 @@ export async function PUT(request: Request) {
         enabled_events: safeJsonParse(updated.enabled_events, []),
         credentials: updated.credentials ? '[REDACTED]' : null,
       } : null,
-    });
-  } catch (error) {
-    if (isTableMissingError(error)) {
-      return NextResponse.json(
-        { success: false, error: 'Integrations feature requires database setup. Run migrations and restart the app.' },
-        { status: 503 }
-      );
-    }
-    console.error('Error updating integration:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to update integration' },
-      { status: 500 }
-    );
-  }
+  });
 }
 
 /**
  * DELETE /api/integrations
  * Delete an integration
  */
-export async function DELETE(request: Request) {
-  try {
+async function handleDelete(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -236,30 +194,24 @@ export async function DELETE(request: Request) {
 
     const deleted = integrationDb.delete(id);
 
-    return NextResponse.json({ success: true, deleted });
-  } catch (error) {
-    if (isTableMissingError(error)) {
-      return NextResponse.json(
-        { success: false, error: 'Integrations feature requires database setup. Run migrations and restart the app.' },
-        { status: 503 }
-      );
-    }
-    console.error('Error deleting integration:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to delete integration' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({ success: true, deleted });
 }
 
-/**
- * Safely parse JSON with fallback
- */
-function safeJsonParse<T>(json: string | null, fallback: T): T {
-  if (!json) return fallback;
-  try {
-    return JSON.parse(json);
-  } catch {
-    return fallback;
-  }
-}
+export const GET = createRouteHandler(handleGet, {
+  endpoint: '/api/integrations',
+  method: 'GET',
+});
+export const POST = createRouteHandler(handlePost, {
+  endpoint: '/api/integrations',
+  method: 'POST',
+});
+export const PUT = createRouteHandler(handlePut, {
+  endpoint: '/api/integrations',
+  method: 'PUT',
+});
+export const DELETE = createRouteHandler(handleDelete, {
+  endpoint: '/api/integrations',
+  method: 'DELETE',
+});
+
+import { safeJsonParse } from '@/lib/integrations/safeJsonParse';

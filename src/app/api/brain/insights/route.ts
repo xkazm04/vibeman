@@ -11,20 +11,11 @@ import { brainInsightDb, directionDb, brainReflectionDb } from '@/app/db';
 import { getDatabase } from '@/app/db/connection';
 import { getHotWritesDatabase } from '@/app/db/hot-writes';
 import { withObservability } from '@/lib/observability/middleware';
-import type { LearningInsight, EvidenceRef } from '@/app/db/models/brain.types';
+import type { LearningInsight, EvidenceRef, InsightWithMeta, ConfidencePoint } from '@/app/db/models/brain.types';
 import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
 
-export interface ConfidencePoint {
-  confidence: number;
-  date: string;
-  reflectionId: string;
-}
-
-export interface InsightWithMeta extends LearningInsight {
-  project_id: string;
-  reflection_id: string;
-  confidenceHistory?: ConfidencePoint[];
-}
+// Re-export for backward compatibility
+export type { InsightWithMeta, ConfidencePoint } from '@/app/db/models/brain.types';
 
 async function handleGet(request: NextRequest) {
   const { searchParams } = new URL(request.url);

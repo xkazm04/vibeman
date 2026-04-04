@@ -25,23 +25,9 @@ import {
   ConversationMessage,
   generateEvaluationPrompt
 } from '../lib';
+import type { MultiModelLog } from '@/lib/voice/voicebotTypes';
 import { generateCallId, generateMessageId, isMonitoringEnabled } from '@/app/monitor/lib';
 import { SimpleSpinner } from '@/components/ui/Spinner';
-
-
-
-interface MultiModelLog {
-  id: string;
-  timestamp: string;
-  question: string;
-  responses: Array<{
-    provider: LLMProvider;
-    model: string;
-    response: string;
-    audioUrl?: string;
-    timing?: { llmMs?: number; ttsMs?: number; totalMs?: number };
-  }>;
-}
 
 export default function ConversationSolution() {
   const [sessionState, setSessionState] = useState<SessionState>('idle');

@@ -80,7 +80,9 @@ const ContextOverview = ({
           setCurrentTargetFulfillment(data.context.target_fulfillment || null);
         }
       }
-    } catch (error) {    }
+    } catch (error) {
+      console.error('[ContextOverview] Failed to refresh context from DB:', error);
+    }
   };
 
 

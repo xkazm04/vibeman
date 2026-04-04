@@ -4,6 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb } from '@/app/db';
+import { createRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
 /**
  * GET /api/ideas/effort-impact
@@ -12,8 +13,7 @@ import { ideaDb } from '@/app/db';
  * - projectId: Filter by project
  * - contextId: Filter by context
  */
-export async function GET(request: NextRequest) {
-  try {
+async function handleGet(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
     const contextId = searchParams.get('contextId');
@@ -123,10 +123,9 @@ export async function GET(request: NextRequest) {
       total: scoredIdeas.length,
       totalIdeas: ideas.length
     });
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to fetch effort-impact stats' },
-      { status: 500 }
-    );
-  }
 }
+
+export const GET = createRouteHandler(handleGet, {
+  endpoint: '/api/ideas/effort-impact',
+  method: 'GET',
+});

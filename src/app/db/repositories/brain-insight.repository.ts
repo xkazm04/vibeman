@@ -19,7 +19,8 @@ function parseEvidence(raw: string): EvidenceRef[] {
   let parsed: unknown[];
   try {
     parsed = JSON.parse(raw);
-  } catch {
+  } catch (error) {
+    console.error('[brain-insight] Failed to parse evidence JSON:', error);
     return [];
   }
   if (!Array.isArray(parsed)) return [];

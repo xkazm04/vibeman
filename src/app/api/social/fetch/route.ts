@@ -221,8 +221,8 @@ async function fetchDiscordMessages(
           channel: 'discord',
         });
       }
-    } catch {
-      // Continue to next channel
+    } catch (error) {
+      console.error(`[Social Fetch] Discord channel ${channelId} fetch failed:`, error);
     }
   }
 
@@ -288,7 +288,8 @@ async function fetchXMentions(
       created_at: tweet.created_at,
       channel: 'x',
     }));
-  } catch {
+  } catch (error) {
+    console.error('[Social Fetch] X/Twitter mentions fetch failed:', error);
     return [];
   }
 }
@@ -338,7 +339,8 @@ async function fetchInstagramComments(
     }
 
     return items.slice(0, limit);
-  } catch {
+  } catch (error) {
+    console.error('[Social Fetch] Instagram comments fetch failed:', error);
     return [];
   }
 }
@@ -396,7 +398,8 @@ async function fetchFacebookComments(
     }
 
     return items.slice(0, limit);
-  } catch {
+  } catch (error) {
+    console.error('[Social Fetch] Facebook comments fetch failed:', error);
     return [];
   }
 }
@@ -493,7 +496,8 @@ async function fetchGmailMessages(
     }
 
     return items;
-  } catch {
+  } catch (error) {
+    console.error('[Social Fetch] Gmail messages fetch failed:', error);
     return [];
   }
 }

@@ -29,17 +29,17 @@ export default function ContextDetailTimeline({ context }: ContextDetailTimeline
       
       <div className="space-y-4">
         <div>
-          <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">Created</label>
+          <label className="text-sm font-medium text-gray-300 uppercase tracking-wider">Created</label>
           <p className="text-white font-mono mt-1">{formatDateTime(context.createdAt)}</p>
         </div>
         
         <div>
-          <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">Last Updated</label>
+          <label className="text-sm font-medium text-gray-300 uppercase tracking-wider">Last Updated</label>
           <p className="text-white font-mono mt-1">{formatDateTime(context.updatedAt)}</p>
         </div>
         
         <div className="pt-4 border-t border-gray-700/30">
-          <div className="flex items-center space-x-2 text-sm text-gray-400">
+          <div className="flex items-center space-x-2 text-sm text-gray-300">
             <Clock className="w-4 h-4" />
             <span>{calculateDaysSince(context.createdAt)} days old</span>
           </div>

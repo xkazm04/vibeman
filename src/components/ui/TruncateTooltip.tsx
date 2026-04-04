@@ -3,6 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { zIndex } from '@/lib/design-tokens';
 
 interface TruncateTooltipProps {
   /** Primary text shown in the tooltip */
@@ -75,10 +76,11 @@ export function TruncateTooltip({ text, subtitle, children, delay = 500 }: Trunc
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 4 }}
                 transition={{ duration: 0.15 }}
-                className="fixed z-[9999] pointer-events-none max-w-xs px-2.5 py-1.5 rounded-md bg-gray-900/95 border border-gray-700/60 backdrop-blur-sm shadow-lg shadow-black/30"
+                className="fixed pointer-events-none max-w-xs px-2.5 py-1.5 rounded-md bg-gray-900/95 border border-gray-700/60 backdrop-blur-sm shadow-lg shadow-black/30"
                 style={{
                   left: clampX(position.x),
                   top: position.y - 6,
+                  zIndex: zIndex.tooltip,
                   transform: 'translate(-50%, -100%)',
                 }}
               >

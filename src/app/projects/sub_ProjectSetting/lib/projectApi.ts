@@ -41,15 +41,4 @@ export const deleteProject = async (projectId: string): Promise<boolean> => {
   }
 };
 
-// Get related project from projects list
-export const getRelatedProject = (projects: Project[], projectId?: string): Project | null => {
-  if (!projectId) return null;
-  return projects.find(p => p.id === projectId) || null;
-};
-
-// Get connected projects
-export const getConnectedProjects = (projects: Project[], project: Project): Project[] => {
-  return projects.filter(p =>
-    p.relatedProjectId === project.id || project.relatedProjectId === p.id
-  );
-};
+// getRelatedProject and getConnectedProjects are defined in projectUtils.ts

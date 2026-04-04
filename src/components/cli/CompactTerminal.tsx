@@ -230,17 +230,21 @@ export function CompactTerminal({
     setIsAutoScroll(isAtBottom);
   }, []);
 
-  // Cleanup on unmount
+  // Cleanup on unmount — close EventSource and clear all intervals unconditionally.
+  // Nulling refs prevents double-cleanup if rapid mount/unmount creates duplicates.
   useEffect(() => {
     return () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
+        eventSourceRef.current = null;
       }
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
       }
       if (stuckCheckIntervalRef.current) {
         clearInterval(stuckCheckIntervalRef.current);
+        stuckCheckIntervalRef.current = null;
       }
     };
   }, []);
@@ -367,6 +371,11 @@ export function CompactTerminal({
     eventSource.onerror = () => {
       eventSource.close();
       eventSourceRef.current = null;
+      // Clear stuck check interval to prevent it from firing after SSE disconnect
+      if (stuckCheckIntervalRef.current) {
+        clearInterval(stuckCheckIntervalRef.current);
+        stuckCheckIntervalRef.current = null;
+      }
       // Finalize the task as failed so isStreaming resets and the queue can continue
       finalizeTask(false);
     };

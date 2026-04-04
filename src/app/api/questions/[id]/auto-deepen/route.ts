@@ -13,13 +13,13 @@ import { questionDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { analyzeAnswerGaps, buildGapTargetingPrompt, type GapAnalysis } from '@/lib/questions/gapDetector';
+import { createParamsRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
-export async function POST(
+async function handlePost(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id: questionId } = await params;
+  const { id: questionId } = await params;
 
     // Validate question exists and is answered
     const question = questionDb.getQuestionById(questionId);
@@ -170,14 +170,13 @@ export async function POST(
       parentId: questionId,
       depth: newDepth,
     });
-  } catch (error) {
-    logger.error('[API] Auto-deepen error:', { error });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
 }
+
+export const POST = createParamsRouteHandler(handlePost, {
+  endpoint: '/api/questions/[id]/auto-deepen',
+  method: 'POST',
+  middleware: { rateLimit: { tier: 'expensive' } },
+});
 
 function buildAutoDeepenPrompt(
   parent: { question: string; answer: string | null; context_map_title: string },

@@ -47,6 +47,10 @@ interface ActiveExecution {
   sseReconnectAttempts: number;
   sseReconnectTimer?: ReturnType<typeof setTimeout>;
   pollAttempts: number;
+  /** Mutex: only one transport (SSE or polling) can emit completion at a time */
+  completionEmitted: boolean;
+  /** Set by cleanupExecution so in-flight async poll closures bail out */
+  aborted: boolean;
 }
 
 class TerminalStrategy implements ExecutionStrategy {
@@ -93,6 +97,8 @@ class TerminalStrategy implements ExecutionStrategy {
         handlers: new Set(),
         sseReconnectAttempts: 0,
         pollAttempts: 0,
+        completionEmitted: false,
+        aborted: false,
       };
       this.executions.set(executionId, execution);
 
@@ -154,7 +160,7 @@ class TerminalStrategy implements ExecutionStrategy {
   stream(executionId: string, onEvent: ExecutionEventHandler): () => void {
     let execution = this.executions.get(executionId);
     if (!execution) {
-      execution = { executionId, handlers: new Set(), sseReconnectAttempts: 0, pollAttempts: 0 };
+      execution = { executionId, handlers: new Set(), sseReconnectAttempts: 0, pollAttempts: 0, completionEmitted: false, aborted: false };
       this.executions.set(executionId, execution);
     }
 
@@ -199,8 +205,10 @@ class TerminalStrategy implements ExecutionStrategy {
           try { handler(execEvent); } catch (err) { logHandlerError(err, executionId, execEvent.type); }
         }
 
-        // On terminal events, clean up stream
+        // On terminal events, guard against double-completion from SSE+polling race
         if (data.type === 'result' || data.type === 'error') {
+          if (execution!.completionEmitted) return;
+          execution!.completionEmitted = true;
           es.close();
           execution!.eventSource = undefined;
         }
@@ -245,6 +253,9 @@ class TerminalStrategy implements ExecutionStrategy {
     const execution = this.executions.get(executionId);
     if (!execution) return;
 
+    // Mark aborted first so any in-flight async poll closure bails out
+    execution.aborted = true;
+
     if (execution.eventSource) {
       execution.eventSource.close();
       execution.eventSource = undefined;
@@ -267,10 +278,14 @@ class TerminalStrategy implements ExecutionStrategy {
 
     let isPolling = false;
     execution.pollingInterval = setInterval(async () => {
-      if (isPolling) return;
+      // Bail out if execution was cleaned up while an async poll was in-flight
+      if (execution.aborted || isPolling) return;
       isPolling = true;
       try {
         const status = await this.getStatus(executionId);
+
+        // Re-check after await — execution may have been cleaned up during the fetch
+        if (execution.aborted) return;
 
         // If server is unreachable, increment poll attempts
         if (!status) {
@@ -303,6 +318,12 @@ class TerminalStrategy implements ExecutionStrategy {
         }
 
         if (status.state === 'completed' || status.state === 'failed') {
+          // Guard against double-completion from SSE+polling race
+          if (execution.completionEmitted) {
+            this.cleanupExecution(executionId);
+            return;
+          }
+          execution.completionEmitted = true;
           const resultEvent: ExecutionEvent = {
             type: status.state === 'completed' ? 'result' : 'error',
             data: status,
@@ -314,6 +335,7 @@ class TerminalStrategy implements ExecutionStrategy {
           this.cleanupExecution(executionId);
         }
       } catch {
+        if (execution.aborted) return;
         execution.pollAttempts++;
         if (execution.pollAttempts >= MAX_POLL_ATTEMPTS) {
           const errorEvent: ExecutionEvent = {

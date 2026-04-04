@@ -6,6 +6,7 @@ import { ImageOff, Images, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import ScreenThumbnail from './ScreenThumbnail';
 import { SimpleSpinner } from '@/components/ui/Spinner';
+import { zIndex } from '@/lib/design-tokens';
 
 interface ContextWithPreview {
   id: string;
@@ -187,7 +188,8 @@ export default function ScreenGallery({ projectId }: ScreenGalleryProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100]"
+              className="fixed inset-0 bg-black/95 backdrop-blur-xl"
+              style={{ zIndex: zIndex.lightbox }}
               onClick={() => setExpandedContext(null)}
               data-testid="screen-gallery-modal-backdrop"
             />
@@ -198,7 +200,8 @@ export default function ScreenGallery({ projectId }: ScreenGalleryProps) {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed inset-0 z-[101] flex items-center justify-center p-8"
+              className="fixed inset-0 flex items-center justify-center p-8"
+              style={{ zIndex: zIndex.lightbox + 1 }}
               data-testid="screen-gallery-modal"
             >
               {/* Close Button */}

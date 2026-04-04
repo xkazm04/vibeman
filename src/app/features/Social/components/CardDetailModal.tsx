@@ -24,6 +24,7 @@ import { SLABadge } from './sla';
 import { TeamIcon, ResponseIndicator, TEAM_LABELS } from './TeamIcon';
 import { SentimentBadge, ConfidenceBadge } from '../lib/utils/sentimentUtils';
 import { XIcon } from './KanbanBoardConstants';
+import { zIndex } from '@/lib/design-tokens';
 
 // Channel icon component map
 const ChannelIcon: Record<KanbanChannel, LucideIcon> = {
@@ -213,7 +214,8 @@ export default function CardDetailModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999]"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            style={{ zIndex: zIndex.modalBackdrop }}
           />
 
           <motion.div
@@ -221,7 +223,8 @@ export default function CardDetailModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed inset-0 z-[10000] flex items-center justify-center p-4 pointer-events-none"
+            className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none"
+            style={{ zIndex: zIndex.modal }}
           >
             <div className="bg-gray-900 border border-gray-700/60 rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden pointer-events-auto" role="dialog" aria-modal="true">
               {/* Header */}

@@ -216,30 +216,5 @@ export const SCAN_TYPE_CONFIG: Record<ScanType, ScanTypeConfig> = {
   }
 };
 
-// Status color configuration
-export const STATUS_CONFIG = {
-  pending: {
-    label: 'Pending',
-    color: 'text-gray-500',
-    bgColor: 'bg-gray-500/20',
-    borderColor: 'border-gray-500/40'
-  },
-  accepted: {
-    label: 'Accepted',
-    color: 'text-green-400',
-    bgColor: 'bg-green-500/20',
-    borderColor: 'border-green-500/40'
-  },
-  rejected: {
-    label: 'Rejected',
-    color: 'text-red-400',
-    bgColor: 'bg-red-500/20',
-    borderColor: 'border-red-500/40'
-  },
-  implemented: {
-    label: 'Implemented',
-    color: 'text-amber-400',
-    bgColor: 'bg-amber-500/20',
-    borderColor: 'border-amber-500/40'
-  }
-};
+// Status color configuration — re-exported from centralized design tokens
+export { statusConfig as STATUS_CONFIG } from '@/lib/design-tokens';

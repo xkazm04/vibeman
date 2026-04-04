@@ -105,18 +105,23 @@ export default function KBEntryTable({
             </span>
           </div>
           <div className="flex items-center gap-1.5">
-            {(['confidence', 'created_at', 'times_applied'] as SortField[]).map(field => (
-              <button
-                key={field}
-                onClick={() => toggleSort(field)}
-                className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-2xs transition-colors ${
-                  sortField === field ? 'text-cyan-400 bg-cyan-500/10' : 'text-zinc-500 hover:text-zinc-300'
-                }`}
-              >
-                <ArrowUpDown className="w-2.5 h-2.5" />
-                {field === 'confidence' ? 'Conf' : field === 'created_at' ? 'Date' : 'Usage'}
-              </button>
-            ))}
+            {(['confidence', 'created_at', 'times_applied'] as SortField[]).map(field => {
+              const label = field === 'confidence' ? 'Conf' : field === 'created_at' ? 'Date' : 'Usage';
+              return (
+                <button
+                  key={field}
+                  onClick={() => toggleSort(field)}
+                  aria-label={`Sort by ${label} ${sortField === field ? (sortDir === 'asc' ? 'descending' : 'ascending') : 'descending'}`}
+                  aria-pressed={sortField === field}
+                  className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-2xs transition-colors ${
+                    sortField === field ? 'text-cyan-400 bg-cyan-500/10' : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  <ArrowUpDown className="w-2.5 h-2.5" />
+                  {label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -134,6 +139,7 @@ export default function KBEntryTable({
             {searchQuery && (
               <button
                 onClick={() => onSearchChange('')}
+                aria-label="Clear search"
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
               >
                 <X className="w-3 h-3" />
@@ -146,6 +152,8 @@ export default function KBEntryTable({
               <button
                 key={f.value}
                 onClick={() => setPatternFilter(f.value)}
+                aria-label={`Filter by ${f.label}`}
+                aria-pressed={patternFilter === f.value}
                 className={`px-1.5 py-0.5 rounded text-2xs font-medium whitespace-nowrap transition-colors ${
                   patternFilter === f.value
                     ? 'bg-purple-500/20 text-purple-300'

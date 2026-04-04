@@ -4,6 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { ideaDb } from '@/app/db';
+import { createRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
 /**
  * POST /api/ideas/by-requirements
@@ -14,8 +15,7 @@ import { ideaDb } from '@/app/db';
  *
  * This eliminates N+1 queries when loading TaskRunner with many requirements
  */
-export async function POST(request: NextRequest) {
-  try {
+async function handlePost(request: NextRequest) {
     const body = await request.json();
     const { requirementIds } = body;
 
@@ -37,10 +37,9 @@ export async function POST(request: NextRequest) {
     const ideas = ideaDb.getIdeasByRequirementIds(requirementIds);
 
     return NextResponse.json({ ideas });
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to fetch ideas' },
-      { status: 500 }
-    );
-  }
 }
+
+export const POST = createRouteHandler(handlePost, {
+  endpoint: '/api/ideas/by-requirements',
+  method: 'POST',
+});

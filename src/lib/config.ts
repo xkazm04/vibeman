@@ -235,16 +235,6 @@ export interface AppConfig {
     readonly hotWritesPath: string | undefined;
   };
 
-  /** Available LLM providers (server-only key checks) */
-  llm: {
-    readonly hasAnthropic: boolean;
-    readonly hasOpenai: boolean;
-    readonly hasGroq: boolean;
-    readonly hasOllama: boolean;
-    readonly hasInternal: boolean;
-    readonly ollamaBaseUrl: string;
-  };
-
   /** Integration status flags */
   integrations: {
     readonly supabase: boolean;
@@ -302,24 +292,6 @@ function buildConfig(): AppConfig {
     get hotWritesPath() { return env.hotWritesDbPath(); },
   };
 
-  const serverLlm = isServer()
-    ? {
-        get hasAnthropic() { return !!env.anthropicApiKey(); },
-        get hasOpenai() { return !!env.openaiApiKey(); },
-        get hasGroq() { return !!env.groqApiKey(); },
-        hasOllama: true, // Ollama is local, always "available"
-        get hasInternal() { return !!env.internalApiBaseUrl(); },
-        ollamaBaseUrl: env.ollamaBaseUrl(),
-      }
-    : {
-        get hasAnthropic() { return false; },
-        get hasOpenai() { return false; },
-        get hasGroq() { return false; },
-        hasOllama: true,
-        get hasInternal() { return false; },
-        ollamaBaseUrl: env.ollamaBaseUrl(),
-      };
-
   const integrations = {
     get supabase() { return env.isSupabaseConfigured(); },
     get github() { return env.isGitHubConfigured(); },
@@ -329,7 +301,6 @@ function buildConfig(): AppConfig {
   return {
     ...base,
     db: serverDb,
-    llm: serverLlm,
     integrations,
   };
 }

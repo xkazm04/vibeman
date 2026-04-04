@@ -16,8 +16,6 @@ export {
   APIKeyStorage,
   ProviderConfigStorage,
   DefaultProviderStorage,
-  FallbackChainStorage,
-  StorageUtils,
   DEFAULT_FALLBACK_CHAIN
 } from './llm-storage';
 
@@ -39,18 +37,6 @@ export {
   checkLLMAvailability,
   getLLMModels
 } from './llm-manager';
-
-// Utility functions
-export {
-  selectBestProvider,
-  generateWithBestProvider,
-  generateWithFallback,
-  generateWithMultipleProviders,
-  estimateTokenCount,
-  truncateToTokenLimit,
-  getProviderStatus,
-  validateLLMRequest
-} from './utils';
 
 // Re-export for backward compatibility with existing Ollama usage
 export {

@@ -74,15 +74,11 @@ export interface GroupedIdeas {
   totalIdeas: number;
 }
 
-/**
- * Status distribution type - single source of truth for status counting
- */
-export interface StatusDistribution {
-  pending: number;
-  accepted: number;
-  rejected: number;
-  implemented: number;
-}
+import { countIdeaStatuses, type StatusDistribution } from './ideaStatsAggregator';
+export type { StatusDistribution };
+
+/** @deprecated Use countIdeaStatuses from ideaStatsAggregator directly */
+export const calculateStatusDistribution = countIdeaStatuses;
 
 /**
  * Create context lookup map
@@ -91,25 +87,6 @@ function createContextMap(contexts: Context[]): Map<string, Context> {
   const contextMap = new Map<string, Context>();
   contexts.forEach(ctx => contextMap.set(ctx.id, ctx));
   return contextMap;
-}
-
-/**
- * Calculate status distribution for ideas - single source of truth
- * Use this function wherever status counts are needed to ensure consistency
- */
-export function calculateStatusDistribution(ideas: DbIdea[]): StatusDistribution {
-  const statusDistribution: StatusDistribution = {
-    pending: 0,
-    accepted: 0,
-    rejected: 0,
-    implemented: 0,
-  };
-
-  ideas.forEach(idea => {
-    statusDistribution[idea.status]++;
-  });
-
-  return statusDistribution;
 }
 
 /**

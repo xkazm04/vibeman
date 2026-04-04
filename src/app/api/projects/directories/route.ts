@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readdir, stat, access } from 'fs/promises';
 import { join } from 'path';
+import { validatePathTraversal } from '@/lib/pathSecurity';
 
 // Force dynamic rendering to prevent static analysis of file paths
 export const dynamic = 'force-dynamic';
@@ -15,6 +16,15 @@ export async function GET(request: NextRequest) {
 
     // Use custom base path if provided and valid
     if (customBasePath) {
+      // Reject paths with traversal patterns
+      const traversalError = validatePathTraversal(customBasePath);
+      if (traversalError) {
+        return NextResponse.json(
+          { success: false, error: traversalError },
+          { status: 400 }
+        );
+      }
+
       try {
         await access(customBasePath);
         const stats = await stat(customBasePath);

@@ -7,28 +7,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, Activity, Trash2, Clock } from 'lucide-react';
-import { LLMProvider } from '@/lib/voice/voicebotTypes';
-
-type SessionState = 'idle' | 'connecting' | 'active' | 'processing' | 'error';
-
-interface ModelResponse {
-  provider: LLMProvider;
-  model: string;
-  response: string;
-  audioUrl?: string;
-  timing?: {
-    llmMs?: number;
-    ttsMs?: number;
-    totalMs?: number;
-  };
-}
-
-interface MultiModelLog {
-  id: string;
-  timestamp: string;
-  question: string;
-  responses: ModelResponse[];
-}
+import { type LLMProvider, type SessionState, type MultiModelLog } from '@/lib/voice/voicebotTypes';
 
 interface MultiModelSessionLogsProps {
   logs: MultiModelLog[];

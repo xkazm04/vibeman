@@ -185,6 +185,8 @@ ${'='.repeat(40)}
           <div className="flex items-center justify-between px-3 md:px-6 py-4 border-b border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 via-transparent to-blue-500/10">
             <div className="flex items-center gap-3">
               <div
+                role="status"
+                aria-label={isRunning ? 'Generation running' : isComplete ? 'Generation complete' : 'Generation failed'}
                 className={`w-3 h-3 rounded-full ${isRunning ? 'animate-pulse bg-cyan-400' : isComplete ? 'bg-green-400' : 'bg-red-400'}`}
               />
               <h3 className="text-lg font-bold text-white font-mono">
@@ -203,6 +205,7 @@ ${'='.repeat(40)}
                 onClick={handleCopy}
                 className="p-2 rounded-lg hover:bg-gray-800/50 transition-colors"
                 title="Copy log"
+                aria-label={copied ? 'Log copied' : 'Copy log to clipboard'}
               >
                 {copied ? (
                   <Check className="w-4 h-4 text-green-400" />
@@ -216,6 +219,8 @@ ${'='.repeat(40)}
                 onClick={() => setIsMinimized(!isMinimized)}
                 className="p-2 rounded-lg hover:bg-gray-800/50 transition-colors"
                 title={isMinimized ? 'Expand' : 'Minimize'}
+                aria-label={isMinimized ? 'Expand terminal output' : 'Minimize terminal output'}
+                aria-expanded={!isMinimized}
               >
                 {isMinimized ? (
                   <Maximize2 className="w-4 h-4 text-gray-400" />
@@ -231,6 +236,7 @@ ${'='.repeat(40)}
                   isRunning ? 'hover:bg-red-900/50' : 'hover:bg-gray-800/50'
                 }`}
                 title={isRunning ? 'Cancel' : 'Close'}
+                aria-label={isRunning ? 'Cancel generation' : 'Close overlay'}
               >
                 <X className={`w-4 h-4 ${isRunning ? 'text-red-400' : 'text-gray-400'}`} />
               </button>
@@ -249,6 +255,9 @@ ${'='.repeat(40)}
                 <div
                   ref={terminalRef}
                   onScroll={handleScroll}
+                  role="log"
+                  aria-live="polite"
+                  aria-label="Context generation terminal output"
                   className="h-80 overflow-y-auto font-mono text-sm p-4"
                 >
                   {messages.length === 0 ? (

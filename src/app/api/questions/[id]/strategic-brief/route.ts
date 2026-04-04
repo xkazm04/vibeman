@@ -10,13 +10,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { questionDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 import { questionTreeService } from '@/lib/questions/questionTreeService';
+import { createParamsRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
-export async function POST(
+async function handlePost(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id: questionId } = await params;
+  const { id: questionId } = await params;
 
     const question = questionDb.getQuestionById(questionId);
     if (!question) {
@@ -88,14 +88,13 @@ export async function POST(
         depth: d.depth,
       })),
     });
-  } catch (error) {
-    logger.error('[API] Strategic brief error:', { error });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
 }
+
+export const POST = createParamsRouteHandler(handlePost, {
+  endpoint: '/api/questions/[id]/strategic-brief',
+  method: 'POST',
+  middleware: { rateLimit: { tier: 'expensive' } },
+});
 
 function buildStrategicBriefPrompt(
   chain: Array<{ depth: number; question: string; answer: string; context: string }>

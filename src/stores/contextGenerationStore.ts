@@ -79,8 +79,9 @@ export const useContextGenerationStore = create<ContextGenerationStore>()((set, 
 
   startGeneration: async (projectId: string) => {
     try {
-      // Check if scan already running
-      if (get().isGenerating()) {
+      // Check if scan already running or in failed/pending state (prevents double-submit)
+      const current = get().activeScan;
+      if (current && (current.status === 'running' || current.status === 'pending')) {
         return { success: false, error: 'Context generation already running' };
       }
 
@@ -123,7 +124,8 @@ export const useContextGenerationStore = create<ContextGenerationStore>()((set, 
 
       if (!executeResponse.ok) {
         const err = await executeResponse.json();
-        get().setError(err.error || 'Failed to execute context generation');
+        // Clear stale activeScan so subsequent calls don't see a ghost scan
+        set({ activeScan: null });
         return { success: false, error: err.error || 'Failed to execute context generation' };
       }
 

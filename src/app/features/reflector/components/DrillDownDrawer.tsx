@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import { duration } from '@/lib/motion';
+import { statusConfig } from '@/lib/design-tokens';
 
 /** Describes what chart segment was clicked to open the drill-down */
 export interface DrillDownContext {
@@ -50,11 +51,12 @@ interface DrillDownDrawerProps {
   onIdeaAction?: (ideaId: string, action: 'accepted' | 'rejected') => void;
 }
 
+/** Local alias — maps statusConfig from design tokens to the shape used here. */
 const STATUS_CONFIG = {
-  accepted: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', label: 'Accepted' },
-  rejected: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', label: 'Rejected' },
-  implemented: { color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', label: 'Implemented' },
-  pending: { color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30', label: 'Pending' },
+  accepted: { color: statusConfig.accepted.color, bg: statusConfig.accepted.bgColor, border: statusConfig.accepted.borderColor, label: statusConfig.accepted.label },
+  rejected: { color: statusConfig.rejected.color, bg: statusConfig.rejected.bgColor, border: statusConfig.rejected.borderColor, label: statusConfig.rejected.label },
+  implemented: { color: statusConfig.implemented.color, bg: statusConfig.implemented.bgColor, border: statusConfig.implemented.borderColor, label: statusConfig.implemented.label },
+  pending: { color: statusConfig.pending.color, bg: statusConfig.pending.bgColor, border: statusConfig.pending.borderColor, label: statusConfig.pending.label },
 } as const;
 
 export default function DrillDownDrawer({ context, onClose, onIdeaAction }: DrillDownDrawerProps) {

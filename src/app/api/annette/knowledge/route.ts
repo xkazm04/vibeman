@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { unifiedKnowledgeStore } from '@/app/features/Annette/lib/unifiedKnowledgeStore';
 import type { KnowledgeNodeType } from '@/app/db/models/annette.types';
+import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
 
 /**
  * GET /api/annette/knowledge
@@ -203,6 +204,17 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const nodeId = searchParams.get('nodeId');
     const edgeId = searchParams.get('edgeId');
+    const projectId = searchParams.get('projectId');
+
+    if (!projectId) {
+      return NextResponse.json(
+        { error: 'projectId is required' },
+        { status: 400 }
+      );
+    }
+
+    const denied = checkProjectAccess(projectId, request);
+    if (denied) return denied;
 
     if (nodeId) {
       const success = unifiedKnowledgeStore.deleteNode(nodeId);

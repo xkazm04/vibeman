@@ -60,7 +60,7 @@ export default function ContextFileModal({ isOpen, onClose, context: propContext
     if (cachedContent) {
       setMarkdownContent(cachedContent);
     } else if (loadError && context.hasContextFile) {
-      // Fallback to placeholder on error
+      console.error('[ContextFileModal] Failed to load context file, falling back to placeholder:', loadError);
       setMarkdownContent(generatePlaceholderContent(context));
     }
   }, [cachedContent, loadError, context]);
@@ -87,6 +87,9 @@ export default function ContextFileModal({ isOpen, onClose, context: propContext
   };
 
   const handleClose = () => {
+    // Prevent close while save is in-flight to avoid clearing state mid-operation
+    if (saving) return;
+
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }

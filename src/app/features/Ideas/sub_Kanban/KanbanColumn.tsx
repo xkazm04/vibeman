@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 import { DbIdea } from '@/app/db';
 import KanbanCard from './KanbanCard';
+import type { IdeaStatus } from '@/lib/ideas/ideaStateMachine';
 
-export type IdeaStatus = 'pending' | 'accepted' | 'rejected' | 'implemented';
+export type { IdeaStatus };
 
 interface ColumnConfig {
   status: IdeaStatus;

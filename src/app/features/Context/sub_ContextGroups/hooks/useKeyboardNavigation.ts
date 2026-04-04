@@ -88,9 +88,11 @@ export function useKeyboardNavigation({
   const navigateToCard = useCallback(
     (direction: 'next' | 'prev' | 'up' | 'down' | 'left' | 'right') => {
       const cards = getFocusableCards();
+      if (cards.length === 0) return;
+
       const currentIndex = getCurrentFocusIndex();
 
-      if (currentIndex === -1 && cards.length > 0) {
+      if (currentIndex < 0) {
         focusCardByIndex(0);
         return;
       }
@@ -202,7 +204,11 @@ export function useKeyboardNavigation({
         return;
       }
 
-      const group = groups[groupIndex - 1];
+      // Bounds check: groupIndex is 1-based, so clamp to valid range
+      const clampedIndex = Math.max(0, Math.min(groupIndex - 1, groups.length - 1));
+      if (groups.length === 0) return;
+
+      const group = groups[clampedIndex];
       if (group) {
         onMoveContext(state.focusedContextId, group.id);
         closeMoveMenu();

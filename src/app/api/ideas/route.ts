@@ -34,6 +34,7 @@ import {
   validateBooleanFlag,
 } from '@/lib/validation/inputValidator';
 import { sanitizeString, sanitizeId } from '@/lib/validation/sanitizers';
+import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
 
 /**
  * GET /api/ideas
@@ -302,8 +303,12 @@ async function handleDelete(request: NextRequest) {
     const id = searchParams.get('id');
     const deleteAll = searchParams.get('all') === 'true';
 
-    // Delete all ideas (for testing purposes)
+    // Delete all ideas (destructive — requires admin access)
     if (deleteAll) {
+      const projectId = searchParams.get('projectId') || 'global';
+      const denied = checkProjectAccess(projectId, request);
+      if (denied) return denied;
+
       const deletedCount = ideaDb.deleteAllIdeas();
       logger.info(`[DELETE ALL IDEAS] Deleted ${deletedCount} ideas from database`);
 

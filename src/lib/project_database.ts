@@ -840,27 +840,33 @@ export const projectDb = {
      * @throws {Error} If the path is already registered or the port is taken in the workspace.
      */
     add: (project: Project): void => {
-      const existingByPath = projectDb.getProjectByPath(project.path);
-      if (existingByPath) {
-        throw new Error(`A project with the same path already exists: ${existingByPath.name}`);
-      }
-      if (project.port != null) {
-        const isPortAvailable = projectDb.isPortAvailableInWorkspace(
-          project.port, project.workspaceId || null,
-        );
-        if (!isPortAvailable) {
-          throw new Error(`Port ${project.port} is already in use by another project in this workspace`);
+      // Wrap validation + insert in a transaction to prevent TOCTOU race
+      // where two concurrent POST requests both pass the port check
+      const db = getProjectDatabase();
+      const addTx = db.transaction(() => {
+        const existingByPath = projectDb.getProjectByPath(project.path);
+        if (existingByPath) {
+          throw new Error(`A project with the same path already exists: ${existingByPath.name}`);
         }
-      }
-      projectDb.createProject({
-        id: project.id, name: project.name, path: project.path,
-        port: project.port ?? null, workspace_id: project.workspaceId || null,
-        type: project.type, related_project_id: project.relatedProjectId,
-        git_repository: project.git?.repository, git_branch: project.git?.branch,
-        run_script: project.runScript || 'npm run dev',
-        allow_multiple_instances: project.allowMultipleInstances,
-        base_port: project.basePort, instance_of: project.instanceOf,
+        if (project.port != null) {
+          const isPortAvailable = projectDb.isPortAvailableInWorkspace(
+            project.port, project.workspaceId || null,
+          );
+          if (!isPortAvailable) {
+            throw new Error(`Port ${project.port} is already in use by another project in this workspace`);
+          }
+        }
+        projectDb.createProject({
+          id: project.id, name: project.name, path: project.path,
+          port: project.port ?? null, workspace_id: project.workspaceId || null,
+          type: project.type, related_project_id: project.relatedProjectId,
+          git_repository: project.git?.repository, git_branch: project.git?.branch,
+          run_script: project.runScript || 'npm run dev',
+          allow_multiple_instances: project.allowMultipleInstances,
+          base_port: project.basePort, instance_of: project.instanceOf,
+        });
       });
+      addTx();
     },
 
     /**

@@ -16,12 +16,28 @@ import {
 // SHARED HELPERS
 // ============================================================================
 
+/** Allowlisted table/column pairs for buildStatsFromQuery */
+const STATS_QUERY_ALLOWLIST: ReadonlySet<string> = new Set([
+  'claude_code_sessions:project_id',
+  'session_tasks:session_id',
+]);
+
+/** Safe SQL identifier pattern: letters, digits, underscores only */
+const SAFE_IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
 function buildStatsFromQuery<T extends Record<string, number>>(
   table: string,
   whereColumn: string,
   paramValue: string,
   defaultStats: T
 ): T & { total: number } {
+  const key = `${table}:${whereColumn}`;
+  if (!STATS_QUERY_ALLOWLIST.has(key)) {
+    throw new Error(`buildStatsFromQuery: disallowed table:column pair "${key}"`);
+  }
+  if (!SAFE_IDENTIFIER_RE.test(table) || !SAFE_IDENTIFIER_RE.test(whereColumn)) {
+    throw new Error(`buildStatsFromQuery: invalid identifier in table or column name`);
+  }
   const db = getDatabase();
   const stmt = db.prepare(`
     SELECT status, COUNT(*) as count

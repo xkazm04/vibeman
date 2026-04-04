@@ -18,7 +18,7 @@ import {
   abortV4Session,
   isRateLimitError,
 } from './sessionManager';
-import { processPostFlight, processInterruptedRun } from './postFlight';
+import { processPostFlight } from './postFlight';
 import { evaluateRunQuality } from './qualityEvaluator';
 import type { V4RunConfig, V4PreFlightData, V4RunState, V4QualityEvaluation } from './types';
 import { logger } from '@/lib/logger';

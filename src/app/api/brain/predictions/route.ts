@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { predictiveIntentEngine } from '@/lib/brain/predictiveIntentEngine';
 import { predictiveIntentDb } from '@/app/db';
 import { withObservability } from '@/lib/observability/middleware';
+import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
 
 async function handleGet(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -68,7 +69,7 @@ async function handlePost(request: NextRequest) {
 async function handlePatch(request: NextRequest) {
   try {
     const body = await request.json();
-    const { predictionId, action } = body;
+    const { predictionId, action, projectId } = body;
 
     if (!predictionId || !action) {
       return NextResponse.json(
@@ -76,6 +77,16 @@ async function handlePatch(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    if (!projectId) {
+      return NextResponse.json(
+        { error: 'projectId is required' },
+        { status: 400 }
+      );
+    }
+
+    const denied = checkProjectAccess(projectId, request);
+    if (denied) return denied;
 
     if (!['accepted', 'dismissed'].includes(action)) {
       return NextResponse.json(

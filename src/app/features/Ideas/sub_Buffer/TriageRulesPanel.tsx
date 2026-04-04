@@ -51,7 +51,8 @@ function isNumericField(field: TriageConditionField): boolean {
 function parseConditions(json: string): TriageCondition[] {
   try {
     return JSON.parse(json);
-  } catch {
+  } catch (error) {
+    console.error('[TriageRulesPanel] Failed to parse conditions JSON:', error);
     return [];
   }
 }
@@ -88,8 +89,8 @@ export default function TriageRulesPanel({ projectId }: TriageRulesPanelProps) {
       const res = await fetch(`/api/triage-rules${params}`);
       const data = await res.json();
       if (data.success) setRules(data.rules);
-    } catch {
-      // Silently fail
+    } catch (error) {
+      console.error('[TriageRulesPanel] Failed to fetch rules:', error);
     } finally {
       setLoading(false);
     }
@@ -107,8 +108,8 @@ export default function TriageRulesPanel({ projectId }: TriageRulesPanelProps) {
         body: JSON.stringify({ id: rule.id, enabled: !rule.enabled }),
       });
       fetchRules();
-    } catch {
-      // Silently fail
+    } catch (error) {
+      console.error('[TriageRulesPanel] Failed to toggle rule enabled state:', error);
     }
   }, [fetchRules]);
 
@@ -116,8 +117,8 @@ export default function TriageRulesPanel({ projectId }: TriageRulesPanelProps) {
     try {
       await fetch(`/api/triage-rules?id=${ruleId}`, { method: 'DELETE' });
       fetchRules();
-    } catch {
-      // Silently fail
+    } catch (error) {
+      console.error('[TriageRulesPanel] Failed to delete rule:', error);
     }
   }, [fetchRules]);
 
@@ -136,8 +137,8 @@ export default function TriageRulesPanel({ projectId }: TriageRulesPanelProps) {
         invalidateIdeas();
       }
       fetchRules();
-    } catch {
-      // Silently fail
+    } catch (error) {
+      console.error('[TriageRulesPanel] Failed to run all rules:', error);
     }
   }, [projectId, invalidateIdeas, fetchRules]);
 
@@ -156,8 +157,8 @@ export default function TriageRulesPanel({ projectId }: TriageRulesPanelProps) {
         const count = data.totalWouldAffect ?? 0;
         alert(`Preview: ${count} idea${count !== 1 ? 's' : ''} would be affected by enabled rules.`);
       }
-    } catch {
-      // Silently fail
+    } catch (error) {
+      console.error('[TriageRulesPanel] Failed to preview rules:', error);
     }
   }, [projectId]);
 
@@ -205,8 +206,8 @@ export default function TriageRulesPanel({ projectId }: TriageRulesPanelProps) {
       setFormAction('accept');
       setFormConditions([{ field: 'impact', operator: 'gte', value: 8 }]);
       fetchRules();
-    } catch {
-      // Silently fail
+    } catch (error) {
+      console.error('[TriageRulesPanel] Failed to create rule:', error);
     }
   }, [formName, formAction, formConditions, projectId, fetchRules]);
 

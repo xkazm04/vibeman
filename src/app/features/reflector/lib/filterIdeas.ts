@@ -92,10 +92,6 @@ export interface FilterState {
   suggestionType?: SuggestionFilter; // 'ideas' | 'directions' | 'both'
 }
 
-/** @deprecated Use FilterState instead */
-export type IdeaFilterState = FilterState;
-/** @deprecated Use FilterState instead */
-export type UnifiedFilterState = FilterState;
 
 /**
  * Configuration for which filter controls to show in the FilterBar
@@ -134,8 +130,6 @@ export function getEmptyFilterState(): FilterState {
   };
 }
 
-/** @deprecated Use getEmptyFilterState instead */
-export const getEmptyUnifiedFilterState = getEmptyFilterState;
 
 
 /**

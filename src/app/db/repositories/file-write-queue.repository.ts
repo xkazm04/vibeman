@@ -43,23 +43,30 @@ export const fileWriteQueueRepository = {
     const db = getDatabase();
     const now = getCurrentTimestamp();
 
-    // Find the oldest pending item that hasn't exceeded max_attempts
-    const item = db.prepare(`
-      SELECT * FROM file_write_queue
-      WHERE status IN ('pending', 'failed') AND attempts < max_attempts
-      ORDER BY created_at ASC
-      LIMIT 1
-    `).get() as DbFileWriteQueueItem | undefined;
+    // Wrap SELECT+UPDATE in a transaction so only one worker can claim each item.
+    // Without this, two concurrent workers can SELECT the same pending item.
+    const claim = db.transaction(() => {
+      const item = db.prepare(`
+        SELECT * FROM file_write_queue
+        WHERE status IN ('pending', 'failed') AND attempts < max_attempts
+        ORDER BY created_at ASC
+        LIMIT 1
+      `).get() as DbFileWriteQueueItem | undefined;
 
-    if (!item) return null;
+      if (!item) return null;
 
-    // Atomically mark as writing
-    db.prepare(`
-      UPDATE file_write_queue SET status = 'writing', attempts = attempts + 1, updated_at = ?
-      WHERE id = ? AND status IN ('pending', 'failed')
-    `).run(now, item.id);
+      const result = db.prepare(`
+        UPDATE file_write_queue SET status = 'writing', attempts = attempts + 1, updated_at = ?
+        WHERE id = ? AND status IN ('pending', 'failed')
+      `).run(now, item.id);
 
-    return { ...item, status: 'writing', attempts: item.attempts + 1, updated_at: now };
+      // If another worker already claimed it (status changed), skip
+      if (result.changes === 0) return null;
+
+      return { ...item, status: 'writing' as const, attempts: item.attempts + 1, updated_at: now };
+    });
+
+    return claim();
   },
 
   /**

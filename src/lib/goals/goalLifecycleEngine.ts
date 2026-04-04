@@ -65,33 +65,39 @@ export function processSignal(input: LifecycleSignalInput): {
     // Find goals that match this signal
     const matchingGoals = findMatchingGoals(input);
 
-    for (const goal of matchingGoals) {
-      // Calculate progress delta based on signal type
-      const progressDelta = calculateProgressDelta(goal, input);
+    // Wrap signal creation + progress update + status transition in a single
+    // transaction to prevent concurrent signals from interleaving reads/writes
+    const db = getDatabase();
+    const processAll = db.transaction(() => {
+      for (const goal of matchingGoals) {
+        // Calculate progress delta based on signal type
+        const progressDelta = calculateProgressDelta(goal, input);
 
-      // Record the signal
-      goalSignalRepository.create({
-        goal_id: goal.id,
-        project_id: input.projectId,
-        signal_type: input.signalType,
-        source_id: input.sourceId,
-        source_title: input.sourceTitle,
-        description: input.description,
-        progress_delta: progressDelta,
-        metadata: input.metadata,
-      });
+        // Record the signal
+        goalSignalRepository.create({
+          goal_id: goal.id,
+          project_id: input.projectId,
+          signal_type: input.signalType,
+          source_id: input.sourceId,
+          source_title: input.sourceTitle,
+          description: input.description,
+          progress_delta: progressDelta,
+          metadata: input.metadata,
+        });
 
-      result.matchedGoals.push(goal.id);
+        result.matchedGoals.push(goal.id);
 
-      // Compute new inferred progress
-      const newProgress = computeInferredProgress(goal.id);
+        // Compute new inferred progress
+        const newProgress = computeInferredProgress(goal.id);
 
-      // Apply status transitions
-      const transition = applyStatusTransition(goal, newProgress);
-      if (transition) {
-        result.transitions.push(transition);
+        // Apply status transitions
+        const transition = applyStatusTransition(goal, newProgress);
+        if (transition) {
+          result.transitions.push(transition);
+        }
       }
-    }
+    });
+    processAll();
   } catch (error) {
     logger.error('[GoalLifecycle] Error processing signal:', { error, input });
   }

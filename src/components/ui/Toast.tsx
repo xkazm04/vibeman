@@ -4,6 +4,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { useMessageStore, Toast as ToastType, ToastType as ToastVariant } from '@/stores/messageStore';
+import { zIndex } from '@/lib/design-tokens';
 
 const icons: Record<ToastVariant, React.ElementType> = {
   success: CheckCircle,
@@ -116,7 +117,8 @@ export function ToastContainer({ position = 'top-right', maxVisible = 5 }: Toast
 
   return (
     <div
-      className={`fixed z-[100] flex flex-col gap-2 pointer-events-none ${positionClasses[position]}`}
+      className={`fixed flex flex-col gap-2 pointer-events-none ${positionClasses[position]}`}
+      style={{ zIndex: zIndex.toast }}
       aria-live="polite"
       aria-atomic="true"
     >

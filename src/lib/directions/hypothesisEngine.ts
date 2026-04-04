@@ -64,7 +64,8 @@ export function parseAssertions(json: string | null): HypothesisAssertion[] {
     const parsed = JSON.parse(json);
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(isValidAssertion);
-  } catch {
+  } catch (error) {
+    console.error('[HypothesisEngine] Failed to parse hypothesis assertions JSON:', error);
     return [];
   }
 }
@@ -132,7 +133,8 @@ function parseFilesChanged(json: string | null): string[] {
   try {
     const parsed = JSON.parse(json);
     return Array.isArray(parsed) ? parsed : [];
-  } catch {
+  } catch (error) {
+    console.error('[HypothesisEngine] Failed to parse files_changed JSON:', error);
     return [];
   }
 }

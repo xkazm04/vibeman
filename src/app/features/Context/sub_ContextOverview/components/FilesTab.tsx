@@ -33,7 +33,7 @@ export default function FilesTab({ filePaths, groupColor }: FilesTabProps) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-gray-400">
         <Folder className="w-16 h-16 mb-4 opacity-50" />
-        <p className="text-lg font-mono">No files associated with this context</p>
+        <p className="text-lg font-mono text-gray-300">No files associated with this context</p>
       </div>
     );
   }
@@ -54,7 +54,7 @@ export default function FilesTab({ filePaths, groupColor }: FilesTabProps) {
           </div>
           <div>
             <h3 className="text-xl font-bold text-white font-mono">Related Files</h3>
-            <p className="text-sm text-gray-400 font-mono">{filePaths.length} file{filePaths.length !== 1 ? 's' : ''}</p>
+            <p className="text-sm text-gray-300 font-mono">{filePaths.length} file{filePaths.length !== 1 ? 's' : ''}</p>
           </div>
         </div>
       </div>
@@ -122,13 +122,13 @@ export default function FilesTab({ filePaths, groupColor }: FilesTabProps) {
       {/* Footer Stats */}
       <div className="mt-8 p-4 rounded-xl border border-gray-700/30 bg-gray-800/20">
         <div className="flex items-center justify-between text-sm font-mono">
-          <span className="text-gray-400">Total Files:</span>
+          <span className="text-gray-300">Total Files:</span>
           <span className="font-semibold" style={{ color: groupColor }}>
             {filePaths.length}
           </span>
         </div>
         <div className="flex items-center justify-between text-sm font-mono mt-2">
-          <span className="text-gray-400">Directories:</span>
+          <span className="text-gray-300">Directories:</span>
           <span className="font-semibold" style={{ color: groupColor }}>
             {Object.keys(groupedFiles).length}
           </span>

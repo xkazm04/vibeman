@@ -20,13 +20,7 @@ import { useConductorStore } from '../lib/conductorStore';
 import { PIPELINE_STATUS_COLORS } from '../lib/stageTheme';
 import type { PipelineRunSummary, PipelineStatus } from '../lib/types';
 
-function formatDuration(ms: number): string {
-  if (ms < 1000) return '<1s';
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}m`;
-}
+import { formatDuration } from '../lib/format';
 
 
 const STATUS_ICONS: Record<PipelineStatus, typeof CheckCircle2> = {

@@ -16,7 +16,7 @@ class RemoteCommandProcessor extends SupabaseService {
   protected readonly serviceName = 'RemoteCommandProcessor';
   private handlers: Map<RemoteCommandType, CommandHandler> = new Map();
   private pollInterval: ReturnType<typeof setInterval> | null = null;
-  private isProcessing = false;
+  private processingLock: Promise<number> | null = null;
   private localDeviceId: string | null = null;
 
   /**
@@ -106,11 +106,16 @@ class RemoteCommandProcessor extends SupabaseService {
    * - specific ID: only that device processes
    */
   async processPendingCommands(): Promise<number> {
-    if (!this.supabase || this.isProcessing) {
+    if (!this.supabase) return 0;
+
+    // Promise-based lock: chain concurrent calls sequentially
+    if (this.processingLock) {
+      await this.processingLock;
       return 0;
     }
 
-    this.isProcessing = true;
+    let resolve: (v: number) => void;
+    this.processingLock = new Promise<number>(r => { resolve = r; });
     let processedCount = 0;
 
     try {
@@ -151,7 +156,8 @@ class RemoteCommandProcessor extends SupabaseService {
     } catch (err) {
       console.error('[RemoteCommandProcessor] Error processing commands:', err);
     } finally {
-      this.isProcessing = false;
+      resolve!(processedCount);
+      this.processingLock = null;
     }
 
     return processedCount;

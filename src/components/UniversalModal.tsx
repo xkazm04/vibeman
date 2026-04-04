@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, LucideIcon, Loader2 } from 'lucide-react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { zIndex } from '@/lib/design-tokens';
 
 // Icon button styles for header actions
 const HEADER_ACTION_STYLES = {
@@ -142,7 +143,8 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+        className="fixed inset-0 flex items-center justify-center p-4"
+        style={{ zIndex: zIndex.modal }}
       >
         {/* Backdrop */}
         {showBackdrop && (

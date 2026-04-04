@@ -6,6 +6,7 @@ import { useGlobalModal } from '../../../../hooks/useGlobalModal';
 import { normalizePath, FilePath } from '../../../../utils/pathUtils';
 import { useFocusTrap } from '../../../../lib/accessibility';
 import { formatDateTime } from '@/lib/formatDate';
+import { zIndex } from '@/lib/design-tokens';
 import { getGridLayout } from '../lib/contextUtils';
 import ActionButton from './ActionButton';
 import StatCard from './StatCard';
@@ -90,7 +91,8 @@ export default function GroupDetailView({ groupId, onClose }: GroupDetailViewPro
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+      style={{ zIndex: zIndex.modal }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <motion.div

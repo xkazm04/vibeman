@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Image as ImageIcon, X, Maximize2 } from 'lucide-react';
+import { zIndex } from '@/lib/design-tokens';
 
 interface PreviewDisplayProps {
   previewPath: string;
@@ -23,6 +24,19 @@ export default function PreviewDisplay({
   height = 'h-[600px]', // Increased from h-48 to expanded size
 }: PreviewDisplayProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Close expanded view on Escape key
+  React.useEffect(() => {
+    if (!isExpanded) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setIsExpanded(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isExpanded]);
 
   if (!previewPath) return null;
 
@@ -44,18 +58,26 @@ export default function PreviewDisplay({
               onError={onError}
               onClick={() => setIsExpanded(true)}
             />
-            {/* Expand overlay hint */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              whileHover={{ opacity: 1 }}
-              className="absolute inset-0 bg-black/50 flex items-center justify-center cursor-pointer"
+            {/* Expand overlay hint - visible on hover and focus-within */}
+            <button
+              type="button"
               onClick={() => setIsExpanded(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setIsExpanded(true);
+                }
+              }}
+              aria-label={`Expand ${contextName} preview to 2x size`}
+              className="absolute inset-0 bg-black/50 flex items-center justify-center cursor-pointer
+                opacity-0 group-hover:opacity-100 focus-within:opacity-100 focus:opacity-100
+                transition-opacity duration-200"
             >
               <div className="flex items-center gap-2 text-white">
                 <Maximize2 className="w-6 h-6" />
                 <span className="text-sm font-medium">Click to expand 2x</span>
               </div>
-            </motion.div>
+            </button>
           </>
         ) : (
           <div className="flex items-center justify-center h-full text-gray-500">
@@ -78,7 +100,8 @@ export default function PreviewDisplay({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100]"
+              className="fixed inset-0 bg-black/95 backdrop-blur-xl"
+              style={{ zIndex: zIndex.lightbox }}
               onClick={() => setIsExpanded(false)}
             />
 
@@ -88,7 +111,8 @@ export default function PreviewDisplay({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed inset-0 z-[101] flex items-center justify-center p-8"
+              className="fixed inset-0 flex items-center justify-center p-8"
+              style={{ zIndex: zIndex.lightbox + 1 }}
               onClick={() => setIsExpanded(false)}
             >
               {/* Close Button */}
@@ -100,6 +124,7 @@ export default function PreviewDisplay({
                   e.stopPropagation();
                   setIsExpanded(false);
                 }}
+                aria-label="Close expanded preview"
                 className="absolute top-6 right-6 p-3 rounded-full bg-gray-900/80 hover:bg-gray-800 text-white border border-gray-700 transition-colors z-10"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}

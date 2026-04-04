@@ -3,6 +3,9 @@ import { create } from 'zustand';
 import { useShallow } from 'zustand/shallow';
 import { CONTEXT_GROUP_COLORS } from '@/lib/constants/contextColors';
 import { contextAPI } from './context/contextAPI';
+
+/** Module-level flush lock to prevent concurrent flushPendingMoves races */
+let _isFlushInProgress = false;
 import type { Context, ContextGroup, ContextState, ContextStore } from './context/contextStoreTypes';
 import {
   createErrorState,
@@ -571,6 +574,10 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
     const { pendingMoves, contexts } = get();
     if (pendingMoves.length === 0) return;
 
+    // Re-entry guard: serialize concurrent flush calls to prevent lost moves
+    if (_isFlushInProgress) return;
+    _isFlushInProgress = true;
+
     // Store snapshot for potential rollback (queueMove already optimistically updated)
     const previousContexts = contexts;
     const moveCount = pendingMoves.length;
@@ -594,6 +601,8 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
       });
       toast.error('Failed to move contexts', `${moveCount} context${moveCount > 1 ? 's' : ''} could not be moved`);
       throw error;
+    } finally {
+      _isFlushInProgress = false;
     }
   },
 

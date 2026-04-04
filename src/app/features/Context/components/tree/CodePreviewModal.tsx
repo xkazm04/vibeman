@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Loader2, FileCode, Eye } from 'lucide-react';
 import MonacoEditor from '@/components/editor/LazyMonacoEditor';
-import { buttonVariants } from '@/lib/design-tokens';
+import { buttonVariants, zIndex } from '@/lib/design-tokens';
 import FileErrorDisplay from './FileErrorDisplay';
 import { classifyFileError } from './fileOperationErrors';
 import { FilePath } from '../../../../../utils/pathUtils';
@@ -200,7 +200,8 @@ export default function CodePreviewModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998]"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            style={{ zIndex: zIndex.modalBackdrop }}
           />
 
           {/* Modal */}
@@ -209,7 +210,8 @@ export default function CodePreviewModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+            className="fixed inset-0 flex items-center justify-center p-4"
+            style={{ zIndex: zIndex.modal }}
           >
             <div data-testid="code-preview-modal" className="bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 border border-gray-700/50 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden">
               {/* Header */}

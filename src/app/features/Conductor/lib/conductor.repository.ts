@@ -375,24 +375,6 @@ export const conductorRepository = {
   },
 
   /**
-   * Get retry count for a specific error type in a run (optionally filtered by taskId).
-   * Counts matching rows in conductor_errors.
-   */
-  getRetryCount(runId: string, errorType: string, taskId?: string): number {
-    const db = getDatabase();
-    if (taskId) {
-      const row = db.prepare(
-        'SELECT COUNT(*) as cnt FROM conductor_errors WHERE pipeline_run_id = ? AND error_type = ? AND task_id = ?'
-      ).get(runId, errorType, taskId) as { cnt: number };
-      return row.cnt;
-    }
-    const row = db.prepare(
-      'SELECT COUNT(*) as cnt FROM conductor_errors WHERE pipeline_run_id = ? AND error_type = ?'
-    ).get(runId, errorType) as { cnt: number };
-    return row.cnt;
-  },
-
-  /**
    * Persist full pipeline state atomically for crash recovery.
    * Saves metrics, stages, process_log, and cycle in one transaction.
    */
@@ -418,28 +400,4 @@ export const conductorRepository = {
     );
   },
 
-  /**
-   * Record or increment a retry for a specific error type/task in a run.
-   * Uses INSERT OR REPLACE to upsert matching rows.
-   */
-  incrementRetryCount(runId: string, errorType: string, taskId: string): void {
-    const db = getDatabase();
-    const now = new Date().toISOString();
-    const existing = db.prepare(
-      'SELECT id, occurrence_count FROM conductor_errors WHERE pipeline_run_id = ? AND error_type = ? AND task_id = ?'
-    ).get(runId, errorType, taskId) as { id: string; occurrence_count: number } | undefined;
-
-    if (existing) {
-      db.prepare(
-        'UPDATE conductor_errors SET occurrence_count = occurrence_count + 1, last_seen = ? WHERE id = ?'
-      ).run(now, existing.id);
-    } else {
-      const id = `err-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      db.prepare(`
-        INSERT INTO conductor_errors
-        (id, pipeline_run_id, stage, error_type, error_message, task_id, occurrence_count, first_seen, last_seen, resolved)
-        VALUES (?, ?, 'execute', ?, '', ?, 1, ?, ?, 0)
-      `).run(id, runId, errorType, taskId, now, now);
-    }
-  },
 };

@@ -159,6 +159,60 @@ export function createRouteHandler(
 // Quick-start helpers for common patterns
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Params-based route handler (for [id] routes)
+// ---------------------------------------------------------------------------
+
+type ParamsHandler<P = Record<string, string>> = (
+  req: NextRequest,
+  ctx: { params: Promise<P> }
+) => Promise<NextResponse>;
+
+/**
+ * Create a unified route handler for routes that receive dynamic params
+ * (e.g. /api/directions/[id]/accept). Same middleware composition and
+ * error handling as createRouteHandler, but preserves the params signature.
+ *
+ * @example
+ * ```ts
+ * export const POST = createParamsRouteHandler(handlePost, {
+ *   endpoint: '/api/directions/[id]/accept',
+ *   method: 'POST',
+ *   middleware: { rateLimit: { tier: 'expensive' } },
+ * });
+ * ```
+ */
+export function createParamsRouteHandler<P = Record<string, string>>(
+  handler: ParamsHandler<P>,
+  options: CreateRouteHandlerOptions
+): ParamsHandler<P> {
+  const { endpoint, middleware, method = 'GET', errorCode = ApiErrorCode.INTERNAL_ERROR } = options;
+
+  // Register in audit registry
+  registry.push({
+    endpoint,
+    method,
+    observability: middleware?.observability !== false,
+    rateLimit: middleware?.rateLimit ? middleware.rateLimit.tier : false,
+    accessControl: middleware?.accessControl
+      ? `minRole:${middleware.accessControl.minRole || 'viewer'}`
+      : false,
+    registeredAt: Date.now(),
+  });
+
+  return async (req: NextRequest, ctx: { params: Promise<P> }): Promise<NextResponse> => {
+    try {
+      return await handler(req, ctx);
+    } catch (error) {
+      return handleApiError(error, `${method} ${endpoint}`, errorCode);
+    }
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Quick-start helpers for common patterns
+// ---------------------------------------------------------------------------
+
 export const RoutePatterns = {
   /** Simple endpoint — observability + error handling */
   simple: (
@@ -210,5 +264,26 @@ export const RoutePatterns = {
       middleware: {
         accessControl: { minRole: 'admin' },
       },
+    }),
+
+  // --- Params-based variants for [id] routes ---
+
+  /** Simple params endpoint — error handling only */
+  simpleParams: <P = Record<string, string>>(
+    handler: ParamsHandler<P>,
+    endpoint: string,
+    method: HttpMethod = 'GET'
+  ) => createParamsRouteHandler(handler, { endpoint, method }),
+
+  /** Expensive params endpoint — rate limit + error handling */
+  expensiveParams: <P = Record<string, string>>(
+    handler: ParamsHandler<P>,
+    endpoint: string,
+    method: HttpMethod = 'POST'
+  ) =>
+    createParamsRouteHandler<P>(handler, {
+      endpoint,
+      method,
+      middleware: { rateLimit: { tier: 'expensive' } },
     }),
 };

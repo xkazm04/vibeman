@@ -67,7 +67,7 @@ export default function ScanInitiator({
           setGoals(openGoals);
         }
       })
-      .catch(() => {});
+      .catch((error) => { console.error('[ScanInitiator] Failed to load goals:', error); });
   }, [activeProject?.id]);
 
   // Close goal dropdown on click-outside or Escape
@@ -137,7 +137,7 @@ export default function ScanInitiator({
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: profile.id, recordRun: true }),
-      }).catch(() => {});
+      }).catch((error) => { console.error('[ScanInitiator] Failed to record scan profile run:', error); });
 
       if (result.success) {
         const goalTitle = goals.find(g => g.id === selectedGoalId)?.title || 'goal';

@@ -4,12 +4,17 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import { DeploymentTarget } from '@/app/features/Ideas/sub_Lifecycle/lib/lifecycleTypes';
 import { logger } from '@/lib/logger';
+import { createRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
+
+/** Safe branch name pattern: alphanumeric, dots, hyphens, underscores, forward slashes */
+const SAFE_BRANCH_RE = /^[a-zA-Z0-9._\/-]+$/;
 
 const VALID_TARGETS: DeploymentTarget[] = [
   'local', 'staging', 'production', 'git_branch', 'pull_request'
@@ -21,9 +26,8 @@ interface DeployResult {
   details?: Record<string, unknown>;
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
+async function handlePost(request: NextRequest) {
+  const body = await request.json();
     const { target, projectId, cycleId, branch, commitMessage, ideas, gateResults } = body;
 
     if (!target) {
@@ -49,19 +53,14 @@ export async function POST(request: NextRequest) {
       gateResults,
     });
 
-    return NextResponse.json(result);
-  } catch (error) {
-    logger.error('Error during deployment:', { error });
-    return NextResponse.json(
-      {
-        success: false,
-        message: 'Deployment failed',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(result);
 }
+
+export const POST = createRouteHandler(handlePost, {
+  endpoint: '/api/lifecycle/deploy',
+  method: 'POST',
+  middleware: { rateLimit: { tier: 'expensive' } },
+});
 
 interface DeployOptions {
   projectId?: string;
@@ -131,8 +130,16 @@ async function deployToGitBranch(branch?: string, commitMessage?: string): Promi
     const targetBranch = branch || `lifecycle-deploy-${Date.now()}`;
     const message = commitMessage || 'Automated lifecycle deployment';
 
+    // Validate branch name to prevent shell injection
+    if (!SAFE_BRANCH_RE.test(targetBranch)) {
+      return {
+        success: false,
+        message: 'Invalid branch name: must contain only alphanumeric characters, dots, hyphens, underscores, and forward slashes',
+      };
+    }
+
     // Check for changes
-    const { stdout: statusOutput } = await execAsync('git status --porcelain');
+    const { stdout: statusOutput } = await execFileAsync('git', ['status', '--porcelain']);
 
     if (!statusOutput.trim()) {
       return {
@@ -144,20 +151,20 @@ async function deployToGitBranch(branch?: string, commitMessage?: string): Promi
 
     // Create branch if it doesn't exist
     try {
-      await execAsync(`git checkout -b ${targetBranch}`);
+      await execFileAsync('git', ['checkout', '-b', targetBranch]);
     } catch {
       // Branch might already exist
-      await execAsync(`git checkout ${targetBranch}`);
+      await execFileAsync('git', ['checkout', targetBranch]);
     }
 
     // Stage all changes
-    await execAsync('git add -A');
+    await execFileAsync('git', ['add', '-A']);
 
-    // Commit
-    await execAsync(`git commit -m "${message}"`);
+    // Commit (message passed as argument, not interpolated into shell)
+    await execFileAsync('git', ['commit', '-m', message]);
 
     // Push
-    await execAsync(`git push -u origin ${targetBranch}`);
+    await execFileAsync('git', ['push', '-u', 'origin', targetBranch]);
 
     return {
       success: true,
@@ -183,7 +190,7 @@ async function createPullRequest(cycleId: string, options: DeployOptions = {}): 
   try {
     // Check if gh CLI is available
     try {
-      await execAsync('gh --version');
+      await execFileAsync('gh', ['--version']);
     } catch {
       return {
         success: false,
@@ -195,7 +202,7 @@ async function createPullRequest(cycleId: string, options: DeployOptions = {}): 
     }
 
     // Get current branch
-    const { stdout: branchOutput } = await execAsync('git rev-parse --abbrev-ref HEAD');
+    const { stdout: branchOutput } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD']);
     const currentBranch = branchOutput.trim();
 
     // Build rich PR title from idea titles
@@ -251,8 +258,8 @@ async function createPullRequest(cycleId: string, options: DeployOptions = {}): 
     await fs.writeFile(bodyFile, prBody, 'utf-8');
 
     try {
-      const { stdout: prOutput } = await execAsync(
-        `gh pr create --title "${prTitle.replace(/"/g, '\\"')}" --body-file "${bodyFile}" --base main`
+      const { stdout: prOutput } = await execFileAsync(
+        'gh', ['pr', 'create', '--title', prTitle, '--body-file', bodyFile, '--base', 'main']
       );
 
       const prUrl = prOutput.trim();

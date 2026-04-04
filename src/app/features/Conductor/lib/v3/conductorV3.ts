@@ -12,6 +12,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '@/app/db/connection';
 import { conductorRepository } from '../conductor.repository';
 import { executePlanPhase } from './planPhase';
+import { executeDispatchPhase } from './dispatchPhase';
+import { executeReflectPhase } from './reflectPhase';
 import { runBuildValidation } from '../execution/buildValidator';
 import { generateBrainQuestions, getBrainWarnings, feedBrainOutcome, getWorkspaceContext } from './brainAdvisor';
 import { prunePatches, buildHealingContext } from '../selfHealing/promptPatcher';
@@ -45,109 +47,6 @@ interface GoalRow {
   title: string;
   description: string;
   target_paths: string | null;
-}
-
-// ============================================================================
-// Dispatch Phase Types (forward-declared until dispatchPhase.ts exists)
-// ============================================================================
-
-interface DispatchPhaseInput {
-  runId: string;
-  projectId: string;
-  projectPath: string;
-  projectName: string;
-  tasks: V3Task[];
-  config: V3Config;
-  goalContext: { title: string; description: string };
-  healingContext: string;
-  autoCommit: boolean;
-  workspaceContext?: WorkspaceContext | null;
-  abortSignal?: AbortSignal;
-  onTaskUpdate?: (tasks: V3Task[]) => void;
-  onLog?: (phase: V3Phase, event: string, message: string) => void;
-  metrics?: V3Metrics;
-  /** Pre-execution baseline for inter-wave quality gates (Harness pattern) */
-  baseline?: BaselineMetrics;
-}
-
-interface DispatchPhaseResult {
-  tasks: V3Task[];
-  results: import('./types').V3TaskResult[];
-}
-
-interface ReflectPhaseInput {
-  runId: string;
-  projectId: string;
-  projectPath: string;
-  plannedTasks: V3Task[];
-  config: V3Config;
-  buildResult: { passed: boolean; errorOutput?: string; durationMs: number };
-  currentCycle: number;
-  currentMetrics: V3Metrics;
-  goalTitle: string;
-  goalDescription: string;
-  workspaceContext?: WorkspaceContext | null;
-  abortSignal?: AbortSignal;
-}
-
-interface ReflectPhaseResult {
-  output: ReflectOutput;
-  updatedMetrics: V3Metrics;
-}
-
-// ============================================================================
-// Lazy imports for phases that may not exist yet
-// ============================================================================
-
-async function loadDispatchPhase(): Promise<
-  (input: DispatchPhaseInput) => Promise<DispatchPhaseResult>
-> {
-  try {
-    const mod = await import('./dispatchPhase');
-    return mod.executeDispatchPhase;
-  } catch {
-    // Stub: run tasks sequentially as no-ops when dispatchPhase doesn't exist yet
-    return async (input: DispatchPhaseInput): Promise<DispatchPhaseResult> => {
-      const results: import('./types').V3TaskResult[] = input.tasks.map(() => ({
-        success: false,
-        error: 'dispatchPhase not yet implemented',
-        filesChanged: [],
-        durationMs: 0,
-        provider: 'claude',
-        model: 'unknown',
-      }));
-      const tasks = input.tasks.map((t) => ({ ...t, status: 'failed' as const }));
-      return { tasks, results };
-    };
-  }
-}
-
-async function loadReflectPhase(): Promise<
-  (input: ReflectPhaseInput) => Promise<ReflectPhaseResult>
-> {
-  try {
-    const mod = await import('./reflectPhase');
-    return mod.executeReflectPhase;
-  } catch {
-    // Stub: return 'done' when reflectPhase doesn't exist yet
-    return async (input: ReflectPhaseInput): Promise<ReflectPhaseResult> => {
-      const completed = input.plannedTasks.filter((t) => t.status === 'completed').length;
-      const failed = input.plannedTasks.filter((t) => t.status === 'failed').length;
-      return {
-        output: {
-          status: 'done',
-          summary: `Cycle ${input.currentCycle}: ${completed} completed, ${failed} failed (reflect stub)`,
-          brainFeedback: '',
-          lessonsLearned: [],
-        },
-        updatedMetrics: {
-          ...input.currentMetrics,
-          tasksCompleted: input.currentMetrics.tasksCompleted + completed,
-          tasksFailed: input.currentMetrics.tasksFailed + failed,
-        },
-      };
-    };
-  }
 }
 
 // ============================================================================
@@ -297,10 +196,6 @@ async function runV3Loop(
       runId
     );
   };
-
-  // Load phase implementations (lazy, handles missing files)
-  const executeDispatchPhase = await loadDispatchPhase();
-  const executeReflectPhase = await loadReflectPhase();
 
   // ----- Workspace context logging -----
   if (workspaceContext) {
@@ -485,7 +380,7 @@ async function runV3Loop(
     persistState();
     log('dispatch', 'started', `Dispatching ${planOutput.tasks.length} task(s)...`);
 
-    let dispatchResult: DispatchPhaseResult;
+    let dispatchResult: Awaited<ReturnType<typeof executeDispatchPhase>>;
     try {
       dispatchResult = await executeDispatchPhase({
         runId,
@@ -553,7 +448,7 @@ async function runV3Loop(
     persistState();
     log('reflect', 'started', 'Analyzing results...');
 
-    let reflectResult: ReflectPhaseResult;
+    let reflectResult: Awaited<ReturnType<typeof executeReflectPhase>>;
     try {
       reflectResult = await executeReflectPhase({
         runId,

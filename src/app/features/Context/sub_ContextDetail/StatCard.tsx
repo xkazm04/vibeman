@@ -35,7 +35,7 @@ export default function StatCard({
         </div>
         <div>
           <p className="text-3xl font-bold text-white font-mono">{value}</p>
-          <p className="text-sm text-gray-400 uppercase tracking-wider">{label}</p>
+          <p className="text-sm text-gray-300 uppercase tracking-wider">{label}</p>
         </div>
       </div>
     </div>

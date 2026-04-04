@@ -89,7 +89,7 @@ export default function BufferView({
             setDependencyCounts(data.counts);
           }
         })
-        .catch(() => {});
+        .catch((error) => { console.error('[BufferView] Failed to load dependency counts:', error); });
     }, 300);
     return () => clearTimeout(timer);
   }, [filteredIdeas]);

@@ -124,14 +124,4 @@ export async function POST(request: Request) {
   }
 }
 
-/**
- * Safely parse JSON with fallback
- */
-function safeJsonParse<T>(json: string | null, fallback: T): T {
-  if (!json) return fallback;
-  try {
-    return JSON.parse(json);
-  } catch {
-    return fallback;
-  }
-}
+import { safeJsonParse } from '@/lib/integrations/safeJsonParse';

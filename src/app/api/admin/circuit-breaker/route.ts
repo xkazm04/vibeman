@@ -36,12 +36,15 @@ interface CircuitBreakerResponse {
 
 async function handlePost(request: NextRequest): Promise<NextResponse<CircuitBreakerResponse>> {
   try {
-    // Basic auth check (in production, use proper auth)
+    // Auth check: require Bearer token or admin key header.
+    // Do NOT trust x-forwarded-for/x-real-ip — those headers are trivially spoofable.
     const authHeader = request.headers.get('authorization');
-    if (!authHeader?.includes('Bearer') && !request.headers.get('x-admin-key')) {
-      // Allow from localhost in development
-      const remoteAddr = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || '';
-      if (!remoteAddr.includes('127.0.0.1') && !remoteAddr.includes('::1')) {
+    const adminKey = request.headers.get('x-admin-key');
+    const envAdminKey = process.env.ADMIN_API_KEY;
+
+    if (!authHeader?.includes('Bearer') && !(adminKey && envAdminKey && adminKey === envAdminKey)) {
+      // In development without ADMIN_API_KEY set, allow all requests (localhost-only app)
+      if (process.env.NODE_ENV !== 'development' || envAdminKey) {
         return NextResponse.json(
           {
             success: false,

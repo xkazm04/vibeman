@@ -13,25 +13,24 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { deleteRequirement, loadRequirements } from '@/app/Claude/lib/requirementApi';
 import { useRequirementBatch, requirementKeys } from '@/lib/queries/requirementQueries';
-import type { ProjectRequirement, TaskRunnerActions } from '@/app/features/TaskRunner/lib/types';
-import type { DbIdea } from '@/app/db';
 import {
+  type ProjectRequirement,
+  type TaskRunnerActions,
   createIdleStatus,
   isTaskRunning,
   isTaskQueued,
+  getRequirementId,
 } from '@/app/features/TaskRunner/lib/types';
+import type { DbIdea } from '@/app/db';
 import { useTaskRunnerStore } from '@/app/features/TaskRunner/store';
+
+export { getRequirementId };
 
 /** System requirement files that should be filtered out */
 const SYSTEM_REQUIREMENTS = new Set(['scan-contexts', 'structure-rules']);
 
 /** Max concurrent delete operations to prevent overwhelming the filesystem */
 const DELETE_CONCURRENCY_LIMIT = 5;
-
-/** Get composite requirement ID */
-export function getRequirementId(req: ProjectRequirement): string {
-  return `${req.projectId}:${req.requirementName}`;
-}
 
 export interface UseRequirementsReturn {
   /** All requirements (status merging happens at column level) */

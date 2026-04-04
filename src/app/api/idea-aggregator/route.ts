@@ -12,6 +12,7 @@ import {
   createMissingFieldError,
   withIdeasErrorHandler,
 } from '@/app/features/Ideas/lib/ideasHandlers';
+import { validateProjectPath } from '@/lib/pathSecurity';
 
 /**
  * GET - Check if aggregation is possible for a project
@@ -24,6 +25,11 @@ async function handleGet(request: NextRequest) {
 
   if (!projectPath) {
     return createMissingFieldError('projectPath');
+  }
+
+  const pathError = validateProjectPath(projectPath);
+  if (pathError) {
+    return NextResponse.json({ error: pathError }, { status: 400 });
   }
 
   const commandsPath = path.join(projectPath, '.claude', 'commands');
@@ -47,6 +53,11 @@ async function handlePost(request: NextRequest) {
 
   if (!projectPath) {
     return createMissingFieldError('projectPath');
+  }
+
+  const pathError = validateProjectPath(projectPath);
+  if (pathError) {
+    return NextResponse.json({ error: pathError }, { status: 400 });
   }
 
   const commandsPath = path.join(projectPath, '.claude', 'commands');

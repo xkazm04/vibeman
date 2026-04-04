@@ -7,19 +7,7 @@ import type { PipelineMetrics } from '../lib/types';
 const STAGE_COLORS = ['#22d3ee', '#f59e0b', '#a855f7', '#f97316', '#ec4899'];
 const LIME = '#d0e41d';
 
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  const s = Math.round(ms / 1000);
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  const rem = s % 60;
-  return rem > 0 ? `${m}m ${rem}s` : `${m}m`;
-}
-
-function formatCost(cost: number): string {
-  if (cost <= 0) return '$0.00';
-  return `$${cost.toFixed(2)}`;
-}
+import { formatDuration, formatCost } from '../lib/format';
 
 // Flat geometric conductor baton SVG with conducting → triumphant transition
 function ConductorBaton() {

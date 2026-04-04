@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Save, Edit3, Trash2, Loader2 } from 'lucide-react';
 import { Goal } from '../../../../../types';
-import { useGoals } from '../../../../../hooks/useGoals';
+import { useGoalContext } from '@/contexts/GoalContext';
 import { validateGoalData } from '../lib';
 import GoalLifecyclePanel from '../../components/GoalLifecyclePanel';
 import type { LifecycleData } from '../../components/GoalLifecyclePanel';
@@ -33,7 +33,7 @@ export default function GoalsDetailModalContent({
   const [lifecycleLoading, setLifecycleLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  const { deleteGoal } = useGoals(projectId);
+  const { deleteGoal } = useGoalContext();
 
   const fetchLifecycleData = useCallback(async (signal?: AbortSignal) => {
     if (!projectId) return;

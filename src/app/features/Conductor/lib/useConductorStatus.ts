@@ -19,6 +19,7 @@ export function useConductorStatus(enabled = true) {
   const projectId = activeProject?.id || null;
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
+  const abortRef = useRef<AbortController | null>(null);
   const runs = useConductorStore((s) => s.runs);
   const currentRun = useConductorStore((s) => s.currentRun);
   const isRunning = useConductorStore((s) => s.isRunning);
@@ -32,8 +33,17 @@ export function useConductorStatus(enabled = true) {
 
   const fetchStatus = useCallback(async () => {
     if (!projectId || !mountedRef.current) return;
+
+    // Abort any previous in-flight request to prevent stale data overwrites
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      const res = await fetch(`/api/conductor/status?projectId=${projectId}`);
+      const res = await fetch(`/api/conductor/status?projectId=${projectId}`, {
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
@@ -45,7 +55,7 @@ export function useConductorStatus(enabled = true) {
         }
       }
     } catch {
-      // Silent fail on poll errors
+      // Silent fail on poll errors (including AbortError)
     }
   }, [projectId]);
 

@@ -246,18 +246,8 @@ export function initializeTables() {
     );
   `);
 
-  // Run migrations for existing databases
-  runMigrations();
-
-  // Reap orphaned CLI processes from previous server instances
-  try {
-    const { reapOrphanedProcesses } = require('@/lib/claude-terminal/orphanReaper');
-    reapOrphanedProcesses();
-  } catch {
-    // Orphan reaping must never block DB initialization
-  }
-
-  // Create indexes for better query performance
+  // Create indexes BEFORE migrations so migration queries can use them
+  // (previously indexes were created after migrations, causing slow queries)
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_goals_project_id ON goals(project_id);
     CREATE INDEX IF NOT EXISTS idx_goals_order_index ON goals(project_id, order_index);
@@ -291,4 +281,15 @@ export function initializeTables() {
     CREATE INDEX IF NOT EXISTS idx_scan_notifications_project ON scan_notifications(project_id, read);
     CREATE INDEX IF NOT EXISTS idx_file_watch_config_project_id ON file_watch_config(project_id);
   `);
+
+  // Run migrations AFTER indexes exist (migrations may query large tables)
+  runMigrations();
+
+  // Reap orphaned CLI processes from previous server instances
+  try {
+    const { reapOrphanedProcesses } = require('@/lib/claude-terminal/orphanReaper');
+    reapOrphanedProcesses();
+  } catch (err) {
+    console.warn('[schema] Orphan reaping failed (non-fatal):', err instanceof Error ? err.message : err);
+  }
 }

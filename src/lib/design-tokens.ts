@@ -547,6 +547,81 @@ export const inputStyle = 'px-4 py-3 bg-gray-800/50 border border-gray-600/50 ro
 export type ButtonVariantToken = keyof typeof buttonVariants;
 
 // =============================================================================
+// Z-INDEX SCALE
+// =============================================================================
+
+/**
+ * Named z-index scale for predictable layering.
+ *
+ * Semantic tiers prevent the z-index arms race where values like z-[999999]
+ * appear. Each tier is spaced by 10 to leave room for fine-tuning.
+ *
+ * Usage in Tailwind: `z-${zIndex.modal}` or `style={{ zIndex: zIndex.modal }}`
+ */
+export const zIndex = {
+  /** Sticky headers, toolbars within scroll containers */
+  sticky: 10,
+  /** Dropdowns, context menus, select popover */
+  dropdown: 20,
+  /** Side panels, drawers, bottom sheets */
+  panel: 30,
+  /** Modal backdrop overlay */
+  modalBackdrop: 40,
+  /** Modal dialog itself */
+  modal: 50,
+  /** Lightbox / expanded media view */
+  lightbox: 60,
+  /** Tooltips, truncation popovers */
+  tooltip: 70,
+  /** Toast notifications */
+  toast: 80,
+  /** Dev tools overlay, polling dashboard */
+  devtools: 90,
+} as const;
+
+export type ZIndexTier = keyof typeof zIndex;
+
+// =============================================================================
+// STATUS COLOR TOKENS
+// =============================================================================
+
+/**
+ * Centralized status color configuration for idea/task lifecycle states.
+ *
+ * Use this instead of defining local STATUS_CONFIG objects in individual
+ * components. Each status includes Tailwind classes for text, background,
+ * and border, plus a human-readable label.
+ */
+export const statusConfig = {
+  pending: {
+    label: 'Pending',
+    color: 'text-gray-400',
+    bgColor: 'bg-gray-500/10',
+    borderColor: 'border-gray-500/30',
+  },
+  accepted: {
+    label: 'Accepted',
+    color: 'text-emerald-400',
+    bgColor: 'bg-emerald-500/10',
+    borderColor: 'border-emerald-500/30',
+  },
+  rejected: {
+    label: 'Rejected',
+    color: 'text-red-400',
+    bgColor: 'bg-red-500/10',
+    borderColor: 'border-red-500/30',
+  },
+  implemented: {
+    label: 'Implemented',
+    color: 'text-amber-400',
+    bgColor: 'bg-amber-500/10',
+    borderColor: 'border-amber-500/30',
+  },
+} as const;
+
+export type StatusConfigKey = keyof typeof statusConfig;
+
+// =============================================================================
 // COMBINED EXPORTS
 // =============================================================================
 
@@ -596,6 +671,8 @@ const designTokens = {
   typography,
   buttonVariants,
   inputStyle,
+  zIndex,
+  statusConfig,
 } as const;
 
 export default designTokens;

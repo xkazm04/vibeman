@@ -222,16 +222,6 @@ export function getAllMappedRoutes(): Array<{
 }
 
 /**
- * Auto-discovers API routes from the codebase
- * Returns suggested mappings that need to be linked to contexts
- */
-export function discoverUnmappedRoutes(existingRoutes: string[]): string[] {
-  // This would scan src/app/api/ directory
-  // For now, return empty - will be implemented in auto-populate API
-  return [];
-}
-
-/**
  * Suggests context for an unmapped API route based on path patterns
  */
 export function suggestContextForRoute(apiPath: string): {

@@ -100,6 +100,31 @@ export type LLMProvider = 'ollama' | 'openai' | 'anthropic';
 export type VoiceProvider = 'elevenlabs' | 'nova-sonic';
 
 /**
+ * Individual model response in multi-model comparison
+ */
+export interface ModelResponse {
+  provider: LLMProvider;
+  model: string;
+  response: string;
+  audioUrl?: string;
+  timing?: {
+    llmMs?: number;
+    ttsMs?: number;
+    totalMs?: number;
+  };
+}
+
+/**
+ * Multi-model log entry for comparison testing
+ */
+export interface MultiModelLog {
+  id: string;
+  timestamp: string;
+  question: string;
+  responses: ModelResponse[];
+}
+
+/**
  * Available Nova Sonic voices
  */
 export const NOVA_SONIC_VOICES: Array<{ value: string; label: string; language: string }> = [

@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { AlertTriangle, CheckCircle, AlertCircle, HelpCircle } from 'lucide-react';
+import { zIndex } from '@/lib/design-tokens';
 import type { Context } from '@/stores/contextStore';
 import { ContextEntity, type HealthLevel } from '@/stores/context/ContextEntity';
 
@@ -76,8 +77,8 @@ function HealthTooltip({
 
   return createPortal(
     <div
-      className="fixed z-[9999] pointer-events-none"
-      style={{ top: pos.top, left: pos.left, transform: 'translateX(-50%)' }}
+      className="fixed pointer-events-none"
+      style={{ top: pos.top, left: pos.left, transform: 'translateX(-50%)', zIndex: zIndex.tooltip }}
     >
       <div className="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl px-3 py-2 text-xs max-w-56">
         <div className={`font-medium ${config.color} mb-1`}>{config.label}</div>

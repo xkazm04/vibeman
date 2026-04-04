@@ -27,8 +27,21 @@ export async function GET(request: NextRequest) {
 
   let activeExecutionId = executionId;
 
-  // If no execution ID, start a new one
+  // CSRF guard: when starting a new execution via GET (side-effecting),
+  // verify the request originates from this application by checking
+  // the Origin or Referer header against the request host.
   if (!activeExecutionId && projectPath && prompt) {
+    const origin = request.headers.get('origin');
+    const referer = request.headers.get('referer');
+    const host = request.headers.get('host') || 'localhost';
+    const isSameOrigin =
+      (origin && (origin.includes(host) || origin.includes('localhost'))) ||
+      (referer && (referer.includes(host) || referer.includes('localhost')));
+
+    if (!isSameOrigin) {
+      return new Response('Forbidden: missing or invalid origin', { status: 403 });
+    }
+
     activeExecutionId = startExecution(
       decodeURIComponent(projectPath),
       decodeURIComponent(prompt),

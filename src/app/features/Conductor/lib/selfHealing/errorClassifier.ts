@@ -171,37 +171,6 @@ export function groupErrorsByType(
   return groups;
 }
 
-/**
- * Merge a new error into existing classifications.
- * If same type+stage already exists, increment occurrence count.
- */
-export function mergeError(
-  existing: ErrorClassification[],
-  newError: ErrorClassification
-): ErrorClassification[] {
-  const match = existing.find(
-    (e) =>
-      e.errorType === newError.errorType &&
-      e.stage === newError.stage &&
-      !e.resolved
-  );
-
-  if (match) {
-    return existing.map((e) =>
-      e.id === match.id
-        ? {
-            ...e,
-            occurrenceCount: e.occurrenceCount + 1,
-            lastSeen: new Date().toISOString(),
-            errorMessage: newError.errorMessage,
-          }
-        : e
-    );
-  }
-
-  return [...existing, newError];
-}
-
 // ============================================================================
 // Helpers
 // ============================================================================

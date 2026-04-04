@@ -7,10 +7,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { env } from '@/lib/config/envConfig';
 import { ideaDb } from '@/app/db';
 import { logger } from '@/lib/logger';
+import { createRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
+async function handlePost(request: NextRequest) {
+  const body = await request.json();
     const { ideaId, projectId } = body;
 
     if (!ideaId) {
@@ -79,14 +79,12 @@ export async function POST(request: NextRequest) {
         message: 'Idea queued for resolution (async)',
       });
     }
-  } catch (error) {
-    logger.error('Error resolving idea:', { error });
-    return NextResponse.json(
-      { error: 'Failed to resolve idea', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
 }
+
+export const POST = createRouteHandler(handlePost, {
+  endpoint: '/api/lifecycle/resolve',
+  method: 'POST',
+});
 
 function generateRequirementContent(idea: { title: string; description: string | null; reasoning: string | null; category: string }): string {
   return `# ${idea.title}

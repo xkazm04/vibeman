@@ -11,13 +11,13 @@ import { questionDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { questionTreeService } from '@/lib/questions/questionTreeService';
+import { createParamsRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
-export async function POST(
+async function handlePost(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id: parentId } = await params;
+  const { id: parentId } = await params;
     const body = await request.json();
     const { count = 3 } = body;
 
@@ -109,14 +109,13 @@ export async function POST(
       depth: newDepth,
       strategicContext,
     });
-  } catch (error) {
-    logger.error('[API] Follow-up questions error:', { error });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
 }
+
+export const POST = createParamsRouteHandler(handlePost, {
+  endpoint: '/api/questions/[id]/follow-up',
+  method: 'POST',
+  middleware: { rateLimit: { tier: 'expensive' } },
+});
 
 function buildFollowUpPrompt(
   parent: { question: string; answer: string | null; context_map_title: string },
