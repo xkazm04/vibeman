@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { collapse, collapseTransition } from '../lib/motionPresets';
 import {
@@ -27,6 +27,7 @@ import SectionHeading from './SectionHeading';
 import BrainEmptyState from './BrainEmptyState';
 import ChartTooltip from './ChartTooltip';
 import CorrelationEmptySvg from './CorrelationEmptySvg';
+import CorrelationActionSuggestions from './CorrelationActionSuggestions';
 import type { BehavioralSignalType } from '@/app/db/models/brain.types';
 import { BRAIN_CHART, getCorrelationCellColor } from '../lib/brainChartColors';
 
@@ -142,15 +143,21 @@ export default function CorrelationMatrix({ scope = 'project' }: Props) {
 
   const { topCorrelations, matrix, signalsAnalyzed, windowDays } = data;
 
-  // Build matrix lookup
-  const matrixLookup = new Map<string, SignalCorrelation>();
-  for (const c of matrix) {
-    matrixLookup.set(`${c.sourceType}:${c.targetType}`, c);
-  }
+  // Build matrix lookup (memoized to avoid rebuild on hover/expand state changes)
+  const matrixLookup = useMemo(() => {
+    const lookup = new Map<string, SignalCorrelation>();
+    for (const c of matrix) {
+      lookup.set(`${c.sourceType}:${c.targetType}`, c);
+    }
+    return lookup;
+  }, [matrix]);
 
-  // Determine which signal types actually have data
-  const activeTypes = SIGNAL_TYPES_ORDER.filter((t) =>
-    matrix.some((c) => (c.sourceType === t || c.targetType === t) && c.sampleCount > 0)
+  // Determine which signal types actually have data (memoized)
+  const activeTypes = useMemo(
+    () => SIGNAL_TYPES_ORDER.filter((t) =>
+      matrix.some((c) => (c.sourceType === t || c.targetType === t) && c.sampleCount > 0)
+    ),
+    [matrix],
   );
 
   return (
@@ -178,6 +185,9 @@ export default function CorrelationMatrix({ scope = 'project' }: Props) {
             </button>
           }
         />
+
+        {/* Auto-suggested Actions from Correlations */}
+        <CorrelationActionSuggestions correlations={matrix} />
 
         {/* Top Correlations Cards */}
         {topCorrelations.length > 0 && (

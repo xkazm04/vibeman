@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useCallback, useState, useEffect, useRef, type KeyboardEvent } from 'react';
+import { lazy, Suspense, useCallback, useState, useEffect, useRef, type KeyboardEvent } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Target, ChevronDown } from 'lucide-react';
 import { NoProjectIllustration } from './ConductorEmptyStates';
@@ -20,14 +20,15 @@ import PipelineFlowViz from './PipelineFlowViz';
 import PipelineControls from './PipelineControls';
 import MetricsBar from './MetricsBar';
 import ProcessLog from './ProcessLog';
-import HealingPanel from './HealingPanel';
 import QualityGateChecklist from './QualityGateChecklist';
-import BalancingModal from './BalancingModal';
-import RunHistoryTimeline from './RunHistoryTimeline';
 import ConductorNerdView from './ConductorNerdView';
-import RunReportModal from './RunReportModal';
 import type { AnyPipelineStage } from '../lib/types';
 import type { QualityGateResult } from '../lib/v3/types';
+
+const BalancingModal = lazy(() => import('./BalancingModal'));
+const RunReportModal = lazy(() => import('./RunReportModal'));
+const RunHistoryTimeline = lazy(() => import('./RunHistoryTimeline'));
+const HealingPanel = lazy(() => import('./HealingPanel'));
 
 interface ConductorViewProps {
   projectId?: string | null;
@@ -210,13 +211,17 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
       <div className="space-y-4" data-testid="conductor-view">
         <PipelineControls {...controlProps} />
         <ConductorNerdView projectId={effectiveProjectId} />
-        <BalancingModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        <Suspense fallback={null}>
+          {settingsOpen && <BalancingModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />}
+        </Suspense>
         {reportRunId && (
-          <RunReportModal
-            isOpen={reportOpen}
-            onClose={() => setReportOpen(false)}
-            runId={reportRunId}
-          />
+          <Suspense fallback={null}>
+            <RunReportModal
+              isOpen={reportOpen}
+              onClose={() => setReportOpen(false)}
+              runId={reportRunId}
+            />
+          </Suspense>
         )}
       </div>
     );
@@ -321,34 +326,46 @@ export default function ConductorView({ projectId }: ConductorViewProps) {
 
       {/* Process Log + Self-Healing */}
       <motion.div
-        className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4"
+        className={`grid grid-cols-1 ${currentRun ? 'lg:grid-cols-[1fr_320px]' : ''} gap-4`}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
         <ProcessLog entries={processLog} isRunning={isRunning} />
-        <HealingPanel />
+        {currentRun && (
+          <Suspense fallback={null}>
+            <HealingPanel />
+          </Suspense>
+        )}
       </motion.div>
 
       {/* Run History Timeline */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-      >
-        <RunHistoryTimeline onViewReport={(id) => handleViewReport(id)} />
-      </motion.div>
+      {(currentRun || !isRunning) && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Suspense fallback={null}>
+            <RunHistoryTimeline onViewReport={(id) => handleViewReport(id)} />
+          </Suspense>
+        </motion.div>
+      )}
 
       {/* Settings Modal */}
-      <BalancingModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <Suspense fallback={null}>
+        {settingsOpen && <BalancingModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />}
+      </Suspense>
 
       {/* Run Report Modal */}
       {reportRunId && (
-        <RunReportModal
-          isOpen={reportOpen}
-          onClose={() => setReportOpen(false)}
-          runId={reportRunId}
-        />
+        <Suspense fallback={null}>
+          <RunReportModal
+            isOpen={reportOpen}
+            onClose={() => setReportOpen(false)}
+            runId={reportRunId}
+          />
+        </Suspense>
       )}
     </div>
   );

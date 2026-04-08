@@ -6,13 +6,15 @@
  * Auto-closes after scan completion (after user clicks Done).
  */
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle, AlertCircle, GitCommit } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useGroupHealthStore } from '@/stores/groupHealthStore';
 import { ScanVisualization } from '@/components/ui/ScanVisualization';
+import FindingsSeveritySummary from '@/components/ui/FindingsSeveritySummary';
 import type { HealthScanSummary } from '@/app/db/models/group-health.types';
+import type { ScanFinding } from '@/lib/scan/types';
 
 interface GroupScanOverlayProps {
   groupId: string;
@@ -53,6 +55,34 @@ export const GroupScanOverlay: React.FC<GroupScanOverlayProps> = ({
   const isComplete = status === 'completed';
   const isFailed = status === 'failed';
   const isRunning = status === 'running' || status === 'pending';
+
+  // Convert HealthScanSummary to ScanFinding[] for severity visualization
+  const scanFindings = useMemo((): ScanFinding[] => {
+    if (!summary) return [];
+    const findings: ScanFinding[] = [];
+    const issueMap: Array<{ key: keyof HealthScanSummary['issues']; title: string; severity: 'error' | 'warning' | 'info' }> = [
+      { key: 'unusedImports', title: 'Unused Import', severity: 'warning' },
+      { key: 'consoleStatements', title: 'Console Statement', severity: 'warning' },
+      { key: 'anyTypes', title: 'Any Type Usage', severity: 'error' },
+      { key: 'longFunctions', title: 'Long Function', severity: 'error' },
+      { key: 'complexity', title: 'High Complexity', severity: 'error' },
+      { key: 'duplication', title: 'Code Duplication', severity: 'info' },
+    ];
+    for (const { key, title, severity } of issueMap) {
+      const cat = summary.issues[key];
+      const remaining = cat.found - cat.fixed;
+      if (remaining > 0) {
+        for (let i = 0; i < remaining; i++) {
+          findings.push({
+            title: `${title} #${i + 1}`,
+            description: `${title} detected (${cat.fixed} of ${cat.found} fixed)`,
+            severity,
+          });
+        }
+      }
+    }
+    return findings;
+  }, [summary]);
 
   // Render issue summary
   const renderIssueSummary = (summary: HealthScanSummary) => {
@@ -217,6 +247,13 @@ export const GroupScanOverlay: React.FC<GroupScanOverlayProps> = ({
                     <div className="text-xs text-gray-400">Files Fixed</div>
                   </div>
                 </div>
+
+                {/* Severity density map */}
+                {scanFindings.length > 0 && (
+                  <div className="mt-4">
+                    <FindingsSeveritySummary findings={scanFindings} />
+                  </div>
+                )}
 
                 {renderIssueSummary(summary)}
 

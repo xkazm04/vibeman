@@ -65,7 +65,7 @@ const TaskRunnerLayout = () => {
     const addTasksToSession = useCLISessionStore.getState().addTasksToSession;
     const setProvider = useCLISessionStore.getState().setProvider;
     const setModel = useCLISessionStore.getState().setModel;
-    const updateTaskRunnerStatus = useTaskRunnerStore.getState().updateTaskStatus;
+    const batchUpdate = useTaskRunnerStore.getState().batchUpdateTaskStatuses;
 
     const assignments = autoAssignTasks({
       requirements: selectedReqs,
@@ -77,6 +77,8 @@ const TaskRunnerLayout = () => {
     });
 
     // Execute assignments
+    const statusUpdates: Array<{ taskId: string; status: ReturnType<typeof createQueuedStatus> }> = [];
+
     for (const assignment of assignments) {
       // Set provider/model override if specified
       if (assignment.providerOverride) {
@@ -90,16 +92,20 @@ const TaskRunnerLayout = () => {
       // Add tasks to session queue
       addTasksToSession(assignment.sessionId, assignment.tasks);
 
-      // Sync queued status to TaskRunner store so TaskColumn shows correct status
+      // Collect all status updates for a single batched store set()
       for (const task of assignment.tasks) {
-        updateTaskRunnerStatus(task.id, createQueuedStatus());
-        // Fan-out: mark consolidated constituent requirements as queued too
+        statusUpdates.push({ taskId: task.id, status: createQueuedStatus() });
         if (task.consolidatedFrom) {
           for (const constituentId of task.consolidatedFrom) {
-            updateTaskRunnerStatus(constituentId, createQueuedStatus());
+            statusUpdates.push({ taskId: constituentId, status: createQueuedStatus() });
           }
         }
       }
+    }
+
+    // Apply all status changes in one atomic set() call
+    if (statusUpdates.length > 0) {
+      batchUpdate(statusUpdates);
     }
 
     // Clear selection for assigned tasks

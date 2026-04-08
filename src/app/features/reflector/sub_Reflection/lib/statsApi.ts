@@ -52,7 +52,7 @@ export async function fetchReflectionStats(
   const suggestionType = options?.suggestionType || 'ideas';
 
   // Fetch ideas stats (unless directions-only mode)
-  const fetchIdeasPromise = suggestionType === 'directions'
+  const fetchIdeasPromise: Promise<ReflectionStats | null> = suggestionType === 'directions'
     ? Promise.resolve(null)
     : fetchIdeasStats(params);
 
@@ -136,19 +136,42 @@ export async function fetchReflectionStats(
 /**
  * Fetch ideas stats from API
  */
-async function fetchIdeasStats(params: URLSearchParams): Promise<ReflectionStats | null> {
+/** Empty stats object returned when both endpoints fail — avoids null checks in consumers */
+const EMPTY_REFLECTION_STATS: ReflectionStats = {
+  scanTypes: [],
+  overall: { pending: 0, accepted: 0, rejected: 0, implemented: 0, total: 0, acceptanceRatio: 0 },
+  projects: [],
+  contexts: [],
+};
+
+/**
+ * Type guard: validates that a parsed API response has the minimum required shape
+ * to be used as ReflectionStats (scanTypes is an array, overall is an object).
+ */
+function isValidReflectionStats(data: unknown): data is ReflectionStats {
+  if (!data || typeof data !== 'object') return false;
+  const obj = data as Record<string, unknown>;
+  return Array.isArray(obj.scanTypes) && typeof obj.overall === 'object' && obj.overall !== null;
+}
+
+async function fetchIdeasStats(params: URLSearchParams): Promise<ReflectionStats> {
   // Try aggregated endpoint first for better performance
   const aggregatedUrl = `/api/ideas/stats/aggregated${params.toString() ? `?${params.toString()}` : ''}`;
 
   try {
     const response = await fetch(aggregatedUrl);
     if (response.ok) {
-      return response.json();
+      const data = await response.json();
+      if (isValidReflectionStats(data)) {
+        return data;
+      }
+      console.warn('[statsApi] Aggregated endpoint returned unexpected schema, falling back to legacy endpoint');
+    } else {
+      // Server returned an error status - log it before falling back
+      console.warn(
+        `[statsApi] Aggregated endpoint returned ${response.status} ${response.statusText}, falling back to legacy endpoint`
+      );
     }
-    // Server returned an error status - log it before falling back
-    console.warn(
-      `[statsApi] Aggregated endpoint returned ${response.status} ${response.statusText}, falling back to legacy endpoint`
-    );
   } catch (error) {
     // Network error (timeout, DNS failure, etc.) - log and fall back
     console.warn('[statsApi] Aggregated endpoint network error, falling back to legacy endpoint:', error);
@@ -161,15 +184,20 @@ async function fetchIdeasStats(params: URLSearchParams): Promise<ReflectionStats
 
     if (!response.ok) {
       console.error(
-        `[statsApi] Legacy endpoint also failed: ${response.status} ${response.statusText}. Returning null — dashboard will show empty data.`
+        `[statsApi] Legacy endpoint also failed: ${response.status} ${response.statusText}. Returning empty stats.`
       );
-      return null;
+      return EMPTY_REFLECTION_STATS;
     }
 
-    return response.json();
+    const data = await response.json();
+    if (isValidReflectionStats(data)) {
+      return data;
+    }
+    console.warn('[statsApi] Legacy endpoint returned unexpected schema. Returning empty stats.');
+    return EMPTY_REFLECTION_STATS;
   } catch (error) {
-    console.error('[statsApi] Legacy endpoint network error. Returning null — dashboard will show empty data:', error);
-    return null;
+    console.error('[statsApi] Legacy endpoint network error. Returning empty stats:', error);
+    return EMPTY_REFLECTION_STATS;
   }
 }
 

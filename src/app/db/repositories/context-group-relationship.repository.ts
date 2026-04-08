@@ -60,29 +60,45 @@ export const contextGroupRelationshipRepository = {
       return null;
     }
 
-    // Check if relationship already exists
-    if (contextGroupRelationshipRepository.exists(
-      relationship.source_group_id,
-      relationship.target_group_id
-    )) {
-      return null;
-    }
+    // Normalize group IDs for bidirectional uniqueness check:
+    // Always store the smaller ID as source to prevent (A,B) and (B,A) duplicates.
+    const normalizedSource = relationship.source_group_id < relationship.target_group_id
+      ? relationship.source_group_id
+      : relationship.target_group_id;
+    const normalizedTarget = relationship.source_group_id < relationship.target_group_id
+      ? relationship.target_group_id
+      : relationship.source_group_id;
 
     const now = new Date().toISOString();
 
+    // Use INSERT OR IGNORE to prevent TOCTOU race: if a concurrent request
+    // already inserted the same pair, this silently succeeds with 0 changes.
     const stmt = db.prepare(`
-      INSERT INTO context_group_relationships (id, project_id, source_group_id, target_group_id, created_at)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT OR IGNORE INTO context_group_relationships (id, project_id, source_group_id, target_group_id, created_at)
+      SELECT ?, ?, ?, ?, ?
+      WHERE NOT EXISTS (
+        SELECT 1 FROM context_group_relationships
+        WHERE (source_group_id = ? AND target_group_id = ?)
+           OR (source_group_id = ? AND target_group_id = ?)
+      )
     `);
 
     try {
-      stmt.run(
+      const result = stmt.run(
         relationship.id,
         relationship.project_id,
-        relationship.source_group_id,
-        relationship.target_group_id,
-        now
+        normalizedSource,
+        normalizedTarget,
+        now,
+        normalizedSource,
+        normalizedTarget,
+        normalizedTarget,
+        normalizedSource,
       );
+
+      if (result.changes === 0) {
+        return null; // Relationship already exists
+      }
 
       return base.getById(relationship.id)!;
     } catch {

@@ -12,6 +12,9 @@ export class LocalProvider implements ObservabilityProvider {
   private flushInterval: NodeJS.Timeout | null = null;
   private readonly BUFFER_SIZE = 100;
   private readonly FLUSH_INTERVAL_MS = 5000;
+  private readonly MAX_BUFFER_SIZE = 1000;
+  private consecutiveFailures = 0;
+  private readonly MAX_CONSECUTIVE_FAILURES = 5;
 
   constructor(config: ProviderConfig) {
     this.config = config;
@@ -43,6 +46,11 @@ export class LocalProvider implements ObservabilityProvider {
       if (!shouldTrack) return;
     }
 
+    // Drop oldest entries if buffer is at max capacity
+    if (this.buffer.length >= this.MAX_BUFFER_SIZE) {
+      this.buffer = this.buffer.slice(-Math.floor(this.MAX_BUFFER_SIZE / 2));
+    }
+
     // Add to buffer
     this.buffer.push({
       ...data,
@@ -66,11 +74,18 @@ export class LocalProvider implements ObservabilityProvider {
   async flush(): Promise<void> {
     if (this.buffer.length === 0) return;
 
+    // Skip flush if too many consecutive failures (back off)
+    if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
+      this.consecutiveFailures = 0;
+      this.buffer = [];
+      console.warn('[Observability] Too many consecutive flush failures, dropping buffer');
+      return;
+    }
+
     const toFlush = [...this.buffer];
     this.buffer = [];
 
     try {
-      // Send batch to API
       const response = await fetch('/api/observability/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -81,14 +96,20 @@ export class LocalProvider implements ObservabilityProvider {
       });
 
       if (!response.ok) {
-        // Put items back in buffer for retry
-        this.buffer = [...toFlush, ...this.buffer];
+        this.consecutiveFailures++;
         console.error('[Observability] Failed to flush:', response.statusText);
+        // Re-queue only up to max buffer cap
+        const combined = [...toFlush, ...this.buffer];
+        this.buffer = combined.slice(-this.MAX_BUFFER_SIZE);
+      } else {
+        this.consecutiveFailures = 0;
       }
     } catch (error) {
-      // Put items back in buffer for retry
-      this.buffer = [...toFlush, ...this.buffer];
+      this.consecutiveFailures++;
       console.error('[Observability] Flush error:', error);
+      // Re-queue only up to max buffer cap
+      const combined = [...toFlush, ...this.buffer];
+      this.buffer = combined.slice(-this.MAX_BUFFER_SIZE);
     }
   }
 

@@ -14,11 +14,8 @@ import {
   ChevronDown,
   Copy,
   Check,
-  Bot,
-  Wrench,
   CheckCircle,
   AlertCircle,
-  ListOrdered,
   FileEdit,
   FolderPlus,
   Boxes,
@@ -27,27 +24,15 @@ import {
 import { createPortal } from 'react-dom';
 import {
   useContextGenerationStore,
-  type TerminalMessage,
   type ContextGenerationSummary,
 } from '@/stores/contextGenerationStore';
 import { useContextGenerationStream } from '../hooks/useContextGenerationStream';
+import { TerminalMessageLine } from './TerminalMessageLine';
 
 interface ContextGenerationOverlayProps {
   onComplete?: () => void;
 }
 
-/** Static lookup map for message type colors */
-const MESSAGE_COLORS: Record<TerminalMessage['type'], string> = {
-  error: 'text-red-300',
-  system: 'text-cyan-300',
-  input: 'text-blue-300',
-  output: 'text-gray-300',
-};
-
-/** Format content for display (truncate if too long) */
-function formatContent(content: string): string {
-  return content.length > 200 ? content.slice(0, 200) + '...' : content;
-}
 
 /**
  * Render summary stats
@@ -264,40 +249,9 @@ ${'='.repeat(40)}
                     <div className="text-gray-500 italic">Waiting for output...</div>
                   ) : (
                     <div className="space-y-1">
-                      {messages.map((msg) => {
-                        // Inline icon logic - avoids function call overhead
-                        const iconClass = "w-3.5 h-3.5 shrink-0";
-                        let icon: React.ReactNode;
-                        if (msg.type === 'error') {
-                          icon = <AlertCircle className={`${iconClass} text-red-400`} />;
-                        } else if (msg.type === 'system') {
-                          icon = <ListOrdered className={`${iconClass} text-cyan-400`} />;
-                        } else if (msg.type === 'input') {
-                          icon = <Bot className={`${iconClass} text-blue-400`} />;
-                        } else if (msg.content.includes('Using tool:')) {
-                          icon = msg.content.includes('Edit') || msg.content.includes('Write')
-                            ? <FileEdit className={`${iconClass} text-yellow-400`} />
-                            : <Wrench className={`${iconClass} text-purple-400`} />;
-                        } else if (msg.content.includes('group') || msg.content.includes('Group')) {
-                          icon = <FolderPlus className={`${iconClass} text-green-400`} />;
-                        } else if (msg.content.includes('context') || msg.content.includes('Context')) {
-                          icon = <Boxes className={`${iconClass} text-amber-400`} />;
-                        } else {
-                          icon = <Bot className={`${iconClass} text-gray-400`} />;
-                        }
-
-                        return (
-                          <motion.div
-                            key={msg.id}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className={`flex items-start gap-2 py-0.5 ${MESSAGE_COLORS[msg.type]}`}
-                          >
-                            {icon}
-                            <span className="break-all">{formatContent(msg.content)}</span>
-                          </motion.div>
-                        );
-                      })}
+                      {messages.map((msg) => (
+                        <TerminalMessageLine key={msg.id} message={msg} />
+                      ))}
                     </div>
                   )}
 

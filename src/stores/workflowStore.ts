@@ -47,6 +47,7 @@ export const MODULE_METADATA: Record<AppModule, { label: string; description: st
   commander: { label: 'Annette', description: 'Voice assistant and commander', keywords: ['annette', 'assistant', 'voice', 'commander'], icon: 'Bot' },
   conductor: { label: 'Conductor', description: 'Autonomous development pipeline', keywords: ['conductor', 'pipeline', 'autonomous', 'orchestrator'], icon: 'Workflow' },
   views: { label: 'Views', description: 'Cross-entity queryable views', keywords: ['views', 'query', 'filter', 'bases', 'cross-entity'], icon: 'LayoutGrid' },
+  explorer: { label: 'Explorer', description: 'Natural language database explorer', keywords: ['explorer', 'database', 'sql', 'query', 'natural language'], icon: 'Database' },
 };
 
 interface WorkflowState {

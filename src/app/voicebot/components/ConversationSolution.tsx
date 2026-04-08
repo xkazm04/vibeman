@@ -49,6 +49,7 @@ export default function ConversationSolution() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isPlayingRef = useRef(false);
+  const sentenceIndexRef = useRef(0);
   const questionsRef = useRef<string[]>([]);
   const responsesRef = useRef<string[]>([]);
   const multiModelResponsesRef = useRef<Record<string, string[]>>({});
@@ -179,6 +180,7 @@ export default function ConversationSolution() {
   }, [addLog]);
 
   const playNextSentenceMultiModel = useCallback(async () => {
+    const currentSentenceIndex = sentenceIndexRef.current;
     if (!isPlayingRef.current || currentSentenceIndex >= testQuestions.length) {
       setIsPlaying(false);
       isPlayingRef.current = false;
@@ -268,6 +270,7 @@ export default function ConversationSolution() {
       }
 
       // Move to next sentence
+      sentenceIndexRef.current += 1;
       setCurrentSentenceIndex(prev => prev + 1);
 
     } catch (error) {
@@ -280,6 +283,7 @@ export default function ConversationSolution() {
   }, [currentSentenceIndex, addLog, runMultiModelEvaluation, testQuestions]);
 
   const playNextSentence = useCallback(async () => {
+    const currentSentenceIndex = sentenceIndexRef.current;
     if (!isPlayingRef.current || currentSentenceIndex >= testQuestions.length) {
       setIsPlaying(false);
       isPlayingRef.current = false;
@@ -400,6 +404,7 @@ export default function ConversationSolution() {
       }
 
       // Move to next sentence - state update will trigger useEffect
+      sentenceIndexRef.current += 1;
       setCurrentSentenceIndex(prev => prev + 1);
 
     } catch (error) {
@@ -412,6 +417,7 @@ export default function ConversationSolution() {
   }, [currentSentenceIndex, logs, provider, model, addLog, runEvaluation, testQuestions, currentCallId, voiceProvider, novaVoiceId]);
 
   const startConversation = useCallback(() => {
+    sentenceIndexRef.current = 0;
     setCurrentSentenceIndex(0);
     setIsPlaying(true);
     isPlayingRef.current = true;

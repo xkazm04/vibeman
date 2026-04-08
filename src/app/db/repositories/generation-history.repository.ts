@@ -39,23 +39,26 @@ export const generationHistoryRepository = {
    */
   create: (entry: Omit<DbGenerationHistory, 'id' | 'created_at'>): DbGenerationHistory => {
     const db = getDatabase();
-
-    // Clean up old entries first (30-day retention)
-    db.prepare(`
-      DELETE FROM generation_history
-      WHERE created_at < datetime('now', '-30 days')
-    `).run();
-
-    // Insert new entry
     const id = generateId('genhist');
     const now = getCurrentTimestamp();
 
-    const insertStmt = db.prepare(`
-      INSERT INTO generation_history (id, template_id, query, file_path, created_at)
-      VALUES (?, ?, ?, ?, ?)
-    `);
+    // Wrap cleanup + insert in a transaction to prevent data loss
+    // if the INSERT fails after the DELETE has already committed
+    const txn = db.transaction(() => {
+      // Clean up old entries first (30-day retention)
+      db.prepare(`
+        DELETE FROM generation_history
+        WHERE created_at < datetime('now', '-30 days')
+      `).run();
 
-    insertStmt.run(id, entry.template_id, entry.query, entry.file_path, now);
+      // Insert new entry
+      db.prepare(`
+        INSERT INTO generation_history (id, template_id, query, file_path, created_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(id, entry.template_id, entry.query, entry.file_path, now);
+    });
+
+    txn();
 
     // Return the created entry
     return {

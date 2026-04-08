@@ -84,6 +84,10 @@ const LazyMiniLayout = createLazyFeature(
   () => import('./features/Mini/MiniLayout'),
   LazyFeaturePresets.minimal('Mini')
 );
+const LazyExplorerLayout = createLazyFeature(
+  () => import('./features/Explorer/ExplorerLayout'),
+  LazyFeaturePresets.withSidebar('Explorer')
+);
 
 
 export default function Home() {
@@ -144,6 +148,8 @@ export default function Home() {
         return <LazyConductorLayout key="conductor" projectId={projectId} />;
       case 'views':
         return <LazyViewsLayout key="views" />;
+      case 'explorer':
+        return <LazyExplorerLayout key="explorer" />;
       default:
         return <OverviewLayout key="overview" />;
     }

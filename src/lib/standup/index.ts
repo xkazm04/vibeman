@@ -14,3 +14,5 @@ export {
   generateUnifiedStandup,
 } from './standupService';
 export type { UnifiedStandupResult } from './standupService';
+export { feedStandupInsightsToGoals } from './standupFeedback';
+export type { StandupFeedbackResult } from './standupFeedback';

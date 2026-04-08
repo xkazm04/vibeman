@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generatePredictiveStandup } from '@/lib/standup/predictiveStandupEngine';
+import { feedStandupInsightsToGoals } from '@/lib/standup/standupFeedback';
 import { logger } from '@/lib/logger';
 
 /**
@@ -21,6 +22,9 @@ export async function GET(request: NextRequest) {
     }
 
     const predictions = generatePredictiveStandup(projectId);
+
+    // Feed insights back into goal lifecycle (bidirectional loop)
+    feedStandupInsightsToGoals(projectId, predictions);
 
     return NextResponse.json({ success: true, data: predictions });
   } catch (error) {

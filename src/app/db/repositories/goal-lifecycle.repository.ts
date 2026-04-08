@@ -1,5 +1,5 @@
 import { getDatabase } from '../connection';
-import type { DbGoalSignal, DbGoalSubGoal } from '../models/types';
+import type { DbGoalSignal, DbGoalSignalSummary, DbGoalSubGoal } from '../models/types';
 import { createGenericRepository } from './generic.repository';
 import { generateId, getCurrentTimestamp, selectAll, selectOne } from './repository.utils';
 
@@ -76,6 +76,105 @@ export const goalSignalRepository = {
       counts[row.signal_type] = row.count;
     }
     return counts;
+  },
+
+  /**
+   * Batch-fetch recent signals for multiple goals in a single query.
+   * Uses ROW_NUMBER() window function to limit per-goal, avoiding N+1.
+   */
+  getRecentByGoalIds: (goalIds: string[], limitPerGoal: number = 20): Map<string, DbGoalSignal[]> => {
+    const result = new Map<string, DbGoalSignal[]>();
+    if (goalIds.length === 0) return result;
+
+    const db = getDatabase();
+    const placeholders = goalIds.map(() => '?').join(',');
+    const rows = selectAll<DbGoalSignal & { rn: number }>(
+      db,
+      `SELECT * FROM (
+        SELECT *, ROW_NUMBER() OVER (PARTITION BY goal_id ORDER BY created_at DESC) as rn
+        FROM goal_signals
+        WHERE goal_id IN (${placeholders})
+      ) WHERE rn <= ?`,
+      ...goalIds,
+      limitPerGoal
+    );
+
+    for (const row of rows) {
+      const list = result.get(row.goal_id);
+      if (list) {
+        list.push(row);
+      } else {
+        result.set(row.goal_id, [row]);
+      }
+    }
+    return result;
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Goal Signal Summary Repository
+// Reads from the materialized goal_signal_summaries table (maintained by triggers)
+// ---------------------------------------------------------------------------
+
+export const goalSignalSummaryRepository = {
+  /**
+   * Get summary for a single goal.
+   */
+  getByGoal: (goalId: string): DbGoalSignalSummary | null => {
+    const db = getDatabase();
+    return selectOne<DbGoalSignalSummary>(
+      db,
+      'SELECT * FROM goal_signal_summaries WHERE goal_id = ?',
+      goalId
+    );
+  },
+
+  /**
+   * Get all summaries for a project in a single query.
+   * Replaces the N+1 pattern where standup generation queried per-goal.
+   */
+  getByProject: (projectId: string): DbGoalSignalSummary[] => {
+    const db = getDatabase();
+    return selectAll<DbGoalSignalSummary>(
+      db,
+      'SELECT * FROM goal_signal_summaries WHERE project_id = ? ORDER BY last_signal_at DESC',
+      projectId
+    );
+  },
+
+  /**
+   * Get summaries for multiple goals in a single query.
+   */
+  getByGoalIds: (goalIds: string[]): Map<string, DbGoalSignalSummary> => {
+    const result = new Map<string, DbGoalSignalSummary>();
+    if (goalIds.length === 0) return result;
+
+    const db = getDatabase();
+    const placeholders = goalIds.map(() => '?').join(',');
+    const rows = selectAll<DbGoalSignalSummary>(
+      db,
+      `SELECT * FROM goal_signal_summaries WHERE goal_id IN (${placeholders})`,
+      ...goalIds
+    );
+
+    for (const row of rows) {
+      result.set(row.goal_id, row);
+    }
+    return result;
+  },
+
+  /**
+   * Get goals at elevated risk for a project.
+   */
+  getAtRisk: (projectId: string): DbGoalSignalSummary[] => {
+    const db = getDatabase();
+    return selectAll<DbGoalSignalSummary>(
+      db,
+      `SELECT * FROM goal_signal_summaries
+       WHERE project_id = ? AND risk_level IN ('high', 'critical')
+       ORDER BY risk_level DESC, last_signal_at ASC`,
+      projectId
+    );
   },
 };
 
@@ -168,5 +267,46 @@ export const goalSubGoalRepository = {
       inProgress: row?.in_progress || 0,
       open: row?.open_count || 0,
     };
+  },
+
+  /**
+   * Batch-fetch sub-goal stats for multiple goals in a single query.
+   * Returns a Map of goalId -> stats, avoiding N+1 queries.
+   */
+  getStatsBatch: (goalIds: string[]): Map<string, { total: number; done: number; inProgress: number; open: number }> => {
+    const result = new Map<string, { total: number; done: number; inProgress: number; open: number }>();
+    if (goalIds.length === 0) return result;
+
+    const db = getDatabase();
+    const placeholders = goalIds.map(() => '?').join(',');
+    const rows = selectAll<{
+      parent_goal_id: string;
+      total: number;
+      done: number;
+      in_progress: number;
+      open_count: number;
+    }>(
+      db,
+      `SELECT
+        parent_goal_id,
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done,
+        SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+        SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open_count
+      FROM goal_sub_goals
+      WHERE parent_goal_id IN (${placeholders})
+      GROUP BY parent_goal_id`,
+      ...goalIds
+    );
+
+    for (const row of rows) {
+      result.set(row.parent_goal_id, {
+        total: row.total || 0,
+        done: row.done || 0,
+        inProgress: row.in_progress || 0,
+        open: row.open_count || 0,
+      });
+    }
+    return result;
   },
 };

@@ -8,23 +8,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { crossProjectRelationshipDb } from '@/app/db';
 import { generateId } from '@/app/db/repositories/repository.utils';
+import { validateRequestBody } from '@/lib/validation/apiValidator';
+import {
+  validateProjectId,
+  validateEnum,
+  validateString,
+} from '@/lib/validation/inputValidator';
 import type {
   IntegrationType,
   CreateCrossProjectRelationshipInput,
 } from '@/app/db/models/cross-project-architecture.types';
 
-interface CreateRelationshipBody {
-  workspaceId?: string | null;
-  sourceProjectId: string;
-  targetProjectId: string;
-  integrationType: IntegrationType;
-  label?: string;
-  protocol?: string;
-  dataFlow?: string;
-  confidence?: number;
-  sourceContextId?: string;
-  targetContextId?: string;
-}
+const VALID_INTEGRATION_TYPES = ['rest', 'graphql', 'grpc', 'websocket', 'event', 'database', 'storage'] as const;
+const validateIntegrationType = validateEnum('integrationType', VALID_INTEGRATION_TYPES);
+const validateLabel = validateString('label', { required: false, maxLength: 500 });
+const validateProtocol = validateString('protocol', { required: false, maxLength: 200 });
+const validateDataFlow = validateString('dataFlow', { required: false, maxLength: 200 });
+const validateConfidence = (value: unknown): string | null => {
+  if (typeof value !== 'number') return 'confidence must be a number';
+  if (value < 0 || value > 1) return 'confidence must be between 0 and 1';
+  return null;
+};
 
 /**
  * GET /api/architecture/relationships
@@ -70,41 +74,42 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as CreateRelationshipBody;
+    const result = await validateRequestBody(request, {
+      required: [
+        { field: 'sourceProjectId', validator: validateProjectId },
+        { field: 'targetProjectId', validator: validateProjectId },
+        { field: 'integrationType', validator: validateIntegrationType },
+      ],
+      optional: [
+        { field: 'workspaceId', validator: validateProjectId },
+        { field: 'label', validator: validateLabel },
+        { field: 'protocol', validator: validateProtocol },
+        { field: 'dataFlow', validator: validateDataFlow },
+        { field: 'confidence', validator: validateConfidence },
+        { field: 'sourceContextId', validator: validateProjectId },
+        { field: 'targetContextId', validator: validateProjectId },
+      ],
+    });
+    if (!result.success) return result.error;
+
     const {
-      workspaceId,
       sourceProjectId,
       targetProjectId,
       integrationType,
+      workspaceId,
       label,
       protocol,
       dataFlow,
-      confidence = 1.0, // Manual relationships have full confidence
+      confidence = 1.0,
       sourceContextId,
       targetContextId,
-    } = body;
-
-    // Validate required fields
-    if (!sourceProjectId || !targetProjectId || !integrationType) {
-      return NextResponse.json(
-        { error: 'sourceProjectId, targetProjectId, and integrationType are required' },
-        { status: 400 }
-      );
-    }
-
-    // Validate integration type
-    const validTypes: IntegrationType[] = [
-      'rest', 'graphql', 'grpc', 'websocket', 'event', 'database', 'storage'
-    ];
-    if (!validTypes.includes(integrationType)) {
-      return NextResponse.json(
-        { error: `Invalid integrationType. Must be one of: ${validTypes.join(', ')}` },
-        { status: 400 }
-      );
-    }
+    } = result.data as Record<string, unknown>;
 
     // Check for existing relationship
-    const existing = crossProjectRelationshipDb.getBetweenProjects(sourceProjectId, targetProjectId);
+    const existing = crossProjectRelationshipDb.getBetweenProjects(
+      sourceProjectId as string,
+      targetProjectId as string,
+    );
     const duplicateType = existing.find(
       r => r.source_project_id === sourceProjectId &&
            r.target_project_id === targetProjectId &&
@@ -120,16 +125,16 @@ export async function POST(request: NextRequest) {
     // Create the relationship
     const input: CreateCrossProjectRelationshipInput = {
       id: generateId('cpr'),
-      workspace_id: workspaceId === '' ? null : (workspaceId || null),
-      source_project_id: sourceProjectId,
-      target_project_id: targetProjectId,
-      source_context_id: sourceContextId,
-      target_context_id: targetContextId,
-      integration_type: integrationType,
-      label,
-      protocol,
-      data_flow: dataFlow,
-      confidence,
+      workspace_id: workspaceId === '' ? null : ((workspaceId as string) || null),
+      source_project_id: sourceProjectId as string,
+      target_project_id: targetProjectId as string,
+      source_context_id: sourceContextId as string | undefined,
+      target_context_id: targetContextId as string | undefined,
+      integration_type: integrationType as IntegrationType,
+      label: label as string | undefined,
+      protocol: protocol as string | undefined,
+      data_flow: dataFlow as string | undefined,
+      confidence: confidence as number,
       detected_by: 'manual',
     };
 

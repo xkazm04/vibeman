@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { DbQuestion, DbContext } from '@/app/db';
 import { transitions } from '@/lib/design-tokens';
+import { useAsyncOperation } from '@/hooks/useAsyncOperation';
 
 interface GenerateResult {
   requirementPath: string;
@@ -45,10 +46,9 @@ export default function CombinedGeneratePanel({
 }: CombinedGeneratePanelProps) {
   const [questionsPerContext, setQuestionsPerContext] = useState(3);
   const [directionsPerContext, setDirectionsPerContext] = useState(3);
-  const [generatingQuestions, setGeneratingQuestions] = useState(false);
-  const [generatingDirections, setGeneratingDirections] = useState(false);
-  const [status, setStatus] = useState<'success' | 'error' | null>(null);
-  const [message, setMessage] = useState('');
+
+  const questionOp = useAsyncOperation();
+  const directionOp = useAsyncOperation();
 
   // Direction-specific state
   const [userContext, setUserContext] = useState('');
@@ -61,50 +61,32 @@ export default function CombinedGeneratePanel({
 
   const handleGenerateQuestions = async () => {
     if (selectedContextCount === 0) return;
-
-    setGeneratingQuestions(true);
-    setStatus(null);
-    setMessage('');
-
-    try {
-      const result = await onGenerateQuestions(questionsPerContext);
-      if (result) {
-        setStatus('success');
-        setMessage(`Questions requirement created! → ${result.requirementPath}`);
+    await questionOp.execute(
+      () => onGenerateQuestions(questionsPerContext),
+      {
+        onSuccess: (result) =>
+          result ? `Questions requirement created! → ${result.requirementPath}` : undefined,
+        fallbackError: 'Failed to generate requirement',
       }
-    } catch (err) {
-      setStatus('error');
-      setMessage(err instanceof Error ? err.message : 'Failed to generate requirement');
-    } finally {
-      setGeneratingQuestions(false);
-      setTimeout(() => { setStatus(null); setMessage(''); }, 8000);
-    }
+    );
   };
 
   const handleGenerateDirections = async () => {
-    // Allow generation if brainstormAll is enabled OR contexts are selected
     if (!brainstormAll && selectedContextCount === 0) return;
-
-    setGeneratingDirections(true);
-    setStatus(null);
-    setMessage('');
-
-    try {
-      const result = await onGenerateDirections(directionsPerContext, userContext, selectedQuestionIds, brainstormAll);
-      if (result) {
-        setStatus('success');
-        const modeLabel = brainstormAll ? 'Brainstorm' : 'Directions';
-        setMessage(`${modeLabel} requirement created! → ${result.requirementPath}`);
-        setUserContext('');
-        setSelectedQuestionIds([]);
+    await directionOp.execute(
+      () => onGenerateDirections(directionsPerContext, userContext, selectedQuestionIds, brainstormAll),
+      {
+        onSuccess: (result) => {
+          if (result) {
+            const modeLabel = brainstormAll ? 'Brainstorm' : 'Directions';
+            setUserContext('');
+            setSelectedQuestionIds([]);
+            return `${modeLabel} requirement created! → ${result.requirementPath}`;
+          }
+        },
+        fallbackError: 'Failed to generate requirement',
       }
-    } catch (err) {
-      setStatus('error');
-      setMessage(err instanceof Error ? err.message : 'Failed to generate requirement');
-    } finally {
-      setGeneratingDirections(false);
-      setTimeout(() => { setStatus(null); setMessage(''); }, 8000);
-    }
+    );
   };
 
   const toggleQuestion = (questionId: string) => {
@@ -123,7 +105,9 @@ export default function CombinedGeneratePanel({
     setSelectedQuestionIds([]);
   };
 
-  const isGenerating = generatingQuestions || generatingDirections;
+  const isGenerating = questionOp.isLoading || directionOp.isLoading;
+  const activeStatus = questionOp.status || directionOp.status;
+  const activeMessage = questionOp.message || directionOp.message;
 
   return (
     <div className="space-y-3">
@@ -156,7 +140,7 @@ export default function CombinedGeneratePanel({
               disabled={disabled || isGenerating || selectedContextCount === 0}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium ${transitions.normal} disabled:opacity-50 disabled:cursor-not-allowed bg-purple-600/80 hover:bg-purple-500 text-white`}
             >
-              {generatingQuestions ? (
+              {questionOp.isLoading ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
                 <HelpCircle className="w-3.5 h-3.5" />
@@ -217,7 +201,7 @@ export default function CombinedGeneratePanel({
               disabled={disabled || isGenerating || (!brainstormAll && selectedContextCount === 0)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium ${transitions.normal} disabled:opacity-50 disabled:cursor-not-allowed bg-cyan-600/80 hover:bg-cyan-500 text-white`}
             >
-              {generatingDirections ? (
+              {directionOp.isLoading ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
                 <Compass className="w-3.5 h-3.5" />
@@ -345,7 +329,7 @@ export default function CombinedGeneratePanel({
 
       {/* Status Message (shared between both cards) */}
       <AnimatePresence>
-        {status && (
+        {activeStatus && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -354,13 +338,13 @@ export default function CombinedGeneratePanel({
             aria-live="polite"
             className={`
               p-2.5 rounded-lg text-sm
-              ${status === 'success'
+              ${activeStatus === 'success'
                 ? 'bg-green-500/10 border border-green-500/30 text-green-400'
                 : 'bg-red-500/10 border border-red-500/30 text-red-400'
               }
             `}
           >
-            {message}
+            {activeMessage}
           </motion.div>
         )}
       </AnimatePresence>

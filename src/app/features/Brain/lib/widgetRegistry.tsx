@@ -16,6 +16,7 @@ import NextUpCard from '../components/NextUpCard';
 import TemporalRhythmHeatmap from '../components/TemporalRhythmHeatmap';
 import BehavioralFocusPanel from '../components/BehavioralFocusPanel';
 import HarnessStabilityWidget from '../components/HarnessStabilityWidget';
+import MonitorPanel from '../components/MonitorPanel';
 import type { SignalAnomaly } from '@/lib/brain/anomalyDetector';
 
 // ── Scoring context passed to each widget's boost function ──────────────
@@ -53,7 +54,8 @@ export type WidgetId =
   | 'correlation'
   | 'nextUp'
   | 'focus'
-  | 'harnessStability';
+  | 'harnessStability'
+  | 'monitors';
 
 export interface WidgetDefinition {
   id: WidgetId;
@@ -161,6 +163,17 @@ export const widgetRegistry: WidgetDefinition[] = [
       return 0;
     },
     render: ({ scope }) => <HarnessStabilityWidget scope={scope} />,
+  },
+  {
+    id: 'monitors',
+    basePriority: 6,
+    boost: ({ anomalies }) => {
+      // Boost when anomalies are actively firing — monitors become urgent
+      if (anomalies.some(a => a.severity === 'critical')) return 14;
+      if (anomalies.length > 0) return 8;
+      return 0;
+    },
+    render: ({ scope, compact }) => <MonitorPanel scope={scope} compact={compact} />,
   },
 ];
 

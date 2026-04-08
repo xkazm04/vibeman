@@ -7,28 +7,33 @@
  * - High-priority widgets are promoted to a full-width "hero" section
  * - Secondary widgets are grouped in a collapsible sidebar
  * - Framer Motion layout animations fluidly rearrange on priority changes
+ *
+ * Data fetching, anomaly detection, and the anomaly banner are delegated
+ * to focused hooks and components:
+ * - useBrainDashboardData() – fetch orchestration
+ * - useAnomalyDetection() – anomaly state management
+ * - AnomalyBanner – standalone alert strip
  */
 
 'use client';
 
-import { useEffect, useState, useMemo, useRef, lazy, Suspense } from 'react';
+import React, { useEffect, useState, useMemo, useRef, lazy, Suspense } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { transition } from '@/lib/motion';
-import { Brain, AlertCircle, AlertTriangle, X, Focus } from 'lucide-react';
+import { Brain, AlertCircle, Focus } from 'lucide-react';
 import { BrainPulseIcon, ThoughtSparkleIcon, NeuronClusterIcon, SynapseTimelineIcon, BrainCrossSection, PatternLibraryIcon, type BrainTabIconProps } from './components/BrainTabIcons';
-import { SimpleSpinner } from '@/components/ui';
-import { useClientProjectStore } from '@/stores/clientProjectStore';
-import { useBrainStore } from '@/stores/brainStore';
-import { GridBackground } from './components/variants/GridPrimitives';
-import { useApplicationSession, useSessionAbortSignals } from '@/lib/session';
 import { useReflectionEvents } from './lib/useReflectionEvents';
+import { useBrainDashboardData } from './lib/useBrainDashboardData';
+import { useAnomalyDetection } from './lib/useAnomalyDetection';
+import AnomalyBanner from './components/AnomalyBanner';
 import ReflectionStatus from './components/ReflectionStatus';
 import ReflectionHistoryPanel from './components/ReflectionHistoryPanel';
 import { scoreWidgets, getWidgetDefinition } from './lib/widgetRegistry';
 import type { WidgetId, WidgetRenderContext } from './lib/widgetRegistry';
-import type { SignalAnomaly, AnomalySeverity } from '@/lib/brain/anomalyDetector';
 import { useConductorStore } from '@/app/features/Conductor/lib/conductorStore';
 import { computeStabilityMetrics } from './components/HarnessStabilityWidget';
+import { useBrainStore } from '@/stores/brainStore';
+import { GridBackground } from './components/variants/GridPrimitives';
 import StaggeredReveal from '@/components/lazy/StaggeredReveal';
 
 const EventCanvasD3 = lazy(() => import('./sub_MemoryCanvas/EventCanvasD3'));
@@ -50,61 +55,29 @@ const tabs: Array<{ id: BrainTab; label: string; icon: React.ComponentType<Brain
 export default function BrainLayout() {
   const [activeTab, setActiveTab] = useState<BrainTab>('dashboard');
 
-  // Use coordinator as primary source for activeProject
-  const { activeProject: sessionProject } = useApplicationSession();
-  const getAbortSignal = useSessionAbortSignals();
+  // ── Anomaly detection ──────────────────────────────────────────────────
+  const { anomalies, anomaliesDismissed, dismissAnomalies, handleAnomaliesDetected } = useAnomalyDetection();
 
-  // Fall back to legacy store for selectedProjectId (filter state not in coordinator)
-  const selectedProjectId = useClientProjectStore((state) => state.selectedProjectId);
-  // Prefer coordinator project, fall back to legacy for backward compat
-  const legacyProject = useClientProjectStore((state) => state.activeProject);
-  const activeProject = sessionProject ?? legacyProject;
-
+  // ── Data fetching orchestration ────────────────────────────────────────
   const {
+    activeProject,
+    isGlobalMode,
+    scope,
     isLoadingContext,
     isLoadingOutcomes,
     isLoading,
     error,
-    fetchDashboard,
-    fetchGlobalReflectionStatus,
     clearError,
-  } = useBrainStore();
+  } = useBrainDashboardData(handleAnomaliesDetected);
 
-  const isGlobalMode = selectedProjectId === 'all';
+  // Secondary sidebar collapsed state
+  const [secondaryCollapsed, setSecondaryCollapsed] = useState(false);
 
   // SSE-driven reflection lifecycle → cascade refresh of dependent components
   useReflectionEvents({
     projectId: isGlobalMode ? null : activeProject?.id ?? null,
     enabled: true,
   });
-
-  // Anomaly detection state
-  const [anomalies, setAnomalies] = useState<SignalAnomaly[]>([]);
-  const [anomaliesDismissed, setAnomaliesDismissed] = useState(false);
-
-  // Secondary sidebar collapsed state
-  const [secondaryCollapsed, setSecondaryCollapsed] = useState(false);
-
-  // Load data when project changes or mode switches
-  // Uses coordinator AbortSignal to cancel stale fetches on rapid project switching
-  useEffect(() => {
-    if (isGlobalMode) {
-      fetchGlobalReflectionStatus();
-      setAnomalies([]);
-    } else if (activeProject?.id) {
-      const { signal } = getAbortSignal('brain_dashboard');
-      fetchDashboard(activeProject.id, signal).then((detectedAnomalies) => {
-        if (signal.aborted) return;
-        if (detectedAnomalies.length > 0) {
-          setAnomalies(detectedAnomalies);
-          setAnomaliesDismissed(false);
-        } else {
-          setAnomalies([]);
-        }
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isGlobalMode, activeProject?.id]);
 
   if (!isGlobalMode && !activeProject) {
     return (
@@ -115,8 +88,6 @@ export default function BrainLayout() {
       </div>
     );
   }
-
-  const scope: 'project' | 'global' = isGlobalMode ? 'global' : 'project';
 
   // ── Focus Flow: priority scoring via declarative widget registry ─────
   const { outcomeStats } = useBrainStore();
@@ -150,8 +121,7 @@ export default function BrainLayout() {
   return (
     <div className="flex flex-col" style={{ height: 'calc(100vh - 2.5rem)' }}>
       <StaggeredReveal stagger={0.13} distance={16} className="flex flex-col flex-1 min-h-0">
-      {/* Header */}
-      {/* Error banner — separate from tabs so tabs stay stable */}
+      {/* Error banner */}
       {error && (
         <div className="px-3 py-1 border-b border-red-500/30 bg-zinc-950/80 flex-shrink-0">
           <div className="flex items-center gap-2 px-2 py-1 border border-red-500/30 rounded-sm font-mono">
@@ -163,7 +133,7 @@ export default function BrainLayout() {
       )}
 
       <div className="px-3 py-1.5 border-b border-zinc-800/70 bg-zinc-950/80 flex-shrink-0 flex items-center gap-3">
-        {/* Tab navigation — Grid style */}
+        {/* Tab navigation */}
         <div className="flex gap-0.5 flex-1">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -186,35 +156,12 @@ export default function BrainLayout() {
         </div>
       </div>
 
-      {/* Anomaly Alert Banner — compact Grid style */}
-      {anomalies.length > 0 && !anomaliesDismissed && (
-        <div className="flex items-center gap-3 px-3 py-1.5 border-b border-amber-500/30 bg-zinc-950/80 flex-shrink-0 font-mono">
-          <AlertTriangle className="w-3 h-3 text-amber-400 flex-shrink-0" />
-          <span className="text-2xs text-amber-400">
-            {anomalies.length} anomal{anomalies.length === 1 ? 'y' : 'ies'}
-          </span>
-          {anomalies.some((a) => a.severity === 'critical') && (
-            <span className="text-2xs font-mono text-red-400 border border-red-500/30 px-1 py-0.5 rounded-sm">CRIT</span>
-          )}
-          <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
-            {anomalies.slice(0, 4).map((a) => (
-              <AnomalyChip key={a.id} anomaly={a} />
-            ))}
-            {anomalies.length > 4 && (
-              <span className="text-2xs text-zinc-600">+{anomalies.length - 4}</span>
-            )}
-          </div>
-          <button
-            onClick={() => setAnomaliesDismissed(true)}
-            className="text-zinc-600 hover:text-zinc-400 transition-colors"
-            aria-label="Dismiss anomaly alerts"
-          >
-            <X className="w-3 h-3" />
-          </button>
-        </div>
+      {/* Anomaly Alert Banner */}
+      {!anomaliesDismissed && (
+        <AnomalyBanner anomalies={anomalies} onDismiss={dismissAnomalies} />
       )}
 
-      {/* Dashboard Tab — Grid layout with dot background */}
+      {/* Dashboard Tab */}
       {activeTab === 'dashboard' && (
         <GridBackground className="flex-1 overflow-auto p-4">
           <LayoutGroup>
@@ -262,7 +209,7 @@ export default function BrainLayout() {
         </GridBackground>
       )}
 
-      {/* Reflection Tab — Grid layout */}
+      {/* Reflection Tab */}
       {activeTab === 'reflection' && (
         <GridBackground className="flex-1 overflow-auto p-4">
           <div className="max-w-7xl mx-auto space-y-4">
@@ -361,8 +308,14 @@ interface FocusWidgetProps {
 
 const SMOOTH_SPRING = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
-function FocusWidget({ widgetId, index, renderCtx }: FocusWidgetProps) {
+const FocusWidget = React.memo(function FocusWidget({ widgetId, index, renderCtx }: FocusWidgetProps) {
   const def = getWidgetDefinition(widgetId);
+
+  const renderedWidget = useMemo(() => {
+    if (!def) return null;
+    return def.render(renderCtx);
+  }, [def, renderCtx]);
+
   if (!def) return null;
 
   const delay = index * 0.03;
@@ -375,26 +328,7 @@ function FocusWidget({ widgetId, index, renderCtx }: FocusWidgetProps) {
       animate={{ opacity: 1 }}
       transition={{ ...transition.snappy, delay, layout: SMOOTH_SPRING }}
     >
-      {def.render(renderCtx)}
+      {renderedWidget}
     </motion.div>
   );
-}
-
-// ── Anomaly Chip ─────────────────────────────────────────────────────────────
-
-const SEVERITY_STYLES: Record<AnomalySeverity, string> = {
-  critical: 'text-red-400 border-red-500/30',
-  warning: 'text-amber-400 border-amber-500/30',
-  info: 'text-zinc-500 border-zinc-700/50',
-};
-
-function AnomalyChip({ anomaly }: { anomaly: SignalAnomaly }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1 px-1 py-0.5 rounded-sm border text-2xs font-mono ${SEVERITY_STYLES[anomaly.severity]}`}
-      title={anomaly.description}
-    >
-      <span className="truncate max-w-[180px]">{anomaly.title}</span>
-    </span>
-  );
-}
+});

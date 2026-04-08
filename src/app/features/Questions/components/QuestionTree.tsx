@@ -35,17 +35,23 @@ interface QuestionTreeProps {
 const DEFAULT_MAX_DEPTH = 10;
 
 // ─── Depth Colors ───
+// Continuous hue ramp: purple (270°) → indigo → blue → cyan → teal (180°)
+// Each level shifts hue 30° toward cyan/teal, border opacity fades by 0.15/level
 
-const DEPTH_COLORS = [
-  { border: 'border-purple-500/30', bg: 'bg-purple-500/5', text: 'text-purple-400', line: 'bg-purple-500/20' },
-  { border: 'border-cyan-500/30', bg: 'bg-cyan-500/5', text: 'text-cyan-400', line: 'bg-cyan-500/20' },
-  { border: 'border-amber-500/30', bg: 'bg-amber-500/5', text: 'text-amber-400', line: 'bg-amber-500/20' },
-  { border: 'border-emerald-500/30', bg: 'bg-emerald-500/5', text: 'text-emerald-400', line: 'bg-emerald-500/20' },
-  { border: 'border-rose-500/30', bg: 'bg-rose-500/5', text: 'text-rose-400', line: 'bg-rose-500/20' },
-];
+function getDepthStyles(depth: number) {
+  const hue = Math.max(180, 270 - depth * 30); // purple→teal, clamp at teal
+  const borderOpacity = Math.max(0.1, 0.45 - depth * 0.15);
+  const bgOpacity = Math.max(0.03, 0.08 - depth * 0.01);
+  const textOpacity = Math.max(0.5, 0.9 - depth * 0.05);
+  const lineOpacity = Math.max(0.08, 0.25 - depth * 0.03);
 
-function getDepthColor(depth: number) {
-  return DEPTH_COLORS[depth % DEPTH_COLORS.length];
+  return {
+    border: `hsla(${hue}, 70%, 60%, ${borderOpacity})`,
+    bg: `hsla(${hue}, 70%, 60%, ${bgOpacity})`,
+    text: `hsl(${hue}, 70%, 70%)`,
+    textOpacity,
+    line: `hsla(${hue}, 60%, 50%, ${lineOpacity})`,
+  };
 }
 
 // ─── Tree Node Component ───
@@ -65,7 +71,7 @@ function TreeNode({
 } & Omit<QuestionTreeProps, 'trees'>) {
   const [expanded, setExpanded] = useState(true);
   const depth = node.tree_depth ?? 0;
-  const color = getDepthColor(depth);
+  const ds = getDepthStyles(depth);
   const atDepthLimit = depth >= maxDepth;
   const hasChildren = node.children.length > 0;
   const isAnswered = node.status === 'answered' && !!node.answer;
@@ -78,11 +84,12 @@ function TreeNode({
   const canGenerateBrief = isAnswered && chainDepth >= 3;
 
   return (
-    <div className="relative">
+    <div className="relative" style={{ marginLeft: depth > 0 ? 16 : 0 }}>
       {/* Vertical connector line from parent */}
       {depth > 0 && (
         <div
-          className={`absolute -top-3 left-4 w-px h-3 ${color.line}`}
+          className="absolute -top-3 left-4 w-px h-3"
+          style={{ backgroundColor: ds.line }}
         />
       )}
 
@@ -90,7 +97,8 @@ function TreeNode({
       <motion.div
         initial={{ opacity: 0, x: -8 }}
         animate={{ opacity: 1, x: 0 }}
-        className={`rounded-xl border ${color.border} ${color.bg} p-3 ${transitions.normal}`}
+        className={`rounded-xl border p-3 ${transitions.normal}`}
+        style={{ borderColor: ds.border, backgroundColor: ds.bg }}
       >
         {/* Header row */}
         <div className="flex items-start gap-2">
@@ -100,7 +108,7 @@ function TreeNode({
               onClick={() => setExpanded(!expanded)}
               className={`mt-0.5 p-0.5 rounded hover:bg-white/5 ${transitions.colors} flex-shrink-0`}
             >
-              <ExpandChevron expanded={expanded} className={`w-3.5 h-3.5 ${color.text}`} />
+              <ExpandChevron expanded={expanded} className="w-3.5 h-3.5" style={{ color: ds.text }} />
             </button>
           ) : (
             <div className="w-4.5 flex-shrink-0" />
@@ -108,8 +116,8 @@ function TreeNode({
 
           {/* Question icon + depth badge */}
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            <HelpCircle className={`w-4 h-4 ${color.text}`} />
-            <span className={`text-2xs font-mono ${color.text} opacity-60`}>
+            <HelpCircle className="w-4 h-4" style={{ color: ds.text }} />
+            <span className="text-2xs font-mono" style={{ color: ds.text, opacity: 0.6 }}>
               L{depth}
             </span>
           </div>
@@ -278,15 +286,21 @@ function TreeNode({
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="ml-6 mt-1 space-y-1 relative"
+            className="mt-1 space-y-1 relative"
           >
             {/* Vertical branch line */}
-            <div className={`absolute left-4 top-0 bottom-3 w-px ${color.line}`} />
+            <div
+              className="absolute left-4 top-0 bottom-3 w-px"
+              style={{ backgroundColor: ds.line }}
+            />
 
             {node.children.map((child) => (
               <div key={child.id} className="relative pl-4 pt-2">
                 {/* Horizontal branch connector */}
-                <div className={`absolute left-0 top-[22px] w-4 h-px ${color.line}`} />
+                <div
+                  className="absolute left-0 top-[22px] w-4 h-px"
+                  style={{ backgroundColor: ds.line }}
+                />
                 <TreeNode
                   node={child}
                   onAnswerQuestion={onAnswerQuestion}

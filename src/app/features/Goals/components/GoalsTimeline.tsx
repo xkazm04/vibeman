@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Target,
   CheckCircle,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import EmptyState from '@/components/ui/EmptyState';
 import { formatDateFuzzy } from '@/lib/formatDate';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 export interface TimelineGoal {
   id: string;
@@ -62,6 +63,18 @@ const statusConfig = {
   },
 };
 
+// Status transition animation variants (gated by reduced motion)
+const statusAnimations = {
+  completed: {
+    scale: [1, 1.3, 1],
+    transition: { duration: 0.4, ease: 'easeOut' as const },
+  },
+  in_progress: {
+    boxShadow: ['0 0 0 0px rgba(59,130,246,0)', '0 0 0 4px rgba(59,130,246,0.3)', '0 0 0 0px rgba(59,130,246,0)'],
+    transition: { duration: 0.6, ease: 'easeInOut' as const },
+  },
+};
+
 export function GoalsTimeline({
   goals,
   onGoalClick,
@@ -69,6 +82,7 @@ export function GoalsTimeline({
   maxItems,
   className = '',
 }: GoalsTimelineProps) {
+  const prefersReduced = useReducedMotion();
   const displayedGoals = maxItems ? goals.slice(0, maxItems) : goals;
 
   if (goals.length === 0) {
@@ -102,12 +116,18 @@ export function GoalsTimeline({
               transition={{ delay: index * 0.1 }}
               className="relative pl-10"
             >
-              {/* Timeline node */}
-              <div
+              {/* Timeline node with status transition animation */}
+              <motion.div
                 className={`absolute left-2 w-5 h-5 rounded-full flex items-center justify-center ${config.bgColor} border-2 ${config.borderColor}`}
+                layoutId={!prefersReduced ? `goal-status-${goal.id}` : undefined}
+                animate={
+                  !prefersReduced && goal.status in statusAnimations
+                    ? statusAnimations[goal.status as keyof typeof statusAnimations]
+                    : undefined
+                }
               >
                 <Icon className={`w-3 h-3 ${config.color}`} />
-              </div>
+              </motion.div>
 
               {/* Goal card */}
               <motion.button

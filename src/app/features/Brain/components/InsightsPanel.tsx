@@ -3,19 +3,25 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { Lightbulb, Filter, RefreshCw, AlertOctagon, Search, Zap, Sparkles } from 'lucide-react';
+import { Lightbulb, Filter, RefreshCw, AlertOctagon, Search, Zap, Sparkles, Tag, X, Bookmark, BookmarkPlus, Share2, RotateCcw, Trash2, LayoutGrid, GitFork } from 'lucide-react';
+import { toast } from '@/stores/messageStore';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import BrainPanelHeader from './BrainPanelHeader';
 import BrainEmptyState from './BrainEmptyState';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
+import dynamic from 'next/dynamic';
 import { InsightsTable } from './InsightsTable';
 import type { InsightWithMeta, InsightType, SortField, SortDir } from './InsightsTable';
+
+const CausalInsightGraph = dynamic(() => import('./CausalInsightGraph'), { ssr: false });
+import InsightLineageDrawer from './InsightLineageDrawer';
 import GlowCard from './GlowCard';
 import { useReflectionTrigger } from '@/hooks/useReflectionTrigger';
-import { brainKeys, useInvalidateBrain, useReflectionRevalidation } from '../lib/queries';
+import { brainKeys, useInvalidateBrain, useReflectionRevalidation, useProjectTags, useUpsertAnnotation } from '../lib/queries';
 import { CACHE_PRESETS } from '@/lib/cache/cache-config';
 import { BRAIN_CHART } from '../lib/brainChartColors';
+import { useInsightFilterViews } from '../lib/useInsightFilterViews';
 
 interface Props {
   scope?: 'project' | 'global';
@@ -156,23 +162,45 @@ function InsightsEmptyState({ scope }: { scope: 'project' | 'global' }) {
 }
 
 export default function InsightsPanel({ scope = 'project' }: Props) {
-  const [sortField, setSortField] = useState<SortField>('confidence');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
-  const [typeFilter, setTypeFilter] = useState<InsightType | 'all' | 'conflicts'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const {
+    filters,
+    updateFilters,
+    resetFilters,
+    allViews,
+    activeViewId,
+    applyView,
+    saveCurrentView,
+    deleteView,
+    getShareableUrl,
+    hasActiveFilters,
+  } = useInsightFilterViews();
+
+  const { typeFilter, sortField, sortDir, searchQuery, tagFilter } = filters;
+
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [viewMode, setViewMode] = useState<'table' | 'graph'>('table');
+  const [lineageTarget, setLineageTarget] = useState<{ id: string; title: string } | null>(null);
+  const [showViewMenu, setShowViewMenu] = useState(false);
+  const [savingView, setSavingView] = useState(false);
+  const [newViewName, setNewViewName] = useState('');
+  const viewMenuRef = useRef<HTMLDivElement>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    setSearchQuery(value);
+    updateFilters({ searchQuery: value });
     clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(() => setDebouncedSearch(value), 300);
-  }, []);
+  }, [updateFilters]);
 
+  // Sync debouncedSearch when searchQuery changes from view application
   useEffect(() => {
+    if (searchQuery !== debouncedSearch) {
+      clearTimeout(searchTimerRef.current);
+      searchTimerRef.current = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    }
     return () => clearTimeout(searchTimerRef.current);
-  }, []);
+  }, [searchQuery]);
 
   const activeProject = useClientProjectStore((state) => state.activeProject);
   const projects = useServerProjectStore((state) => state.projects);
@@ -214,35 +242,88 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
   // Subscribe to reflection completion events for auto-refresh
   useReflectionRevalidation(scope, activeProject?.id, invalidateInsights);
 
-  const handleDelete = async (insight: InsightWithMeta) => {
-    try {
-      const response = await fetch('/api/brain/insights', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reflectionId: insight.reflection_id,
-          insightTitle: insight.title,
-        }),
-      });
-      if (response.ok) {
-        // Optimistically remove from cache, then invalidate
-        queryClient.setQueryData(
-          brainKeys.insightsList(activeProject?.id ?? '', scope),
-          (old: { success: boolean; insights: InsightWithMeta[] } | undefined) => {
-            if (!old) return old;
-            return {
-              ...old,
-              insights: old.insights.filter(i =>
-                !(i.title === insight.title && i.reflection_id === insight.reflection_id)
-              ),
-            };
-          }
-        );
+  // Tags for filter chips
+  const tagsQuery = useProjectTags(activeProject?.id, scope);
+  const availableTags = tagsQuery.data?.tags ?? [];
+
+  // Annotation mutation
+  const upsertMutation = useUpsertAnnotation(activeProject?.id, scope);
+  const handleSaveAnnotation = useCallback((insightId: string, note: string | null, tags: string[]) => {
+    upsertMutation.mutate({ insightId, note, tags });
+  }, [upsertMutation]);
+
+  // Track pending undo-able deletions so we can cancel them
+  const pendingDeleteTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  const handleDelete = useCallback((insight: InsightWithMeta) => {
+    const deleteKey = `${insight.reflection_id}::${insight.title}`;
+
+    // If there's already a pending delete for this insight, skip
+    if (pendingDeleteTimers.current.has(deleteKey)) return;
+
+    // Optimistically remove from cache immediately
+    const cacheKey = brainKeys.insightsList(activeProject?.id ?? '', scope);
+    queryClient.setQueryData(
+      cacheKey,
+      (old: { success: boolean; insights: InsightWithMeta[] } | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          insights: old.insights.filter(i =>
+            !(i.title === insight.title && i.reflection_id === insight.reflection_id)
+          ),
+        };
       }
-    } catch (err) {
-      console.error('Failed to delete insight:', err);
-    }
-  };
+    );
+
+    // Schedule the actual DELETE after 5 seconds
+    const timer = setTimeout(async () => {
+      pendingDeleteTimers.current.delete(deleteKey);
+      try {
+        await fetch('/api/brain/insights', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reflectionId: insight.reflection_id,
+            insightTitle: insight.title,
+          }),
+        });
+      } catch (err) {
+        console.error('Failed to delete insight:', err);
+        // Restore on failure by refetching
+        invalidateInsights();
+      }
+    }, 5000);
+
+    pendingDeleteTimers.current.set(deleteKey, timer);
+
+    // Show undo toast
+    toast.custom({
+      type: 'warning',
+      title: 'Insight deleted',
+      message: insight.title,
+      duration: 5000,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          // Cancel the pending DELETE
+          const t = pendingDeleteTimers.current.get(deleteKey);
+          if (t) {
+            clearTimeout(t);
+            pendingDeleteTimers.current.delete(deleteKey);
+          }
+          // Restore the insight in cache
+          queryClient.setQueryData(
+            cacheKey,
+            (old: { success: boolean; insights: InsightWithMeta[] } | undefined) => {
+              if (!old) return old;
+              return { ...old, insights: [...old.insights, insight] };
+            }
+          );
+        },
+      },
+    });
+  }, [activeProject?.id, scope, queryClient, invalidateInsights]);
 
   const handleResolveConflict = async (
     insight: InsightWithMeta,
@@ -270,11 +351,36 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+      updateFilters({ sortDir: sortDir === 'asc' ? 'desc' : 'asc' });
     } else {
-      setSortField(field);
-      setSortDir('desc');
+      updateFilters({ sortField: field, sortDir: 'desc' });
     }
+  };
+
+  // Close view menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (viewMenuRef.current && !viewMenuRef.current.contains(e.target as Node)) {
+        setShowViewMenu(false);
+        setSavingView(false);
+      }
+    };
+    if (showViewMenu) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showViewMenu]);
+
+  const handleSaveView = () => {
+    const name = newViewName.trim();
+    if (!name) return;
+    saveCurrentView(name);
+    setNewViewName('');
+    setSavingView(false);
+  };
+
+  const handleCopyShareUrl = () => {
+    const url = getShareableUrl();
+    navigator.clipboard.writeText(url);
+    toast.success('URL copied', 'Shareable filter URL copied to clipboard');
   };
 
   // Single-pass computation: counts + filtered/sorted list
@@ -301,6 +407,11 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
         continue;
       }
 
+      // Tag filter
+      if (tagFilter && !(i.annotation?.tags ?? []).includes(tagFilter)) {
+        continue;
+      }
+
       filtered.push(i);
     }
 
@@ -316,7 +427,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
     });
 
     return { conflictCount, autoPrunedCount, displayed: filtered };
-  }, [insights, typeFilter, sortField, sortDir, debouncedSearch]);
+  }, [insights, typeFilter, sortField, sortDir, debouncedSearch, tagFilter]);
 
   return (
     <GlowCard accentColor={ACCENT_COLOR} glowColor={GLOW_COLOR} borderColorClass="border-amber-500/20">
@@ -327,9 +438,157 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
           accentColor={ACCENT_COLOR}
           glowColor={GLOW_COLOR}
           glow
-          count={`${displayed.length}${typeFilter !== 'all' || debouncedSearch.trim() ? ` / ${insights.length}` : ''}`}
+          count={`${displayed.length}${typeFilter !== 'all' || debouncedSearch.trim() || tagFilter ? ` / ${insights.length}` : ''}`}
           right={
             <>
+              {/* Saved Views */}
+              <div className="relative" ref={viewMenuRef}>
+                <button
+                  onClick={() => setShowViewMenu(v => !v)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono transition-all focus-visible:ring-2 focus-visible:ring-amber-500/40 outline-none ${
+                    activeViewId
+                      ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                      : 'text-zinc-400 border border-zinc-700/40 hover:bg-zinc-800/60 hover:text-zinc-300'
+                  }`}
+                  style={{ background: activeViewId ? undefined : 'rgba(39, 39, 42, 0.5)' }}
+                  aria-label="Saved filter views"
+                >
+                  <Bookmark className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">
+                    {activeViewId ? allViews.find(v => v.id === activeViewId)?.name ?? 'View' : 'Views'}
+                  </span>
+                </button>
+
+                {showViewMenu && (
+                  <div
+                    className="absolute right-0 top-full mt-1.5 z-50 w-64 rounded-lg border border-zinc-700/50 bg-zinc-900/95 backdrop-blur-sm shadow-xl font-mono"
+                  >
+                    {/* Preset views */}
+                    <div className="px-2 pt-2 pb-1">
+                      <span className="text-2xs text-zinc-600 uppercase tracking-wider px-1">Presets</span>
+                    </div>
+                    {allViews.filter(v => v.isPreset).map(view => (
+                      <button
+                        key={view.id}
+                        onClick={() => { applyView(view.id); setShowViewMenu(false); }}
+                        className={`w-full text-left px-3 py-1.5 text-xs transition-colors hover:bg-zinc-800/80 flex items-center gap-2 ${
+                          activeViewId === view.id ? 'text-amber-300 bg-amber-500/10' : 'text-zinc-300'
+                        }`}
+                      >
+                        <Bookmark className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{view.name}</span>
+                      </button>
+                    ))}
+
+                    {/* User saved views */}
+                    {allViews.some(v => !v.isPreset) && (
+                      <>
+                        <div className="border-t border-zinc-800/60 mx-2 my-1" />
+                        <div className="px-2 pb-1">
+                          <span className="text-2xs text-zinc-600 uppercase tracking-wider px-1">Saved</span>
+                        </div>
+                        {allViews.filter(v => !v.isPreset).map(view => (
+                          <div
+                            key={view.id}
+                            className={`flex items-center gap-1 px-3 py-1.5 text-xs transition-colors hover:bg-zinc-800/80 ${
+                              activeViewId === view.id ? 'text-amber-300 bg-amber-500/10' : 'text-zinc-300'
+                            }`}
+                          >
+                            <button
+                              onClick={() => { applyView(view.id); setShowViewMenu(false); }}
+                              className="flex-1 text-left truncate flex items-center gap-2"
+                            >
+                              <Bookmark className="w-3 h-3 flex-shrink-0" />
+                              <span className="truncate">{view.name}</span>
+                            </button>
+                            <button
+                              onClick={() => deleteView(view.id)}
+                              className="p-0.5 text-zinc-600 hover:text-red-400 transition-colors"
+                              aria-label={`Delete view: ${view.name}`}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </>
+                    )}
+
+                    {/* Actions */}
+                    <div className="border-t border-zinc-800/60 mx-2 my-1" />
+                    {savingView ? (
+                      <div className="px-3 py-2 flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={newViewName}
+                          onChange={e => setNewViewName(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') handleSaveView(); if (e.key === 'Escape') setSavingView(false); }}
+                          placeholder="View name..."
+                          className="flex-1 rounded text-xs text-zinc-300 px-2 py-1 outline-none font-mono bg-zinc-800/80 border border-zinc-700/50 focus:ring-1 focus:ring-amber-500/40"
+                          autoFocus
+                        />
+                        <button
+                          onClick={handleSaveView}
+                          disabled={!newViewName.trim()}
+                          className="px-2 py-1 text-2xs text-amber-300 hover:bg-amber-500/15 rounded transition-colors disabled:opacity-40"
+                        >
+                          Save
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="px-1 py-1 flex flex-col gap-0.5">
+                        {hasActiveFilters && (
+                          <button
+                            onClick={() => setSavingView(true)}
+                            className="w-full text-left px-2 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/80 rounded transition-colors flex items-center gap-2"
+                          >
+                            <BookmarkPlus className="w-3 h-3" />
+                            Save current filters
+                          </button>
+                        )}
+                        {hasActiveFilters && (
+                          <button
+                            onClick={handleCopyShareUrl}
+                            className="w-full text-left px-2 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/80 rounded transition-colors flex items-center gap-2"
+                          >
+                            <Share2 className="w-3 h-3" />
+                            Copy shareable URL
+                          </button>
+                        )}
+                        {hasActiveFilters && (
+                          <button
+                            onClick={() => { resetFilters(); setShowViewMenu(false); }}
+                            className="w-full text-left px-2 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/80 rounded transition-colors flex items-center gap-2"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            Reset filters
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* View mode toggle */}
+              <div className="flex items-center rounded-lg overflow-hidden border border-zinc-700/40" style={{ background: 'rgba(39, 39, 42, 0.5)' }}>
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`p-1.5 transition-colors ${viewMode === 'table' ? 'bg-amber-500/15 text-amber-300' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  aria-label="Table view"
+                  title="Table view"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setViewMode('graph')}
+                  className={`p-1.5 transition-colors ${viewMode === 'graph' ? 'bg-amber-500/15 text-amber-300' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  aria-label="Causal graph view"
+                  title="Causal graph view"
+                >
+                  <GitFork className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
               {/* Search input */}
               <div className="relative flex items-center">
                 <Search className="absolute left-2.5 w-3.5 h-3.5 text-zinc-500 pointer-events-none" />
@@ -346,6 +605,28 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
                 />
               </div>
 
+              {/* Tag filter chips */}
+              {availableTags.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Tag className="w-3 h-3 text-zinc-500 shrink-0" />
+                  {availableTags.slice(0, 8).map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => updateFilters({ tagFilter: tagFilter === tag ? null : tag })}
+                      className={`px-2 py-0.5 rounded-full text-2xs font-mono transition-all focus-visible:ring-2 focus-visible:ring-amber-500/50 outline-none ${
+                        tagFilter === tag
+                          ? 'bg-amber-500/25 text-amber-300 border border-amber-500/40'
+                          : 'bg-zinc-800/60 text-zinc-400 border border-zinc-700/40 hover:bg-zinc-700/60 hover:text-zinc-300'
+                      }`}
+                      aria-label={`${tagFilter === tag ? 'Remove' : 'Filter by'} tag: ${tag}`}
+                    >
+                      {tag}
+                      {tagFilter === tag && <X className="w-2.5 h-2.5 ml-1 inline" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* Auto-pruned indicator */}
               {autoPrunedCount > 0 && (
                 <span
@@ -360,7 +641,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
               {/* Conflicts button - only for unresolved manual conflicts */}
               {conflictCount > 0 && (
                 <button
-                  onClick={() => setTypeFilter(typeFilter === 'conflicts' ? 'all' : 'conflicts')}
+                  onClick={() => updateFilters({ typeFilter: typeFilter === 'conflicts' ? 'all' : 'conflicts' })}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 outline-none ${
                     typeFilter === 'conflicts'
                       ? 'bg-red-500/20 text-red-400 border border-red-500/40'
@@ -378,7 +659,7 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
                 <Filter className="w-3.5 h-3.5 text-zinc-500" />
                 <select
                   value={typeFilter === 'conflicts' ? 'all' : typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value as InsightType | 'all' | 'conflicts')}
+                  onChange={(e) => updateFilters({ typeFilter: e.target.value as InsightType | 'all' | 'conflicts' })}
                   aria-label="Filter insight type"
                   className="rounded-lg text-xs text-zinc-300 px-3 py-1.5 outline-none font-mono focus-visible:ring-2 focus-visible:ring-purple-500/50"
                   style={{
@@ -418,6 +699,11 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
           </div>
         ) : insights.length === 0 ? (
           <InsightsEmptyState scope={scope} />
+        ) : viewMode === 'graph' ? (
+          <CausalInsightGraph
+            insights={displayed}
+            onViewLineage={(insight) => setLineageTarget({ id: insight.id, title: insight.title })}
+          />
         ) : (
           <InsightsTable
             insights={displayed}
@@ -427,10 +713,18 @@ export default function InsightsPanel({ scope = 'project' }: Props) {
             onSort={handleSort}
             onDelete={handleDelete}
             onResolveConflict={handleResolveConflict}
+            onViewLineage={(insight) => setLineageTarget({ id: insight.id, title: insight.title })}
+            onSaveAnnotation={handleSaveAnnotation}
             projectNameMap={projectNameMap}
           />
         )}
       </div>
+
+      <InsightLineageDrawer
+        insightId={lineageTarget?.id ?? null}
+        insightTitle={lineageTarget?.title}
+        onClose={() => setLineageTarget(null)}
+      />
     </GlowCard>
   );
 }

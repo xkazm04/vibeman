@@ -1,9 +1,9 @@
 'use client';
 
-import { Table2, Grid3X3, Layers, GitBranch } from 'lucide-react';
+import { Table2, Grid3X3, Layers, GitBranch, Network } from 'lucide-react';
 
 /** Available view modes for the Questions & Directions review section. */
-export type QuestionsViewMode = 'table' | 'tree' | 'matrix' | 'carousel';
+export type QuestionsViewMode = 'table' | 'tree' | 'matrix' | 'carousel' | 'topology';
 
 interface ViewModeToggleProps {
   /** Currently active view mode. */
@@ -48,6 +48,12 @@ const VIEW_MODES = [
     activeClass: 'bg-purple-600/30 text-purple-300 shadow-sm border border-purple-500/20',
     badgeKey: 'totalTrees' as const,
     badgeClass: 'bg-purple-500/20 text-purple-400',
+  },
+  {
+    key: 'topology' as const,
+    label: 'Topology',
+    icon: Network,
+    activeClass: 'bg-pink-600/30 text-pink-300 shadow-sm border border-pink-500/20',
   },
 ] as const;
 

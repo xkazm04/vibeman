@@ -124,16 +124,46 @@ Analyze the codebase and generate a task plan.
 
 ### 4.1 Gather Context
 
-1. Read `PROJECT_PATH/package.json` to understand the tech stack
-2. Read `PROJECT_PATH/tsconfig.json` if it exists
-3. Use Glob to discover the project structure:
+1. **Load accumulated learnings FIRST.** Read `docs/harness/harness-learnings.md` if it exists. This file records structural facts about the codebase discovered by prior runs (existing modules, conventions, tables, anti-patterns) — having it in hand before the other steps prevents re-discovering the same things from scratch.
+2. Read `PROJECT_PATH/package.json` to understand the tech stack
+3. Read `PROJECT_PATH/tsconfig.json` if it exists
+4. Use Glob to discover the project structure:
    - `src/**/*.ts` and `src/**/*.tsx` for source files
    - `tests/**/*.test.ts` for test patterns
-4. If target files were specified in Phase 2, read those files in full
-5. Otherwise, read key entry points (main layouts, app entry, API routes relevant to the goal)
-6. Check for accumulated learnings: read `docs/harness/harness-learnings.md` if it exists
+5. If target files were specified in Phase 2, read those files in full
+6. Otherwise, read key entry points (main layouts, app entry, API routes relevant to the goal)
 
 Track all files read in `FILES_READ`.
+
+### 4.1b Host-infrastructure-first grep (CRITICAL)
+
+Before generating any tasks, grep for the **category of host infrastructure** the goal would attach to. This catches existing-but-undocumented surface area in one grep and typically reframes the planned scope by 30-60%.
+
+Examples:
+- Goal mentions a new HTTP endpoint? `Grep "axum::|express|fastify|Router\.|router\.\w+\("` to find existing HTTP server setup
+- Goal mentions a new database table? `Grep "CREATE TABLE.*<related_concept>"` in migrations or schema files
+- Goal mentions a new background job? `Grep "setInterval|setTimeout|cron|Worker|queue"` to find existing job runners
+- Goal mentions auth/middleware? `Grep "middleware|auth.*check|requireAuth|session"` to find existing patterns
+- Goal mentions a new config file? `Grep "loadConfig|\.env|dotenv|config\." ` to find existing config loading
+
+**A single discovery here typically reframes 2-4 planned tasks at once** — what looked like "build new infrastructure" becomes "add to existing router" / "extend existing table". Do this before writing any task.
+
+If the host-infrastructure grep returns zero hits AND the goal involves an HTTP/IPC/external surface, **escalate**: either the feature requires building foundational infrastructure (bigger scope than a normal goal) OR the existing infrastructure is missing a standard defense (auth, sandbox, rate limit). Surface the finding to the user before generating tasks.
+
+### 4.1c Prefix-namespace grep
+
+When the host-first grep finds a relevant entity (table, module, class), immediately grep for all entities with the same prefix. E.g., if you find a `users` table, grep for `CREATE TABLE.*user_` — there's almost always more structure around it (`user_sessions`, `user_settings`, `user_preferences`). Missing the related entities leads to tasks that violate existing invariants.
+
+### 4.1d Already-existed check
+
+For each planned feature in the goal, grep the codebase to check whether it already exists (even partially). Common pattern: a goal says "add X feature" and 30-50% of X is already implemented in a file the user didn't mention. Before planning, verify by grepping for:
+- Function/method names that would be part of the feature
+- Strings/constants specific to the feature
+- File names in directories the feature would live in
+
+If **50%+ of the feature already exists**, do NOT generate tasks as if starting from zero. Rescope the goal to "finish/extend existing X at `file.ts:line`" and present the rescoping to the user as part of Phase 4.4 approval. Track already-existed findings in a running note for the Phase 7 report.
+
+**This rule alone has historically caught 30-40% of planned work across similar skills** — don't skip it.
 
 ### 4.2 Consult Brain (Optional)
 
@@ -220,6 +250,21 @@ If a task fails after 3 fix attempts, mark it as `TASKS_FAILED` and move on.
 - **Follow patterns**: Match the project's existing conventions for imports, exports, error handling
 - **No gold-plating**: Implement exactly what the task describes, nothing more
 - **Fix forward**: If you discover a problem during implementation, fix it in the current task or note it as a follow-up
+- **Non-goals** (do NOT do any of these without explicit user approval):
+  - Do NOT modify CI/CD configs, `.github/workflows/`, or deployment scripts
+  - Do NOT change package dependencies (`package.json`, `Cargo.toml`) beyond what the task explicitly requires
+  - Do NOT delete existing tests, even if they appear unrelated — flag them as questionable instead
+  - Do NOT touch auth, credential, or secret-handling code unless the goal is explicitly about it
+  - Do NOT rename public APIs, exported functions, or database columns without checking all callers
+  - Do NOT commit changes to files outside the task's declared target files
+- **Security check on privileged surfaces**: When the task touches an HTTP endpoint, IPC command, webhook receiver, or subprocess spawn site, grep for auth/sandbox patterns (`auth|middleware|requireAuth|Bearer|sandbox|--dangerously`) in the target file BEFORE implementing. If the grep returns zero hits, surface the finding to the user as a security risk before proceeding — do not silently add a new unprotected endpoint or spawn site.
+
+### Stuck-escape-hatch
+
+If a task fails after 3 fix attempts:
+1. Mark it as `TASKS_FAILED` (existing rule).
+2. Write a short note to `docs/harness/followups-{YYYY-MM-DD}.md` describing what was attempted, what failed, and what the next session should try. This creates a breadcrumb so future runs can pick up without re-discovering the same dead end.
+3. Continue with the next task. Do not block the pipeline.
 
 ---
 
@@ -269,7 +314,27 @@ Score: **+10 points** if all tasks completed, scaled by `TASKS_COMPLETED / TASKS
 ### 6.7 Compute Total
 Sum all scores for a **Quality Score (0-100)**.
 
-### 6.8 Record Brain Signal
+### 6.8 Record structural learnings (write-back to `harness-learnings.md`)
+
+If this run discovered any **structural fact** about the codebase that future runs would need to know, append it to `docs/harness/harness-learnings.md`. Examples of structural facts worth capturing:
+
+- A module, table, or feature existed that wasn't obvious from the file tree
+- An architectural boundary (e.g. "X lives in the plugin layer, not core")
+- A convention the code enforces but isn't documented (e.g. "all X types must derive Y")
+- A constraint discovered the hard way (e.g. "Z must come before W in the init sequence")
+- A "catalog vs runtime" distinction where a count looks bigger than it really is per execution
+
+Do NOT capture:
+- One-off bug fixes (that's what git log is for)
+- Personal preferences unique to this run
+- Transient state (in-progress branches, scratch files)
+- Anything already documented elsewhere (check the file first)
+
+Format: append a dated bullet to an existing "Structural facts" section, or create one if missing. Keep each bullet under 3 lines. Link to the file/line that surfaced the fact.
+
+This step exists because structural facts discovered during implementation are otherwise lost — the next run will re-discover them from scratch. A small, disciplined write-back compounds into a living reference that shortens every future Phase 4.1.
+
+### 6.9 Record Brain Signal
 ```bash
 curl -s -X POST http://localhost:3000/api/brain/signals \
   -H 'Content-Type: application/json' \
@@ -323,6 +388,16 @@ Project: PROJECT_NAME | Quality: XX/100 | Grade: A/B/C/D/F
 | Lines added | ~LINES_ADDED |
 | Lines removed | ~LINES_REMOVED |
 | Net change | +/- LINES |
+
+## Already-existed catches (host-first rule payoff)
+
+List each planned task or subtask that was caught during Phase 4.1b-d as already implemented (fully or mostly), so the scope was reduced or reframed:
+
+- [if any] "Add X endpoint" → already exists at `file.ts:line` — rescoped to "extend existing endpoint"
+- [if any] "Create Y table" → already in migrations as `y_table` — rescoped to "add column to existing table"
+- [if none] No already-existed catches this run.
+
+This section is not purely cosmetic — a high catch rate here is a signal that the goal was underspecified or that the project's context drifted since the last run. Consider updating `harness-learnings.md` when catches happen.
 
 ## Quality Gates
 
@@ -404,3 +479,48 @@ curl -s -X PUT http://localhost:3000/api/goals \
 - **Build fails persistently**: After 3 failed fix attempts on the same error, stop and present the error to the user for guidance. Increment `TASKS_FAILED`.
 - **API errors**: Log the error but don't block the pipeline — API integration is enhancement, not critical path.
 - **Partial completion**: If interrupted, still produce the Phase 7 report with whatever data was collected.
+
+---
+
+## Skill Iteration Log
+
+This section records *why* each non-obvious rule exists. When a rule looks redundant on a future read, check here before removing — the reason may still apply.
+
+### 2026-04-08 — initial transfer from `/research` skill iteration (runs 1-6)
+
+**Context:** The `/research` skill at `personas/.claude/skills/research/skill.md` went through a 6-run iteration cycle on the personas codebase. Several of its rules proved high-leverage across every run and are directly applicable to vibeman's Phase 4 (Plan) and Phase 5 (Implement). They were ported here. Vibeman's execution-heavy counters, quality score, and baseline comparison are kept unchanged — those are vibeman's own strengths that `/research` doesn't have.
+
+**Rules added:**
+
+- **Phase 4.1b — Host-infrastructure-first grep.** Before planning any task, grep for the category of host infrastructure the goal would attach to (HTTP server, DB migration, background job, middleware, config loader). Added because every `/research` run that applied this rule found existing surface area the naive plan would have duplicated — typically 2-4 planned tasks per discovery. Across 6 runs of `/research`, the rule caught ~25 candidate findings as "already existed" that would otherwise have become wasted implementation work. The single highest-leverage change made to any skill in that iteration.
+
+- **Phase 4.1c — Prefix-namespace grep.** When the host-first grep finds one entity, immediately grep for all entities with the same prefix. Added after `/research` run 4 discovered `team_memories` and missed `persona_teams` + `persona_team_members` + `persona_team_connections` on the first pass. The fix: always expand the grep to the prefix namespace so the full related structure surfaces in one pass.
+
+- **Phase 4.1d — Already-existed check.** Explicit scan for whether the planned feature is already partially implemented. Added because half the findings in `/research` runs 4 and 5 turned out to be implementations of things the skill was about to propose building from scratch. For an execution skill like vibeman, this is even more critical: the cost of implementing a duplicate is higher than the cost of just proposing one.
+
+- **Phase 4.1 reordering — load `harness-learnings.md` FIRST.** Was step 6; now step 1. Accumulated learnings should be in hand before the other context steps so the host-first grep knows what to look for. Same reason `/research` loads `codebase-stack.md` at the start of Phase 1.
+
+- **Phase 5 non-goals list.** Added explicit "do NOT" items (CI/CD, deps, tests, auth, public APIs, files outside target). `/research` handoff plans always include a "non-goals" section because every run discovered scope-creep traps; the same pattern applies to vibeman execution.
+
+- **Phase 5 security check on privileged surfaces.** When touching HTTP/IPC/spawn sites, grep for auth/sandbox patterns first. Added after `/research` runs 1 and 3 both surfaced security findings (personas' management API had no auth; `--dangerously-skip-permissions` with no OS sandbox). The pattern: privileged surface + missing standard defense = critical. Vibeman could silently introduce such gaps by implementing a feature without this check.
+
+- **Phase 5 stuck-escape-hatch.** After 3 failed fix attempts, write a breadcrumb to `docs/harness/followups-{date}.md`. `/research` handoff plans always include a "what to do if you get stuck" section for exactly this reason — stuck sessions should leave notes for the next session instead of burning context retrying.
+
+- **Phase 6.8 — write-back to `harness-learnings.md`.** Before the brain signal step, append any structural facts discovered during the run. Added because `/research` runs 2, 3, 4, 6 all discovered structural facts about the codebase that future runs needed — but until a Phase 10e rule was added, those facts were lost. The analog here: every Phase 6 run should contribute back to the learnings file so the next Phase 4.1 starts with richer context.
+
+- **Phase 7 — `Already-existed catches` section in the report.** Track what the host-first rule caught. `/research` added this as `already_existed: [...]` in run 4's frontmatter; run 6 made it a standard counter. High catch rates are a signal that the goal was underspecified or context has drifted.
+
+**Rules NOT transferred (and why):**
+
+- **Cluster detection in presentation.** `/research` Phase 7 bundles related findings before showing them to the user. Vibeman implements one goal at a time with dependencies already explicit in the task graph — clustering doesn't add value for a single-goal execution.
+- **Handoff plan as output option.** Vibeman IS the executor; it produces code + a report, not plans to be executed elsewhere.
+- **Discovery briefs.** Vibeman is an execution skill, not a research skill.
+- **Obsidian memory loop.** `/research` writes to `~/Documents/Obsidian/personas`. Vibeman uses `harness-learnings.md` + brain signals instead — same idea, simpler and more in-repo.
+- **Catalog-vs-runtime rule (verbatim).** This was personas-specific ("87 connectors in catalog, 0-3 bound per persona"). The *general principle* — "config count ≠ runtime count" — is worth remembering but doesn't warrant a dedicated rule in vibeman until a concrete case justifies it.
+- **Framework-vs-plugin routing (verbatim).** Personas-specific boundary between core and `dev-tools` plugin. Vibeman targets different codebases; it should discover their boundaries organically via the host-first rule rather than bake in assumptions about plugin structure.
+
+**Open questions for future vibeman iterations:**
+
+- Does the host-first rule pay off the same way in vibeman's execution context as it did in `/research`'s extraction context? The payoff mechanism is identical (avoiding duplicate work), but vibeman writes code — if the rule catches something mid-Phase 5, it may be too late to avoid the cost entirely. Worth measuring the catch rate across early runs.
+- Should `docs/harness/harness-learnings.md` have a formal structure (sections, frontmatter) the way `codebase-stack.md` does in personas? The `/research` skill got more value out of a structured reference file than a flat list. Consider formalizing once 3-5 runs have contributed learnings.
+- The security check rule (Phase 5) fires on grep heuristics. It may produce false positives on internal dev-only endpoints. Track the false-positive rate over early runs — if it's noisy, add a way for the user to mark a target file as "known-safe" via a frontmatter or comment.

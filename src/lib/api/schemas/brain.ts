@@ -100,14 +100,48 @@ export const BrainInsightsResponseSchema = envelopeSchema(BrainInsightsDataSchem
 export const BrainHeatmapResponseSchema = envelopeSchema(BrainHeatmapDataSchema);
 export const BrainEffectivenessResponseSchema = envelopeSchema(BrainEffectivenessDataSchema);
 
+// Dashboard combined response schema
+const BrainDashboardReflectionSchema = z.object({
+  isRunning: z.boolean().default(false),
+  lastCompleted: dbObject<DbBrainReflection>().nullable().default(null),
+  decisionsSinceLastReflection: z.number().default(0),
+  nextThreshold: z.number().default(20),
+  shouldTrigger: z.boolean().default(false),
+  triggerReason: z.string().nullable().default(null),
+  runningReflection: z.object({
+    id: z.string(),
+  }).nullable().default(null),
+});
+
+const BrainDashboardOutcomeStatsSchema = z.object({
+  total: z.number().default(0),
+  successful: z.number().default(0),
+  failed: z.number().default(0),
+  reverted: z.number().default(0),
+  pending: z.number().default(0),
+  avgSatisfaction: z.number().nullable().optional(),
+});
+
+export const BrainDashboardResponseSchema = z.object({
+  success: z.boolean(),
+  context: dbObject<BehavioralContext>().nullable().default(null),
+  outcomes: z.array(dbObject<DbDirectionOutcome>()).default([]),
+  outcomeStats: BrainDashboardOutcomeStatsSchema.default({ total: 0, successful: 0, failed: 0, reverted: 0, pending: 0 }),
+  reflection: BrainDashboardReflectionSchema.default({ isRunning: false, lastCompleted: null, runningReflection: null, decisionsSinceLastReflection: 0, nextThreshold: 20, shouldTrigger: false, triggerReason: null }),
+  anomalies: z.array(z.record(z.string(), z.unknown())).default([]),
+});
+
 // Backwards-compatible export (for OutcomesResponseSchema, not yet migrated)
+const OutcomeStatsShape = z.object({
+  total: z.number(),
+  successful: z.number(),
+  failed: z.number(),
+  reverted: z.number(),
+  pending: z.number(),
+});
+
 export const BrainOutcomesResponseSchema = z.object({
   outcomes: z.array(dbObject<DbDirectionOutcome>()).default([]),
-  stats: z.object({
-    total: z.number(),
-    successful: z.number(),
-    failed: z.number(),
-    reverted: z.number(),
-    pending: z.number(),
-  }).default({ total: 0, successful: 0, failed: 0, reverted: 0, pending: 0 }),
+  stats: OutcomeStatsShape.default({ total: 0, successful: 0, failed: 0, reverted: 0, pending: 0 }),
+  priorStats: OutcomeStatsShape.nullable().optional().default(null),
 });

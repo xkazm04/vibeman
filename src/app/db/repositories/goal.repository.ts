@@ -25,6 +25,16 @@ export const goalRepository = {
   getGoalById: (goalId: string): DbGoal | null => base.getById(goalId),
 
   /**
+   * Get multiple goals by IDs in a single query (batch fetch).
+   */
+  getGoalsByIds: (goalIds: string[]): DbGoal[] => {
+    if (goalIds.length === 0) return [];
+    const db = getDatabase();
+    const placeholders = goalIds.map(() => '?').join(',');
+    return db.prepare(`SELECT * FROM goals WHERE id IN (${placeholders})`).all(...goalIds) as DbGoal[];
+  },
+
+  /**
    * Create a new goal
    */
   createGoal: (goal: {
@@ -144,17 +154,22 @@ export const goalRepository = {
   },
 
   /**
-   * Update goal progress metadata
+   * Update goal progress with unified model (value, source, confidence)
    */
-  updateGoalProgress: (goalId: string, progress: number): DbGoal | null => {
+  updateGoalProgress: (
+    goalId: string,
+    progress: number,
+    source: 'manual' | 'inferred' | 'hybrid' = 'manual',
+    confidence: number = 100
+  ): DbGoal | null => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
     const stmt = db.prepare(`
       UPDATE goals
-      SET progress = ?, updated_at = ?
+      SET progress = ?, progress_source = ?, progress_confidence = ?, updated_at = ?
       WHERE id = ?
     `);
-    const result = stmt.run(progress, now, goalId);
+    const result = stmt.run(progress, source, confidence, now, goalId);
     if (result.changes === 0) return null;
     return selectOne<DbGoal>(db, 'SELECT * FROM goals WHERE id = ?', goalId);
   },

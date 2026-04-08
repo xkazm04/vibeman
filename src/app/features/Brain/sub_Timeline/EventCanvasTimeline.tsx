@@ -7,8 +7,10 @@ import { useClientProjectStore } from '@/stores/clientProjectStore';
 import BrainEmptyState from '../components/BrainEmptyState';
 
 import { relTime } from '../sub_MemoryCanvas/lib/helpers';
-import { COLORS, RECENCY_GLOW_HOURS, LANE_TYPES } from '../sub_MemoryCanvas/lib/constants';
-import type { SignalType, BrainEvent } from '../sub_MemoryCanvas/lib/types';
+import { RECENCY_GLOW_HOURS, LANE_TYPES } from '../sub_MemoryCanvas/lib/constants';
+import { COLORS } from '../lib/brainConstants';
+import type { SignalType } from '../lib/brainConstants';
+import type { BrainEvent } from '../sub_MemoryCanvas/lib/types';
 import type { RenderContext } from '../sub_MemoryCanvas/lib/canvasRenderPipeline';
 import { mapSignalsToEvents } from '../sub_MemoryCanvas/lib/signalMapper';
 import { resolveLaneCollisions } from '../sub_MemoryCanvas/lib/canvasLayout';
@@ -373,6 +375,7 @@ export default function EventCanvasTimeline() {
     return () => {
       resizeObs.disconnect();
       canvas.removeEventListener('mousemove', handleMouseMove);
+      cancelAnimationFrame(animRef.current);
       stopPulseAnimation();
     };
   }, [activeProject?.id, positionEvents, requestRender, stopPulseAnimation]);

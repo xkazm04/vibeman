@@ -11,6 +11,7 @@ export interface ContextCardsProps {
   group?: ContextGroup;
   availableGroups: ContextGroup[];
   showFullScreenModal: ShowFullScreenModalFn;
+  onMoveContext?: (contextId: string, groupId: string | null) => void;
 }
 
 export interface ContextCardsEmptyProps {
@@ -25,6 +26,7 @@ export interface ContextJailCardProps {
   index: number;
   fontSize: string;
   availableGroups: ContextGroup[];
+  onMoveContext?: (contextId: string, groupId: string | null) => void;
 }
 
 export interface ContextSectionContentProps {

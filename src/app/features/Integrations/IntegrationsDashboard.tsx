@@ -6,7 +6,7 @@
  * CompactList for integrations
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { transition } from '@/lib/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -77,12 +77,36 @@ export function IntegrationsDashboard({ projectId, projectName }: IntegrationsDa
     }
   };
 
-  // Handle delete
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this integration?')) {
+  // Two-step delete confirmation state
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const deleteConfirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (deleteConfirmTimer.current) clearTimeout(deleteConfirmTimer.current);
+    };
+  }, []);
+
+  // Handle delete with two-step confirmation
+  const handleDelete = useCallback((id: string) => {
+    if (confirmingDeleteId !== id) {
+      // First click: enter confirmation mode
+      setConfirmingDeleteId(id);
+      if (deleteConfirmTimer.current) clearTimeout(deleteConfirmTimer.current);
+      deleteConfirmTimer.current = setTimeout(() => {
+        setConfirmingDeleteId(null);
+      }, 4000);
       return;
     }
 
+    // Second click: execute delete
+    if (deleteConfirmTimer.current) clearTimeout(deleteConfirmTimer.current);
+    setConfirmingDeleteId(null);
+    executeDelete(id);
+  }, [confirmingDeleteId]);
+
+  const executeDelete = async (id: string) => {
     try {
       const response = await fetch(`/api/integrations?id=${id}`, {
         method: 'DELETE',
@@ -97,10 +121,10 @@ export function IntegrationsDashboard({ projectId, projectName }: IntegrationsDa
         setSuccessMessage('Integration deleted');
         setTimeout(() => setSuccessMessage(null), 3000);
       } else {
-        alert(data.error || 'Failed to delete integration');
+        setError(data.error || 'Failed to delete integration');
       }
     } catch {
-      alert('Failed to delete integration');
+      setError('Failed to delete integration');
     }
   };
 

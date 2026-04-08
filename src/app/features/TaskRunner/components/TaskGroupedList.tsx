@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Square, CheckSquare } from 'lucide-react';
 import TaskItem from '../TaskItem';
 import { TruncateTooltip } from '@/components/ui/TruncateTooltip';
@@ -37,6 +37,10 @@ export default function TaskGroupedList({
   onReset,
   onToggleContextSelection,
 }: TaskGroupedListProps) {
+  // Stable callbacks that pass reqId — avoids creating new closures per item in the map loop
+  const handleToggleSelect = useCallback((reqId: string) => onToggleSelect(reqId), [onToggleSelect]);
+  const handleDelete = useCallback((reqId: string) => onDelete(reqId), [onDelete]);
+  const handleReset = useCallback((reqId: string) => onReset?.(reqId), [onReset]);
   if (groupedRequirements.length === 0) {
     return (
       <div className="flex items-center justify-center h-20 text-2xs text-gray-600">
@@ -113,13 +117,14 @@ export default function TaskGroupedList({
             {group.requirements.map((req) => {
               const reqId = getRequirementId(req);
               return (
-                <TaskItem
+                <TaskItemWithStableCallbacks
                   key={reqId}
                   requirement={req}
+                  reqId={reqId}
                   isSelected={selectedRequirements.has(reqId)}
-                  onToggleSelect={() => onToggleSelect(reqId)}
-                  onDelete={() => onDelete(reqId)}
-                  onReset={onReset ? () => onReset(reqId) : undefined}
+                  onToggleSelect={handleToggleSelect}
+                  onDelete={handleDelete}
+                  onReset={onReset ? handleReset : undefined}
                   projectPath={req.projectPath}
                   projectId={projectId}
                   idea={ideasMap[req.requirementName]}
@@ -133,5 +138,45 @@ export default function TaskGroupedList({
     </>
   );
 }
+
+// Wrapper that binds reqId to stable parent callbacks so TaskItem (React.memo) gets stable refs
+const TaskItemWithStableCallbacks = React.memo(function TaskItemWithStableCallbacks({
+  requirement,
+  reqId,
+  isSelected,
+  onToggleSelect,
+  onDelete,
+  onReset,
+  projectPath,
+  projectId,
+  idea,
+}: {
+  requirement: ProjectRequirement;
+  reqId: string;
+  isSelected: boolean;
+  onToggleSelect: (reqId: string) => void;
+  onDelete: (reqId: string) => void;
+  onReset?: (reqId: string) => void;
+  projectPath: string;
+  projectId: string;
+  idea?: DbIdea | null;
+}) {
+  const handleToggle = useCallback(() => onToggleSelect(reqId), [onToggleSelect, reqId]);
+  const handleDel = useCallback(() => onDelete(reqId), [onDelete, reqId]);
+  const handleRes = useCallback(() => onReset?.(reqId), [onReset, reqId]);
+
+  return (
+    <TaskItem
+      requirement={requirement}
+      isSelected={isSelected}
+      onToggleSelect={handleToggle}
+      onDelete={handleDel}
+      onReset={onReset ? handleRes : undefined}
+      projectPath={projectPath}
+      projectId={projectId}
+      idea={idea}
+    />
+  );
+});
 
 export type { GroupedRequirement };

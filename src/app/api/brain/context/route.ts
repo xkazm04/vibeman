@@ -9,6 +9,7 @@ import { withObservability } from '@/lib/observability/middleware';
 import { getContext } from '@/lib/brain/brainService';
 import { parseQueryInt } from '@/lib/api-helpers/parseQueryInt';
 import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
+import { CONTEXT_WINDOW_DAYS, EFFECTIVENESS_WINDOW_DAYS } from '@/lib/brain/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,9 +24,9 @@ async function handleGET(request: NextRequest) {
     }
 
     const windowDays = parseQueryInt(searchParams.get('windowDays'), {
-      default: 7,
+      default: CONTEXT_WINDOW_DAYS,
       min: 1,
-      max: 90,
+      max: EFFECTIVENESS_WINDOW_DAYS,
       paramName: 'windowDays',
     });
 

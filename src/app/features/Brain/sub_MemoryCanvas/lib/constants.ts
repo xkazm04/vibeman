@@ -1,21 +1,8 @@
 import type { SignalType } from './types';
-import { SIGNAL_METADATA, getVisualizableSignalTypes } from '@/types/signals';
-
-/**
- * Color map for visualizable signal types (derived from canonical metadata)
- */
-export const COLORS: Record<string, string> = {};
-for (const type of getVisualizableSignalTypes()) {
-  COLORS[type] = SIGNAL_METADATA[type].color;
-}
-
-/**
- * Short label map for visualizable signal types (derived from canonical metadata)
- */
-export const LABELS: Record<string, string> = {};
-for (const type of getVisualizableSignalTypes()) {
-  LABELS[type] = SIGNAL_METADATA[type].shortLabel;
-}
+import { getVisualizableSignalTypes } from '@/types/signals';
+// COLORS & LABELS now live in the shared Brain lib — re-export for
+// backward-compat within Canvas internals.
+export { COLORS, LABELS } from '../../lib/brainConstants';
 
 export const BG = '#0f0f11';
 

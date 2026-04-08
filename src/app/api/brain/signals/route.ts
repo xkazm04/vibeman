@@ -68,9 +68,18 @@ function validateSignalData(signalType: BehavioralSignalType, data: Record<strin
       if (typeof data.source !== 'string') return 'cli_memory.data requires source (string)';
       return null;
     }
-    case SignalType.SESSION_CLUSTER:
-      // Session clusters are created internally by the clustering algorithm
+    case SignalType.SESSION_CLUSTER: {
+      if (!Array.isArray(data.childSignalIds)) return 'session_cluster.data requires childSignalIds (string[])';
+      if (typeof data.dominantType !== 'string') return 'session_cluster.data requires dominantType (string)';
+      if (typeof data.signalCount !== 'number') return 'session_cluster.data requires signalCount (number)';
+      if (typeof data.startTime !== 'string') return 'session_cluster.data requires startTime (string)';
+      if (typeof data.endTime !== 'string') return 'session_cluster.data requires endTime (string)';
+      if (typeof data.durationMs !== 'number') return 'session_cluster.data requires durationMs (number)';
+      if (typeof data.intensity !== 'number') return 'session_cluster.data requires intensity (number)';
+      if (!Array.isArray(data.filesTouched)) return 'session_cluster.data requires filesTouched (string[])';
+      if (typeof data.summary !== 'string') return 'session_cluster.data requires summary (string)';
       return null;
+    }
     default:
       return `Unknown signal type: ${signalType}`;
   }
@@ -155,13 +164,14 @@ async function handleGet(request: NextRequest) {
       since: since || undefined,
     };
 
-    // Use unclustered query in compressed mode to hide absorbed signals
-    const signals = compressed
-      ? behavioralSignalDb.getUnclusteredByProject(projectId!, queryOptions)
-      : behavioralSignalDb.getByProject(projectId!, queryOptions);
-
-    const counts = behavioralSignalDb.getCountByType(projectId!);
-    const contextActivity = behavioralSignalDb.getContextActivity(projectId!);
+    // Run independent queries in parallel instead of sequentially
+    const [signals, counts, contextActivity] = await Promise.all([
+      Promise.resolve(compressed
+        ? behavioralSignalDb.getUnclusteredByProject(projectId!, queryOptions)
+        : behavioralSignalDb.getByProject(projectId!, queryOptions)),
+      Promise.resolve(behavioralSignalDb.getCountByType(projectId!)),
+      Promise.resolve(behavioralSignalDb.getContextActivity(projectId!)),
+    ]);
 
     return buildSuccessResponse({
       signals,

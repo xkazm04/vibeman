@@ -3,9 +3,11 @@
 import React, { useMemo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import { X, Clock } from 'lucide-react';
 import { SupportedProvider } from '@/lib/llm/types';
 import { LLM_PROVIDERS } from '@/lib/llm/providers-config';
 import { useProviderAvailability } from '@/hooks/useProviderAvailability';
+import { useProviderHealth, type ProviderHealthMetrics } from '@/hooks/useProviderHealth';
 
 interface ProviderSelectorProps {
   selectedProvider: SupportedProvider;
@@ -13,6 +15,46 @@ interface ProviderSelectorProps {
   disabled?: boolean;
   compact?: boolean;
   showAllProviders?: boolean;
+}
+
+/** Derive ring color class + animation from circuit breaker metrics */
+function getHealthRing(m: ProviderHealthMetrics | undefined): {
+  ringClass: string;
+  animClass: string;
+  badge: 'x' | 'clock' | null;
+} {
+  if (!m) return { ringClass: '', animClass: '', badge: null };
+
+  if (m.rateLimited) {
+    return {
+      ringClass: 'ring-2 ring-orange-500/60',
+      animClass: '',
+      badge: 'clock',
+    };
+  }
+
+  switch (m.state) {
+    case 'open':
+      return {
+        ringClass: 'ring-2 ring-red-500/60',
+        animClass: '',
+        badge: 'x',
+      };
+    case 'half-open':
+      return {
+        ringClass: 'ring-2 ring-amber-500/60',
+        animClass: 'animate-[health-pulse_1.5s_ease-in-out_infinite]',
+        badge: null,
+      };
+    case 'closed':
+      return {
+        ringClass: 'ring-2 ring-emerald-500/60',
+        animClass: 'animate-[health-pulse_4s_ease-in-out_infinite]',
+        badge: null,
+      };
+    default:
+      return { ringClass: '', animClass: '', badge: null };
+  }
 }
 
 /**
@@ -28,6 +70,7 @@ export default function ProviderSelector({
   showAllProviders = true
 }: ProviderSelectorProps) {
   const { configured, providers, isLoading } = useProviderAvailability();
+  const { metrics: healthMetrics } = useProviderHealth();
 
   // Filter providers to only show configured ones (unless showAllProviders is true)
   const availableProviders = useMemo(() => {
@@ -85,6 +128,9 @@ export default function ProviderSelector({
             ? `${provider.name}: ${status.suggestion}`
             : `${provider.name} (Not configured)`;
 
+        const health = healthMetrics[provider.value];
+        const ring = getHealthRing(health);
+
         return (
           <motion.button
             key={provider.value}
@@ -106,6 +152,12 @@ export default function ProviderSelector({
             title={tooltip}
             data-testid={`provider-selector-${provider.value}`}
           >
+            {/* Circuit breaker health ring overlay */}
+            {ring.ringClass && (
+              <span
+                className={`pointer-events-none absolute inset-0 rounded-lg transition-colors duration-500 ${ring.ringClass} ${ring.animClass}`}
+              />
+            )}
             <Image
               src={provider.icon}
               alt={provider.name}
@@ -113,7 +165,19 @@ export default function ProviderSelector({
               height={compact ? 20 : 24}
               className={`mx-auto ${!isConfigured ? 'opacity-50' : ''}`}
             />
-            {!isConfigured && showAllProviders && (
+            {/* Open circuit X badge */}
+            {ring.badge === 'x' && (
+              <span className="absolute -bottom-1 -right-1 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-red-600 border border-gray-900">
+                <X className="w-2 h-2 text-white" strokeWidth={3} />
+              </span>
+            )}
+            {/* Rate-limited clock badge */}
+            {ring.badge === 'clock' && (
+              <span className="absolute -bottom-1 -right-1 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-orange-600 border border-gray-900">
+                <Clock className="w-2 h-2 text-white" strokeWidth={3} />
+              </span>
+            )}
+            {!isConfigured && showAllProviders && !ring.badge && (
               <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full border border-gray-900" />
             )}
             {!isConfigured && status?.suggestion && (

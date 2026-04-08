@@ -6,8 +6,8 @@
 
 'use client';
 
-import { useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CACHE_PRESETS } from '@/lib/cache/cache-config';
 import { subscribeToReflectionCompletion } from '@/stores/reflectionCompletionEmitter';
 import { brainKeys } from './queryKeys';
@@ -25,6 +25,15 @@ import {
   fetchPredictions,
   fetchReflectionHistory,
   fetchEvidenceRefs,
+  fetchInsightLineage,
+  fetchMonitors,
+  createMonitor,
+  updateMonitorEventStatus,
+  evaluateMonitors,
+  deleteMonitor,
+  upsertAnnotation,
+  deleteAnnotation,
+  fetchProjectTags,
 } from './apiClient';
 
 // ── Signal queries ───────────────────────────────────────────────────────────
@@ -154,12 +163,55 @@ export function useReflectionHistory(projectId: string | null, scope = 'project'
 
 // ── Evidence queries ─────────────────────────────────────────────────────────
 
+export function useInsightLineage(insightId: string | null) {
+  return useQuery({
+    queryKey: brainKeys.insightLineage(insightId ?? ''),
+    queryFn: () => fetchInsightLineage(insightId!),
+    enabled: !!insightId,
+    ...CACHE_PRESETS.brainInsights,
+  });
+}
+
 export function useEvidenceRefs(evidence: Array<{ type: string; id: string }>, enabled: boolean) {
   return useQuery({
     queryKey: [...brainKeys.insights(), 'evidence', ...evidence.map(e => e.id)],
     queryFn: () => fetchEvidenceRefs(evidence),
     enabled: enabled && evidence.length > 0,
     ...CACHE_PRESETS.brainInsights,
+  });
+}
+
+// ── Annotation queries ─────────────────────────────────────────────────────
+
+export function useProjectTags(projectId: string | null | undefined, scope: string) {
+  return useQuery({
+    queryKey: brainKeys.insightTags(projectId ?? null, scope),
+    queryFn: () => fetchProjectTags(projectId ?? null, scope),
+    enabled: scope === 'global' || !!projectId,
+    ...CACHE_PRESETS.brainInsights,
+  });
+}
+
+export function useUpsertAnnotation(projectId: string | undefined, scope: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ insightId, note, tags }: { insightId: string; note: string | null; tags: string[] }) =>
+      upsertAnnotation(insightId, note, tags),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: brainKeys.insightsList(projectId ?? '', scope) });
+      queryClient.invalidateQueries({ queryKey: brainKeys.insightTags(projectId ?? null, scope) });
+    },
+  });
+}
+
+export function useDeleteAnnotation(projectId: string | undefined, scope: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (insightId: string) => deleteAnnotation(insightId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: brainKeys.insightsList(projectId ?? '', scope) });
+      queryClient.invalidateQueries({ queryKey: brainKeys.insightTags(projectId ?? null, scope) });
+    },
   });
 }
 
@@ -197,5 +249,58 @@ export function useInvalidateBrain() {
     invalidateInsights: () => queryClient.invalidateQueries({ queryKey: brainKeys.insights() }),
     invalidatePredictions: () => queryClient.invalidateQueries({ queryKey: brainKeys.predictions() }),
     invalidateReflections: () => queryClient.invalidateQueries({ queryKey: brainKeys.reflections() }),
+    invalidateMonitors: () => queryClient.invalidateQueries({ queryKey: brainKeys.monitors() }),
   };
+}
+
+// ── Monitor queries ─────────────────────────────────────────────────────────
+
+export function useMonitors(projectId: string | undefined) {
+  return useQuery({
+    queryKey: brainKeys.monitorsList(projectId ?? ''),
+    queryFn: () => fetchMonitors(projectId!),
+    enabled: !!projectId,
+    ...CACHE_PRESETS.brainData,
+  });
+}
+
+export function useCreateMonitor(projectId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createMonitor,
+    onSuccess: () => {
+      if (projectId) queryClient.invalidateQueries({ queryKey: brainKeys.monitorsList(projectId) });
+    },
+  });
+}
+
+export function useDeleteMonitor(projectId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteMonitor,
+    onSuccess: () => {
+      if (projectId) queryClient.invalidateQueries({ queryKey: brainKeys.monitorsList(projectId) });
+    },
+  });
+}
+
+export function useUpdateMonitorEvent(projectId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ eventId, status, snoozeDurationMinutes }: { eventId: string; status: 'triggered' | 'acknowledged' | 'snoozed' | 'resolved'; snoozeDurationMinutes?: number }) =>
+      updateMonitorEventStatus(eventId, status, snoozeDurationMinutes),
+    onSuccess: () => {
+      if (projectId) queryClient.invalidateQueries({ queryKey: brainKeys.monitorsList(projectId) });
+    },
+  });
+}
+
+export function useEvaluateMonitors(projectId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => evaluateMonitors(projectId!),
+    onSuccess: () => {
+      if (projectId) queryClient.invalidateQueries({ queryKey: brainKeys.monitorsList(projectId) });
+    },
+  });
 }

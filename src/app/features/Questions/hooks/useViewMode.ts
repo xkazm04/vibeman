@@ -5,7 +5,7 @@ import type { QuestionsViewMode } from '../components/ViewModeToggle';
 export function useViewMode(effectiveProjectId?: string) {
   const [viewMode, setViewMode] = useState<QuestionsViewMode>('table');
 
-  const { data: treeData } = useQuestionTrees(effectiveProjectId, viewMode === 'tree');
+  const { data: treeData } = useQuestionTrees(effectiveProjectId, viewMode === 'tree' || viewMode === 'topology');
 
   return {
     viewMode,

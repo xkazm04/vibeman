@@ -176,6 +176,24 @@ export const directionRepository = {
   },
 
   /**
+   * Count pending directions by project using SQL COUNT (no row hydration).
+   */
+  countPendingByProject: (projectId: string): number => {
+    const db = getDatabase();
+    const row = db.prepare('SELECT COUNT(*) as count FROM directions WHERE project_id = ? AND status = ?').get(projectId, 'pending') as { count: number } | undefined;
+    return row?.count ?? 0;
+  },
+
+  /**
+   * Count all pending directions using SQL COUNT (no row hydration).
+   */
+  countAllPending: (): number => {
+    const db = getDatabase();
+    const row = db.prepare('SELECT COUNT(*) as count FROM directions WHERE status = ?').get('pending') as { count: number } | undefined;
+    return row?.count ?? 0;
+  },
+
+  /**
    * Delete all pending directions for a project (for Tinder flush)
    */
   deletePendingDirectionsByProject: (projectId: string): number => {

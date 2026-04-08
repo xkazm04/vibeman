@@ -30,7 +30,6 @@ import {
 } from '@/app/features/Ideas/lib/ideasHandlers';
 import { acceptIdea as acceptIdeaWorkflow } from '@/lib/ideas/ideaAcceptanceWorkflow';
 import { acceptDirection as acceptDirectionWorkflow } from '@/lib/ideas/directionAcceptanceWorkflow';
-import { acceptDirectionPair as acceptDirectionPairWorkflow } from '@/lib/ideas/directionPairAcceptanceWorkflow';
 
 // ---------------------------------------------------------------------------
 // Request types
@@ -210,7 +209,7 @@ function deleteDirection(directionId: string) {
 // ---------------------------------------------------------------------------
 
 function acceptPairVariant(pairId: string, variant: 'A' | 'B', projectPath: string) {
-  const result = acceptDirectionPairWorkflow({ pairId, variant, projectPath });
+  const result = acceptDirectionWorkflow({ pairId, variant, projectPath });
 
   if (!result.success) {
     const codeMap: Record<string, (typeof IdeasErrorCode)[keyof typeof IdeasErrorCode]> = {

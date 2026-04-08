@@ -42,17 +42,22 @@ export function runAggregationCycle(): { obsCallsAggregated: number; obsCallsPru
   try {
     const hotDb = getHotWritesDatabase();
 
-    // 1. Discover which projects have un-aggregated API calls
-    const projectRows = hotDb.prepare(
-      'SELECT DISTINCT project_id FROM obs_api_calls'
-    ).all() as Array<{ project_id: string }>;
+    // Single-pass aggregation across all projects at once
+    try {
+      obsCallsAggregated += observabilityRepository.aggregateHourlyStatsAllProjects();
+    } catch (err) {
+      console.warn('[HotWritesAggregator] Batch aggregation failed, falling back to per-project:', err);
+      // Fallback to per-project if batch fails
+      const projectRows = hotDb.prepare(
+        'SELECT DISTINCT project_id FROM obs_api_calls'
+      ).all() as Array<{ project_id: string }>;
 
-    // 2. Aggregate hourly stats per project (reads hot-writes, writes main DB)
-    for (const { project_id } of projectRows) {
-      try {
-        obsCallsAggregated += observabilityRepository.aggregateHourlyStats(project_id);
-      } catch (err) {
-        console.warn(`[HotWritesAggregator] Failed to aggregate obs calls for ${project_id}:`, err);
+      for (const { project_id } of projectRows) {
+        try {
+          obsCallsAggregated += observabilityRepository.aggregateHourlyStats(project_id);
+        } catch (innerErr) {
+          console.warn(`[HotWritesAggregator] Failed to aggregate obs calls for ${project_id}:`, innerErr);
+        }
       }
     }
 

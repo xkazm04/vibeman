@@ -90,6 +90,25 @@ export interface CandidateDeleteResponse {
 }
 
 // ---------------------------------------------------------------------------
+// /api/goals/preference-insights
+// ---------------------------------------------------------------------------
+
+import type { PreferenceProfile, RejectionCategory } from '@/lib/goals/preferenceLearning';
+
+/** GET /api/goals/preference-insights?projectId=xxx */
+export interface PreferenceInsightsResponse {
+  success: true;
+  profile: PreferenceProfile | null;
+  stats: CandidateStats;
+  classifiedRejections: Array<{
+    title: string;
+    reason: string;
+    category: RejectionCategory;
+  }>;
+  hasEnoughData: boolean;
+}
+
+// ---------------------------------------------------------------------------
 // /api/goals/sync  (Supabase)
 // ---------------------------------------------------------------------------
 

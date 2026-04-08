@@ -124,36 +124,20 @@ export default function InsightSparkline({ history, width = 48, height = 18 }: P
         height={height}
         className="block"
       >
-        {/* Animation keyframes + gradient definition */}
+        {/* Gradient definition */}
         <defs>
           <linearGradient id={safeGradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity={0.3} />
             <stop offset="100%" stopColor={color} stopOpacity={0} />
           </linearGradient>
         </defs>
-        <style>{`
-          @media (prefers-reduced-motion: no-preference) {
-            @keyframes sparkline-draw-${safeGradientId} {
-              from { stroke-dashoffset: ${dashLength}; }
-              to { stroke-dashoffset: 0; }
-            }
-            @keyframes sparkline-fill-${safeGradientId} {
-              from { opacity: 0; }
-              to { opacity: 1; }
-            }
-          }
-          @media (prefers-reduced-motion: reduce) {
-            .sparkline-area { opacity: 1 !important; animation: none !important; }
-            .sparkline-line { stroke-dashoffset: 0 !important; animation: none !important; }
-          }
-        `}</style>
         {/* Gradient-filled area under the line */}
         <path
           d={areaD}
           fill={`url(#${safeGradientId})`}
-          className="sparkline-area"
+          className="sparkline-area motion-reduce:!opacity-100 motion-reduce:!animate-none"
           style={{
-            animation: `sparkline-fill-${safeGradientId} 0.8s ease-out forwards`,
+            animation: 'sparkline-fill 0.8s ease-out forwards',
             opacity: 0,
           }}
         />
@@ -165,12 +149,13 @@ export default function InsightSparkline({ history, width = 48, height = 18 }: P
           strokeWidth={1.5}
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="sparkline-line"
+          className="sparkline-line motion-reduce:![stroke-dashoffset:0] motion-reduce:!animate-none"
           strokeDasharray={dashLength}
           strokeDashoffset={dashLength}
           style={{
-            animation: `sparkline-draw-${safeGradientId} 0.6s ease-out forwards`,
-          }}
+            '--dash-len': `${dashLength}`,
+            animation: 'sparkline-draw 0.6s ease-out forwards',
+          } as React.CSSProperties}
         />
         {/* Data point dots (hover + keyboard focus) */}
         {points.map((p, idx) => (

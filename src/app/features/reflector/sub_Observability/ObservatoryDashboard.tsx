@@ -43,7 +43,8 @@ import {
 } from '@/app/features/Docs/sub_DocsAnalysis/lib/useDocsAnalysisQueries';
 
 // Observability components
-import { ObsKPICards, EndpointUsageChart, EndpointTable, OnboardingStepper, DatabaseHealthPanel } from './components';
+import { ObsKPICards, EndpointUsageChart, EndpointTable, OnboardingStepper, DatabaseHealthPanel, HotWritesSplitPanel, StorageAnalyticsPanel } from './components';
+import QueryPerformanceWidget from '@/components/charts/QueryPerformanceWidget';
 import {
   fetchObservabilityStats,
   checkProjectRegistration,
@@ -497,7 +498,12 @@ export default function ObservatoryDashboard() {
       <div role="tabpanel" aria-label={`${viewMode} view`}>
       {viewMode === 'database' ? (
         /* Database Health View */
-        <DatabaseHealthPanel projectId={projectId} />
+        <div className="space-y-6">
+          <StorageAnalyticsPanel />
+          <QueryPerformanceWidget projectId={projectId} />
+          <HotWritesSplitPanel />
+          <DatabaseHealthPanel projectId={projectId} />
+        </div>
       ) : viewMode === 'architecture' ? (
         /* Architecture Explorer View */
         <div

@@ -7,13 +7,12 @@
  *
  * Design:
  * - No runtime overhead on the hot path beyond a Map lookup + increment
+ * - O(1) LRU eviction using Map insertion-order (delete+re-insert on access)
  * - Flush is batched (every 60s or 100 queries) and runs in a try/catch
  *   so failures never block the caller
  * - Query templates are normalized (params replaced with ?) for grouping
  * - Uses a simple FNV-1a hash for pattern deduplication
  */
-
-import { createHash } from 'crypto';
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -92,9 +91,14 @@ function detectOperationType(sql: string): 'select' | 'insert' | 'update' | 'del
   return 'select'; // default
 }
 
-/** Hash a query template for deduplication */
+/** FNV-1a hash for fast query template deduplication (zero allocations) */
 function hashQuery(template: string): string {
-  return createHash('md5').update(template).digest('hex').slice(0, 16);
+  let hash = 0x811c9dc5; // FNV offset basis (32-bit)
+  for (let i = 0; i < template.length; i++) {
+    hash ^= template.charCodeAt(i);
+    hash = (hash * 0x01000193) >>> 0; // FNV prime, keep unsigned 32-bit
+  }
+  return hash.toString(16).padStart(8, '0');
 }
 
 // ─── Collector ────────────────────────────────────────────────────
@@ -146,18 +150,14 @@ class QueryPatternCollector {
       existing.totalDurationMs += durationMs;
       existing.maxDurationMs = Math.max(existing.maxDurationMs, durationMs);
       existing.lastSeen = Date.now();
+      // Move to tail of Map iteration order (LRU touch)
+      this.buffer.delete(hash);
+      this.buffer.set(hash, existing);
     } else {
       if (this.buffer.size >= MAX_BUFFER_SIZE) {
-        // Evict least-used entry
-        let minKey = '';
-        let minCount = Infinity;
-        for (const [key, record] of this.buffer) {
-          if (record.count < minCount) {
-            minCount = record.count;
-            minKey = key;
-          }
-        }
-        if (minKey) this.buffer.delete(minKey);
+        // Evict LRU entry — Map iterates in insertion order, first key is oldest
+        const oldest = this.buffer.keys().next().value;
+        if (oldest !== undefined) this.buffer.delete(oldest);
       }
 
       this.buffer.set(hash, {

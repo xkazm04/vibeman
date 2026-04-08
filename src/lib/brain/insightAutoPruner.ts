@@ -12,6 +12,7 @@
 
 import { getDatabase, brainInsightDb } from '@/app/db';
 import type { DbBrainInsight } from '@/app/db/models/brain.types';
+import { EFFECTIVENESS_HELPFUL_THRESHOLD, EFFECTIVENESS_MISLEADING_THRESHOLD } from '@/lib/brain/config';
 
 export interface AutoPruneResult {
   misleadingDemoted: number;     // insights whose confidence was lowered
@@ -58,9 +59,9 @@ function computeInsightScore(
   let verdict: 'helpful' | 'neutral' | 'misleading';
   if (!reliable) {
     verdict = 'neutral';
-  } else if (score > 10) {
+  } else if (score > EFFECTIVENESS_HELPFUL_THRESHOLD) {
     verdict = 'helpful';
-  } else if (score < -10) {
+  } else if (score < EFFECTIVENESS_MISLEADING_THRESHOLD) {
     verdict = 'misleading';
   } else {
     verdict = 'neutral';

@@ -1,7 +1,7 @@
-import * as d3 from 'd3';
 import type { SignalType, BrainEvent, Group, SpatialIndex, WorkerGroup, ForceLayoutConfig, WorkerOutputMessage } from './types';
 import { COLORS, BUBBLE_SCALE, BUBBLE_PADDING, GOLDEN_ANGLE, LANE_TYPES } from './constants';
 import { getEventRadius } from './helpers';
+import { createForceSimulation, initCircularPositions } from '../../lib/forceLayoutConfig';
 
 function cellKey(cx: number, cy: number): string {
   return `${cx},${cy}`;
@@ -83,20 +83,9 @@ export function formGroups(events: BrainEvent[]): Group[] {
 export function runForceLayout(groups: Group[], width: number, height: number): void {
   if (groups.length === 0) return;
 
-  const angleStep = (2 * Math.PI) / groups.length;
-  const initRadius = Math.min(width, height) * 0.25;
-  groups.forEach((g, i) => {
-    g.x = width / 2 + initRadius * Math.cos(i * angleStep);
-    g.y = height / 2 + initRadius * Math.sin(i * angleStep);
-  });
+  initCircularPositions(groups, width, height);
 
-  const simulation = d3.forceSimulation(groups as d3.SimulationNodeDatum[])
-    .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collide', d3.forceCollide<d3.SimulationNodeDatum>((d: any) => d.radius + BUBBLE_PADDING).strength(0.85).iterations(3))
-    .force('charge', d3.forceManyBody().strength(-250))
-    .force('x', d3.forceX(width / 2).strength(0.04))
-    .force('y', d3.forceY(height / 2).strength(0.04))
-    .stop();
+  const simulation = createForceSimulation(groups, { width, height, collidePadding: BUBBLE_PADDING });
 
   for (let i = 0; i < 120; i++) {
     simulation.tick();
@@ -131,6 +120,12 @@ export function runForceLayoutAsync(
     return () => {};
   }
 
+  // Guard against stale worker messages after terminate.
+  // When cleanup is called, `cancelled` is set so any queued onmessage
+  // callbacks become no-ops, preventing stale positions from corrupting
+  // the new layout's group array.
+  let cancelled = false;
+
   // Create worker from module
   const worker = new Worker(
     new URL('./forceLayout.worker.ts', import.meta.url),
@@ -153,6 +148,8 @@ export function runForceLayoutAsync(
   };
 
   worker.onmessage = (e: MessageEvent<WorkerOutputMessage>) => {
+    if (cancelled) return;
+
     const { type, groups: layoutGroups, tick, totalTicks: total } = e.data;
 
     // Apply positions back to original groups
@@ -173,6 +170,7 @@ export function runForceLayoutAsync(
   };
 
   worker.onerror = (err) => {
+    if (cancelled) return;
     console.error('Force layout worker error:', err);
     // Fallback to sync layout on worker failure
     runForceLayout(groups, width, height);
@@ -183,8 +181,12 @@ export function runForceLayoutAsync(
   // Start the worker
   worker.postMessage({ type: 'run', groups: workerGroups, config });
 
-  // Return cleanup function
-  return () => worker.terminate();
+  // Return cleanup function — mark cancelled before terminating so
+  // any in-flight messages that arrive after terminate() are ignored.
+  return () => {
+    cancelled = true;
+    worker.terminate();
+  };
 }
 
 export function packEventsInGroup(group: Group): void {
@@ -262,7 +264,7 @@ export function packEventsInGroup(group: Group): void {
       const ex = evt.x - cx;
       const ey = evt.y - cy;
       const eDist = Math.sqrt(ex * ex + ey * ey);
-      if (eDist > maxBoundary) {
+      if (eDist > maxBoundary && eDist > 0.001) {
         evt.x = cx + (ex / eDist) * maxBoundary;
         evt.y = cy + (ey / eDist) * maxBoundary;
       }

@@ -7,101 +7,14 @@
 
 import { useMemo } from 'react';
 import CompactList, { CompactListItem } from '@/components/lists/CompactList';
-import type { IntegrationProvider, IntegrationStatus, DbIntegration } from '@/app/db/models/integration.types';
+import type { DbIntegration } from '@/app/db/models/integration.types';
+import { PROVIDER_CONFIG, STATUS_MAP } from '@/lib/integrations/displayConfig';
 
 // Parsed integration with JSON fields parsed
 export interface ParsedIntegration extends Omit<DbIntegration, 'config' | 'enabled_events'> {
   config: Record<string, unknown>;
   enabled_events: string[];
 }
-
-// Provider configuration
-export const PROVIDER_CONFIG: Record<IntegrationProvider, {
-  label: string;
-  icon: string;
-  gradient: string;
-  border: string;
-  text: string;
-}> = {
-  github: {
-    label: 'GitHub',
-    icon: '🐙',
-    gradient: 'from-gray-700/20 to-gray-800/20',
-    border: 'border-gray-500/30',
-    text: 'text-gray-400',
-  },
-  gitlab: {
-    label: 'GitLab',
-    icon: '🦊',
-    gradient: 'from-orange-700/20 to-orange-900/20',
-    border: 'border-orange-500/30',
-    text: 'text-orange-400',
-  },
-  slack: {
-    label: 'Slack',
-    icon: '💬',
-    gradient: 'from-purple-700/20 to-purple-900/20',
-    border: 'border-purple-500/30',
-    text: 'text-purple-400',
-  },
-  discord: {
-    label: 'Discord',
-    icon: '🎮',
-    gradient: 'from-indigo-700/20 to-indigo-900/20',
-    border: 'border-indigo-500/30',
-    text: 'text-indigo-400',
-  },
-  webhook: {
-    label: 'Webhook',
-    icon: '🔗',
-    gradient: 'from-blue-700/20 to-blue-900/20',
-    border: 'border-blue-500/30',
-    text: 'text-blue-400',
-  },
-  jira: {
-    label: 'Jira',
-    icon: '📋',
-    gradient: 'from-blue-600/20 to-blue-800/20',
-    border: 'border-blue-500/30',
-    text: 'text-blue-400',
-  },
-  linear: {
-    label: 'Linear',
-    icon: '📐',
-    gradient: 'from-violet-700/20 to-violet-900/20',
-    border: 'border-violet-500/30',
-    text: 'text-violet-400',
-  },
-  notion: {
-    label: 'Notion',
-    icon: '📝',
-    gradient: 'from-gray-600/20 to-gray-800/20',
-    border: 'border-gray-500/30',
-    text: 'text-gray-400',
-  },
-  supabase: {
-    label: 'Supabase',
-    icon: '⚡',
-    gradient: 'from-emerald-700/20 to-emerald-900/20',
-    border: 'border-emerald-500/30',
-    text: 'text-emerald-400',
-  },
-  postgres: {
-    label: 'PostgreSQL',
-    icon: '🐘',
-    gradient: 'from-blue-800/20 to-blue-950/20',
-    border: 'border-blue-600/30',
-    text: 'text-blue-400',
-  },
-};
-
-// Status to CompactList status mapping
-const STATUS_MAP: Record<IntegrationStatus, CompactListItem['status']> = {
-  active: 'accepted',
-  inactive: 'pending',
-  error: 'rejected',
-  pending: 'pending',
-};
 
 interface IntegrationListColumnProps {
   integrations: ParsedIntegration[];

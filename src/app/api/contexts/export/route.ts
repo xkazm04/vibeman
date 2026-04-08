@@ -121,7 +121,14 @@ export async function GET(request: NextRequest) {
         category: (ctx as any).category,
         filePaths: ctx.filePaths,
         target: ctx.target,
-        apiRoutes: (ctx as any).apiRoutes ? JSON.parse((ctx as any).apiRoutes) : [],
+        apiRoutes: (() => {
+          try {
+            return (ctx as any).apiRoutes ? JSON.parse((ctx as any).apiRoutes) : [];
+          } catch {
+            console.warn(`[API] Malformed apiRoutes JSON for context "${ctx.name}", using empty array`);
+            return [];
+          }
+        })(),
       });
 
       totalFiles += exported.filePaths.length;
@@ -201,12 +208,13 @@ The 'category' helps identify whether code is UI, API, library, or data-related.
         });
       } catch (writeError) {
         console.error('[API] Failed to write context map file:', writeError);
-        // Return the data even if file write fails
+        // File write was requested but failed — report partial failure
         return NextResponse.json({
-          success: true,
+          success: false,
           data: contextMap,
-          warning: 'Failed to write file to disk, but data is returned',
-        });
+          error: 'Failed to write file to disk',
+          warning: 'Data is returned in the response body, but the file was not written',
+        }, { status: 207 });
       }
     }
 

@@ -1,14 +1,13 @@
-import { ideaDb, scanDb, goalDb } from '@/app/db';
-import { contextDb } from '@/app/db';
+import { ideaDb } from '@/app/db';
 import { generateWithLLM, DefaultProviderStorage } from '@/lib/llm';
 import { buildIdeaGenerationPrompt } from './lib/promptBuilder';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
-import { parseAIJsonResponse } from '@/lib/aiJsonParser';
-import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/lib/logger';
-import { signalCollector } from '@/lib/brain/signalCollector';
-import { validateScore } from '@/app/db/repositories/repository.utils';
 import { IMPLEMENTATION_PROCEDURE_EXTENSION } from './prompts/schemaTemplate';
+import { fetchValidGoalIds, fetchContextData } from './lib/contextFetcher';
+import { parseAndValidateIdeas } from './lib/ideaParser';
+import { createScanAndSaveIdeas } from './lib/ideaSaver';
+import { recordIdeaGenerationSignal } from './lib/signalRecorder';
 
 
 export interface IdeaGenerationOptions {
@@ -59,32 +58,13 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
     logger.info('Starting idea generation', { projectName });
 
     // Fetch valid goal IDs for validation later
-    const validGoalIds = new Set(
-      goalDb.getGoalsByProject(projectId).map(g => g.id)
-    );
-    logger.info('Found valid goal IDs for validation', { count: validGoalIds.size });
+    const validGoalIds = fetchValidGoalIds(projectId);
 
     // NOTE: AI documentation (CLAUDE.md/AI.md) is intentionally excluded from idea generation
     // to reduce prompt size and avoid excessive token usage
 
     // Get context information if provided
-    let context = null;
-    let contextFilesCount = 0;
-    if (contextId) {
-      logger.info('Fetching context', { contextId });
-      context = contextDb.getContextById(contextId);
-
-      // Count context files
-      if (context && context.file_paths) {
-        try {
-          const filePaths = JSON.parse(context.file_paths);
-          contextFilesCount = Array.isArray(filePaths) ? filePaths.length : 0;
-        } catch (error) {
-          logger.error('Error parsing context file paths', { error });
-        }
-      }
-      logger.info('Context files loaded', { fileCount: contextFilesCount });
-    }
+    const { context } = fetchContextData(contextId);
 
     // 3. Get existing ideas to prevent duplicates
     logger.info('Fetching existing ideas');
@@ -129,144 +109,30 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
     logger.info('LLM response received');
 
     // 7. Parse JSON response using robust parser
-    let parsedIdeas: GeneratedIdea[];
-    try {
-      const parseResult = parseAIJsonResponse(result.response);
-
-      // Validate that we got an array
-      if (!Array.isArray(parseResult)) {
-        logger.error('Parsed result is not an array', { type: typeof parseResult });
-        throw new Error('Expected JSON array, got ' + typeof parseResult);
-      }
-      parsedIdeas = parseResult as GeneratedIdea[];
-
-      logger.info('Successfully parsed ideas', { count: parsedIdeas.length });
-
-      // Log validation summary
-      const validIdeas = parsedIdeas.filter(idea =>
-        idea.title && typeof idea.title === 'string' && idea.title.trim() !== ''
-      );
-      const invalidIdeas = parsedIdeas.length - validIdeas.length;
-      if (invalidIdeas > 0) {
-        logger.warn('Ideas will be skipped due to missing required fields', { count: invalidIdeas });
-      }
-    } catch (parseError) {
-      logger.error('Failed to parse LLM response', { error: parseError, rawResponse: result.response });
-      throw new Error('Failed to parse LLM response as JSON: ' + (parseError instanceof Error ? parseError.message : 'Unknown error'));
-    }
+    const parsedIdeas = parseAndValidateIdeas(result.response);
 
     // Resolve actual provider/model from LLM response (may differ from selected due to fallback)
     const actualProvider = result.provider || selectedProvider;
     const actualModel = result.model || undefined;
 
-    // 8. Create scan record with token tracking
-    const scanId = uuidv4();
-    const scanSummary = `Generated ${parsedIdeas.length} ideas for ${projectName}${contextId ? ` - Context: ${contextId}` : ''}`;
-
-    logger.info('Creating scan record');
-    scanDb.createScan({
-      id: scanId,
-      project_id: projectId,
-      scan_type: effectiveScanType,
-      summary: scanSummary,
-      input_tokens: result.usage?.prompt_tokens,
-      output_tokens: result.usage?.completion_tokens,
-      provider: actualProvider,
-      model: actualModel,
+    // 8. Create scan record and save ideas to database
+    const { scanId } = createScanAndSaveIdeas({
+      parsedIdeas,
+      projectId,
+      projectName,
+      contextId,
+      context,
+      effectiveScanType,
+      actualProvider,
+      actualModel,
+      validGoalIds,
+      detailed,
+      inputTokens: result.usage?.prompt_tokens,
+      outputTokens: result.usage?.completion_tokens,
     });
 
-    // 9. Save ideas to database
-    logger.info('Saving ideas to database');
-    const savedIdeas = parsedIdeas
-      .filter(idea => {
-        // Skip ideas without required fields
-        if (!idea.title || typeof idea.title !== 'string' || idea.title.trim() === '') {
-          logger.warn('Skipping idea without valid title', { idea });
-          return false;
-        }
-        return true;
-      })
-      .map(idea => {
-        const ideaId = uuidv4();
-
-        // Ensure all required fields have valid values with fallbacks
-        const category = idea.category && typeof idea.category === 'string' && idea.category.trim() !== ''
-          ? idea.category.trim()
-          : 'general';
-
-        const title = idea.title.trim();
-        const description = idea.description && typeof idea.description === 'string' && idea.description.trim() !== ''
-          ? idea.description.trim()
-          : undefined;
-        // In detailed mode, merge procedure steps into reasoning for storage
-        let reasoning = idea.reasoning && typeof idea.reasoning === 'string' && idea.reasoning.trim() !== ''
-          ? idea.reasoning.trim()
-          : undefined;
-
-        if (detailed && Array.isArray(idea.procedure) && idea.procedure.length > 0) {
-          const procedureText = '\n\n## Implementation Procedure\n' +
-            idea.procedure.map((step, i) => `${i + 1}. ${step}`).join('\n');
-          reasoning = (reasoning || '') + procedureText;
-        }
-
-        const effort = validateScore(idea.effort);
-        const impact = validateScore(idea.impact);
-        const risk = validateScore(idea.risk);
-
-        // Validate goal_id - ensure it exists in the database
-        let validatedGoalId: string | null = null;
-        if (idea.goal_id && typeof idea.goal_id === 'string') {
-          if (validGoalIds.has(idea.goal_id)) {
-            validatedGoalId = idea.goal_id;
-          } else {
-            logger.warn('Invalid goal_id for idea, setting to null', { goalId: idea.goal_id, title });
-            validatedGoalId = null;
-          }
-        }
-
-        // Validate context_id exists in the database before inserting
-        let validatedContextId: string | null = contextId || null;
-        if (validatedContextId && !context) {
-          logger.warn('Context ID not found in database, setting to null to prevent FK constraint failure', { contextId: validatedContextId });
-          validatedContextId = null;
-        }
-
-        return ideaDb.createIdea({
-          id: ideaId,
-          scan_id: scanId,
-          project_id: projectId,
-          context_id: validatedContextId,
-          scan_type: effectiveScanType,
-          category,
-          title,
-          description,
-          reasoning,
-          status: 'pending',
-          effort,
-          impact,
-          risk,
-          goal_id: validatedGoalId,
-          provider: actualProvider,
-          model: actualModel,
-          detailed,
-        });
-      });
-
-    logger.info('Successfully saved ideas', { count: savedIdeas.length });
-
     // Record Brain signal for idea generation activity
-    try {
-      signalCollector.recordApiFocus(projectId, {
-        endpoint: '/api/ideas/generate',
-        method: 'POST',
-        callCount: 1,
-        avgResponseTime: 0,
-        errorRate: 0,
-      }, contextId || undefined, context?.name || undefined);
-    } catch {
-      // Signal recording must never break idea generation
-    }
-
+    recordIdeaGenerationSignal(projectId, contextId, context?.name || undefined);
 
     return {
       success: true,

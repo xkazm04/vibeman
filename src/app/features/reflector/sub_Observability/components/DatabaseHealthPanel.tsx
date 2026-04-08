@@ -429,9 +429,9 @@ function WriteContentionTab({ tables }: { tables: TableContention[] }) {
             </div>
 
             {/* Write/Read ratio bar */}
-            <div className="h-2 bg-gray-900/50 rounded-full overflow-hidden mb-3 flex">
+            <div className="h-5 bg-gray-900/50 rounded-full overflow-hidden mb-3 flex relative">
               <motion.div
-                className="h-full rounded-l-full"
+                className="h-full rounded-l-full flex items-center justify-center"
                 style={{
                   background: t.hotness === 'critical' ? '#ef4444' :
                               t.hotness === 'high' ? '#f59e0b' : '#22d3ee',
@@ -439,13 +439,25 @@ function WriteContentionTab({ tables }: { tables: TableContention[] }) {
                 initial={{ width: 0 }}
                 animate={{ width: `${t.writeRatio * 100}%` }}
                 transition={{ duration: duration.slow, ease: easing.entrance }}
-              />
+              >
+                {t.writeRatio > 0.15 && (
+                  <span className="text-[9px] font-mono text-white/80 drop-shadow-sm">
+                    {Math.round(t.writeRatio * 100)}% writes
+                  </span>
+                )}
+              </motion.div>
               <motion.div
-                className="h-full rounded-r-full bg-cyan-600/40"
+                className="h-full rounded-r-full bg-cyan-600/40 flex items-center justify-center"
                 initial={{ width: 0 }}
                 animate={{ width: `${(1 - t.writeRatio) * 100}%` }}
                 transition={{ duration: duration.slow, ease: easing.entrance }}
-              />
+              >
+                {(1 - t.writeRatio) > 0.15 && (
+                  <span className="text-[9px] font-mono text-white/80 drop-shadow-sm">
+                    {Math.round((1 - t.writeRatio) * 100)}% reads
+                  </span>
+                )}
+              </motion.div>
             </div>
 
             {/* Stats row */}

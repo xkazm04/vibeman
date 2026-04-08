@@ -29,6 +29,7 @@ interface GoalFormProps {
   loadingContexts: boolean;
   onSubmit: (e: React.FormEvent) => void;
   onClose: () => void;
+  isSubmitting?: boolean;
 }
 
 export default function GoalForm({
@@ -44,6 +45,7 @@ export default function GoalForm({
   loadingContexts,
   onSubmit,
   onClose,
+  isSubmitting = false,
 }: GoalFormProps) {
   return (
     <form onSubmit={onSubmit} className="space-y-6">
@@ -184,7 +186,7 @@ export default function GoalForm({
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           type="submit"
-          disabled={!title.trim()}
+          disabled={!title.trim() || isSubmitting}
           className="relative px-6 py-2.5 bg-gradient-to-r from-cyan-700/50 to-blue-700/50
                    hover:from-cyan-600/60 hover:to-blue-600/60 border border-cyan-600/30
                    rounded-lg text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed
@@ -197,7 +199,7 @@ export default function GoalForm({
               background: 'linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.2), transparent)'
             }}
           />
-          <span className="relative z-10">Add Goal</span>
+          <span className="relative z-10">{isSubmitting ? 'Adding...' : 'Add Goal'}</span>
         </motion.button>
       </div>
     </form>

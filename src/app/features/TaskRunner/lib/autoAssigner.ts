@@ -213,10 +213,20 @@ function taskItemToQueuedTask(
  * 4. Assign chunks to free sessions (lightweight bucket first, with provider override)
  * 5. Remaining tasks (no free sessions) are left unassigned
  */
+/** Track task IDs that are already assigned to prevent double-assignment on rapid calls */
+const recentlyAssignedIds = new Set<string>();
+let assignmentClearTimer: ReturnType<typeof setTimeout> | null = null;
+
 export function autoAssignTasks(input: AutoAssignInput): SessionAssignment[] {
   const { requirements, ideasMap, sessions, config, getRequirementId, contextsMap } = input;
 
   if (requirements.length === 0) return [];
+
+  // Deduplicate: filter out requirements that were just assigned in a recent call
+  const deduplicatedReqs = requirements.filter(
+    req => !recentlyAssignedIds.has(getRequirementId(req))
+  );
+  if (deduplicatedReqs.length === 0) return [];
 
   // Get free sessions in order
   const freeSessions: CLISessionId[] = SESSION_IDS.filter(id => isSessionFree(sessions[id]));
@@ -225,9 +235,9 @@ export function autoAssignTasks(input: AutoAssignInput): SessionAssignment[] {
   // Step 1: Consolidate by context if enabled
   let taskItems: TaskItem[];
   if (config.consolidateBeforeAssign && contextsMap && Object.keys(contextsMap).length > 0) {
-    taskItems = consolidateByContext(requirements, ideasMap, contextsMap, getRequirementId);
+    taskItems = consolidateByContext(deduplicatedReqs, ideasMap, contextsMap, getRequirementId);
   } else {
-    taskItems = requirements.map(req => ({
+    taskItems = deduplicatedReqs.map(req => ({
       type: 'single' as const,
       primaryReq: req,
       allReqs: [req],
@@ -288,6 +298,20 @@ export function autoAssignTasks(input: AutoAssignInput): SessionAssignment[] {
       });
     }
   }
+
+  // Mark assigned task IDs to prevent double-assignment from rapid concurrent calls
+  for (const assignment of assignments) {
+    for (const task of assignment.tasks) {
+      recentlyAssignedIds.add(task.id);
+    }
+  }
+
+  // Clear the dedup set after a short window (1 second) to allow re-assignment
+  if (assignmentClearTimer) clearTimeout(assignmentClearTimer);
+  assignmentClearTimer = setTimeout(() => {
+    recentlyAssignedIds.clear();
+    assignmentClearTimer = null;
+  }, 1000);
 
   return assignments;
 }

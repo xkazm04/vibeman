@@ -213,6 +213,13 @@ export async function processExternalRequirement(
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
 
+    // Best-effort cleanup of orphaned requirement file
+    try {
+      deleteRequirement(projectPath, reqName);
+    } catch {
+      // File may not have been created yet — ignore
+    }
+
     // Best-effort status update
     await updateRequirementStatus(requirement.id, {
       status: 'failed',

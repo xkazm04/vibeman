@@ -8,7 +8,7 @@
  */
 
 import { getDatabase } from '../connection';
-import { EFFECTIVENESS_CACHE_TTL_MS } from '@/lib/brain/config';
+import { EFFECTIVENESS_CACHE_TTL_MS, EFFECTIVENESS_WINDOW_DAYS } from '@/lib/brain/config';
 
 const CACHE_TTL_MS = EFFECTIVENESS_CACHE_TTL_MS;
 
@@ -24,7 +24,7 @@ export const insightEffectivenessCacheRepository = {
    * Get cached effectiveness data if it exists and is fresh (< 24h old).
    * Returns null if cache miss or stale.
    */
-  get(projectId: string, minDirections: number, windowDays: number = 90): CachedEffectivenessResult | null {
+  get(projectId: string, minDirections: number, windowDays: number = EFFECTIVENESS_WINDOW_DAYS): CachedEffectivenessResult | null {
     const db = getDatabase();
     const row = db.prepare(`
       SELECT insights_json, summary_json, cached_at, version
@@ -85,6 +85,20 @@ export const insightEffectivenessCacheRepository = {
     const db = getDatabase();
     db.prepare(`
       DELETE FROM insight_effectiveness_cache
+      WHERE project_id = ?
+    `).run(projectId);
+  },
+
+  /**
+   * Mark a cache entry as expired by setting cached_at far enough in the past
+   * that TTL check fails. Used as a fallback when DELETE-based invalidation
+   * fails (e.g., DB write lock) to ensure corrupted entries don't persist.
+   */
+  expire(projectId: string): void {
+    const db = getDatabase();
+    db.prepare(`
+      UPDATE insight_effectiveness_cache
+      SET cached_at = '1970-01-01T00:00:00.000Z'
       WHERE project_id = ?
     `).run(projectId);
   },

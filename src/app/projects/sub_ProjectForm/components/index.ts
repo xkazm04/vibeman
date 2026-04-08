@@ -7,3 +7,4 @@ export { default as RelatedProjectSelector } from './RelatedProjectSelector';
 export { default as GitConfigInputs } from './GitConfigInputs';
 export { default as RunScriptInput } from './RunScriptInput';
 export { default as ErrorDisplay } from './ErrorDisplay';
+export { default as FormSection } from './FormSection';

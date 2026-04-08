@@ -1,36 +1,25 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import {
   Inbox,
   Users,
   Search,
   Filter,
   MessageSquare,
-  Clock,
   CheckCircle,
   AlertCircle,
-  X,
-  ChevronDown,
-  Mail,
-  MessageCircle,
   TrendingUp,
-  Award,
 } from 'lucide-react';
-import type { FeedbackItem, KanbanChannel, KanbanPriority } from '../../lib/types/feedbackTypes';
-import type { ConversationThread as ConversationThreadType, UnifiedCustomer } from '@/lib/social';
-import { formatRelativeTime } from '@/lib/formatDate';
+import type { FeedbackItem } from '../../lib/types/feedbackTypes';
 import { useUnifiedInbox } from '../hooks/useUnifiedInbox';
 import { SimpleSpinner } from '@/components/ui/Spinner';
 import { ConversationThread } from './ConversationThread';
 import { CustomerProfile } from './CustomerProfile';
-import {
-  getCustomerValueTier,
-  VALUE_TIER_COLORS,
-  VALUE_TIER_LABELS,
-} from '../lib/types';
-import { CHANNEL_ICONS, CHANNEL_LABELS } from '../../lib/channelConstants';
+import { InboxStatCard } from './InboxStatCard';
+import { InboxConversationsList } from './InboxConversationsList';
+import { InboxCustomersList } from './InboxCustomersList';
+import { InboxFilterPanel } from './InboxFilterPanel';
 
 interface UnifiedInboxProps {
   projectId: string;
@@ -116,25 +105,25 @@ export function UnifiedInbox({ projectId, feedbackItems = [] }: UnifiedInboxProp
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" aria-live="polite">
-          <StatCard
+          <InboxStatCard
             icon={MessageSquare}
             label="Total"
             value={inbox.stats.totalConversations}
             color="text-gray-300"
           />
-          <StatCard
+          <InboxStatCard
             icon={AlertCircle}
             label="Open"
             value={inbox.stats.openConversations}
             color="text-yellow-400"
           />
-          <StatCard
+          <InboxStatCard
             icon={CheckCircle}
             label="Resolved"
             value={inbox.stats.resolvedConversations}
             color="text-green-400"
           />
-          <StatCard
+          <InboxStatCard
             icon={TrendingUp}
             label="High Value"
             value={inbox.stats.highValueCustomers}
@@ -176,99 +165,14 @@ export function UnifiedInbox({ projectId, feedbackItems = [] }: UnifiedInboxProp
 
         {/* Filter panel */}
         {showFilters && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mt-3 p-3 rounded-lg bg-gray-800/40 border border-gray-700/40"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-gray-400">Filters</span>
-              {(inbox.filters.channels.length > 0 || inbox.filters.status.length > 0) && (
-                <button
-                  onClick={inbox.clearFilters}
-                  className="text-xs text-cyan-400 hover:text-cyan-300"
-                >
-                  Clear all
-                </button>
-              )}
-            </div>
-
-            {/* Channel filters */}
-            <div className="mb-3">
-              <span className="text-xs text-gray-500 mb-2 block">Channels</span>
-              <div className="flex flex-wrap gap-2">
-                {(Object.keys(CHANNEL_ICONS) as KanbanChannel[]).map(channel => {
-                  const Icon = CHANNEL_ICONS[channel];
-                  const isActive = inbox.filters.channels.includes(channel);
-                  return (
-                    <button
-                      key={channel}
-                      onClick={() => inbox.toggleChannelFilter(channel)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                        isActive
-                          ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                          : 'bg-gray-700/50 text-gray-400 hover:text-gray-200 border border-gray-600/50'
-                      }`}
-                    >
-                      <Icon className="w-3.5 h-3.5" />
-                      {CHANNEL_LABELS[channel]}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Status filters (only for conversations) */}
-            {inbox.viewMode === 'conversations' && (
-              <div className="mb-3">
-                <span className="text-xs text-gray-500 mb-2 block">Status</span>
-                <div className="flex flex-wrap gap-2">
-                  {(['open', 'pending', 'resolved'] as const).map(status => {
-                    const isActive = inbox.filters.status.includes(status);
-                    return (
-                      <button
-                        key={status}
-                        onClick={() => inbox.toggleStatusFilter(status)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-medium capitalize transition-colors ${
-                          isActive
-                            ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                            : 'bg-gray-700/50 text-gray-400 hover:text-gray-200 border border-gray-600/50'
-                        }`}
-                      >
-                        {status}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Priority filters (only for conversations) */}
-            {inbox.viewMode === 'conversations' && (
-              <div>
-                <span className="text-xs text-gray-500 mb-2 block">Priority</span>
-                <div className="flex flex-wrap gap-2">
-                  {(['low', 'medium', 'high', 'critical'] as KanbanPriority[]).map(priority => {
-                    const isActive = inbox.filters.priority.includes(priority);
-                    return (
-                      <button
-                        key={priority}
-                        onClick={() => inbox.togglePriorityFilter(priority)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-medium capitalize transition-colors ${
-                          isActive
-                            ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                            : 'bg-gray-700/50 text-gray-400 hover:text-gray-200 border border-gray-600/50'
-                        }`}
-                      >
-                        {priority}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </motion.div>
+          <InboxFilterPanel
+            filters={inbox.filters}
+            viewMode={inbox.viewMode}
+            onToggleChannel={inbox.toggleChannelFilter}
+            onToggleStatus={inbox.toggleStatusFilter}
+            onTogglePriority={inbox.togglePriorityFilter}
+            onClearFilters={inbox.clearFilters}
+          />
         )}
       </div>
 
@@ -279,251 +183,18 @@ export function UnifiedInbox({ projectId, feedbackItems = [] }: UnifiedInboxProp
             <SimpleSpinner size="lg" color="cyan" />
           </div>
         ) : inbox.viewMode === 'conversations' ? (
-          <ConversationsList
+          <InboxConversationsList
             conversations={inbox.filteredConversations}
             customers={inbox.customers}
             onSelect={inbox.selectConversation}
           />
         ) : (
-          <CustomersList
+          <InboxCustomersList
             customers={inbox.filteredCustomers}
             onSelect={inbox.selectCustomer}
           />
         )}
       </div>
-    </div>
-  );
-}
-
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  color,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: number;
-  color: string;
-}) {
-  return (
-    <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-800/40 border border-gray-700/40">
-      <Icon className={`w-5 h-5 ${color}`} />
-      <div>
-        <span className="text-lg font-semibold text-gray-200">{value}</span>
-        <span className="text-xs text-gray-500 ml-1">{label}</span>
-      </div>
-    </div>
-  );
-}
-
-interface ConversationsListProps {
-  conversations: ConversationThreadType[];
-  customers: UnifiedCustomer[];
-  onSelect: (thread: ConversationThreadType) => void;
-}
-
-function ConversationsList({ conversations, customers, onSelect }: ConversationsListProps) {
-  if (conversations.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-8">
-        <MessageSquare className="w-16 h-16 text-gray-700 mb-4" />
-        <h3 className="text-lg font-medium text-gray-300 mb-2">No conversations found</h3>
-        <p className="text-sm text-gray-500 max-w-md">
-          Conversations will appear here when feedback is received across channels.
-        </p>
-      </div>
-    );
-  }
-
-  const customerMap = new Map(customers.map(c => [c.id, c]));
-
-  return (
-    <div className="divide-y divide-gray-800/50">
-      {conversations.map((thread) => {
-        const customer = customerMap.get(thread.customerId);
-        const latestMessage = thread.messages.length > 0 ? thread.messages[thread.messages.length - 1] : null;
-        const valueTier = customer ? getCustomerValueTier(customer.valueScore) : null;
-
-        return (
-          <motion.button
-            key={thread.id}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            onClick={() => onSelect(thread)}
-            className="w-full p-4 text-left hover:bg-gray-800/40 transition-colors"
-          >
-            <div className="flex items-start gap-3">
-              {/* Avatar */}
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center flex-shrink-0">
-                <span className="text-sm font-bold text-white">
-                  {customer?.displayName.charAt(0).toUpperCase() || '?'}
-                </span>
-              </div>
-
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-sm font-medium text-gray-200 truncate">
-                      {customer?.displayName || 'Unknown Customer'}
-                    </span>
-                    {valueTier && (
-                      <span className={`px-1.5 py-0.5 rounded text-2xs font-medium border ${VALUE_TIER_COLORS[valueTier]}`}>
-                        {valueTier.toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-xs text-gray-500 flex-shrink-0">
-                    {formatRelativeTime(thread.lastActivityAt)}
-                  </span>
-                </div>
-
-                <p className="text-sm text-gray-400 mb-2 line-clamp-1">
-                  {thread.subject || latestMessage?.content || 'No content'}
-                </p>
-
-                <div className="flex items-center gap-2">
-                  {/* Status */}
-                  <span className={`text-2xs px-1.5 py-0.5 rounded-full ${
-                    thread.status === 'open' ? 'bg-yellow-500/10 text-yellow-400' :
-                    thread.status === 'resolved' ? 'bg-green-500/10 text-green-400' :
-                    'bg-gray-500/10 text-gray-400'
-                  }`}>
-                    {thread.status}
-                  </span>
-
-                  {/* Priority */}
-                  {thread.priority !== 'low' && (
-                    <span className={`text-2xs px-1.5 py-0.5 rounded-full ${
-                      thread.priority === 'critical' ? 'bg-red-500/10 text-red-400' :
-                      thread.priority === 'high' ? 'bg-yellow-500/10 text-yellow-400' :
-                      'bg-blue-500/10 text-blue-400'
-                    }`}>
-                      {thread.priority}
-                    </span>
-                  )}
-
-                  {/* Channels */}
-                  <div className="flex items-center gap-1">
-                    {thread.channels.slice(0, 3).map(channel => {
-                      const Icon = CHANNEL_ICONS[channel] || MessageCircle;
-                      return <Icon key={channel} className="w-3 h-3 text-gray-500" />;
-                    })}
-                    {thread.channels.length > 3 && (
-                      <span className="text-2xs text-gray-500">+{thread.channels.length - 3}</span>
-                    )}
-                  </div>
-
-                  {/* Message count */}
-                  <span className="text-2xs text-gray-500">
-                    {thread.messages.length} msg
-                  </span>
-                </div>
-              </div>
-            </div>
-          </motion.button>
-        );
-      })}
-    </div>
-  );
-}
-
-interface CustomersListProps {
-  customers: UnifiedCustomer[];
-  onSelect: (customer: UnifiedCustomer) => void;
-}
-
-function CustomersList({ customers, onSelect }: CustomersListProps) {
-  // Sort by value score descending
-  const sortedCustomers = [...customers].sort((a, b) => b.valueScore - a.valueScore);
-
-  if (customers.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-8">
-        <Users className="w-16 h-16 text-gray-700 mb-4" />
-        <h3 className="text-lg font-medium text-gray-300 mb-2">No customers found</h3>
-        <p className="text-sm text-gray-500 max-w-md">
-          Customer profiles will be created automatically as feedback is received.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="divide-y divide-gray-800/50">
-      {sortedCustomers.map((customer) => {
-        const valueTier = getCustomerValueTier(customer.valueScore);
-
-        return (
-          <motion.button
-            key={customer.id}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            onClick={() => onSelect(customer)}
-            className="w-full p-4 text-left hover:bg-gray-800/40 transition-colors"
-          >
-            <div className="flex items-start gap-3">
-              {/* Avatar */}
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center flex-shrink-0">
-                <span className="text-sm font-bold text-white">
-                  {customer.displayName.charAt(0).toUpperCase()}
-                </span>
-              </div>
-
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-sm font-medium text-gray-200 truncate">
-                      {customer.displayName}
-                    </span>
-                    {customer.isVerified && (
-                      <CheckCircle className="w-3.5 h-3.5 text-cyan-400" />
-                    )}
-                    <span className={`px-1.5 py-0.5 rounded text-2xs font-medium border ${VALUE_TIER_COLORS[valueTier]}`}>
-                      {VALUE_TIER_LABELS[valueTier]}
-                    </span>
-                  </div>
-                  <span className="text-lg font-semibold text-gray-300">
-                    {customer.valueScore}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
-                  {customer.primaryEmail && (
-                    <span className="flex items-center gap-1">
-                      <Mail className="w-3 h-3" />
-                      {customer.primaryEmail}
-                    </span>
-                  )}
-                  {customer.primaryHandle && (
-                    <span className="flex items-center gap-1">
-                      @{customer.primaryHandle}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-3 text-xs text-gray-500">
-                  <span>{customer.totalInteractions} interactions</span>
-                  <span>•</span>
-                  <span>{customer.channels.length} channels</span>
-                  <span>•</span>
-                  <span>Last active {formatRelativeTime(customer.lastInteractionAt)}</span>
-                </div>
-
-                {/* Channel icons */}
-                <div className="flex items-center gap-1 mt-2">
-                  {customer.channels.map((identity, idx) => {
-                    const Icon = CHANNEL_ICONS[identity.channel] || MessageCircle;
-                    return <Icon key={idx} className="w-3.5 h-3.5 text-gray-500" />;
-                  })}
-                </div>
-              </div>
-            </div>
-          </motion.button>
-        );
-      })}
     </div>
   );
 }

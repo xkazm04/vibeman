@@ -10,8 +10,9 @@
  *   fetch → setEvents() → diff → layout (only if changed) → notify subscribers
  */
 
-import type { BrainEvent, Group } from './types';
+import type { BrainEvent, Group, ConvergenceEvent } from './types';
 import { formGroups, runForceLayout, runForceLayoutAsync, packEventsInGroup, layoutFocusedGroup } from './canvasLayout';
+import { SemanticClusterManager } from './semanticClusterManager';
 
 // ── Snapshot type ────────────────────────────────────────────────────────
 
@@ -21,6 +22,8 @@ export interface CanvasSnapshot {
   isEmpty: boolean;
   /** Monotonically increasing version — changes on every mutation */
   version: number;
+  /** Cross-context convergence events from semantic clustering */
+  convergenceEvents: ConvergenceEvent[];
 }
 
 // ── Store instance ───────────────────────────────────────────────────────
@@ -43,6 +46,10 @@ export class CanvasStore {
   // ── Worker cleanup ─────────────────────────────────────────────────
   private workerCleanup: (() => void) | null = null;
 
+  // ── Semantic clustering ───────────────────────────────────────────
+  private clusterManager = new SemanticClusterManager();
+  private _convergenceEvents: ConvergenceEvent[] = [];
+
   // ── useSyncExternalStore plumbing ──────────────────────────────────
   private listeners = new Set<() => void>();
   private snapshot: CanvasSnapshot;
@@ -56,6 +63,12 @@ export class CanvasStore {
   get events(): BrainEvent[] { return this._events; }
   get groups(): Group[] { return this._groups; }
   get isEmpty(): boolean { return this._isEmpty; }
+  get convergenceEvents(): ConvergenceEvent[] { return this._convergenceEvents; }
+
+  /** Set project ID for insight fusion (convergence → insight crystallization) */
+  setProjectId(id: string) {
+    this.clusterManager.setProjectId(id);
+  }
 
   // ── useSyncExternalStore API ───────────────────────────────────────
 
@@ -162,6 +175,9 @@ export class CanvasStore {
               this._groups.forEach(packEventsInGroup);
               this.emitChange();
               this.workerCleanup = null;
+
+              // Trigger semantic clustering after layout settles
+              this.runSemanticClustering();
             },
             totalTicks: 120,
             progressInterval: 10,
@@ -180,7 +196,22 @@ export class CanvasStore {
       this.workerCleanup();
       this.workerCleanup = null;
     }
+    this.clusterManager.destroy();
     this.listeners.clear();
+  }
+
+  /**
+   * Run semantic clustering on current groups (debounced, off-main-thread).
+   * Results are applied to groups and convergence events are stored.
+   */
+  private runSemanticClustering(): void {
+    const promise = this.clusterManager.requestClustering(this._groups);
+    if (!promise) return; // No change, skip
+
+    promise.then((result) => {
+      this._convergenceEvents = result.convergenceEvents;
+      this.emitChange();
+    });
   }
 
   getFocusedGroup(focusedGroupId: string | null): Group | null {
@@ -196,6 +227,7 @@ export class CanvasStore {
       groups: this._groups,
       isEmpty: this._isEmpty,
       version: this._version,
+      convergenceEvents: this._convergenceEvents,
     };
   }
 

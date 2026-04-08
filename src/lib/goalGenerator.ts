@@ -8,6 +8,7 @@ import { SupportedProvider } from './llm/types';
 import { goalCandidateRepository } from '@/app/db/repositories/goal-candidate.repository';
 import { contextRepository } from '@/app/db/repositories/context.repository';
 import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import { buildPreferenceFeedback, computeTemperatureAdjustment, suggestMaxCandidates } from '@/lib/goals/preferenceLearning';
 // Tech debt repository removed - feature deprecated
 import { randomUUID } from 'crypto';
 import fs from 'fs/promises';
@@ -69,7 +70,13 @@ export async function generateGoalCandidates(options: GoalGenerationOptions): Pr
     const ideasData = includeSources.includes('ideas') ? await scanIdeas(projectId) : '';
     const todosData = includeSources.includes('todos') ? await scanTodos(projectPath) : '';
     const gitHistoryData = includeSources.includes('git_history') ? await scanGitHistory(projectPath) : '';
-    const rejectionFeedback = scanRejectionFeedback(projectId);
+
+    // Build preference feedback from full action history (replaces simple rejection feedback)
+    const preferenceFeedback = buildPreferenceFeedback(projectId);
+
+    // Adapt generation parameters based on learned preferences
+    const adaptedTemperature = computeTemperatureAdjustment(projectId);
+    const adaptedMaxCandidates = suggestMaxCandidates(projectId, maxCandidates);
 
     // Skip LLM call if no meaningful data was collected
     if (!repoData && !techDebtData && !ideasData && !todosData && !gitHistoryData) {
@@ -102,9 +109,9 @@ export async function generateGoalCandidates(options: GoalGenerationOptions): Pr
       ideasData,
       todosData,
       gitHistoryData,
-      rejectionFeedback,
+      preferenceFeedback,
       contexts: contextSummary,
-      maxCandidates
+      maxCandidates: adaptedMaxCandidates
     });
 
     // Call LLM to generate candidates
@@ -114,7 +121,7 @@ export async function generateGoalCandidates(options: GoalGenerationOptions): Pr
       provider,
       model,
       maxTokens: 4000,
-      temperature: 0.7,
+      temperature: adaptedTemperature,
       projectId,
       taskType: 'goal_generation',
       taskDescription: 'Generate goal candidates from repository analysis'
@@ -372,20 +379,8 @@ async function scanGitHistory(projectPath: string): Promise<string> {
   return '';
 }
 
-/**
- * Collect previously rejected candidates with reasons to feed back into generation
- */
-function scanRejectionFeedback(projectId: string): string {
-  try {
-    const rejected = goalCandidateRepository.getRejectedCandidatesWithReasons(projectId);
-    if (rejected.length === 0) return '';
-
-    const lines = rejected.map(r => `- "${r.title}": ${r.rejection_reason}`);
-    return `Previously Rejected Candidates:\n${lines.join('\n')}`;
-  } catch {
-    return '';
-  }
-}
+// Rejection feedback is now handled by the preference learning module
+// See: src/lib/goals/preferenceLearning.ts → buildPreferenceFeedback()
 
 /**
  * Build system prompt for LLM - Strategic Advisor Persona
@@ -478,7 +473,7 @@ function buildUserPrompt(data: {
   ideasData: string;
   todosData: string;
   gitHistoryData: string;
-  rejectionFeedback: string;
+  preferenceFeedback: string;
   contexts: Array<{ id: string; name: string; description: string | null; files: string[] }>;
   maxCandidates: number;
 }): string {
@@ -535,10 +530,10 @@ Remember: You are creating NORTH STARS, not backlog items.
     parts.push('');
   }
 
-  if (data.rejectionFeedback) {
-    parts.push('=== USER REJECTION FEEDBACK ===');
-    parts.push(data.rejectionFeedback);
-    parts.push('⚠️ IMPORTANT: Do NOT suggest goals similar to the ones above. The user explicitly rejected them with these reasons. Use this feedback to understand their priorities and avoid repeating these patterns.');
+  if (data.preferenceFeedback) {
+    parts.push('=== USER PREFERENCE HISTORY ===');
+    parts.push(data.preferenceFeedback);
+    parts.push('⚠️ CRITICAL: Use this preference profile to calibrate your suggestions. Generate goals that match the patterns of previously ACCEPTED goals. Avoid patterns that led to rejections. Pay close attention to the preferred themes and priority ranges.');
     parts.push('');
   }
 

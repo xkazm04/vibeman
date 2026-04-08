@@ -30,7 +30,8 @@ async function handleGet(request: NextRequest) {
     const projectId = searchParams.get('projectId');
     const periodType = searchParams.get('periodType') as 'daily' | 'weekly' | null;
     const limitStr = searchParams.get('limit');
-    const limit = limitStr ? parseInt(limitStr, 10) : 14;
+    const parsedLimit = limitStr ? parseInt(limitStr, 10) : 14;
+    const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 100) : 14;
 
     if (!projectId) {
       return NextResponse.json(

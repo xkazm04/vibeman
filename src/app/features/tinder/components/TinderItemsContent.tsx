@@ -145,6 +145,8 @@ export default function TinderItemsContent({
   const [flushing, setFlushing] = React.useState(false);
   const [flushError, setFlushError] = React.useState<string | null>(null);
   const [flushSuccess, setFlushSuccess] = React.useState(false);
+  const [flushConfirming, setFlushConfirming] = React.useState(false);
+  const flushConfirmTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showVariants, setShowVariants] = React.useState(false);
   const [showRejectionPicker, setShowRejectionPicker] = React.useState(false);
   const contextLookup = React.useMemo(() => buildContextLookup(contextsMap), [contextsMap]);
@@ -226,19 +228,27 @@ export default function TinderItemsContent({
     }
   };
 
+  // Clean up confirm timer on unmount
+  React.useEffect(() => {
+    return () => {
+      if (flushConfirmTimer.current) clearTimeout(flushConfirmTimer.current);
+    };
+  }, []);
+
+  const handleFlushClick = () => {
+    if (!flushConfirming) {
+      setFlushConfirming(true);
+      flushConfirmTimer.current = setTimeout(() => {
+        setFlushConfirming(false);
+      }, 4000);
+      return;
+    }
+    if (flushConfirmTimer.current) clearTimeout(flushConfirmTimer.current);
+    setFlushConfirming(false);
+    handleFlush();
+  };
+
   const handleFlush = async () => {
-    const projectName = selectedProjectId === 'all'
-      ? 'all projects'
-      : projects.find(p => p.id === selectedProjectId)?.name || 'this project';
-
-    const itemTypeLabel = getFlushItemTypeLabel();
-
-    const confirmed = window.confirm(
-      `Are you sure you want to permanently delete all pending ${itemTypeLabel} from ${projectName}?\n\nThis action cannot be undone.`
-    );
-
-    if (!confirmed) return;
-
     try {
       setFlushing(true);
       setFlushError(null);
@@ -311,22 +321,26 @@ export default function TinderItemsContent({
       {/* Flush Button - Top Right */}
       <div className="absolute top-2 right-4 z-50">
         <motion.button
-          onClick={handleFlush}
+          onClick={handleFlushClick}
           disabled={flushing || loading || processing}
-          className={`p-2.5 rounded-lg border transition-all duration-200 ${
+          className={`rounded-lg border transition-all duration-200 ${
             flushing
-              ? 'bg-gray-700/50 border-gray-600/50 cursor-not-allowed'
+              ? 'p-2.5 bg-gray-700/50 border-gray-600/50 cursor-not-allowed'
+              : flushConfirming
+              ? 'px-3 py-2 bg-red-600/30 border-red-500/60 text-red-300 animate-pulse'
               : flushSuccess
-              ? 'bg-green-500/20 border-green-500/40 text-green-400'
+              ? 'p-2.5 bg-green-500/20 border-green-500/40 text-green-400'
               : flushError
-              ? 'bg-red-500/20 border-red-500/40 text-red-400'
-              : 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20 hover:border-red-500/50 text-red-400'
+              ? 'p-2.5 bg-red-500/20 border-red-500/40 text-red-400'
+              : 'p-2.5 bg-red-500/10 border-red-500/30 hover:bg-red-500/20 hover:border-red-500/50 text-red-400'
           }`}
           whileHover={flushing ? {} : { scale: 1.05 }}
           whileTap={flushing ? {} : { scale: 0.95, rotate: -5 }}
           title={
             flushing
               ? `Flushing ${getFlushItemTypeLabel()}...`
+              : flushConfirming
+              ? 'Click again to confirm flush'
               : flushSuccess
               ? 'Flushed!'
               : flushError
@@ -342,6 +356,11 @@ export default function TinderItemsContent({
             >
               <RefreshCw className="w-4 h-4" />
             </motion.div>
+          ) : flushConfirming ? (
+            <span className="text-xs font-medium whitespace-nowrap flex items-center gap-1.5">
+              <Trash2 className="w-3.5 h-3.5" />
+              Confirm?
+            </span>
           ) : (
             <Trash2 className="w-4 h-4" />
           )}

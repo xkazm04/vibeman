@@ -54,9 +54,19 @@ function shouldError(errorRate: number): boolean {
 
 export async function POST(request: NextRequest) {
   try {
+    // Gate seed endpoint to non-production environments
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        { success: false, error: 'Seed endpoint is disabled in production' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
-    const days = body.days || 7;
-    const clearExisting = body.clearExisting !== false;
+    const rawDays = typeof body.days === 'number' ? body.days : 7;
+    // Clamp days to 1-90 to prevent memory exhaustion
+    const days = Math.min(Math.max(Math.round(rawDays), 1), 90);
+    const clearExisting = body.clearExisting === true; // Require explicit true instead of defaulting to true
 
     // Ensure config exists
     let config = observabilityDb.getConfig(VIBEMAN_PROJECT_ID);

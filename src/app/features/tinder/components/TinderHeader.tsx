@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, CloudDownload, RefreshCw, Trash2 } from 'lucide-react';
 import { UniversalSelect } from '@/components/ui/UniversalSelect';
@@ -36,6 +36,8 @@ export default function TinderHeader({
   const [flushing, setFlushing] = useState(false);
   const [flushError, setFlushError] = useState<string | null>(null);
   const [flushSuccess, setFlushSuccess] = useState(false);
+  const [flushConfirming, setFlushConfirming] = useState(false);
+  const flushConfirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Check if Supabase is configured on mount
   useEffect(() => {
@@ -90,18 +92,29 @@ export default function TinderHeader({
     }
   };
 
+  // Clean up confirm timer on unmount
+  useEffect(() => {
+    return () => {
+      if (flushConfirmTimer.current) clearTimeout(flushConfirmTimer.current);
+    };
+  }, []);
+
+  const handleFlushClick = () => {
+    if (!flushConfirming) {
+      // First click: enter confirmation mode, auto-revert after 4 seconds
+      setFlushConfirming(true);
+      flushConfirmTimer.current = setTimeout(() => {
+        setFlushConfirming(false);
+      }, 4000);
+      return;
+    }
+    // Second click: execute flush
+    if (flushConfirmTimer.current) clearTimeout(flushConfirmTimer.current);
+    setFlushConfirming(false);
+    handleFlush();
+  };
+
   const handleFlush = async () => {
-    // Confirmation dialog
-    const projectName = selectedProjectId === 'all'
-      ? 'all projects'
-      : projects.find(p => p.id === selectedProjectId)?.name || 'this project';
-
-    const confirmed = window.confirm(
-      `Are you sure you want to permanently delete all ideas from ${projectName}?\n\nThis action cannot be undone.`
-    );
-
-    if (!confirmed) return;
-
     try {
       setFlushing(true);
       setFlushError(null);
@@ -261,22 +274,26 @@ export default function TinderHeader({
             {/* Flush Button */}
             <div className="relative ml-2">
               <motion.button
-                onClick={handleFlush}
+                onClick={handleFlushClick}
                 disabled={flushing || loading || processing}
-                className={`p-2.5 rounded-lg border transition-all duration-200 ${
+                className={`rounded-lg border transition-all duration-200 ${
                   flushing
-                    ? 'bg-gray-700/50 border-gray-600/50 cursor-not-allowed'
+                    ? 'p-2.5 bg-gray-700/50 border-gray-600/50 cursor-not-allowed'
+                    : flushConfirming
+                    ? 'px-3 py-2 bg-red-600/30 border-red-500/60 text-red-300 animate-pulse'
                     : flushSuccess
-                    ? 'bg-green-500/20 border-green-500/40 text-green-400'
+                    ? 'p-2.5 bg-green-500/20 border-green-500/40 text-green-400'
                     : flushError
-                    ? 'bg-red-500/20 border-red-500/40 text-red-400'
-                    : 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20 hover:border-red-500/50 text-red-400'
+                    ? 'p-2.5 bg-red-500/20 border-red-500/40 text-red-400'
+                    : 'p-2.5 bg-red-500/10 border-red-500/30 hover:bg-red-500/20 hover:border-red-500/50 text-red-400'
                 }`}
                 whileHover={flushing ? {} : { scale: 1.05 }}
                 whileTap={flushing ? {} : { scale: 0.95, rotate: -5 }}
                 title={
                   flushing
                     ? 'Flushing ideas...'
+                    : flushConfirming
+                    ? 'Click again to confirm flush'
                     : flushSuccess
                     ? 'Ideas flushed!'
                     : flushError
@@ -292,6 +309,11 @@ export default function TinderHeader({
                   >
                     <RefreshCw className="w-4 h-4" />
                   </motion.div>
+                ) : flushConfirming ? (
+                  <span className="text-xs font-medium whitespace-nowrap flex items-center gap-1.5">
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Confirm?
+                  </span>
                 ) : (
                   <Trash2 className="w-4 h-4" />
                 )}

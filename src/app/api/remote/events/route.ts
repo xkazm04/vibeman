@@ -4,83 +4,64 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getRemoteSupabase } from '@/lib/remote/supabaseClient';
+import { withRemoteSupabase } from '@/lib/remote/apiMiddleware';
 import type { RemoteEventType, EventsQueryParams } from '@/lib/remote/types';
 
-export async function GET(request: NextRequest) {
-  try {
-    const supabase = getRemoteSupabase();
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Remote not configured' },
-        { status: 400 }
-      );
-    }
+export const GET = withRemoteSupabase('Remote/Events', async (supabase, request: NextRequest) => {
+  const { searchParams } = new URL(request.url);
 
-    const { searchParams } = new URL(request.url);
+  const params: EventsQueryParams = {
+    project_id: searchParams.get('project_id') || undefined,
+    event_type: searchParams.get('event_type') as RemoteEventType | undefined,
+    since: searchParams.get('since') || undefined,
+    until: searchParams.get('until') || undefined,
+    limit: parseInt(searchParams.get('limit') || '100', 10),
+    offset: parseInt(searchParams.get('offset') || '0', 10),
+  };
 
-    const params: EventsQueryParams = {
-      project_id: searchParams.get('project_id') || undefined,
-      event_type: searchParams.get('event_type') as RemoteEventType | undefined,
-      since: searchParams.get('since') || undefined,
-      until: searchParams.get('until') || undefined,
-      limit: parseInt(searchParams.get('limit') || '100', 10),
-      offset: parseInt(searchParams.get('offset') || '0', 10),
-    };
+  // Validate limit
+  if (params.limit! > 1000) {
+    params.limit = 1000;
+  }
 
-    // Validate limit
-    if (params.limit! > 1000) {
-      params.limit = 1000;
-    }
+  // Build query
+  let query = supabase
+    .from('vibeman_events')
+    .select('*', { count: 'exact' })
+    .order('created_at', { ascending: false });
 
-    // Build query
-    let query = supabase
-      .from('vibeman_events')
-      .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false });
+  if (params.project_id) {
+    query = query.eq('project_id', params.project_id);
+  }
 
-    if (params.project_id) {
-      query = query.eq('project_id', params.project_id);
-    }
+  if (params.event_type) {
+    query = query.eq('event_type', params.event_type);
+  }
 
-    if (params.event_type) {
-      query = query.eq('event_type', params.event_type);
-    }
+  if (params.since) {
+    query = query.gte('created_at', params.since);
+  }
 
-    if (params.since) {
-      query = query.gte('created_at', params.since);
-    }
+  if (params.until) {
+    query = query.lte('created_at', params.until);
+  }
 
-    if (params.until) {
-      query = query.lte('created_at', params.until);
-    }
+  query = query.range(params.offset!, params.offset! + params.limit! - 1);
 
-    query = query.range(params.offset!, params.offset! + params.limit! - 1);
+  const { data: events, error, count } = await query;
 
-    const { data: events, error, count } = await query;
-
-    if (error) {
-      console.error('[Remote/Events] Query error:', error);
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      events: events || [],
-      total: count || 0,
-      has_more: (count || 0) > params.offset! + (events?.length || 0),
-    });
-  } catch (error) {
-    console.error('[Remote/Events] Error:', error);
+  if (error) {
+    console.error('[Remote/Events] Query error:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch events',
-      },
+      { success: false, error: error.message },
       { status: 500 }
     );
   }
-}
+
+  return NextResponse.json({
+    success: true,
+    events: events || [],
+    total: count || 0,
+    has_more: (count || 0) > params.offset! + (events?.length || 0),
+  });
+});

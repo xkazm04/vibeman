@@ -12,15 +12,17 @@ import { motion, useMotionValue, useSpring } from 'framer-motion';
 import {
   ListChecks, CheckCircle2, XCircle,
   RefreshCw, Brain, Wrench, Clock, DollarSign,
-  GitBranch, GitMerge,
+  GitBranch, GitMerge, WifiOff, AlertTriangle as AlertTriangleIcon,
 } from 'lucide-react';
 import type { PipelineMetrics, ProcessLogEntry } from '../lib/types';
+import type { ConnectionHealth } from '../lib/useConductorStatus';
 import { formatDuration, formatCost } from '../lib/format';
 
 interface MetricsBarProps {
   metrics: PipelineMetrics | null;
   processLog?: ProcessLogEntry[];
   isRunning: boolean;
+  connectionHealth?: ConnectionHealth;
 }
 
 // Static color class map — avoids dynamic Tailwind interpolation that gets purged in production
@@ -109,7 +111,7 @@ function MetricGroup({ label, children }: { label: string; children: React.React
   );
 }
 
-export default function MetricsBar({ metrics, processLog, isRunning }: MetricsBarProps) {
+export default function MetricsBar({ metrics, processLog, isRunning, connectionHealth }: MetricsBarProps) {
   // Derive live metrics from processLog if available (most recent metrics event wins)
   const liveMetrics = useMemo(() => {
     if (!processLog || processLog.length === 0) return null;
@@ -201,12 +203,36 @@ export default function MetricsBar({ metrics, processLog, isRunning }: MetricsBa
         <MetricItem icon={DollarSign} value={formatCost(estimatedCost)} colorClass={METRIC_COLORS.amber} delay={7} title="Estimated cost" />
       </MetricGroup>
 
+      {/* Connection health indicator */}
+      {connectionHealth?.isDisconnected && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex items-center gap-1.5 ml-auto flex-shrink-0 px-2 py-1 rounded-md bg-red-500/10 border border-red-500/30"
+          role="alert"
+        >
+          <WifiOff className="w-3 h-3 text-red-400" />
+          <span className="text-2xs font-medium text-red-400">Disconnected</span>
+        </motion.div>
+      )}
+      {connectionHealth && connectionHealth.isStale && !connectionHealth.isDisconnected && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex items-center gap-1.5 ml-auto flex-shrink-0 px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/30"
+          role="status"
+        >
+          <AlertTriangleIcon className="w-3 h-3 text-amber-400" />
+          <span className="text-2xs font-medium text-amber-400">Stale data</span>
+        </motion.div>
+      )}
+
       {/* Running indicator */}
-      {isRunning && (
+      {isRunning && !connectionHealth?.isDisconnected && (
         <motion.div
           role="status"
           aria-label="Pipeline running"
-          className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-auto flex-shrink-0"
+          className={`w-1.5 h-1.5 rounded-full bg-emerald-400 ${!connectionHealth?.isStale ? 'ml-auto' : ''} flex-shrink-0`}
           animate={{ opacity: [1, 0.3, 1] }}
           transition={{ duration: 1, repeat: Infinity }}
         />

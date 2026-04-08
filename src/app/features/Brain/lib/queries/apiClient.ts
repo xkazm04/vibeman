@@ -259,6 +259,48 @@ export interface ResolvedEvidence {
   createdAt: string;
 }
 
+// ── Lineage ─────────────────────────────────────────────────────────────────
+
+export interface LineageNode {
+  id: string;
+  title: string;
+  type: string;
+  confidence: number;
+  created_at: string;
+  reflection_id: string;
+  evolves_from_id: string | null;
+  auto_pruned: boolean;
+  conflict_with_id: string | null;
+  conflict_with_title: string | null;
+  evidence: Array<{ type: string; id: string }>;
+}
+
+export interface LineageEdge {
+  parent_id: string;
+  child_id: string;
+  relationship_type: string;
+  reason: string | null;
+}
+
+export interface LineageInfluence {
+  insight_id: string;
+  direction_id: string;
+  decision: string;
+  decided_at: string;
+}
+
+export interface LineageResponse {
+  success: boolean;
+  nodes: LineageNode[];
+  edges: LineageEdge[];
+  influences: LineageInfluence[];
+  focusId: string;
+}
+
+export async function fetchInsightLineage(insightId: string): Promise<LineageResponse> {
+  return fetchJSON(`/api/brain/insights/lineage?insightId=${encodeURIComponent(insightId)}`);
+}
+
 export async function fetchEvidenceRefs(evidenceRefs: Array<{ type: string; id: string }>) {
   return fetchJSON<{ success: boolean; evidence: Record<string, ResolvedEvidence | null> }>(
     '/api/brain/insights',
@@ -268,4 +310,111 @@ export async function fetchEvidenceRefs(evidenceRefs: Array<{ type: string; id: 
       body: JSON.stringify({ evidenceRefs }),
     }
   );
+}
+
+// ── Monitors ────────────────────────────────────────────────────────────────
+
+import type { DbAnomalyMonitor, DbAnomalyMonitorEvent, MonitorEventStatus, MonitorMetric, MonitorCondition } from '@/app/db/models/brain.types';
+
+export interface MonitorsResponse {
+  success: boolean;
+  monitors: DbAnomalyMonitor[];
+  activeEvents: DbAnomalyMonitorEvent[];
+  counts: {
+    total: number;
+    enabled: number;
+    activeAlerts: number;
+    snoozed: number;
+  };
+}
+
+export async function fetchMonitors(projectId: string): Promise<MonitorsResponse> {
+  return fetchJSON(`/api/brain/monitors?projectId=${encodeURIComponent(projectId)}`);
+}
+
+export async function createMonitor(body: {
+  projectId: string;
+  name: string;
+  description?: string;
+  metric: MonitorMetric;
+  condition: MonitorCondition;
+  threshold: number;
+  signalType?: string;
+  contextId?: string;
+  cooldownMinutes?: number;
+}): Promise<{ success: boolean; monitor: DbAnomalyMonitor }> {
+  return fetchJSON('/api/brain/monitors', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateMonitor(
+  id: string,
+  body: Record<string, unknown>,
+): Promise<{ success: boolean; monitor: DbAnomalyMonitor }> {
+  return fetchJSON(`/api/brain/monitors?id=${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteMonitor(id: string): Promise<{ success: boolean }> {
+  return fetchJSON(`/api/brain/monitors?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export async function updateMonitorEventStatus(
+  eventId: string,
+  status: MonitorEventStatus,
+  snoozeDurationMinutes?: number,
+): Promise<{ success: boolean; event: DbAnomalyMonitorEvent }> {
+  return fetchJSON('/api/brain/monitors', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ eventId, status, snoozeDurationMinutes }),
+  });
+}
+
+export async function evaluateMonitors(projectId: string): Promise<{ success: boolean; triggeredEvents: DbAnomalyMonitorEvent[] }> {
+  return fetchJSON('/api/brain/monitors', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'evaluate', projectId }),
+  });
+}
+
+// ── Insight Annotations ──────────────────────────────────────────────────────
+
+import type { InsightAnnotation } from '@/app/db/models/brain.types';
+
+export async function upsertAnnotation(
+  insightId: string,
+  note: string | null,
+  tags: string[],
+): Promise<{ success: boolean; annotation: InsightAnnotation }> {
+  return fetchJSON('/api/brain/insights/annotations', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ insightId, note, tags }),
+  });
+}
+
+export async function deleteAnnotation(insightId: string): Promise<{ success: boolean; deleted: boolean }> {
+  return fetchJSON('/api/brain/insights/annotations', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ insightId }),
+  });
+}
+
+export async function fetchProjectTags(
+  projectId: string | null,
+  scope: string,
+): Promise<{ success: boolean; tags: string[] }> {
+  const params = scope === 'global'
+    ? 'tags=true&scope=global'
+    : `tags=true&projectId=${projectId}`;
+  return fetchJSON(`/api/brain/insights/annotations?${params}`);
 }

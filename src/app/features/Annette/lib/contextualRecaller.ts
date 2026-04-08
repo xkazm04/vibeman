@@ -1,7 +1,14 @@
 /**
  * Annette Contextual Recaller
+ *
  * Retrieves relevant memories and knowledge based on conversation context.
  * Queries the unified knowledge store instead of merging from two separate systems.
+ *
+ * This file orchestrates the recall pipeline and re-exports
+ * focused modules for backward compatibility:
+ * - contextExtractor.ts  – LLM-based signal extraction
+ * - contextFormatter.ts  – prompt formatting and token estimation
+ * - memoryMaintenance.ts – decay, pruning, learning
  */
 
 import { annetteDb, contextDb } from '@/app/db';
@@ -13,9 +20,19 @@ import {
   type KnowledgeNode,
   type KnowledgeEdge,
 } from './unifiedKnowledgeStore';
-import { generateWithLLM } from '@/lib/llm';
 import { safeParseJson } from '@/lib/json-utils';
-import { safeParseLLMJson } from '@/lib/safeParseLLMJson';
+
+// Import from extracted modules
+import { extractContextSignals } from './contextExtractor';
+import {
+  formatForPrompt,
+  generateContextSummary,
+  estimateTokens,
+} from './contextFormatter';
+import {
+  learnFromConversation,
+  performMaintenance,
+} from './memoryMaintenance';
 
 export interface RecallContext {
   projectId: string;
@@ -46,48 +63,7 @@ export const contextualRecaller = {
   /**
    * Extract context signals from a message
    */
-  async extractContextSignals(message: string): Promise<ConversationContext> {
-    const prompt = `Analyze this message and extract context signals for memory retrieval.
-
-Message: ${message}
-
-Extract:
-1. Topics: Main topics being discussed
-2. Entities: Named entities (files, functions, components, technologies, etc.)
-3. Questions: Questions being asked (if any)
-4. Intents: User intents (asking, explaining, debugging, planning, etc.)
-
-Respond in JSON format:
-{
-  "topics": ["topic1", "topic2"],
-  "entities": ["entity1", "entity2"],
-  "questions": ["question1"],
-  "intents": ["intent1", "intent2"]
-}`;
-
-    try {
-      const response = await generateWithLLM(prompt, {
-        provider: 'anthropic',
-        temperature: 0.2,
-        maxTokens: 500,
-      });
-
-      if (!response.success || !response.response) {
-        return { topics: [], entities: [], questions: [], intents: [] };
-      }
-
-      const parsed = safeParseLLMJson<ConversationContext>(response.response);
-      return {
-        topics: Array.isArray(parsed.topics) ? parsed.topics : [],
-        entities: Array.isArray(parsed.entities) ? parsed.entities : [],
-        questions: Array.isArray(parsed.questions) ? parsed.questions : [],
-        intents: Array.isArray(parsed.intents) ? parsed.intents : [],
-      };
-    } catch (error) {
-      console.error('Failed to extract context signals:', error);
-      return { topics: [], entities: [], questions: [], intents: [] };
-    }
-  },
+  extractContextSignals,
 
   /**
    * Recall relevant memories and knowledge based on conversation context.
@@ -226,59 +202,12 @@ Respond in JSON format:
   /**
    * Generate a summary of recalled context
    */
-  async generateContextSummary(
-    memories: Memory[],
-    nodes: KnowledgeNode[],
-    topics: Array<{ topic: string; summary: string }>
-  ): Promise<string> {
-    if (memories.length === 0 && nodes.length === 0 && topics.length === 0) {
-      return '';
-    }
-
-    const parts: string[] = [];
-
-    if (memories.length > 0) {
-      parts.push('Relevant memories:');
-      for (const memory of memories.slice(0, 3)) {
-        parts.push(`- [${memory.memoryType}] ${memory.summary || memory.content.slice(0, 100)}`);
-      }
-    }
-
-    if (nodes.length > 0) {
-      parts.push('\nKnown entities:');
-      for (const node of nodes.slice(0, 3)) {
-        parts.push(`- ${node.name} (${node.nodeType}): ${node.description || 'No description'}`);
-      }
-    }
-
-    if (topics.length > 0) {
-      parts.push('\nActive topics:');
-      for (const topic of topics.slice(0, 3)) {
-        parts.push(`- ${topic.topic}: ${topic.summary.slice(0, 50)}...`);
-      }
-    }
-
-    return parts.join('\n');
-  },
+  generateContextSummary,
 
   /**
    * Estimate token count for recalled context
    */
-  estimateTokens(
-    memories: Memory[],
-    nodes: KnowledgeNode[],
-    summary: string
-  ): number {
-    let tokens = 0;
-    for (const memory of memories) {
-      tokens += (memory.content.length + (memory.summary?.length || 0)) / 4;
-    }
-    for (const node of nodes) {
-      tokens += (node.name.length + (node.description?.length || 0)) / 4;
-    }
-    tokens += summary.length / 4;
-    return Math.round(tokens);
-  },
+  estimateTokens,
 
   /**
    * Fast keyword-based context lookup
@@ -328,44 +257,7 @@ Respond in JSON format:
   /**
    * Format recalled context for inclusion in LLM prompt
    */
-  formatForPrompt(recalled: RecalledContext): string {
-    if (recalled.memories.length === 0 && recalled.knowledgeNodes.length === 0) {
-      return '';
-    }
-
-    const parts: string[] = ['## Contextual Memory\n'];
-
-    if (recalled.memories.length > 0) {
-      parts.push('### Relevant Memories');
-      for (const memory of recalled.memories) {
-        const score = (memory.relevanceScore * 100).toFixed(0);
-        parts.push(`- [${memory.memoryType}, ${score}% relevant] ${memory.content}`);
-      }
-      parts.push('');
-    }
-
-    if (recalled.knowledgeNodes.length > 0) {
-      parts.push('### Known Entities');
-      for (const node of recalled.knowledgeNodes) {
-        const desc = node.description ? `: ${node.description}` : '';
-        parts.push(`- **${node.name}** (${node.nodeType})${desc}`);
-      }
-      parts.push('');
-    }
-
-    if (recalled.knowledgeEdges.length > 0) {
-      parts.push('### Relationships');
-      for (const edge of recalled.knowledgeEdges.slice(0, 5)) {
-        const sourceNode = recalled.knowledgeNodes.find(n => n.id === edge.sourceNodeId);
-        const targetNode = recalled.knowledgeNodes.find(n => n.id === edge.targetNodeId);
-        if (sourceNode && targetNode) {
-          parts.push(`- ${sourceNode.name} --[${edge.relationshipType}]--> ${targetNode.name}`);
-        }
-      }
-    }
-
-    return parts.join('\n');
-  },
+  formatForPrompt,
 
   /**
    * Auto-recall and inject context into messages
@@ -395,71 +287,10 @@ Respond in JSON format:
   /**
    * Learn from conversation by extracting memories and building knowledge graph
    */
-  async learnFromConversation(
-    projectId: string,
-    sessionId: string,
-    messages: Array<{ role: string; content: string; id?: string }>
-  ): Promise<{
-    memoriesCreated: number;
-    nodesCreated: number;
-    edgesCreated: number;
-  }> {
-    // Extract memories
-    const memories = await unifiedKnowledgeStore.extractMemoriesFromConversation(projectId, sessionId, messages);
-
-    // Build conversation text for entity extraction
-    const conversationText = messages.map(m => m.content).join('\n');
-
-    // Extract and build knowledge graph
-    const { nodes, edges } = await unifiedKnowledgeStore.buildFromText(projectId, conversationText);
-
-    // Index new memories and nodes in parallel
-    await Promise.all([
-      ...memories.map(memory => unifiedKnowledgeStore.indexItem(memory.id, 'memory')),
-      ...nodes.map(node => unifiedKnowledgeStore.indexItem(node.id, 'knowledge')),
-    ]);
-
-    return {
-      memoriesCreated: memories.length,
-      nodesCreated: nodes.length,
-      edgesCreated: edges.length,
-    };
-  },
+  learnFromConversation,
 
   /**
    * Perform periodic maintenance on memories
    */
-  async performMaintenance(projectId: string): Promise<{
-    decayedCount: number;
-    prunedCount: number;
-    consolidatedCount: number;
-    indexedCount: number;
-  }> {
-    const decayedCount = unifiedKnowledgeStore.applyMemoryDecay(projectId, 0.99);
-    const prunedCount = unifiedKnowledgeStore.pruneOldMemories(projectId, 0.01);
-
-    // Find clusters of similar memories for consolidation
-    const clusters = await unifiedKnowledgeStore.clusterMemories(projectId, 0.8);
-    let consolidatedCount = 0;
-
-    for (const cluster of clusters) {
-      if (cluster.length >= 3) {
-        const memoryIds = cluster.map(m => m.id);
-        const consolidated = await unifiedKnowledgeStore.consolidateMemories(projectId, memoryIds);
-        if (consolidated) {
-          consolidatedCount += memoryIds.length;
-        }
-      }
-    }
-
-    // Index any unindexed items
-    const indexed = await unifiedKnowledgeStore.indexAllUnindexed(projectId);
-
-    return {
-      decayedCount,
-      prunedCount,
-      consolidatedCount,
-      indexedCount: indexed.memories + indexed.nodes,
-    };
-  },
+  performMaintenance,
 };

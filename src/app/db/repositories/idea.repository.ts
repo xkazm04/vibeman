@@ -74,6 +74,18 @@ export const ideaRepository = {
     return q.count();
   },
 
+  /**
+   * Count pending ideas by project using SQL COUNT (no full row hydration).
+   */
+  countPendingByProject: (projectId: string): number =>
+    queryIdeas().project(projectId).status('pending').count(),
+
+  /**
+   * Count all pending ideas using SQL COUNT (no full row hydration).
+   */
+  countAllPending: (): number =>
+    queryIdeas().status('pending').count(),
+
   getIdeasByScanId: (scanId: string): DbIdea[] =>
     queryIdeas().scan(scanId).execute(),
 

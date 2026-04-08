@@ -8,7 +8,7 @@
 
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Terminal, ChevronDown,
@@ -17,7 +17,8 @@ import {
 import { EmptyLogIllustration } from './ConductorEmptyStates';
 import { SoftErrorIcon, SoftDetailExpandIcon } from './HealingIcons';
 import { useThemeStore } from '@/stores/themeStore';
-import type { ProcessLogEntry } from '../lib/types';
+import type { ProcessLogEntry, AnyPipelineStage, V3PipelineStage, PipelineStage } from '../lib/types';
+import { V3_PIPELINE_STAGES, PIPELINE_STAGES } from '../lib/types';
 import { getStageTheme } from '../lib/stageTheme';
 
 interface ProcessLogProps {
@@ -36,7 +37,7 @@ const EVENT_ICONS: Record<ProcessLogEntry['event'], { icon: React.ComponentType<
 
 import { formatDuration, formatTime } from '../lib/format';
 
-function LogEntry({ entry }: { entry: ProcessLogEntry }) {
+const LogEntry = React.memo(function LogEntry({ entry }: { entry: ProcessLogEntry }) {
   const [expanded, setExpanded] = useState(false);
   const appTheme = useThemeStore((s) => s.theme);
   const stageColor = getStageTheme(entry.stage, appTheme).badge;
@@ -117,11 +118,38 @@ function LogEntry({ entry }: { entry: ProcessLogEntry }) {
     </AnimatePresence>
   </>
   );
-}
+});
 
 export default function ProcessLog({ entries, isRunning }: ProcessLogProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [stageFilter, setStageFilter] = useState<AnyPipelineStage | null>(null);
+  const appTheme = useThemeStore((s) => s.theme);
+
+  // Detect which pipeline version from entry stages
+  const isV3 = useMemo(() => {
+    const v3Stages = new Set<string>(V3_PIPELINE_STAGES);
+    return entries.some((e) => v3Stages.has(e.stage));
+  }, [entries]);
+
+  const stages: AnyPipelineStage[] = isV3
+    ? (V3_PIPELINE_STAGES as unknown as AnyPipelineStage[])
+    : (PIPELINE_STAGES as unknown as AnyPipelineStage[]);
+
+  // Count entries per stage
+  const stageCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const entry of entries) {
+      counts.set(entry.stage, (counts.get(entry.stage) || 0) + 1);
+    }
+    return counts;
+  }, [entries]);
+
+  // Filter entries by active stage
+  const filteredEntries = useMemo(() => {
+    if (!stageFilter) return entries;
+    return entries.filter((e) => e.stage === stageFilter);
+  }, [entries, stageFilter]);
 
   // Auto-scroll to bottom when new entries arrive
   useEffect(() => {
@@ -193,6 +221,52 @@ export default function ProcessLog({ entries, isRunning }: ProcessLogProps) {
         </div>
       </div>
 
+      {/* Stage filter tabs */}
+      {entries.length > 0 && (
+        <div className="flex items-center gap-1 px-3 py-1.5 border-b border-gray-800/50 bg-gray-900/30 overflow-x-auto">
+          <button
+            onClick={() => setStageFilter(null)}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-2xs font-medium whitespace-nowrap transition-colors ${
+              !stageFilter
+                ? 'text-gray-200 border-b-2 border-gray-200'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            All
+            <span className={`px-1 py-0.5 rounded-full text-micro font-mono ${
+              !stageFilter ? 'bg-gray-700 text-gray-300' : 'bg-gray-800 text-gray-500'
+            }`}>
+              {entries.length}
+            </span>
+          </button>
+          {stages.map((stage) => {
+            const count = stageCounts.get(stage) || 0;
+            const theme = getStageTheme(stage, appTheme);
+            const isActive = stageFilter === stage;
+            return (
+              <button
+                key={stage}
+                onClick={() => setStageFilter(isActive ? null : stage)}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-2xs font-medium uppercase whitespace-nowrap transition-colors ${
+                  isActive
+                    ? `${theme.badge} border-b-2`
+                    : 'text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                {stage}
+                {count > 0 && (
+                  <span className={`px-1 py-0.5 rounded-full text-micro font-mono ${
+                    isActive ? theme.badge : 'bg-gray-800 text-gray-500'
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Log entries */}
       <div
         ref={scrollRef}
@@ -204,7 +278,7 @@ export default function ProcessLog({ entries, isRunning }: ProcessLogProps) {
         className="max-h-[300px] overflow-y-auto custom-scrollbar scroll-shadow-y px-1 py-1"
       >
         <AnimatePresence initial={false}>
-          {entries.map((entry) => (
+          {filteredEntries.map((entry) => (
             <LogEntry key={entry.id} entry={entry} />
           ))}
         </AnimatePresence>

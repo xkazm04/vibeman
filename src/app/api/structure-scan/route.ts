@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as fs from 'fs/promises';
 import {
   getStructureTemplateWithCustom,
   getEnforcedStructure,
 } from './structureTemplates';
 import { scanWithEnforcedStructure } from './lib/violationDetector';
 import {
-  validateScanRequest,
   scanForViolations,
   generateRequirementFiles,
 } from './lib/helpers';
+import { validateRequestBody } from '@/lib/validation/apiValidator';
+import {
+  validateProjectPath,
+  validateProjectType,
+  validateProjectId,
+} from '@/lib/validation/inputValidator';
 import { logger } from '@/lib/logger';
 
 /**
@@ -27,24 +31,19 @@ import { logger } from '@/lib/logger';
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const validation = await validateRequestBody(request, {
+      required: [
+        { field: 'projectPath', validator: validateProjectPath },
+        { field: 'projectType', validator: validateProjectType },
+      ],
+      optional: [
+        { field: 'projectId', validator: validateProjectId },
+      ],
+    });
+    if (!validation.success) return validation.error;
 
-    const validation = validateScanRequest(body);
-    if (!validation.valid) {
-      return NextResponse.json({ error: validation.error }, { status: 400 });
-    }
-
-    const { projectPath, projectType } = validation.data;
-
-    // Verify project path exists
-    try {
-      await fs.access(projectPath);
-    } catch {
-      return NextResponse.json(
-        { error: 'Project path does not exist' },
-        { status: 404 }
-      );
-    }
+    const projectPath = validation.data.projectPath as string;
+    const projectType = validation.data.projectType as 'nextjs' | 'fastapi';
 
     // Scan for violations using enforced structure or template fallback
     const enforcedStructure = getEnforcedStructure(projectType);

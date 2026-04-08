@@ -37,18 +37,10 @@ async function handlePost(request: NextRequest) {
       return buildErrorResponse('projectId, source, and non-empty practices array required', { status: 400 });
     }
 
-    // 1. Create a synthetic reflection record as the parent
-    const reflectionId = `refl-ingest-${randomUUID().slice(0, 8)}`;
-    brainReflectionDb.create({
-      id: reflectionId,
-      project_id: projectId,
-      trigger_type: 'manual',
-      scope: 'project',
-    });
-
-    // 2. Batch-create insights
+    // 1. Batch-create insights, tracking successes before creating reflection
     const created: string[] = [];
     const skipped: string[] = [];
+    const reflectionId = `refl-ingest-${randomUUID().slice(0, 8)}`;
 
     for (const practice of practices) {
       if (!practice.title || !practice.description) {
@@ -75,16 +67,27 @@ async function handlePost(request: NextRequest) {
       }
     }
 
-    // 3. Mark reflection as completed
-    brainReflectionDb.completeReflection(reflectionId, {
-      directions_analyzed: 0,
-      outcomes_analyzed: 0,
-      signals_analyzed: practices.length,
-      guide_sections_updated: [],
-    });
+    // 2. Only create the reflection record if at least one insight was created
+    //    This prevents orphaned phantom reflections that inflate metrics.
+    if (created.length > 0) {
+      brainReflectionDb.create({
+        id: reflectionId,
+        project_id: projectId,
+        trigger_type: 'manual',
+        scope: 'project',
+      });
+
+      // 3. Mark reflection as completed with accurate counts
+      brainReflectionDb.completeReflection(reflectionId, {
+        directions_analyzed: 0,
+        outcomes_analyzed: 0,
+        signals_analyzed: created.length,
+        guide_sections_updated: [],
+      });
+    }
 
     return buildSuccessResponse({
-      reflectionId,
+      reflectionId: created.length > 0 ? reflectionId : null,
       created: created.length,
       skipped: skipped.length,
       createdTitles: created,

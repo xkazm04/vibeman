@@ -183,7 +183,7 @@ export function useCanvasInteraction({
     };
 
     resize();
-    setTimeout(() => fitToView(), 100);
+    const fitTimer = setTimeout(() => fitToView(), 100);
 
     const zoomBehavior = d3.zoom<HTMLCanvasElement, unknown>()
       .scaleExtent([0.2, 8])
@@ -293,6 +293,7 @@ export function useCanvasInteraction({
     resizeObs.observe(container);
 
     return () => {
+      clearTimeout(fitTimer);
       resizeObs.disconnect();
       canvas.removeEventListener('click', handleClick);
       canvas.removeEventListener('mousemove', handleMouseMove);

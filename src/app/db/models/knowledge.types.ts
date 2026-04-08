@@ -177,6 +177,32 @@ export interface KnowledgeExportEntry {
   times_helpful: number;
 }
 
+/** Provenance metadata computed for a knowledge entry */
+export interface KnowledgeEntryProvenance {
+  /** How this entry was created */
+  sourceType: KnowledgeSourceType;
+  /** Human-readable label for the source */
+  sourceLabel: string;
+  /** Source project ID (if from a specific project) */
+  sourceProjectId: string | null;
+  /** Source insight ID (if graduated from an insight) */
+  sourceInsightId: string | null;
+  /** Confidence at current state */
+  confidence: number;
+  /** Total times applied */
+  timesApplied: number;
+  /** Total times marked helpful */
+  timesHelpful: number;
+  /** Helpfulness ratio (null if never applied) */
+  helpfulnessRatio: number | null;
+  /** Days since last applied (null if never applied) */
+  daysSinceLastApplied: number | null;
+  /** Age in days since creation */
+  ageDays: number;
+  /** Whether the entry is battle-tested (applied >10 times with >70% helpfulness) */
+  battleTested: boolean;
+}
+
 /** Hub entry link — connects a hub (Map of Content) to a target knowledge entry */
 export interface DbKbEntryLink {
   id: string;

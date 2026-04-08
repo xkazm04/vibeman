@@ -27,6 +27,7 @@ import CombinedGeneratePanel from './components/CombinedGeneratePanel';
 import UnifiedTable from './components/UnifiedTable';
 import DirectionMatrix from './components/DirectionMatrix';
 import QuestionTree from './components/QuestionTree';
+import DecisionTopologyMap from './components/DecisionTopologyMap';
 import DirectionCarousel from '@/app/features/Proposals/components/DirectionCarousel';
 import AnswerQuestionModal from './components/AnswerQuestionModal';
 import AutoDeepenToast from './components/AutoDeepenToast';
@@ -225,6 +226,15 @@ export default function QuestionsLayout({ projectId: propProjectId }: QuestionsL
                     onGenerateDirection={orchestrator.handleGenerateDirectionFromTree}
                     generatingFollowUp={orchestrator.generateFollowUpMutation.isPending ? (orchestrator.generateFollowUpMutation.variables?.questionId ?? null) : null}
                     generatingBrief={orchestrator.generateBriefMutation.isPending ? (orchestrator.generateBriefMutation.variables?.questionId ?? null) : null}
+                  />
+                )}
+                {viewMode === 'topology' && (
+                  <DecisionTopologyMap
+                    trees={treeData?.trees ?? []}
+                    directions={data.directions}
+                    onAnswerQuestion={orchestrator.handleOpenAnswerModal}
+                    onAcceptDirection={orchestrator.handleAcceptDirection}
+                    onRejectDirection={orchestrator.handleRejectDirection}
                   />
                 )}
               </div>

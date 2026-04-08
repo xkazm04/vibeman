@@ -103,7 +103,7 @@ export default function EventCanvasD3({ enabled = true }: EventCanvasD3Props) {
       const fg = currentGroups.find(g => g.id === focusedGroupId);
       if (fg) renderFocused({ ctx, group: fg, width, height, transform, dpr, filterState });
     } else {
-      renderOverview({ ctx, groups: currentGroups, width, height, transform, dpr, selectedGroupId, filterState });
+      renderOverview({ ctx, groups: currentGroups, width, height, transform, dpr, selectedGroupId, filterState, convergenceEvents: store.convergenceEvents });
     }
   }, [store, canvasState]);
 
@@ -112,12 +112,14 @@ export default function EventCanvasD3({ enabled = true }: EventCanvasD3Props) {
     animRef.current = requestAnimationFrame(render);
   }, [render]);
 
-  // Cleanup worker + pending undo timeouts on unmount
+  // Cleanup worker + pending undo timeouts + in-flight fetches on unmount
   useEffect(() => {
     return () => {
       store.destroy();
       setUndoStack(prev => { prev.forEach(u => clearTimeout(u.timeout)); return []; });
       pendingDeletesRef.current.clear();
+      abortControllersRef.current.forEach(c => c.abort());
+      abortControllersRef.current.clear();
     };
   }, [store]);
 
@@ -156,6 +158,7 @@ export default function EventCanvasD3({ enabled = true }: EventCanvasD3Props) {
 
   // ── Delete / Undo (mutate store directly → subscribers notified) ──
   const pendingDeletesRef = useRef(new Set<string>());
+  const abortControllersRef = useRef(new Map<string, AbortController>());
 
   const handleDelete = useCallback((evt: BrainEvent) => {
     if (pendingDeletesRef.current.has(evt.id)) return; // double-delete guard
@@ -167,10 +170,13 @@ export default function EventCanvasD3({ enabled = true }: EventCanvasD3Props) {
     const timeout = setTimeout(() => {
       setUndoStack(prev => prev.filter(u => u.event.id !== evt.id));
       pendingDeletesRef.current.delete(evt.id);
-      fetch(`/api/brain/signals?id=${evt.id}`, { method: 'DELETE' })
-        .catch(() => {
-          store.restoreEvent(evt, groupId);
-        });
+      const controller = new AbortController();
+      abortControllersRef.current.set(evt.id, controller);
+      fetch(`/api/brain/signals?id=${evt.id}`, { method: 'DELETE', signal: controller.signal })
+        .catch((err) => {
+          if (err?.name !== 'AbortError') store.restoreEvent(evt, groupId);
+        })
+        .finally(() => abortControllersRef.current.delete(evt.id));
     }, 5000);
     setUndoStack(prev => [...prev, { event: evt, timeout, groupId }]);
   }, [store, canvasState.focusedGroupId]);

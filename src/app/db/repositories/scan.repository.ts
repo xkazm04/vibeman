@@ -144,6 +144,52 @@ export const scanRepository = {
   deleteScan: (id: string): boolean => base.deleteById(id),
 
   /**
+   * Get historical stats per scan type for a project.
+   * Returns last scan date, average duration, acceptance rate, and total ideas generated.
+   */
+  getScanTypeStats: (projectId: string): Array<{
+    scan_type: string;
+    last_scan_date: string | null;
+    avg_duration_ms: number;
+    acceptance_rate: number;
+    total_ideas: number;
+  }> => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT
+        s.scan_type,
+        MAX(s.timestamp) as last_scan_date,
+        COALESCE(AVG(
+          CASE WHEN sq.started_at IS NOT NULL AND sq.completed_at IS NOT NULL
+            THEN (julianday(sq.completed_at) - julianday(sq.started_at)) * 86400000
+            ELSE NULL
+          END
+        ), 0) as avg_duration_ms,
+        CASE WHEN COUNT(i.id) > 0
+          THEN ROUND(
+            CAST(SUM(CASE WHEN i.status IN ('accepted', 'implemented') THEN 1 ELSE 0 END) AS REAL)
+            / COUNT(i.id) * 100, 1
+          )
+          ELSE 0
+        END as acceptance_rate,
+        COUNT(i.id) as total_ideas
+      FROM scans s
+      LEFT JOIN scan_queue sq ON sq.scan_id = s.id
+      LEFT JOIN ideas i ON i.scan_id = s.id
+      WHERE s.project_id = ?
+      GROUP BY s.scan_type
+      ORDER BY total_ideas DESC
+    `);
+    return stmt.all(projectId) as Array<{
+      scan_type: string;
+      last_scan_date: string | null;
+      avg_duration_ms: number;
+      acceptance_rate: number;
+      total_ideas: number;
+    }>;
+  },
+
+  /**
    * Get total token usage statistics for a project
    */
   getTokenStatsByProject: (projectId: string): { totalInputTokens: number; totalOutputTokens: number; scanCount: number } => {

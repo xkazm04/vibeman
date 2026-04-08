@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { brainInsightDb, directionDb, brainReflectionDb } from '@/app/db';
+import { brainInsightDb, insightAnnotationDb } from '@/app/db';
 import { getDatabase } from '@/app/db/connection';
 import { getHotWritesDatabase } from '@/app/db/hot-writes';
 import { withObservability } from '@/lib/observability/middleware';
@@ -29,6 +29,27 @@ async function handleGet(request: NextRequest) {
 
     const includeHistory = searchParams.get('includeHistory') !== 'false';
     const insights = brainInsightDb.getWithMeta(projectId, scope === 'global', includeHistory);
+
+    // Batch-fetch annotations for all returned insights
+    // Runtime rows include `id` from bi.* but the TS return type omits it
+    const insightIds: string[] = [];
+    for (const i of insights) {
+      const id = (i as unknown as { id?: string }).id;
+      if (id) insightIds.push(id);
+    }
+    if (insightIds.length > 0) {
+      const annotationMap = insightAnnotationDb.getByInsightIds(insightIds);
+      for (const insight of insights) {
+        const id = (insight as unknown as { id?: string }).id;
+        if (id) {
+          const ann = annotationMap.get(id);
+          if (ann) {
+            Object.assign(insight, { annotation: ann });
+          }
+        }
+      }
+    }
+
     return buildSuccessResponse({ insights });
   } catch (error) {
     console.error('[Brain Insights GET] Error:', error);
@@ -248,6 +269,14 @@ async function handlePatch(request: NextRequest) {
       ? brainInsightDb.getById(insightRow.conflict_with_id)
       : null;
 
+    // All resolutions require the other insight to exist when a conflict link is present
+    if (insightRow.conflict_with_id && !otherInsight) {
+      return buildErrorResponse(
+        'Conflicting insight no longer exists — it may have been deleted by a concurrent request',
+        { status: 409 },
+      );
+    }
+
     if (resolution === 'keep_both') {
       // Mark both as resolved
       brainInsightDb.update(insightRow.id, {
@@ -261,13 +290,6 @@ async function handlePatch(request: NextRequest) {
         });
       }
     } else if (resolution === 'keep_this') {
-      // Guard: the other insight must exist to safely delete it
-      if (!otherInsight) {
-        return buildErrorResponse(
-          'Conflicting insight no longer exists — cannot complete keep_this resolution',
-          { status: 404 },
-        );
-      }
       // Resolve this, delete the other
       brainInsightDb.update(insightRow.id, {
         conflict_resolved: 1,
@@ -276,18 +298,11 @@ async function handlePatch(request: NextRequest) {
         conflict_with_title: null,
         conflict_type: null,
       });
-      brainInsightDb.delete(otherInsight.id);
+      brainInsightDb.delete(otherInsight!.id);
     } else if (resolution === 'keep_other') {
-      // Guard: the other insight must exist before we delete the current one
-      if (!otherInsight) {
-        return buildErrorResponse(
-          'Conflicting insight no longer exists — cannot complete keep_other resolution',
-          { status: 404 },
-        );
-      }
       // Delete this, resolve the other
       brainInsightDb.delete(insightRow.id);
-      brainInsightDb.update(otherInsight.id, {
+      brainInsightDb.update(otherInsight!.id, {
         conflict_resolved: 1,
         conflict_resolution: 'keep_other',
         conflict_with_id: null,

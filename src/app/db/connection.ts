@@ -115,6 +115,7 @@ export function getDatabase(): Database.Database {
  */
 export function closeDatabase(): void {
   queryPatternCollector.stop();
+  statementCache.clear();
   instrumentedDb = null;
   closeDriver();
 }

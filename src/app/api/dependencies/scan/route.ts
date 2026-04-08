@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { env } from '@/lib/config/envConfig';
 import { v4 as uuidv4 } from 'uuid';
 import {
   dependencyScanDb,
@@ -11,6 +10,7 @@ import {
 import { scanMultipleProjects } from '@/lib/dependencyScanner';
 import { projectDb } from '@/lib/project_database';
 import { withObservability } from '@/lib/observability/middleware';
+import { fetchRegistryVersions } from '@/lib/registry/versionFetcher';
 
 /**
  * POST /api/dependencies/scan
@@ -164,21 +164,23 @@ async function fetchRegistryVersionsForScan(
   projectDeps: Array<{ dependency_name: string; dependency_type: string; project_id: string }>
 ): Promise<Record<string, string | null>> {
   try {
-    // Get all unique package names
-    const uniquePackages = new Set<string>();
-    projectDeps.forEach(dep => {
-      // Only fetch for npm/python packages (not local imports or shared modules)
-      if (dep.dependency_type === 'npm' || dep.dependency_type === 'python') {
-        uniquePackages.add(dep.dependency_name);
-      }
-    });
+    const npmPackages: string[] = [];
+    const pythonPackages: string[] = [];
 
-    if (uniquePackages.size === 0) {
+    for (const dep of projectDeps) {
+      if (dep.dependency_type === 'npm') npmPackages.push(dep.dependency_name);
+      else if (dep.dependency_type === 'python') pythonPackages.push(dep.dependency_name);
+    }
+
+    // Deduplicate
+    const uniqueNpm = [...new Set(npmPackages)];
+    const uniquePython = [...new Set(pythonPackages)];
+
+    if (uniqueNpm.length === 0 && uniquePython.length === 0) {
       return {};
     }
 
-    // Get project types to determine which registry to use
-    // For simplicity, if any project is python/fastapi, use pypi; otherwise use npm
+    // Determine which registries are relevant based on project types
     const projects = projectDb.getAllProjects();
     const scannedProjects = projects.filter(p => projectIds.includes(p.id));
     const hasPython = scannedProjects.some(p => p.type === 'python' || p.type === 'fastapi');
@@ -186,58 +188,19 @@ async function fetchRegistryVersionsForScan(
       p.type === 'nextjs' || p.type === 'react' || p.type === 'nodejs' || p.type === 'other'
     );
 
-    const allVersions: Record<string, string | null> = {};
+    // Fetch from both registries in parallel
+    const fetches: Promise<Record<string, string | null>>[] = [];
 
-    // Fetch npm packages
-    if (hasNode) {
-      const npmPackages = Array.from(uniquePackages).filter(pkg => {
-        const dep = projectDeps.find(d => d.dependency_name === pkg);
-        return dep?.dependency_type === 'npm';
-      });
-
-      if (npmPackages.length > 0) {
-        const response = await fetch(`${env.baseUrl()}/api/dependencies/registry-versions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            packages: npmPackages,
-            projectType: 'nextjs'
-          })
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          Object.assign(allVersions, data.versions);
-        }
-      }
+    if (hasNode && uniqueNpm.length > 0) {
+      fetches.push(fetchRegistryVersions(uniqueNpm, 'nodejs'));
+    }
+    if (hasPython && uniquePython.length > 0) {
+      fetches.push(fetchRegistryVersions(uniquePython, 'python'));
     }
 
-    // Fetch python packages
-    if (hasPython) {
-      const pythonPackages = Array.from(uniquePackages).filter(pkg => {
-        const dep = projectDeps.find(d => d.dependency_name === pkg);
-        return dep?.dependency_type === 'python';
-      });
-
-      if (pythonPackages.length > 0) {
-        const response = await fetch(`${env.baseUrl()}/api/dependencies/registry-versions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            packages: pythonPackages,
-            projectType: 'python'
-          })
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          Object.assign(allVersions, data.versions);
-        }
-      }
-    }
-
-    return allVersions;
-  } catch (error) {
+    const results = await Promise.all(fetches);
+    return Object.assign({}, ...results);
+  } catch {
     return {};
   }
 }

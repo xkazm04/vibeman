@@ -12,15 +12,21 @@ import { eventBus } from './eventBus';
 import type { ImplementationLoggedEvent, TaskExecutionCompletedEvent, QuestionAnsweredEvent, BrainDirectionChangedEvent } from './types';
 import { logger } from '@/lib/logger';
 
-let registered = false;
+// Use globalThis to survive HMR module reloads in development.
+// A module-level `let registered` flag resets when Next.js HMR reloads
+// this module, causing duplicate handlers to accumulate on the event bus.
+const REGISTRATION_KEY = '__domainSubscribers_registered__' as const;
 
 /**
  * Register all domain event subscribers.
  * Safe to call multiple times — only registers once.
+ * Uses globalThis guard to prevent duplicate handlers across HMR reloads.
+ * (A module-level `let registered` flag resets on HMR reload, but the
+ * eventBus singleton persists, causing duplicate handlers to accumulate.)
  */
 export function registerDomainSubscribers(): void {
-  if (registered) return;
-  registered = true;
+  if ((globalThis as Record<string, unknown>)[REGISTRATION_KEY]) return;
+  (globalThis as Record<string, unknown>)[REGISTRATION_KEY] = true;
 
   eventBus.on('domain:implementation_logged', onImplementationLogged);
   eventBus.on('domain:task_execution_completed', onTaskExecutionCompleted);
@@ -317,81 +323,93 @@ async function onQuestionAnswered(event: QuestionAnsweredEvent): Promise<void> {
       return;
     }
 
-    // Get ancestry chain for context
-    const { questionTreeService } = require('@/lib/questions/questionTreeService');
-    const chain = questionTreeService.getAncestryChain(questionId);
-    const newDepth = (question.tree_depth ?? 0) + 1;
+    // In-process lock: prevent concurrent auto-deepen for the same question
+    const locks = ((globalThis as Record<string, unknown>).__autoDeepenEventLocks ??= new Set()) as Set<string>;
+    if (locks.has(questionId)) {
+      logger.info('[DomainEvent] Auto-deepen: already in progress, skipping', { questionId });
+      return;
+    }
+    locks.add(questionId);
 
-    const strategicContext = chain
-      .filter((q: { status: string; answer: string | null }) => q.status === 'answered' && q.answer)
-      .map((q: { question: string; answer: string }, i: number) => `Q${i + 1}: ${q.question}\nA${i + 1}: ${q.answer}`)
-      .join('\n\n');
+    try {
+      // Get ancestry chain for context
+      const { questionTreeService } = require('@/lib/questions/questionTreeService');
+      const chain = questionTreeService.getAncestryChain(questionId);
+      const newDepth = (question.tree_depth ?? 0) + 1;
 
-    // Generate gap-targeted follow-ups via LLM
-    const { llmManager } = await import('@/lib/llm');
-    const gapTargetingPrompt = buildGapTargetingPrompt(analysis);
-    const count = Math.min(Math.max(analysis.gaps.length, 2), 3);
+      const strategicContext = chain
+        .filter((q: { status: string; answer: string | null }) => q.status === 'answered' && q.answer)
+        .map((q: { question: string; answer: string }, i: number) => `Q${i + 1}: ${q.question}\nA${i + 1}: ${q.answer}`)
+        .join('\n\n');
 
-    const prompt = buildAutoDeepenPrompt(question, strategicContext, gapTargetingPrompt, count);
+      // Generate gap-targeted follow-ups via LLM
+      const { llmManager } = await import('@/lib/llm');
+      const gapTargetingPrompt = buildGapTargetingPrompt(analysis);
+      const count = Math.min(Math.max(analysis.gaps.length, 2), 3);
 
-    const result = await llmManager.generate({
-      provider: 'anthropic',
-      model: 'claude-haiku-4-5-20251001',
-      prompt,
-      maxTokens: 2048,
-      temperature: 0.7,
-      taskType: 'auto-deepen-questions',
-    });
+      const prompt = buildAutoDeepenPrompt(question, strategicContext, gapTargetingPrompt, count);
 
-    const responseText = typeof result.response === 'string' ? result.response : '';
-    const generatedQuestions = parseFollowUpQuestions(responseText, count);
+      const result = await llmManager.generate({
+        provider: 'anthropic',
+        model: 'claude-haiku-4-5-20251001',
+        prompt,
+        maxTokens: 2048,
+        temperature: 0.7,
+        taskType: 'auto-deepen-questions',
+      });
 
-    if (generatedQuestions.length === 0) {
-      logger.warn('[DomainEvent] Auto-deepen: LLM failed to generate questions', { questionId });
+      const responseText = typeof result.response === 'string' ? result.response : '';
+      const generatedQuestions = parseFollowUpQuestions(responseText, count);
+
+      if (generatedQuestions.length === 0) {
+        logger.warn('[DomainEvent] Auto-deepen: LLM failed to generate questions', { questionId });
+        const { emitQuestionAutoDeepened } = require('./domainEmitters');
+        emitQuestionAutoDeepened({
+          projectId,
+          questionId,
+          deepened: false,
+          gapScore: analysis.gapScore,
+          gapCount: analysis.gaps.length,
+          summary: analysis.summary,
+          generatedCount: 0,
+        });
+        return;
+      }
+
+      // Create follow-up questions in DB, flagged as auto-deepened
+      const createdQuestions = generatedQuestions.map((questionText: string) => {
+        return questionDb.createQuestion({
+          id: `question_${uuidv4()}`,
+          project_id: question.project_id,
+          context_map_id: question.context_map_id,
+          context_map_title: question.context_map_title,
+          question: questionText,
+          parent_id: questionId,
+          tree_depth: newDepth,
+          auto_deepened: 1,
+        });
+      });
+
+      logger.info('[DomainEvent] Auto-deepen: generated targeted follow-ups', {
+        questionId,
+        gapScore: analysis.gapScore,
+        generatedCount: createdQuestions.length,
+        depth: newDepth,
+      });
+
       const { emitQuestionAutoDeepened } = require('./domainEmitters');
       emitQuestionAutoDeepened({
         projectId,
         questionId,
-        deepened: false,
+        deepened: true,
         gapScore: analysis.gapScore,
         gapCount: analysis.gaps.length,
         summary: analysis.summary,
-        generatedCount: 0,
+        generatedCount: createdQuestions.length,
       });
-      return;
+    } finally {
+      locks.delete(questionId);
     }
-
-    // Create follow-up questions in DB, flagged as auto-deepened
-    const createdQuestions = generatedQuestions.map((questionText: string) => {
-      return questionDb.createQuestion({
-        id: `question_${uuidv4()}`,
-        project_id: question.project_id,
-        context_map_id: question.context_map_id,
-        context_map_title: question.context_map_title,
-        question: questionText,
-        parent_id: questionId,
-        tree_depth: newDepth,
-        auto_deepened: 1,
-      });
-    });
-
-    logger.info('[DomainEvent] Auto-deepen: generated targeted follow-ups', {
-      questionId,
-      gapScore: analysis.gapScore,
-      generatedCount: createdQuestions.length,
-      depth: newDepth,
-    });
-
-    const { emitQuestionAutoDeepened } = require('./domainEmitters');
-    emitQuestionAutoDeepened({
-      projectId,
-      questionId,
-      deepened: true,
-      gapScore: analysis.gapScore,
-      gapCount: analysis.gaps.length,
-      summary: analysis.summary,
-      generatedCount: createdQuestions.length,
-    });
   } catch (error) {
     logger.error('[DomainEvent] Auto-deepen failed', { questionId, error });
   }

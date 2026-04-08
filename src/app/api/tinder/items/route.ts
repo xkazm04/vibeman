@@ -63,20 +63,37 @@ async function handleGet(request: NextRequest) {
   const items: TinderItem[] = [];
   const goalTitlesMap: Record<string, string> = {};
 
-  // ALWAYS fetch counts for both types (for tab display) regardless of itemType filter
-  const allIdeasForCount = projectId && projectId !== 'all'
-    ? ideaDb.getIdeasByProject(projectId)
-    : ideaDb.getAllIdeas();
-  const pendingIdeasForCount = allIdeasForCount.filter(idea => idea.status === 'pending');
-  const ideasCount = pendingIdeasForCount.length;
+  // Fetch counts for tab badges. Use SQL COUNT when full rows aren't needed.
+  const needIdeasRows = itemType === 'ideas' || itemType === 'both';
+  const needDirectionsRows = itemType === 'directions' || itemType === 'both';
 
-  const allDirectionsForCount = projectId && projectId !== 'all'
-    ? directionDb.getPendingDirections(projectId)
-    : directionDb.getAllPendingDirections();
-  const directionsCount = allDirectionsForCount.length;
+  // Only fetch full idea rows when we need them for pagination; otherwise use SQL COUNT
+  const pendingIdeasForCount = needIdeasRows
+    ? (projectId && projectId !== 'all'
+        ? ideaDb.getIdeasByProject(projectId)
+        : ideaDb.getAllIdeas()
+      ).filter(idea => idea.status === 'pending')
+    : null;
+  const ideasCount = pendingIdeasForCount !== null
+    ? pendingIdeasForCount.length
+    : (projectId && projectId !== 'all'
+        ? ideaDb.countPendingByProject(projectId)
+        : ideaDb.countAllPending());
+
+  // Only fetch full direction rows when we need them; otherwise use SQL COUNT
+  const allDirectionsForCount = needDirectionsRows
+    ? (projectId && projectId !== 'all'
+        ? directionDb.getPendingDirections(projectId)
+        : directionDb.getAllPendingDirections())
+    : null;
+  const directionsCount = allDirectionsForCount !== null
+    ? allDirectionsForCount.length
+    : (projectId && projectId !== 'all'
+        ? directionDb.countPendingByProject(projectId)
+        : directionDb.countAllPending());
 
   // Fetch Ideas items if needed
-  if (itemType === 'ideas' || itemType === 'both') {
+  if (needIdeasRows && pendingIdeasForCount) {
     // Use already fetched ideas for count, apply dimension filters via filter algebra
     let pendingIdeas = pendingIdeasForCount;
 
@@ -118,12 +135,12 @@ async function handleGet(request: NextRequest) {
       });
     }
 
-    // Batch-fetch goal titles to avoid N+1 queries in IdeaCard
+    // Batch-fetch goal titles in a single query instead of N+1
     const goalIds = [...new Set(pendingIdeas.map(idea => idea.goal_id).filter(Boolean))] as string[];
-    for (const goalId of goalIds) {
-      const goal = goalDb.getGoalById(goalId);
-      if (goal) {
-        goalTitlesMap[goalId] = goal.title;
+    if (goalIds.length > 0) {
+      const goals = goalDb.getGoalsByIds(goalIds);
+      for (const goal of goals) {
+        goalTitlesMap[goal.id] = goal.title;
       }
     }
 
@@ -134,7 +151,7 @@ async function handleGet(request: NextRequest) {
   }
 
   // Fetch Directions items if needed
-  if (itemType === 'directions' || itemType === 'both') {
+  if (needDirectionsRows && allDirectionsForCount) {
     // Use already fetched directions for count
     const pendingDirections = allDirectionsForCount;
 

@@ -257,6 +257,47 @@ export const directionOutcomeRepository = {
   },
 
   /**
+   * Get stats for a specific date range (from..to inclusive)
+   */
+  getStatsByDateRange: (projectId: string, fromDate: string, toDate: string): {
+    total: number;
+    successful: number;
+    failed: number;
+    reverted: number;
+    pending: number;
+  } => {
+    const db = getDatabase();
+    const query = `
+      SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN execution_success = 1 THEN 1 ELSE 0 END) as successful,
+        SUM(CASE WHEN execution_success = 0 THEN 1 ELSE 0 END) as failed,
+        SUM(CASE WHEN was_reverted = 1 THEN 1 ELSE 0 END) as reverted,
+        SUM(CASE WHEN execution_success IS NULL THEN 1 ELSE 0 END) as pending
+      FROM direction_outcomes
+      WHERE project_id = ?
+        AND created_at >= ?
+        AND created_at < ?
+    `;
+
+    const result = selectOne<{
+      total: number;
+      successful: number;
+      failed: number;
+      reverted: number;
+      pending: number;
+    }>(db, query, projectId, fromDate, toDate);
+
+    return {
+      total: result?.total ?? 0,
+      successful: result?.successful ?? 0,
+      failed: result?.failed ?? 0,
+      reverted: result?.reverted ?? 0,
+      pending: result?.pending ?? 0,
+    };
+  },
+
+  /**
    * Delete outcome by ID
    */
   delete: (id: string): boolean => base.deleteById(id),

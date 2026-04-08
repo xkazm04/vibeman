@@ -20,6 +20,15 @@ import { StandupBlockerSchema, StandupHighlightSchema, StandupFocusAreaSchema, p
 import { generatePredictiveStandup } from '@/lib/standup/predictiveStandupEngine';
 import { generateStandupSummary } from '@/lib/standup/standupGenerator';
 import { collectStandupData } from '@/lib/standup/standupDataCollector';
+import { feedStandupInsightsToGoals } from '@/lib/standup/standupFeedback';
+
+// ── Per-period generation mutex ──
+// Prevents duplicate LLM calls when concurrent requests hit the same period.
+const generationLocks = new Map<string, Promise<UnifiedStandupResult>>();
+
+function getGenerationKey(projectId: string, periodType: string, periodStart: string): string {
+  return `${projectId}:${periodType}:${periodStart}`;
+}
 
 // ── Prediction Cache ──
 
@@ -200,6 +209,10 @@ export interface UnifiedStandupResult {
  * This is the primary entry point that replaces separate calls to
  * generateStandupSummary() and generatePredictiveStandup().
  * It fetches all data once, then feeds both pipelines from the same dataset.
+ *
+ * A per-period mutex ensures only one LLM generation runs at a time for a
+ * given (project, periodType, periodStart) triple — concurrent callers
+ * receive the same promise rather than triggering duplicate LLM calls.
  */
 export async function generateUnifiedStandup(
   projectId: string,
@@ -210,7 +223,7 @@ export async function generateUnifiedStandup(
 ): Promise<UnifiedStandupResult> {
   const periodStartStr = periodStart.toISOString().split('T')[0];
 
-  // Check for existing summary (fast path)
+  // Check for existing summary (fast path — no lock needed)
   const existing = getExistingSummary(projectId, periodType, periodStartStr);
   if (existing && !forceRegenerate) {
     const summary = formatSummaryResponse(existing);
@@ -218,6 +231,39 @@ export async function generateUnifiedStandup(
     return { summary, predictions, cached: true };
   }
 
+  // Per-period mutex: if another request is already generating for this
+  // exact period, piggyback on that promise instead of running a second LLM call.
+  const lockKey = getGenerationKey(projectId, periodType, periodStartStr);
+  const inflight = generationLocks.get(lockKey);
+  if (inflight) {
+    return inflight;
+  }
+
+  const generationPromise = doGenerateUnifiedStandup(
+    projectId, periodType, periodStart, periodEnd, periodStartStr, existing, forceRegenerate
+  );
+
+  generationLocks.set(lockKey, generationPromise);
+
+  try {
+    return await generationPromise;
+  } finally {
+    generationLocks.delete(lockKey);
+  }
+}
+
+/**
+ * Internal generation logic — always called under the per-period mutex.
+ */
+async function doGenerateUnifiedStandup(
+  projectId: string,
+  periodType: 'daily' | 'weekly',
+  periodStart: Date,
+  periodEnd: Date,
+  periodStartStr: string,
+  existing: ReturnType<typeof getExistingSummary>,
+  forceRegenerate: boolean
+): Promise<UnifiedStandupResult> {
   // ── Single-pass data collection ──
   const startISO = periodStart.toISOString();
   const endISO = periodEnd.toISOString();
@@ -228,12 +274,17 @@ export async function generateUnifiedStandup(
     const summary = formatSummaryResponse(existing);
     // Still generate fresh predictions from collected data
     const predictions = generatePredictiveStandup(projectId, collected);
+    feedStandupInsightsToGoals(projectId, predictions);
     cachePredictions(projectId, predictions);
     return { summary, predictions, cached: true };
   }
 
   // ── Run both pipelines from the same dataset ──
   const predictions = generatePredictiveStandup(projectId, collected);
+
+  // ── Feed insights back into goal lifecycle (bidirectional loop) ──
+  feedStandupInsightsToGoals(projectId, predictions);
+
   const result = await generateStandupSummary(
     projectId,
     collected.sourceData,

@@ -85,6 +85,26 @@ async function handlePost(
       });
     }
 
+    // In-process lock: prevent concurrent auto-deepen for the same question.
+    // Uses a globalThis map that survives within the same server process.
+    const locks = ((globalThis as Record<string, unknown>).__autoDeepenLocks ??= new Set()) as Set<string>;
+    if (locks.has(questionId)) {
+      return NextResponse.json({
+        success: true,
+        deepened: false,
+        analysis: {
+          gapScore: analysis.gapScore,
+          gapCount: analysis.gaps.length,
+          summary: analysis.summary,
+          gaps: analysis.gaps,
+        },
+        questions: [],
+        message: 'Auto-deepen already in progress for this question',
+      });
+    }
+    locks.add(questionId);
+
+    try {
     // Get ancestry chain for context
     const chain = questionDb.getAncestryChain(questionId);
     const newDepth = (question.tree_depth ?? 0) + 1;
@@ -170,6 +190,9 @@ async function handlePost(
       parentId: questionId,
       depth: newDepth,
     });
+    } finally {
+      locks.delete(questionId);
+    }
 }
 
 export const POST = createParamsRouteHandler(handlePost, {

@@ -460,17 +460,20 @@ export const brainInsightRepository = {
     const historyMap = new Map<string, Array<{ confidence: number; date: string; reflectionId: string }>>();
 
     if (includeHistory) {
-      // Get all insights in chronological order to build evolution chains
+      // Get insights in chronological order to build evolution chains.
+      // Limit to the same scope as the main query to avoid unbounded full-table scans.
       const histQuery = isGlobal
         ? `SELECT bi.id, bi.title, bi.confidence, bi.reflection_id, bi.evolves_from_id, bi.evolves_title, br.completed_at
            FROM brain_insights bi
            JOIN brain_reflections br ON bi.reflection_id = br.id
-           ORDER BY br.completed_at ASC`
+           ORDER BY br.completed_at ASC
+           LIMIT 500`
         : `SELECT bi.id, bi.title, bi.confidence, bi.reflection_id, bi.evolves_from_id, bi.evolves_title, br.completed_at
            FROM brain_insights bi
            JOIN brain_reflections br ON bi.reflection_id = br.id
            WHERE bi.project_id = ?
-           ORDER BY br.completed_at ASC`;
+           ORDER BY br.completed_at ASC
+           LIMIT 500`;
 
       const histRows = (isGlobal
         ? db.prepare(histQuery).all()
@@ -533,6 +536,7 @@ export const brainInsightRepository = {
 
     return rows.map(row => ({
       ...dbInsightToLearning(row),
+      id: row.id,
       project_id: row.project_id,
       reflection_id: row.reflection_id,
       confidenceHistory: includeHistory
@@ -708,6 +712,147 @@ export const brainInsightRepository = {
       evidenceId
     );
     return row?.count ?? 0;
+  },
+
+  /**
+   * Get the full lineage DAG for an insight.
+   * Walks the evolves_from_id chain in both directions (ancestors + descendants),
+   * collects evidence refs, and fetches influence records for all nodes.
+   */
+  getLineage: (insightId: string): {
+    nodes: Array<{
+      id: string;
+      title: string;
+      type: string;
+      confidence: number;
+      created_at: string;
+      reflection_id: string;
+      evolves_from_id: string | null;
+      auto_pruned: boolean;
+      conflict_with_id: string | null;
+      conflict_with_title: string | null;
+      evidence: EvidenceRef[];
+    }>;
+    edges: Array<{
+      parent_id: string;
+      child_id: string;
+      relationship_type: string;
+      reason: string | null;
+    }>;
+    influences: Array<{
+      insight_id: string;
+      direction_id: string;
+      decision: string;
+      decided_at: string;
+    }>;
+    focusId: string;
+  } | null => {
+    const db = getDatabase();
+
+    const root = selectOne<DbBrainInsight>(db, 'SELECT * FROM brain_insights WHERE id = ?', insightId);
+    if (!root) return null;
+
+    // Collect all related insight IDs by walking the chain
+    const visited = new Set<string>();
+    const queue = [insightId];
+    visited.add(insightId);
+
+    // Walk ancestors (follow evolves_from_id upward)
+    let current = root.evolves_from_id;
+    while (current && !visited.has(current)) {
+      visited.add(current);
+      queue.push(current);
+      const parent = selectOne<{ evolves_from_id: string | null }>(
+        db, 'SELECT evolves_from_id FROM brain_insights WHERE id = ?', current
+      );
+      current = parent?.evolves_from_id ?? null;
+    }
+
+    // Walk descendants (find insights that evolve from any visited node)
+    let i = 0;
+    while (i < queue.length) {
+      const nodeId = queue[i++];
+      const children = selectAll<{ id: string }>(
+        db, 'SELECT id FROM brain_insights WHERE evolves_from_id = ?', nodeId
+      );
+      for (const child of children) {
+        if (!visited.has(child.id)) {
+          visited.add(child.id);
+          queue.push(child.id);
+        }
+      }
+    }
+
+    // Also include conflict-linked insights
+    const conflictIds = new Set<string>();
+    for (const nid of visited) {
+      const row = selectOne<{ conflict_with_id: string | null }>(
+        db, 'SELECT conflict_with_id FROM brain_insights WHERE id = ?', nid
+      );
+      if (row?.conflict_with_id && !visited.has(row.conflict_with_id)) {
+        conflictIds.add(row.conflict_with_id);
+      }
+    }
+    for (const cid of conflictIds) visited.add(cid);
+
+    // Fetch all nodes
+    const ids = Array.from(visited);
+    const placeholders = ids.map(() => '?').join(',');
+    const rows = selectAll<DbBrainInsight>(
+      db,
+      `SELECT * FROM brain_insights WHERE id IN (${placeholders}) ORDER BY created_at ASC`,
+      ...ids
+    );
+
+    const nodes = rows.map(r => ({
+      id: r.id,
+      title: r.title,
+      type: r.type,
+      confidence: r.confidence,
+      created_at: r.created_at,
+      reflection_id: r.reflection_id,
+      evolves_from_id: r.evolves_from_id,
+      auto_pruned: r.auto_pruned === 1,
+      conflict_with_id: r.conflict_with_id,
+      conflict_with_title: r.conflict_with_title,
+      evidence: parseEvidence(r.evidence),
+    }));
+
+    // Fetch lineage edges
+    const edges = selectAll<{
+      parent_insight_id: string;
+      child_insight_id: string;
+      relationship_type: string;
+      reason: string | null;
+    }>(
+      db,
+      `SELECT parent_insight_id, child_insight_id, relationship_type, reason
+       FROM insight_lineage
+       WHERE parent_insight_id IN (${placeholders}) OR child_insight_id IN (${placeholders})`,
+      ...ids, ...ids
+    ).map(e => ({
+      parent_id: e.parent_insight_id,
+      child_id: e.child_insight_id,
+      relationship_type: e.relationship_type,
+      reason: e.reason,
+    }));
+
+    // Fetch influence records for these insights
+    const influences = selectAll<{
+      insight_id: string;
+      direction_id: string;
+      decision: string;
+      decided_at: string;
+    }>(
+      db,
+      `SELECT insight_id, direction_id, decision, decided_at
+       FROM insight_influence_log
+       WHERE insight_id IN (${placeholders})
+       ORDER BY decided_at DESC`,
+      ...ids
+    );
+
+    return { nodes, edges, influences, focusId: insightId };
   },
 
 };

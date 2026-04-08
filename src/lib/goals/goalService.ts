@@ -79,7 +79,11 @@ export function checkGoalCompletion(
     if (goal.status === 'open') {
       goalDb.updateGoal(goal.id, { status: 'in_progress' });
     }
-    goalDb.updateGoalProgress(goal.id, progress);
+    // Determine source: hybrid if lifecycle engine has also been tracking
+    const source = (goal.progress_source === 'inferred' || goal.progress_source === 'hybrid')
+      ? 'hybrid' as const
+      : 'manual' as const;
+    goalDb.updateGoalProgress(goal.id, progress, source, 100);
     updatedGoals.push(goal.id);
   }
 

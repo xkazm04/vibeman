@@ -21,10 +21,11 @@ import type {
   IntegrationProvider,
   IntegrationEventType,
 } from '@/app/db/models/integration.types';
-import { PROVIDER_CONFIG, type ParsedIntegration } from './IntegrationListColumn';
+import { PROVIDER_CONFIG } from '@/lib/integrations/displayConfig';
+import type { ParsedIntegration } from './IntegrationListColumn';
 
 // Shared input class with no focus outline
-const inputClass = 'w-full px-3 py-2 bg-gray-900/60 border border-gray-700/50 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-0 focus:border-purple-500/50 transition-colors disabled:opacity-60';
+const inputClass = 'w-full px-3 py-2 bg-gray-900/60 border border-gray-700/50 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-0 focus:border-purple-500/50 transition-colors disabled:bg-gray-900/80 disabled:cursor-not-allowed disabled:text-gray-400 disabled:[background-image:repeating-linear-gradient(135deg,transparent,transparent_4px,rgba(255,255,255,0.02)_4px,rgba(255,255,255,0.02)_8px)]';
 
 // Dark gradient for panel
 const darkGradient = 'from-gray-900/95 via-gray-900/90 to-gray-950/95';

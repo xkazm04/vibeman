@@ -7,6 +7,7 @@ import { buildContextDescriptionPrompt } from '@/app/projects/ProjectAI/lib/prom
 import { withObservability } from '@/lib/observability/middleware';
 import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
 import { validatePathTraversal, validatePathWithinBase } from '@/lib/pathSecurity';
+import { parseDescriptionResponse } from '@/lib/llm/parse-response';
 
 interface FileContent {
   path: string;
@@ -65,7 +66,7 @@ async function handlePost(request: NextRequest) {
     }
 
     // Parse and clean the response
-    const { cleanedDescription, fileStructure } = parseAndCleanResponse(result.response);
+    const { cleanedDescription, fileStructure } = parseDescriptionResponse(result.response);
 
     return NextResponse.json({
       description: cleanedDescription,
@@ -114,7 +115,7 @@ async function readFileContents(
 ): Promise<FileContent[]> {
   const fileContents: FileContent[] = [];
   const maxFiles = 20;
-  const maxCharsPerFile = 500;
+  const maxCharsPerFile = 8000;
 
   // Read files in parallel with concurrency limit of 5
   const filesToRead = filePaths.slice(0, maxFiles);
@@ -171,72 +172,6 @@ async function generateDescription(
     taskType: 'context-description-generation',
     taskDescription: 'Generate context description from files',
   });
-}
-
-/**
- * Parse and clean LLM response
- */
-function parseAndCleanResponse(response: string): {
-  cleanedDescription: string;
-  fileStructure: string;
-} {
-  let cleanedDescription = response;
-  let fileStructure = '';
-
-  try {
-    // Try to parse as JSON first
-    const parsed = JSON.parse(response);
-
-    if (parsed.description) {
-      cleanedDescription = parsed.description;
-      fileStructure = parsed.fileStructure || '';
-    }
-  } catch {
-    // If JSON parsing fails, treat as raw markdown
-    cleanedDescription = response;
-  }
-
-  // Clean description
-  cleanedDescription = cleanDescription(cleanedDescription);
-
-  // Clean file structure
-  fileStructure = cleanFileStructure(fileStructure);
-
-  return { cleanedDescription, fileStructure };
-}
-
-/**
- * Clean description by removing JSON artifacts
- */
-function cleanDescription(description: string): string {
-  return description
-    // Remove everything before the first '#' (markdown heading)
-    .replace(/^[^#]*(?=#)/s, '')
-    // Remove any trailing JSON syntax: " } or "}
-    .replace(/"\s*\}\s*$/g, '')
-    .replace(/'\s*\}\s*$/g, '')
-    // Remove standalone curly braces at end
-    .replace(/\s*[\{\}]+\s*$/, '')
-    // Remove any remaining quote wrappers at very end
-    .replace(/["'`]+$/, '')
-    // Convert escaped newlines to actual newlines
-    .replace(/\\n/g, '\n')
-    // Remove escaped quotes
-    .replace(/\\"/g, '"')
-    .replace(/\\'/g, "'")
-    .trim();
-}
-
-/**
- * Clean file structure string
- */
-function cleanFileStructure(fileStructure: string): string {
-  return fileStructure
-    .replace(/^["'`{}\[\]]+|["'`{}\[\]]+$/g, '')
-    .replace(/\\n/g, '\n')
-    .replace(/\\"/g, '"')
-    .replace(/\\'/g, "'")
-    .trim();
 }
 
 export const POST = withObservability(withRateLimit(handlePost, '/api/contexts/generate-description', 'expensive'), '/api/contexts/generate-description');

@@ -21,6 +21,7 @@ import {
   type RecommendationSeverity,
 } from '@/app/db/repositories/schema-intelligence.repository';
 import { generateWithLLM } from '@/lib/llm';
+import { writeFrequencyMonitor } from '@/lib/db/writeFrequencyMonitor';
 
 // ─── Schema Introspection ─────────────────────────────────────────
 
@@ -474,6 +475,20 @@ export const schemaIntelligenceEngine = {
     const topSlowest = queryPatternRepository.getTopBySlowest(projectId, 5);
     const topFrequent = queryPatternRepository.getTopByFrequency(projectId, 5);
 
+    // Write frequency data for hot-writes monitoring
+    let writeFrequency;
+    try {
+      const stats = writeFrequencyMonitor.getStats(projectId);
+      const hotTables = writeFrequencyMonitor.getHotTables();
+      writeFrequency = {
+        topWriters: stats.slice(0, 10),
+        hotTables,
+        tablesMonitored: stats.length,
+      };
+    } catch {
+      writeFrequency = null;
+    }
+
     return {
       queryPatterns: patternStats,
       recommendations: recSummary,
@@ -481,6 +496,7 @@ export const schemaIntelligenceEngine = {
       pendingRecommendations: pendingRecs,
       slowestQueries: topSlowest,
       mostFrequentQueries: topFrequent,
+      writeFrequency,
     };
   },
 

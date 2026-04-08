@@ -7,13 +7,7 @@ import { contextGroupQueries } from '@/lib/queries/contextQueries';
 import { withObservability } from '@/lib/observability/middleware';
 import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
 import { validatePathTraversal, validatePathWithinBase } from '@/lib/pathSecurity';
-
-interface ContextMetadata {
-  title: string;
-  description: string;
-  groupId: string | null;
-  groupName: string | null;
-}
+import { parseMetadataResponse, type MetadataResult } from '@/lib/llm/parse-response';
 
 interface FileContent {
   path: string;
@@ -122,7 +116,7 @@ async function readFileContents(
 ): Promise<FileContent[]> {
   const fileContents: FileContent[] = [];
   const maxFiles = 10;
-  const maxCharsPerFile = 400;
+  const maxCharsPerFile = 5000;
 
   // Read files in parallel with concurrency limit of 5
   const filesToRead = filePaths.slice(0, maxFiles);
@@ -222,7 +216,7 @@ async function generateMetadata(
   provider: string | undefined,
   model: string | undefined,
   contextGroups: any[]
-): Promise<ContextMetadata> {
+): Promise<MetadataResult> {
   const selectedProvider: SupportedProvider = (provider as SupportedProvider) || 'ollama';
 
   const result = await llmManager.generate({
@@ -239,52 +233,8 @@ async function generateMetadata(
     throw new Error(result.error || 'Failed to generate metadata');
   }
 
-  // Parse LLM response
-  return parseMetadataResponse(result.response, contextGroups);
-}
-
-/**
- * Parse LLM response into ContextMetadata
- */
-function parseMetadataResponse(
-  response: string,
-  contextGroups: any[]
-): ContextMetadata {
-  try {
-    // Try to extract JSON from response
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No JSON found in response');
-    }
-
-    const parsed = JSON.parse(jsonMatch[0]);
-
-    const metadata: ContextMetadata = {
-      title: parsed.title || 'Untitled Context',
-      description: parsed.description || 'No description available.',
-      groupId: parsed.groupId || null,
-      groupName: parsed.groupName || null,
-    };
-
-    // Validate groupId exists
-    if (metadata.groupId) {
-      const groupExists = contextGroups.some(g => g.id === metadata.groupId);
-      if (!groupExists) {
-        metadata.groupId = null;
-        metadata.groupName = null;
-      }
-    }
-
-    return metadata;
-  } catch (parseError) {
-    // Fallback metadata
-    return {
-      title: 'Untitled',
-      description: 'Context metadata generation failed',
-      groupId: null,
-      groupName: null,
-    };
-  }
+  const validGroupIds = contextGroups.map(g => g.id);
+  return parseMetadataResponse(result.response, validGroupIds);
 }
 
 export const POST = withObservability(withRateLimit(handlePost, '/api/contexts/generate-metadata', 'expensive'), '/api/contexts/generate-metadata');

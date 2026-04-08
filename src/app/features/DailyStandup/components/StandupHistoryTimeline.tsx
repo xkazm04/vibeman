@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   History, Loader2, AlertCircle,
   TrendingUp, TrendingDown, Minus, Calendar, Zap, Lightbulb,
-  AlertTriangle,
+  AlertTriangle, Flame,
 } from 'lucide-react';
 import ExpandChevron from '@/components/ui/ExpandChevron';
 import { formatDateShort } from '@/lib/formatDate';
@@ -54,6 +54,9 @@ function Sparkline({ data, color, height = 24, width = 80 }: {
   height?: number;
   width?: number;
 }) {
+  const instanceId = React.useId();
+  const gradientId = `spark-${color.replace('#', '')}-${instanceId.replace(/:/g, '')}`;
+
   if (data.length < 2) return null;
 
   const max = Math.max(...data, 1);
@@ -76,12 +79,12 @@ function Sparkline({ data, color, height = 24, width = 80 }: {
   return (
     <svg width={width} height={height} className="flex-shrink-0">
       <defs>
-        <linearGradient id={`spark-${color}`} x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.3" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
-      <path d={fillD} fill={`url(#spark-${color})`} />
+      <path d={fillD} fill={`url(#${gradientId})`} />
       <path d={pathD} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       {/* End dot */}
       <circle
@@ -261,6 +264,77 @@ function TimelineEntry({ item, projectId }: { item: StandupHistoryItem; projectI
   );
 }
 
+// ── Streak + Momentum Helpers ─────────────────────────────────────────────────
+
+function computeStreak(items: StandupHistoryItem[]): number {
+  if (items.length === 0) return 0;
+  // items are newest-first; check consecutive days from today
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let streak = 0;
+  const dayMs = 86_400_000;
+
+  for (let i = 0; i < items.length; i++) {
+    const itemDate = new Date(items[i].periodStart);
+    itemDate.setHours(0, 0, 0, 0);
+    const expectedDate = new Date(today.getTime() - i * dayMs);
+    expectedDate.setHours(0, 0, 0, 0);
+    // Allow +-1 day tolerance for the first entry (today or yesterday)
+    const diff = Math.abs(expectedDate.getTime() - itemDate.getTime());
+    if (diff <= dayMs) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
+function computeWeeklyMomentum(items: StandupHistoryItem[]): number {
+  // Score 0-100 blending: standup consistency (40%), idea throughput (30%), implementation velocity (30%)
+  const weekAgo = Date.now() - 7 * 86_400_000;
+  const weekItems = items.filter((i) => new Date(i.periodStart).getTime() >= weekAgo);
+
+  // Consistency: how many of last 7 days had standups (max 7)
+  const consistency = Math.min(weekItems.length / 7, 1) * 40;
+
+  // Idea throughput: normalized (cap at 20 ideas for full score)
+  const totalIdeas = weekItems.reduce((sum, i) => sum + i.ideasGenerated, 0);
+  const ideaScore = Math.min(totalIdeas / 20, 1) * 30;
+
+  // Implementation velocity: normalized (cap at 10 impls for full score)
+  const totalImpls = weekItems.reduce((sum, i) => sum + i.implementationsCount, 0);
+  const implScore = Math.min(totalImpls / 10, 1) * 30;
+
+  return Math.round(consistency + ideaScore + implScore);
+}
+
+function StreakBadge({ streak, momentum }: { streak: number; momentum: number }) {
+  return (
+    <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/5">
+      {/* Streak */}
+      <div className="flex items-center gap-1.5" title={`${streak}-day standup streak`}>
+        <Flame className={`w-4 h-4 ${streak > 0 ? 'text-orange-400' : 'text-white/20'}`} />
+        <span className={`text-sm font-bold font-mono ${streak > 0 ? 'text-orange-400' : 'text-white/20'}`}>
+          {streak}
+        </span>
+        <span className="text-2xs text-white/30">streak</span>
+      </div>
+
+      <div className="w-px h-5 bg-white/10" />
+
+      {/* Momentum score */}
+      <div className="flex items-center gap-1.5" title={`Weekly momentum score: ${momentum}/100`}>
+        <Zap className={`w-3.5 h-3.5 ${momentum >= 70 ? 'text-emerald-400' : momentum >= 40 ? 'text-amber-400' : 'text-white/30'}`} />
+        <span className={`text-sm font-bold font-mono ${momentum >= 70 ? 'text-emerald-400' : momentum >= 40 ? 'text-amber-400' : 'text-white/30'}`}>
+          {momentum}
+        </span>
+        <span className="text-2xs text-white/30">momentum</span>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ───────────────────────────────────────────────────────────
 
 export default function StandupHistoryTimeline({ projectId, limit = 30 }: StandupHistoryTimelineProps) {
@@ -300,6 +374,11 @@ export default function StandupHistoryTimeline({ projectId, limit = 30 }: Standu
   const chronological = [...history].reverse();
   const implData = chronological.map((h) => h.implementationsCount);
   const ideasData = chronological.map((h) => h.ideasGenerated);
+
+  // Compute streak and momentum
+  const dailyHistory = history.filter((h) => h.periodType === 'daily');
+  const streak = computeStreak(dailyHistory);
+  const momentum = computeWeeklyMomentum(dailyHistory);
 
   if (isLoading) {
     return (
@@ -347,6 +426,17 @@ export default function StandupHistoryTimeline({ projectId, limit = 30 }: Standu
           <Sparkline data={ideasData} color="#a78bfa" width={120} height={28} />
         </div>
       </div>
+
+      {/* Streak + Momentum */}
+      <StreakBadge streak={streak} momentum={momentum} />
+
+      {/* Streak broken nudge */}
+      {streak === 0 && dailyHistory.length > 0 && (
+        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-orange-500/5 border border-orange-500/15">
+          <Flame className="w-3 h-3 text-orange-400/60" />
+          <span className="text-2xs text-orange-400/60">Your streak has been broken. Generate a standup to restart it.</span>
+        </div>
+      )}
 
       {/* Burnout risk indicator from most recent entry */}
       {history.length > 0 && (() => {

@@ -244,6 +244,8 @@ export const useGroupHealthStore = create<GroupHealthStore>()((set, get) => ({
       let gitPushed = false;
 
       // Auto-commit if issues were fixed
+      let gitFailed = false;
+      let gitErrorMessage = '';
       if (issuesFixed > 0) {
         appendMessage(groupId, {
           id: `msg-${Date.now()}`,
@@ -295,17 +297,35 @@ export const useGroupHealthStore = create<GroupHealthStore>()((set, get) => ({
           });
         } else {
           const gitError = await gitResponse.json();
+          gitFailed = true;
+          gitErrorMessage = gitError.error || 'Unknown git error';
           appendMessage(groupId, {
             id: `msg-${Date.now()}`,
             type: 'error',
-            content: `Git operation failed: ${gitError.error || 'Unknown error'}`,
+            content: `Git operation failed: ${gitErrorMessage}. Fixes exist in working directory but were NOT committed.`,
             timestamp: Date.now(),
           });
-          // Don't fail the scan completion if git fails
         }
       }
 
-      // Call scan complete API
+      // If git failed and there were fixes, mark the scan as failed
+      // to prevent recording a false "completed" state where fixes are uncommitted
+      if (gitFailed && issuesFixed > 0) {
+        // Mark scan as failed on the server so it can be retried
+        await fetch(`/api/group-health-scan/${scan.scanId}/fail`, {
+          method: 'POST',
+        }).catch(() => {
+          // Best-effort server update
+        });
+
+        // Set local summary so the user can see what was found, but mark as failed
+        setScanSummary(groupId, summary);
+        const failMsg = `Scan found ${issuesFixed} fixes but git commit/push failed: ${gitErrorMessage}. Changes remain uncommitted in working directory.`;
+        setScanError(groupId, failMsg);
+        return { success: false, error: failMsg };
+      }
+
+      // Call scan complete API (only when git succeeded or no fixes needed)
       const completeResponse = await fetch(`/api/group-health-scan/${scan.scanId}/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

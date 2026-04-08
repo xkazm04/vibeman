@@ -13,6 +13,7 @@ import {
   behavioralSignalDb,
   contextDb,
   goalDb,
+  goalDependencyDb,
 } from '@/app/db';
 import { getBehavioralContext } from '@/lib/brain/behavioralContext';
 import { logger } from '@/lib/logger';
@@ -24,6 +25,7 @@ import {
   emptyVelocityComparison,
 } from '@/lib/goals/signalProcessor';
 import type { CollectedStandupData } from './standupDataCollector';
+import type { ActivitySignal } from '@/types/activity-signal';
 import type {
   PredictiveStandupData,
   GoalRiskAssessment,
@@ -64,9 +66,14 @@ export function generatePredictiveStandup(
     const recommendedTaskOrder = collected
       ? buildTaskRecommendationsFromCollected(collected, goalsAtRisk, contextDecayAlerts, velocityComparison)
       : buildTaskRecommendations(projectId, goalsAtRisk, contextDecayAlerts, velocityComparison);
+    // Enrich decay alerts with cross-domain signal data when available
+    const enrichedDecayAlerts = collected?.unifiedSignals
+      ? enrichDecayWithUnifiedSignals(contextDecayAlerts, collected.unifiedSignals)
+      : contextDecayAlerts;
+
     const missionBriefing = composeMissionBriefing(
       goalsAtRisk,
-      contextDecayAlerts,
+      enrichedDecayAlerts,
       recommendedTaskOrder,
       velocityComparison
     );
@@ -74,7 +81,7 @@ export function generatePredictiveStandup(
 
     return {
       goalsAtRisk,
-      contextDecayAlerts,
+      contextDecayAlerts: enrichedDecayAlerts,
       recommendedTaskOrder,
       predictedBlockers,
       velocityComparison,
@@ -265,6 +272,57 @@ function classifyContextHealth(
   return { decayPercent, decayStatus: 'decaying' };
 }
 
+/**
+ * Enrich context decay alerts with cross-domain signal counts from the
+ * unified activity stream. This surfaces goal signal activity alongside
+ * behavioral signals, giving a fuller picture of context health.
+ */
+export function enrichDecayWithUnifiedSignals(
+  alerts: ContextDecayAlert[],
+  unifiedSignals: ActivitySignal[]
+): ContextDecayAlert[] {
+  if (unifiedSignals.length === 0) return alerts;
+
+  // Group unified signals by contextId to compute cross-domain counts
+  const signalsByContext = new Map<string, { goalWeight: number; behavioralWeight: number; lastTimestamp: string }>();
+  for (const sig of unifiedSignals) {
+    if (!sig.contextId) continue;
+    const entry = signalsByContext.get(sig.contextId) || { goalWeight: 0, behavioralWeight: 0, lastTimestamp: '' };
+    if (sig.source === 'goal') {
+      entry.goalWeight += sig.weight;
+    } else {
+      entry.behavioralWeight += sig.weight;
+    }
+    if (sig.timestamp > entry.lastTimestamp) {
+      entry.lastTimestamp = sig.timestamp;
+    }
+    signalsByContext.set(sig.contextId, entry);
+  }
+
+  return alerts.map(alert => {
+    const ctxSignals = signalsByContext.get(alert.contextId);
+    if (!ctxSignals) return alert;
+
+    // If there are recent goal signals for a context flagged as decaying,
+    // the context may actually be healthier than behavioral data alone suggests
+    const hasGoalActivity = ctxSignals.goalWeight > 0;
+    const lastActivity = ctxSignals.lastTimestamp || alert.lastActivityDate;
+
+    if (hasGoalActivity && alert.decayStatus === 'decaying' && alert.urgency !== 'critical') {
+      return {
+        ...alert,
+        lastActivityDate: lastActivity,
+        suggestion: `${alert.suggestion} (Note: goal signals detected — context may be more active than behavioral data suggests)`,
+      };
+    }
+
+    return {
+      ...alert,
+      lastActivityDate: lastActivity || alert.lastActivityDate,
+    };
+  });
+}
+
 // ──────────────────────────────────────────────
 // Velocity Comparison
 // ──────────────────────────────────────────────
@@ -280,7 +338,16 @@ function detectPredictedBlockersFromCollected(
   collected: CollectedStandupData,
   goalsAtRisk: GoalRiskAssessment[]
 ): PredictedBlocker[] {
-  return buildBlockerList(goalsAtRisk, collected.behavioralContext, collected.untestedLogs);
+  const blockers = buildBlockerList(goalsAtRisk, collected.behavioralContext, collected.untestedLogs);
+  // Add dependency-based blockers from the first goal's project
+  const projectId = collected.goals[0]?.project_id;
+  if (projectId) {
+    blockers.push(...detectDependencyBlockers(projectId));
+  }
+  return blockers.sort((a, b) => {
+    const order = { critical: 0, warning: 1 };
+    return order[a.severity] - order[b.severity];
+  });
 }
 
 function detectPredictedBlockers(
@@ -295,7 +362,52 @@ function detectPredictedBlockers(
     logger.warn('[PredictiveStandup] Failed to fetch untested logs for blockers:', { projectId, error });
   }
 
-  return buildBlockerList(goalsAtRisk, behavioralCtx, untestedLogs);
+  const blockers = buildBlockerList(goalsAtRisk, behavioralCtx, untestedLogs);
+  blockers.push(...detectDependencyBlockers(projectId));
+  return blockers.sort((a, b) => {
+    const order = { critical: 0, warning: 1 };
+    return order[a.severity] - order[b.severity];
+  });
+}
+
+/**
+ * Detect blockers from goal dependency graph.
+ * When a parent goal stalls, child goals surface warnings.
+ */
+function detectDependencyBlockers(projectId: string): PredictedBlocker[] {
+  const blockers: PredictedBlocker[] = [];
+
+  try {
+    const blockedGoals = goalDependencyDb.getBlockedGoals(projectId);
+    if (blockedGoals.length === 0) return [];
+
+    // Group by blocker goal to create consolidated warnings
+    const byBlocker = new Map<string, typeof blockedGoals>();
+    for (const bg of blockedGoals) {
+      const existing = byBlocker.get(bg.blocker_goal_id) || [];
+      existing.push(bg);
+      byBlocker.set(bg.blocker_goal_id, existing);
+    }
+
+    for (const [, blocked] of byBlocker) {
+      const blocker = blocked[0];
+      const affectedGoals = blocked.map(b => b.blocked_goal_title);
+      const isStalledOrOpen = blocker.blocker_goal_status === 'open';
+
+      blockers.push({
+        title: `"${blocker.blocker_goal_title}" blocks ${affectedGoals.length} goal${affectedGoals.length > 1 ? 's' : ''}`,
+        description: `${affectedGoals.join(', ')} ${affectedGoals.length > 1 ? 'are' : 'is'} waiting on "${blocker.blocker_goal_title}" (status: ${blocker.blocker_goal_status})`,
+        affectedGoals,
+        severity: isStalledOrOpen ? 'critical' : 'warning',
+        preventiveAction: `Prioritize completing "${blocker.blocker_goal_title}" to unblock dependent goals`,
+        confidence: 95,
+      });
+    }
+  } catch (error) {
+    logger.warn('[PredictiveStandup] Dependency blocker detection error:', { error });
+  }
+
+  return blockers;
 }
 
 function buildBlockerList(

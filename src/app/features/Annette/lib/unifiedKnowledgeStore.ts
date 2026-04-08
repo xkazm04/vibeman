@@ -19,6 +19,8 @@ import type {
   DbAnnetteMemory,
   KnowledgeNodeType,
   AnnetteMemoryType,
+  MemoryProvenance,
+  MemoryProvenanceSource,
 } from '@/app/db/models/annette.types';
 import { generateWithLLM } from '@/lib/llm';
 import { safeParseLLMJson } from '@/lib/safeParseLLMJson';
@@ -65,6 +67,8 @@ export interface Memory {
   lastAccessedAt: string | null;
   createdAt: string;
   metadata: Record<string, unknown> | null;
+  /** Provenance trail for trust and debugging */
+  provenance: MemoryProvenance;
 }
 
 export interface ExtractedEntity {
@@ -252,7 +256,54 @@ function dbEdgeToKnowledgeEdge(db: DbAnnetteKnowledgeEdge): KnowledgeEdge {
   };
 }
 
+/**
+ * Infer provenance source from memory metadata and type.
+ * Existing memories don't store an explicit source field, so we derive it
+ * from the metadata JSON and the session_id / consolidated_into columns.
+ */
+function inferProvenanceSource(db: DbAnnetteMemory, meta: Record<string, unknown> | null): MemoryProvenanceSource {
+  // Explicit source stored in metadata takes priority
+  if (meta?.provenanceSource && typeof meta.provenanceSource === 'string') {
+    return meta.provenanceSource as MemoryProvenanceSource;
+  }
+  if (db.consolidated_into) return 'consolidation';
+  if (meta?.source === 'autonomous') return 'autonomous';
+  if (meta?.source === 'scan' || meta?.scanType) return 'scan';
+  if (meta?.source === 'manual') return 'manual';
+  if (db.session_id) return 'conversation';
+  return 'unknown';
+}
+
+function computeProvenance(db: DbAnnetteMemory, meta: Record<string, unknown> | null): MemoryProvenance {
+  const now = Date.now();
+  const createdMs = new Date(db.created_at).getTime();
+  const ageDays = Math.max(0, Math.floor((now - createdMs) / 86_400_000));
+
+  let daysSinceLastAccess: number | null = null;
+  if (db.last_accessed_at) {
+    const lastMs = new Date(db.last_accessed_at).getTime();
+    daysSinceLastAccess = Math.max(0, Math.floor((now - lastMs) / 86_400_000));
+  }
+
+  const successCount = (typeof meta?.successCount === 'number') ? meta.successCount as number : 0;
+  const helpfulnessRatio = db.access_count > 0
+    ? Math.round((successCount / db.access_count) * 100) / 100
+    : null;
+
+  return {
+    source: inferProvenanceSource(db, meta),
+    sourceSessionId: db.session_id,
+    sourceLabel: (typeof meta?.sourceLabel === 'string' ? meta.sourceLabel : null) as string | null,
+    createdConfidence: db.importance_score,
+    successCount,
+    helpfulnessRatio,
+    daysSinceLastAccess,
+    ageDays,
+  };
+}
+
 function dbToMemory(db: DbAnnetteMemory): Memory {
+  const meta = db.metadata ? JSON.parse(db.metadata) : null;
   return {
     id: db.id,
     projectId: db.project_id,
@@ -265,7 +316,8 @@ function dbToMemory(db: DbAnnetteMemory): Memory {
     accessCount: db.access_count,
     lastAccessedAt: db.last_accessed_at,
     createdAt: db.created_at,
-    metadata: db.metadata ? JSON.parse(db.metadata) : null,
+    metadata: meta,
+    provenance: computeProvenance(db, meta),
   };
 }
 
@@ -678,18 +730,41 @@ export const unifiedKnowledgeStore = {
     nodesByType: Record<KnowledgeNodeType, number>;
     topEntities: Array<{ name: string; type: KnowledgeNodeType; importance: number }>;
   } {
-    const nodes = this.getNodes(projectId, { limit: 1000 });
-    const edges = this.getAllEdges(projectId, { limit: 5000 });
+    const db = getConnection();
+
+    // Use SQL COUNT/GROUP BY instead of loading all rows into memory
+    const totalNodes = (db.prepare(
+      'SELECT COUNT(*) as count FROM annette_knowledge_nodes WHERE project_id = ?'
+    ).get(projectId) as { count: number })?.count ?? 0;
+
+    const totalEdges = (db.prepare(
+      'SELECT COUNT(*) as count FROM annette_knowledge_edges WHERE project_id = ?'
+    ).get(projectId) as { count: number })?.count ?? 0;
+
     const nodesByType: Record<KnowledgeNodeType, number> = {
       entity: 0, concept: 0, file: 0, function: 0, component: 0,
       api: 0, decision: 0, person: 0, technology: 0,
     };
-    for (const node of nodes) nodesByType[node.nodeType]++;
-    const topEntities = nodes
-      .sort((a, b) => b.importanceScore - a.importanceScore)
-      .slice(0, 10)
-      .map(n => ({ name: n.name, type: n.nodeType, importance: n.importanceScore }));
-    return { totalNodes: nodes.length, totalEdges: edges.length, nodesByType, topEntities };
+    const typeRows = db.prepare(
+      'SELECT node_type, COUNT(*) as count FROM annette_knowledge_nodes WHERE project_id = ? GROUP BY node_type'
+    ).all(projectId) as Array<{ node_type: string; count: number }>;
+    for (const row of typeRows) {
+      if (row.node_type in nodesByType) {
+        nodesByType[row.node_type as KnowledgeNodeType] = row.count;
+      }
+    }
+
+    // Only fetch the top 10 entities (not all 1000)
+    const topRows = db.prepare(
+      'SELECT name, node_type, importance_score FROM annette_knowledge_nodes WHERE project_id = ? ORDER BY importance_score DESC LIMIT 10'
+    ).all(projectId) as Array<{ name: string; node_type: string; importance_score: number }>;
+    const topEntities = topRows.map(r => ({
+      name: r.name,
+      type: r.node_type as KnowledgeNodeType,
+      importance: r.importance_score,
+    }));
+
+    return { totalNodes, totalEdges, nodesByType, topEntities };
   },
 
   // ─── LLM extraction ───

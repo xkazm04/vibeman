@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Zap, Clock, Pause, Square,
@@ -46,8 +46,11 @@ export default function RunSidebar({ onNewRun }: RunSidebarProps) {
   const selectRun = useConductorStore((s) => s.selectRun);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const runList = Object.values(runs).sort(
-    (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+  const runList = useMemo(
+    () => Object.values(runs).sort(
+      (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+    ),
+    [runs],
   );
 
   const handleListKeyDown = useCallback((e: React.KeyboardEvent) => {

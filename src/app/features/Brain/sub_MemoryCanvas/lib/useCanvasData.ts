@@ -68,6 +68,11 @@ export function useCanvasData({ store, getFocusedGroupId, enabled = true }: UseC
     ...CACHE_PRESETS.brainData,
   });
 
+  // Set project ID on store for insight fusion
+  useEffect(() => {
+    if (projectId) store.setProjectId(projectId);
+  }, [projectId, store]);
+
   // Push signals into store when data changes
   useEffect(() => {
     if (query.data) {

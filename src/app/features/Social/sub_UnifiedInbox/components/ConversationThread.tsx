@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Tag,
   MessageSquare,
+  MessageCircle,
   MoreVertical,
   RefreshCw,
   XCircle,
@@ -23,6 +24,7 @@ import {
   getCustomerValueTier,
   VALUE_TIER_COLORS,
 } from '../lib/types';
+import { AvatarBadge } from '../../components/atoms/AvatarBadge';
 
 interface ConversationThreadProps {
   thread: ConversationThreadType;
@@ -33,7 +35,7 @@ interface ConversationThreadProps {
   onReopen: () => void;
 }
 
-import { CHANNEL_ICONS, CHANNEL_BADGE_COLORS as CHANNEL_COLORS } from '../../lib/channelConstants';
+import { CHANNEL_THEME } from '../../lib/channelConstants';
 
 const PRIORITY_COLORS: Record<string, string> = {
   low: 'bg-gray-500/10 text-gray-400',
@@ -92,14 +94,18 @@ export function ConversationThread({
               {/* Channels */}
               <div className="flex items-center gap-1">
                 {thread.channels.map(channel => {
-                  const Icon = CHANNEL_ICONS[channel];
+                  const theme = CHANNEL_THEME[channel];
+                  const Icon = theme?.icon || MessageCircle;
+                  const badgeClasses = theme
+                    ? `${theme.badge.bg} ${theme.badge.text} ${theme.badge.border}`
+                    : 'bg-gray-500/10 text-gray-400 border-gray-500/30';
                   return (
                     <span
                       key={channel}
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border ${CHANNEL_COLORS[channel]}`}
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border ${badgeClasses}`}
                     >
-                      <Icon className="w-3 h-3" />
-                      {channel}
+                      <Icon className="w-4 h-4" />
+                      {theme?.label || channel}
                     </span>
                   );
                 })}
@@ -135,11 +141,7 @@ export function ConversationThread({
             onClick={onViewCustomer}
             className="mt-3 flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-gray-800/60 transition-colors w-full text-left"
           >
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center flex-shrink-0">
-              <span className="text-sm font-bold text-white">
-                {customer.displayName.charAt(0).toUpperCase()}
-              </span>
-            </div>
+            <AvatarBadge name={customer.displayName} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-gray-200 truncate">
@@ -229,7 +231,8 @@ interface MessageBubbleProps {
 
 function MessageBubble({ message, isFirst, customerName }: MessageBubbleProps) {
   const isCustomer = message.role === 'customer';
-  const Icon = CHANNEL_ICONS[message.channel];
+  const theme = CHANNEL_THEME[message.channel];
+  const Icon = theme?.icon || MessageCircle;
 
   return (
     <motion.div
@@ -248,9 +251,9 @@ function MessageBubble({ message, isFirst, customerName }: MessageBubbleProps) {
           <span className="text-xs font-medium text-gray-400">
             {isCustomer ? (customerName || 'Customer') : 'Agent'}
           </span>
-          <span className={`inline-flex items-center gap-1 text-2xs px-1.5 py-0.5 rounded border ${CHANNEL_COLORS[message.channel]}`}>
-            <Icon className="w-2.5 h-2.5" />
-            {message.channel}
+          <span className={`inline-flex items-center gap-1 text-2xs px-1.5 py-0.5 rounded border ${theme ? `${theme.badge.bg} ${theme.badge.text} ${theme.badge.border}` : 'bg-gray-500/10 text-gray-400 border-gray-500/30'}`}>
+            <Icon className="w-4 h-4" />
+            {theme?.label || message.channel}
           </span>
           <span className="text-xs text-gray-600">
             {formatRelativeTime(message.timestamp)}

@@ -87,6 +87,7 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
   const [trendContext, setTrendContext] = useState<string>('all');
   const [trendType, setTrendType] = useState<string>('all');
   const [showTrend, setShowTrend] = useState(false);
+  const [ripple, setRipple] = useState<{ cx: number; cy: number; key: number } | null>(null);
 
   // Build lookup: date string → day data
   const dayLookup = useMemo(() => {
@@ -143,6 +144,15 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
 
     return { grid: cells, maxWeight: mw, monthMarkers: months };
   }, [dayLookup]);
+
+  // Today's grid position for wave-based stagger
+  const todayPos = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const cell = grid.find(c => c.date === todayStr);
+    if (cell) return { col: cell.col, row: cell.row };
+    const now = new Date();
+    return { col: WEEKS_TO_SHOW - 1, row: now.getDay() === 0 ? 6 : now.getDay() - 1 };
+  }, [grid]);
 
   // Totals for summary
   const { totalSignals, totalWeight, activeDays } = useMemo(() => {
@@ -269,6 +279,14 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
         ) : (<>
         <div className="overflow-x-auto custom-scrollbar-subtle relative" ref={svgContainerRef}>
           <svg width={svgWidth} height={svgHeight} className="block">
+            {/* Defs for hover glow overlay */}
+            <defs>
+              <radialGradient id="activityCellGlow">
+                <stop offset="0%" stopColor="rgba(255, 255, 255, 0.15)" />
+                <stop offset="100%" stopColor="rgba(255, 255, 255, 0)" />
+              </radialGradient>
+            </defs>
+
             {/* Month labels */}
             {monthMarkers.map((m, i) => (
               <text
@@ -300,39 +318,77 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
             ))}
 
             {/* Heatmap cells */}
-            {grid.map((cell, i) => {
+            {grid.map((cell) => {
               const weight = cell.data?.total_weight ?? 0;
               const isSelected = selectedDay?.date === cell.date;
               const isHovered = hoveredDate === cell.date;
+              const cx = 30 + cell.col * (CELL_SIZE + CELL_GAP);
+              const cy = 16 + cell.row * (CELL_SIZE + CELL_GAP);
+              const dist = Math.abs(cell.col - todayPos.col) + Math.abs(cell.row - todayPos.row);
               return (
-                <motion.rect
-                  key={cell.date}
-                  x={30 + cell.col * (CELL_SIZE + CELL_GAP)}
-                  y={16 + cell.row * (CELL_SIZE + CELL_GAP)}
-                  width={CELL_SIZE}
-                  height={CELL_SIZE}
-                  rx={2}
-                  fill={getHeatmapIntensity(weight, maxWeight)}
-                  stroke={isHovered ? 'rgba(139, 92, 246, 0.4)' : isSelected ? BRAIN_CHART.brand.accent : 'transparent'}
-                  strokeWidth={isHovered || isSelected ? 1.5 : 0}
-                  className="cursor-pointer"
-                  style={{
-                    transformOrigin: `${30 + cell.col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2}px ${16 + cell.row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2}px`,
-                    transform: isHovered ? 'scale(1.15)' : 'scale(1)',
-                    transition: 'transform 0.12s ease-out, stroke 0.12s ease-out',
-                  }}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.2, delay: i * 0.002 }}
-                  onMouseEnter={(e) => handleCellEnter(e, cell)}
-                  onMouseLeave={handleCellLeave}
-                  onClick={() => {
-                    if (cell.data) setSelectedDay(cell.data);
-                    else setSelectedDay({ date: cell.date, total_count: 0, total_weight: 0, by_type: {}, by_context: {} });
-                  }}
-                />
+                <g key={cell.date}>
+                  <motion.rect
+                    x={cx}
+                    y={cy}
+                    width={CELL_SIZE}
+                    height={CELL_SIZE}
+                    rx={2}
+                    fill={getHeatmapIntensity(weight, maxWeight)}
+                    stroke={isHovered ? 'rgba(139, 92, 246, 0.4)' : isSelected ? BRAIN_CHART.brand.accent : 'transparent'}
+                    strokeWidth={isHovered || isSelected ? 1.5 : 0}
+                    className="cursor-pointer"
+                    style={{
+                      transformOrigin: `${cx + CELL_SIZE / 2}px ${cy + CELL_SIZE / 2}px`,
+                      transform: isHovered ? 'scale(1.08)' : 'scale(1)',
+                      transition: 'transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1), stroke 0.12s ease-out, filter 150ms ease-out',
+                      filter: isHovered ? 'drop-shadow(0 0 4px rgba(139, 92, 246, 0.25))' : 'none',
+                    }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2, delay: dist * 0.018 }}
+                    onMouseEnter={(e) => handleCellEnter(e, cell)}
+                    onMouseLeave={handleCellLeave}
+                    onClick={() => {
+                      setRipple({ cx: cx + CELL_SIZE / 2, cy: cy + CELL_SIZE / 2, key: Date.now() });
+                      if (cell.data) setSelectedDay(cell.data);
+                      else setSelectedDay({ date: cell.date, total_count: 0, total_weight: 0, by_type: {}, by_context: {} });
+                    }}
+                  />
+                  {/* Radial gradient overlay on hover */}
+                  {isHovered && (
+                    <rect
+                      x={cx}
+                      y={cy}
+                      width={CELL_SIZE}
+                      height={CELL_SIZE}
+                      rx={2}
+                      fill="url(#activityCellGlow)"
+                      pointerEvents="none"
+                    />
+                  )}
+                </g>
               );
             })}
+
+            {/* Ripple expand on click */}
+            <AnimatePresence>
+              {ripple && (
+                <motion.circle
+                  key={ripple.key}
+                  cx={ripple.cx}
+                  cy={ripple.cy}
+                  fill="none"
+                  stroke="rgba(139, 92, 246, 0.3)"
+                  strokeWidth={1.5}
+                  initial={{ r: 0, opacity: 0.6 }}
+                  animate={{ r: 60, opacity: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                  onAnimationComplete={() => setRipple(null)}
+                  pointerEvents="none"
+                />
+              )}
+            </AnimatePresence>
           </svg>
           <HeatmapTooltip
             data={tooltipData}

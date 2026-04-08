@@ -78,37 +78,10 @@ export const standupRepository = {
   ): DbStandupSummary | null => base.update(id, updates as Record<string, unknown>),
 
   /**
-   * Upsert a standup summary (create or update)
+   * Upsert a standup summary (create or update).
+   * Uses atomic INSERT ... ON CONFLICT to avoid read-then-write races.
    */
   upsertSummary: (summary: Omit<DbStandupSummary, 'created_at' | 'updated_at'>): DbStandupSummary => {
-    const existing = standupRepository.getSummaryByPeriod(
-      summary.project_id,
-      summary.period_type,
-      summary.period_start
-    );
-
-    if (existing) {
-      return standupRepository.updateSummary(existing.id, {
-        period_end: summary.period_end,
-        title: summary.title,
-        summary: summary.summary,
-        implementations_count: summary.implementations_count,
-        ideas_generated: summary.ideas_generated,
-        ideas_accepted: summary.ideas_accepted,
-        ideas_rejected: summary.ideas_rejected,
-        ideas_implemented: summary.ideas_implemented,
-        scans_count: summary.scans_count,
-        blockers: summary.blockers,
-        highlights: summary.highlights,
-        velocity_trend: summary.velocity_trend,
-        burnout_risk: summary.burnout_risk,
-        focus_areas: summary.focus_areas,
-        input_tokens: summary.input_tokens,
-        output_tokens: summary.output_tokens,
-        generated_at: summary.generated_at,
-      })!;
-    }
-
     const db = getDatabase();
     const now = new Date().toISOString();
 
@@ -123,6 +96,25 @@ export const standupRepository = {
         generated_at, created_at, updated_at
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(project_id, period_type, period_start) DO UPDATE SET
+        period_end = excluded.period_end,
+        title = excluded.title,
+        summary = excluded.summary,
+        implementations_count = excluded.implementations_count,
+        ideas_generated = excluded.ideas_generated,
+        ideas_accepted = excluded.ideas_accepted,
+        ideas_rejected = excluded.ideas_rejected,
+        ideas_implemented = excluded.ideas_implemented,
+        scans_count = excluded.scans_count,
+        blockers = excluded.blockers,
+        highlights = excluded.highlights,
+        velocity_trend = excluded.velocity_trend,
+        burnout_risk = excluded.burnout_risk,
+        focus_areas = excluded.focus_areas,
+        input_tokens = excluded.input_tokens,
+        output_tokens = excluded.output_tokens,
+        generated_at = excluded.generated_at,
+        updated_at = excluded.updated_at
     `).run(
       summary.id,
       summary.project_id,
@@ -149,7 +141,11 @@ export const standupRepository = {
       now
     );
 
-    return base.getById(summary.id)!;
+    // On conflict the original id is kept; fetch by the natural key to handle both paths
+    return (
+      standupRepository.getSummaryByPeriod(summary.project_id, summary.period_type, summary.period_start) ??
+      base.getById(summary.id)!
+    );
   },
 
   /**

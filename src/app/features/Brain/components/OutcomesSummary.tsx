@@ -6,10 +6,10 @@
 
 'use client';
 
-import { useId, useMemo, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useId, useMemo, useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { duration, easing } from '@/lib/motion';
-import { Target, CheckCircle, XCircle, RotateCcw, Clock, TrendingUp } from 'lucide-react';
+import { Target, CheckCircle, XCircle, RotateCcw, Clock, TrendingUp, TrendingDown, Minus, ChevronDown } from 'lucide-react';
 import { useBrainStore } from '@/stores/brainStore';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { subscribeToReflectionCompletion } from '@/stores/reflectionCompletionEmitter';
@@ -23,6 +23,12 @@ interface Props {
   isLoading: boolean;
 }
 
+interface DeltaInfo {
+  percentage: number;   // e.g. +12 or -5
+  direction: 'up' | 'down' | 'flat';
+  isPositive: boolean;  // Whether "up" is good for this metric
+}
+
 interface KPICardProps {
   title: string;
   value: number;
@@ -32,6 +38,42 @@ interface KPICardProps {
   glowColor: string;
   borderColor: string;
   delay?: number;
+  delta?: DeltaInfo | null;
+}
+
+function computeDelta(current: number, prior: number, upIsGood = true): DeltaInfo | null {
+  if (prior === 0 && current === 0) return null;
+  const pct = prior === 0 ? (current > 0 ? 100 : 0) : Math.round(((current - prior) / prior) * 100);
+  const direction = pct > 0 ? 'up' as const : pct < 0 ? 'down' as const : 'flat' as const;
+  const isPositive = direction === 'flat' || (direction === 'up' && upIsGood) || (direction === 'down' && !upIsGood);
+  return { percentage: pct, direction, isPositive };
+}
+
+function DeltaBadge({ delta }: { delta: DeltaInfo }) {
+  const color = delta.direction === 'flat'
+    ? BRAIN_CHART.neutral
+    : delta.isPositive ? BRAIN_CHART.positive : BRAIN_CHART.negative;
+
+  const Icon = delta.direction === 'up' ? TrendingUp : delta.direction === 'down' ? TrendingDown : Minus;
+  const sign = delta.percentage > 0 ? '+' : '';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -8, scale: 0.8 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+      className="flex items-center gap-1 px-1.5 py-0.5 rounded-md"
+      style={{
+        backgroundColor: `${color}18`,
+        border: `1px solid ${color}35`,
+      }}
+    >
+      <Icon className="w-3 h-3" style={{ color }} />
+      <span className="text-2xs font-mono font-semibold tabular-nums" style={{ color }}>
+        {sign}{delta.percentage}%
+      </span>
+    </motion.div>
+  );
 }
 
 function KPICard({
@@ -42,7 +84,8 @@ function KPICard({
   accentColor,
   glowColor,
   borderColor,
-  delay = 0
+  delay = 0,
+  delta,
 }: KPICardProps) {
   return (
     <motion.div
@@ -64,6 +107,9 @@ function KPICard({
             >
               <Icon className="w-5 h-5" style={{ color: accentColor }} />
             </motion.div>
+            <AnimatePresence>
+              {delta && <DeltaBadge delta={delta} />}
+            </AnimatePresence>
           </div>
 
           <div className="space-y-1">
@@ -122,23 +168,49 @@ function useDailyTrend(recentOutcomes: { execution_completed_at: string | null; 
   }, [recentOutcomes]);
 }
 
+const COMPARE_WINDOWS = [
+  { label: '7d', days: 7 },
+  { label: '14d', days: 14 },
+  { label: '30d', days: 30 },
+] as const;
+
 export default function OutcomesSummary({ isLoading }: Props) {
   const trendGradientId = `outcomeTrendGrad-${useId()}`;
-  const { outcomeStats, recentOutcomes, fetchRecentOutcomes } = useBrainStore();
+  const { outcomeStats, priorOutcomeStats, recentOutcomes, fetchRecentOutcomes } = useBrainStore();
   const activeProject = useClientProjectStore(state => state.activeProject);
   const { days: trendDays, daysWithData } = useDailyTrend(recentOutcomes);
+  const [compareDays, setCompareDays] = useState(7);
+  const [showWindowPicker, setShowWindowPicker] = useState(false);
+
+  // Fetch outcomes with comparison window
+  useEffect(() => {
+    if (activeProject?.id) {
+      fetchRecentOutcomes(activeProject.id, undefined, compareDays);
+    }
+  }, [activeProject?.id, compareDays, fetchRecentOutcomes]);
 
   // Subscribe to reflection completion events for auto-refresh
   useEffect(() => {
     const unsubscribe = subscribeToReflectionCompletion((reflectionId, projectId) => {
-      // Refresh outcomes when a reflection completes for this project
       if (projectId === activeProject?.id) {
-        fetchRecentOutcomes(projectId);
+        fetchRecentOutcomes(projectId, undefined, compareDays);
       }
     });
 
     return unsubscribe;
-  }, [activeProject?.id, fetchRecentOutcomes]);
+  }, [activeProject?.id, compareDays, fetchRecentOutcomes]);
+
+  // Compute deltas
+  const deltas = useMemo(() => {
+    if (!priorOutcomeStats) return null;
+    return {
+      total: computeDelta(outcomeStats.total, priorOutcomeStats.total, true),
+      successful: computeDelta(outcomeStats.successful, priorOutcomeStats.successful, true),
+      failed: computeDelta(outcomeStats.failed, priorOutcomeStats.failed, false),
+      reverted: computeDelta(outcomeStats.reverted, priorOutcomeStats.reverted, false),
+      pending: computeDelta(outcomeStats.pending, priorOutcomeStats.pending, false),
+    };
+  }, [outcomeStats, priorOutcomeStats]);
 
   if (isLoading) {
     const skeletonColors = [BRAIN_CHART.outcome.total.color, BRAIN_CHART.outcome.success.color, BRAIN_CHART.outcome.failed.color, BRAIN_CHART.outcome.pending.color];
@@ -159,6 +231,45 @@ export default function OutcomesSummary({ isLoading }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* Comparison Window Picker */}
+      <div className="flex items-center justify-end gap-2">
+        <span className="text-2xs text-zinc-500 font-mono">VS_PRIOR</span>
+        <div className="relative">
+          <button
+            onClick={() => setShowWindowPicker(p => !p)}
+            className="flex items-center gap-1 px-2 py-1 rounded-md border border-zinc-700/50 bg-zinc-900/50 text-xs font-mono text-zinc-400 hover:text-zinc-300 hover:border-zinc-600 transition-colors"
+          >
+            {compareDays}d
+            <ChevronDown className="w-3 h-3" />
+          </button>
+          <AnimatePresence>
+            {showWindowPicker && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.15 }}
+                className="absolute right-0 top-full mt-1 z-10 flex flex-col rounded-md border border-zinc-700/50 bg-zinc-900 shadow-xl overflow-hidden"
+              >
+                {COMPARE_WINDOWS.map(w => (
+                  <button
+                    key={w.days}
+                    onClick={() => { setCompareDays(w.days); setShowWindowPicker(false); }}
+                    className={`px-4 py-1.5 text-xs font-mono transition-colors ${
+                      compareDays === w.days
+                        ? 'text-amber-400 bg-amber-500/10'
+                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+                    }`}
+                  >
+                    {w.label}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
       {/* KPI Cards Row */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <KPICard
@@ -170,6 +281,7 @@ export default function OutcomesSummary({ isLoading }: Props) {
           glowColor={BRAIN_CHART.outcome.total.glow}
           borderColor={BRAIN_CHART.outcome.total.border}
           delay={0}
+          delta={deltas?.total}
         />
 
         <KPICard
@@ -181,6 +293,7 @@ export default function OutcomesSummary({ isLoading }: Props) {
           glowColor={BRAIN_CHART.outcome.success.glow}
           borderColor={BRAIN_CHART.outcome.success.border}
           delay={0.1}
+          delta={deltas?.successful}
         />
 
         <KPICard
@@ -192,6 +305,7 @@ export default function OutcomesSummary({ isLoading }: Props) {
           glowColor={BRAIN_CHART.outcome.failed.glow}
           borderColor={BRAIN_CHART.outcome.failed.border}
           delay={0.2}
+          delta={deltas?.failed}
         />
 
         <KPICard
@@ -203,6 +317,7 @@ export default function OutcomesSummary({ isLoading }: Props) {
           glowColor={BRAIN_CHART.outcome.reverted.glow}
           borderColor={BRAIN_CHART.outcome.reverted.border}
           delay={0.3}
+          delta={deltas?.reverted}
         />
 
         <KPICard
@@ -214,6 +329,7 @@ export default function OutcomesSummary({ isLoading }: Props) {
           glowColor={BRAIN_CHART.outcome.pending.glow}
           borderColor={BRAIN_CHART.outcome.pending.border}
           delay={0.4}
+          delta={deltas?.pending}
         />
       </div>
 

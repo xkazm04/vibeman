@@ -2,9 +2,9 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ThumbsUp, ThumbsDown, Trash2, Copy, BookOpen, Code2, AlertTriangle, FileText, Tag, Map } from 'lucide-react';
+import { X, ThumbsUp, ThumbsDown, Trash2, Copy, BookOpen, Code2, AlertTriangle, FileText, Tag, Map, ShieldCheck, Clock, Activity } from 'lucide-react';
 import { KBErrorBanner } from './KBErrorStates';
-import type { DbKnowledgeEntry } from '@/app/db/models/knowledge.types';
+import type { DbKnowledgeEntry, KnowledgeEntryProvenance } from '@/app/db/models/knowledge.types';
 import { KNOWLEDGE_CATEGORY_LABELS, KNOWLEDGE_LAYER_LABELS } from '@/app/db/models/knowledge.types';
 import type { KnowledgeCategory, KnowledgeLayer } from '@/app/db/models/knowledge.types';
 import { fadeOnly } from '@/lib/motion';
@@ -30,6 +30,38 @@ const SOURCE_LABELS: Record<string, string> = {
   manual: 'Manual Entry',
 };
 
+function computeKnowledgeProvenance(entry: DbKnowledgeEntry): KnowledgeEntryProvenance {
+  const now = Date.now();
+  const createdMs = new Date(entry.created_at).getTime();
+  const ageDays = Math.max(0, Math.floor((now - createdMs) / 86_400_000));
+
+  let daysSinceLastApplied: number | null = null;
+  if (entry.last_applied_at) {
+    const lastMs = new Date(entry.last_applied_at).getTime();
+    daysSinceLastApplied = Math.max(0, Math.floor((now - lastMs) / 86_400_000));
+  }
+
+  const helpfulnessRatio = entry.times_applied > 0
+    ? Math.round((entry.times_helpful / entry.times_applied) * 100) / 100
+    : null;
+
+  const battleTested = entry.times_applied >= 10 && (helpfulnessRatio ?? 0) >= 0.7;
+
+  return {
+    sourceType: entry.source_type,
+    sourceLabel: SOURCE_LABELS[entry.source_type] ?? entry.source_type,
+    sourceProjectId: entry.source_project_id,
+    sourceInsightId: entry.source_insight_id,
+    confidence: entry.confidence,
+    timesApplied: entry.times_applied,
+    timesHelpful: entry.times_helpful,
+    helpfulnessRatio,
+    daysSinceLastApplied,
+    ageDays,
+    battleTested,
+  };
+}
+
 const PATTERN_TYPE_COLORS: Record<string, string> = {
   best_practice: 'text-emerald-400',
   anti_pattern: 'text-red-400',
@@ -45,12 +77,39 @@ const TITLE_ID = 'entry-detail-title';
 export default function EntryDetailPanel({ entry, onClose, onFeedback, onDelete, onOpenHubEditor }: EntryDetailPanelProps) {
   const prefersReduced = useReducedMotion();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteGateReady, setDeleteGateReady] = useState(false);
+  const deleteGateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   // Reset state when entry changes
-  useEffect(() => { setConfirmDelete(false); setFeedbackError(null); }, [entry?.id]);
+  useEffect(() => {
+    setConfirmDelete(false);
+    setDeleteGateReady(false);
+    setFeedbackError(null);
+    if (deleteGateTimer.current) clearTimeout(deleteGateTimer.current);
+  }, [entry?.id]);
+
+  // Clean up gate timer on unmount
+  useEffect(() => {
+    return () => {
+      if (deleteGateTimer.current) clearTimeout(deleteGateTimer.current);
+    };
+  }, []);
+
+  // When entering confirm mode, start the 2-second countdown
+  useEffect(() => {
+    if (confirmDelete) {
+      setDeleteGateReady(false);
+      deleteGateTimer.current = setTimeout(() => {
+        setDeleteGateReady(true);
+      }, 2000);
+    } else {
+      setDeleteGateReady(false);
+      if (deleteGateTimer.current) clearTimeout(deleteGateTimer.current);
+    }
+  }, [confirmDelete]);
 
   // Auto-focus close button on open
   useEffect(() => {
@@ -248,6 +307,9 @@ export default function EntryDetailPanel({ entry, onClose, onFeedback, onDelete,
                 </div>
               )}
 
+              {/* Provenance Trail */}
+              <ProvenanceSection entry={entry} />
+
               {/* Cross-References */}
               <BacklinksPanel entityType="knowledge_entry" entityId={entry.id} />
 
@@ -305,13 +367,28 @@ export default function EntryDetailPanel({ entry, onClose, onFeedback, onDelete,
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => {
+                        if (!deleteGateReady) return;
                         onDelete(entry.id);
                         onClose();
                       }}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white bg-red-600 hover:bg-red-500 border border-red-500 transition-colors"
+                      disabled={!deleteGateReady}
+                      className="relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white bg-red-600 hover:bg-red-500 border border-red-500 transition-colors overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Confirm
+                      {/* Countdown progress bar that shrinks from 100% to 0% over 2s */}
+                      {!deleteGateReady && (
+                        <span
+                          className="absolute inset-y-0 left-0 bg-red-400/30 transition-all duration-[2000ms] ease-linear"
+                          style={{ width: '0%' }}
+                          ref={(el) => {
+                            // Trigger the animation on next frame
+                            if (el) requestAnimationFrame(() => { el.style.width = '100%'; });
+                          }}
+                        />
+                      )}
+                      <span className="relative z-10 flex items-center gap-1.5">
+                        <Trash2 className="w-3.5 h-3.5" />
+                        {deleteGateReady ? 'Confirm' : 'Wait...'}
+                      </span>
                     </button>
                     <button
                       onClick={() => setConfirmDelete(false)}
@@ -352,6 +429,100 @@ function MetaItem({ label, value }: { label: string; value: string }) {
     <div className="px-3 py-2 rounded-lg bg-zinc-800/30 border border-zinc-800/30">
       <p className="text-2xs text-zinc-500 mb-0.5">{label}</p>
       <p className="text-xs text-zinc-300 capitalize">{value}</p>
+    </div>
+  );
+}
+
+function ProvenanceSection({ entry }: { entry: DbKnowledgeEntry }) {
+  const prov = computeKnowledgeProvenance(entry);
+
+  const freshnessLabel = (() => {
+    if (prov.daysSinceLastApplied === null) return 'Never applied';
+    if (prov.daysSinceLastApplied <= 7) return 'Fresh (< 1 week)';
+    if (prov.daysSinceLastApplied <= 30) return 'Recent (< 1 month)';
+    if (prov.daysSinceLastApplied <= 90) return 'Aging (< 3 months)';
+    return 'Stale (> 3 months)';
+  })();
+
+  const freshnessColor = (() => {
+    if (prov.daysSinceLastApplied === null) return 'text-zinc-500';
+    if (prov.daysSinceLastApplied <= 7) return 'text-emerald-400';
+    if (prov.daysSinceLastApplied <= 30) return 'text-cyan-400';
+    if (prov.daysSinceLastApplied <= 90) return 'text-amber-400';
+    return 'text-red-400';
+  })();
+
+  const trustLabel = (() => {
+    if (prov.battleTested) return 'Battle-tested';
+    if (prov.timesApplied >= 5 && (prov.helpfulnessRatio ?? 0) >= 0.5) return 'Proven';
+    if (prov.timesApplied >= 1) return 'Used';
+    return 'Untested';
+  })();
+
+  const trustColor = (() => {
+    if (prov.battleTested) return 'text-emerald-400';
+    if (prov.timesApplied >= 5 && (prov.helpfulnessRatio ?? 0) >= 0.5) return 'text-cyan-400';
+    if (prov.timesApplied >= 1) return 'text-zinc-300';
+    return 'text-zinc-500';
+  })();
+
+  return (
+    <div>
+      <SectionLabel icon={ShieldCheck} label="Provenance" />
+      <div className="mt-2 space-y-2">
+        {/* Trust badge */}
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-medium ${trustColor}`}>
+            {trustLabel}
+          </span>
+          {prov.battleTested && (
+            <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-2xs text-emerald-400 font-medium border border-emerald-500/20">
+              Reliable
+            </span>
+          )}
+        </div>
+
+        {/* Provenance details grid */}
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="flex items-center gap-1.5 text-zinc-400">
+            <Activity className="w-3 h-3 text-zinc-500 flex-shrink-0" />
+            <span className="text-2xs">Origin:</span>
+            <span className="text-zinc-300 text-2xs">{prov.sourceLabel}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-zinc-400">
+            <Clock className="w-3 h-3 text-zinc-500 flex-shrink-0" />
+            <span className="text-2xs">Age:</span>
+            <span className="text-zinc-300 text-2xs">{prov.ageDays}d</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-zinc-400">
+            <ThumbsUp className="w-3 h-3 text-zinc-500 flex-shrink-0" />
+            <span className="text-2xs">Helpful:</span>
+            <span className="text-zinc-300 text-2xs">
+              {prov.helpfulnessRatio !== null ? `${Math.round(prov.helpfulnessRatio * 100)}%` : 'N/A'}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 text-zinc-400">
+            <Clock className={`w-3 h-3 flex-shrink-0 ${freshnessColor}`} />
+            <span className="text-2xs">Freshness:</span>
+            <span className={`text-2xs ${freshnessColor}`}>{freshnessLabel}</span>
+          </div>
+        </div>
+
+        {/* Reinforcement bar */}
+        {prov.timesApplied > 0 && (
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-cyan-500/60 to-emerald-500/60 transition-all"
+                style={{ width: `${Math.min(100, (prov.timesApplied / 50) * 100)}%` }}
+              />
+            </div>
+            <span className="text-2xs text-zinc-500 tabular-nums whitespace-nowrap">
+              {prov.timesApplied} applied / {prov.timesHelpful} helpful
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

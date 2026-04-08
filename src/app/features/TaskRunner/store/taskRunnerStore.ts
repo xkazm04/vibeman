@@ -55,6 +55,7 @@ export interface TaskRunnerState {
 
   // Task actions (used by CLI)
   updateTaskStatus: (taskId: string, status: TaskStatusUnion) => void;
+  batchUpdateTaskStatuses: (updates: Array<{ taskId: string; status: TaskStatusUnion }>) => void;
 
   // Global actions
   setGitConfig: (config: GitConfig | null) => void;
@@ -105,6 +106,29 @@ export const useTaskRunnerStore = create<TaskRunnerState>()(
       else if (status.type === 'running') taskEventBus.emit({ type: 'task-started', taskId });
       else if (status.type === 'completed') taskEventBus.emit({ type: 'task-completed', taskId });
       else if (status.type === 'failed') taskEventBus.emit({ type: 'task-failed', taskId, error: status.error });
+    },
+
+    batchUpdateTaskStatuses: (updates) => {
+      // Single set() call for all updates to reduce re-render cascades
+      set((state) => {
+        const newTasks = { ...state.tasks };
+        for (const { taskId, status } of updates) {
+          newTasks[taskId] = {
+            ...(newTasks[taskId] || { id: taskId }),
+            status,
+          };
+        }
+        return { tasks: newTasks };
+      });
+      // Emit events via microtask to avoid blocking the render
+      queueMicrotask(() => {
+        for (const { taskId, status } of updates) {
+          if (status.type === 'queued') taskEventBus.emit({ type: 'task-queued', taskId });
+          else if (status.type === 'running') taskEventBus.emit({ type: 'task-started', taskId });
+          else if (status.type === 'completed') taskEventBus.emit({ type: 'task-completed', taskId });
+          else if (status.type === 'failed') taskEventBus.emit({ type: 'task-failed', taskId, error: status.error });
+        }
+      });
     },
 
     setGitConfig: (config) => set({ gitConfig: config }),

@@ -82,3 +82,6 @@ export { default as ScrollShadow } from './ScrollShadow';
 
 // Entity cross-reference panel
 export { default as BacklinksPanel } from './BacklinksPanel';
+
+// Scan findings severity summary
+export { default as FindingsSeveritySummary } from './FindingsSeveritySummary';

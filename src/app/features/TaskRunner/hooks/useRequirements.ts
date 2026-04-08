@@ -164,11 +164,10 @@ export function useRequirements(): UseRequirementsReturn {
         return !status || (!isTaskRunning(status) && !isTaskQueued(status));
       });
 
-      const allSelected = selectableReqs.every((req) =>
-        selectedRequirements.has(getRequirementId(req))
-      );
-
       setSelectedRequirements((prev) => {
+        const allSelected = selectableReqs.every((req) =>
+          prev.has(getRequirementId(req))
+        );
         const newSet = new Set(prev);
         if (allSelected) {
           selectableReqs.forEach((req) => newSet.delete(getRequirementId(req)));
@@ -178,7 +177,7 @@ export function useRequirements(): UseRequirementsReturn {
         return newSet;
       });
     },
-    [groupedRequirements, selectedRequirements]
+    [groupedRequirements]
   );
 
   const toggleContextSelection = useCallback(
@@ -200,11 +199,10 @@ export function useRequirements(): UseRequirementsReturn {
         return !status || (!isTaskRunning(status) && !isTaskQueued(status));
       });
 
-      const allSelected = selectableReqs.every((req) =>
-        selectedRequirements.has(getRequirementId(req))
-      );
-
       setSelectedRequirements((prev) => {
+        const allSelected = selectableReqs.every((req) =>
+          prev.has(getRequirementId(req))
+        );
         const newSet = new Set(prev);
         if (allSelected) {
           selectableReqs.forEach((req) => newSet.delete(getRequirementId(req)));
@@ -214,7 +212,7 @@ export function useRequirements(): UseRequirementsReturn {
         return newSet;
       });
     },
-    [groupedRequirements, selectedRequirements]
+    [groupedRequirements]
   );
 
   const handleDelete = useCallback(

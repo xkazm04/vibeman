@@ -6,10 +6,9 @@
  * positioned layouts incrementally so the canvas can render progressively.
  */
 
-// Import D3 directly in the worker
-import * as d3 from 'd3';
 import { BUBBLE_PADDING } from './constants';
 import type { WorkerGroup, ForceLayoutConfig, WorkerInputMessage, WorkerOutputMessage } from './types';
+import { createForceSimulation, initCircularPositions } from '../../lib/forceLayoutConfig';
 
 // Worker message handler
 self.onmessage = (e: MessageEvent<WorkerInputMessage>) => {
@@ -26,22 +25,10 @@ self.onmessage = (e: MessageEvent<WorkerInputMessage>) => {
   }
 
   // Initialize groups in a circle
-  const angleStep = (2 * Math.PI) / groups.length;
-  const initRadius = Math.min(width, height) * 0.25;
+  initCircularPositions(groups, width, height);
 
-  groups.forEach((g, i) => {
-    g.x = width / 2 + initRadius * Math.cos(i * angleStep);
-    g.y = height / 2 + initRadius * Math.sin(i * angleStep);
-  });
-
-  // Create D3 simulation
-  const simulation = d3.forceSimulation(groups as d3.SimulationNodeDatum[])
-    .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collide', d3.forceCollide<d3.SimulationNodeDatum>((d: any) => d.radius + BUBBLE_PADDING).strength(0.85).iterations(3))
-    .force('charge', d3.forceManyBody().strength(-250))
-    .force('x', d3.forceX(width / 2).strength(0.04))
-    .force('y', d3.forceY(height / 2).strength(0.04))
-    .stop();
+  // Create D3 simulation using shared factory
+  const simulation = createForceSimulation(groups as any, { width, height, collidePadding: BUBBLE_PADDING });
 
   // Run simulation ticks and post incremental updates
   for (let tick = 0; tick < totalTicks; tick++) {

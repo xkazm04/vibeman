@@ -58,6 +58,48 @@ function complexityBadge(complexity: string) {
   return colors[complexity] || colors.medium;
 }
 
+// ── Shared PredictionCard primitive ──
+
+function PredictionCard({
+  index,
+  icon,
+  title,
+  detail,
+  metric,
+  children,
+  className,
+  exitAnimation,
+}: {
+  index?: number;
+  icon: React.ReactNode;
+  title: React.ReactNode;
+  detail?: React.ReactNode;
+  metric?: React.ReactNode;
+  children?: React.ReactNode;
+  className?: string;
+  exitAnimation?: boolean;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      {...(exitAnimation ? { exit: { opacity: 0, x: 10 } } : {})}
+      transition={{ delay: (index ?? 0) * 0.02, type: 'spring', stiffness: 300, damping: 30 }}
+      className={`px-3 py-2.5 rounded-lg border border-white/10 hover:bg-white/5 hover:border-white/15 transition-colors duration-150 ${className ?? ''}`}
+    >
+      <div className="flex items-start gap-2">
+        <div className="flex-shrink-0 mt-0.5">{icon}</div>
+        <div className="flex-1 min-w-0">
+          {title}
+          {detail}
+          {children}
+        </div>
+        {metric && <div className="flex-shrink-0 ml-3">{metric}</div>}
+      </div>
+    </motion.div>
+  );
+}
+
 // ── Main Component ──
 
 export default function PredictiveStandup({ projectId }: PredictiveStandupProps) {
@@ -370,75 +412,58 @@ function CollapsibleSection({
 
 function TaskCard({ task, index }: { task: TaskRecommendation; index: number }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.02, type: 'spring', stiffness: 300, damping: 30 }}
-      className="flex items-start gap-3 p-3 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors"
-    >
-      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center">
-        <span className="text-xs font-bold text-blue-300">{index + 1}</span>
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-white/90">{task.title}</p>
-        <p className="text-xs text-slate-400 mt-0.5">{task.reason}</p>
-        <div className="flex items-center gap-2 mt-1.5">
-          <span className="flex items-center gap-1">
-            {slotIcon(task.suggestedSlot)}
-            <span className="text-2xs text-slate-500 capitalize">{task.suggestedSlot}</span>
-          </span>
-          <span className={`px-1.5 py-0.5 rounded text-2xs font-mono border ${complexityBadge(task.estimatedComplexity)}`}>
-            {task.estimatedComplexity}
-          </span>
+    <PredictionCard
+      index={index}
+      icon={
+        <div className="w-6 h-6 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center">
+          <span className="text-xs font-bold text-blue-300">{index + 1}</span>
         </div>
+      }
+      title={<p className="text-sm font-medium text-white/90">{task.title}</p>}
+      detail={<p className="text-xs text-slate-400 mt-0.5">{task.reason}</p>}
+    >
+      <div className="flex items-center gap-2 mt-1.5">
+        <span className="flex items-center gap-1">
+          {slotIcon(task.suggestedSlot)}
+          <span className="text-2xs text-slate-500 capitalize">{task.suggestedSlot}</span>
+        </span>
+        <span className={`px-1.5 py-0.5 rounded text-2xs font-mono border ${complexityBadge(task.estimatedComplexity)}`}>
+          {task.estimatedComplexity}
+        </span>
       </div>
-    </motion.div>
+    </PredictionCard>
   );
 }
 
 function BlockerCard({ blocker, index }: { blocker: PredictedBlocker; index: number }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.02, type: 'spring', stiffness: 300, damping: 30 }}
-      className={`p-3 rounded-lg border ${riskBg(blocker.severity)}`}
+    <PredictionCard
+      index={index}
+      icon={<Shield className={`w-4 h-4 ${riskColor(blocker.severity)}`} />}
+      title={<p className="text-sm font-medium text-white/90">{blocker.title}</p>}
+      detail={<p className="text-xs text-slate-400 mt-0.5">{blocker.description}</p>}
+      metric={
+        <span className={`text-sm font-bold tabular-nums ${riskColor(blocker.severity)}`}>
+          {blocker.confidence}%
+        </span>
+      }
     >
-      <div className="flex items-start gap-2">
-        <Shield className={`w-4 h-4 mt-0.5 flex-shrink-0 ${riskColor(blocker.severity)}`} />
-        <div className="flex-1">
-          <p className="text-sm font-medium text-white/90">{blocker.title}</p>
-          <p className="text-xs text-slate-400 mt-0.5">{blocker.description}</p>
-          <p className="text-xs text-cyan-400/80 mt-1">
-            Action: {blocker.preventiveAction}
-          </p>
-          <span className="text-2xs text-slate-500 tabular-nums mt-1 inline-block">
-            {blocker.confidence}% confidence
-          </span>
-        </div>
-      </div>
-    </motion.div>
+      <p className="text-xs text-cyan-400/80 mt-1">
+        Action: {blocker.preventiveAction}
+      </p>
+    </PredictionCard>
   );
 }
 
 function GoalRiskCard({ goal, index }: { goal: GoalRiskAssessment; index: number }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.02, type: 'spring', stiffness: 300, damping: 30 }}
-      className={`p-3 rounded-lg border ${riskBg(goal.riskLevel)}`}
-    >
-      <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            {trendIcon(goal.velocityTrend)}
-            <p className="text-sm font-medium text-white/90 truncate">{goal.goalTitle}</p>
-          </div>
-          <p className="text-xs text-slate-400 mt-0.5">{goal.riskReason}</p>
-          <p className="text-xs text-cyan-400/80 mt-1">{goal.suggestedAction}</p>
-        </div>
-        <div className="flex flex-col items-end gap-1 flex-shrink-0 ml-3">
+    <PredictionCard
+      index={index}
+      icon={trendIcon(goal.velocityTrend)}
+      title={<p className="text-sm font-medium text-white/90 truncate">{goal.goalTitle}</p>}
+      detail={<p className="text-xs text-slate-400 mt-0.5">{goal.riskReason}</p>}
+      metric={
+        <div className="flex flex-col items-end gap-1">
           <span className={`text-sm font-bold tabular-nums ${riskColor(goal.riskLevel)}`}>
             {goal.progress}%
           </span>
@@ -446,8 +471,10 @@ function GoalRiskCard({ goal, index }: { goal: GoalRiskAssessment; index: number
             {goal.daysSinceActivity}d ago
           </span>
         </div>
-      </div>
-    </motion.div>
+      }
+    >
+      <p className="text-xs text-cyan-400/80 mt-1">{goal.suggestedAction}</p>
+    </PredictionCard>
   );
 }
 
@@ -506,63 +533,55 @@ function TransitionSuggestionCard({
   const isConfirm = suggestion.actions.some(a => a.type === 'confirm_complete');
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 10 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className={`p-3 rounded-lg border ${isConfirm ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}
+    <PredictionCard
+      exitAnimation
+      icon={isConfirm
+        ? <CheckCircle className="w-4 h-4 text-cyan-400" />
+        : <Flame className="w-4 h-4 text-amber-400" />
+      }
+      title={<p className="text-sm font-medium text-white/90 truncate">{suggestion.goalTitle}</p>}
+      detail={<p className="text-xs text-slate-400 mt-0.5">{suggestion.reason}</p>}
+      metric={
+        <span className={`text-sm font-bold tabular-nums ${isConfirm ? 'text-cyan-400' : 'text-amber-400'}`}>
+          {suggestion.progress}%
+        </span>
+      }
     >
-      <div className="flex items-start gap-2">
-        {isConfirm
-          ? <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-cyan-400" />
-          : <Flame className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-400" />
-        }
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-white/90 truncate">{suggestion.goalTitle}</p>
-          <p className="text-xs text-slate-400 mt-0.5">{suggestion.reason}</p>
-          <div className="flex items-center gap-2 mt-2 flex-wrap">
-            {suggestion.actions.map(action => (
-              <motion.button
-                key={action.type}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => handleAction(action.type)}
-                disabled={busy !== null}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border transition-colors disabled:opacity-50 ${
-                  action.type === 'confirm_complete'
-                    ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30'
-                    : action.type === 'revert_open'
-                    ? 'bg-blue-500/20 border-blue-500/40 text-blue-300 hover:bg-blue-500/30'
-                    : 'bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30'
-                }`}
-              >
-                {busy === action.type
-                  ? <Loader2 className="w-3 h-3 animate-spin" />
-                  : action.type === 'confirm_complete'
-                  ? <CheckCircle className="w-3 h-3" />
-                  : action.type === 'revert_open'
-                  ? <RotateCcw className="w-3 h-3" />
-                  : <Flame className="w-3 h-3" />
-                }
-                {action.label}
-              </motion.button>
-            ))}
-            <button
-              onClick={onDismiss}
-              className="text-2xs text-slate-500 hover:text-slate-300 transition-colors ml-auto"
-            >
-              Dismiss
-            </button>
-          </div>
-        </div>
-        <div className="flex-shrink-0 text-right">
-          <span className={`text-sm font-bold tabular-nums ${isConfirm ? 'text-cyan-400' : 'text-amber-400'}`}>
-            {suggestion.progress}%
-          </span>
-        </div>
+      <div className="flex items-center gap-2 mt-2 flex-wrap">
+        {suggestion.actions.map(action => (
+          <motion.button
+            key={action.type}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => handleAction(action.type)}
+            disabled={busy !== null}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border transition-colors disabled:opacity-50 ${
+              action.type === 'confirm_complete'
+                ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30'
+                : action.type === 'revert_open'
+                ? 'bg-blue-500/20 border-blue-500/40 text-blue-300 hover:bg-blue-500/30'
+                : 'bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30'
+            }`}
+          >
+            {busy === action.type
+              ? <Loader2 className="w-3 h-3 animate-spin" />
+              : action.type === 'confirm_complete'
+              ? <CheckCircle className="w-3 h-3" />
+              : action.type === 'revert_open'
+              ? <RotateCcw className="w-3 h-3" />
+              : <Flame className="w-3 h-3" />
+            }
+            {action.label}
+          </motion.button>
+        ))}
+        <button
+          onClick={onDismiss}
+          className="text-2xs text-slate-500 hover:text-slate-300 transition-colors ml-auto"
+        >
+          Dismiss
+        </button>
       </div>
-    </motion.div>
+    </PredictionCard>
   );
 }
 
@@ -577,55 +596,45 @@ function ContextAlertCard({ alert, index }: { alert: ContextDecayAlert; index: n
   const statusLabel = DECAY_STATUS_LABEL[alert.decayStatus] ?? 'Unknown';
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.02, type: 'spring', stiffness: 300, damping: 30 }}
-      className={`p-3 rounded-lg border ${riskBg(alert.urgency)}`}
+    <PredictionCard
+      index={index}
+      icon={<Activity className={`w-4 h-4 ${riskColor(alert.urgency)}`} />}
+      title={
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium text-white/90">{alert.contextName}</p>
+          <span className={`text-2xs px-1.5 py-0.5 rounded font-medium ${
+            alert.decayStatus === 'stale'
+              ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+              : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+          }`}>
+            {statusLabel}
+          </span>
+        </div>
+      }
+      detail={<p className="text-xs text-slate-400 mt-0.5">{alert.suggestion}</p>}
+      metric={
+        <div className="w-10 h-10 rounded-full relative">
+          <svg viewBox="0 0 36 36" className="w-10 h-10 -rotate-90">
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(148,163,184,0.1)" strokeWidth="3" />
+            <circle
+              cx="18" cy="18" r="15.9" fill="none"
+              stroke={alert.urgency === 'critical' ? 'rgba(239,68,68,0.6)' : 'rgba(245,158,11,0.6)'}
+              strokeWidth="3"
+              strokeDasharray={`${alert.decayPercent} ${100 - alert.decayPercent}`}
+              strokeLinecap="round"
+            />
+          </svg>
+          <span className="absolute inset-0 flex items-center justify-center text-2xs font-bold text-white tabular-nums">
+            {alert.decayPercent}%
+          </span>
+        </div>
+      }
     >
-      <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-white/90">{alert.contextName}</p>
-            <span className={`text-2xs px-1.5 py-0.5 rounded font-medium ${
-              alert.decayStatus === 'stale'
-                ? 'bg-red-500/20 text-red-300 border border-red-500/30'
-                : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-            }`}>
-              {statusLabel}
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 mt-0.5">{alert.suggestion}</p>
-          {alert.linkedToActiveGoals && (
-            <span className="text-2xs text-amber-400 mt-1 inline-block">
-              Linked to active goals
-            </span>
-          )}
-        </div>
-        <div className="flex-shrink-0 ml-3">
-          <div className="w-10 h-10 rounded-full relative">
-            <svg viewBox="0 0 36 36" className="w-10 h-10 -rotate-90">
-              <circle
-                cx="18" cy="18" r="15.9"
-                fill="none"
-                stroke="rgba(148,163,184,0.1)"
-                strokeWidth="3"
-              />
-              <circle
-                cx="18" cy="18" r="15.9"
-                fill="none"
-                stroke={alert.urgency === 'critical' ? 'rgba(239,68,68,0.6)' : 'rgba(245,158,11,0.6)'}
-                strokeWidth="3"
-                strokeDasharray={`${alert.decayPercent} ${100 - alert.decayPercent}`}
-                strokeLinecap="round"
-              />
-            </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-2xs font-bold text-white tabular-nums">
-              {alert.decayPercent}%
-            </span>
-          </div>
-        </div>
-      </div>
-    </motion.div>
+      {alert.linkedToActiveGoals && (
+        <span className="text-2xs text-amber-400 mt-1 inline-block">
+          Linked to active goals
+        </span>
+      )}
+    </PredictionCard>
   );
 }

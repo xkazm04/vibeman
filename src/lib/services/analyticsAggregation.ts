@@ -452,13 +452,35 @@ class AnalyticsAggregationService {
     // this.cache.clear();
   }
 
+  // Debounce state for coalescing rapid project invalidations
+  private pendingProjectInvalidations = new Set<string>();
+  private invalidationTimer: ReturnType<typeof setTimeout> | null = null;
+
   /**
-   * Invalidate cache for specific project
+   * Invalidate cache for specific project.
+   * Coalesces multiple calls within a 100ms window into a single cache sweep
+   * to avoid redundant work during bulk operations (e.g. tinder batch accept/reject).
    */
   public invalidateCacheForProject(projectId: string): void {
+    this.pendingProjectInvalidations.add(projectId);
+    if (!this.invalidationTimer) {
+      this.invalidationTimer = setTimeout(() => {
+        this.flushPendingInvalidations();
+      }, 100);
+    }
+  }
+
+  private flushPendingInvalidations(): void {
+    const projectIds = this.pendingProjectInvalidations;
+    this.pendingProjectInvalidations = new Set<string>();
+    this.invalidationTimer = null;
+
     for (const [key] of this.cache) {
-      if (key.startsWith(`${projectId}:`) || key.startsWith('all:')) {
-        this.cache.delete(key);
+      for (const pid of projectIds) {
+        if (key.startsWith(`${pid}:`) || key.startsWith('all:')) {
+          this.cache.delete(key);
+          break; // key already deleted, move to next
+        }
       }
     }
   }

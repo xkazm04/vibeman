@@ -4,6 +4,9 @@
  * Centralizes signal-to-progress computation, velocity trends, and risk
  * assessment. All consumers share these methods instead of computing
  * independently, ensuring consistent results and a single invalidation point.
+ *
+ * Now supports the unified ActivitySignal abstraction for cross-domain
+ * signal queries (goal signals + behavioral signals in one stream).
  */
 
 import {
@@ -19,6 +22,7 @@ import type {
   VelocityMetrics,
 } from '@/app/db/models/standup.types';
 import type { CollectedStandupData } from '@/lib/standup/standupDataCollector';
+import type { ActivitySignal } from '@/types/activity-signal';
 import { logger } from '@/lib/logger';
 
 // ──────────────────────────────────────────────
@@ -46,7 +50,7 @@ export function computeGoalVelocityTrend(
 
   if (recentSignals === 0) return 'stalled';
   if (priorSignals === 0) return 'accelerating';
-  const ratio = recentSignals / priorSignals;
+  const ratio = recentSignals / Math.max(priorSignals, 1);
   if (ratio > 1.3) return 'accelerating';
   if (ratio < 0.7) return 'slowing';
   return 'steady';
@@ -62,7 +66,6 @@ interface GoalLike {
   status: string;
   last_signal_at?: string | null;
   created_at?: string | null;
-  inferred_progress?: number | null;
   progress?: number | null;
 }
 
@@ -80,7 +83,7 @@ export function assessSingleGoalRisk(
       ? new Date(goal.created_at).getTime()
       : now;
   const daysSinceActivity = Math.floor((now - lastSignalAt) / (1000 * 60 * 60 * 24));
-  const progress = goal.inferred_progress || goal.progress || 0;
+  const progress = goal.progress || 0;
   const velocityTrend = computeGoalVelocityTrend(signals);
 
   let riskLevel: GoalRiskAssessment['riskLevel'] = 'low';
@@ -146,10 +149,16 @@ function sortByRisk(a: GoalRiskAssessment, b: GoalRiskAssessment): number {
 export function getAllRisks(projectId: string): GoalRiskAssessment[] {
   const goals = goalDb.getGoalsByProject(projectId);
   const activeGoals = goals.filter(g => g.status === 'open' || g.status === 'in_progress');
+  if (activeGoals.length === 0) return [];
+
   const now = Date.now();
 
+  // Batch-fetch recent signals for all active goals in a single query
+  const goalIds = activeGoals.map(g => g.id);
+  const signalsByGoal = goalSignalDb.getRecentByGoalIds(goalIds, 20);
+
   return activeGoals.map(goal => {
-    const signals = goalSignalDb.getByGoal(goal.id, 20);
+    const signals = signalsByGoal.get(goal.id) || [];
     return assessSingleGoalRisk(goal, signals, now);
   }).sort(sortByRisk);
 }
@@ -178,7 +187,7 @@ export function getAllRisksFromCollected(collected: CollectedStandupData): GoalR
 export function getGoalProgress(goalId: string): number {
   const goal = goalDb.getGoalById(goalId);
   if (!goal) return 0;
-  return goal.inferred_progress || goal.progress || 0;
+  return goal.progress || 0;
 }
 
 // ──────────────────────────────────────────────
@@ -222,6 +231,75 @@ export function computeVelocityMetrics(
       ? Math.round((successCount / signals.length) * 100)
       : 0,
   };
+}
+
+/**
+ * Compute velocity metrics from unified ActivitySignal array.
+ * Extracts execution metadata from signal data payloads, consistent
+ * with the raw-data version above.
+ */
+export function computeVelocityFromActivitySignals(
+  signals: ActivitySignal[],
+  logCount: number,
+  acceptedCount: number,
+  start: Date,
+  end: Date
+): VelocityMetrics {
+  const days = Math.max(1, (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+
+  let totalDuration = 0;
+  let durationCount = 0;
+  let successCount = 0;
+  for (const sig of signals) {
+    if (!sig.data) continue;
+    try {
+      const data = JSON.parse(sig.data);
+      if (data.executionTimeMs > 0) {
+        totalDuration += data.executionTimeMs;
+        durationCount++;
+      }
+      if (data.success) successCount++;
+    } catch { /* skip */ }
+  }
+
+  return {
+    implementationsPerDay: Math.round((logCount / days) * 10) / 10,
+    ideasAcceptedPerDay: Math.round((acceptedCount / days) * 10) / 10,
+    signalsPerDay: Math.round((signals.length / days) * 10) / 10,
+    avgTaskDurationMinutes: durationCount > 0
+      ? Math.round(totalDuration / durationCount / 60000)
+      : 0,
+    successRate: signals.length > 0
+      ? Math.round((successCount / signals.length) * 100)
+      : 0,
+  };
+}
+
+/**
+ * Compute goal velocity trend from unified ActivitySignal array.
+ * Same algorithm as computeGoalVelocityTrend but accepts ActivitySignal[].
+ */
+export function computeVelocityTrendFromActivitySignals(
+  signals: ActivitySignal[]
+): GoalRiskAssessment['velocityTrend'] {
+  if (signals.length < 2) return 'stalled';
+
+  const now = Date.now();
+  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const twoWeeksAgo = now - 14 * 24 * 60 * 60 * 1000;
+
+  const recentSignals = signals.filter(s => new Date(s.timestamp).getTime() >= weekAgo).length;
+  const priorSignals = signals.filter(s => {
+    const t = new Date(s.timestamp).getTime();
+    return t >= twoWeeksAgo && t < weekAgo;
+  }).length;
+
+  if (recentSignals === 0) return 'stalled';
+  if (priorSignals === 0) return 'accelerating';
+  const ratio = recentSignals / Math.max(priorSignals, 1);
+  if (ratio > 1.3) return 'accelerating';
+  if (ratio < 0.7) return 'slowing';
+  return 'steady';
 }
 
 /**

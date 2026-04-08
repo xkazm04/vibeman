@@ -12,6 +12,20 @@ import type { DbDirection, DbDirectionOutcome } from '@/app/db';
 import type { LearningInsight } from '@/app/db/models/brain.types';
 import { GitManager } from '@/lib/gitManager';
 import { safeParseJson } from '@/lib/json-utils';
+import {
+  MS_PER_DAY,
+  OUTCOMES_WINDOW_DAYS,
+  REFLECTION_DATA_WINDOW_DAYS,
+  REFLECTION_MAX_DIRECTIONS_FETCH,
+  REFLECTION_MAX_CONTEXT_SIGNALS,
+  REFLECTION_MAX_PREVIOUS_INSIGHTS,
+  REFLECTION_GIT_TIMEOUT_MS,
+  REFLECTION_MAX_COMMITS_FETCH,
+  REFLECTION_PROMPT_MAX_COMMITS,
+  GLOBAL_REFLECTION_OUTCOME_WINDOW_DAYS,
+  GLOBAL_REFLECTION_MAX_PROJECTS,
+  GLOBAL_REFLECTION_MAX_DIRECTIONS_PER_PROJECT,
+} from '@/lib/brain/config';
 
 // ============================================================================
 // TYPES
@@ -77,7 +91,7 @@ export interface GlobalReflectionData {
 export async function gatherReflectionData(
   projectId: string,
   projectPath: string,
-  maxDirections: number = 30,
+  maxDirections: number = REFLECTION_MAX_DIRECTIONS_FETCH,
   gitRepoUrl?: string | null
 ): Promise<ReflectionData> {
   // Get accepted directions
@@ -93,15 +107,15 @@ export async function gatherReflectionData(
     .slice(0, maxDirections);
 
   // Get outcome statistics
-  const outcomeStats = directionOutcomeDb.getStats(projectId, 30);
+  const outcomeStats = directionOutcomeDb.getStats(projectId, OUTCOMES_WINDOW_DAYS);
 
   // Get signal counts
-  const signalCounts = behavioralSignalDb.getCountByType(projectId, 30);
+  const signalCounts = behavioralSignalDb.getCountByType(projectId, REFLECTION_DATA_WINDOW_DAYS);
 
   // Get idea decision signals (Tinder swipes) for preference analysis
   const ideaDecisionSignals = behavioralSignalDb.getByProject(projectId, {
     signalType: 'context_focus',
-    limit: 100,
+    limit: REFLECTION_MAX_CONTEXT_SIGNALS,
   }).filter(s => {
     try {
       const data = JSON.parse(s.data);
@@ -110,7 +124,7 @@ export async function gatherReflectionData(
   });
 
   // Get implementation signals for execution pattern analysis
-  const implementationSignals = behavioralSignalDb.getByTypeAndWindow(projectId, 'implementation', 30);
+  const implementationSignals = behavioralSignalDb.getByTypeAndWindow(projectId, 'implementation', REFLECTION_DATA_WINDOW_DAYS);
 
   // Read current brain-guide.md if it exists
   let currentBrainGuide: string | null = null;
@@ -120,23 +134,22 @@ export async function gatherReflectionData(
   }
 
   // Get previous insights to prevent duplicates (from brain_insights table)
-  const previousInsights = brainInsightDb.getAllInsights(projectId, 100);
+  const previousInsights = brainInsightDb.getAllInsights(projectId, REFLECTION_MAX_PREVIOUS_INSIGHTS);
 
   // Get git history for correlation analysis with timeout protection
   let gitHistory: GitCommitInfo[] = [];
   let detectedRepoUrl = gitRepoUrl || null;
 
   try {
-    const GIT_TIMEOUT_MS = 5000;
     const gitPromise = (async () => {
       const isGit = await GitManager.isGitRepo(projectPath);
       if (!isGit) return { commits: [] as GitCommitInfo[], remoteUrl: null as string | null };
 
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      const windowStart = new Date(Date.now() - REFLECTION_DATA_WINDOW_DAYS * MS_PER_DAY)
         .toISOString().split('T')[0];
       const commits = await GitManager.getRecentCommits(projectPath, {
-        since: thirtyDaysAgo,
-        limit: 30,
+        since: windowStart,
+        limit: REFLECTION_MAX_COMMITS_FETCH,
       });
 
       let remoteUrl: string | null = null;
@@ -148,7 +161,7 @@ export async function gatherReflectionData(
     })();
 
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Git operations timed out')), GIT_TIMEOUT_MS)
+      setTimeout(() => reject(new Error('Git operations timed out')), REFLECTION_GIT_TIMEOUT_MS)
     );
 
     const result = await Promise.race([gitPromise, timeoutPromise]);
@@ -187,7 +200,7 @@ export async function gatherReflectionData(
   }).filter(Boolean) as ReflectionData['implementationHistory'];
 
   // Gather implementation logs with structured metadata for practice extraction
-  const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const thirtyDaysAgoISO = new Date(Date.now() - REFLECTION_DATA_WINDOW_DAYS * MS_PER_DAY).toISOString();
   const nowISO = new Date().toISOString();
   let implementationLogs: ImplementationLogEntry[] = [];
   try {
@@ -272,7 +285,7 @@ ${d.direction.slice(0, 500)}${d.direction.length > 500 ? '...' : ''}
 function formatGitHistory(commits: GitCommitInfo[]): string {
   if (commits.length === 0) return '*No git history available.*';
 
-  return commits.slice(0, 20).map(c =>
+  return commits.slice(0, REFLECTION_PROMPT_MAX_COMMITS).map(c =>
     `- **${c.date.split(' ')[0]}** \`${c.sha.slice(0, 7)}\`: ${c.message.slice(0, 80)}${c.message.length > 80 ? '...' : ''} (${c.filesChanged.length} files)`
   ).join('\n');
 }
@@ -639,16 +652,16 @@ This reflection will help improve future direction generation.
  */
 export async function gatherGlobalReflectionData(
   projects: Array<{ id: string; name: string; path: string }>,
-  maxDirectionsPerProject: number = 15
+  maxDirectionsPerProject: number = GLOBAL_REFLECTION_MAX_DIRECTIONS_PER_PROJECT
 ): Promise<GlobalReflectionData> {
   const projectsData: GlobalReflectionData['projects'] = [];
 
   let globalTotal = 0, globalSuccessful = 0, globalFailed = 0, globalReverted = 0;
 
-  for (const project of projects.slice(0, 10)) {
+  for (const project of projects.slice(0, GLOBAL_REFLECTION_MAX_PROJECTS)) {
     const accepted = directionDb.getAcceptedDirections(project.id).slice(0, maxDirectionsPerProject);
     const rejected = directionDb.getRejectedDirections(project.id).slice(0, maxDirectionsPerProject);
-    const stats = directionOutcomeDb.getStats(project.id, 60);
+    const stats = directionOutcomeDb.getStats(project.id, GLOBAL_REFLECTION_OUTCOME_WINDOW_DAYS);
 
     globalTotal += stats.total;
     globalSuccessful += stats.successful;
@@ -667,7 +680,7 @@ export async function gatherGlobalReflectionData(
   }
 
   // Get previous global insights (from brain_insights table)
-  const previousGlobalInsights = brainInsightDb.getAllInsightsGlobal(100)
+  const previousGlobalInsights = brainInsightDb.getAllInsightsGlobal(REFLECTION_MAX_PREVIOUS_INSIGHTS)
     .map(({ project_id: _pid, ...insight }) => insight);
 
   // Read global brain-guide.md

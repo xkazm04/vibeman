@@ -441,6 +441,65 @@ export const observabilityRepository = {
     return upsertCount;
   },
 
+  /**
+   * Aggregate raw API calls into hourly stats for ALL projects in a single pass.
+   * Reads from hot-writes DB, writes rollups to main DB.
+   */
+  aggregateHourlyStatsAllProjects: (): number => {
+    const hotDb = getHotWritesDatabase();
+
+    // Single query across all projects - no per-project loop needed
+    const aggregates = hotDb.prepare(`
+      SELECT
+        project_id,
+        endpoint,
+        method,
+        strftime('%Y-%m-%dT%H:00:00', called_at) as hour_bucket,
+        COUNT(*) as call_count,
+        AVG(response_time_ms) as avg_response_time_ms,
+        MAX(response_time_ms) as max_response_time_ms,
+        SUM(CASE WHEN status_code >= 400 THEN 1 ELSE 0 END) as error_count,
+        SUM(COALESCE(request_size_bytes, 0)) as total_request_bytes,
+        SUM(COALESCE(response_size_bytes, 0)) as total_response_bytes
+      FROM obs_api_calls
+      GROUP BY project_id, endpoint, method, hour_bucket
+    `).all() as Array<{
+      project_id: string;
+      endpoint: string;
+      method: string;
+      hour_bucket: string;
+      call_count: number;
+      avg_response_time_ms: number;
+      max_response_time_ms: number;
+      error_count: number;
+      total_request_bytes: number;
+      total_response_bytes: number;
+    }>;
+
+    let upsertCount = 0;
+    for (const agg of aggregates) {
+      const periodEnd = new Date(agg.hour_bucket);
+      periodEnd.setHours(periodEnd.getHours() + 1);
+
+      observabilityRepository.upsertEndpointStats({
+        project_id: agg.project_id,
+        endpoint: agg.endpoint,
+        method: agg.method,
+        period_start: agg.hour_bucket,
+        period_end: periodEnd.toISOString(),
+        call_count: agg.call_count,
+        avg_response_time_ms: agg.avg_response_time_ms,
+        max_response_time_ms: agg.max_response_time_ms,
+        error_count: agg.error_count,
+        total_request_bytes: agg.total_request_bytes,
+        total_response_bytes: agg.total_response_bytes
+      });
+      upsertCount++;
+    }
+
+    return upsertCount;
+  },
+
   // ===== Configuration =====
 
   /**
@@ -556,13 +615,22 @@ export const observabilityRepository = {
     const db = getDatabase();
     const hotDb = getHotWritesDatabase();
 
-    // Delete calls from hot-writes DB
-    hotDb.prepare('DELETE FROM obs_api_calls WHERE project_id = ?').run(projectId);
-    // Delete stats and config from main DB
-    db.prepare('DELETE FROM obs_endpoint_stats WHERE project_id = ?').run(projectId);
-    const result = db.prepare('DELETE FROM obs_config WHERE project_id = ?').run(projectId);
+    // Delete calls from hot-writes DB (separate DB, separate transaction)
+    try {
+      hotDb.prepare('DELETE FROM obs_api_calls WHERE project_id = ?').run(projectId);
+    } catch (hotError) {
+      console.error('[Observability] Failed to delete hot-writes calls:', hotError);
+      throw hotError;
+    }
 
-    return result.changes > 0;
+    // Delete stats and config from main DB atomically
+    const txn = db.transaction(() => {
+      db.prepare('DELETE FROM obs_endpoint_stats WHERE project_id = ?').run(projectId);
+      const result = db.prepare('DELETE FROM obs_config WHERE project_id = ?').run(projectId);
+      return result.changes > 0;
+    });
+
+    return txn();
   },
 
   // ===== Dashboard Stats =====

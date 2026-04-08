@@ -7,6 +7,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { schemaIntelligenceEngine } from '@/lib/db/schemaIntelligenceEngine';
+import { validateRequestBody } from '@/lib/validation/apiValidator';
+import { validateProjectId } from '@/lib/validation/inputValidator';
 import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
@@ -48,8 +50,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json().catch(() => ({}));
-    const projectId = body.projectId || 'default';
+    const validation = await validateRequestBody(request, {
+      optional: [
+        { field: 'projectId', validator: validateProjectId },
+      ],
+    });
+    if (!validation.success) return validation.error;
+
+    const projectId = (validation.data.projectId as string) || 'default';
 
     logger.info('[SchemaIntelligence API] Triggering analysis cycle...');
 

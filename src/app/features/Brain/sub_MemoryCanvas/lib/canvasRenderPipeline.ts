@@ -7,7 +7,7 @@
 
 import type { BrainEvent, Group, FilterState } from './types';
 import { COLORS, RECENCY_GLOW_HOURS, LABEL_MIN_ZOOM } from './constants';
-import { getEventAlpha, getEventRadius, computeLabelRects, colorAt } from './helpers';
+import { getEventAlpha, getEventRadius, computeLabelRects, colorAt, smoothFontSize, labelFadeAlpha, wrapText } from './helpers';
 import { DISPLAY_FONT } from '../../lib/brainFonts';
 
 // ─── RenderContext: Shared state passed to all render passes ──────────────
@@ -301,7 +301,7 @@ export const renderEventCards: RenderPassFn<EventCardsConfig> = (
       ctx.fillRect(cx + 5 * cardScale, cy + 7 * cardScale, 3 * cardScale, cardH - 14 * cardScale);
 
       ctx.fillStyle = '#f4f4f5';
-      ctx.font = `600 ${Math.round(13 * cardScale)}px ${DISPLAY_FONT}`;
+      ctx.font = `600 ${Math.round(smoothFontSize(cardScale, 13))}px ${DISPLAY_FONT}`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       const titleText = showContext
@@ -310,7 +310,7 @@ export const renderEventCards: RenderPassFn<EventCardsConfig> = (
       ctx.fillText(titleText, cx + 14 * cardScale, cy + 9 * cardScale);
 
       ctx.fillStyle = '#a1a1aa';
-      ctx.font = `${Math.round(10 * cardScale)}px ${DISPLAY_FONT}`;
+      ctx.font = `${Math.round(smoothFontSize(cardScale, 10))}px ${DISPLAY_FONT}`;
       const metaText = showContext
         ? evt.summary.slice(0, 22)
         : `${COLORS[evt.type] ? evt.type : 'Event'}  ·  ${Math.round((Date.now() - evt.timestamp) / 3600000)}h ago`;
@@ -455,7 +455,9 @@ export const renderSmartLabels: RenderPassFn<SmartLabelsConfig> = (
 
   const k = transform.k;
 
-  if (k < minZoom) return;
+  // Smooth fade: fully hidden below 0.5, ramps in over [0.5, 0.7]
+  const fadeAlpha = labelFadeAlpha(k);
+  if (fadeAlpha <= 0) return;
 
   const draw = () => {
     const labelCandidates = events
@@ -478,29 +480,61 @@ export const renderSmartLabels: RenderPassFn<SmartLabelsConfig> = (
 
     if (labelCandidates.length === 0) return;
 
-    const labelFont = fontSize
-      ? `500 ${fontSize}px ${DISPLAY_FONT}`
+    // Smooth eased font sizing instead of hard Math.round steps
+    const computedSize = fontSize
+      ? fontSize
       : coordinateMode === 'world'
-      ? `500 ${Math.max(8, Math.round(9 / k))}px ${DISPLAY_FONT}`
-      : `500 ${Math.max(9, Math.round(11 * Math.min(k, 1.2)))}px ${DISPLAY_FONT}`;
+      ? Math.max(8, Math.round(9 / k))
+      : Math.max(9, Math.round(smoothFontSize(k, 11)));
+
+    const labelFont = `500 ${computedSize}px ${DISPLAY_FONT}`;
+    const isHighZoom = k > 2;
+    const maxLabelWidth = isHighZoom ? computedSize * 14 : Infinity;
 
     const rects = computeLabelRects(labelCandidates, ctx, labelFont, maxLabels);
+
+    // Apply fade alpha for smooth label appearance at low zoom
+    ctx.save();
+    if (fadeAlpha < 1) {
+      ctx.globalAlpha = fadeAlpha;
+    }
 
     for (const rect of rects) {
       const pad = coordinateMode === 'world' ? 3 / k : 3;
       const roundRadius = coordinateMode === 'world' ? 3 / k : 3;
 
-      ctx.fillStyle = 'rgba(15,15,17,0.75)';
-      ctx.beginPath();
-      ctx.roundRect(rect.x - pad, rect.y - 1, rect.width + pad * 2, rect.height + 2, roundRadius);
-      ctx.fill();
-
-      ctx.fillStyle = 'rgba(228,228,231,0.85)';
       ctx.font = labelFont;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      ctx.fillText(rect.label, rect.x, rect.y);
+
+      // At high zoom (k > 2), wrap labels into multiple lines
+      if (isHighZoom && rect.label.length > 12) {
+        const lines = wrapText(ctx, rect.label, maxLabelWidth);
+        const lineHeight = computedSize * 1.3;
+        const totalHeight = lines.length * lineHeight;
+
+        ctx.fillStyle = 'rgba(15,15,17,0.75)';
+        const bgWidth = Math.max(rect.width, ...lines.map(l => ctx.measureText(l).width));
+        ctx.beginPath();
+        ctx.roundRect(rect.x - pad, rect.y - 1, bgWidth + pad * 2, totalHeight + 2, roundRadius);
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(228,228,231,0.85)';
+        for (let i = 0; i < lines.length; i++) {
+          ctx.fillText(lines[i], rect.x, rect.y + i * lineHeight);
+        }
+      } else {
+        ctx.fillStyle = 'rgba(15,15,17,0.75)';
+        ctx.beginPath();
+        ctx.roundRect(rect.x - pad, rect.y - 1, rect.width + pad * 2, rect.height + 2, roundRadius);
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(228,228,231,0.85)';
+        ctx.fillText(rect.label, rect.x, rect.y);
+      }
     }
+
+    ctx.restore();
   };
 
   if (coordinateMode === 'world') {

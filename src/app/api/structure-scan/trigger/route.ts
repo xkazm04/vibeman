@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { analyzeStructure } from '../lib/scanOrchestrator';
-import type { StructureViolation } from '../violationRequirementTemplate';
+import { validateRequestBody } from '@/lib/validation/apiValidator';
+import {
+  validateProjectId,
+  validateProjectPath,
+  validateProjectType,
+  validateString,
+} from '@/lib/validation/inputValidator';
 
 /**
  * POST /api/structure-scan/trigger
@@ -27,28 +33,33 @@ import type { StructureViolation } from '../violationRequirementTemplate';
  */
 export async function POST(request: NextRequest) {
   try {
-    const { projectId, projectPath, projectType, projectName } = await request.json();
+    const result = await validateRequestBody(request, {
+      required: [
+        { field: 'projectId', validator: validateProjectId },
+        { field: 'projectPath', validator: validateProjectPath },
+        { field: 'projectType', validator: validateProjectType },
+      ],
+      optional: [
+        { field: 'projectName', validator: validateString('projectName', { required: false, maxLength: 255 }) },
+      ],
+    });
+    if (!result.success) return result.error;
 
-    if (!projectId || !projectPath || !projectType) {
-      return NextResponse.json(
-        { success: false, error: 'projectId, projectPath, and projectType are required' },
-        { status: 400 }
-      );
-    }
+    const { projectId, projectPath, projectType, projectName } = result.data;
 
     // Analyze structure
-    const result = await analyzeStructure(projectPath, projectType);
+    const analysisResult = await analyzeStructure(projectPath as string, projectType as 'nextjs' | 'fastapi');
 
-    if (!result.success) {
-      return NextResponse.json(result, { status: 500 });
+    if (!analysisResult.success) {
+      return NextResponse.json(analysisResult, { status: 500 });
     }
 
     // Return violations for client to show in decision queue
     return NextResponse.json({
       success: true,
-      violations: result.violations,
-      violationCount: result.violationCount,
-      message: result.message,
+      violations: analysisResult.violations,
+      violationCount: analysisResult.violationCount,
+      message: analysisResult.message,
       projectId,
       projectPath,
       projectName,

@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { DbIdea } from '@/app/db';
 import { getJSON } from './utils/apiHelpers';
 
 /**
@@ -12,22 +11,22 @@ export interface IdeaStats {
   implemented: number;
 }
 
-/**
- * Calculate idea statistics from array of ideas
- */
-function calculateStats(ideas: DbIdea[]): IdeaStats {
-  return {
-    total: ideas.length,
-    pending: ideas.filter(i => i.status === 'pending').length,
-    accepted: ideas.filter(i => i.status === 'accepted').length,
-    implemented: ideas.filter(i => i.status === 'implemented').length,
-  };
+interface StatsApiScanType {
+  scanType: string;
+  total: number;
+  pending: number;
+  accepted: number;
+  rejected: number;
+  implemented: number;
+  acceptanceRatio: number;
 }
 
 /**
- * Global hook for idea statistics
- * Fetches all ideas and calculates stats
- * Auto-refreshes every 30 seconds
+ * Global hook for idea statistics.
+ *
+ * Uses the dedicated /api/ideas/stats endpoint that computes counts via
+ * SQL GROUP BY, instead of fetching all idea rows and filtering client-side.
+ * Auto-refreshes every 30 seconds.
  */
 export function useGlobalIdeaStats() {
   const [stats, setStats] = useState<IdeaStats>({
@@ -39,12 +38,21 @@ export function useGlobalIdeaStats() {
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Fetch ideas and calculate stats
+  // Fetch stats from the dedicated server-side aggregation endpoint
   const fetchStats = async () => {
     try {
-      const data = await getJSON<{ ideas?: DbIdea[] }>('/api/ideas');
-      const ideas: DbIdea[] = data.ideas || [];
-      setStats(calculateStats(ideas));
+      const data = await getJSON<{ scanTypes?: StatsApiScanType[] }>('/api/ideas/stats');
+      const scanTypes = data.scanTypes || [];
+
+      // Aggregate across all scan types
+      let total = 0, pending = 0, accepted = 0, implemented = 0;
+      for (const st of scanTypes) {
+        total += st.total;
+        pending += st.pending;
+        accepted += st.accepted;
+        implemented += st.implemented;
+      }
+      setStats({ total, pending, accepted, implemented });
     } catch (_error) {
       // Silently handle fetch errors - stats will remain at previous value
     } finally {

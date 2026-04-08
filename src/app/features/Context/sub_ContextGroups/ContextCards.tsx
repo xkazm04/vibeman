@@ -1,17 +1,9 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { transition } from '@/lib/motion';
-import { Context, ContextGroup } from '../../../../stores/contextStore';
+import { ContextCardsProps } from './types';
 import ContextJailCard from './ContextJailCard';
 import ContextCardsEmpty from './ContextCardsEmpty';
-
-interface ContextCardsProps {
-    contexts: Context[];
-    group?: ContextGroup;
-    availableGroups: ContextGroup[];
-    showFullScreenModal: (title: string, content: React.ReactNode, options?: any) => void;
-    onMoveContext?: (contextId: string, groupId: string | null) => void;
-}
 
 const ContextCards = React.memo(({ contexts, group, availableGroups, showFullScreenModal, onMoveContext }: ContextCardsProps) => {
     // Memoized layout configuration for performance with dynamic height

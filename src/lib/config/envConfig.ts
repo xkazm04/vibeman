@@ -261,6 +261,11 @@ export const env = {
     return readOr('GITHUB_REPO', '');
   },
 
+  githubWebhookSecret: () => {
+    serverOnly('GITHUB_WEBHOOK_SECRET');
+    return read('GITHUB_WEBHOOK_SECRET');
+  },
+
   isGitHubConfigured: () => {
     if (!isServer()) return false;
     return !!read('GITHUB_TOKEN');

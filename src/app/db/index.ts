@@ -37,6 +37,7 @@ import { behavioralSignalRepository } from './repositories/behavioral-signal.rep
 import { directionOutcomeRepository } from './repositories/direction-outcome.repository';
 import { brainReflectionRepository } from './repositories/brain-reflection.repository';
 import { brainInsightRepository } from './repositories/brain-insight.repository';
+import { insightAnnotationRepository } from './repositories/insight-annotation.repository';
 import { predictiveIntentRepository } from './repositories/predictive-intent.repository';
 import {
   queryPatternRepository,
@@ -71,7 +72,9 @@ import { agentGoalRepository, agentStepRepository } from './repositories/agent.r
 import { insightEffectivenessCacheRepository } from './repositories/insight-effectiveness-cache.repository';
 import { insightInfluenceRepository } from './repositories/insight-influence.repository';
 import { directionPreferenceRepository } from './repositories/direction-preference.repository';
-import { goalSignalRepository, goalSubGoalRepository } from './repositories/goal-lifecycle.repository';
+import { goalSignalRepository, goalSignalSummaryRepository, goalSubGoalRepository } from './repositories/goal-lifecycle.repository';
+import { goalCheckinRepository } from './repositories/goal-checkin.repository';
+import { goalDependencyRepository } from './repositories/goal-dependency.repository';
 import { fileWriteQueueRepository } from './repositories/file-write-queue.repository';
 import { scanResultRepository } from './repositories/scanResult.repository';
 import { triageRuleRepository } from './repositories/triage-rule.repository';
@@ -96,6 +99,14 @@ export { queryIdeas } from './repositories/ideaQueryBuilder';
 // Export connection utilities
 export { getDatabase, closeDatabase };
 export { getHotWritesDatabase, closeHotWritesDatabase } from './hot-writes';
+
+/**
+ * Factory: spreads a repository and appends `close: closeDatabase`.
+ * Replaces the repetitive `{ ...repo, close: closeDatabase }` pattern.
+ */
+function createDbExport<T extends object>(repository: T): T & { close: typeof closeDatabase } {
+  return { ...repository, close: closeDatabase };
+}
 
 // Initialize database on first import.
 // Store flag on globalThis so it survives Next.js HMR module reloads —
@@ -125,464 +136,93 @@ function ensureInitialized() {
 // Auto-initialize
 ensureInitialized();
 
-/**
- * Goal Database Operations
- * Handles development goals and objectives
- */
-export const goalDb = {
-  ...goalRepository,
-  close: closeDatabase
-};
+export const goalDb = createDbExport(goalRepository);
+export const goalCandidateDb = createDbExport(goalCandidateRepository);
+export const goalSignalDb = createDbExport(goalSignalRepository);
+export const goalSignalSummaryDb = createDbExport(goalSignalSummaryRepository);
+export const goalSubGoalDb = createDbExport(goalSubGoalRepository);
+export const goalCheckinDb = createDbExport(goalCheckinRepository);
+export const goalDependencyDb = createDbExport(goalDependencyRepository);
+export const contextGroupDb = createDbExport(contextGroupRepository);
+export const contextGroupRelationshipDb = createDbExport(contextGroupRelationshipRepository);
+export const contextDb = createDbExport(contextRepository);
+export const eventDb = createDbExport(eventRepository);
+export const scanDb = createDbExport(scanRepository);
+export const ideaDb = createDbExport(ideaRepository);
+export const implementationLogDb = createDbExport(implementationLogRepository);
+export const scanQueueDb = createDbExport(scanQueueRepository);
+export const standupDb = createDbExport(standupRepository);
 
-/**
- * Goal Candidate Database Operations
- * Handles AI-generated goal suggestions
- */
-export const goalCandidateDb = {
-  ...goalCandidateRepository,
-  close: closeDatabase
-};
-
-/**
- * Goal Signal Database Operations
- * Tracks evidence of goal progress for lifecycle engine
- */
-export const goalSignalDb = {
-  ...goalSignalRepository,
-  close: closeDatabase
-};
-
-/**
- * Goal Sub-Goal Database Operations
- * AI-decomposed sub-objectives within goals
- */
-export const goalSubGoalDb = {
-  ...goalSubGoalRepository,
-  close: closeDatabase
-};
-
-/**
- * Context Group Database Operations
- * Handles organization of contexts into groups
- */
-export const contextGroupDb = {
-  ...contextGroupRepository,
-  close: closeDatabase
-};
-
-/**
- * Context Group Relationship Database Operations
- * Handles connections between context groups for Architecture Explorer
- */
-export const contextGroupRelationshipDb = {
-  ...contextGroupRelationshipRepository,
-  close: closeDatabase
-};
-
-/**
- * Context Database Operations
- * Handles file contexts and documentation
- */
-export const contextDb = {
-  ...contextRepository,
-  close: closeDatabase
-};
-
-/**
- * Event Database Operations
- * Handles system events and logging
- */
-export const eventDb = {
-  ...eventRepository,
-  close: closeDatabase
-};
-
-/**
- * Scan Database Operations
- * Handles scans with LLM token tracking
- */
-export const scanDb = {
-  ...scanRepository,
-  close: closeDatabase
-};
-
-/**
- * Idea Database Operations
- * Handles LLM-generated ideas
- */
-export const ideaDb = {
-  ...ideaRepository,
-  close: closeDatabase
-};
-
-/**
- * Implementation Log Database Operations
- * Handles implementation tracking and history
- */
-export const implementationLogDb = {
-  ...implementationLogRepository,
-  close: closeDatabase
-};
-
-/**
- * Scan Queue Database Operations
- * Handles scan queue, progress tracking, notifications, and file watch config
- */
-export const scanQueueDb = {
-  ...scanQueueRepository,
-  close: closeDatabase
-};
-
-/**
- * Standup Summary Database Operations
- * Manages daily/weekly standup summaries and reports
- */
-export const standupDb = {
-  ...standupRepository,
-  close: closeDatabase,
-};
-
-
-
-/**
- * Claude Code Session Database Operations
- * Manages Claude Code sessions with --resume flag support
- */
-export const sessionDb = {
-  // Session operations
+export const sessionDb = createDbExport({
   ...sessionRepository,
-
-  // Task operations (flattened for ease of use)
   getTasksBySessionId: sessionTaskRepository.getBySessionId,
   getNextPending: sessionTaskRepository.getNextPending,
   getTaskById: sessionTaskRepository.getById,
   getTaskByTaskId: sessionTaskRepository.getByTaskId,
   updateTaskStatus: sessionTaskRepository.updateStatus,
   getTaskStats: sessionTaskRepository.getStats,
-
-  // Nested access for explicit usage
   tasks: sessionTaskRepository,
-  close: closeDatabase,
-};
+});
 
+export const integrationDb = createDbExport(integrationRepository);
+export const integrationEventDb = createDbExport(integrationEventRepository);
+export const webhookDb = createDbExport(webhookRepository);
+export const questionDb = createDbExport(questionRepository);
+export const directionDb = createDbExport(directionRepository);
+export const hallOfFameDb = createDbExport(hallOfFameRepository);
+export const observabilityDb = createDbExport(observabilityRepository);
+export const contextApiRouteDb = createDbExport(contextApiRouteRepository);
+export const xrayDb = createDbExport(xrayRepository);
+export const behavioralSignalDb = createDbExport(behavioralSignalRepository);
+export const directionOutcomeDb = createDbExport(directionOutcomeRepository);
+export const brainReflectionDb = createDbExport(brainReflectionRepository);
+export const brainInsightDb = createDbExport(brainInsightRepository);
+export const insightAnnotationDb = createDbExport(insightAnnotationRepository);
+export const insightEffectivenessCache = createDbExport(insightEffectivenessCacheRepository);
+export const insightInfluenceDb = createDbExport(insightInfluenceRepository);
+export const directionPreferenceDb = createDbExport(directionPreferenceRepository);
+export const predictiveIntentDb = createDbExport(predictiveIntentRepository);
 
-/**
- * Integration Database Operations
- * Manages external service integrations (GitHub, Slack, webhooks, etc.)
- */
-export const integrationDb = {
-  ...integrationRepository,
-  close: closeDatabase,
-};
-
-/**
- * Integration Event Database Operations
- * Manages integration event logs and delivery tracking
- */
-export const integrationEventDb = {
-  ...integrationEventRepository,
-  close: closeDatabase,
-};
-
-/**
- * Webhook Database Operations
- * Manages custom webhook configurations
- */
-export const webhookDb = {
-  ...webhookRepository,
-  close: closeDatabase,
-};
-
-
-/**
- * Question Database Operations
- * Manages questions for guided idea generation
- * Questions are generated per context_map entry and when answered, auto-create Goals
- */
-export const questionDb = {
-  ...questionRepository,
-  close: closeDatabase,
-};
-
-/**
- * Direction Database Operations
- * Manages directions for actionable development guidance
- * Directions are generated per context_map entry and when accepted, create Claude Code requirements
- */
-export const directionDb = {
-  ...directionRepository,
-  close: closeDatabase,
-};
-
-/**
- * Hall of Fame Database Operations
- * Manages starred/featured component selections for component showcase
- */
-export const hallOfFameDb = {
-  ...hallOfFameRepository,
-  close: closeDatabase,
-};
-
-/**
- * API Observability Database Operations
- * Tracks API endpoint usage, response times, and error rates
- */
-export const observabilityDb = {
-  ...observabilityRepository,
-  close: closeDatabase,
-};
-
-/**
- * Context API Route Database Operations
- * Maps API endpoints to contexts for X-Ray visualization and observability
- */
-export const contextApiRouteDb = {
-  ...contextApiRouteRepository,
-  close: closeDatabase,
-};
-
-/**
- * X-Ray Event Database Operations
- * Persists API traffic events with context mapping for real-time visualization
- */
-export const xrayDb = {
-  ...xrayRepository,
-  close: closeDatabase,
-};
-
-/**
- * Behavioral Signal Database Operations
- * Tracks user behavior patterns (git activity, API usage, context focus)
- */
-export const behavioralSignalDb = {
-  ...behavioralSignalRepository,
-  close: closeDatabase,
-};
-
-/**
- * Direction Outcome Database Operations
- * Tracks implementation outcomes for directions (success, failure, reverts)
- */
-export const directionOutcomeDb = {
-  ...directionOutcomeRepository,
-  close: closeDatabase,
-};
-
-/**
- * Brain Reflection Database Operations
- * Manages autonomous reflection sessions for pattern learning
- */
-export const brainReflectionDb = {
-  ...brainReflectionRepository,
-  close: closeDatabase,
-};
-
-/**
- * Brain Insight Database Operations (first-class insights table)
- */
-export const brainInsightDb = {
-  ...brainInsightRepository,
-  close: closeDatabase,
-};
-
-/**
- * Insight Effectiveness Cache
- * Caches computed scores to avoid O(n*m) recalculation per request
- */
-export const insightEffectivenessCache = {
-  ...insightEffectivenessCacheRepository,
-};
-
-/**
- * Insight Influence Log
- * Tracks which insights were shown during direction decisions for causal validation
- */
-export const insightInfluenceDb = {
-  ...insightInfluenceRepository,
-};
-
-/**
- * Direction Preference Profile Cache
- * Caches learned approach preferences from historical pair decisions
- */
-export const directionPreferenceDb = {
-  ...directionPreferenceRepository,
-};
-
-/**
- * Predictive Intent Database Operations
- * Manages context transitions and intent predictions for Markov chain model
- */
-export const predictiveIntentDb = {
-  ...predictiveIntentRepository,
-  close: closeDatabase,
-};
-
-/**
- * Schema Intelligence Database Operations
- * Self-optimizing database: query patterns, recommendations, optimization history
- */
-export const schemaIntelligenceDb = {
+export const schemaIntelligenceDb = createDbExport({
   patterns: queryPatternRepository,
   recommendations: schemaRecommendationRepository,
   history: optimizationHistoryRepository,
-  close: closeDatabase,
-};
+});
 
-/**
- * Scan Profile Database Operations
- * Goal-driven scan configuration and profile management
- */
-export const scanProfileDb = {
-  ...scanProfileRepository,
-  close: closeDatabase,
-};
+export const scanProfileDb = createDbExport(scanProfileRepository);
+export const ideaDependencyDb = createDbExport(ideaDependencyRepository);
 
-/**
- * Idea Dependency Database Operations
- * Manages idea relationships (blocks, enables, conflicts_with)
- */
-export const ideaDependencyDb = {
-  ...ideaDependencyRepository,
-  close: closeDatabase,
-};
-
-/**
- * Annette 2.0 Database Operations
- * Manages conversation sessions, messages, memory, preferences, and audio cache
- */
-export const annetteDb = {
+export const annetteDb = createDbExport({
   sessions: annetteSessionRepository,
   messages: annetteMessageRepository,
   topics: annetteMemoryTopicRepository,
   preferences: annettePreferenceRepository,
   audioCache: annetteAudioCacheRepository,
-  // Memory System
   memories: annetteMemoryRepository,
   knowledgeNodes: annetteKnowledgeNodeRepository,
   knowledgeEdges: annetteKnowledgeEdgeRepository,
   consolidations: annetteMemoryConsolidationRepository,
   rapport: annetteRapportRepository,
-  close: closeDatabase,
-};
+});
 
-/**
- * Workspace Database Operations
- * Manages workspace-based project grouping and assignment
- */
-export const workspaceDb = {
-  ...workspaceRepository,
-  close: closeDatabase,
-};
+export const workspaceDb = createDbExport(workspaceRepository);
+export const executiveAnalysisDb = createDbExport(executiveAnalysisRepository);
+export const crossProjectRelationshipDb = createDbExport(crossProjectRelationshipRepository);
+export const architectureAnalysisDb = createDbExport(architectureAnalysisRepository);
+export const projectArchitectureMetadataDb = createDbExport(projectArchitectureMetadataRepository);
+export const crossTaskPlanDb = createDbExport(crossTaskPlanRepository);
+export const groupHealthDb = createDbExport(groupHealthRepository);
+export const collectiveMemoryDb = createDbExport(collectiveMemoryRepository);
 
-/**
- * Executive Analysis Database Operations
- * Manages AI-driven executive insight analysis sessions
- */
-export const executiveAnalysisDb = {
-  ...executiveAnalysisRepository,
-  close: closeDatabase,
-};
-
-/**
- * Cross-Project Relationship Database Operations
- * Manages workspace-level cross-project relationships for architecture visualization
- */
-export const crossProjectRelationshipDb = {
-  ...crossProjectRelationshipRepository,
-  close: closeDatabase,
-};
-
-/**
- * Architecture Analysis Database Operations
- * Manages AI-driven architecture analysis sessions
- */
-export const architectureAnalysisDb = {
-  ...architectureAnalysisRepository,
-  close: closeDatabase,
-};
-
-/**
- * Project Architecture Metadata Database Operations
- * Manages project tier, framework, and visualization metadata
- */
-export const projectArchitectureMetadataDb = {
-  ...projectArchitectureMetadataRepository,
-  close: closeDatabase,
-};
-
-/**
- * Cross Task Plan Database Operations
- * Manages cross-project requirement analysis and implementation planning
- */
-export const crossTaskPlanDb = {
-  ...crossTaskPlanRepository,
-  close: closeDatabase,
-};
-
-/**
- * Group Health Database Operations
- * Manages code health scans for context groups
- */
-export const groupHealthDb = {
-  ...groupHealthRepository,
-  close: closeDatabase,
-};
-
-/**
- * Collective Memory Database Operations
- * Cross-session knowledge graph for learned patterns and approaches
- */
-export const collectiveMemoryDb = {
-  ...collectiveMemoryRepository,
-  close: closeDatabase,
-};
-
-/**
- * Autonomous Agent Database Operations
- * Manages goal-driven autonomous execution with step decomposition
- */
-export const agentDb = {
+export const agentDb = createDbExport({
   goals: agentGoalRepository,
   steps: agentStepRepository,
-  close: closeDatabase,
-};
+});
 
-/**
- * File Write Queue Database Operations
- * Manages pending file writes with retry logic
- */
-export const fileWriteQueueDb = {
-  ...fileWriteQueueRepository,
-  close: closeDatabase,
-};
-
-/**
- * Scan Result Database Operations
- * Persists scan results to SQLite
- */
-export const scanResultDb = {
-  ...scanResultRepository,
-  close: closeDatabase,
-};
-
-/**
- * Triage Rule Database Operations
- * Manages auto-triage rules (accept/reject/archive)
- */
-export const triageRuleDb = {
-  ...triageRuleRepository,
-  close: closeDatabase,
-};
-
-/**
- * Saved View Database Operations
- * Manages cross-entity queryable views (Bases-style)
- */
-export const savedViewDb = {
-  ...savedViewRepository,
-  close: closeDatabase,
-};
+export const fileWriteQueueDb = createDbExport(fileWriteQueueRepository);
+export const scanResultDb = createDbExport(scanResultRepository);
+export const triageRuleDb = createDbExport(triageRuleRepository);
+export const savedViewDb = createDbExport(savedViewRepository);
 
 // Cleanup handlers
 if (typeof process !== 'undefined') {

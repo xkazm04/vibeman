@@ -10,23 +10,28 @@
  * - Git commits (context-matched)
  * - Scan completions
  * - Idea implementations
+ *
+ * This file orchestrates the lifecycle pipeline and re-exports
+ * focused modules for backward compatibility:
+ * - signalWeighting.ts  – type-to-weight mapping
+ * - progressCalculator.ts – unified progress math
+ * - transitionRules.ts  – status FSM logic
  */
 
-import { goalDb, implementationLogDb, getDatabase } from '@/app/db';
+import { goalDb, implementationLogDb, goalDependencyDb, getDatabase } from '@/app/db';
 import { goalSignalRepository, goalSubGoalRepository } from '@/app/db/repositories/goal-lifecycle.repository';
 import type { DbGoal, GoalSignalType } from '@/app/db/models/types';
 import { logger } from '@/lib/logger';
 
-// Progress weights by signal type
-const SIGNAL_WEIGHTS: Record<GoalSignalType, number> = {
-  implementation_log: 15,
-  requirement_completed: 20,
-  git_commit: 5,
-  scan_completed: 8,
-  idea_implemented: 12,
-  context_updated: 3,
-  manual_update: 0, // manual updates carry explicit progress_delta
-};
+// Re-export extracted modules so existing callers don't break
+export { SIGNAL_WEIGHTS, calculateProgressDelta } from './signalWeighting';
+export { computeInferredProgress } from './progressCalculator';
+export { findMatchingGoals, applyStatusTransition } from './transitionRules';
+
+// Import for internal use
+import { SIGNAL_WEIGHTS, calculateProgressDelta } from './signalWeighting';
+import { computeInferredProgress } from './progressCalculator';
+import { findMatchingGoals, applyStatusTransition } from './transitionRules';
 
 export interface LifecycleSignalInput {
   projectId: string;
@@ -106,139 +111,6 @@ export function processSignal(input: LifecycleSignalInput): {
 }
 
 /**
- * Find goals that match a signal based on context linkage
- */
-function findMatchingGoals(input: LifecycleSignalInput): DbGoal[] {
-  const allGoals = goalDb.getGoalsByProject(input.projectId);
-
-  // Only match active goals (open or in_progress)
-  const activeGoals = allGoals.filter(
-    g => g.status === 'open' || g.status === 'in_progress'
-  );
-
-  if (!input.contextId) {
-    // For signals without context, match all active goals (with lower confidence)
-    return activeGoals;
-  }
-
-  // Prefer goals linked to the same context
-  const contextMatched = activeGoals.filter(g => g.context_id === input.contextId);
-
-  if (contextMatched.length > 0) {
-    return contextMatched;
-  }
-
-  // Fallback: if no context-matched goals, still signal global progress
-  // but only for high-signal types
-  if (input.signalType === 'requirement_completed' || input.signalType === 'implementation_log') {
-    return activeGoals;
-  }
-
-  return [];
-}
-
-/**
- * Calculate progress delta for a signal
- */
-function calculateProgressDelta(goal: DbGoal, input: LifecycleSignalInput): number {
-  const baseWeight = SIGNAL_WEIGHTS[input.signalType];
-
-  // If the signal is context-matched, give full weight
-  const contextMultiplier = (goal.context_id && goal.context_id === input.contextId) ? 1.0 : 0.3;
-
-  return Math.round(baseWeight * contextMultiplier);
-}
-
-/**
- * Compute total inferred progress for a goal based on all its signals
- */
-function computeInferredProgress(goalId: string): number {
-  const signals = goalSignalRepository.getByGoal(goalId);
-
-  if (signals.length === 0) return 0;
-
-  // Sum all progress deltas
-  const totalDelta = signals.reduce((sum, s) => sum + (s.progress_delta || 0), 0);
-
-  // Also factor in sub-goal completion
-  const subStats = goalSubGoalRepository.getStats(goalId);
-  const subGoalProgress = subStats.total > 0
-    ? Math.round((subStats.done / subStats.total) * 100)
-    : 0;
-
-  // Blend signal-based and sub-goal-based progress
-  // Cap at 95% - auto-completion needs explicit threshold
-  let progress: number;
-  if (subStats.total > 0) {
-    // If sub-goals exist, weight them heavily (60% sub-goals, 40% signals)
-    progress = Math.round(subGoalProgress * 0.6 + Math.min(totalDelta, 100) * 0.4);
-  } else {
-    // No sub-goals: use signal-based progress entirely
-    progress = Math.min(totalDelta, 100);
-  }
-
-  progress = Math.min(progress, 95);
-
-  // Update goal's inferred_progress
-  goalDb.updateGoalProgress(goalId, progress);
-
-  return progress;
-}
-
-/**
- * Apply automatic status transitions based on inferred progress
- */
-function applyStatusTransition(
-  goal: DbGoal,
-  newProgress: number
-): { goalId: string; from: string; to: string } | null {
-  const currentStatus = goal.status;
-  let newStatus: typeof goal.status | null = null;
-  const now = new Date().toISOString();
-
-  // Auto-start: open → in_progress when first meaningful signal arrives
-  if (currentStatus === 'open' && newProgress > 0) {
-    newStatus = 'in_progress';
-
-    const db = getDatabase();
-    db.prepare(`
-      UPDATE goals
-      SET status = 'in_progress', lifecycle_status = 'auto_tracking',
-          auto_started_at = ?, updated_at = ?
-      WHERE id = ?
-    `).run(now, now, goal.id);
-
-    logger.info('[GoalLifecycle] Auto-started goal', { goalId: goal.id, title: goal.title });
-    return { goalId: goal.id, from: currentStatus, to: 'in_progress' };
-  }
-
-  // Auto-complete suggestion: don't actually complete, but mark as ready
-  // Progress >= 90 and all sub-goals done (or no sub-goals with 10+ signals)
-  if (currentStatus === 'in_progress' && newProgress >= 90) {
-    const subStats = goalSubGoalRepository.getStats(goal.id);
-    const allSubGoalsDone = subStats.total === 0 || subStats.done === subStats.total;
-    const signalCount = goal.signal_count || 0;
-
-    if (allSubGoalsDone && (subStats.total > 0 || signalCount >= 8)) {
-      const db = getDatabase();
-      db.prepare(`
-        UPDATE goals
-        SET lifecycle_status = 'auto_completed', auto_completed_at = ?, updated_at = ?
-        WHERE id = ?
-      `).run(now, now, goal.id);
-
-      logger.info('[GoalLifecycle] Goal ready for auto-completion', {
-        goalId: goal.id,
-        title: goal.title,
-        progress: newProgress,
-      });
-    }
-  }
-
-  return newStatus ? { goalId: goal.id, from: currentStatus, to: newStatus } : null;
-}
-
-/**
  * Get full lifecycle status for a goal
  */
 export function getGoalLifecycleStatus(goalId: string): GoalLifecycleStatus | null {
@@ -247,19 +119,27 @@ export function getGoalLifecycleStatus(goalId: string): GoalLifecycleStatus | nu
 
   const signals = goalSignalRepository.getByGoal(goalId, 50);
   const subGoals = goalSubGoalRepository.getByParent(goalId);
-  const subGoalStats = goalSubGoalRepository.getStats(goalId);
+
+  // Derive stats from already-fetched subGoals list instead of a separate DB query
+  const subGoalStats = {
+    total: subGoals.length,
+    done: subGoals.filter(sg => sg.status === 'done').length,
+    inProgress: subGoals.filter(sg => sg.status === 'in_progress').length,
+    open: subGoals.filter(sg => sg.status === 'open').length,
+  };
+
   const signalCounts = goalSignalRepository.getSignalCounts(goalId);
-  const inferredProgress = goal.inferred_progress || 0;
+  const progress = goal.progress || 0;
 
   const shouldAutoComplete = goal.lifecycle_status === 'auto_completed'
-    || (inferredProgress >= 90 && (subGoalStats.total === 0 || subGoalStats.done === subGoalStats.total));
+    || (progress >= 90 && (subGoalStats.total === 0 || subGoalStats.done === subGoalStats.total));
 
   return {
     goal,
     signals,
     subGoals,
     subGoalStats,
-    inferredProgress,
+    inferredProgress: progress,
     signalCounts,
     shouldAutoComplete,
     lastActivity: goal.last_signal_at || null,
@@ -280,12 +160,46 @@ export function getProjectLifecycleSummary(projectId: string): Array<{
   subGoalsDone: number;
   shouldAutoComplete: boolean;
   lastSignalAt: string | null;
+  isBlocked: boolean;
+  blockedBy: Array<{ goalId: string; title: string; status: string }>;
+  blocks: Array<{ goalId: string; title: string; status: string }>;
 }> {
   const goals = goalDb.getGoalsByProject(projectId);
+  if (goals.length === 0) return [];
+
+  // Batch-fetch all sub-goal stats in a single query instead of N+1
+  const goalIds = goals.map(g => g.id);
+  const allSubStats = goalSubGoalRepository.getStatsBatch(goalIds);
+  const defaultStats = { total: 0, done: 0, inProgress: 0, open: 0 };
+
+  // Fetch all dependency info for the project in one query
+  const blockedGoals = goalDependencyDb.getBlockedGoals(projectId);
+  const allDeps = goalDependencyDb.getByProject(projectId);
+
+  // Build lookup maps for blocked-by and blocks relationships
+  const blockedByMap = new Map<string, Array<{ goalId: string; title: string; status: string }>>();
+  const blocksMap = new Map<string, Array<{ goalId: string; title: string; status: string }>>();
+
+  for (const dep of allDeps) {
+    if (dep.relationship_type !== 'blocks') continue;
+
+    // child is blocked by parent
+    const existing = blockedByMap.get(dep.child_goal_id) || [];
+    existing.push({ goalId: dep.parent_goal_id, title: dep.parent_title, status: dep.parent_status });
+    blockedByMap.set(dep.child_goal_id, existing);
+
+    // parent blocks child
+    const existingBlocks = blocksMap.get(dep.parent_goal_id) || [];
+    existingBlocks.push({ goalId: dep.child_goal_id, title: dep.child_title, status: dep.child_status });
+    blocksMap.set(dep.parent_goal_id, existingBlocks);
+  }
+
+  // Set of goal IDs that are actively blocked (parent not done, child is active)
+  const activelyBlockedIds = new Set(blockedGoals.map(b => b.blocked_goal_id));
 
   return goals.map(goal => {
-    const subStats = goalSubGoalRepository.getStats(goal.id);
-    const inferredProgress = goal.inferred_progress || 0;
+    const subStats = allSubStats.get(goal.id) || defaultStats;
+    const progress = goal.progress || 0;
     const signalCount = goal.signal_count || 0;
 
     return {
@@ -293,13 +207,16 @@ export function getProjectLifecycleSummary(projectId: string): Array<{
       title: goal.title,
       status: goal.status,
       lifecycleStatus: goal.lifecycle_status || 'manual',
-      inferredProgress,
+      inferredProgress: progress,
       signalCount,
       subGoalCount: subStats.total,
       subGoalsDone: subStats.done,
       shouldAutoComplete: goal.lifecycle_status === 'auto_completed'
-        || (inferredProgress >= 90 && (subStats.total === 0 || subStats.done === subStats.total)),
+        || (progress >= 90 && (subStats.total === 0 || subStats.done === subStats.total)),
       lastSignalAt: goal.last_signal_at || null,
+      isBlocked: activelyBlockedIds.has(goal.id),
+      blockedBy: blockedByMap.get(goal.id) || [],
+      blocks: blocksMap.get(goal.id) || [],
     };
   });
 }
@@ -308,11 +225,12 @@ export function getProjectLifecycleSummary(projectId: string): Array<{
  * Manually confirm auto-completion of a goal
  */
 export function confirmGoalCompletion(goalId: string): DbGoal | null {
-  const now = new Date().toISOString();
+  const goal = goalDb.getGoalById(goalId);
+  if (!goal) return null;
 
   goalSignalRepository.create({
     goal_id: goalId,
-    project_id: goalDb.getGoalById(goalId)?.project_id || '',
+    project_id: goal.project_id,
     signal_type: 'manual_update',
     description: 'Goal manually confirmed as complete',
     progress_delta: 100,
@@ -355,6 +273,8 @@ export function catchUpGoalProgress(projectId: string): {
       const existingSignals = goalSignalRepository.getByGoal(goal.id);
       const existingSourceIds = new Set(existingSignals.map(s => s.source_id).filter(Boolean));
 
+      let goalSignalsCreated = 0;
+
       for (const log of contextLogs) {
         if (existingSourceIds.has(log.id)) continue;
 
@@ -367,11 +287,12 @@ export function catchUpGoalProgress(projectId: string): {
           description: `Catch-up: ${log.title}`,
           progress_delta: SIGNAL_WEIGHTS.implementation_log,
         });
-        signalsCreated++;
+        goalSignalsCreated++;
       }
 
-      if (signalsCreated > 0) {
+      if (goalSignalsCreated > 0) {
         computeInferredProgress(goal.id);
+        signalsCreated += goalSignalsCreated;
         goalsUpdated++;
       }
     }

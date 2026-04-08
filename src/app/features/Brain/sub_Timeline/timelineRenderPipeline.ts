@@ -7,8 +7,8 @@
 
 import { executeRenderPipeline, withWorldTransform, type RenderContext, type RenderPassFn, type RenderPipelineConfig } from '../sub_MemoryCanvas/lib/canvasRenderPipeline';
 import { hexToRgba } from '../sub_MemoryCanvas/lib/helpers';
-import { COLORS } from '../sub_MemoryCanvas/lib/constants';
-import type { SignalType } from '../sub_MemoryCanvas/lib/types';
+import { COLORS } from '../lib/brainConstants';
+import type { SignalType } from '../lib/brainConstants';
 import { DISPLAY_FONT, DATA_FONT } from '../lib/brainFonts';
 
 // ─── Timeline Margins ─────────────────────────────────────────────────────

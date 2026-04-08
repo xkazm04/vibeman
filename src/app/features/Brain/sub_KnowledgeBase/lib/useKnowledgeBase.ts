@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type {
   DbKnowledgeEntry,
   HubLinkedEntry,
@@ -235,16 +235,26 @@ export function useKnowledgeBase(): UseKnowledgeBaseReturn {
     }
   }, []);
 
-  // Initial load
+  // Debounce timer ref for search queries
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Initial load (stats + tree + entries)
   useEffect(() => {
     fetchStats();
     fetchTree();
     fetchEntries();
-  }, [fetchStats, fetchTree, fetchEntries]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchStats, fetchTree]);
 
-  // Refetch when selection/search changes
+  // Refetch when selection/search changes (with 300ms debounce for search)
   useEffect(() => {
-    fetchEntries();
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      fetchEntries();
+    }, searchQuery ? 300 : 0); // Immediate for selection changes, debounced for search
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
   }, [selection, searchQuery, fetchEntries]);
 
   return {

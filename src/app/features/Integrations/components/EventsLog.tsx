@@ -9,6 +9,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import type { DbIntegrationEvent, IntegrationEventType } from '@/app/db/models/integration.types';
 import { SimpleSpinner } from '@/components/ui/Spinner';
+import { STATUS_STYLES, EVENT_TYPE_ICONS } from '@/lib/integrations/displayConfig';
 
 interface ParsedEvent extends Omit<DbIntegrationEvent, 'payload' | 'response'> {
   payload: Record<string, unknown>;
@@ -19,30 +20,6 @@ interface EventsLogProps {
   projectId: string;
   integrationId?: string;
 }
-
-const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
-  sent: { bg: 'bg-green-500/10', text: 'text-green-400' },
-  failed: { bg: 'bg-red-500/10', text: 'text-red-400' },
-  pending: { bg: 'bg-yellow-500/10', text: 'text-yellow-400' },
-  skipped: { bg: 'bg-gray-500/10', text: 'text-gray-400' },
-};
-
-const EVENT_TYPE_ICONS: Record<string, string> = {
-  'goal.created': '🎯',
-  'goal.updated': '✏️',
-  'goal.completed': '✅',
-  'idea.generated': '💡',
-  'idea.accepted': '👍',
-  'idea.rejected': '👎',
-  'idea.implemented': '🚀',
-  'scan.completed': '🔍',
-  'implementation.completed': '🛠️',
-  'context.updated': '📁',
-  'standup.generated': '📋',
-  'automation.started': '🤖',
-  'automation.completed': '🎉',
-  'automation.failed': '❌',
-};
 
 export function EventsLog({ projectId, integrationId }: EventsLogProps) {
   const [events, setEvents] = useState<ParsedEvent[]>([]);

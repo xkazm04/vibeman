@@ -9,13 +9,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { computeCorrelations } from '@/lib/brain/correlationEngine';
 import { withObservability } from '@/lib/observability/middleware';
 import { parseQueryInt } from '@/lib/api-helpers/parseQueryInt';
+import { CORRELATION_WINDOW_DAYS, MAX_WINDOW_DAYS } from '@/lib/brain/config';
 
 async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
     const windowDays = parseQueryInt(searchParams.get('windowDays'), {
-      default: 14, min: 1, max: 365, paramName: 'windowDays',
+      default: CORRELATION_WINDOW_DAYS, min: 1, max: MAX_WINDOW_DAYS, paramName: 'windowDays',
     });
     const topN = parseQueryInt(searchParams.get('topN'), {
       default: 5, min: 1, max: 50, paramName: 'topN',

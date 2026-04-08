@@ -300,9 +300,11 @@ export interface ConfidencePoint {
  * Used by the insights API route and all Brain UI components.
  */
 export interface InsightWithMeta extends LearningInsight {
+  id: string;
   project_id: string;
   reflection_id: string;
   confidenceHistory?: ConfidencePoint[];
+  annotation?: InsightAnnotation;
 }
 
 /**
@@ -343,3 +345,221 @@ export interface CreateBrainReflectionInput {
   trigger_type: ReflectionTriggerType;
   scope?: ReflectionScope;
 }
+
+// ── Anomaly Monitors ────────────────────────────────────────────────────────
+
+export type MonitorCondition = 'gt' | 'lt' | 'gte' | 'lte' | 'abs_gt';
+
+export type MonitorMetric =
+  | 'signal_z_score'
+  | 'success_rate'
+  | 'failure_rate'
+  | 'activity_count'
+  | 'decay_weighted_activity';
+
+export type MonitorEventStatus = 'triggered' | 'acknowledged' | 'snoozed' | 'resolved';
+
+export interface DbAnomalyMonitor {
+  id: string;
+  project_id: string;
+  name: string;
+  description: string | null;
+  enabled: number; // 0 or 1
+  metric: MonitorMetric;
+  condition: MonitorCondition;
+  threshold: number;
+  signal_type: string | null;
+  context_id: string | null;
+  cooldown_minutes: number;
+  last_triggered_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbAnomalyMonitorEvent {
+  id: string;
+  monitor_id: string;
+  project_id: string;
+  severity: 'info' | 'warning' | 'critical';
+  current_value: number;
+  threshold_value: number;
+  message: string;
+  status: MonitorEventStatus;
+  snoozed_until: string | null;
+  acknowledged_at: string | null;
+  resolved_at: string | null;
+  created_at: string;
+}
+
+// ── Insight Annotations ────────────────────────────────────────────────────
+
+export interface DbInsightAnnotation {
+  id: string;
+  insight_id: string;
+  note: string | null;
+  tags: string; // JSON array of strings
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InsightAnnotation {
+  id: string;
+  insightId: string;
+  note: string | null;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAnomalyMonitorInput {
+  id: string;
+  project_id: string;
+  name: string;
+  description?: string;
+  metric: MonitorMetric;
+  condition: MonitorCondition;
+  threshold: number;
+  signal_type?: string;
+  context_id?: string;
+  cooldown_minutes?: number;
+}
+
+// ── Unified Transformation Type ──────────────────────────────────────────────
+// All Brain entities (signals, insights, anomalies, correlations, predictions,
+// effectiveness scores) share a hidden abstract shape. Transformation<T>
+// codifies this isomorphism so consumers can work polymorphically across
+// entity boundaries.
+
+/**
+ * Every Brain entity kind — used as the discriminant in Transformation<K>.
+ */
+export type TransformationKind =
+  | 'signal'
+  | 'insight'
+  | 'anomaly'
+  | 'correlation'
+  | 'prediction'
+  | 'effectiveness';
+
+/**
+ * Core fields shared by every Brain transformation.
+ *
+ * - `id` / `project_id`: identity
+ * - `timestamp`: when the transformation was produced
+ * - `confidence`: 0-1 reliability score (normalized from 0-100 for insights)
+ * - `evidence`: typed refs to source entities
+ * - `parent_id`: optional lineage pointer (evolves_from_id, monitor_id, etc.)
+ */
+export interface TransformationBase {
+  id: string;
+  project_id: string;
+  timestamp: string;
+  confidence: number;
+  evidence: EvidenceRef[];
+  parent_id: string | null;
+}
+
+/**
+ * A Brain transformation — a discriminated union over `kind` with a
+ * type-specific `payload`. Shared lifecycle, cache invalidation, and
+ * evidence validation logic can target `Transformation<K>` generically.
+ */
+export type Transformation<
+  K extends TransformationKind = TransformationKind,
+  P = unknown,
+> = TransformationBase & {
+  kind: K;
+  payload: P;
+};
+
+// ── Per-Entity Payloads ──────────────────────────────────────────────────────
+
+export interface SignalPayload {
+  signal_type: BehavioralSignalType;
+  context_id: string | null;
+  context_name: string | null;
+  data: Record<string, unknown>;
+  weight: number;
+  decay_applied_at: string | null;
+  cluster_id: string | null;
+}
+
+export interface InsightPayload {
+  type: LearningInsight['type'];
+  title: string;
+  description: string;
+  reflection_id: string;
+  canonical_id: string | null;
+  evolves_title: string | null;
+  conflict_with_id: string | null;
+  conflict_type: string | null;
+  conflict_resolved: boolean;
+  auto_pruned: boolean;
+}
+
+export type AnomalyKindValue = 'activity_drop' | 'activity_spike' | 'failure_spike' | 'context_neglected' | 'signal_gap';
+export type AnomalySeverityValue = 'info' | 'warning' | 'critical';
+
+export interface AnomalyPayload {
+  kind: AnomalyKindValue;
+  severity: AnomalySeverityValue;
+  title: string;
+  description: string;
+  signal_type: BehavioralSignalType | 'all';
+  current_value: number;
+  baseline_avg: number;
+  z_score: number;
+  context_id?: string;
+  context_name?: string;
+}
+
+export interface CorrelationPayload {
+  source_type: BehavioralSignalType;
+  target_type: BehavioralSignalType;
+  coefficient: number;
+  strength: 'strong' | 'moderate' | 'weak' | 'none';
+  avg_lag_minutes: number;
+  sample_count: number;
+  follow_rate: number;
+  description: string;
+}
+
+export interface PredictionPayload {
+  context_id: string;
+  context_name: string;
+  reasoning: string;
+  avg_transition_time_ms: number;
+  transition_count: number;
+}
+
+export interface EffectivenessPayload {
+  insight_title: string;
+  insight_type: string;
+  reflection_id: string;
+  insight_date: string;
+  pre_rate: number;
+  post_rate: number;
+  pre_total: number;
+  post_total: number;
+  score: number;
+  verdict: 'helpful' | 'neutral' | 'misleading';
+  reliable: boolean;
+}
+
+// ── Concrete Transformation Aliases ──────────────────────────────────────────
+
+export type SignalTransformation = Transformation<'signal', SignalPayload>;
+export type InsightTransformation = Transformation<'insight', InsightPayload>;
+export type AnomalyTransformation = Transformation<'anomaly', AnomalyPayload>;
+export type CorrelationTransformation = Transformation<'correlation', CorrelationPayload>;
+export type PredictionTransformation = Transformation<'prediction', PredictionPayload>;
+export type EffectivenessTransformation = Transformation<'effectiveness', EffectivenessPayload>;
+
+/** Union of all concrete transformation types — use for polymorphic handlers. */
+export type AnyTransformation =
+  | SignalTransformation
+  | InsightTransformation
+  | AnomalyTransformation
+  | CorrelationTransformation
+  | PredictionTransformation
+  | EffectivenessTransformation;

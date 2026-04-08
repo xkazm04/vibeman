@@ -409,8 +409,13 @@ export function startExecution(
     }
   };
 
+  const MAX_EVENTS = 500;
   const emitEvent = (event: CLIExecutionEvent) => {
     execution.events.push(event);
+    // Cap events array to prevent unbounded memory growth during long executions
+    if (execution.events.length > MAX_EVENTS * 2) {
+      execution.events.splice(0, execution.events.length - MAX_EVENTS);
+    }
     if (onEvent) {
       onEvent(event);
     }

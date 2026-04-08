@@ -12,7 +12,7 @@ import type {
   ReflectionStatus,
 } from '@/app/db/models/brain.types';
 import type { SignalAnomaly } from '@/lib/brain/anomalyDetector';
-import { safeResponseJson, parseApiResponse, parseApiResponseSafe, unwrapEnvelope, extractMeta, BrainDecayResponseSchema, BrainContextResponseSchema, BrainOutcomesResponseSchema, BrainReflectionStatusSchema, BrainReflectionTriggerSchema } from '@/lib/apiResponseGuard';
+import { safeResponseJson, parseApiResponse, parseApiResponseSafe, unwrapEnvelope, extractMeta, BrainDecayResponseSchema, BrainContextResponseSchema, BrainOutcomesResponseSchema, BrainReflectionStatusSchema, BrainReflectionTriggerSchema, BrainDashboardResponseSchema } from '@/lib/apiResponseGuard';
 import { reflectionCompletionEmitter } from './reflectionCompletionEmitter';
 import { DEFAULT_DECAY_FACTOR, DEFAULT_RETENTION_DAYS, REFLECTION_TRIGGER_THRESHOLD } from '@/lib/brain/config';
 
@@ -71,6 +71,7 @@ interface BrainState {
   // Outcomes
   recentOutcomes: DbDirectionOutcome[];
   outcomeStats: OutcomeStats;
+  priorOutcomeStats: OutcomeStats | null;
   isLoadingOutcomes: boolean;
 
   // Reflection — single polymorphic record keyed by scope
@@ -87,9 +88,9 @@ interface BrainActions {
   applyDecay: (projectId: string) => Promise<{ affected: number }>;
 
   // Data loading
-  fetchBehavioralContext: (projectId: string) => Promise<void>;
-  fetchRecentOutcomes: (projectId: string) => Promise<void>;
-  fetchReflectionStatus: (projectId: string) => Promise<void>;
+  fetchBehavioralContext: (projectId: string, signal?: AbortSignal) => Promise<void>;
+  fetchRecentOutcomes: (projectId: string, signal?: AbortSignal, compareDays?: number) => Promise<void>;
+  fetchReflectionStatus: (projectId: string, signal?: AbortSignal) => Promise<void>;
 
   /** Combined dashboard fetch — replaces 4 separate mount calls. Returns anomalies for caller. */
   fetchDashboard: (projectId: string, signal?: AbortSignal) => Promise<SignalAnomaly[]>;
@@ -133,6 +134,7 @@ const initialState: BrainState = {
     reverted: 0,
     pending: 0,
   },
+  priorOutcomeStats: null,
   isLoadingOutcomes: false,
   reflections: {
     project: { ...INITIAL_SCOPE_STATE },
@@ -199,10 +201,10 @@ export const useBrainStore = create<BrainStore>()(
         }));
       };
 
-      const _fetchReflectionStatus = async (scope: ReflectionScope, query: string) => {
+      const _fetchReflectionStatus = async (scope: ReflectionScope, query: string, signal?: AbortSignal) => {
         const cfg = scopeConfigs[scope];
         try {
-          const response = await fetch(`/api/brain/reflection?${query}`);
+          const response = await fetch(`/api/brain/reflection?${query}`, { signal });
           if (!response.ok) {
             setScopeState(scope, {
               status: 'idle',
@@ -237,6 +239,9 @@ export const useBrainStore = create<BrainStore>()(
               prevReflection.id !== newReflection.id
             );
 
+          // Bail out if request was aborted during parsing (stale project switch)
+          if (signal?.aborted) return;
+
           setScopeState(scope, {
             status,
             last: data.lastCompleted || null,
@@ -268,6 +273,7 @@ export const useBrainStore = create<BrainStore>()(
             } catch { /* sessionStorage unavailable */ }
           }
         } catch (error) {
+          if (error instanceof DOMException && error.name === 'AbortError') return;
           console.error(`Failed to fetch ${scope} reflection status:`, error);
           setScopeState(scope, {
             status: 'idle',
@@ -384,10 +390,10 @@ export const useBrainStore = create<BrainStore>()(
         // DATA LOADING
         // ========================================
 
-        fetchBehavioralContext: async (projectId) => {
+        fetchBehavioralContext: async (projectId, signal?) => {
           set({ isLoadingContext: true });
           try {
-            const response = await fetch(`/api/brain/context?projectId=${projectId}`);
+            const response = await fetch(`/api/brain/context?projectId=${projectId}`, { signal });
             if (!response.ok) {
               // Context might not exist yet, that's ok
               if (response.status === 404) {
@@ -400,20 +406,27 @@ export const useBrainStore = create<BrainStore>()(
             const raw = await safeResponseJson(response, '/api/brain/context');
             const validated = parseApiResponseSafe(raw, BrainContextResponseSchema, { success: true, data: { context: null } }, '/api/brain/context');
             const context = unwrapEnvelope(validated, 'context', null);
+
+            // Bail out if request was aborted during parsing (stale project switch)
+            if (signal?.aborted) return;
+
             set({
               behavioralContext: context,
               isLoadingContext: false,
             });
           } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') return;
             console.error('Failed to fetch behavioral context:', error);
             set({ behavioralContext: null, isLoadingContext: false });
           }
         },
 
-        fetchRecentOutcomes: async (projectId) => {
+        fetchRecentOutcomes: async (projectId, signal?, compareDays?) => {
           set({ isLoadingOutcomes: true });
           try {
-            const response = await fetch(`/api/brain/outcomes?projectId=${projectId}&limit=10`);
+            const params = new URLSearchParams({ projectId, limit: '10' });
+            if (compareDays) params.set('compareDays', String(compareDays));
+            const response = await fetch(`/api/brain/outcomes?${params}`, { signal });
             if (!response.ok) {
               if (response.status === 404) {
                 set({ recentOutcomes: [], isLoadingOutcomes: false });
@@ -423,20 +436,26 @@ export const useBrainStore = create<BrainStore>()(
             }
 
             const raw = await safeResponseJson(response, '/api/brain/outcomes');
-            const data = parseApiResponseSafe(raw, BrainOutcomesResponseSchema, { outcomes: [], stats: initialState.outcomeStats }, '/api/brain/outcomes');
+            const data = parseApiResponseSafe(raw, BrainOutcomesResponseSchema, { outcomes: [], stats: initialState.outcomeStats, priorStats: null }, '/api/brain/outcomes');
+
+            // Bail out if request was aborted during parsing (stale project switch)
+            if (signal?.aborted) return;
+
             set({
               recentOutcomes: data.outcomes,
               outcomeStats: data.stats,
+              priorOutcomeStats: data.priorStats ?? null,
               isLoadingOutcomes: false,
             });
           } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') return;
             console.error('Failed to fetch outcomes:', error);
             set({ recentOutcomes: [], isLoadingOutcomes: false });
           }
         },
 
-        fetchReflectionStatus: async (projectId) => {
-          await _fetchReflectionStatus('project', `projectId=${projectId}`);
+        fetchReflectionStatus: async (projectId, signal?) => {
+          await _fetchReflectionStatus('project', `projectId=${projectId}`, signal);
         },
 
         fetchDashboard: async (projectId, signal?) => {
@@ -450,7 +469,16 @@ export const useBrainStore = create<BrainStore>()(
 
             if (signal?.aborted) return [];
 
-            const data = await response.json();
+            const dashboardFallback = {
+              success: false,
+              context: null,
+              outcomes: [] as never[],
+              outcomeStats: initialState.outcomeStats,
+              reflection: { isRunning: false, lastCompleted: null, runningReflection: null, decisionsSinceLastReflection: 0, nextThreshold: 20, shouldTrigger: false, triggerReason: null },
+              anomalies: [] as Record<string, unknown>[],
+            };
+            const raw = await safeResponseJson(response, '/api/brain/dashboard');
+            const data = parseApiResponseSafe(raw, BrainDashboardResponseSchema, dashboardFallback, '/api/brain/dashboard');
             if (!data.success) {
               set({ isLoadingContext: false, isLoadingOutcomes: false, isLoading: false });
               return [];
@@ -460,11 +488,11 @@ export const useBrainStore = create<BrainStore>()(
             const behavioralContext = data.context || null;
 
             // Outcomes
-            const recentOutcomes = data.outcomes || [];
-            const outcomeStats = data.outcomeStats || initialState.outcomeStats;
+            const recentOutcomes = data.outcomes;
+            const outcomeStats = data.outcomeStats;
 
             // Reflection status
-            const ref = data.reflection || {};
+            const ref = data.reflection;
             const refStatus: ReflectionStatus | 'idle' = ref.isRunning ? 'running' : (ref.lastCompleted ? 'completed' : 'idle');
 
             // Detect reflection completion: compare new completed_at with previous

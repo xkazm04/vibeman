@@ -176,8 +176,14 @@ export function acceptIdea(opts: AcceptIdeaOptions): AcceptIdeaOutcome {
     logger.error('[IdeaAcceptance] Failed to create requirement file, rolling back DB:', { error });
     const ok = rollbackStatus(ideaId, previousStatus, previousRequirementId);
     if (!ok) {
+      // Last-resort: clear requirement_id so the idea doesn't point to a nonexistent file
+      try {
+        ideaDb.updateIdea(ideaId, { requirement_id: null });
+      } catch {
+        // Truly unrecoverable — log for manual intervention
+      }
       logger.error(
-        '[IdeaAcceptance] CRITICAL: Rollback failed after 3 attempts. Idea may be orphaned.',
+        '[IdeaAcceptance] CRITICAL: Rollback failed after 3 attempts. Cleared requirement_id to prevent orphan.',
         { ideaId, requirementName, previousStatus },
       );
     }

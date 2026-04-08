@@ -27,6 +27,7 @@ const VALID_SIGNAL_TYPES: GoalSignalType[] = [
   'idea_implemented',
   'context_updated',
   'manual_update',
+  'standup_risk_alert',
 ];
 
 function errorResponse(message: string, status: number) {

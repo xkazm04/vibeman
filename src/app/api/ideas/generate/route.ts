@@ -23,6 +23,9 @@ interface GenerateIdeasRequest {
   codebaseFiles: Array<{ path: string; content: string; type: string }>;
 }
 
+const MAX_CODEBASE_FILES = 200;
+const MAX_TOTAL_CONTENT_BYTES = 5_000_000; // 5MB
+
 function validateGenerateIdeasRequest(body: Partial<GenerateIdeasRequest>): string | null {
   if (!body.projectId || !body.projectName || !body.projectPath) {
     return 'projectId, projectName, and projectPath are required';
@@ -30,6 +33,19 @@ function validateGenerateIdeasRequest(body: Partial<GenerateIdeasRequest>): stri
 
   if (!Array.isArray(body.codebaseFiles) || body.codebaseFiles.length === 0) {
     return 'codebaseFiles array is required and must not be empty';
+  }
+
+  if (body.codebaseFiles.length > MAX_CODEBASE_FILES) {
+    return `codebaseFiles count ${body.codebaseFiles.length} exceeds maximum of ${MAX_CODEBASE_FILES}`;
+  }
+
+  // Guard against oversized payloads causing OOM
+  let totalBytes = 0;
+  for (const f of body.codebaseFiles) {
+    totalBytes += (f.content?.length ?? 0);
+    if (totalBytes > MAX_TOTAL_CONTENT_BYTES) {
+      return `Total codebaseFiles content exceeds ${MAX_TOTAL_CONTENT_BYTES / 1_000_000}MB limit`;
+    }
   }
 
   return null;

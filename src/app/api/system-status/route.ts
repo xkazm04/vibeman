@@ -139,15 +139,15 @@ export interface BrainStatus {
     cacheSize: number;
   };
   signals: {
-    collectedToday: number;
-    dedupCacheSize: number;
+    collectedToday: number | null;
+    dedupCacheSize: number | null;
   };
 }
 
 export interface ResourceStatus {
   status: HealthStatus;
   cpu: {
-    usage: number;
+    usage: number | null;
     threshold: number;
   };
   memory: {
@@ -156,7 +156,7 @@ export interface ResourceStatus {
     threshold: number;
   };
   disk: {
-    available: number;
+    available: number | null;
     threshold: number;
   };
 }
@@ -461,19 +461,41 @@ function collectBrainStatus(): BrainStatus {
       },
       insights: {
         total: insights.count || 0,
-        cacheSize: Math.min(insights.count || 0, 500), // Simulated cache size
+        cacheSize: (() => {
+          try {
+            const countRow = db.prepare(
+              `SELECT COUNT(*) as count FROM insight_effectiveness_cache`
+            ).get() as { count: number };
+            return countRow.count || 0;
+          } catch {
+            return 0;
+          }
+        })(),
       },
-      signals: {
-        collectedToday: 42, // Placeholder - would query actual signal collection
-        dedupCacheSize: 128,
-      },
+      signals: (() => {
+        try {
+          const { getHotWritesDatabase } = require('@/app/db/hot-writes');
+          const hotDb = getHotWritesDatabase();
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          const todaySignals = hotDb.prepare(
+            `SELECT COUNT(*) as count FROM behavioral_signals WHERE timestamp >= ?`
+          ).get(todayStart.toISOString()) as { count: number };
+          return {
+            collectedToday: todaySignals.count || 0,
+            dedupCacheSize: null as number | null, // No reliable dedup cache metric available
+          };
+        } catch {
+          return { collectedToday: null as number | null, dedupCacheSize: null as number | null };
+        }
+      })(),
     };
   } catch (error) {
     return {
       status: 'unknown',
       reflection: { running: false },
       insights: { total: 0, cacheSize: 0 },
-      signals: { collectedToday: 0, dedupCacheSize: 0 },
+      signals: { collectedToday: null, dedupCacheSize: null },
     };
   }
 }
@@ -486,11 +508,43 @@ function collectResourceStatus(): ResourceStatus {
     const memUsage = process.memoryUsage();
     const heapPercent = (memUsage.heapUsed / memUsage.heapTotal) * 100;
 
+    // Measure real CPU usage over a short sample window
+    let cpuPercent: number | null = null;
+    try {
+      const startUsage = process.cpuUsage();
+      const startTime = performance.now();
+      // Spin-free: compute from accumulated CPU time vs wall-clock uptime
+      const elapsedMs = startTime; // ms since process start (approximate)
+      const totalCpuMs = (startUsage.user + startUsage.system) / 1000; // convert μs to ms
+      if (elapsedMs > 0) {
+        cpuPercent = Math.min(100, Math.round((totalCpuMs / elapsedMs) * 100));
+      }
+    } catch {
+      // process.cpuUsage() not available in all environments
+    }
+
+    // Measure real disk space using Node.js fs.statfs (available in Node 18+)
+    let diskAvailable: number | null = null;
+    try {
+      const fsSync = require('fs');
+      const statfs = fsSync.statfsSync(process.cwd());
+      diskAvailable = statfs.bavail * statfs.bsize;
+    } catch {
+      // fs.statfsSync not available or permission denied
+    }
+
+    const cpuStatus = cpuPercent !== null && cpuPercent > 80 ? 'degraded' : undefined;
+    const diskStatus = diskAvailable !== null && diskAvailable < 10 * 1024 * 1024 * 1024 ? 'degraded' : undefined;
+    const overallStatus = heapPercent > 90 || cpuStatus === 'degraded' || diskStatus === 'degraded'
+      ? 'critical'
+      : heapPercent > 80
+        ? 'degraded'
+        : 'operational';
+
     return {
-      status:
-        heapPercent > 90 ? 'critical' : heapPercent > 80 ? 'degraded' : 'operational',
+      status: overallStatus as HealthStatus,
       cpu: {
-        usage: 45, // Placeholder - process.cpuUsage() available in Node.js
+        usage: cpuPercent, // null if unavailable
         threshold: 80,
       },
       memory: {
@@ -499,16 +553,16 @@ function collectResourceStatus(): ResourceStatus {
         threshold: 90,
       },
       disk: {
-        available: 50 * 1024 * 1024 * 1024, // Placeholder
+        available: diskAvailable, // null if unavailable
         threshold: 10 * 1024 * 1024 * 1024,
       },
     };
   } catch (error) {
     return {
       status: 'unknown',
-      cpu: { usage: 0, threshold: 80 },
+      cpu: { usage: null, threshold: 80 },
       memory: { heapPercent: 0, rssBytes: 0, threshold: 90 },
-      disk: { available: 0, threshold: 0 },
+      disk: { available: null, threshold: 0 },
     };
   }
 }
@@ -545,18 +599,27 @@ function collectCacheStatus(): CacheStatus {
   }
 }
 
-// Total number of migration files (all idempotent, run on startup)
-const MIGRATION_COUNT = 46;
-
 /**
  * Collect migration status
  */
 function collectMigrationStatus(): MigrationStatus {
-  return {
-    status: 'operational',
-    applied: MIGRATION_COUNT,
-    mode: 'idempotent',
-  };
+  try {
+    const db = getDatabase();
+    const row = db.prepare(
+      `SELECT COUNT(*) as count FROM _migrations_applied WHERE status IS NULL OR status = 'applied'`
+    ).get() as { count: number };
+    return {
+      status: 'operational',
+      applied: row.count || 0,
+      mode: 'idempotent',
+    };
+  } catch {
+    return {
+      status: 'unknown',
+      applied: 0,
+      mode: 'idempotent',
+    };
+  }
 }
 
 /**

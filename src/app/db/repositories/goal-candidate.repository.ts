@@ -153,6 +153,86 @@ export const goalCandidateRepository = {
   },
 
   /**
+   * Get full action history for preference learning (accepted, rejected, tweaked candidates with details)
+   */
+  getActionHistory: (projectId: string, limit = 100): Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    reasoning: string | null;
+    priority_score: number;
+    source: string;
+    source_metadata: string | null;
+    user_action: string;
+    rejection_reason: string | null;
+    created_at: string;
+    updated_at: string;
+  }> => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT id, title, description, reasoning, priority_score, source,
+             source_metadata, user_action, rejection_reason, created_at, updated_at
+      FROM goal_candidates
+      WHERE project_id = ? AND user_action IN ('accepted', 'rejected', 'tweaked')
+      ORDER BY updated_at DESC
+      LIMIT ?
+    `);
+    return stmt.all(projectId, limit) as Array<{
+      id: string;
+      title: string;
+      description: string | null;
+      reasoning: string | null;
+      priority_score: number;
+      source: string;
+      source_metadata: string | null;
+      user_action: string;
+      rejection_reason: string | null;
+      created_at: string;
+      updated_at: string;
+    }>;
+  },
+
+  /**
+   * Get accepted candidates with metadata for learning what the user values
+   */
+  getAcceptedCandidates: (projectId: string, limit = 50): Array<{
+    title: string;
+    description: string | null;
+    priority_score: number;
+    source_metadata: string | null;
+  }> => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT title, description, priority_score, source_metadata
+      FROM goal_candidates
+      WHERE project_id = ? AND user_action = 'accepted'
+      ORDER BY updated_at DESC
+      LIMIT ?
+    `);
+    return stmt.all(projectId, limit) as Array<{
+      title: string;
+      description: string | null;
+      priority_score: number;
+      source_metadata: string | null;
+    }>;
+  },
+
+  /**
+   * Get tweaked candidates to learn what needed adjustment
+   */
+  getTweakedCandidates: (projectId: string, limit = 50): DbGoalCandidate[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT *
+      FROM goal_candidates
+      WHERE project_id = ? AND user_action = 'tweaked'
+      ORDER BY updated_at DESC
+      LIMIT ?
+    `);
+    return stmt.all(projectId, limit) as DbGoalCandidate[];
+  },
+
+  /**
    * Get statistics about goal candidates
    */
   getCandidateStats: (projectId: string): {

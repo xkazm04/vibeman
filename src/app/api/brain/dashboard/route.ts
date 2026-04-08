@@ -13,6 +13,7 @@ import { getContext } from '@/lib/brain/brainService';
 import { directionOutcomeDb, behavioralSignalDb } from '@/app/db';
 import { reflectionAgent } from '@/lib/brain/reflectionAgent';
 import { detectAnomalies } from '@/lib/brain/anomalyDetector';
+import { CONTEXT_WINDOW_DAYS, OUTCOMES_WINDOW_DAYS } from '@/lib/brain/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,7 @@ export const dynamic = 'force-dynamic';
  * Mirrors the logic in /api/brain/outcomes/route.ts.
  */
 function computeSignalStats(projectId: string, days?: number) {
-  const windowDays = days || 30;
+  const windowDays = days || OUTCOMES_WINDOW_DAYS;
   const signals = behavioralSignalDb.getByTypeAndWindow(projectId, 'implementation', windowDays);
 
   let successful = 0;
@@ -55,7 +56,7 @@ async function handleGET(request: NextRequest) {
     const [contextResult, outcomesResult, reflectionResult, anomaliesResult] =
       await Promise.allSettled([
         // 1. Behavioral context
-        Promise.resolve(getContext({ projectId, windowDays: 7, noCache: false })),
+        Promise.resolve(getContext({ projectId, windowDays: CONTEXT_WINDOW_DAYS, noCache: false })),
 
         // 2. Outcomes + stats
         Promise.resolve((() => {

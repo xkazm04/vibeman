@@ -12,6 +12,7 @@ import ControlPanelProvider from "./features/Onboarding/ControlPanelProvider";
 import DeferredWidgets from "../components/lazy/DeferredWidgets";
 import { ToastContainer } from "../components/ui/Toast";
 import UnifiedWorkflowProvider from "../components/UnifiedWorkflow/UnifiedWorkflowProvider";
+import QuickCaptureOverlay from "../components/QuickCaptureOverlay";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff2",
@@ -52,6 +53,7 @@ export default function RootLayout({
                       {children}
                     </PageTransition>
                     <DeferredWidgets />
+                    <QuickCaptureOverlay />
                     <ToastContainer position="top-right" />
                   </UnifiedWorkflowProvider>
                 </ControlPanelProvider>

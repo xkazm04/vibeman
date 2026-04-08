@@ -592,12 +592,20 @@ export async function recoverCLISessions(): Promise<void> {
 
 /** Helper to increment retry count on a task in the store */
 function incrementTaskRetryCount(sessionId: CLISessionId, taskId: string, currentCount: number): void {
-  const currentStore = useCLISessionStore.getState();
-  const currentSession = currentStore.sessions[sessionId];
-  const taskInQueue = currentSession.queue.find((t) => t.id === taskId);
-  if (taskInQueue) {
-    taskInQueue.retryCount = currentCount + 1;
-  }
+  useCLISessionStore.setState((state) => {
+    const session = state.sessions[sessionId];
+    return {
+      sessions: {
+        ...state.sessions,
+        [sessionId]: {
+          ...session,
+          queue: session.queue.map((t) =>
+            t.id === taskId ? { ...t, retryCount: currentCount + 1 } : t
+          ),
+        },
+      },
+    };
+  });
 }
 
 /**

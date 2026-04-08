@@ -34,7 +34,9 @@ export interface LifecycleData {
   goal: {
     id: string;
     lifecycle_status?: string;
-    inferred_progress?: number;
+    progress?: number;
+    progress_source?: string;
+    progress_confidence?: number;
     signal_count?: number;
     last_signal_at?: string;
   };
@@ -79,6 +81,8 @@ export default function GoalLifecyclePanel({ data, projectId, onRefresh }: GoalL
   const [showSignals, setShowSignals] = useState(false);
   const [catchingUp, setCatchingUp] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [dismissing, setDismissing] = useState(false);
+  const [busySubGoalIds, setBusySubGoalIds] = useState<Set<string>>(new Set());
 
   // Sync local data when parent provides new data
   React.useEffect(() => {
@@ -116,15 +120,25 @@ export default function GoalLifecyclePanel({ data, projectId, onRefresh }: GoalL
   };
 
   const handleDismissComplete = async () => {
-    await fetch('/api/goals/lifecycle', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'dismiss_complete', goalId }),
-    });
-    onRefresh();
+    if (dismissing) return;
+    setDismissing(true);
+    try {
+      await fetch('/api/goals/lifecycle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'dismiss_complete', goalId }),
+      });
+      onRefresh();
+    } finally {
+      setDismissing(false);
+    }
   };
 
   const handleSubGoalStatusChange = async (subGoalId: string, newStatus: string) => {
+    // Prevent double-click on same sub-goal
+    if (busySubGoalIds.has(subGoalId)) return;
+    setBusySubGoalIds(prev => new Set(prev).add(subGoalId));
+
     // Optimistic update — mutate local state immediately
     setLocalData(prev => {
       const subGoals = prev.subGoals.map(sg =>
@@ -152,6 +166,12 @@ export default function GoalLifecyclePanel({ data, projectId, onRefresh }: GoalL
     }).catch(() => {
       // Revert on failure by refetching
       onRefresh();
+    }).finally(() => {
+      setBusySubGoalIds(prev => {
+        const next = new Set(prev);
+        next.delete(subGoalId);
+        return next;
+      });
     });
   };
 

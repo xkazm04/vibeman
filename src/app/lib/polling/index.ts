@@ -170,18 +170,17 @@ export function usePollingTask<T>(
     setIsLoading(true);
 
     try {
-      // Apply timeout if configured
-      let result: T;
+      // Apply timeout if configured — abort the fetch instead of leaving it as a zombie
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       if (timeout) {
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Poll timeout')), timeout)
-        );
-        result = await Promise.race([
-          fetcherRef.current(),
-          timeoutPromise,
-        ]);
-      } else {
+        timeoutId = setTimeout(() => abortControllerRef.current?.abort(), timeout);
+      }
+
+      let result: T;
+      try {
         result = await fetcherRef.current();
+      } finally {
+        if (timeoutId !== undefined) clearTimeout(timeoutId);
       }
 
       // Check if operation was aborted

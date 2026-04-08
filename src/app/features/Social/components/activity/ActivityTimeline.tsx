@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ActivityEvent } from '../../lib/types/activityTypes';
 import { ActivityItem } from './ActivityItem';
+import { EmptyState } from '../atoms/EmptyState';
 
 interface ActivityTimelineProps {
   events: ActivityEvent[];
@@ -47,10 +48,10 @@ export function ActivityTimeline({
 
   if (events.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-        <p className="text-sm">No activity yet</p>
-        <p className="text-xs mt-1">Events will appear here as you work</p>
-      </div>
+      <EmptyState
+        title="No activity yet"
+        description="Events will appear here as you work"
+      />
     );
   }
 

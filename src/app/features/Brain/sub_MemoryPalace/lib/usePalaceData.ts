@@ -5,10 +5,10 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import * as d3 from 'd3';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
+import { createForceSimulation, initCircularPositions } from '../../lib/forceLayoutConfig';
 import type { DbBehavioralSignal } from '@/app/db/models/brain.types';
-import type { SignalType } from '../../sub_MemoryCanvas/lib/types';
+import type { SignalType } from '../../lib/brainConstants';
 import { safeResponseJson, parseApiResponse, BrainSignalsResponseSchema } from '@/lib/apiResponseGuard';
 import type {
   PalaceRoom,
@@ -56,12 +56,17 @@ export function usePalaceData(): PalaceData {
 
       if (signal.aborted) return;
 
+      // Parse all responses before updating state to avoid inconsistent partial updates
+      let nextSignals: DbBehavioralSignal[] | null = null;
+      let nextInsights: typeof rawInsights | null = null;
+      let nextReflections: typeof rawReflections | null = null;
+
       // Signals
       if (signalRes.status === 'fulfilled' && signalRes.value.ok) {
         const raw = await safeResponseJson(signalRes.value, '/api/brain/signals');
         const data = parseApiResponse(raw, BrainSignalsResponseSchema, '/api/brain/signals');
         if (data.success) {
-          setRawSignals((data.data?.signals || []) as unknown as DbBehavioralSignal[]);
+          nextSignals = (data.data?.signals || []) as unknown as DbBehavioralSignal[];
         }
       }
 
@@ -71,7 +76,7 @@ export function usePalaceData(): PalaceData {
           const data = await insightRes.value.json();
           const insights = data.data?.insights || data.insights; // Support both envelope and legacy
           if (data.success && Array.isArray(insights)) {
-            setRawInsights(insights);
+            nextInsights = insights;
           }
         } catch { /* ignore */ }
       }
@@ -81,11 +86,15 @@ export function usePalaceData(): PalaceData {
         try {
           const data = await reflectionRes.value.json();
           if (data.success && Array.isArray(data.reflections)) {
-            setRawReflections(data.reflections);
+            nextReflections = data.reflections;
           }
         } catch { /* ignore */ }
       }
 
+      // Batch state updates together to avoid inconsistent intermediate renders
+      if (nextSignals !== null) setRawSignals(nextSignals);
+      if (nextInsights !== null) setRawInsights(nextInsights);
+      if (nextReflections !== null) setRawReflections(nextReflections);
       setIsLoading(false);
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return;
@@ -171,8 +180,8 @@ export function usePalaceData(): PalaceData {
           if (s.weight > 0.8) implSuccess++;
         }
       }
-      const dominantType = Object.entries(typeCounts)
-        .sort((a, b) => b[1] - a[1])[0][0] as SignalType;
+      const typeEntries = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
+      const dominantType = (typeEntries.length > 0 ? typeEntries[0][0] : 'context_focus') as SignalType;
 
       const timestamps = signals.map(s => s.timestamp);
       const lastActivity = Math.max(...timestamps);
@@ -325,21 +334,20 @@ function layoutRooms(rooms: PalaceRoom[]): void {
   }
 
   const W = 800, H = 600;
-  const angleStep = (2 * Math.PI) / rooms.length;
-  const initRadius = Math.min(W, H) * 0.3;
 
-  rooms.forEach((r, i) => {
-    r.x = W / 2 + initRadius * Math.cos(i * angleStep - Math.PI / 2);
-    r.y = H / 2 + initRadius * Math.sin(i * angleStep - Math.PI / 2);
+  initCircularPositions(rooms, W, H, {
+    initRadiusFraction: 0.3,
+    angleOffset: -Math.PI / 2,
   });
 
-  const sim = d3.forceSimulation(rooms as unknown as d3.SimulationNodeDatum[])
-    .force('center', d3.forceCenter(W / 2, H / 2))
-    .force('collide', d3.forceCollide<d3.SimulationNodeDatum>((d: any) => d.radius + 15).strength(0.8).iterations(3))
-    .force('charge', d3.forceManyBody().strength(-200))
-    .force('x', d3.forceX(W / 2).strength(0.05))
-    .force('y', d3.forceY(H / 2).strength(0.05))
-    .stop();
+  const sim = createForceSimulation(rooms as any, {
+    width: W,
+    height: H,
+    collidePadding: 15,
+    collideStrength: 0.8,
+    chargeStrength: -200,
+    positioningStrength: 0.05,
+  });
 
   for (let i = 0; i < 100; i++) sim.tick();
 

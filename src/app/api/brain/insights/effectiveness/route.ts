@@ -25,7 +25,7 @@ import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
 import { logger } from '@/lib/logger';
 import { parseQueryInt } from '@/lib/api-helpers/parseQueryInt';
 import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
-import { EFFECTIVENESS_HELPFUL_THRESHOLD, EFFECTIVENESS_MISLEADING_THRESHOLD } from '@/lib/brain/config';
+import { EFFECTIVENESS_HELPFUL_THRESHOLD, EFFECTIVENESS_MISLEADING_THRESHOLD, EFFECTIVENESS_WINDOW_DAYS, MAX_WINDOW_DAYS } from '@/lib/brain/config';
 
 export interface InsightEffectiveness {
   insightTitle: string;
@@ -74,9 +74,9 @@ async function handleGet(request: NextRequest) {
     });
 
     windowDays = parseQueryInt(searchParams.get('windowDays'), {
-      default: 90,
+      default: EFFECTIVENESS_WINDOW_DAYS,
       min: 1,
-      max: 365,
+      max: MAX_WINDOW_DAYS,
       paramName: 'windowDays',
     });
   } catch (error) {
@@ -109,7 +109,14 @@ async function handleGet(request: NextRequest) {
           } catch {
             // Corrupted cache entry — invalidate and fall through to recomputation
             logger.warn('[Effectiveness] Corrupted cache entry, invalidating', { projectId });
-            try { insightEffectivenessCache.invalidate(projectId); } catch { /* ignore */ }
+            try {
+              insightEffectivenessCache.invalidate(projectId);
+            } catch (invalidateError) {
+              logger.error('[Effectiveness] Cache invalidation failed, expiring entry as fallback', { projectId, error: invalidateError });
+              try { insightEffectivenessCache.expire(projectId); } catch (expireError) {
+                logger.error('[Effectiveness] Cache expire fallback also failed', { projectId, error: expireError });
+              }
+            }
           }
         }
       } catch {

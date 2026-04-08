@@ -119,12 +119,13 @@ export default function GoalsDetailModalContent({
 
   return (
     <div className="space-y-6">
-      {/* Main Content Grid */}
-        {/* Right Column - Title & Description */}
-        <div className="space-y-6">
+      {/* Split-pane layout: stacked on mobile, side-by-side on lg+ */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(0,380px)] gap-6">
+        {/* Left Pane — Description & Backlinks */}
+        <div className="space-y-6 lg:max-h-[60vh] lg:overflow-y-auto lg:pr-2 scrollbar-thin">
           {/* Description */}
           <div className="bg-white/5 rounded-xl border border-white/10 p-5 shadow-lg">
-            <h3 className="text-sm font-semibold text-white/90 mb-4 flex items-center space-x-2 tracking-wide uppercase">
+            <h3 className="text-sm font-semibold text-white/90 mb-4 flex items-center space-x-2 tracking-wide uppercase sticky top-0 bg-white/5 backdrop-blur-sm -mx-5 px-5 -mt-5 pt-5 pb-3 z-10 border-b border-white/5">
               <div className="w-2 h-2 bg-amber-400 rounded-full"></div>
               <span>Description</span>
             </h3>
@@ -146,22 +147,34 @@ export default function GoalsDetailModalContent({
               </div>
             )}
           </div>
-      </div>
 
-      {/* Lifecycle Engine Panel */}
-      {projectId && lifecycleLoading && (
-        <div className="flex items-center gap-2 py-4 text-slate-400">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span className="text-xs">Loading lifecycle data...</span>
+          {/* Cross-References */}
+          <div className="bg-white/5 rounded-xl border border-white/10 p-5 shadow-lg">
+            <BacklinksPanel entityType="goal" entityId={goal.id} />
+          </div>
         </div>
-      )}
-      {projectId && lifecycleData && (
-        <GoalLifecyclePanel data={lifecycleData} projectId={projectId} onRefresh={handleLifecycleRefresh} />
-      )}
 
-      {/* Cross-References */}
-      <div className="bg-white/5 rounded-xl border border-white/10 p-5 shadow-lg">
-        <BacklinksPanel entityType="goal" entityId={goal.id} />
+        {/* Right Pane — Lifecycle Panel */}
+        <div className="lg:max-h-[60vh] lg:overflow-y-auto lg:pl-2 scrollbar-thin">
+          <div className="sticky top-0 bg-slate-900/80 backdrop-blur-sm z-10 pb-3 mb-3 border-b border-white/5 hidden lg:flex items-center gap-2">
+            <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+            <h3 className="text-sm font-semibold text-white/90 tracking-wide uppercase">Lifecycle</h3>
+          </div>
+          {projectId && lifecycleLoading && (
+            <div className="flex items-center gap-2 py-4 text-slate-400">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-xs">Loading lifecycle data...</span>
+            </div>
+          )}
+          {projectId && lifecycleData && (
+            <GoalLifecyclePanel data={lifecycleData} projectId={projectId} onRefresh={handleLifecycleRefresh} />
+          )}
+          {!projectId && (
+            <div className="text-xs text-slate-500 italic py-4">
+              Select a project to view lifecycle data.
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Error Message */}

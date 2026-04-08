@@ -30,7 +30,8 @@ export class GatherFilesError extends Error {
  */
 export async function gatherCodebaseFiles(
   projectPath: string,
-  contextFilePaths?: string[]
+  contextFilePaths?: string[],
+  signal?: AbortSignal
 ): Promise<CodebaseFile[]> {
   const filesToAnalyze = contextFilePaths || [];
 
@@ -43,7 +44,8 @@ export async function gatherCodebaseFiles(
         projectPath,
         filePaths: filesToAnalyze.length > 0 ? filesToAnalyze : undefined,
         limit: 20
-      })
+      }),
+      signal
     });
   } catch (error) {
     throw new GatherFilesError(
@@ -98,11 +100,14 @@ export async function executeScan(params: {
   scanType: ScanType;
   detailed?: boolean;
   codebaseFiles: CodebaseFile[];
+  signal?: AbortSignal;
 }): Promise<number> {
+  const { signal, ...body } = params;
   const response = await fetch('/api/ideas/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params)
+    body: JSON.stringify(body),
+    signal
   });
 
   if (!response.ok) {

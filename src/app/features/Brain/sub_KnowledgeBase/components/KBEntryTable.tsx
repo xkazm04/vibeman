@@ -208,14 +208,14 @@ export default function KBEntryTable({
 
                 {/* Title + preview */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-zinc-200 truncate group-hover:text-white">
+                  <p className="text-xs font-medium text-zinc-200 truncate group-hover:text-white" title={entry.title}>
                     {entry.title}
                   </p>
-                  <p className="text-2xs text-zinc-500 truncate">{entry.pattern}</p>
+                  <p className="text-2xs text-zinc-500 truncate" title={entry.pattern}>{entry.pattern}</p>
                 </div>
 
                 {/* Category */}
-                <span className="text-2xs text-zinc-600 flex-shrink-0 hidden sm:block">
+                <span className="text-2xs text-zinc-600 flex-shrink-0 hidden sm:block" title={KNOWLEDGE_CATEGORY_LABELS[entry.domain as KnowledgeCategory] ?? entry.domain}>
                   {KNOWLEDGE_CATEGORY_LABELS[entry.domain as KnowledgeCategory] ?? entry.domain}
                 </span>
 

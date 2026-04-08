@@ -193,12 +193,13 @@ async function runTests(type: 'unit' | 'integration', timeout: number): Promise<
       }
     }
 
-    // If no tests found, pass with warning
+    // No test runner found — report as not passed so callers don't treat it as "tests passed"
     return {
-      passed: true,
-      message: `No ${type} tests configured`,
+      passed: false,
+      message: `No ${type} tests configured — gate cannot pass without a test runner`,
       details: {
-        warning: 'No test command found',
+        status: 'no_tests',
+        warning: 'No test command found. Configure a test runner to enable this gate.',
       },
     };
   } catch (error: unknown) {
@@ -279,12 +280,13 @@ async function runCoverage(timeout: number): Promise<GateResult> {
       details: { coverage, threshold },
     };
   } catch (error: unknown) {
-    // No coverage command available, pass with warning
+    // No coverage command available — cannot pass without measurement
     return {
-      passed: true,
-      message: 'Coverage check skipped (no coverage command)',
+      passed: false,
+      message: 'Coverage check failed — no coverage command configured',
       details: {
-        warning: 'Coverage not configured',
+        status: 'no_tests',
+        warning: 'Coverage not configured. Add a test:coverage script to enable this gate.',
       },
     };
   }

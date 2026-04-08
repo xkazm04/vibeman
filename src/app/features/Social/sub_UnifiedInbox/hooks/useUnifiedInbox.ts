@@ -1,12 +1,7 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
 import type { FeedbackItem, KanbanChannel, KanbanPriority } from '../../lib/types/feedbackTypes';
 import type { UnifiedCustomer, ConversationThread, InteractionHistoryEntry } from '@/lib/social';
-import {
-  ConversationThreader,
-  CustomerAggregator,
-} from '@/lib/social';
 import type {
   InboxViewMode,
   InboxPanelState,
@@ -14,7 +9,10 @@ import type {
   InboxStats,
   SelectedConversation,
 } from '../lib/types';
-import { DEFAULT_INBOX_FILTERS } from '../lib/types';
+import { useInboxData } from './useInboxData';
+import { useInboxFilters } from './useInboxFilters';
+import { useInboxView } from './useInboxView';
+import { useInboxActions } from './useInboxActions';
 
 interface UseUnifiedInboxProps {
   projectId: string;
@@ -70,298 +68,72 @@ export function useUnifiedInbox({
   projectId,
   feedbackItems = [],
 }: UseUnifiedInboxProps): UseUnifiedInboxReturn {
-  // View state
-  const [viewMode, setViewMode] = useState<InboxViewMode>('conversations');
-  const [panelState, setPanelState] = useState<InboxPanelState>('list');
+  // Data aggregation and processing
+  const data = useInboxData({ feedbackItems });
 
-  // Data state
-  const [customers, setCustomers] = useState<UnifiedCustomer[]>([]);
-  const [conversations, setConversations] = useState<ConversationThread[]>([]);
+  // Filtering
+  const filtering = useInboxFilters({
+    conversations: data.conversations,
+    customers: data.customers,
+  });
 
-  // Selection state
-  const [selectedConversation, setSelectedConversation] = useState<SelectedConversation | null>(null);
-  const [selectedCustomer, setSelectedCustomer] = useState<UnifiedCustomer | null>(null);
+  // View and selection state
+  const view = useInboxView({
+    customers: data.customers,
+    conversations: data.conversations,
+    feedbackItems,
+    customerAggregator: data.customerAggregator,
+  });
 
-  // Filter state
-  const [filters, setFilters] = useState<UnifiedInboxFilters>(DEFAULT_INBOX_FILTERS);
-
-  // Loading state
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Aggregator and threader instances
-  const customerAggregator = useMemo(() => new CustomerAggregator(), []);
-  const conversationThreader = useMemo(() => new ConversationThreader(), []);
-
-  // Process feedback items into customers and conversations
-  useEffect(() => {
-    if (feedbackItems.length === 0) {
-      setCustomers([]);
-      setConversations([]);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // Aggregate customers
-      const aggregatedCustomers = customerAggregator.aggregateFromFeedback(feedbackItems);
-      setCustomers(aggregatedCustomers);
-
-      // Create customer map for threading
-      const customerMap = new Map<string, UnifiedCustomer>();
-      aggregatedCustomers.forEach(c => customerMap.set(c.id, c));
-
-      // Thread conversations
-      const threads = conversationThreader.threadFeedbackItems(
-        feedbackItems,
-        [],
-        customerMap
-      );
-      setConversations(threads);
-
-      setError(null);
-    } catch (err) {
-      console.error('Error processing feedback items:', err);
-      setError('Failed to process feedback items');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [feedbackItems, customerAggregator, conversationThreader]);
-
-  // Calculate stats
-  const stats: InboxStats = useMemo(() => {
-    const openCount = conversations.filter(c => c.status === 'open').length;
-    const resolvedCount = conversations.filter(c => c.status === 'resolved').length;
-    const pendingCount = conversations.filter(c => c.status === 'pending').length;
-    const highValueCount = customers.filter(c => c.valueScore >= 60).length;
-
-    return {
-      totalConversations: conversations.length,
-      openConversations: openCount,
-      resolvedConversations: resolvedCount,
-      pendingConversations: pendingCount,
-      totalCustomers: customers.length,
-      highValueCustomers: highValueCount,
-    };
-  }, [conversations, customers]);
-
-  // Filtered conversations
-  const filteredConversations = useMemo(() => {
-    return conversations.filter(thread => {
-      // Channel filter
-      if (filters.channels.length > 0) {
-        if (!thread.channels.some(c => filters.channels.includes(c))) {
-          return false;
-        }
-      }
-
-      // Status filter
-      if (filters.status.length > 0 && !filters.status.includes(thread.status)) {
-        return false;
-      }
-
-      // Priority filter
-      if (filters.priority.length > 0 && !filters.priority.includes(thread.priority)) {
-        return false;
-      }
-
-      // Search filter
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        const matchesSubject = thread.subject?.toLowerCase().includes(searchLower);
-        const matchesContent = thread.messages.some(m =>
-          m.content.toLowerCase().includes(searchLower)
-        );
-        if (!matchesSubject && !matchesContent) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [conversations, filters]);
-
-  // Filtered customers
-  const filteredCustomers = useMemo(() => {
-    return customers.filter(customer => {
-      // Channel filter
-      if (filters.channels.length > 0) {
-        if (!customer.channels.some(c => filters.channels.includes(c.channel))) {
-          return false;
-        }
-      }
-
-      // Value score filter
-      if (filters.minValueScore !== null && customer.valueScore < filters.minValueScore) {
-        return false;
-      }
-
-      // Search filter
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        const matchesName = customer.displayName.toLowerCase().includes(searchLower);
-        const matchesEmail = customer.primaryEmail?.toLowerCase().includes(searchLower);
-        const matchesHandle = customer.primaryHandle?.toLowerCase().includes(searchLower);
-        if (!matchesName && !matchesEmail && !matchesHandle) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [customers, filters]);
-
-  // Customer history for selected customer
-  const customerHistory = useMemo(() => {
-    if (!selectedCustomer) return [];
-    return customerAggregator.buildInteractionHistory(selectedCustomer, feedbackItems);
-  }, [selectedCustomer, feedbackItems, customerAggregator]);
-
-  // Customer threads
-  const customerThreads = useMemo(() => {
-    if (!selectedCustomer) return [];
-    return conversations.filter(t => t.customerId === selectedCustomer.id);
-  }, [selectedCustomer, conversations]);
-
-  // Selection handlers
-  const selectConversation = useCallback((thread: ConversationThread) => {
-    const customer = customers.find(c => c.id === thread.customerId) || null;
-    setSelectedConversation({ thread, customer });
-    setSelectedCustomer(null);
-    setPanelState('detail');
-  }, [customers]);
-
-  const selectCustomer = useCallback((customer: UnifiedCustomer) => {
-    setSelectedCustomer(customer);
-    setSelectedConversation(null);
-    setPanelState('customer-profile');
-  }, []);
-
-  const clearSelection = useCallback(() => {
-    setSelectedConversation(null);
-    setSelectedCustomer(null);
-    setPanelState('list');
-  }, []);
-
-  // Filter handlers
-  const setFilter = useCallback(<K extends keyof UnifiedInboxFilters>(
-    key: K,
-    value: UnifiedInboxFilters[K]
-  ) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  }, []);
-
-  const toggleChannelFilter = useCallback((channel: KanbanChannel) => {
-    setFilters(prev => ({
-      ...prev,
-      channels: prev.channels.includes(channel)
-        ? prev.channels.filter(c => c !== channel)
-        : [...prev.channels, channel],
-    }));
-  }, []);
-
-  const toggleStatusFilter = useCallback((status: 'open' | 'resolved' | 'pending') => {
-    setFilters(prev => ({
-      ...prev,
-      status: prev.status.includes(status)
-        ? prev.status.filter(s => s !== status)
-        : [...prev.status, status],
-    }));
-  }, []);
-
-  const togglePriorityFilter = useCallback((priority: KanbanPriority) => {
-    setFilters(prev => ({
-      ...prev,
-      priority: prev.priority.includes(priority)
-        ? prev.priority.filter(p => p !== priority)
-        : [...prev.priority, priority],
-    }));
-  }, []);
-
-  const clearFilters = useCallback(() => {
-    setFilters(DEFAULT_INBOX_FILTERS);
-  }, []);
-
-  // Actions
-  const addCustomerNote = useCallback(async (customerId: string, note: string) => {
-    const success = customerAggregator.addNote(customerId, note);
-    if (success) {
-      setCustomers([...customerAggregator.getCustomers()]);
-    }
-  }, [customerAggregator]);
-
-  const addCustomerTag = useCallback(async (customerId: string, tag: string) => {
-    const success = customerAggregator.addTag(customerId, tag);
-    if (success) {
-      setCustomers([...customerAggregator.getCustomers()]);
-    }
-  }, [customerAggregator]);
-
-  const removeCustomerTag = useCallback(async (customerId: string, tag: string) => {
-    const success = customerAggregator.removeTag(customerId, tag);
-    if (success) {
-      setCustomers([...customerAggregator.getCustomers()]);
-    }
-  }, [customerAggregator]);
-
-  const resolveConversation = useCallback(async (threadId: string) => {
-    setConversations(prev => prev.map(thread =>
-      thread.id === threadId
-        ? { ...thread, status: 'resolved' as const, resolvedAt: new Date().toISOString() }
-        : thread
-    ));
-  }, []);
-
-  const reopenConversation = useCallback(async (threadId: string) => {
-    setConversations(prev => prev.map(thread =>
-      thread.id === threadId
-        ? { ...thread, status: 'open' as const, resolvedAt: null }
-        : thread
-    ));
-  }, []);
+  // Actions (resolve, assign, customer notes/tags)
+  const actions = useInboxActions({
+    customerAggregator: data.customerAggregator,
+    setCustomers: data.setCustomers,
+    setConversations: data.setConversations,
+  });
 
   return {
     // View state
-    viewMode,
-    setViewMode,
-    panelState,
-    setPanelState,
+    viewMode: view.viewMode,
+    setViewMode: view.setViewMode,
+    panelState: view.panelState,
+    setPanelState: view.setPanelState,
 
     // Data
-    conversations,
-    customers,
-    stats,
+    conversations: data.conversations,
+    customers: data.customers,
+    stats: data.stats,
 
     // Selection
-    selectedConversation,
-    selectedCustomer,
-    selectConversation,
-    selectCustomer,
-    clearSelection,
+    selectedConversation: view.selectedConversation,
+    selectedCustomer: view.selectedCustomer,
+    selectConversation: view.selectConversation,
+    selectCustomer: view.selectCustomer,
+    clearSelection: view.clearSelection,
 
     // Customer details
-    customerHistory,
-    customerThreads,
+    customerHistory: view.customerHistory,
+    customerThreads: view.customerThreads,
 
     // Filters
-    filters,
-    setFilter,
-    toggleChannelFilter,
-    toggleStatusFilter,
-    togglePriorityFilter,
-    clearFilters,
-    filteredConversations,
-    filteredCustomers,
+    filters: filtering.filters,
+    setFilter: filtering.setFilter,
+    toggleChannelFilter: filtering.toggleChannelFilter,
+    toggleStatusFilter: filtering.toggleStatusFilter,
+    togglePriorityFilter: filtering.togglePriorityFilter,
+    clearFilters: filtering.clearFilters,
+    filteredConversations: filtering.filteredConversations,
+    filteredCustomers: filtering.filteredCustomers,
 
     // Actions
-    addCustomerNote,
-    addCustomerTag,
-    removeCustomerTag,
-    resolveConversation,
-    reopenConversation,
+    addCustomerNote: actions.addCustomerNote,
+    addCustomerTag: actions.addCustomerTag,
+    removeCustomerTag: actions.removeCustomerTag,
+    resolveConversation: actions.resolveConversation,
+    reopenConversation: actions.reopenConversation,
 
     // Loading states
-    isLoading,
-    error,
+    isLoading: data.isLoading,
+    error: data.error,
   };
 }

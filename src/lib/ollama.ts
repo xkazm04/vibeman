@@ -233,7 +233,9 @@ export class OllamaClient {
    */
   async getAvailableModels(): Promise<string[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/tags`);
+      const response = await fetch(`${this.baseUrl}/api/tags`, {
+        signal: AbortSignal.timeout(10000)
+      });
       if (!response.ok) {
         throw new Error(`Failed to fetch models: ${response.status}`);
       }

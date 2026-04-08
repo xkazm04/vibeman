@@ -4,7 +4,7 @@ import { FolderOpen, Copy, MousePointer, CheckSquare, Square, FileText, Edit, Tr
 import ContextJailCard from '@/components/ContextComponents/ContextJailCard';
 import ContextMenu, { type ContextMenuItem } from '@/components/ContextMenu/ContextMenu';
 import { useTooltipStore } from '../../../../stores/tooltipStore';
-import { Context, ContextGroup, useContextStore } from '../../../../stores/contextStore';
+import { useContextStore } from '../../../../stores/contextStore';
 import { useStore } from '../../../../stores/nodeStore';
 import { useGlobalModal } from '../../../../hooks/useGlobalModal';
 import { MultiFileEditor } from '../../../../components/editor';
@@ -12,19 +12,11 @@ import { saveFileContent } from '../../../../components/editor/fileApi';
 import ContextEditModal from '../sub_ContextGen/ContextEditModal';
 import ContextFileModal from '../sub_ContextFile/ContextFileModal';
 import MoveToGroupMenu from './components/MoveToGroupMenu';
+import { ContextJailCardProps as ContextJailCardWrapperProps } from './types';
 import { useDraggableItem } from '@/hooks/dnd';
 
 // DnD activation delay in milliseconds - must match ContextLayout.tsx sensorOptions.delay
 const DND_ACTIVATION_DELAY = 300;
-
-interface ContextJailCardWrapperProps {
-  context: Context;
-  group?: ContextGroup;
-  index: number;
-  fontSize: string;
-  availableGroups: ContextGroup[];
-  onMoveContext?: (contextId: string, groupId: string | null) => void;
-}
 
 /**
  * Wrapper for ContextJailCard in Context Groups view

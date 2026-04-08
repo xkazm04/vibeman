@@ -14,6 +14,8 @@ import { parseJsonArray } from '@/lib/json-utils';
 const VALID_TABLE_NAMES = [
   'agent_goals',
   'agent_steps',
+  'anomaly_monitors',
+  'anomaly_monitor_events',
   'annette_audio_cache',
   'annette_knowledge_edges',
   'annette_knowledge_nodes',
@@ -139,6 +141,7 @@ const VALID_TABLE_NAMES = [
   'knowledge_entries',
   'vulnerability_debates',
   'workspace',
+  'write_frequency_snapshots',
 ] as const;
 
 export type TableName = (typeof VALID_TABLE_NAMES)[number];
@@ -222,26 +225,13 @@ export function buildUpdateStatement(
   fields.push('updated_at = ?');
   values.push(now);
 
-  const cacheKey = `${table}:${idField}:${fields.join(',')}`;
-  let stmt = statementCache.get(cacheKey);
-  if (!stmt) {
-    stmt = db.prepare(`
-      UPDATE ${table}
-      SET ${fields.join(', ')}
-      WHERE ${idField} = ?
-    `);
-    statementCache.set(cacheKey, stmt);
-  }
+  const stmt = db.prepare(`
+    UPDATE ${table}
+    SET ${fields.join(', ')}
+    WHERE ${idField} = ?
+  `);
 
   return { stmt, values };
-}
-
-/** Cache for prepared UPDATE statements keyed by table:idField:fieldsList */
-const statementCache = new Map<string, Statement>();
-
-/** Clear the statement cache (e.g., when the database connection is reset) */
-export function clearStatementCache(): void {
-  statementCache.clear();
 }
 
 /**

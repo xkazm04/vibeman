@@ -66,6 +66,7 @@ export default function GoalModal({
   const [requirementName, setRequirementName] = useState('');
   const [requirementDescription, setRequirementDescription] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [isSubmittingGoal, setIsSubmittingGoal] = useState(false);
 
   const { error, isError, handleError, clearError } = useSimpleErrorHandler('GoalModal-Code');
 
@@ -109,18 +110,24 @@ export default function GoalModal({
 
   const handleGoalSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingGoal) return;
     if (title.trim() && onSubmit) {
-      onSubmit({
-        title: title.trim(),
-        description: description.trim() || undefined,
-        status,
-        contextId: contextId || undefined,
-      });
-      setTitle('');
-      setDescription('');
-      setStatus('open');
-      setContextId('');
-      onClose();
+      setIsSubmittingGoal(true);
+      try {
+        onSubmit({
+          title: title.trim(),
+          description: description.trim() || undefined,
+          status,
+          contextId: contextId || undefined,
+        });
+        setTitle('');
+        setDescription('');
+        setStatus('open');
+        setContextId('');
+        onClose();
+      } finally {
+        setIsSubmittingGoal(false);
+      }
     }
   };
 
@@ -216,6 +223,7 @@ export default function GoalModal({
             loadingContexts={loadingContexts}
             onSubmit={handleGoalSubmit}
             onClose={handleClose}
+            isSubmitting={isSubmittingGoal}
           />
         )}
 

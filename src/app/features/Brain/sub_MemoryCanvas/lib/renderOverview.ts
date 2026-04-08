@@ -1,8 +1,9 @@
-import type { Group, FilterState } from './types';
+import type { Group, FilterState, ConvergenceEvent } from './types';
 import { FOCUS_ZOOM_THRESHOLD } from './constants';
-import { colorAt } from './helpers';
+import { colorAt, smoothFontSize, labelFadeAlpha } from './helpers';
 import { executeRenderPipeline, type RenderContext } from './canvasRenderPipeline';
 import { DISPLAY_FONT } from '../../lib/brainFonts';
+import { renderMicroConstellations, renderConvergenceArcs } from './renderMicroConstellations';
 
 interface RenderOverviewParams {
   ctx: CanvasRenderingContext2D;
@@ -13,9 +14,10 @@ interface RenderOverviewParams {
   dpr: number;
   selectedGroupId: string | null;
   filterState?: FilterState;
+  convergenceEvents?: ConvergenceEvent[];
 }
 
-export function renderOverview({ ctx, groups, width, height, transform, dpr, selectedGroupId, filterState }: RenderOverviewParams): void {
+export function renderOverview({ ctx, groups, width, height, transform, dpr, selectedGroupId, filterState, convergenceEvents }: RenderOverviewParams): void {
   const k = transform.k;
 
   ctx.save();
@@ -44,6 +46,11 @@ export function renderOverview({ ctx, groups, width, height, transform, dpr, sel
 
   for (const group of groups) {
     renderGroupBubble(ctx, group, k, group.id === selectedGroupId, filterState);
+  }
+
+  // Render convergence arcs between groups with shared semantic concepts
+  if (convergenceEvents && convergenceEvents.length > 0) {
+    renderConvergenceArcs(ctx, groups, convergenceEvents, k, Date.now());
   }
 
   ctx.restore();
@@ -134,29 +141,37 @@ function renderGroupBubble(ctx: CanvasRenderingContext2D, group: Group, k: numbe
     ctx.fill();
     ctx.restore();
 
-    ctx.fillStyle = '#f4f4f5';
-    ctx.font = `bold ${Math.max(10, 13 / k)}px ${DISPLAY_FONT}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(group.name, gx, gy - radius - 6 / k);
+    // Smooth fade for labels at low zoom
+    const fade = labelFadeAlpha(k);
+    if (fade > 0) {
+      ctx.save();
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = '#f4f4f5';
+      ctx.font = `bold ${Math.max(10, Math.round(smoothFontSize(1 / k, 13)))}px ${DISPLAY_FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(group.name, gx, gy - radius - 6 / k);
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `bold ${12 / k}px ${DISPLAY_FONT}`;
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`${group.events.length}`, gx, gy);
+      ctx.fillStyle = '#ffffff';
+      ctx.globalAlpha = fade;
+      ctx.font = `bold ${Math.round(smoothFontSize(1 / k, 12))}px ${DISPLAY_FONT}`;
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${group.events.length}`, gx, gy);
+      ctx.restore();
+    }
     return;
   }
 
-  // Group label
+  // Group label — smooth eased font size
   ctx.fillStyle = '#f4f4f5';
-  ctx.font = `bold ${Math.min(14, 11 / k)}px ${DISPLAY_FONT}`;
+  ctx.font = `bold ${Math.min(14, Math.round(smoothFontSize(1 / k, 11)))}px ${DISPLAY_FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
   ctx.fillText(group.name, gx, gy - radius - 4 / k);
 
-  // Event count
+  // Event count — smooth eased font size
   ctx.fillStyle = colorAt(color, 0.8);
-  ctx.font = `${9 / k}px ${DISPLAY_FONT}`;
+  ctx.font = `${Math.round(smoothFontSize(1 / k, 9))}px ${DISPLAY_FONT}`;
   ctx.textBaseline = 'top';
   ctx.fillText(`${group.events.length} events`, gx, gy + radius + 3 / k);
 
@@ -192,4 +207,14 @@ function renderGroupBubble(ctx: CanvasRenderingContext2D, group: Group, k: numbe
       maxLabels: Math.min(5, Math.ceil(group.events.length * 0.4)),
     },
   });
+
+  // Render semantic sub-cluster micro-constellations
+  if (group.semanticClusters && group.semanticClusters.length > 0) {
+    renderMicroConstellations(ctx, {
+      group,
+      k,
+      now: Date.now(),
+      filterState,
+    });
+  }
 }

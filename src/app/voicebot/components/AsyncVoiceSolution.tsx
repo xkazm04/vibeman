@@ -5,8 +5,9 @@
 
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Mic, Brain, Volume2, Check } from 'lucide-react';
 import VoicebotCallButton from './VoicebotCallButton';
 import VoicebotSessionLogs from './VoicebotSessionLogs';
 import {
@@ -38,6 +39,79 @@ const LLM_PROVIDERS: Array<{ value: LLMProvider; label: string; description: str
   { value: 'anthropic', label: 'Claude', description: 'Anthropic AI' },
 ];
 
+// ── Pipeline Progress Indicator ──────────────────────────────────────
+
+type PipelineStepStatus = 'pending' | 'active' | 'completed';
+
+interface PipelineStep {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+}
+
+const PIPELINE_STEPS: PipelineStep[] = [
+  { id: 'stt', label: 'Speech Recognition', icon: Mic },
+  { id: 'llm', label: 'AI Thinking', icon: Brain },
+  { id: 'tts', label: 'Voice Synthesis', icon: Volume2 },
+];
+
+function PipelineProgressIndicator({ activeStep }: { activeStep: string | null }) {
+  if (!activeStep) return null;
+
+  const stepIndex = PIPELINE_STEPS.findIndex((s) => s.id === activeStep);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gray-900/80 border border-cyan-500/20"
+    >
+      {PIPELINE_STEPS.map((step, i) => {
+        const StepIcon = step.icon;
+        const status: PipelineStepStatus =
+          i < stepIndex ? 'completed' :
+          i === stepIndex ? 'active' : 'pending';
+
+        return (
+          <React.Fragment key={step.id}>
+            {i > 0 && (
+              <div className={`w-6 h-px ${status === 'pending' ? 'bg-gray-700' : 'bg-cyan-500/50'}`} />
+            )}
+            <div className="flex items-center gap-1.5" title={step.label}>
+              <motion.div
+                className={`flex items-center justify-center w-7 h-7 rounded-full border-2 transition-colors ${
+                  status === 'completed'
+                    ? 'bg-emerald-500/20 border-emerald-500/50'
+                    : status === 'active'
+                    ? 'bg-cyan-500/20 border-cyan-500/50'
+                    : 'bg-gray-800/50 border-gray-700'
+                }`}
+                animate={status === 'active' ? { scale: [1, 1.1, 1] } : undefined}
+                transition={status === 'active' ? { duration: 1, repeat: Infinity } : undefined}
+              >
+                {status === 'completed' ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                ) : (
+                  <StepIcon className={`w-3.5 h-3.5 ${
+                    status === 'active' ? 'text-cyan-400' : 'text-gray-600'
+                  }`} />
+                )}
+              </motion.div>
+              <span className={`text-2xs font-medium hidden sm:block ${
+                status === 'completed' ? 'text-emerald-400' :
+                status === 'active' ? 'text-cyan-400' : 'text-gray-600'
+              }`}>
+                {step.label}
+              </span>
+            </div>
+          </React.Fragment>
+        );
+      })}
+    </motion.div>
+  );
+}
+
 export default function AsyncVoiceSolution() {
   const [sessionState, setSessionState] = useState<SessionState>('idle');
   const [logs, setLogs] = useState<SessionLog[]>([]);
@@ -47,6 +121,7 @@ export default function AsyncVoiceSolution() {
   const [provider, setProvider] = useState<LLMProvider>('ollama');
   const [model, setModel] = useState<string>(DEFAULT_LLM_MODELS.ollama);
   const [currentCallId, setCurrentCallId] = useState<string | null>(null);
+  const [pipelineStep, setPipelineStep] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -217,10 +292,21 @@ export default function AsyncVoiceSolution() {
   const processAudio = useCallback(async (audioBlob: Blob) => {
     try {
       setSessionState('processing');
+      setPipelineStep('stt');
       addLog('user', 'Processing voice message...');
 
-      // Use the async pipeline: STT → LLM → TTS with selected provider/model
+      // Advance pipeline steps on a heuristic timer (STT ~1-2s, LLM ~2-4s, TTS ~1-2s)
+      // This gives visual progress even though processVoiceMessage is a single call
+      const stepTimer1 = setTimeout(() => setPipelineStep('llm'), 1500);
+      const stepTimer2 = setTimeout(() => setPipelineStep('tts'), 4500);
+
+      // Use the async pipeline: STT -> LLM -> TTS with selected provider/model
       const result = await processVoiceMessage(audioBlob, conversationHistory, provider, model);
+
+      // Clear timers and pipeline step
+      clearTimeout(stepTimer1);
+      clearTimeout(stepTimer2);
+      setPipelineStep(null);
 
       // Track messages if monitoring is enabled
       if (currentCallId) {
@@ -269,12 +355,18 @@ export default function AsyncVoiceSolution() {
         totalMs: result.timing.totalMs
       });
 
-      // Update conversation history
-      setConversationHistory(prev => [
-        ...prev,
-        { role: 'user', content: result.userText },
-        { role: 'assistant', content: result.assistantText }
-      ]);
+      // Update conversation history (cap to last 20 messages to prevent context overflow)
+      const MAX_CONVERSATION_HISTORY = 20;
+      setConversationHistory(prev => {
+        const updated = [
+          ...prev,
+          { role: 'user' as const, content: result.userText },
+          { role: 'assistant' as const, content: result.assistantText }
+        ];
+        return updated.length > MAX_CONVERSATION_HISTORY
+          ? updated.slice(-MAX_CONVERSATION_HISTORY)
+          : updated;
+      });
 
       // Play audio response first
       if (result.audioUrl) {
@@ -285,6 +377,7 @@ export default function AsyncVoiceSolution() {
       setSessionState('idle');
       addLog('system', 'Click the button to continue conversation');
     } catch (error) {
+      setPipelineStep(null);
       addLog('system', 'Error: ' + (error instanceof Error ? error.message : 'Failed to process audio'));
       setSessionState('error');
     }
@@ -384,6 +477,13 @@ export default function AsyncVoiceSolution() {
       </div>
 
       {/* Full-Width Session Logs */}
+      {/* Pipeline progress indicator */}
+      <AnimatePresence>
+        {sessionState === 'processing' && (
+          <PipelineProgressIndicator activeStep={pipelineStep} />
+        )}
+      </AnimatePresence>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

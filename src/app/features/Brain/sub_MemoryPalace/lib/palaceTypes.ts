@@ -3,7 +3,7 @@
  * Spatial-temporal navigation types for the living memory palace.
  */
 
-import type { SignalType } from '../../sub_MemoryCanvas/lib/types';
+import type { SignalType } from '../../lib/brainConstants';
 
 /** A "room" in the palace — one per context */
 export interface PalaceRoom {

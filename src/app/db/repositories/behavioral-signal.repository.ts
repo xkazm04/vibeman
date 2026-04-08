@@ -13,7 +13,14 @@ import type {
   DbBehavioralSignal,
   CreateBehavioralSignalInput,
 } from '../models/brain.types';
-import { SIGNAL_MIN_WEIGHT } from '@/lib/brain/config';
+import {
+  SIGNAL_MIN_WEIGHT,
+  MS_PER_DAY,
+  CONTEXT_WINDOW_DAYS,
+  DEFAULT_RETENTION_DAYS,
+  HEATMAP_WINDOW_DAYS,
+  TEMPORAL_WINDOW_DAYS,
+} from '@/lib/brain/config';
 import type { BehavioralSignalType } from '@/types/signals';
 import { getAllSignalTypes } from '@/types/signals';
 import { getCurrentTimestamp, selectOne, selectAll } from './repository.utils';
@@ -138,10 +145,10 @@ export const behavioralSignalRepository = {
   getByTypeAndWindow: (
     projectId: string,
     signalType: BehavioralSignalType,
-    windowDays: number = 7
+    windowDays: number = CONTEXT_WINDOW_DAYS
   ): DbBehavioralSignal[] => {
     const db = getHotWritesDatabase();
-    const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString();
+    const since = new Date(Date.now() - windowDays * MS_PER_DAY).toISOString();
 
     return selectAll<DbBehavioralSignal>(
       db,
@@ -181,10 +188,10 @@ export const behavioralSignalRepository = {
    */
   getContextActivity: (
     projectId: string,
-    windowDays: number = 7
+    windowDays: number = CONTEXT_WINDOW_DAYS
   ): Array<{ context_id: string; context_name: string; signal_count: number; total_weight: number }> => {
     const db = getHotWritesDatabase();
-    const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString();
+    const since = new Date(Date.now() - windowDays * MS_PER_DAY).toISOString();
 
     return selectAll(
       db,
@@ -208,10 +215,10 @@ export const behavioralSignalRepository = {
    */
   getCountByType: (
     projectId: string,
-    windowDays: number = 7
+    windowDays: number = CONTEXT_WINDOW_DAYS
   ): Record<BehavioralSignalType, number> => {
     const db = getHotWritesDatabase();
-    const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString();
+    const since = new Date(Date.now() - windowDays * MS_PER_DAY).toISOString();
 
     const rows = selectAll<{ signal_type: BehavioralSignalType; count: number }>(
       db,
@@ -251,7 +258,7 @@ export const behavioralSignalRepository = {
    */
   applyDecay: (projectId: string, decayFactor: number, olderThanDays: number): number => {
     const db = getHotWritesDatabase();
-    const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString();
+    const cutoff = new Date(Date.now() - olderThanDays * MS_PER_DAY).toISOString();
     const now = getCurrentTimestamp();
     const BATCH_SIZE = 1000;
 
@@ -289,9 +296,9 @@ export const behavioralSignalRepository = {
    * Processes in batches of CLEANUP_BATCH_SIZE to avoid loading all IDs into
    * memory and to stay within SQLite's variable-number limit for evidence cleanup.
    */
-  deleteOld: (projectId: string, retentionDays: number = 30): number => {
+  deleteOld: (projectId: string, retentionDays: number = DEFAULT_RETENTION_DAYS): number => {
     const db = getHotWritesDatabase();
-    const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
+    const cutoff = new Date(Date.now() - retentionDays * MS_PER_DAY).toISOString();
     let totalChanges = 0;
 
     // eslint-disable-next-line no-constant-condition
@@ -369,7 +376,7 @@ export const behavioralSignalRepository = {
    */
   getDailyHeatmap: (
     projectId: string,
-    windowDays: number = 90
+    windowDays: number = HEATMAP_WINDOW_DAYS
   ): Array<{
     date: string;
     signal_type: BehavioralSignalType;
@@ -379,7 +386,7 @@ export const behavioralSignalRepository = {
     total_weight: number;
   }> => {
     const db = getHotWritesDatabase();
-    const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString();
+    const since = new Date(Date.now() - windowDays * MS_PER_DAY).toISOString();
 
     return selectAll(
       db,
@@ -408,7 +415,7 @@ export const behavioralSignalRepository = {
    */
   getTemporalAggregation: (
     projectId: string,
-    windowDays: number = 30
+    windowDays: number = TEMPORAL_WINDOW_DAYS
   ): Array<{
     hour: number;
     day_of_week: number;
@@ -417,7 +424,7 @@ export const behavioralSignalRepository = {
     total_weight: number;
   }> => {
     const db = getHotWritesDatabase();
-    const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString();
+    const since = new Date(Date.now() - windowDays * MS_PER_DAY).toISOString();
 
     return selectAll(
       db,

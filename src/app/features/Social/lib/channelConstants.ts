@@ -1,8 +1,10 @@
 /**
- * Shared channel icon/color/label constants for the Social feature.
+ * Shared channel theme map for the Social feature.
  *
- * Consolidated from UnifiedInbox, ConversationThread, CustomerProfile,
- * and HistoryTimeline to prevent 4-way duplication.
+ * Single source of truth for per-channel visual tokens: icon, label,
+ * and badge colors (bg, text, border). All downstream constants are
+ * derived from this map so adding a channel or tweaking a color is a
+ * one-line change.
  */
 
 import {
@@ -14,55 +16,85 @@ import {
 import { Twitter, Facebook, Instagram } from '@/components/icons/brand-icons';
 import type { KanbanChannel } from './types/feedbackTypes';
 
-/**
- * Icon component mapped to each channel type.
- */
-export const CHANNEL_ICONS: Record<KanbanChannel, React.ElementType> = {
-  email: Mail,
-  x: Twitter,
-  facebook: Facebook,
-  instagram: Instagram,
-  support_chat: MessageCircle,
-  trustpilot: Star,
-  app_store: Smartphone,
-};
+/** Visual tokens for a single channel. */
+export interface ChannelTheme {
+  icon: React.ElementType;
+  label: string;
+  badge: {
+    bg: string;
+    text: string;
+    border: string;
+  };
+}
 
 /**
- * Human-readable labels for each channel.
+ * Unified channel theme map — the single source of truth.
+ *
+ * Badge colors target WCAG AA contrast on dark backgrounds.
+ * X channel uses sky-400 instead of gray-200 to meet contrast requirements.
  */
-export const CHANNEL_LABELS: Record<KanbanChannel, string> = {
-  email: 'Email',
-  x: 'X',
-  facebook: 'Facebook',
-  instagram: 'Instagram',
-  support_chat: 'Chat',
-  trustpilot: 'Trustpilot',
-  app_store: 'App Store',
+export const CHANNEL_THEME: Record<KanbanChannel, ChannelTheme> = {
+  email: {
+    icon: Mail,
+    label: 'Email',
+    badge: { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/30' },
+  },
+  x: {
+    icon: Twitter,
+    label: 'X',
+    badge: { bg: 'bg-sky-500/10', text: 'text-sky-400', border: 'border-sky-500/30' },
+  },
+  facebook: {
+    icon: Facebook,
+    label: 'Facebook',
+    badge: { bg: 'bg-blue-600/10', text: 'text-blue-500', border: 'border-blue-600/30' },
+  },
+  instagram: {
+    icon: Instagram,
+    label: 'Instagram',
+    badge: { bg: 'bg-pink-500/10', text: 'text-pink-400', border: 'border-pink-500/30' },
+  },
+  support_chat: {
+    icon: MessageCircle,
+    label: 'Chat',
+    badge: { bg: 'bg-green-500/10', text: 'text-green-400', border: 'border-green-500/30' },
+  },
+  trustpilot: {
+    icon: Star,
+    label: 'Trustpilot',
+    badge: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30' },
+  },
+  app_store: {
+    icon: Smartphone,
+    label: 'App Store',
+    badge: { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/30' },
+  },
 };
 
-/**
- * Badge-style colors (bg + text + border) for each channel.
- * Used in ConversationThread and similar badge contexts.
- */
-export const CHANNEL_BADGE_COLORS: Record<KanbanChannel, string> = {
-  email: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
-  x: 'bg-gray-700/50 text-gray-200 border-gray-600',
-  facebook: 'bg-blue-600/10 text-blue-500 border-blue-600/30',
-  instagram: 'bg-pink-500/10 text-pink-400 border-pink-500/30',
-  support_chat: 'bg-green-500/10 text-green-400 border-green-500/30',
-  trustpilot: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-  app_store: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
-};
+// ---------------------------------------------------------------------------
+// Derived convenience maps (backward-compatible with existing consumers)
+// ---------------------------------------------------------------------------
 
-/**
- * Text-only colors for each channel (used in CustomerProfile icons).
- */
-export const CHANNEL_TEXT_COLORS: Record<KanbanChannel, string> = {
-  email: 'text-blue-400',
-  x: 'text-gray-200',
-  facebook: 'text-blue-500',
-  instagram: 'text-pink-400',
-  support_chat: 'text-green-400',
-  trustpilot: 'text-emerald-400',
-  app_store: 'text-purple-400',
-};
+function deriveRecord<T>(fn: (t: ChannelTheme) => T): Record<KanbanChannel, T> {
+  const result = {} as Record<KanbanChannel, T>;
+  for (const [ch, theme] of Object.entries(CHANNEL_THEME)) {
+    result[ch as KanbanChannel] = fn(theme);
+  }
+  return result;
+}
+
+/** Icon component mapped to each channel type. */
+export const CHANNEL_ICONS: Record<KanbanChannel, React.ElementType> =
+  deriveRecord(t => t.icon);
+
+/** Human-readable labels for each channel. */
+export const CHANNEL_LABELS: Record<KanbanChannel, string> =
+  deriveRecord(t => t.label);
+
+/** Badge-style classes (bg + text + border) for each channel. */
+export const CHANNEL_BADGE_COLORS: Record<KanbanChannel, string> =
+  deriveRecord(t => `${t.badge.bg} ${t.badge.text} ${t.badge.border}`);
+
+/** Text-only color for each channel (used in CustomerProfile icons). */
+export const CHANNEL_TEXT_COLORS: Record<KanbanChannel, string> =
+  deriveRecord(t => t.badge.text);

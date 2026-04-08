@@ -10,6 +10,7 @@
 import {
   goalDb,
   goalSignalDb,
+  goalSignalSummaryDb,
   implementationLogDb,
   behavioralSignalDb,
   contextDb,
@@ -18,6 +19,8 @@ import {
 } from '@/app/db';
 import { getBehavioralContext } from '@/lib/brain/behavioralContext';
 import { StandupSourceData } from '@/app/db/models/standup.types';
+import type { ActivitySignal } from '@/types/activity-signal';
+import { fromGoalSignal, fromBehavioralSignal } from '@/lib/signals/activitySignalService';
 
 // ── Collected data shape ──
 
@@ -30,8 +33,11 @@ export interface CollectedStandupData {
   /** All goals for the project (any status) */
   goals: ReturnType<typeof goalDb.getGoalsByProject>;
 
-  /** Goal signals keyed by goal ID */
-  goalSignals: Map<string, Array<{ created_at: string }>>;
+  /** Goal signals keyed by goal ID (full DbGoalSignal for unified stream) */
+  goalSignals: Map<string, import('@/app/db/models/types').DbGoalSignal[]>;
+
+  /** Pre-computed signal summaries keyed by goal ID (from materialized view) */
+  goalSignalSummaries: Map<string, import('@/app/db/models/types').DbGoalSignalSummary>;
 
   /** Behavioral context activity over 14 days */
   contextActivity14d: ReturnType<typeof behavioralSignalDb.getContextActivity>;
@@ -57,6 +63,9 @@ export interface CollectedStandupData {
 
   /** Behavioral context for blocker detection (revert rate, patterns) */
   behavioralContext: ReturnType<typeof getBehavioralContext>;
+
+  /** Unified activity stream combining goal + behavioral signals */
+  unifiedSignals: ActivitySignal[];
 }
 
 /**
@@ -114,12 +123,13 @@ export function collectStandupData(
     })),
   };
 
-  // ── Predictive: goal signals ──
+  // ── Predictive: goal signals (single batch query replaces N+1) ──
   const activeGoals = goals.filter(g => g.status === 'open' || g.status === 'in_progress');
-  const goalSignals = new Map<string, Array<{ created_at: string }>>();
-  for (const goal of activeGoals) {
-    goalSignals.set(goal.id, goalSignalDb.getByGoal(goal.id, 20));
-  }
+  const activeGoalIds = activeGoals.map(g => g.id);
+  const goalSignals = goalSignalDb.getRecentByGoalIds(activeGoalIds, 20);
+
+  // ── Predictive: pre-computed signal summaries (single query from materialized view) ──
+  const goalSignalSummaries = goalSignalSummaryDb.getByGoalIds(activeGoalIds);
 
   // ── Predictive: context decay signals ──
   const contextActivity14d = behavioralSignalDb.getContextActivity(projectId, 14);
@@ -149,11 +159,35 @@ export function collectStandupData(
 
   const behavioralContext = getBehavioralContext(projectId, 7);
 
+  // ── Unified activity stream ──
+  // Build a merged signal stream from already-fetched goal + behavioral signals.
+  // Goal context IDs are resolved from the goals list (no extra DB call).
+  const goalContextLookup = new Map<string, string | null>();
+  for (const g of goals) {
+    goalContextLookup.set(g.id, g.context_id);
+  }
+
+  const unifiedSignals: ActivitySignal[] = [];
+
+  for (const [goalId, signals] of goalSignals) {
+    const ctxId = goalContextLookup.get(goalId) ?? null;
+    for (const sig of signals) {
+      unifiedSignals.push(fromGoalSignal(sig, ctxId));
+    }
+  }
+
+  for (const bs of [...currentWeekSignals, ...previousWeekSignals]) {
+    unifiedSignals.push(fromBehavioralSignal(bs));
+  }
+
+  unifiedSignals.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+
   return {
     projectId,
     sourceData,
     goals,
     goalSignals,
+    goalSignalSummaries,
     contextActivity14d,
     contextActivity3d,
     currentWeekLogCount,
@@ -164,5 +198,6 @@ export function collectStandupData(
     previousWeekSignals,
     untestedLogs,
     behavioralContext,
+    unifiedSignals,
   };
 }

@@ -17,11 +17,21 @@ async function gatherCodebaseResources(projectPath: string, projectId?: string) 
   if (projectId) {
     try {
       const dbContexts = contextDb.getContextsByProject(projectId);
-      contexts = dbContexts.map(ctx => ({
-        name: ctx.name,
-        description: ctx.description || '',
-        file_paths: JSON.parse(ctx.file_paths)
-      }));
+      contexts = dbContexts.map(ctx => {
+        let filePaths: string[] = [];
+        try {
+          const parsed = JSON.parse(ctx.file_paths);
+          filePaths = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          // Corrupted JSON in DB - fall back to empty array
+          console.warn(`[ai-docs] Corrupted file_paths JSON for context "${ctx.name}"`);
+        }
+        return {
+          name: ctx.name,
+          description: ctx.description || '',
+          file_paths: filePaths,
+        };
+      });
     } catch {
       // Continue without contexts
     }

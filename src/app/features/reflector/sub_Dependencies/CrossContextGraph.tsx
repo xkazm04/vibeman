@@ -14,6 +14,8 @@ import {
   ArrowLeft,
   Network,
   AlertTriangle,
+  AlertCircle,
+  CheckCircle,
   Shield,
   ShieldAlert,
   FileCode,
@@ -729,6 +731,14 @@ function CascadePanel({
                             }}
                           />
                         </div>
+                        {/* Color-blind safe icon indicator */}
+                        {barWidth > 60 ? (
+                          <AlertTriangle className="w-3 h-3 text-red-400 flex-shrink-0" />
+                        ) : barWidth > 30 ? (
+                          <AlertCircle className="w-3 h-3 text-amber-400 flex-shrink-0" />
+                        ) : (
+                          <CheckCircle className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+                        )}
                         <span className="text-2xs text-gray-400 w-8 text-right">{barWidth}%</span>
                       </div>
                     </div>

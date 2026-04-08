@@ -371,7 +371,7 @@ function generateNarrativeSummary(
   if (activeSpecialists.length > 0) {
     const avgAcceptance = Math.round(
       activeSpecialists.reduce((sum, s) => sum + s.acceptanceRatio, 0) /
-        activeSpecialists.length
+        Math.max(activeSpecialists.length, 1)
     );
     keyFindings.push(
       `${activeSpecialists.length} active specialists averaging ${avgAcceptance}% acceptance rate.`

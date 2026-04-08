@@ -60,7 +60,7 @@ async function handlePost(request: NextRequest) {
       }
     }
 
-    // Execute the scan
+    // Execute the scan — pass the request signal so the fetch is cancelled if the client disconnects
     const ideaCount = await executeContextScan({
       projectId,
       projectName: projectInfo.name,
@@ -69,6 +69,7 @@ async function handlePost(request: NextRequest) {
       provider: (provider as SupportedProvider) || 'anthropic',
       contextId,
       contextFilePaths,
+      signal: request.signal,
     });
 
     return NextResponse.json({

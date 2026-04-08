@@ -34,6 +34,7 @@ export {
   BrainInsightsResponseSchema,
   BrainHeatmapResponseSchema,
   BrainEffectivenessResponseSchema,
+  BrainDashboardResponseSchema,
 } from './api/schemas/brain';
 
 // Goals API schemas

@@ -9,16 +9,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { detectAnomalies } from '@/lib/brain/anomalyDetector';
 import { withObservability } from '@/lib/observability/middleware';
 import { parseQueryInt } from '@/lib/api-helpers/parseQueryInt';
+import { ANOMALY_BASELINE_DAYS, ANOMALY_WINDOW_DAYS, MAX_WINDOW_DAYS } from '@/lib/brain/config';
 
 async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
     const baselineDays = parseQueryInt(searchParams.get('baselineDays'), {
-      default: 30, min: 1, max: 365, paramName: 'baselineDays',
+      default: ANOMALY_BASELINE_DAYS, min: 1, max: MAX_WINDOW_DAYS, paramName: 'baselineDays',
     });
     const windowDays = parseQueryInt(searchParams.get('windowDays'), {
-      default: 3, min: 1, max: 365, paramName: 'windowDays',
+      default: ANOMALY_WINDOW_DAYS, min: 1, max: MAX_WINDOW_DAYS, paramName: 'windowDays',
     });
 
     if (!projectId) {

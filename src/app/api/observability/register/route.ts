@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const { project_id, status, ...callData } = body;
+    const { project_id, status, batch, ...callData } = body;
 
     if (!project_id) {
       return NextResponse.json(
@@ -47,88 +47,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Otherwise, this is an API call log
-    const { endpoint, method, status_code, response_time_ms, request_size_bytes, response_size_bytes, user_agent, error_message, called_at } = callData;
-
-    if (!endpoint || !method) {
-      return NextResponse.json(
-        { error: 'endpoint and method are required for API call logging' },
-        { status: 400 }
-      );
+    // Handle batch of API call logs
+    if (Array.isArray(batch)) {
+      return handleBatch(project_id, batch);
     }
 
-    // Check if observability is enabled for this project
-    const config = observabilityDb.getConfig(project_id);
-    if (!config?.enabled) {
-      // Silently accept but don't store if not enabled
-      return NextResponse.json({
-        success: true,
-        stored: false,
-        message: 'Observability not enabled for this project'
-      });
-    }
-
-    // Apply sampling — default to 1.0 (track everything) if sample_rate is invalid
-    const sampleRate = typeof config.sample_rate === 'number' && Number.isFinite(config.sample_rate)
-      ? Math.max(0, Math.min(1, config.sample_rate))
-      : 1.0;
-    if (sampleRate < 1.0 && Math.random() > sampleRate) {
-      return NextResponse.json({
-        success: true,
-        stored: false,
-        message: 'Sampled out'
-      });
-    }
-
-    // Check endpoint filter
-    if (config.endpoints_to_track) {
-      const trackedEndpoints = config.endpoints_to_track;
-      const shouldTrack = trackedEndpoints.some(pattern => {
-        // Simple glob matching
-        if (pattern.endsWith('*')) {
-          return endpoint.startsWith(pattern.slice(0, -1));
-        }
-        return endpoint === pattern;
-      });
-
-      if (!shouldTrack) {
-        return NextResponse.json({
-          success: true,
-          stored: false,
-          message: 'Endpoint not in tracking list'
-        });
-      }
-    }
-
-    // Log the API call
-    const apiCall = observabilityDb.logApiCall({
-      project_id,
-      endpoint,
-      method: method.toUpperCase() as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
-      status_code,
-      response_time_ms,
-      request_size_bytes,
-      response_size_bytes,
-      user_agent,
-      error_message,
-      called_at
-    });
-
-    // Periodically aggregate stats (every 100 calls roughly)
-    if (Math.random() < 0.01) {
-      try {
-        observabilityDb.aggregateHourlyStats(project_id);
-      } catch (e) {
-        // Don't fail the request if aggregation fails
-        logger.error('[API] Failed to aggregate stats', { error: e });
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      stored: true,
-      id: apiCall.id
-    });
+    // Otherwise, this is a single API call log
+    return handleSingleCall(project_id, callData);
 
   } catch (error) {
     logger.error('[API] Observability register POST error:', { error });
@@ -136,6 +61,145 @@ export async function POST(request: NextRequest) {
       { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
+  }
+}
+
+function shouldTrackCall(
+  config: { sample_rate: number; endpoints_to_track: string[] | null },
+  endpoint: string
+): boolean {
+  // Apply sampling
+  const sampleRate = typeof config.sample_rate === 'number' && Number.isFinite(config.sample_rate)
+    ? Math.max(0, Math.min(1, config.sample_rate))
+    : 1.0;
+  if (sampleRate < 1.0 && Math.random() > sampleRate) {
+    return false;
+  }
+
+  // Check endpoint filter
+  if (config.endpoints_to_track) {
+    return config.endpoints_to_track.some(pattern => {
+      if (pattern.endsWith('*')) {
+        return endpoint.startsWith(pattern.slice(0, -1));
+      }
+      return endpoint === pattern;
+    });
+  }
+
+  return true;
+}
+
+function handleSingleCall(project_id: string, callData: Record<string, unknown>) {
+  const { endpoint, method, status_code, response_time_ms, request_size_bytes, response_size_bytes, user_agent, error_message, called_at } = callData;
+
+  if (!endpoint || !method) {
+    return NextResponse.json(
+      { error: 'endpoint and method are required for API call logging' },
+      { status: 400 }
+    );
+  }
+
+  const config = observabilityDb.getConfig(project_id);
+  if (!config?.enabled) {
+    return NextResponse.json({
+      success: true,
+      stored: false,
+      message: 'Observability not enabled for this project'
+    });
+  }
+
+  if (!shouldTrackCall(config, endpoint as string)) {
+    return NextResponse.json({
+      success: true,
+      stored: false,
+      message: 'Filtered out by sampling or endpoint filter'
+    });
+  }
+
+  const apiCall = observabilityDb.logApiCall({
+    project_id,
+    endpoint: endpoint as string,
+    method: (method as string).toUpperCase() as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
+    status_code: status_code as number | undefined,
+    response_time_ms: response_time_ms as number | undefined,
+    request_size_bytes: request_size_bytes as number | undefined,
+    response_size_bytes: response_size_bytes as number | undefined,
+    user_agent: user_agent as string | undefined,
+    error_message: error_message as string | undefined,
+    called_at: called_at as string | undefined
+  });
+
+  triggerAggregation(project_id);
+
+  return NextResponse.json({
+    success: true,
+    stored: true,
+    id: apiCall.id
+  });
+}
+
+function handleBatch(project_id: string, batch: Record<string, unknown>[]) {
+  const config = observabilityDb.getConfig(project_id);
+  if (!config?.enabled) {
+    return NextResponse.json({
+      success: true,
+      stored: 0,
+      total: batch.length,
+      message: 'Observability not enabled for this project'
+    });
+  }
+
+  let stored = 0;
+  const errors: string[] = [];
+
+  for (const item of batch) {
+    const { endpoint, method, status_code, response_time_ms, request_size_bytes, response_size_bytes, user_agent, error_message, called_at } = item;
+
+    if (!endpoint || !method) {
+      errors.push(`Skipped item: missing endpoint or method`);
+      continue;
+    }
+
+    if (!shouldTrackCall(config, endpoint as string)) {
+      continue;
+    }
+
+    try {
+      observabilityDb.logApiCall({
+        project_id,
+        endpoint: endpoint as string,
+        method: (method as string).toUpperCase() as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
+        status_code: status_code as number | undefined,
+        response_time_ms: response_time_ms as number | undefined,
+        request_size_bytes: request_size_bytes as number | undefined,
+        response_size_bytes: response_size_bytes as number | undefined,
+        user_agent: user_agent as string | undefined,
+        error_message: error_message as string | undefined,
+        called_at: called_at as string | undefined
+      });
+      stored++;
+    } catch (e) {
+      errors.push(`Failed to log call to ${endpoint}: ${e instanceof Error ? e.message : 'Unknown error'}`);
+    }
+  }
+
+  triggerAggregation(project_id);
+
+  return NextResponse.json({
+    success: true,
+    stored,
+    total: batch.length,
+    ...(errors.length > 0 ? { errors } : {})
+  });
+}
+
+function triggerAggregation(project_id: string) {
+  if (Math.random() < 0.01) {
+    try {
+      observabilityDb.aggregateHourlyStats(project_id);
+    } catch (e) {
+      logger.error('[API] Failed to aggregate stats', { error: e });
+    }
   }
 }
 

@@ -67,6 +67,35 @@ export interface DbAnnetteAudioCache {
 
 export type AnnetteMemoryType = 'conversation' | 'decision' | 'fact' | 'preference' | 'event' | 'insight';
 
+/** Origin source that created a memory entry */
+export type MemoryProvenanceSource =
+  | 'conversation'   // Extracted from a chat conversation
+  | 'scan'           // Created by an automated scan
+  | 'manual'         // Manually entered by user
+  | 'consolidation'  // Product of memory consolidation
+  | 'autonomous'     // Created by autonomous agent action
+  | 'unknown';       // Legacy entries without tracked source
+
+/** Provenance metadata attached to a memory entry */
+export interface MemoryProvenance {
+  /** What action/flow created this memory */
+  source: MemoryProvenanceSource;
+  /** Session ID of the originating conversation (if applicable) */
+  sourceSessionId: string | null;
+  /** Human-readable label for the origin (e.g. session title, scan name) */
+  sourceLabel: string | null;
+  /** Confidence score at creation time (0-1) */
+  createdConfidence: number;
+  /** Number of times this memory was successfully recalled and used */
+  successCount: number;
+  /** Helpfulness ratio: successCount / accessCount (null if never accessed) */
+  helpfulnessRatio: number | null;
+  /** Freshness indicator: days since last access (null if never accessed) */
+  daysSinceLastAccess: number | null;
+  /** Age in days since creation */
+  ageDays: number;
+}
+
 export interface DbAnnetteMemory {
   id: string;
   project_id: string;

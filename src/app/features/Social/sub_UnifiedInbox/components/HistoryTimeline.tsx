@@ -14,6 +14,7 @@ import {
 import type { InteractionHistoryEntry } from '@/lib/social';
 import type { KanbanChannel } from '../../lib/types/feedbackTypes';
 import { formatRelativeTime } from '@/lib/formatDate';
+import { EmptyState } from '../../components/atoms/EmptyState';
 
 interface HistoryTimelineProps {
   history: InteractionHistoryEntry[];
@@ -79,10 +80,7 @@ export function HistoryTimeline({
 
   if (history.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-        <p className="text-sm">No interaction history yet</p>
-      </div>
+      <EmptyState icon={Clock} title="No interaction history yet" className="py-8" />
     );
   }
 
@@ -95,7 +93,7 @@ export function HistoryTimeline({
         {displayedHistory.map((entry, index) => {
           const config = TYPE_CONFIG[entry.type];
           const Icon = config.icon;
-          const ChannelIcon = entry.channel ? CHANNEL_ICONS[entry.channel] : null;
+          const ChannelIcon = entry.channel ? (CHANNEL_ICONS[entry.channel] || null) : null;
 
           return (
             <motion.div

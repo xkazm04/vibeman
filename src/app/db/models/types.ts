@@ -23,7 +23,8 @@ export interface DbGoal {
   completed_at?: string | null;
   // Lifecycle Engine fields
   lifecycle_status?: 'manual' | 'auto_tracking' | 'auto_completed';
-  inferred_progress?: number;
+  progress_source?: 'manual' | 'inferred' | 'hybrid';
+  progress_confidence?: number;
   last_signal_at?: string | null;
   auto_started_at?: string | null;
   auto_completed_at?: string | null;
@@ -34,6 +35,17 @@ export interface DbGoal {
   updated_at: string;
 }
 
+// Goal Check-in types (weekly confidence check-ins)
+export interface DbGoalCheckin {
+  id: string;
+  goal_id: string;
+  project_id: string;
+  confidence: number; // 1-5 scale
+  note: string | null;
+  week_of: string; // ISO date string for the Monday of the week
+  created_at: string;
+}
+
 // Goal Lifecycle types
 export type GoalSignalType =
   | 'implementation_log'
@@ -42,7 +54,8 @@ export type GoalSignalType =
   | 'scan_completed'
   | 'idea_implemented'
   | 'context_updated'
-  | 'manual_update';
+  | 'manual_update'
+  | 'standup_risk_alert';
 
 export interface DbGoalSignal {
   id: string;
@@ -57,6 +70,19 @@ export interface DbGoalSignal {
   created_at: string;
 }
 
+export type SignalRiskLevel = 'low' | 'medium' | 'high' | 'critical';
+
+export interface DbGoalSignalSummary {
+  goal_id: string;
+  project_id: string;
+  signal_count: number;
+  last_signal_at: string | null;
+  velocity_7d: number;
+  velocity_14d: number;
+  risk_level: SignalRiskLevel;
+  updated_at: string;
+}
+
 export interface DbGoalSubGoal {
   id: string;
   parent_goal_id: string;
@@ -69,6 +95,17 @@ export interface DbGoalSubGoal {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// Goal Dependency types
+export type GoalDependencyType = 'blocks' | 'depends_on' | 'related';
+
+export interface DbGoalDependency {
+  id: string;
+  parent_goal_id: string;
+  child_goal_id: string;
+  relationship_type: GoalDependencyType;
+  created_at: string;
 }
 
 // Context group types

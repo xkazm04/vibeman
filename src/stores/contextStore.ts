@@ -377,12 +377,13 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
     const previousContexts = get().contexts;
     const removedGroup = previousGroups.find(g => g.id === groupId);
 
-    // Optimistically update UI immediately
+    // Optimistically update UI immediately, and filter out pending moves targeting this group
     set(state => ({
       groups: removeArrayItem(state.groups, groupId),
       contexts: state.contexts.map(ctx =>
         ctx.groupId === groupId ? { ...ctx, groupId: null } : ctx
       ),
+      pendingMoves: state.pendingMoves.filter(m => m.newGroupId !== groupId),
     }));
 
     try {

@@ -76,6 +76,65 @@ export function getEventRadius(weight: number, timestamp: number, baseMin = DOT_
 
 export { formatRelativeTime as relTime } from '@/lib/formatDate';
 
+// ─── Zoom-adaptive typography utilities ─────────────────────────────────
+
+/** Clamp value between min and max. */
+export function clamp(v: number, min: number, max: number): number {
+  return v < min ? min : v > max ? max : v;
+}
+
+/** Cubic ease-out: fast start, smooth deceleration. */
+export function easeOutCubic(t: number): number {
+  const t1 = 1 - t;
+  return 1 - t1 * t1 * t1;
+}
+
+/**
+ * Smooth zoom-adaptive font size using easeOutCubic.
+ * Replaces hard `Math.round(base * Math.min(k, cap))` with a continuous curve.
+ */
+export function smoothFontSize(k: number, base: number): number {
+  return base * easeOutCubic(clamp(k, 0.4, 3) / 3);
+}
+
+/**
+ * Compute label opacity for smooth fade at low zoom levels.
+ * Returns 0 below k=0.5, linearly ramps to 1 at k=0.7, stays 1 above.
+ */
+export function labelFadeAlpha(k: number): number {
+  if (k >= 0.7) return 1;
+  if (k <= 0.5) return 0;
+  return (k - 0.5) / 0.2;
+}
+
+/**
+ * MeasureText-based line-break algorithm for multi-line labels at high zoom.
+ * Splits text into lines that fit within maxWidth.
+ */
+export function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+): string[] {
+  const words = text.split(/\s+/);
+  if (words.length === 0) return [text];
+
+  const lines: string[] = [];
+  let currentLine = words[0];
+
+  for (let i = 1; i < words.length; i++) {
+    const testLine = currentLine + ' ' + words[i];
+    if (ctx.measureText(testLine).width <= maxWidth) {
+      currentLine = testLine;
+    } else {
+      lines.push(currentLine);
+      currentLine = words[i];
+    }
+  }
+  lines.push(currentLine);
+  return lines;
+}
+
 /**
  * Greedy collision-aware label placement.
  * Returns labels that can be rendered without overlapping.

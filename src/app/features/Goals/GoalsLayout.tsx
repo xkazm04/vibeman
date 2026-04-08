@@ -1,11 +1,13 @@
 'use client';
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Plus, ChevronRight, ChevronUp, X } from 'lucide-react';
+import { LayoutDashboard, Plus, ChevronRight, ChevronUp, X, ClipboardCheck, GitBranch } from 'lucide-react';
 
 import ProjectsLayout from '@/app/projects/ProjectsLayout';
 import DashboardSectionHeader from './components/DashboardSectionHeader';
 import GoalModal from './sub_GoalModal/GoalModal';
+import WeeklyCheckinModal from './components/WeeklyCheckinModal';
+import ConfidenceSparkline from './components/ConfidenceSparkline';
 import { Goal } from '../../../types';
 import { GoalProvider, useGoalContext } from '@/contexts/GoalContext';
 import { useClientProjectStore } from '../../../stores/clientProjectStore';
@@ -18,6 +20,7 @@ import EventsBarChart from './sub_EventsBarChart/EventsBarChart';
 import StandupHistoryTimeline from '@/app/features/DailyStandup/components/StandupHistoryTimeline';
 import { ContextTargetsList } from '@/components/ContextComponents';
 import GoalEmptyState from './components/GoalEmptyState';
+import GoalDependencyGraph from './components/GoalDependencyGraph';
 import { GoalProgressMini } from './components/GoalProgressRing';
 import GlassCard from '@/components/cards/GlassCard';
 import { duration, easing } from '@/lib/motion';
@@ -28,15 +31,21 @@ interface GoalsLayoutProps {
   projectId: string | null;
 }
 
+interface CheckinHistory {
+  confidence: number;
+  weekOf: string;
+}
+
 interface GoalListItemProps {
   goal: Goal;
   isSelected: boolean;
   isFocused: boolean;
   onClick: (goal: Goal) => void;
   tabIndex: number;
+  checkinHistory?: CheckinHistory[];
 }
 
-const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, isFocused, onClick, tabIndex }: GoalListItemProps) {
+const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, isFocused, onClick, tabIndex, checkinHistory }: GoalListItemProps) {
   const prefersReduced = useReducedMotion();
   const ref = React.useRef<HTMLButtonElement>(null);
   const statusConfig = getStatusConfig(goal.status);
@@ -82,6 +91,9 @@ const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, isFocu
             <span className="text-2xs font-mono text-muted-foreground/60 uppercase">ID-{goal.id.slice(0, 4)}</span>
             {progress > 0 && (
               <span className="text-2xs font-mono text-blue-400/70">{progress}%</span>
+            )}
+            {checkinHistory && checkinHistory.length > 0 && (
+              <ConfidenceSparkline history={checkinHistory} />
             )}
           </div>
           {/* Lifecycle progress bar */}
@@ -154,6 +166,53 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
+  const [showCheckinModal, setShowCheckinModal] = useState(false);
+  const [checkinHistoryMap, setCheckinHistoryMap] = useState<Record<string, Array<{ confidence: number; weekOf: string }>>>({});
+  const [goalView, setGoalView] = useState<'list' | 'graph'>('list');
+
+  // Fetch check-in history for all goals in this project
+  useEffect(() => {
+    if (!projectId || goals.length === 0) return;
+    const controller = new AbortController();
+    Promise.all(
+      goals.map(g =>
+        fetch(`/api/goals/checkins?goalId=${encodeURIComponent(g.id)}&limit=8`, { signal: controller.signal })
+          .then(r => r.ok ? r.json() : { checkins: [] })
+          .then(data => ({ goalId: g.id, checkins: (data.checkins || []).reverse().map((c: { confidence: number; week_of: string }) => ({ confidence: c.confidence, weekOf: c.week_of })) }))
+          .catch(() => ({ goalId: g.id, checkins: [] }))
+      )
+    ).then(results => {
+      const map: Record<string, Array<{ confidence: number; weekOf: string }>> = {};
+      for (const r of results) {
+        if (r.checkins.length > 0) map[r.goalId] = r.checkins;
+      }
+      setCheckinHistoryMap(map);
+    });
+    return () => controller.abort();
+  }, [projectId, goals]);
+
+  const handleCheckinSubmit = useCallback(async (checkins: Array<{ goalId: string; confidence: number; note: string }>) => {
+    if (!projectId) return;
+    await fetch('/api/goals/checkins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId, checkins }),
+    });
+    // Refresh check-in history
+    const results = await Promise.all(
+      goals.map(g =>
+        fetch(`/api/goals/checkins?goalId=${encodeURIComponent(g.id)}&limit=8`)
+          .then(r => r.ok ? r.json() : { checkins: [] })
+          .then(data => ({ goalId: g.id, checkins: (data.checkins || []).reverse().map((c: { confidence: number; week_of: string }) => ({ confidence: c.confidence, weekOf: c.week_of })) }))
+          .catch(() => ({ goalId: g.id, checkins: [] }))
+      )
+    );
+    const map: Record<string, Array<{ confidence: number; weekOf: string }>> = {};
+    for (const r of results) {
+      if (r.checkins.length > 0) map[r.goalId] = r.checkins;
+    }
+    setCheckinHistoryMap(map);
+  }, [projectId, goals]);
 
   // Track if we're below lg breakpoint for bottom sheet behavior
   const [isMobile, setIsMobile] = useState(false);
@@ -259,58 +318,89 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
             <GlassCard variant="panel" className="flex-1 overflow-hidden flex flex-col">
               <div className="p-4 border-b border-white/5 bg-white/[0.03]">
                 <DashboardSectionHeader
-                  title="Active Goals"
+                  title={goalView === 'list' ? 'Active Goals' : 'Dependency Graph'}
                   variant="secondary"
                   action={
-                    <button
-                      onClick={() => setShowAddGoal(true)}
-                      className="p-1.5 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
-                      data-testid="add-goal-btn"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setGoalView(v => v === 'list' ? 'graph' : 'list')}
+                        className={`p-1.5 rounded-lg transition-colors ${goalView === 'graph' ? 'bg-primary/20 text-primary' : 'hover:bg-white/10 text-white/60 hover:text-white'}`}
+                        title={goalView === 'list' ? 'Show dependency graph' : 'Show goal list'}
+                      >
+                        <GitBranch className="w-4 h-4" />
+                      </button>
+                      {projectGoals.filter(g => g.status === 'open' || g.status === 'in_progress').length > 0 && (
+                        <button
+                          onClick={() => setShowCheckinModal(true)}
+                          className="p-1.5 hover:bg-emerald-500/10 rounded-lg text-emerald-400/60 hover:text-emerald-400 transition-colors"
+                          title="Weekly confidence check-in"
+                        >
+                          <ClipboardCheck className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setShowAddGoal(true)}
+                        className="p-1.5 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
+                        data-testid="add-goal-btn"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
                   }
                 />
               </div>
 
-              <div
-                className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar"
-                role="listbox"
-                aria-label="Goals"
-                onKeyDown={handleListKeyDown}
-              >
-                <AnimatePresence>
-                  {projectGoals.map((goal, idx) => (
-                    <GoalListItem
-                      key={goal.id}
-                      goal={goal}
-                      isSelected={selectedGoal?.id === goal.id}
-                      isFocused={focusedIndex === idx}
-                      onClick={handleGoalClick}
-                      tabIndex={focusedIndex === idx ? 0 : -1}
+              {goalView === 'list' ? (
+                <div
+                  className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar"
+                  role="listbox"
+                  aria-label="Goals"
+                  onKeyDown={handleListKeyDown}
+                >
+                  <AnimatePresence>
+                    {projectGoals.map((goal, idx) => (
+                      <GoalListItem
+                        key={goal.id}
+                        goal={goal}
+                        isSelected={selectedGoal?.id === goal.id}
+                        isFocused={focusedIndex === idx}
+                        onClick={handleGoalClick}
+                        tabIndex={focusedIndex === idx ? 0 : -1}
+                        checkinHistory={checkinHistoryMap[goal.id]}
+                      />
+                    ))}
+                  </AnimatePresence>
+
+                  {projectGoals.length === 0 && (
+                    <GoalEmptyState
+                      onAddGoal={() => setShowAddGoal(true)}
+                      className="px-2"
                     />
-                  ))}
-                </AnimatePresence>
+                  )}
 
-                {projectGoals.length === 0 && (
-                  <GoalEmptyState
-                    onAddGoal={() => setShowAddGoal(true)}
-                    className="px-2"
-                  />
-                )}
-
-                {/* Context Targets Section */}
-                {projectId && (
-                  <div className="mt-2 px-2">
-                    <ContextTargetsList
+                  {/* Context Targets Section */}
+                  {projectId && (
+                    <div className="mt-2 px-2">
+                      <ContextTargetsList
+                        projectId={projectId}
+                        compact
+                        defaultCollapsed
+                        maxItems={10}
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex-1 min-h-0 relative">
+                  {projectId && (
+                    <GoalDependencyGraph
+                      goals={projectGoals}
                       projectId={projectId}
-                      compact
-                      defaultCollapsed
-                      maxItems={10}
+                      onGoalClick={handleGoalClick}
                     />
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </GlassCard>
           </div>
 
@@ -414,6 +504,17 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
           goal={selectedGoal}
           projectId={activeProject?.id || null}
           onSave={updateGoal}
+        />
+      )}
+
+      {/* Weekly Confidence Check-in Modal */}
+      {projectId && (
+        <WeeklyCheckinModal
+          isOpen={showCheckinModal}
+          onClose={() => setShowCheckinModal(false)}
+          goals={projectGoals}
+          projectId={projectId}
+          onSubmit={handleCheckinSubmit}
         />
       )}
     </div>

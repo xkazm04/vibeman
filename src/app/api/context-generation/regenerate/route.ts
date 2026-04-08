@@ -19,6 +19,7 @@ import { withObservability } from '@/lib/observability/middleware';
 import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
 import { validatePathTraversal, validatePathWithinBase } from '@/lib/pathSecurity';
 import { logger } from '@/lib/logger';
+import { parseDescriptionResponse } from '@/lib/llm/parse-response';
 
 interface RegenerateRequestBody {
   contextId: string;
@@ -102,7 +103,7 @@ async function handlePost(request: NextRequest) {
     }
 
     // 5. Parse the response
-    const { cleanedDescription } = parseResponse(result.response);
+    const { cleanedDescription } = parseDescriptionResponse(result.response);
 
     // 6. Update the context in the database
     const updated = await contextQueries.updateContext(contextId, {
@@ -149,7 +150,7 @@ async function readFileContents(
   filePaths: string[]
 ): Promise<Array<{ path: string; content: string }>> {
   const MAX_FILES = 50;
-  const MAX_CHARS_PER_FILE = 500;
+  const MAX_CHARS_PER_FILE = 8000;
   const CONCURRENCY = 5;
 
   const fileContents: Array<{ path: string; content: string }> = [];
@@ -185,36 +186,6 @@ async function readFileContents(
   }
 
   return fileContents;
-}
-
-/**
- * Parse and clean LLM response
- */
-function parseResponse(response: string): { cleanedDescription: string } {
-  let cleanedDescription = response;
-
-  try {
-    const parsed = JSON.parse(response);
-    if (parsed.description) {
-      cleanedDescription = parsed.description;
-    }
-  } catch {
-    // Raw markdown — use as-is
-  }
-
-  // Clean artifacts
-  cleanedDescription = cleanedDescription
-    .replace(/^[^#]*(?=#)/s, '')
-    .replace(/"\s*\}\s*$/g, '')
-    .replace(/'\s*\}\s*$/g, '')
-    .replace(/\s*[\{\}]+\s*$/, '')
-    .replace(/["'`]+$/, '')
-    .replace(/\\n/g, '\n')
-    .replace(/\\"/g, '"')
-    .replace(/\\'/g, "'")
-    .trim();
-
-  return { cleanedDescription };
 }
 
 export const POST = withObservability(

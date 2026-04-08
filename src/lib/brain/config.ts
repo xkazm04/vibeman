@@ -6,6 +6,97 @@
  */
 
 // ---------------------------------------------------------------------------
+// Time Conversion
+// ---------------------------------------------------------------------------
+
+/** Milliseconds in one day — avoids repeated 24 * 60 * 60 * 1000 expressions. */
+export const MS_PER_DAY = 24 * 60 * 60 * 1000; // 86 400 000
+
+// ---------------------------------------------------------------------------
+// Default Time Windows
+// ---------------------------------------------------------------------------
+// These are the default lookback windows used across API routes, repositories,
+// and the reflection prompt builder. Each window has a specific analytical
+// purpose — changing one may affect the quality of anomaly detection,
+// correlation analysis, or effectiveness scoring.
+
+/** Maximum window (days) accepted by any API query param. */
+export const MAX_WINDOW_DAYS = 365;
+
+/** Default window for behavioral context queries (days).
+ *  Short (7 d) so context reflects recent activity, not stale history.
+ *  Used by: /api/brain/context, /api/brain/dashboard, repository defaults. */
+export const CONTEXT_WINDOW_DAYS = 7;
+
+/** Anomaly baseline window (days). Needs ~30 d of data to compute
+ *  meaningful daily averages for z-score comparison.
+ *  Used by: /api/brain/anomalies (baselineDays param default). */
+export const ANOMALY_BASELINE_DAYS = 30;
+
+/** Anomaly current window (days). Short (3 d) to detect recent deviations
+ *  from the 30-day baseline. Widening this smooths out real anomalies.
+ *  Used by: /api/brain/anomalies (windowDays param default). */
+export const ANOMALY_WINDOW_DAYS = 3;
+
+/** Correlation analysis window (days). 14 d balances signal density
+ *  against recency — too short yields noisy correlations, too long dilutes them.
+ *  Used by: /api/brain/correlations. */
+export const CORRELATION_WINDOW_DAYS = 14;
+
+/** Effectiveness scoring window (days). 90 d gives enough pre/post direction
+ *  data to score insight impact reliably.
+ *  Used by: /api/brain/insights/effectiveness, effectiveness cache repo. */
+export const EFFECTIVENESS_WINDOW_DAYS = 90;
+
+/** Heatmap lookback window (days). 90 d provides a full quarter of daily
+ *  signal data for the calendar-style heatmap.
+ *  Used by: /api/brain/signals/heatmap, behavioralSignalDb.getDailyHeatmap. */
+export const HEATMAP_WINDOW_DAYS = 90;
+
+/** Temporal (hour×day) aggregation window (days). 30 d is one developer-month
+ *  of rhythm data — enough to spot weekly patterns.
+ *  Used by: /api/brain/signals/temporal, behavioralSignalDb.getTemporalAggregation. */
+export const TEMPORAL_WINDOW_DAYS = 30;
+
+/** Outcomes & implementation stats window (days). 30 d matches the standard
+ *  sprint/monthly review cadence.
+ *  Used by: /api/brain/outcomes, /api/brain/dashboard, reflectionPromptBuilder. */
+export const OUTCOMES_WINDOW_DAYS = 30;
+
+/** Global reflection outcome window (days). 60 d gives cross-project
+ *  reflections twice the data of per-project ones for portfolio-level trends.
+ *  Used by: reflectionPromptBuilder.gatherGlobalReflectionData. */
+export const GLOBAL_REFLECTION_OUTCOME_WINDOW_DAYS = 60;
+
+// ---------------------------------------------------------------------------
+// Reflection Prompt Builder
+// ---------------------------------------------------------------------------
+
+/** Lookback window (days) for gathering reflection data (git, signals, logs).
+ *  Aligns with OUTCOMES_WINDOW_DAYS so outcome stats and signal counts
+ *  cover the same period. */
+export const REFLECTION_DATA_WINDOW_DAYS = 30;
+
+/** Default max directions fed into a single reflection data gathering pass. */
+export const REFLECTION_MAX_DIRECTIONS_FETCH = 30;
+
+/** Max context signals fetched for reflection analysis. */
+export const REFLECTION_MAX_CONTEXT_SIGNALS = 100;
+
+/** Max previous insights loaded to prevent duplicate generation. */
+export const REFLECTION_MAX_PREVIOUS_INSIGHTS = 100;
+
+/** Timeout for git operations during reflection data gathering (ms).
+ *  5 s prevents git hangs from blocking reflection startup. */
+export const REFLECTION_GIT_TIMEOUT_MS = 5_000;
+
+/** Max git commits fetched during reflection data gathering. */
+export const REFLECTION_MAX_COMMITS_FETCH = 30;
+
+/** Max git commits included in the reflection prompt text. */
+export const REFLECTION_PROMPT_MAX_COMMITS = 20;
+
+// ---------------------------------------------------------------------------
 // Signal Decay
 // ---------------------------------------------------------------------------
 

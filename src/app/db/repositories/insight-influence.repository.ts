@@ -81,11 +81,14 @@ export const insightInfluenceRepository = {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    for (const insight of insights) {
-      const id = `ifl_${crypto.randomUUID()}`;
-      stmt.run(id, projectId, insight.id, insight.title, directionId, decision, insight.shownAt, now, now);
-      count++;
-    }
+    const insertAll = db.transaction(() => {
+      for (const insight of insights) {
+        const id = `ifl_${crypto.randomUUID()}`;
+        stmt.run(id, projectId, insight.id, insight.title, directionId, decision, insight.shownAt, now, now);
+        count++;
+      }
+    });
+    insertAll();
 
     return count;
   },

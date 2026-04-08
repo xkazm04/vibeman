@@ -18,6 +18,7 @@ import { withObservability } from '@/lib/observability/middleware';
 import { parseQueryInt } from '@/lib/api-helpers/parseQueryInt';
 import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
 import { aggregateByKey, accumulateByType } from '@/lib/brain/aggregateByKey';
+import { TEMPORAL_WINDOW_DAYS, MAX_WINDOW_DAYS } from '@/lib/brain/config';
 
 /** Aggregated cell for one (hour, dayOfWeek) slot */
 interface TemporalCell {
@@ -38,9 +39,9 @@ async function handleGet(request: NextRequest) {
     }
 
     const days = parseQueryInt(searchParams.get('days'), {
-      default: 30,
+      default: TEMPORAL_WINDOW_DAYS,
       min: 1,
-      max: 365,
+      max: MAX_WINDOW_DAYS,
       paramName: 'days',
     });
 

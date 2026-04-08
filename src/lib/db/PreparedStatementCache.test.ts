@@ -7,11 +7,11 @@ describe('PreparedStatementCache', () => {
     const cache = new PreparedStatementCache();
     const mockStmt = { source: 'SELECT 1' } as Database.Statement;
     const factory = vi.fn().mockReturnValue(mockStmt);
-    
+
     const sql = 'SELECT 1';
     const result1 = cache.get(sql, factory);
     const result2 = cache.get(sql, factory);
-    
+
     expect(result1).toBe(mockStmt);
     expect(result2).toBe(mockStmt);
     expect(factory).toHaveBeenCalledTimes(1);
@@ -25,10 +25,10 @@ describe('PreparedStatementCache', () => {
     const factory = vi.fn()
       .mockReturnValueOnce(mockStmt1)
       .mockReturnValueOnce(mockStmt2);
-    
+
     const result1 = cache.get('SELECT 1', factory);
     const result2 = cache.get('SELECT 2', factory);
-    
+
     expect(result1).toBe(mockStmt1);
     expect(result2).toBe(mockStmt2);
     expect(factory).toHaveBeenCalledTimes(2);
@@ -39,14 +39,11 @@ describe('PreparedStatementCache', () => {
     const cache = new PreparedStatementCache();
     const mockStmt = { source: 'SELECT 1' } as Database.Statement;
     const factory = vi.fn().mockReturnValue(mockStmt);
-    
+
     cache.get('SELECT 1', factory);
     expect(cache.size).toBe(1);
-    
+
     cache.clear();
     expect(cache.size).toBe(0);
   });
-
-  // Note: Testing WeakRef/FinalizationRegistry behavior is hard in unit tests
-  // as it depends on GC timing. We trust the V8 implementation of these features.
 });

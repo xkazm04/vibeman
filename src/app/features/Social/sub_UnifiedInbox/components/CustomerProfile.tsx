@@ -8,6 +8,7 @@ import {
   AtSign,
   Calendar,
   MessageSquare,
+  MessageCircle,
   TrendingUp,
   CheckCircle,
   Tag,
@@ -29,6 +30,7 @@ import {
   VALUE_TIER_LABELS,
   SENTIMENT_COLORS,
 } from '../lib/types';
+import { AvatarBadge } from '../../components/atoms/AvatarBadge';
 
 interface CustomerProfileProps {
   customer: UnifiedCustomer;
@@ -91,11 +93,7 @@ export function CustomerProfile({
 
         <div className="flex items-start gap-4">
           {/* Avatar */}
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center flex-shrink-0">
-            <span className="text-2xl font-bold text-white">
-              {customer.displayName.charAt(0).toUpperCase()}
-            </span>
-          </div>
+          <AvatarBadge name={customer.displayName} size="lg" />
 
           {/* Info */}
           <div className="flex-1 min-w-0">
@@ -169,13 +167,13 @@ export function CustomerProfile({
           <h3 className="text-sm font-medium text-gray-400 mb-3">Channel Presence</h3>
           <div className="flex flex-wrap gap-2">
             {customer.channels.map((identity, index) => {
-              const Icon = CHANNEL_ICONS[identity.channel];
+              const Icon = CHANNEL_ICONS[identity.channel] || MessageCircle;
               return (
                 <div
                   key={`${identity.channel}-${index}`}
                   className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800/60 border border-gray-700/40"
                 >
-                  <Icon className={`w-4 h-4 ${CHANNEL_COLORS[identity.channel]}`} />
+                  <Icon className={`w-4 h-4 ${CHANNEL_COLORS[identity.channel] || 'text-gray-400'}`} />
                   <div className="text-sm">
                     <span className="text-gray-300">{identity.name}</span>
                     {identity.handle && (

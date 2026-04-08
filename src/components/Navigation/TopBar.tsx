@@ -1,10 +1,66 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MoreHorizontal, Component, Activity, Users, Sunrise, HelpCircle, Plug, Brain, Bot, ClipboardList, Workflow, LayoutGrid } from 'lucide-react';
+import { MoreHorizontal, Component, Activity, Users, Sunrise, HelpCircle, Plug, Brain, Bot, ClipboardList, Workflow, LayoutGrid, Database } from 'lucide-react';
 import { useOnboardingStore, type AppModule } from '@/stores/onboardingStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
+
+// ── Database Health Indicator ───────────────────────────────────────
+type DbHealthStatus = 'pass' | 'warn' | 'fail' | 'loading';
+
+function DbHealthIndicator() {
+  const [status, setStatus] = useState<DbHealthStatus>('loading');
+  const [tooltip, setTooltip] = useState('Checking database...');
+  const [mounted, setMounted] = useState(false);
+
+  const poll = useCallback(async () => {
+    try {
+      const res = await fetch('/api/health', { method: 'GET' });
+      if (res.ok) {
+        const data = await res.json();
+        const dbStatus = data?.database?.status;
+        if (dbStatus === 'healthy' || dbStatus === 'pass' || data?.status === 'healthy') {
+          setStatus('pass');
+          const connTime = data?.database?.connectionTimeMs ?? data?.responseTimeMs ?? '?';
+          const driver = data?.database?.driver ?? 'sqlite';
+          setTooltip(`DB: ${driver} | ${connTime}ms`);
+        } else {
+          setStatus('warn');
+          setTooltip(`DB: ${dbStatus || 'degraded'}`);
+        }
+      } else {
+        setStatus('fail');
+        setTooltip(`DB: unreachable (HTTP ${res.status})`);
+      }
+    } catch {
+      setStatus('fail');
+      setTooltip('DB: connection failed');
+    }
+  }, []);
+
+  useEffect(() => {
+    poll();
+    const timer = setTimeout(() => setMounted(true), 50);
+    const interval = setInterval(poll, 30_000);
+    return () => { clearTimeout(timer); clearInterval(interval); };
+  }, [poll]);
+
+  const colorClass =
+    status === 'pass' ? 'bg-emerald-500 ring-emerald-500/20' :
+    status === 'warn' ? 'bg-amber-500 ring-amber-500/20' :
+    status === 'fail' ? 'bg-red-500 ring-red-500/20' :
+    'bg-gray-500 ring-gray-500/20';
+
+  return (
+    <div
+      className={`w-1.5 h-1.5 rounded-full ring-2 ml-2 transition-opacity duration-300 ${colorClass} ${mounted ? 'opacity-100' : 'opacity-0'}`}
+      title={tooltip}
+      role="status"
+      aria-label={`Database status: ${status}`}
+    />
+  );
+}
 
 interface NavigationItem {
   module: AppModule;
@@ -35,6 +91,7 @@ const otherNavigationItems: NavigationItem[] = [
   { module: 'reflector', label: 'Reflector', icon: Activity },
   { module: 'social', label: 'Social', icon: Users },
   { module: 'views', label: 'Views', icon: LayoutGrid },
+  { module: 'explorer', label: 'Explorer', icon: Database },
   { module: 'zen', label: 'Zen Mode', icon: Sunrise },
 ];
 
@@ -268,6 +325,9 @@ export default function TopBar() {
               onSelect={setActiveModule}
               startIndex={visibleMainItems.length}
             />
+
+            {/* Database health indicator */}
+            <DbHealthIndicator />
           </div>
         </nav>
       </div>

@@ -34,6 +34,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Cap requirements array size
+    const MAX_REQUIREMENTS = 200;
+    if (requirements.length > MAX_REQUIREMENTS) {
+      return NextResponse.json(
+        { success: false, error: `Requirements count ${requirements.length} exceeds maximum of ${MAX_REQUIREMENTS}` },
+        { status: 400 }
+      );
+    }
+
+    // Validate each requirement has at least title and description
+    for (let i = 0; i < requirements.length; i++) {
+      const req = requirements[i];
+      if (!req || typeof req.title !== 'string' || !req.title.trim()) {
+        return NextResponse.json(
+          { success: false, error: `Requirement at index ${i} is missing a valid title` },
+          { status: 400 }
+        );
+      }
+      if (typeof req.description !== 'string' || !req.description.trim()) {
+        return NextResponse.json(
+          { success: false, error: `Requirement at index ${i} is missing a valid description` },
+          { status: 400 }
+        );
+      }
+    }
+
     const db = getDatabase();
     const ideaIds: string[] = [];
 

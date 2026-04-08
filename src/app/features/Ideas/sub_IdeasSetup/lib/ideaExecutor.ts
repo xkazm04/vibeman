@@ -63,10 +63,11 @@ export async function executeLlmScan(params: {
   provider: SupportedProvider;
   contextId?: string;
   contextFilePaths?: string[];
+  signal?: AbortSignal;
 }): Promise<number> {
-  const { projectPath, contextFilePaths, ...restParams } = params;
+  const { projectPath, contextFilePaths, signal, ...restParams } = params;
 
-  const codebaseFiles = await gatherCodebaseFiles(projectPath, contextFilePaths);
+  const codebaseFiles = await gatherCodebaseFiles(projectPath, contextFilePaths, signal);
 
   if (codebaseFiles.length === 0) {
     throw new Error('No code files found to analyze');
@@ -76,6 +77,7 @@ export async function executeLlmScan(params: {
     ...restParams,
     projectPath,
     codebaseFiles,
+    signal,
   });
 }
 

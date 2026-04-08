@@ -19,6 +19,15 @@ async function handlePost(request: NextRequest) {
       );
     }
 
+    // Cap batch size to stay within SQLite parameter limits
+    const MAX_BATCH_SIZE = 500;
+    if (ids.length > MAX_BATCH_SIZE) {
+      return NextResponse.json(
+        { success: false, error: `Batch size ${ids.length} exceeds maximum of ${MAX_BATCH_SIZE}` },
+        { status: 400 }
+      );
+    }
+
     const logs = implementationLogRepository.getLogsByIds(ids);
 
     return NextResponse.json({ success: true, data: logs });

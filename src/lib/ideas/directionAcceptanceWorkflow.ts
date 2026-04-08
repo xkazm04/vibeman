@@ -1,17 +1,18 @@
 /**
- * DirectionAcceptanceSaga — single source of truth for accepting a direction.
+ * DirectionAcceptanceSaga — single source of truth for accepting a direction
+ * (single OR pair variant).
  *
  * Implements a saga pattern: each step declares an optional compensate() function.
  * On failure, all previously executed steps are compensated in reverse order.
  *
  * Steps:
- *   1. claim        — optimistic lock (pending → processing)
- *   2. writeFile    — create requirement file on disk
- *   3. updateDb     — mark direction accepted + store ADR
- *   4. createRecords — create scan + idea records
- *   5. brainSignal  — record implementation signal (non-critical)
- *   6. cacheInvalidate — invalidate insight caches (non-critical)
- *   7. insightInfluence — record influence batch (non-critical)
+ *   1. resolve       — look up target direction (and pair partner when applicable)
+ *   2. claim         — optimistic lock (pending → processing)
+ *   3. writeFile     — create requirement file on disk
+ *   4. updateDb      — mark direction accepted + reject pair partner if paired
+ *   5. createRecords — create scan + idea records
+ *   6. emit          — domain event for cross-cutting side effects
+ *   7. adr           — generate ADR (non-critical)
  */
 
 import {
@@ -19,8 +20,9 @@ import {
   scanDb,
   ideaDb,
 } from '@/app/db';
+import { DbDirection } from '@/app/db/models/types';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
-import { generateAdr } from '@/lib/directions/adrGenerator';
+import { generateAdr, generatePairedAdr } from '@/lib/directions/adrGenerator';
 import { emitDirectionChanged } from '@/lib/events/domainEmitters';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -28,17 +30,17 @@ import { v4 as uuidv4 } from 'uuid';
 // Types
 // ---------------------------------------------------------------------------
 
-export interface AcceptDirectionOptions {
-  directionId: string;
-  projectPath: string;
-}
+export type AcceptDirectionOptions =
+  | { directionId: string; projectPath: string }
+  | { pairId: string; variant: 'A' | 'B'; projectPath: string };
 
 export interface AcceptDirectionResult {
   success: true;
   requirementName: string;
   requirementPath: string;
-  direction: NonNullable<ReturnType<typeof directionDb.acceptDirection>>;
+  direction: DbDirection;
   ideaId: string;
+  rejected?: DbDirection | null;
 }
 
 export interface AcceptDirectionError {
@@ -90,16 +92,23 @@ function createTitleSlug(title: string): string {
     .replace(/^-|-$/g, '');
 }
 
-function buildImplementationRequirement(direction: {
-  direction: string;
-  summary: string;
-  context_map_title: string;
-}): string {
+function buildRequirementContent(
+  direction: DbDirection,
+  rejectedDirection: DbDirection | null,
+): string {
+  const problemContext = direction.problem_statement
+    ? `\n## Problem Statement\n\n${direction.problem_statement}\n`
+    : '';
+
+  const pairContext = rejectedDirection
+    ? `\n---\n\n**Selected Variant**: ${direction.pair_label} (rejected alternative: ${rejectedDirection.summary})\n`
+    : '';
+
   return `# Implementation: ${direction.summary}
 
 ## Context Area
 ${direction.context_map_title}
-
+${problemContext}
 ## Description
 ${direction.summary}
 
@@ -114,7 +123,7 @@ ${direction.direction}
 3. Implement the changes following the guidance provided
 4. Ensure code quality and type safety
 5. Test the changes work as expected
-
+${pairContext}
 ## Notes
 
 This requirement was generated from an accepted Development Direction.
@@ -127,40 +136,54 @@ Focus on implementing exactly what is described above.
 // ---------------------------------------------------------------------------
 
 export function acceptDirection(opts: AcceptDirectionOptions): AcceptDirectionOutcome {
-  const { directionId, projectPath } = opts;
+  const { projectPath } = opts;
 
-  // Pre-flight: claim direction (optimistic lock)
-  const claimed = directionDb.claimDirectionForProcessing(directionId);
-  if (!claimed) {
-    const direction = directionDb.getDirectionById(directionId);
-    if (!direction) {
+  // 1. Resolve the target direction (and optional pair partner)
+  let targetDirection: DbDirection;
+  let rejectedDirection: DbDirection | null = null;
+
+  if ('pairId' in opts) {
+    const pair = directionDb.getDirectionPair(opts.pairId);
+    if (!pair.directionA || !pair.directionB) {
+      return { success: false, code: 'NOT_FOUND', message: 'Direction pair not found or incomplete' };
+    }
+    targetDirection = opts.variant === 'A' ? pair.directionA : pair.directionB;
+    rejectedDirection = opts.variant === 'A' ? pair.directionB : pair.directionA;
+  } else {
+    const dir = directionDb.getDirectionById(opts.directionId);
+    if (!dir) {
       return { success: false, code: 'NOT_FOUND', message: 'Direction not found' };
     }
+    targetDirection = dir;
+
+    // Auto-detect pair partner
+    if (dir.pair_id) {
+      rejectedDirection = directionDb.getPairedDirection(dir.id);
+    }
+  }
+
+  // 2. Claim direction (optimistic lock)
+  const claimed = directionDb.claimDirectionForProcessing(targetDirection.id);
+  if (!claimed) {
     return {
       success: false,
       code: 'ALREADY_PROCESSED',
-      message: 'Direction has already been processed',
-      details: direction.requirement_id ?? '',
+      message: rejectedDirection
+        ? 'Direction pair has already been processed'
+        : 'Direction has already been processed',
+      details: targetDirection.requirement_id ?? '',
     };
   }
 
-  const direction = directionDb.getDirectionById(directionId);
-  if (!direction) {
-    return { success: false, code: 'INTERNAL_ERROR', message: 'Direction not found after claim' };
-  }
-
-  // Build derived values before saga steps (pure, no side effects)
-  const titleSlug = createTitleSlug(direction.summary);
+  // 3. Build derived values (pure, no side effects)
+  const titleSlug = createTitleSlug(targetDirection.summary);
   const requirementId = `dir-${Date.now()}-${titleSlug}`;
-  const requirementContent = buildImplementationRequirement({
-    direction: direction.direction,
-    summary: direction.summary,
-    context_map_title: direction.context_map_title,
-  });
+  const requirementContent = buildRequirementContent(targetDirection, rejectedDirection);
 
   // Mutable saga state shared across steps
   let filePath = '';
-  let updatedDirection: NonNullable<ReturnType<typeof directionDb.acceptDirection>> | null = null;
+  let updatedDirection: DbDirection | null = null;
+  let dbRejected: DbDirection | null = null;
   const scanId = uuidv4();
   const ideaId = uuidv4();
 
@@ -173,22 +196,33 @@ export function acceptDirection(opts: AcceptDirectionOptions): AcceptDirectionOu
         filePath = result.filePath || '';
       },
       compensate: () => {
-        directionDb.updateDirection(directionId, { status: 'pending' });
+        directionDb.updateDirection(targetDirection.id, { status: 'pending' });
       },
     },
     {
       name: 'updateDb',
       execute: () => {
-        const updated = directionDb.acceptDirection(
-          directionId,
-          requirementId,
-          filePath,
-        );
-        if (!updated) throw new Error('Failed to update direction status');
-        updatedDirection = updated;
+        if (rejectedDirection) {
+          const pairResult = directionDb.acceptPairedDirection(
+            targetDirection.id,
+            requirementId,
+            filePath,
+          );
+          if (!pairResult.accepted) throw new Error('Failed to update direction status');
+          updatedDirection = pairResult.accepted;
+          dbRejected = pairResult.rejected;
+        } else {
+          const updated = directionDb.acceptDirection(
+            targetDirection.id,
+            requirementId,
+            filePath,
+          );
+          if (!updated) throw new Error('Failed to update direction status');
+          updatedDirection = updated;
+        }
       },
       compensate: () => {
-        directionDb.updateDirection(directionId, { status: 'pending' });
+        directionDb.updateDirection(targetDirection.id, { status: 'pending' });
       },
     },
     {
@@ -196,20 +230,20 @@ export function acceptDirection(opts: AcceptDirectionOptions): AcceptDirectionOu
       execute: () => {
         scanDb.createScan({
           id: scanId,
-          project_id: direction.project_id,
+          project_id: targetDirection.project_id,
           scan_type: 'direction_accepted',
-          summary: `Direction accepted: ${direction.summary}`,
+          summary: `Direction accepted: ${targetDirection.summary}`,
         });
         ideaDb.createIdea({
           id: ideaId,
           scan_id: scanId,
-          project_id: direction.project_id,
-          context_id: direction.context_id || null,
+          project_id: targetDirection.project_id,
+          context_id: targetDirection.context_id || null,
           scan_type: 'direction_accepted',
           category: 'direction',
-          title: direction.summary,
-          description: direction.direction,
-          reasoning: `Auto-generated from accepted direction in context: ${direction.context_map_title}`,
+          title: targetDirection.summary,
+          description: targetDirection.direction,
+          reasoning: `Auto-generated from accepted direction in context: ${targetDirection.context_map_title}`,
           status: 'accepted',
           requirement_id: requirementId,
         });
@@ -227,29 +261,39 @@ export function acceptDirection(opts: AcceptDirectionOptions): AcceptDirectionOu
     };
   }
 
-  // Emit domain event for cross-cutting side effects (signal, influence, cache)
+  // Emit domain event for cross-cutting side effects
   emitDirectionChanged({
-    projectId: direction.project_id,
-    directionId,
+    projectId: targetDirection.project_id,
+    directionId: targetDirection.id,
     action: 'accepted',
-    contextId: direction.context_id || null,
-    contextName: direction.context_map_title,
+    contextId: targetDirection.context_id || null,
+    contextName: targetDirection.context_map_title,
     requirementId,
+    pairedDirectionId: rejectedDirection?.id ?? null,
+    pairedAction: rejectedDirection ? 'rejected' : undefined,
   });
 
-  // Post-acceptance: generate ADR asynchronously (non-critical).
-  // Acceptance has already succeeded — ADR failure must not affect the outcome.
+  // Post-acceptance: generate ADR (non-critical)
   try {
-    const adr = generateAdr({
-      summary: direction.summary,
-      direction: direction.direction,
-      contextMapTitle: direction.context_map_title,
-      problemStatement: direction.problem_statement,
-    });
-    directionDb.updateDirection(directionId, { decision_record: JSON.stringify(adr) });
-    // Refresh the direction object so the response includes the ADR
-    updatedDirection = directionDb.getDirectionById(directionId) as NonNullable<typeof updatedDirection>;
-  } catch { /* ADR generation failure is non-critical — direction is already accepted */ }
+    const adr = rejectedDirection
+      ? generatePairedAdr({
+          summary: targetDirection.summary,
+          direction: targetDirection.direction,
+          contextMapTitle: targetDirection.context_map_title,
+          problemStatement: targetDirection.problem_statement,
+          rejectedSummary: rejectedDirection.summary,
+          rejectedDirection: rejectedDirection.direction,
+          selectedVariant: (targetDirection.pair_label as 'A' | 'B') ?? 'A',
+        })
+      : generateAdr({
+          summary: targetDirection.summary,
+          direction: targetDirection.direction,
+          contextMapTitle: targetDirection.context_map_title,
+          problemStatement: targetDirection.problem_statement,
+        });
+    directionDb.updateDirection(targetDirection.id, { decision_record: JSON.stringify(adr) });
+    updatedDirection = directionDb.getDirectionById(targetDirection.id) ?? updatedDirection;
+  } catch { /* ADR generation failure is non-critical */ }
 
   return {
     success: true,
@@ -257,5 +301,6 @@ export function acceptDirection(opts: AcceptDirectionOptions): AcceptDirectionOu
     requirementPath: filePath,
     direction: updatedDirection!,
     ideaId,
+    rejected: dbRejected,
   };
 }

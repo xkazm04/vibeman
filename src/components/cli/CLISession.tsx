@@ -37,10 +37,15 @@ interface CLISessionProps {
  * Get session statistics from queue
  */
 function getSessionStats(queue: QueuedTask[]) {
-  const pending = queue.filter(t => t.status.type === 'queued').length;
-  const running = queue.filter(t => t.status.type === 'running').length;
-  const completed = queue.filter(t => t.status.type === 'completed').length;
-  const failed = queue.filter(t => t.status.type === 'failed').length;
+  let pending = 0, running = 0, completed = 0, failed = 0;
+  for (const t of queue) {
+    switch (t.status.type) {
+      case 'queued': pending++; break;
+      case 'running': running++; break;
+      case 'completed': completed++; break;
+      case 'failed': failed++; break;
+    }
+  }
   return { pending, running, completed, failed, total: queue.length };
 }
 

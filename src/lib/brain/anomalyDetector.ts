@@ -6,6 +6,7 @@
 
 import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-signal.repository';
 import type { BehavioralSignalType } from '@/app/db/models/brain.types';
+import { MS_PER_DAY } from '@/lib/brain/config';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -75,7 +76,7 @@ function bucketByDay(
   const buckets = new Array(days).fill(0);
 
   for (const ts of timestamps) {
-    const daysAgo = Math.floor((now - new Date(ts).getTime()) / (24 * 60 * 60 * 1000));
+    const daysAgo = Math.floor((now - new Date(ts).getTime()) / MS_PER_DAY);
     if (daysAgo >= 0 && daysAgo < days) {
       buckets[daysAgo]++;
     }

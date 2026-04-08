@@ -4,6 +4,7 @@ import {
   addColumnsIfNotExist,
   createTableIfNotExists,
   ensureMigrationsTable,
+  getFailedMigrations,
   getTableInfo,
   hasColumn,
   isMigrationApplied,
@@ -77,6 +78,12 @@ import { migrate218EffectivenessCacheWindowDays } from './218_effectiveness_cach
 import { migrate219SavedViews } from './219_saved_views';
 import { migrate220KbHubEntries } from './220_kb_hub_entries';
 import { migrate221CrossProjectPatterns } from './221_cross_project_patterns';
+import { migrate222AnomalyMonitors } from './222_anomaly_monitors';
+import { migrate223InsightAnnotations } from './223_insight_annotations';
+import { migrate224UnifiedGoalProgress } from './224_unified_goal_progress';
+import { migrate225GoalCheckins } from './225_goal_checkins';
+import { migrate226GoalDependencies } from './226_goal_dependencies';
+import { migrate227GoalSignalSummaries } from './227_goal_signal_summaries';
 
 /**
  * Migration logger utility
@@ -304,6 +311,21 @@ export function runMigrations() {
     once('m219', () => migrate219SavedViews(db as any, migrationLogger));
     once('m220', () => migrate220KbHubEntries(db as any, migrationLogger));
     once('m221', () => migrate221CrossProjectPatterns(db as any, migrationLogger));
+    once('m222', () => migrate222AnomalyMonitors(db as any, migrationLogger));
+    once('m223', () => migrate223InsightAnnotations(db as any, migrationLogger));
+    once('m224', () => migrate224UnifiedGoalProgress(db as any, migrationLogger));
+    once('m225', () => migrate225GoalCheckins(db as any, migrationLogger));
+    once('m226', () => migrate226GoalDependencies(db as any, migrationLogger));
+    once('m227', () => migrate227GoalSignalSummaries(db as any, migrationLogger));
+
+    // Report any failed migrations that need attention
+    const failed = getFailedMigrations(db);
+    if (failed.length > 0) {
+      migrationLogger.error(`${failed.length} migration(s) failed and were rolled back:`);
+      for (const f of failed) {
+        migrationLogger.error(`  - ${f.name}: ${f.error_message}`);
+      }
+    }
 
     migrationLogger.success('Database migrations completed successfully');
   } catch (error) {

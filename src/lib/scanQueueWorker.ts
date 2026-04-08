@@ -13,10 +13,14 @@ import { contextRepository } from '@/app/db/repositories/context.repository';
 import { generateNotificationId } from '@/lib/idGenerator';
 import { projectDb } from '@/lib/project_database';
 
+/** Default scan timeout: 5 minutes */
+const DEFAULT_SCAN_TIMEOUT_MS = 5 * 60 * 1000;
+
 interface WorkerConfig {
   pollIntervalMs: number;
   maxConcurrent: number;
   provider: SupportedProvider;
+  scanTimeoutMs: number;
 }
 
 // Adaptive polling intervals for exponential backoff when queue is empty
@@ -43,11 +47,13 @@ interface NotificationData {
 class ScanQueueWorker {
   private isRunning = false;
   private pollTimer: NodeJS.Timeout | null = null;
+  private isPolling = false;
   private currentlyProcessing: Set<string> = new Set();
   private config: WorkerConfig = {
     pollIntervalMs: ADAPTIVE_POLL_INTERVALS.BASE_MS, // Base poll interval
     maxConcurrent: 1, // Process one scan at a time by default
-    provider: 'anthropic' // Default provider
+    provider: 'anthropic', // Default provider
+    scanTimeoutMs: DEFAULT_SCAN_TIMEOUT_MS,
   };
 
   // Adaptive polling state - tracks consecutive empty polls for backoff
@@ -197,14 +203,18 @@ class ScanQueueWorker {
     }
     this.wakeResolvers.clear();
 
-    // Also cancel the current poll timer and trigger immediate processing
+    // Cancel the current poll timer and trigger immediate processing
     if (this.pollTimer) {
       clearTimeout(this.pollTimer);
       this.pollTimer = null;
     }
 
-    // Trigger immediate poll
-    this.poll();
+    // Only start a new poll if one isn't already in progress.
+    // If poll() is mid-execution, the wake resolvers above already ensure
+    // it will pick up the new item immediately.
+    if (!this.isPolling) {
+      this.poll();
+    }
   }
 
   /**
@@ -238,27 +248,32 @@ class ScanQueueWorker {
    * 2. Adaptive timeout expires (fallback polling)
    */
   private async poll(): Promise<void> {
-    if (!this.isRunning) {
+    if (!this.isRunning || this.isPolling) {
       return;
     }
 
-    // Process queue and track if items were found
+    this.isPolling = true;
     try {
-      const itemsFound = await this.processQueue();
-      if (itemsFound) {
-        // Reset to base interval when work is found
-        this.resetAdaptivePolling();
-      } else {
-        // Increase backoff when queue is empty
-        this.incrementBackoff();
+      // Process queue and track if items were found
+      try {
+        const itemsFound = await this.processQueue();
+        if (itemsFound) {
+          // Reset to base interval when work is found
+          this.resetAdaptivePolling();
+        } else {
+          // Increase backoff when queue is empty
+          this.incrementBackoff();
+        }
+      } catch {
+        // Error handled in processQueue, but don't increase backoff on errors
       }
-    } catch {
-      // Error handled in processQueue, but don't increase backoff on errors
-    }
 
-    // Wait for either wake notification or adaptive timeout
-    const nextInterval = this.getAdaptivePollInterval();
-    await this.waitForWakeOrTimeout(nextInterval);
+      // Wait for either wake notification or adaptive timeout
+      const nextInterval = this.getAdaptivePollInterval();
+      await this.waitForWakeOrTimeout(nextInterval);
+    } finally {
+      this.isPolling = false;
+    }
 
     // Schedule next poll (recursive but async to avoid stack overflow)
     if (this.isRunning) {
@@ -357,16 +372,33 @@ class ScanQueueWorker {
       // Update progress: executing scan
       scanQueueDb.updateProgress(queueItem.id, 50, 'Analyzing code with AI...', 'execute_scan', 4);
 
-      // Execute the scan
-      const ideaCount = await executeContextScan({
-        projectId: queueItem.project_id,
-        projectName: projectInfo.name,
-        projectPath: projectInfo.path,
-        scanType: queueItem.scan_type as ScanType,
-        provider: this.config.provider,
-        contextId: queueItem.context_id || undefined,
-        contextFilePaths
-      });
+      // Execute the scan with an AbortController to cancel zombie LLM requests on timeout
+      const timeoutMs = this.config.scanTimeoutMs;
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
+
+      let ideaCount: number;
+      try {
+        ideaCount = await executeContextScan({
+          projectId: queueItem.project_id,
+          projectName: projectInfo.name,
+          projectPath: projectInfo.path,
+          scanType: queueItem.scan_type as ScanType,
+          provider: this.config.provider,
+          contextId: queueItem.context_id || undefined,
+          contextFilePaths,
+          signal: abortController.signal
+        });
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (abortController.signal.aborted) {
+          throw new Error(
+            `Scan timed out after ${Math.round(timeoutMs / 1000)}s — the LLM provider may be unresponsive`
+          );
+        }
+        throw error;
+      }
+      clearTimeout(timeoutId);
 
       // Update progress: processing results
       scanQueueDb.updateProgress(queueItem.id, 75, 'Processing scan results...', 'process_results', 4);
@@ -399,8 +431,13 @@ class ScanQueueWorker {
       );
 
       // Handle auto-merge if enabled
+      // Re-fetch the queue item from DB so scan_id (set by linkScan above) is current.
+      // The in-memory queueItem still has scan_id=null from before linkScan ran.
       if (queueItem.auto_merge_enabled) {
-        await this.handleAutoMerge(queueItem);
+        const freshItem = scanQueueDb.getQueueItemById(queueItem.id);
+        if (freshItem) {
+          await this.handleAutoMerge(freshItem);
+        }
       }
     } catch (error) {
       // Update status to failed
@@ -504,6 +541,7 @@ class ScanQueueWorker {
    */
   getStatus(): {
     isRunning: boolean;
+    isPolling: boolean;
     currentlyProcessing: number;
     config: WorkerConfig;
     adaptivePolling: {
@@ -516,6 +554,7 @@ class ScanQueueWorker {
   } {
     return {
       isRunning: this.isRunning,
+      isPolling: this.isPolling,
       currentlyProcessing: this.currentlyProcessing.size,
       config: this.config,
       adaptivePolling: {

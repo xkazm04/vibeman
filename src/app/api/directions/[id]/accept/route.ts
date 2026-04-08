@@ -2,8 +2,12 @@
  * API Route: Accept Direction
  *
  * POST /api/directions/[id]/accept
- * Accepts a direction and creates a Claude Code requirement file for implementation.
- * Delegates to DirectionAcceptanceSaga in directionAcceptanceWorkflow.
+ *
+ * Accepts a single direction or a pair variant.
+ *   - Single: body { projectPath }              — id is a direction ID
+ *   - Pair:   body { projectPath, variant }      — id is a pair ID, variant is 'A' | 'B'
+ *
+ * Delegates to the unified acceptDirection saga.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -18,7 +22,7 @@ async function handlePost(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { projectPath } = body;
+  const { projectPath, variant } = body;
 
   if (!projectPath) {
     return NextResponse.json(
@@ -27,7 +31,16 @@ async function handlePost(
     );
   }
 
-  const outcome = acceptDirection({ directionId: id, projectPath });
+  if (variant !== undefined && !['A', 'B'].includes(variant)) {
+    return NextResponse.json(
+      { error: 'variant must be "A" or "B"' },
+      { status: 400 }
+    );
+  }
+
+  const outcome = variant
+    ? acceptDirection({ pairId: id, variant: variant as 'A' | 'B', projectPath })
+    : acceptDirection({ directionId: id, projectPath });
 
   if (!outcome.success) {
     if (outcome.code === 'NOT_FOUND') {
@@ -49,10 +62,11 @@ async function handlePost(
   }
 
   logger.info('[API] Direction accepted and requirement created:', {
-    directionId: id,
+    directionId: outcome.direction.id,
     requirementId: outcome.requirementName,
     requirementPath: outcome.requirementPath,
     ideaId: outcome.ideaId,
+    rejected: outcome.rejected?.id ?? null,
   });
 
   return NextResponse.json({
@@ -61,6 +75,10 @@ async function handlePost(
     requirementName: outcome.requirementName,
     requirementPath: outcome.requirementPath,
     ideaId: outcome.ideaId,
+    ...(outcome.rejected != null && {
+      accepted: outcome.direction,
+      rejected: outcome.rejected,
+    }),
   });
 }
 

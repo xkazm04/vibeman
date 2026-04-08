@@ -1,6 +1,7 @@
-import type { BehavioralSignalType } from '@/types/signals';
-
-export type SignalType = BehavioralSignalType;
+// SignalType now lives in the shared Brain lib — re-export for
+// backward-compat within Canvas internals.
+import type { SignalType } from '../../lib/brainConstants';
+export type { SignalType };
 
 export interface BrainEvent {
   id: string;
@@ -39,6 +40,8 @@ export interface Group {
   dominantType: SignalType;
   dominantColor: string;
   spatialIndex?: SpatialIndex;
+  /** Semantic sub-clusters within this group (computed by clustering worker) */
+  semanticClusters?: SemanticSubCluster[];
 }
 
 export interface UndoEntry {
@@ -59,6 +62,29 @@ export interface LabelRect {
   height: number;
   priority: number;
   label: string;
+}
+
+// ── Semantic Clustering Types ────────────────────────────────────
+
+export interface SemanticSubCluster {
+  id: string;
+  /** Top TF-IDF terms defining this cluster's concept */
+  centroidTerms: string[];
+  /** Signal IDs belonging to this cluster */
+  signalIds: string[];
+  /** Average pairwise similarity within cluster (0-1) */
+  coherence: number;
+}
+
+export interface ConvergenceEvent {
+  /** Shared concept terms across contexts */
+  concept: string[];
+  /** Context names that converge on this concept */
+  contextNames: string[];
+  /** All signal IDs involved */
+  signalIds: string[];
+  /** Cross-context similarity strength (0-1) */
+  strength: number;
 }
 
 // ── Force Layout Worker Types ────────────────────────────────────

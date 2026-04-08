@@ -114,6 +114,7 @@ export default function TemporalRhythmHeatmap({ scope = 'project' }: TemporalRhy
   const grandTotal = temporal?.grandTotal ?? 0;
   const error = queryError ? 'Failed to load temporal data' : null;
   const [selectedCell, setSelectedCell] = useState<TemporalCell | null>(null);
+  const [ripple, setRipple] = useState<{ cx: number; cy: number; key: number } | null>(null);
 
   // Tooltip state
   const [tooltipData, setTooltipData] = useState<HeatmapTooltipData | null>(null);
@@ -127,6 +128,12 @@ export default function TemporalRhythmHeatmap({ scope = 'project' }: TemporalRhy
     for (const c of cells) map.set(`${c.hour}-${c.dayOfWeek}`, c);
     return map;
   }, [cells]);
+
+  // Current hour/day for wave-based stagger
+  const nowPos = useMemo(() => {
+    const now = new Date();
+    return { hour: now.getHours(), dow: now.getDay() };
+  }, []);
 
   // Max weight for color scaling
   const maxWeight = useMemo(() => {
@@ -282,6 +289,14 @@ export default function TemporalRhythmHeatmap({ scope = 'project' }: TemporalRhy
             {/* ── Heatmap Grid ───────────────────────────────────────── */}
             <div className="overflow-x-auto custom-scrollbar-subtle relative" ref={svgContainerRef}>
               <svg width={svgWidth} height={svgHeight} className="block">
+                {/* Defs for hover glow overlay */}
+                <defs>
+                  <radialGradient id="temporalCellGlow">
+                    <stop offset="0%" stopColor="rgba(255, 255, 255, 0.15)" />
+                    <stop offset="100%" stopColor="rgba(255, 255, 255, 0)" />
+                  </radialGradient>
+                </defs>
+
                 {/* Hour labels along top */}
                 {HOUR_LABELS.map((label, h) =>
                   label ? (
@@ -324,37 +339,73 @@ export default function TemporalRhythmHeatmap({ scope = 'project' }: TemporalRhy
                     const isHovered = hoveredKey === cellKey;
                     const cx = LABEL_WIDTH + h * (CELL_SIZE + CELL_GAP);
                     const cy = LABEL_HEIGHT + d * (CELL_SIZE + CELL_GAP);
+                    const dist = Math.abs(h - nowPos.hour) + Math.abs(d - nowPos.dow);
 
                     return (
-                      <motion.rect
-                        key={cellKey}
-                        x={cx}
-                        y={cy}
-                        width={CELL_SIZE}
-                        height={CELL_SIZE}
-                        rx={3}
-                        fill={getCellColor(weight, maxWeight)}
-                        stroke={isHovered ? 'rgba(6, 182, 212, 0.4)' : isSelected ? '#06b6d4' : 'transparent'}
-                        strokeWidth={isHovered || isSelected ? 1.5 : 0}
-                        className="cursor-pointer"
-                        style={{
-                          transformOrigin: `${cx + CELL_SIZE / 2}px ${cy + CELL_SIZE / 2}px`,
-                          transform: isHovered ? 'scale(1.15)' : 'scale(1)',
-                          transition: 'transform 0.12s ease-out, stroke 0.12s ease-out',
-                        }}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.15, delay: (d * 24 + h) * 0.001 }}
-                        onMouseEnter={(e) => handleCellEnter(e, h, d, cell)}
-                        onMouseLeave={handleCellLeave}
-                        onClick={() => {
-                          if (cell) setSelectedCell(cell);
-                          else setSelectedCell({ hour: h, dayOfWeek: d, totalCount: 0, totalWeight: 0, byType: {} });
-                        }}
-                      />
+                      <g key={cellKey}>
+                        <motion.rect
+                          x={cx}
+                          y={cy}
+                          width={CELL_SIZE}
+                          height={CELL_SIZE}
+                          rx={3}
+                          fill={getCellColor(weight, maxWeight)}
+                          stroke={isHovered ? 'rgba(6, 182, 212, 0.4)' : isSelected ? '#06b6d4' : 'transparent'}
+                          strokeWidth={isHovered || isSelected ? 1.5 : 0}
+                          className="cursor-pointer"
+                          style={{
+                            transformOrigin: `${cx + CELL_SIZE / 2}px ${cy + CELL_SIZE / 2}px`,
+                            transform: isHovered ? 'scale(1.08)' : 'scale(1)',
+                            transition: 'transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1), stroke 0.12s ease-out, filter 150ms ease-out',
+                            filter: isHovered ? 'drop-shadow(0 0 4px rgba(6, 182, 212, 0.25))' : 'none',
+                          }}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ duration: 0.15, delay: dist * 0.012 }}
+                          onMouseEnter={(e) => handleCellEnter(e, h, d, cell)}
+                          onMouseLeave={handleCellLeave}
+                          onClick={() => {
+                            setRipple({ cx: cx + CELL_SIZE / 2, cy: cy + CELL_SIZE / 2, key: Date.now() });
+                            if (cell) setSelectedCell(cell);
+                            else setSelectedCell({ hour: h, dayOfWeek: d, totalCount: 0, totalWeight: 0, byType: {} });
+                          }}
+                        />
+                        {/* Radial gradient overlay on hover */}
+                        {isHovered && (
+                          <rect
+                            x={cx}
+                            y={cy}
+                            width={CELL_SIZE}
+                            height={CELL_SIZE}
+                            rx={3}
+                            fill="url(#temporalCellGlow)"
+                            pointerEvents="none"
+                          />
+                        )}
+                      </g>
                     );
                   })
                 )}
+
+                {/* Ripple expand on click */}
+                <AnimatePresence>
+                  {ripple && (
+                    <motion.circle
+                      key={ripple.key}
+                      cx={ripple.cx}
+                      cy={ripple.cy}
+                      fill="none"
+                      stroke="rgba(6, 182, 212, 0.3)"
+                      strokeWidth={1.5}
+                      initial={{ r: 0, opacity: 0.6 }}
+                      animate={{ r: 80, opacity: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.5, ease: 'easeOut' }}
+                      onAnimationComplete={() => setRipple(null)}
+                      pointerEvents="none"
+                    />
+                  )}
+                </AnimatePresence>
               </svg>
               <HeatmapTooltip
                 data={tooltipData}
