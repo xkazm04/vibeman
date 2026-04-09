@@ -433,6 +433,25 @@ Estimated scope: N files across M directories
 
 **CHECKPOINT**: Ask the user to approve the plan before proceeding. If the user wants changes, revise and re-present. Do NOT proceed to implementation without explicit approval.
 
+### 4.5 Design review (CRITICAL — runs after plan approval, before implementation)
+
+Before writing any code, step back and answer these strategic questions about the approved plan. Each question must get a concrete answer, not "N/A." If answering reveals a gap, update the task list before proceeding.
+
+**Data completeness:**
+- For each external API the plan calls: *what fields does the API actually return?* Research the response schema, not just that the endpoint exists. Map every returned field to a domain requirement. If the API returns data the plan ignores, ask whether that data is legally or functionally required.
+- For each new type/interface: *does it capture everything the domain requires?* Not just what's convenient to implement — what would a lawyer, accountant, or paying customer expect?
+
+**Surface coverage:**
+- For each new user-facing action (button, API call, feature): *list every place in the app where a user would expect this action to be available.* If the plan only wires it into one surface but 2+ surfaces exist, add tasks for the others. The test: "a user who discovers this feature on page A would be confused that it's missing on page B."
+
+**UI quality:**
+- For each new interactive element: *what visual treatment does it deserve relative to the feature's importance?* A core business feature (VAT lookup) should not be styled like a secondary link. Match the visual weight to the feature's value. If the plan doesn't specify styling for a new interactive element, add it to the task description.
+
+**Integration coherence:**
+- After the plan is complete, *walk through the user's workflow end-to-end.* Start from "I open the app" and trace through every action the user would take that touches the new feature. Are there dead ends, missing connections, or surprising omissions?
+
+**Why this step exists (Run #8 lesson):** Run #8 autonomously selected the right goal (invoice compliance) and implemented 8 tasks that all passed quality gates. But the execution had three strategic gaps: (1) VAT lookup returned rich data that was thrown away because nobody researched the response schema, (2) the lookup was wired into InvoiceForm but not the contacts page where users actually manage contacts, (3) the lookup button was unstyled bare text that didn't communicate its value. All three gaps would have been caught by asking the design review questions above before writing code. **Technical correctness is necessary but not sufficient — design coherence is what makes features feel complete.**
+
 ---
 
 ## Phase 5: Implement
