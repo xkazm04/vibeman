@@ -342,7 +342,12 @@ Score: **+25 points** if both `tsc` and (when applicable) `next build` pass; **0
 npx vitest run --reporter=verbose 2>&1 | tail -30
 ```
 Set `TESTS_RUN` to true. Record `TESTS_PASSED` and `TESTS_TOTAL`.
-Score: **+30 points** if all tests pass, scaled by pass rate if some fail. If no test runner configured, award **+15 points**.
+
+Score (split into two halves):
+- **+15 points** if a test runner is present and configured (vitest.config, jest.config, cargo test, etc.). **+0** if no runner exists — absence of tests is neutral, not rewarded.
+- **+15 points** if all tests pass, scaled by pass rate if some fail. If no runner exists, this half is **+0**.
+
+This means projects with no test runner cap at 0/30 for this gate. If a project *should* have tests but doesn't, the score will honestly reflect that gap — and Phase 7 should nudge "add test infrastructure" as a follow-up goal.
 
 ### 6.3 Lint Verification
 ```bash
@@ -635,6 +640,8 @@ This section records *why* each non-obvious rule exists. When a rule looks redun
 - **The host-first rule is now validated for execution-context (not just research-context).** Open question from the initial transfer: closed. The rule pays off the same way — in fact more, because catching a missing host saves *implementation* cost, not just *recommendation* cost.
 
 **Rules considered and NOT added (with reasoning):**
+
+- **Phase 6.2 — split test score into "runner present" (15) + "tests passed" (15).** Previously "no test runner = +15 free points", which rewarded absence of tests indistinguishably from neutral state. Now: runner present = 15, tests pass = 15. No runner = 0/30. User chose Option B (split) over Option A (keep as-is) and Option C (stack-detection). Rationale: simplest honest rubric; doesn't encode stack-specific conventions; forces future runs to honestly reflect the test gap; a 70-score for shipped+built+linted code is still grade B and still passes the ≥70 gate. Counter-argument acknowledged: early prototypes genuinely may not need tests, and this rubric can't distinguish "intentionally untested" from "negligently untested" — but the cost of that ambiguity is lower than the cost of silently inflating scores.
 
 - **Auto-snapshot the rendered PDF on Phase 6 for visual diffing.** Tempting, but adds dependency on a headless renderer and only validates one of many possible feature outputs. Run #1's smoke test (pdf renderToFile + magic-byte check) was project-specific; baking it into the skill adds boilerplate for non-PDF projects. Skip until visual smoke testing is the bottleneck on multiple goals.
 - **Force the assistant to commit `harness-learnings.md` separately from feature code.** Considered for cleanliness, but the cost of a tiny extra commit is real and the benefit is purely cosmetic. Run #1 did this organically without a rule. Skip.
