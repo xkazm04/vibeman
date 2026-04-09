@@ -133,7 +133,20 @@ Health signals (check all, takes ~30 seconds):
 **Decision rule:**
 - If TypeScript errors > 0 OR test failures > 0 OR lint errors > 5 → **Stabilize** (fix what's broken first)
 - If TODO/FIXME count > 10 OR largest file > 600 LOC → **Stabilize** (tech debt is accumulating)
-- Otherwise → **Improve** (project is healthy, ready for new features)
+- Otherwise → check **infrastructure readiness** before choosing Improve (see below)
+
+#### Infrastructure readiness check (CRITICAL — runs before Improve)
+
+Before generating feature goals, verify the app has the *structural foundation* to host new features. Features without infrastructure are features users can't find.
+
+Check these in order:
+1. **Navigation / routing** — Does the app have more than one route? Is there a header/sidebar with nav links? If the app is a single `page.tsx` monolith with no routing, the #1 goal MUST be "add app shell + route structure" — regardless of what features the backlog contains.
+2. **Layout shell** — Is there a shared layout (header, nav, footer) that new pages slot into? If every page is standalone with no common chrome, new features have no home.
+3. **Module hosting pattern** — Can you add a new page/section without restructuring existing code? If adding `/contacts` requires refactoring `/` (page.tsx), the layout isn't scalable.
+
+If any of these fail → **the goal is infrastructure, not a feature.** Generate an "app shell + navigation" goal and rank it #1 with confidence=high. This overrides all feature candidates from the Improve Engine.
+
+**Why this rule exists (Run #4 lesson):** The first autonomous run selected "client contact book" — a correct, well-implemented feature that scored 100/100. But the user rejected it because the app had no navigation, no header, no route structure. The contacts were buried inside the invoice form with no standalone access. The feature was technically solid but *undiscoverable*. Infrastructure readiness is the prerequisite that makes features usable.
 
 Present the decision to the user:
 ```
@@ -247,6 +260,7 @@ This file is the **training data for the skill's judgment**. Over 5-10 runs, pat
 - **Don't stack stabilize goals.** If the last 2 runs were both stabilize, force an improve goal even if the health scan suggests more stabilization. The project needs momentum, not just polish.
 - **Don't generate goals that duplicate what harness-learnings says is DONE.** Always check the struck-through items before proposing.
 - **Web research goals must be grounded in the project's current state.** "Add AI-powered OCR" is not a valid goal if the project has no backend and no AI dependencies. Filter aggressively for feasibility.
+- **Don't add features to a monolith.** If the app is a single page with no navigation, adding a new feature just buries it deeper. The first goal must be infrastructure (app shell, routes, nav), then features. A technically perfect feature that users can't find is a failed goal.
 
 ---
 
