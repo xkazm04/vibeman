@@ -93,7 +93,7 @@ Existing open goals for PROJECT_NAME:
 Pick an existing goal (a/b/...) or describe a NEW development goal:
 ```
 
-   **If no open goals exist**, do not ask the user blindly — use the Phase 2 snapshot from step 1 to propose 3–4 *grounded* goal options that match the project's current state and reasonable next steps. Each proposal should include: title, one-line description, rough scope estimate (number of tasks), and any visible risks. Then ask the user to pick or describe their own.
+   **If no open goals exist AND the user hasn't specified a goal**, enter **Autonomous Goal Generation** (Phase 2a below) instead of asking blindly. If the user *did* provide a goal description, skip 2a and go to step 4.
 
 4. If the user picks an existing goal, use its title and description. Store the `GOAL_ID`.
 
@@ -108,6 +108,145 @@ Store the returned `GOAL_ID`. Increment `API_CALLS`.
 6. **Sanity-check the goal size.** If the goal as worded would obviously require more than 8 tasks, more than 5 directories of changes, or "implement the entire vision document" — push back and ask the user to scope it down before proceeding. A right-sized goal for one pipeline run is 3–8 tasks across ≤5 directories.
 
 7. Ask the user if there are any constraints or target files to focus on. This is optional — if the user says no, proceed with the full project scope.
+
+---
+
+### Phase 2a: Autonomous Goal Generation
+
+When no user-specified goal exists and no open goals are queued, the skill must generate its own goal. This is the core autonomy loop — the skill evaluates the project and decides what work would add the most value.
+
+#### Step 1: Health scan (decides Stabilize vs. Improve)
+
+Run a quick diagnostic to assess whether the project needs *fixing* or is ready for *growth*:
+
+```
+Health signals (check all, takes ~30 seconds):
+├─ TypeScript errors          → npx tsc --noEmit 2>&1 | grep "error TS" | wc -l
+├─ Lint errors                → npx eslint --quiet src/ 2>&1 | grep "error" | wc -l  
+├─ Test pass rate             → npx vitest run 2>&1 (if configured)
+├─ Open follow-ups count      → count items in harness-learnings.md "Open follow-ups" section
+├─ Large files (>400 LOC)     → find src/ -name "*.ts" -o -name "*.tsx" | xargs wc -l | sort -rn | head -5
+├─ TODO/FIXME/HACK count      → grep -r "TODO\|FIXME\|HACK" src/ | wc -l
+└─ Vision gap                 → compare requirements/ doc sections vs. actual src/ directories
+```
+
+**Decision rule:**
+- If TypeScript errors > 0 OR test failures > 0 OR lint errors > 5 → **Stabilize** (fix what's broken first)
+- If TODO/FIXME count > 10 OR largest file > 600 LOC → **Stabilize** (tech debt is accumulating)
+- Otherwise → **Improve** (project is healthy, ready for new features)
+
+Present the decision to the user:
+```
+Health scan: [X] TS errors, [Y] lint errors, [Z/N] tests, [W] TODOs, largest file [F] LOC
+Decision: STABILIZE / IMPROVE
+Reasoning: [1 sentence why]
+```
+
+#### Step 2a: Stabilize Scanner (when health scan says Stabilize)
+
+Systematically scan for concrete improvement targets. Run these greps/checks in parallel:
+
+**Code quality signals:**
+1. **Large components** — files > 300 LOC that could be decomposed. `wc -l src/**/*.tsx | sort -rn | head -10`
+2. **Duplicated patterns** — grep for repeated code blocks (same function signature in 2+ files, same 5+ line block). `grep -rn "pattern" src/ | sort | uniq -d`
+3. **Missing error handling** — async functions without try/catch, fetch calls without error handling. `grep -rn "await.*fetch\|await.*axios" src/ | grep -v "try\|catch"`
+4. **Type safety gaps** — any `as any`, type assertions, non-null assertions. `grep -rn "as any\|as unknown\|!\." src/`
+5. **Dead code** — exports not imported anywhere, unused variables (eslint can catch these). `npx eslint --rule '{"no-unused-vars":"error"}' src/`
+6. **Accessibility gaps** — interactive elements without aria labels, images without alt. `grep -rn "<button\|<a \|<input" src/ | grep -v "aria-\|title=\|alt="`
+7. **Performance patterns** — inline object/array creation in JSX props (causes re-renders), missing useMemo/useCallback for expensive computations.
+
+For each finding, record:
+```
+{ signal: "large-component", file: "path.tsx", line: N, severity: "high|medium|low", description: "..." }
+```
+
+**Generate stabilize goals** by clustering findings:
+- Group by file/module
+- Rank by severity × count
+- Generate 3-5 candidate goals, each addressing a cluster
+- Each goal should be independently valuable (don't generate goals that only make sense as a set)
+
+#### Step 2b: Improve Engine (when health scan says Improve)
+
+Identify what features would add the most value. Three input sources, checked in order:
+
+**Source 1: Open follow-ups from harness-learnings.md**
+These are known, vetted gaps left by previous runs. They're the highest-confidence source because a prior run already evaluated them and decided they were worth noting but out-of-scope. Parse the "Open follow-ups" section and treat each non-struck-through item as a candidate.
+
+**Source 2: Vision-gap analysis**
+If a `requirements/` or design document exists:
+1. Read the document's table of contents / section headers
+2. For each major section, grep the codebase to check if it's implemented
+3. Identify the largest *implementable* gap (something that can ship in 3-8 tasks, not "build the entire backend")
+4. Generate 1-2 goals that would close the most impactful gap
+
+**Source 3: Domain research (web search)**
+Search the web for best practices and common features in the project's domain:
+- For `auto-invoicer`: search "invoice app essential features", "invoice UX best practices 2026", "open source invoice app features comparison"
+- For a generic project: search "{project-type} common features checklist", "{domain} UX patterns"
+- Extract 3-5 feature ideas that the project doesn't have yet
+- Filter: only keep ideas that are feasible in one pipeline run (3-8 tasks)
+
+**Important**: web research is a *supplement*, not a replacement for the first two sources. Open follow-ups and vision gaps are always higher-confidence because they're grounded in the specific project. Web research adds breadth but may suggest features that don't fit the project's scope or style.
+
+#### Step 3: Backlog ranking and selection
+
+Combine all candidate goals from Step 2a or 2b into a ranked backlog:
+
+```markdown
+## Autonomous Backlog for PROJECT_NAME
+
+| # | Goal | Category | Impact | Confidence | Tasks est. | Source |
+|---|------|----------|--------|------------|------------|--------|
+| 1 | ... | stabilize/improve | high/med/low | high/med/low | N | follow-up/vision/research/scan |
+| 2 | ... | ... | ... | ... | N | ... |
+| 3 | ... | ... | ... | ... | N | ... |
+
+**Auto-selected: #N** — [1-sentence reasoning for why this is the highest-value goal right now]
+```
+
+**Ranking criteria** (in priority order):
+1. **Confidence** — how sure are we this is the right thing to do? Follow-up items > vision gaps > research ideas > scan findings.
+2. **Impact** — how much does this improve the user's experience or the code's health? Features users interact with > internal refactoring > cosmetic polish.
+3. **Feasibility** — can this ship cleanly in one run? Goals that touch 3-5 files > goals that require new infrastructure > goals with unclear scope.
+4. **Freshness** — prefer goals that build on recent work (the context is hot) over goals that touch cold code.
+
+**Auto-select the #1 goal and proceed** — but present the full backlog so the user can override. If the user is present and interactive, wait for confirmation. If the pipeline is running autonomously (no user interaction expected), auto-proceed with #1 after a 10-second display.
+
+#### Step 4: Goal judgment log (learning loop)
+
+After the run completes (Phase 7), record the autonomous goal decision and its outcome in `docs/harness/goal-judgments.md`:
+
+```markdown
+## Run #N — YYYY-MM-DD
+
+**Mode:** stabilize | improve
+**Health scan:** X TS errors, Y lint, Z/N tests, W TODOs, largest file F LOC
+**Selected goal:** [title]
+**Source:** follow-up | vision-gap | web-research | scan
+**Confidence at selection:** high | medium | low
+**Quality score:** XX/100
+**User verdict:** accepted | rejected | modified
+**Reasoning (if rejected/modified):** [what the user said about why]
+
+**Lessons for future ranking:**
+- [what this run taught about goal selection — e.g. "web-research features need more scoping", "scan findings under 'medium' severity aren't worth a full goal"]
+```
+
+This file is the **training data for the skill's judgment**. Over 5-10 runs, patterns emerge:
+- Which sources produce accepted goals vs. rejected ones?
+- Which confidence levels actually correlate with success?
+- What kinds of goals does this specific user/project value?
+
+**Read `goal-judgments.md` at the start of Phase 2a** (alongside harness-learnings) so past decisions inform future ranking. If the log shows a pattern (e.g. "web-research goals are always rejected for this project"), downrank that source automatically.
+
+#### Anti-patterns in autonomous goal generation
+
+- **Don't generate goals that are just "refactor X for cleanliness" unless X is actively causing pain.** Refactoring needs a trigger — a bug, a performance issue, a feature blocked by the current structure. "This file is long" is not enough; "this file is long AND the next feature needs to add to it" is.
+- **Don't generate goals from the vision document that skip intermediate steps.** If the vision says "add Supabase backend" but the project has no API routes yet, the goal should be "add first API route" not "integrate Supabase."
+- **Don't stack stabilize goals.** If the last 2 runs were both stabilize, force an improve goal even if the health scan suggests more stabilization. The project needs momentum, not just polish.
+- **Don't generate goals that duplicate what harness-learnings says is DONE.** Always check the struck-through items before proposing.
+- **Web research goals must be grounded in the project's current state.** "Add AI-powered OCR" is not a valid goal if the project has no backend and no AI dependencies. Filter aggressively for feasibility.
 
 ---
 
@@ -417,6 +556,10 @@ Keep each bullet under 3 lines. Link to the file/line that surfaced the fact whe
 **Why "Open follow-ups" matters**: every run will deliberately leave some work undone (out of scope, deferred, blocked). If those decisions aren't captured in the learnings file, the next run will either (a) re-flag them as new findings or (b) accidentally re-implement them in a slightly different way. A formal "Open follow-ups (from Run #N)" section keeps this list current and prevents both failure modes.
 
 This step exists because structural facts discovered during implementation are otherwise lost — the next run will re-discover them from scratch. A small, disciplined write-back compounds into a living reference that shortens every future Phase 4.1.
+
+### 6.8b Update goal judgment log (when Phase 2a was used)
+
+If this run's goal was autonomously generated (Phase 2a), record the decision and outcome in `docs/harness/goal-judgments.md`. See Phase 2a Step 4 for the format. This file is the training data for improving autonomous goal selection over time — skip it only if the user explicitly provided the goal.
 
 ### 6.9 Record Brain Signal
 ```bash
