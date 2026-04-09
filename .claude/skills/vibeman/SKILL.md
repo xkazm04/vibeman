@@ -69,13 +69,22 @@ Increment `API_CALLS` by 1.
 
 Define what development work to accomplish.
 
-1. Check for existing open goals:
+1. **Lightweight project snapshot (always run, ~5 file reads).** Before asking the user for a goal, scan the project just enough to ground any goal question or proposal:
+   - Read `PROJECT_PATH/package.json` (or `Cargo.toml` / `pyproject.toml`)
+   - Read `PROJECT_PATH/README.md` if it exists
+   - List the top level of `src/` (or the main source directory)
+   - Read 1–2 obvious entry points (e.g. `src/app/page.tsx`, `src/main.ts`, `src/index.ts`)
+   - If a `requirements/` or `docs/` directory exists, peek at the file names — but treat those as **vision documents, not source of truth** unless the codebase actually implements them.
+
+   The purpose of this step is *not* exhaustive context-gathering (that's Phase 4.1) — it's just enough to know what kind of goal is realistic. **When no goals exist, this snapshot lets you propose 3–4 grounded options instead of asking the user blindly.** Track these reads in `FILES_READ`.
+
+2. Check for existing open goals:
 ```bash
 curl -s "http://localhost:3000/api/goals?projectId=PROJECT_ID&status=open" 2>/dev/null
 ```
 Increment `API_CALLS`.
 
-2. If open goals exist, present them:
+3. If open goals exist, present them:
 ```
 Existing open goals for PROJECT_NAME:
   a. Goal title — description snippet
@@ -84,9 +93,11 @@ Existing open goals for PROJECT_NAME:
 Pick an existing goal (a/b/...) or describe a NEW development goal:
 ```
 
-3. If the user picks an existing goal, use its title and description. Store the `GOAL_ID`.
+   **If no open goals exist**, do not ask the user blindly — use the Phase 2 snapshot from step 1 to propose 3–4 *grounded* goal options that match the project's current state and reasonable next steps. Each proposal should include: title, one-line description, rough scope estimate (number of tasks), and any visible risks. Then ask the user to pick or describe their own.
 
-4. If the user describes a new goal, create it in Vibeman:
+4. If the user picks an existing goal, use its title and description. Store the `GOAL_ID`.
+
+5. If the user describes a new goal, create it in Vibeman:
 ```bash
 curl -s -X POST http://localhost:3000/api/goals \
   -H 'Content-Type: application/json' \
@@ -94,7 +105,9 @@ curl -s -X POST http://localhost:3000/api/goals \
 ```
 Store the returned `GOAL_ID`. Increment `API_CALLS`.
 
-5. Ask the user if there are any constraints or target files to focus on. This is optional — if the user says no, proceed with the full project scope.
+6. **Sanity-check the goal size.** If the goal as worded would obviously require more than 8 tasks, more than 5 directories of changes, or "implement the entire vision document" — push back and ask the user to scope it down before proceeding. A right-sized goal for one pipeline run is 3–8 tasks across ≤5 directories.
+
+7. Ask the user if there are any constraints or target files to focus on. This is optional — if the user says no, proceed with the full project scope.
 
 ---
 
@@ -164,6 +177,45 @@ For each planned feature in the goal, grep the codebase to check whether it alre
 If **50%+ of the feature already exists**, do NOT generate tasks as if starting from zero. Rescope the goal to "finish/extend existing X at `file.ts:line`" and present the rescoping to the user as part of Phase 4.4 approval. Track already-existed findings in a running note for the Phase 7 report.
 
 **This rule alone has historically caught 30-40% of planned work across similar skills** — don't skip it.
+
+### 4.1e Escalation report (when host-first / already-existed grep finds something consequential)
+
+If steps 4.1b–4.1d surface a finding that **materially changes the goal's scope, approach, or feasibility**, stop and present an escalation report to the user *before* generating tasks. Do NOT silently rescope and proceed — the user needs to make the call.
+
+Use this mini-template:
+
+```markdown
+### Phase 4.1 finding (escalating)
+
+**What I expected based on the goal as worded:**
+[1–2 sentences]
+
+**What the codebase actually contains:**
+- [confirmed fact 1, with file:line]
+- [confirmed fact 2]
+- [confirmed fact 3]
+
+**Why this changes the plan:**
+[1–2 sentences explaining the consequence — e.g. "the goal assumes X, but Y is missing, so the work is actually 2 layers, not 1"]
+
+**Options:**
+
+| Option | Approach | Tasks | Pros | Cons |
+|---|---|---|---|---|
+| A. [name] | [1-line summary] | N | [...] | [...] |
+| B. [name] | [1-line summary] | N | [...] | [...] |
+| C. [name] | [1-line summary] | N | [...] | [...] |
+
+**My recommendation:** [A/B/C], because [reason — usually risk vs. value tradeoff].
+
+**Decision needed:** Pick A/B/C, or describe a fourth path. I'll generate the task list once you choose.
+```
+
+When to escalate vs. when to silently adapt:
+- **Silently adapt** when the finding is small (e.g. file is in a slightly different location, function has a slightly different name). Just adjust the plan and note it in Phase 7's "already-existed catches".
+- **Escalate** when the finding changes the *number* of tasks, the *kind* of work, or whether the goal is feasible at all. The user wrote the goal assuming a mental model of the codebase; if that model is wrong, they need to know before you commit a plan.
+
+A good rule of thumb: if you'd find yourself writing "actually, the goal needs to be rescoped to..." in Phase 4.4, you should have escalated in 4.1e instead.
 
 ### 4.2 Consult Brain (Optional)
 
@@ -276,7 +328,14 @@ Run quality checks and compute a confidence score.
 ```bash
 npx tsc --noEmit 2>&1
 ```
-Increment `TSC_RUNS`. Score: **+25 points** if build passes, **0** if it fails.
+Increment `TSC_RUNS`. **For Next.js projects, also run a full production build** — `tsc` only checks types, but `next build` validates the SSR/client boundary, `"use client"` directives, webpack/turbopack module resolution, and prerender behavior. These are real failure modes that `tsc` cannot catch (e.g. importing a browser-only library from a server component, or a use-client file that accidentally pulls in a server-only module).
+
+```bash
+# Only for Next.js projects (skip for other stacks)
+npx next build 2>&1 | tail -40
+```
+
+Score: **+25 points** if both `tsc` and (when applicable) `next build` pass; **0** if either fails. For non-Next.js projects, run the project's equivalent (`cargo build`, `vite build`, `tsc -p .`, etc.) — the principle is "the actual build the project ships, not just the type checker".
 
 ### 6.2 Test Verification
 ```bash
@@ -330,7 +389,27 @@ Do NOT capture:
 - Transient state (in-progress branches, scratch files)
 - Anything already documented elsewhere (check the file first)
 
-Format: append a dated bullet to an existing "Structural facts" section, or create one if missing. Keep each bullet under 3 lines. Link to the file/line that surfaced the fact.
+Format: the file should have at least these three sections (add them if missing on first run):
+
+```markdown
+# {project} — harness learnings
+
+## Structural facts
+- **YYYY-MM-DD** — [fact, with file:line if applicable]
+
+## Conventions enforced
+- [convention discovered or established]
+
+## Anti-patterns to avoid
+- [pattern + the cost it incurred]
+
+## Open follow-ups (from Run #N, YYYY-MM-DD)
+- [thing the goal explicitly did not do, but that future runs need to know about]
+```
+
+Keep each bullet under 3 lines. Link to the file/line that surfaced the fact whenever possible.
+
+**Why "Open follow-ups" matters**: every run will deliberately leave some work undone (out of scope, deferred, blocked). If those decisions aren't captured in the learnings file, the next run will either (a) re-flag them as new findings or (b) accidentally re-implement them in a slightly different way. A formal "Open follow-ups (from Run #N)" section keeps this list current and prevents both failure modes.
 
 This step exists because structural facts discovered during implementation are otherwise lost — the next run will re-discover them from scratch. A small, disciplined write-back compounds into a living reference that shortens every future Phase 4.1.
 
@@ -342,6 +421,7 @@ curl -s -X POST http://localhost:3000/api/brain/signals \
     "projectId": "PROJECT_ID",
     "signalType": "implementation",
     "data": {
+      "requirementId": "GOAL_ID",
       "requirementName": "GOAL_TITLE",
       "success": QUALITY_SCORE >= 70,
       "filesCreated": ["list of created files"],
@@ -351,7 +431,7 @@ curl -s -X POST http://localhost:3000/api/brain/signals \
     }
   }'
 ```
-Increment `API_CALLS`.
+Increment `API_CALLS`. **Note**: the brain API requires `requirementId` (string) — pass the goal ID from Phase 2 here. `requirementName` is optional metadata. If the request fails (e.g. schema mismatch), log the error and continue — brain signals are enhancement, not critical path.
 
 ---
 
@@ -524,3 +604,38 @@ This section records *why* each non-obvious rule exists. When a rule looks redun
 - Does the host-first rule pay off the same way in vibeman's execution context as it did in `/research`'s extraction context? The payoff mechanism is identical (avoiding duplicate work), but vibeman writes code — if the rule catches something mid-Phase 5, it may be too late to avoid the cost entirely. Worth measuring the catch rate across early runs.
 - Should `docs/harness/harness-learnings.md` have a formal structure (sections, frontmatter) the way `codebase-stack.md` does in personas? The `/research` skill got more value out of a structured reference file than a flat list. Consider formalizing once 3-5 runs have contributed learnings.
 - The security check rule (Phase 5) fires on grep heuristics. It may produce false positives on internal dev-only endpoints. Track the false-positive rate over early runs — if it's noisy, add a way for the user to mark a target file as "known-safe" via a frontmatter or comment.
+
+---
+
+### 2026-04-09 — Run #1 on `auto-invoicer` (PDF export goal)
+
+**Context:** First real run of vibeman after the initial /research transfer. Goal: PDF export of InvoiceForm. Auto-invoicer is a near-greenfield Next.js 16 + React 19 + Tailwind 4 project (~600 LOC of source). Quality score: 85/100. 4 tasks planned, 4 completed, 0 failed. The full meta-observations are in the Run #1 conversation; this entry distills only the *durable* skill changes that came out of it.
+
+**Validations (rules that paid off, so leave them alone):**
+
+- **Phase 4.1d already-existed check fires on the very first run of every project.** The naive plan was "task 1: add a Download PDF button" — three tasks. The host-first / already-existed pass discovered that `InvoiceForm.tsx` was *fully uncontrolled* (every input used `defaultValue`, line items were a hardcoded inline array, totals were baked-in literal strings). Without that check, vibeman would have written a button that downloads a PDF of nothing meaningful. Reframed scope from 1 layer to 2 layers: data model + controlled state, *then* PDF generation. **The rule has now been validated in execution context the same way it was validated in research context — confirming the open question from the initial transfer.**
+- **Per-task tsc + commit rhythm catches errors when they're cheap to fix.** During Task 4, `tsc` caught a `ReactElement<DocumentProps>` type variance issue in `download.ts`. Because the failure happened inside a single small task with a hot mental model, the fix was a 4-line type cast with an inline comment. If this had been batched into a 4-task megacommit verified only at Phase 6, the same error would have required a much larger debug session to isolate. Keep the rhythm.
+- **Phase 5 non-goals list earned its keep twice in one run.** Once during planning (forced explicit "no API route, no theme parity in PDF, no toast lib") and once during implementation (caught the urge to wire the dormant Save Draft button as a "free extra"). The discipline of *naming* what you won't do dramatically beats just "intending to be focused".
+
+**Rules added in this iteration (Run #1 → SKILL v2):**
+
+- **Phase 2 step 1 — lightweight project snapshot (always run).** Read package.json + README + top-level src/ + 1–2 entry points before asking the user for a goal. Added because Phase 2 is impossible to do well without context: I had to scout the codebase anyway just to ask an *intelligent* goal question. Now formalized as ~5 file reads at the start of Phase 2, explicitly cheap, explicitly lightweight. Phase 4.1 still does the deep context-gather; this is just enough to avoid asking blindly.
+- **Phase 2 step 3 — propose grounded goal options when no goals exist.** Previously the skill jumped to "describe a NEW goal" with no scaffolding. Now: when no open goals exist, the assistant uses the Phase 2 snapshot to propose 3–4 concrete options with title / one-line description / scope estimate / visible risks. The user can pick one or describe their own. Caught the risk that the "ask blindly" path leaves the user with no anchor on what's possible.
+- **Phase 2 step 6 — sanity-check goal size.** Explicit pushback if the goal would obviously exceed 8 tasks / 5 directories. The plan-approval gate already catches oversized goals indirectly, but adding it here means scope conversations happen *before* Phase 4.1 burns context on a doomed plan.
+- **Phase 4.1e — Escalation report mini-template.** Formalizes the structure I had to improvise mid-Run-#1 when the host-first finding required user input. Standard template: what I expected, what's actually there, why it changes the plan, options table, recommendation, decision needed. Distinguishes "silently adapt" (small finding) from "escalate" (changes task count or feasibility). The bar: if you'd write "actually, the goal needs to be rescoped" in Phase 4.4, you should have escalated in 4.1e instead.
+- **Phase 6.1 — also run `next build` (or equivalent) for Next.js projects.** `tsc --noEmit` only checks types. `next build` validates `"use client"` boundaries, SSR/client integration, prerender behavior, and turbopack module resolution. These are real failure modes for libraries like `@react-pdf/renderer`. Adding `next build` to Phase 6.1 caught nothing on Run #1 (it passed), but the *positive* signal was much stronger than tsc alone — and on a future run with subtler use-client mistakes, this is exactly the gate that will catch them. Generalized as "run the project's actual build, not just the type checker".
+- **Phase 6.8 — formalized harness-learnings.md schema with `Open follow-ups` section.** Was previously a flat "Structural facts" list. Now has four named sections: Structural facts / Conventions enforced / Anti-patterns to avoid / Open follow-ups (from Run #N). The Open follow-ups section is the new addition: it captures what *this* run deliberately chose not to do, so the next run doesn't either re-flag it as a finding or accidentally re-implement it differently. Run #1's seeded learnings file already uses this shape.
+- **Phase 6.9 — fix `requirementName` → `requirementId`.** Pre-Run-#1 the skill template used `requirementName: GOAL_TITLE`, but the live brain API rejects with `Invalid signal data: implementation.data requires requirementId (string)`. Worked around by passing the goal ID. **Bug in skill template, fixed.** Every future run was guaranteed to waste one API call on this until corrected.
+
+**Open questions for Run #2 and beyond:**
+
+- **Quality score rubric is gameable.** Run #1 scored 85/100 partly because "no test runner = +15 free points" applies regardless of whether tests *should* exist. A project that genuinely has no test suite gets the same neutral treatment as a project that has tests but they were skipped, which feels wrong. Considered changes (any of these would be a real shift): (a) split the 30-point test slot into 15 "test runner present" + 15 "tests passed", so absent tests cap at 15; (b) treat absent tests as -0 / +0 instead of +15, with a Phase-7 nudge to add tests as a follow-up goal; (c) detect "should have tests" by language/framework conventions and weight accordingly. **Decision needed from user before Run #2** — see end of message.
+- **`FILES_READ` is a noisy metric.** Run #1 read 8 files; only ~2 actually shaped the plan. On a 1000-file repo this would explode without measuring anything useful. Probably not actionable until we see it on a larger project — flagging for Run #2 or #3.
+- **Should `harness-learnings.md` get frontmatter (run count, last updated, project version)?** The new four-section shape is structured enough for now. Revisit after 3–5 runs of contributions to see if the file is starting to drift.
+- **The host-first rule is now validated for execution-context (not just research-context).** Open question from the initial transfer: closed. The rule pays off the same way — in fact more, because catching a missing host saves *implementation* cost, not just *recommendation* cost.
+
+**Rules considered and NOT added (with reasoning):**
+
+- **Auto-snapshot the rendered PDF on Phase 6 for visual diffing.** Tempting, but adds dependency on a headless renderer and only validates one of many possible feature outputs. Run #1's smoke test (pdf renderToFile + magic-byte check) was project-specific; baking it into the skill adds boilerplate for non-PDF projects. Skip until visual smoke testing is the bottleneck on multiple goals.
+- **Force the assistant to commit `harness-learnings.md` separately from feature code.** Considered for cleanliness, but the cost of a tiny extra commit is real and the benefit is purely cosmetic. Run #1 did this organically without a rule. Skip.
+- **Make `next build` mandatory for all stacks, not just Next.js.** The "Next.js or equivalent" wording captures the principle without forcing a specific command. Different stacks have different equivalents (`cargo build`, `vite build`, etc.). Phrasing the rule as a principle is better than a list.
