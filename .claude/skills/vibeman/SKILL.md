@@ -181,26 +181,42 @@ For each finding, record:
 
 #### Step 2b: Improve Engine (when health scan says Improve)
 
-Identify what features would add the most value. Three input sources, checked in order:
+Identify what work would add the most **business value** — not just technical completeness. The Improve Engine has four input sources, checked in priority order. **Impact is the #1 ranking criterion, not confidence.**
 
-**Source 1: Open follow-ups from harness-learnings.md**
-These are known, vetted gaps left by previous runs. They're the highest-confidence source because a prior run already evaluated them and decided they were worth noting but out-of-scope. Parse the "Open follow-ups" section and treat each non-struck-through item as a candidate.
+**Source 1: Business Domain Scan (highest priority — ALWAYS run this first)**
+
+Before checking follow-ups or code, research what the project's *business domain* actually requires to be viable. This is the single highest-value source because it identifies what makes the product usable for real users, not just technically complete.
+
+For each project, ask: "What would a paying user need from this product that it doesn't have yet?"
+
+Steps:
+1. **Research the domain requirements.** Web search for the domain's legal, regulatory, and competitive requirements:
+   - For an invoice app: "invoice legal requirements [country]", "mandatory invoice fields EU", "VAT validation API VIES", "invoice numbering rules", "invoice app competitive analysis 2026"
+   - For a generic SaaS: "{domain} compliance requirements", "{domain} must-have features for paying users"
+2. **Compare against current implementation.** For each requirement discovered, grep the codebase to check if it exists. Record what's missing.
+3. **Identify the largest business-value gap.** The gap that, if closed, would move the product closest to being usable by a real paying customer. This is almost always a *business capability* (legal compliance, data validation, workflow automation), not a *UX feature* (theming, animations, polish).
+4. **Design an ambitious goal around the gap.** Goals from the domain scan should be 5-8 tasks and address a complete business capability. Examples:
+   - "Country-specific invoice compliance: mandatory fields per jurisdiction, VAT ID validation via ARES/VIES, sequential numbering rules"
+   - "Client onboarding flow: import contacts from CSV, validate tax IDs against registries, auto-fill from VAT number"
+   - "Multi-currency support with live exchange rates and proper decimal handling"
+
+**Why this source is #1 (Run #7 lesson):** Run #7 autonomously selected "PDF theming parity" — a technically correct, well-scoped follow-up item. But the user rejected the *priority*, not the feature. The app was missing core business functionality (legal compliance, registry validation, country-specific rules) that would make it usable for real invoicing. The skill was optimizing for safety (small, vetted follow-ups) instead of value (large, domain-driven capabilities). **Polish doesn't make a product viable; business capabilities do.**
 
 **Source 2: Vision-gap analysis**
 If a `requirements/` or design document exists:
 1. Read the document's table of contents / section headers
 2. For each major section, grep the codebase to check if it's implemented
-3. Identify the largest *implementable* gap (something that can ship in 3-8 tasks, not "build the entire backend")
+3. Identify the largest *implementable* gap (something that can ship in 5-8 tasks)
 4. Generate 1-2 goals that would close the most impactful gap
+5. **Filter: prefer gaps that align with the Business Domain Scan findings.** If the domain scan says "VAT validation is critical" and the vision doc has a section on it, that's a double-signal.
 
-**Source 3: Domain research (web search)**
-Search the web for best practices and common features in the project's domain:
-- For `auto-invoicer`: search "invoice app essential features", "invoice UX best practices 2026", "open source invoice app features comparison"
-- For a generic project: search "{project-type} common features checklist", "{domain} UX patterns"
-- Extract 3-5 feature ideas that the project doesn't have yet
-- Filter: only keep ideas that are feasible in one pipeline run (3-8 tasks)
+**Source 3: Open follow-ups from harness-learnings.md**
+Known gaps left by previous runs. **These are now the LOWEST-priority feature source** (demoted from #1 in skill v3). Follow-ups are typically polish (theming, dialogs, performance optimization) — they matter, but only after core business capabilities are in place. Bundle small follow-ups together into one goal if they collectively justify a run; don't let a single small follow-up consume an entire autonomous run.
 
-**Important**: web research is a *supplement*, not a replacement for the first two sources. Open follow-ups and vision gaps are always higher-confidence because they're grounded in the specific project. Web research adds breadth but may suggest features that don't fit the project's scope or style.
+**Source 4: Competitive research (web search)**
+Search for what competitors do and what users expect. This supplements the domain scan with feature-level ideas. Filter aggressively for feasibility within 5-8 tasks.
+
+**Key shift from earlier versions of this skill:** The ranking used to be confidence > impact. Now it's **impact > confidence**. A high-impact medium-confidence goal (e.g., "add VAT validation via public APIs") beats a high-confidence low-impact goal (e.g., "add confirmation dialogs") every time. The user has confirmed this preference twice (Run #2: "we need more ambitious iterations", Run #7: "goals are too small, leading to non-risky but no high value outcomes").
 
 #### Step 3: Backlog ranking and selection
 
@@ -219,10 +235,10 @@ Combine all candidate goals from Step 2a or 2b into a ranked backlog:
 ```
 
 **Ranking criteria** (in priority order):
-1. **Confidence** — how sure are we this is the right thing to do? Follow-up items > vision gaps > research ideas > scan findings.
-2. **Impact** — how much does this improve the user's experience or the code's health? Features users interact with > internal refactoring > cosmetic polish.
-3. **Feasibility** — can this ship cleanly in one run? Goals that touch 3-5 files > goals that require new infrastructure > goals with unclear scope.
-4. **Freshness** — prefer goals that build on recent work (the context is hot) over goals that touch cold code.
+1. **Business impact** — does this move the product closer to being viable for real paying users? Business capabilities (legal compliance, data validation, workflow automation) > UX features (theming, animations) > polish (dialogs, performance tweaks). Ask: "would a freelancer pay for this feature?"
+2. **Ambition** — prefer 5-8 task goals that address a complete business capability over 2-3 task goals that close a follow-up item. Small safe goals compound into a polished but unusable product. The user has explicitly asked for ambitious iterations.
+3. **Feasibility** — can this ship cleanly in one run? Goals that build on existing infrastructure > goals that require new backends or external services. But don't use feasibility as an excuse to pick small goals — stretch the scope.
+4. **Confidence** — how sure are we this is correct? Domain scan findings > vision gaps > follow-ups > competitive research. Note: confidence is #4 now, not #1. A medium-confidence high-impact goal beats a high-confidence low-impact goal.
 
 **Auto-select the #1 goal and proceed** — but present the full backlog so the user can override. If the user is present and interactive, wait for confirmation. If the pipeline is running autonomously (no user interaction expected), auto-proceed with #1 after a 10-second display.
 
@@ -261,6 +277,8 @@ This file is the **training data for the skill's judgment**. Over 5-10 runs, pat
 - **Don't generate goals that duplicate what harness-learnings says is DONE.** Always check the struck-through items before proposing.
 - **Web research goals must be grounded in the project's current state.** "Add AI-powered OCR" is not a valid goal if the project has no backend and no AI dependencies. Filter aggressively for feasibility.
 - **Don't add features to a monolith.** If the app is a single page with no navigation, adding a new feature just buries it deeper. The first goal must be infrastructure (app shell, routes, nav), then features. A technically perfect feature that users can't find is a failed goal.
+- **Don't prioritize polish over product viability.** Follow-up items (theming, dialogs, performance) are polish. They don't make the product viable for real users. If the product is missing core business capabilities (legal compliance, data validation, workflow automation), those MUST come before polish. Ask: "would a freelancer pay for this?" If no, it's polish.
+- **Don't default to the safest goal.** Small, well-scoped follow-up items always feel "right" because they're low-risk. But compounding safe goals produces a polished product nobody can use. Prefer ambitious business-capability goals (5-8 tasks) over safe polish goals (2-3 tasks). The user has explicitly asked for this twice.
 
 ---
 
