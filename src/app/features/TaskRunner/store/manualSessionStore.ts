@@ -7,6 +7,8 @@
  */
 
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { createPersistConfig } from '@/stores/utils/persistence';
 import type {
   ManualSession,
   ManualSessionEvent,
@@ -18,8 +20,12 @@ import {
   writeToClaudeStdin,
   listenToExecution,
   isTauriTerminalAvailable,
+  interactiveSessionAlive,
 } from '@/lib/tauri/tauriTerminalStrategy';
 import type { ExecutionEvent } from '@/lib/tauri/tauriTerminalStrategy';
+
+const MAX_PERSISTED_EVENTS = 100;
+const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 // ============================================================================
 // Store state
@@ -58,6 +64,9 @@ interface ManualSessionActions {
 
   /** Deny all pending tool uses (write "n" to stdin) */
   denyToolUse: (sessionId: string) => Promise<void>;
+
+  /** Recover persisted sessions on page load — reconnect or mark dead */
+  recoverSessions: () => Promise<void>;
 
   /** Get ordered list of sessions (newest first) */
   getSessionList: () => ManualSession[];
@@ -119,7 +128,8 @@ function extractSessionId(event: ManualSessionEvent): string | null {
 // Store
 // ============================================================================
 
-export const useManualSessionStore = create<ManualSessionState & ManualSessionActions>(
+export const useManualSessionStore = create<ManualSessionState & ManualSessionActions>()(
+  persist(
   (set, get) => ({
     sessions: {},
     activeSessionId: null,
@@ -346,10 +356,119 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
       });
     },
 
+    recoverSessions: async () => {
+      const sessions = get().sessions;
+      const now = Date.now();
+
+      for (const [sessionId, session] of Object.entries(sessions)) {
+        // Remove stale sessions (> 24h)
+        if (now - session.createdAt > SESSION_MAX_AGE_MS) {
+          set((state) => {
+            const { [sessionId]: _, ...remaining } = state.sessions;
+            return { sessions: remaining };
+          });
+          continue;
+        }
+
+        // Check if active sessions are still running
+        const activeStatuses: ManualSessionStatus[] = ['running', 'waiting_input', 'waiting_approval', 'starting'];
+        if (!activeStatuses.includes(session.status) || !session.executionId) continue;
+
+        try {
+          const alive = await interactiveSessionAlive(session.executionId);
+          if (alive) {
+            // Reconnect event listener
+            const unlisten = await listenToExecution(session.executionId, (event) => {
+              const processed = processExecutionEvent(event);
+              const claudeSessionId = extractSessionId(processed);
+              const approvals = extractPendingApprovals(processed);
+
+              set((state) => {
+                const s = state.sessions[sessionId];
+                if (!s) return state;
+
+                let newStatus = s.status;
+                let newPendingApprovals = s.pendingApprovals;
+
+                if (event.event_type === 'approval_needed') {
+                  newStatus = 'waiting_approval';
+                  newPendingApprovals = approvals;
+                } else if (event.event_type === 'input_needed') {
+                  newStatus = 'waiting_input';
+                  newPendingApprovals = [];
+                } else if (event.event_type === 'data') {
+                  newStatus = 'running';
+                } else if (event.event_type === 'completed') {
+                  newStatus = 'completed';
+                } else if (event.event_type === 'error') {
+                  newStatus = 'failed';
+                }
+
+                return {
+                  sessions: {
+                    ...state.sessions,
+                    [sessionId]: {
+                      ...s,
+                      status: newStatus,
+                      pendingApprovals: newPendingApprovals,
+                      events: [...s.events, processed],
+                      lastActivityAt: Date.now(),
+                      claudeSessionId: claudeSessionId || s.claudeSessionId,
+                    },
+                  },
+                };
+              });
+            });
+
+            set((state) => ({
+              _unlisteners: { ...state._unlisteners, [sessionId]: unlisten },
+            }));
+          } else {
+            // Process died — mark as completed
+            set((state) => ({
+              sessions: {
+                ...state.sessions,
+                [sessionId]: {
+                  ...state.sessions[sessionId],
+                  status: 'completed',
+                  lastActivityAt: now,
+                },
+              },
+            }));
+          }
+        } catch {
+          // Can't check (Tauri not available) — mark as completed
+          set((state) => ({
+            sessions: {
+              ...state.sessions,
+              [sessionId]: {
+                ...state.sessions[sessionId],
+                status: 'completed',
+                lastActivityAt: now,
+              },
+            },
+          }));
+        }
+      }
+    },
+
     getSessionList: () => {
       return Object.values(get().sessions).sort(
         (a, b) => b.createdAt - a.createdAt,
       );
     },
+  })),
+  createPersistConfig<ManualSessionState & ManualSessionActions>('manual-sessions', {
+    category: 'session_work',
+    version: 1,
+    partialize: (state) => ({
+      // Only persist sessions, not ephemeral state
+      sessions: Object.fromEntries(
+        Object.entries(state.sessions).map(([id, session]) => [
+          id,
+          { ...session, events: session.events.slice(-MAX_PERSISTED_EVENTS) },
+        ]),
+      ),
+    }) as Partial<ManualSessionState & ManualSessionActions>,
   }),
 );

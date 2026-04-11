@@ -119,6 +119,13 @@ export async function writeToClaudeStdin(
 }
 
 /**
+ * Check if an interactive session's process is still alive.
+ */
+export async function interactiveSessionAlive(executionId: string): Promise<boolean> {
+  return tauriInvoke<boolean>('interactive_session_alive', { executionId });
+}
+
+/**
  * Check if Tauri terminal strategy is available.
  */
 export function isTauriTerminalAvailable(): boolean {

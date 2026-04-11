@@ -663,6 +663,17 @@ pub async fn write_to_claude(
     }
 }
 
+/// Check if an interactive session's process is still alive
+/// (stdin handle still exists in the interactive_stdins map)
+#[tauri::command]
+pub async fn interactive_session_alive(
+    execution_id: String,
+    state: State<'_, AppState>,
+) -> Result<bool, String> {
+    let stdins = state.interactive_stdins.lock().await;
+    Ok(stdins.contains_key(&execution_id))
+}
+
 /// Get execution status by checking if process is still running
 #[tauri::command]
 pub async fn claude_execution_status(
