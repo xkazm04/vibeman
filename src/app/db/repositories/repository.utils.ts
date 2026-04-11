@@ -63,6 +63,7 @@ const VALID_TABLE_NAMES = [
   'file_write_queue',
   'fuzz_sessions',
   'generation_history',
+  'github_pull_requests',
   'goal_candidates',
   'goal_lifecycle',
   'goal_signals',

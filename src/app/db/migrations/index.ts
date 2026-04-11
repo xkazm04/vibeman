@@ -84,6 +84,7 @@ import { migrate224UnifiedGoalProgress } from './224_unified_goal_progress';
 import { migrate225GoalCheckins } from './225_goal_checkins';
 import { migrate226GoalDependencies } from './226_goal_dependencies';
 import { migrate227GoalSignalSummaries } from './227_goal_signal_summaries';
+import { migrate228GithubPullRequests } from './228_github_pull_requests';
 
 /**
  * Migration logger utility
@@ -317,6 +318,7 @@ export function runMigrations() {
     once('m225', () => migrate225GoalCheckins(db as any, migrationLogger));
     once('m226', () => migrate226GoalDependencies(db as any, migrationLogger));
     once('m227', () => migrate227GoalSignalSummaries(db as any, migrationLogger));
+    once('m228', () => migrate228GithubPullRequests(db as any, migrationLogger));
 
     // Report any failed migrations that need attention
     const failed = getFailedMigrations(db);
