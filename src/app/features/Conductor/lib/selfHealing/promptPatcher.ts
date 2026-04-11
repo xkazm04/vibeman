@@ -57,6 +57,23 @@ export async function updatePatchEffectiveness(
   db.prepare('UPDATE conductor_healing_patches SET effectiveness = ? WHERE id = ?').run(effectiveness, patchId);
 }
 
+/**
+ * Update application stats for a healing patch.
+ * Always increments application_count; increments success_count when success=true.
+ */
+export function updatePatchStats(patchId: string, success: boolean): void {
+  const db = getDatabase();
+  if (success) {
+    db.prepare(
+      'UPDATE conductor_healing_patches SET application_count = application_count + 1, success_count = success_count + 1 WHERE id = ?'
+    ).run(patchId);
+  } else {
+    db.prepare(
+      'UPDATE conductor_healing_patches SET application_count = application_count + 1 WHERE id = ?'
+    ).run(patchId);
+  }
+}
+
 // ============================================================================
 // Patch Lifecycle
 // ============================================================================

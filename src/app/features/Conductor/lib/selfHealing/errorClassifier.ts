@@ -171,6 +171,32 @@ export function groupErrorsByType(
   return groups;
 }
 
+/**
+ * Merge a new error classification into an existing list.
+ * If an error with the same errorType already exists, bump its occurrenceCount
+ * and update lastSeen. Otherwise, append as a new entry.
+ */
+export function mergeError(
+  existing: ErrorClassification[],
+  newError: ErrorClassification
+): ErrorClassification[] {
+  const result = existing.map((e) => ({ ...e }));
+  const match = result.find((e) => e.errorType === newError.errorType);
+
+  if (match) {
+    match.occurrenceCount += newError.occurrenceCount;
+    match.lastSeen = newError.lastSeen;
+    // Append unique message context
+    if (newError.errorMessage && !match.errorMessage.includes(newError.errorMessage)) {
+      match.errorMessage = `${match.errorMessage}; ${newError.errorMessage}`;
+    }
+  } else {
+    result.push({ ...newError });
+  }
+
+  return result;
+}
+
 // ============================================================================
 // Helpers
 // ============================================================================

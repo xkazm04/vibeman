@@ -366,12 +366,52 @@ export const conductorRepository = {
     const db = getDatabase();
     const summary = classifications.map((c) => ({
       errorType: c.errorType,
-      count: c.occurrenceCount,
+      occurrenceCount: c.occurrenceCount,
       stage: c.stage,
     }));
     db.prepare(
       'UPDATE conductor_runs SET error_classifications = ? WHERE id = ?'
     ).run(JSON.stringify(summary), runId);
+  },
+
+  /**
+   * Increment (or create) a retry counter for a specific error type in a run.
+   * Uses conductor_errors table. UPSERT on (pipeline_run_id, error_type, task_id).
+   */
+  incrementRetryCount(runId: string, errorType: string, taskId?: string): void {
+    const db = getDatabase();
+    const existing = db.prepare(
+      'SELECT id, occurrence_count FROM conductor_errors WHERE pipeline_run_id = ? AND error_type = ? AND task_id IS ?'
+    ).get(runId, errorType, taskId ?? null) as { id: string; occurrence_count: number } | undefined;
+
+    if (existing) {
+      db.prepare(
+        'UPDATE conductor_errors SET occurrence_count = occurrence_count + 1, last_seen = datetime(\'now\') WHERE id = ?'
+      ).run(existing.id);
+    } else {
+      const id = `cerr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      db.prepare(
+        'INSERT INTO conductor_errors (id, pipeline_run_id, stage, error_type, task_id, occurrence_count, first_seen, last_seen) VALUES (?, ?, ?, ?, ?, 1, datetime(\'now\'), datetime(\'now\'))'
+      ).run(id, runId, 'execute', errorType, taskId ?? null);
+    }
+  },
+
+  /**
+   * Get the count of distinct error rows matching a run + error type.
+   * When taskId is provided, further filters by task.
+   */
+  getRetryCount(runId: string, errorType: string, taskId?: string): number {
+    const db = getDatabase();
+    if (taskId !== undefined) {
+      const row = db.prepare(
+        'SELECT COUNT(*) as cnt FROM conductor_errors WHERE pipeline_run_id = ? AND error_type = ? AND task_id = ?'
+      ).get(runId, errorType, taskId) as { cnt: number };
+      return row.cnt;
+    }
+    const row = db.prepare(
+      'SELECT COUNT(*) as cnt FROM conductor_errors WHERE pipeline_run_id = ? AND error_type = ?'
+    ).get(runId, errorType) as { cnt: number };
+    return row.cnt;
   },
 
   /**
