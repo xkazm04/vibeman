@@ -1,5 +1,5 @@
 'use client';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Loader2, Terminal } from 'lucide-react';
 import TaskRunnerHeader from '@/app/features/TaskRunner/TaskRunnerHeader';
@@ -29,6 +29,16 @@ import type { DbIdea } from '@/app/db';
 const TaskRunnerLayout = () => {
   // Cleanup all SSE/polling connections when navigating away from TaskRunner
   usePollingCleanupOnUnmount();
+
+  // Recover persisted manual sessions on mount
+  const recoverSessions = useManualSessionStore((s) => s.recoverSessions);
+  const recoveredRef = useRef(false);
+  useEffect(() => {
+    if (!recoveredRef.current) {
+      recoveredRef.current = true;
+      recoverSessions().catch(console.error);
+    }
+  }, [recoverSessions]);
 
   // Active project for external requirements column
   const activeProject = useActiveProjectStore((s) => s.activeProject);
