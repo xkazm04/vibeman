@@ -170,21 +170,38 @@ export function usePollingTask<T>(
     setIsLoading(true);
 
     try {
-      // Apply timeout if configured — abort the fetch instead of leaving it as a zombie
+      // Apply timeout if configured — race fetcher against a timeout rejection
       let timeoutId: ReturnType<typeof setTimeout> | undefined;
-      if (timeout) {
-        timeoutId = setTimeout(() => abortControllerRef.current?.abort(), timeout);
-      }
-
       let result: T;
-      try {
-        result = await fetcherRef.current();
-      } finally {
-        if (timeoutId !== undefined) clearTimeout(timeoutId);
+      const fetchPromise = fetcherRef.current();
+
+      if (timeout) {
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => {
+            abortControllerRef.current?.abort('timeout');
+            reject(new Error('Poll timeout exceeded'));
+          }, timeout);
+        });
+        try {
+          result = await Promise.race([fetchPromise, timeoutPromise]);
+        } finally {
+          if (timeoutId !== undefined) clearTimeout(timeoutId);
+        }
+      } else {
+        result = await fetchPromise;
       }
 
       // Check if operation was aborted
       if (abortControllerRef.current?.signal.aborted) {
+        if (abortControllerRef.current.signal.reason === 'timeout') {
+          setError(new Error('Poll timeout exceeded'));
+          setStats(prev => ({
+            ...prev,
+            totalPolls: prev.totalPolls + 1,
+            failedPolls: prev.failedPolls + 1,
+            lastPollTime: Date.now(),
+          }));
+        }
         return;
       }
 
@@ -235,6 +252,9 @@ export function usePollingTask<T>(
 
       // Check if operation was aborted
       if (abortControllerRef.current?.signal.aborted) {
+        if (abortControllerRef.current.signal.reason === 'timeout') {
+          setError(new Error('Poll timeout exceeded'));
+        }
         return;
       }
 
