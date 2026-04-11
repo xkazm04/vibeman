@@ -8,6 +8,8 @@ import ExternalRequirementsColumn from '@/app/features/TaskRunner/components/Ext
 import { ConductorRow } from '@/app/features/TaskRunner/components/ConductorRow';
 import { SessionSidebar } from '@/app/features/TaskRunner/components/SessionSidebar';
 import { CLISessionModal } from '@/app/features/TaskRunner/components/CLISessionModal';
+import { AutomatedSessionModal } from '@/app/features/TaskRunner/components/AutomatedSessionModal';
+import type { CLISessionId } from '@/components/cli/store/cliSessionStore';
 import { useConductorSync } from '@/app/features/TaskRunner/hooks/useConductorSync';
 import { usePollingCleanupOnUnmount } from '@/app/features/TaskRunner/lib/pollingManager';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
@@ -46,6 +48,8 @@ const TaskRunnerLayout = () => {
   // Session sidebar + modal state
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [autoModalOpen, setAutoModalOpen] = useState(false);
+  const [selectedAutoSessionId, setSelectedAutoSessionId] = useState<CLISessionId | null>(null);
   const selectSession = useManualSessionStore((s) => s.selectSession);
   const manualSessionCount = useManualSessionStore(
     (s) => Object.keys(s.sessions).length,
@@ -58,6 +62,9 @@ const TaskRunnerLayout = () => {
     if (isManual) {
       selectSession(sessionId);
       setModalOpen(true);
+    } else {
+      setSelectedAutoSessionId(sessionId as CLISessionId);
+      setAutoModalOpen(true);
     }
   }, [selectSession]);
 
@@ -269,6 +276,11 @@ const TaskRunnerLayout = () => {
 
       {/* CLI session modal */}
       <CLISessionModal isOpen={modalOpen} onClose={() => setModalOpen(false)} />
+      <AutomatedSessionModal
+        sessionId={selectedAutoSessionId}
+        isOpen={autoModalOpen}
+        onClose={() => setAutoModalOpen(false)}
+      />
     </div>
   );
 };
