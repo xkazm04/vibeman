@@ -394,12 +394,12 @@ pub async fn start_interactive_claude(
         "claude".to_string()
     };
 
-    // Build CLI args for interactive mode (no -p flag)
+    // Build CLI args for interactive mode (no -p flag, no --dangerously-skip-permissions)
+    // Permission prompts are relayed through the UI via approval_needed events
     let mut cli_args = vec![
         "--output-format".to_string(),
         "stream-json".to_string(),
         "--verbose".to_string(),
-        "--dangerously-skip-permissions".to_string(),
     ];
 
     if let Some(ref session_id) = args.resume_session_id {
@@ -458,7 +458,7 @@ pub async fn start_interactive_claude(
         stdins.insert(execution_id.clone(), stdin);
     }
 
-    // Spawn stdout reader with input_needed detection
+    // Spawn stdout reader with input_needed + approval_needed detection
     let exec_id = execution_id.clone();
     let app_handle = app.clone();
     if let Some(stdout) = child.stdout.take() {
@@ -468,6 +468,8 @@ pub async fn start_interactive_claude(
             let reader = BufReader::new(stdout);
             let mut lines = reader.lines();
             let mut expecting_input = false;
+            // Track pending tool_use blocks for approval relay
+            let mut pending_tool_uses: Vec<serde_json::Value> = Vec::new();
 
             loop {
                 tokio::select! {
@@ -477,15 +479,30 @@ pub async fn start_interactive_claude(
                                 expecting_input = false;
                                 let parsed = StreamEvent::parse_line(&line);
                                 let data = if let Some(ref event) = parsed {
-                                    // Check if this is an end-of-turn assistant message
+                                    // Check assistant message for turn completion or tool_use
                                     if let StreamEvent::Assistant { ref message } = event {
                                         if message.stop_reason.as_deref() == Some("end_turn") {
                                             expecting_input = true;
+                                            pending_tool_uses.clear();
+                                        } else if message.stop_reason.as_deref() == Some("tool_use") {
+                                            // Claude is proposing tool use — collect tool details
+                                            expecting_input = true;
+                                            pending_tool_uses.clear();
+                                            for block in &message.content {
+                                                if let crate::process::stream::ContentBlock::ToolUse { id, name, input } = block {
+                                                    pending_tool_uses.push(serde_json::json!({
+                                                        "toolUseId": id,
+                                                        "toolName": name,
+                                                        "toolInput": input,
+                                                    }));
+                                                }
+                                            }
                                         }
                                     }
                                     // Result events also mean Claude is done with this turn
                                     if matches!(event, StreamEvent::Result { .. }) {
                                         expecting_input = true;
+                                        pending_tool_uses.clear();
                                     }
                                     serde_json::to_value(event)
                                         .unwrap_or(serde_json::json!({"raw": line}))
@@ -508,14 +525,31 @@ pub async fn start_interactive_claude(
                     }
                     _ = tokio::time::sleep(std::time::Duration::from_secs(2)) => {
                         if expecting_input {
-                            let _ = app_stdout.emit(
-                                "claude-execution-event",
-                                ExecutionEvent {
-                                    execution_id: exec_id_stdout.clone(),
-                                    event_type: "input_needed".to_string(),
-                                    data: serde_json::json!({"message": "Claude is waiting for input"}),
-                                },
-                            );
+                            if !pending_tool_uses.is_empty() {
+                                // Tool approval needed — relay tool details to frontend
+                                let _ = app_stdout.emit(
+                                    "claude-execution-event",
+                                    ExecutionEvent {
+                                        execution_id: exec_id_stdout.clone(),
+                                        event_type: "approval_needed".to_string(),
+                                        data: serde_json::json!({
+                                            "tools": pending_tool_uses,
+                                            "message": "Claude wants to use tools — approve or deny"
+                                        }),
+                                    },
+                                );
+                                pending_tool_uses.clear();
+                            } else {
+                                // Normal conversation input needed
+                                let _ = app_stdout.emit(
+                                    "claude-execution-event",
+                                    ExecutionEvent {
+                                        execution_id: exec_id_stdout.clone(),
+                                        event_type: "input_needed".to_string(),
+                                        data: serde_json::json!({"message": "Claude is waiting for input"}),
+                                    },
+                                );
+                            }
                             expecting_input = false;
                         }
                     }
