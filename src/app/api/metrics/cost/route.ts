@@ -115,10 +115,10 @@ export async function GET(request: NextRequest) {
     };
 
     return NextResponse.json({ data: summary });
-  } catch (error) {
-    console.error('Cost analytics error:', error);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch cost analytics' },
+      { success: false, error: `Failed to fetch cost analytics: ${message}` },
       { status: 500 },
     );
   }
