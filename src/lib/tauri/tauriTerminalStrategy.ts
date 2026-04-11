@@ -44,8 +44,19 @@ export interface ExecuteResult {
 
 export interface ExecutionEvent {
   execution_id: string;
-  event_type: 'data' | 'stderr' | 'stdout_end' | 'completed' | 'error';
+  event_type: 'data' | 'stderr' | 'stdout_end' | 'completed' | 'error' | 'input_needed';
   data: unknown;
+}
+
+export interface StartInteractiveClaudeArgs {
+  project_path: string;
+  project_id?: string;
+  provider?: string;
+  model?: string;
+  session_name?: string;
+  resume_session_id?: string;
+  max_budget_usd?: number;
+  extra_env?: Record<string, string>;
 }
 
 /**
@@ -84,6 +95,27 @@ export async function listenToExecution(
       onEvent(event);
     }
   });
+}
+
+/**
+ * Start an interactive Claude session (no predefined prompt).
+ * User sends messages via writeToClaudeStdin.
+ * Emits 'input_needed' events when Claude finishes responding.
+ */
+export async function startInteractiveClaude(
+  args: StartInteractiveClaudeArgs,
+): Promise<ExecuteResult> {
+  return tauriInvoke<ExecuteResult>('start_interactive_claude', { args });
+}
+
+/**
+ * Send text to an interactive Claude session's stdin.
+ */
+export async function writeToClaudeStdin(
+  executionId: string,
+  text: string,
+): Promise<void> {
+  return tauriInvoke<void>('write_to_claude', { executionId, text });
 }
 
 /**
