@@ -71,6 +71,7 @@ describe('useCanvasData polling integration', () => {
 
     mockStore = {
       setEvents: vi.fn(),
+      setProjectId: vi.fn(),
       getState: vi.fn(),
       subscribe: vi.fn(),
     } as any;

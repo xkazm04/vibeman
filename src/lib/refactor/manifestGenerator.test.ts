@@ -42,13 +42,31 @@ const colorPatternArb = fc.record({
 });
 
 /**
- * Arbitrary generator for ScanResult
+ * Arbitrary generator for ScanResult (single, used by helper-function tests)
  */
 const scanResultArb = fc.record({
   filePath: fc.string({ minLength: 5, maxLength: 100 }).map(s => `/src/${s}.tsx`),
   lineCount: fc.integer({ min: 1, max: 500 }),
   colorPatterns: fc.array(colorPatternArb, { minLength: 0, maxLength: 20 }),
 });
+
+/**
+ * Arbitrary for arrays of ScanResults with guaranteed-unique filePaths.
+ * Fast-check biases toward small values for shrinking, so fc.nat() often
+ * generates duplicates. Using array index for paths avoids this entirely.
+ */
+function uniqueScanResultsArb(opts: { minLength?: number; maxLength?: number } = {}) {
+  return fc.array(
+    fc.record({
+      lineCount: fc.integer({ min: 1, max: 500 }),
+      colorPatterns: fc.array(colorPatternArb, { minLength: 0, maxLength: 20 }),
+    }),
+    opts,
+  ).map(results => results.map((r, i) => ({
+    filePath: `/src/file_${i}.tsx`,
+    ...r,
+  })));
+}
 
 
 describe('Manifest Generator - Property Tests', () => {
@@ -61,7 +79,7 @@ describe('Manifest Generator - Property Tests', () => {
   it('should contain entries for all scanned files', () => {
     fc.assert(
       fc.property(
-        fc.array(scanResultArb, { minLength: 0, maxLength: 20 }),
+        uniqueScanResultsArb({ minLength: 0, maxLength: 20 }),
         (scanResults) => {
           const manifest = generateManifest(scanResults);
           
@@ -83,10 +101,10 @@ describe('Manifest Generator - Property Tests', () => {
   it('should have accurate line counts for all files', () => {
     fc.assert(
       fc.property(
-        fc.array(scanResultArb, { minLength: 1, maxLength: 20 }),
+        uniqueScanResultsArb({ minLength: 1, maxLength: 20 }),
         (scanResults) => {
           const manifest = generateManifest(scanResults);
-          
+
           for (const scanResult of scanResults) {
             const fileEntry = manifest.files.find(f => f.path === scanResult.filePath);
             expect(fileEntry?.lineCount).toBe(scanResult.lineCount);
@@ -100,10 +118,10 @@ describe('Manifest Generator - Property Tests', () => {
   it('should have accurate color pattern counts for all files', () => {
     fc.assert(
       fc.property(
-        fc.array(scanResultArb, { minLength: 1, maxLength: 20 }),
+        uniqueScanResultsArb({ minLength: 1, maxLength: 20 }),
         (scanResults) => {
           const manifest = generateManifest(scanResults);
-          
+
           for (const scanResult of scanResults) {
             const fileEntry = manifest.files.find(f => f.path === scanResult.filePath);
             expect(fileEntry?.colorReplacements).toBe(scanResult.colorPatterns.length);
@@ -117,7 +135,7 @@ describe('Manifest Generator - Property Tests', () => {
   it('should correctly count patterns by category in summary', () => {
     fc.assert(
       fc.property(
-        fc.array(scanResultArb, { minLength: 1, maxLength: 20 }),
+        uniqueScanResultsArb({ minLength: 1, maxLength: 20 }),
         (scanResults) => {
           const manifest = generateManifest(scanResults);
           
@@ -147,7 +165,7 @@ describe('Manifest Generator - Property Tests', () => {
   it('should correctly count files over 200 lines', () => {
     fc.assert(
       fc.property(
-        fc.array(scanResultArb, { minLength: 1, maxLength: 20 }),
+        uniqueScanResultsArb({ minLength: 1, maxLength: 20 }),
         (scanResults) => {
           const manifest = generateManifest(scanResults);
           
@@ -165,7 +183,7 @@ describe('Manifest Generator - Property Tests', () => {
   it('should initialize all files with pending status', () => {
     fc.assert(
       fc.property(
-        fc.array(scanResultArb, { minLength: 1, maxLength: 20 }),
+        uniqueScanResultsArb({ minLength: 1, maxLength: 20 }),
         (scanResults) => {
           const manifest = generateManifest(scanResults);
           
@@ -181,7 +199,7 @@ describe('Manifest Generator - Property Tests', () => {
   it('should initialize all files with empty extractedComponents', () => {
     fc.assert(
       fc.property(
-        fc.array(scanResultArb, { minLength: 1, maxLength: 20 }),
+        uniqueScanResultsArb({ minLength: 1, maxLength: 20 }),
         (scanResults) => {
           const manifest = generateManifest(scanResults);
           
@@ -197,7 +215,7 @@ describe('Manifest Generator - Property Tests', () => {
   it('should include version and timestamp in manifest', () => {
     fc.assert(
       fc.property(
-        fc.array(scanResultArb, { minLength: 0, maxLength: 10 }),
+        uniqueScanResultsArb({ minLength: 0, maxLength: 10 }),
         (scanResults) => {
           const manifest = generateManifest(scanResults);
           
@@ -231,7 +249,7 @@ describe('Manifest Generator - Helper Functions', () => {
   it('getFilesOverThreshold should return only files exceeding threshold', () => {
     fc.assert(
       fc.property(
-        fc.array(scanResultArb, { minLength: 1, maxLength: 20 }),
+        uniqueScanResultsArb({ minLength: 1, maxLength: 20 }),
         (scanResults) => {
           const manifest = generateManifest(scanResults);
           const filesOver = getFilesOverThreshold(manifest);
@@ -252,7 +270,7 @@ describe('Manifest Generator - Helper Functions', () => {
   it('getTotalPatternCount should sum all color replacements', () => {
     fc.assert(
       fc.property(
-        fc.array(scanResultArb, { minLength: 1, maxLength: 20 }),
+        uniqueScanResultsArb({ minLength: 1, maxLength: 20 }),
         (scanResults) => {
           const manifest = generateManifest(scanResults);
           const totalCount = getTotalPatternCount(manifest);
@@ -271,7 +289,7 @@ describe('Manifest Generator - Helper Functions', () => {
   it('updateFileStatus should update only the specified file', () => {
     fc.assert(
       fc.property(
-        fc.array(scanResultArb, { minLength: 2, maxLength: 10 }),
+        uniqueScanResultsArb({ minLength: 2, maxLength: 10 }),
         fc.constantFrom<'transformed' | 'extracted' | 'complete'>('transformed', 'extracted', 'complete'),
         (scanResults, newStatus) => {
           const manifest = generateManifest(scanResults);
@@ -298,7 +316,7 @@ describe('Manifest Generator - Helper Functions', () => {
   it('addExtractedComponent should add component to correct file', () => {
     fc.assert(
       fc.property(
-        fc.array(scanResultArb, { minLength: 2, maxLength: 10 }),
+        uniqueScanResultsArb({ minLength: 2, maxLength: 10 }),
         fc.string({ minLength: 3, maxLength: 30 }),
         (scanResults, componentName) => {
           const manifest = generateManifest(scanResults);
