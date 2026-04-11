@@ -124,6 +124,7 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
         lastActivityAt: now,
         claudeSessionId: null,
         label: label || `Session ${Object.keys(get().sessions).length + 1}`,
+        pendingApprovals: [],
       };
 
       set((state) => ({

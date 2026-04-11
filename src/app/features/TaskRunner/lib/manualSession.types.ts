@@ -6,17 +6,25 @@
  */
 
 export type ManualSessionStatus =
-  | 'idle'           // Created but not yet started
-  | 'starting'       // Process spawning
-  | 'running'        // Claude is processing (tool use, thinking)
-  | 'waiting_input'  // Claude finished responding, awaiting user message
-  | 'completed'      // Session ended normally
-  | 'failed';        // Session crashed or errored
+  | 'idle'              // Created but not yet started
+  | 'starting'          // Process spawning
+  | 'running'           // Claude is processing (tool use, thinking)
+  | 'waiting_input'     // Claude finished responding, awaiting user message
+  | 'waiting_approval'  // Claude proposed tool_use, awaiting user approval
+  | 'completed'         // Session ended normally
+  | 'failed';           // Session crashed or errored
 
 export interface ManualSessionEvent {
   timestamp: number;
-  type: 'system' | 'assistant' | 'user' | 'result' | 'error' | 'input_needed' | 'raw';
+  type: 'system' | 'assistant' | 'user' | 'result' | 'error' | 'input_needed' | 'approval_needed' | 'raw';
   data: unknown;
+}
+
+/** A tool that Claude wants to use, pending user approval */
+export interface PendingToolApproval {
+  toolUseId: string;
+  toolName: string;
+  toolInput: Record<string, unknown>;
 }
 
 export interface ManualSession {
@@ -34,4 +42,6 @@ export interface ManualSession {
   claudeSessionId: string | null;
   /** User-facing label */
   label: string;
+  /** Tools pending user approval (non-empty when status is waiting_approval) */
+  pendingApprovals: PendingToolApproval[];
 }

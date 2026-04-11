@@ -44,7 +44,7 @@ export interface ExecuteResult {
 
 export interface ExecutionEvent {
   execution_id: string;
-  event_type: 'data' | 'stderr' | 'stdout_end' | 'completed' | 'error' | 'input_needed';
+  event_type: 'data' | 'stderr' | 'stdout_end' | 'completed' | 'error' | 'input_needed' | 'approval_needed';
   data: unknown;
 }
 
