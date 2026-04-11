@@ -10,6 +10,7 @@ import {
   Send,
   Loader2,
   MessageCircle,
+  ShieldCheck,
   X,
   Minimize2,
 } from 'lucide-react';
@@ -29,6 +30,7 @@ const EVENT_ICONS: Record<string, { icon: typeof User; colorClass: string }> = {
   result: { icon: Terminal, colorClass: 'text-gray-400' },
   error: { icon: AlertCircle, colorClass: 'text-red-400' },
   input_needed: { icon: MessageCircle, colorClass: 'text-amber-400' },
+  auto_approved: { icon: ShieldCheck, colorClass: 'text-green-400' },
   raw: { icon: Terminal, colorClass: 'text-gray-500' },
 };
 
@@ -92,6 +94,12 @@ function extractText(event: ManualSessionEvent): string {
     return 'Claude is waiting for your input';
   }
 
+  // Auto-approved safe tools
+  if (event.type === 'auto_approved') {
+    const tools = (data.tools as string[]) || [];
+    return `Auto-approved: ${tools.join(', ')}`;
+  }
+
   // Raw
   if (data.raw) return String(data.raw);
 
@@ -102,6 +110,18 @@ function EventRow({ event }: { event: ManualSessionEvent }) {
   const cfg = EVENT_ICONS[event.type] || EVENT_ICONS.raw;
   const Icon = cfg.icon;
   const text = extractText(event);
+
+  if (event.type === 'auto_approved') {
+    return (
+      <div className="flex items-center gap-2 px-4 py-1.5 bg-green-500/5 border-l-2 border-green-500/30">
+        <ShieldCheck className="w-3.5 h-3.5 text-green-400 shrink-0" />
+        <span className="text-2xs text-green-400">{text}</span>
+        <span className="text-2xs text-gray-600">
+          {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+        </span>
+      </div>
+    );
+  }
 
   if (event.type === 'input_needed') {
     return (

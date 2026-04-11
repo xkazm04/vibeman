@@ -9,11 +9,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { createPersistConfig } from '@/stores/utils/persistence';
-import type {
-  ManualSession,
-  ManualSessionEvent,
-  ManualSessionStatus,
-  PendingToolApproval,
+import {
+  SAFE_TOOLS,
+  type ManualSession,
+  type ManualSessionEvent,
+  type ManualSessionStatus,
+  type PendingToolApproval,
 } from '../lib/manualSession.types';
 import {
   startInteractiveClaude,
@@ -184,8 +185,41 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
             let newPendingApprovals = s.pendingApprovals;
 
             if (event.event_type === 'approval_needed') {
+              const tools = extractPendingApprovals(processed);
+              const allSafe = tools.length > 0 && tools.every((t) => SAFE_TOOLS.has(t.toolName));
+
+              if (allSafe) {
+                // Auto-approve safe tools — write "y" to stdin immediately
+                newStatus = 'running';
+                newPendingApprovals = [];
+                const execId = s.executionId;
+                if (execId) {
+                  // Fire-and-forget async write (can't await inside set())
+                  writeToClaudeStdin(execId, 'y').catch(console.error);
+                }
+                // Replace the approval_needed event with auto_approved
+                const autoEvent: ManualSessionEvent = {
+                  timestamp: Date.now(),
+                  type: 'auto_approved',
+                  data: { tools: tools.map((t) => t.toolName) },
+                };
+                return {
+                  sessions: {
+                    ...state.sessions,
+                    [sessionId]: {
+                      ...s,
+                      status: 'running',
+                      pendingApprovals: [],
+                      events: [...s.events, autoEvent],
+                      lastActivityAt: Date.now(),
+                      claudeSessionId: claudeSessionId || s.claudeSessionId,
+                    },
+                  },
+                };
+              }
+
               newStatus = 'waiting_approval';
-              newPendingApprovals = extractPendingApprovals(processed);
+              newPendingApprovals = tools;
             } else if (event.event_type === 'input_needed') {
               newStatus = 'waiting_input';
               newPendingApprovals = [];

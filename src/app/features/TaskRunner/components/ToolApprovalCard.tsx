@@ -15,7 +15,7 @@ import {
   Globe,
   FolderOpen,
 } from 'lucide-react';
-import type { PendingToolApproval } from '../lib/manualSession.types';
+import { SAFE_TOOLS, type PendingToolApproval } from '../lib/manualSession.types';
 
 // ============================================================================
 // Tool icon mapping
@@ -31,8 +31,6 @@ const TOOL_ICONS: Record<string, typeof Wrench> = {
   WebSearch: Globe,
   WebFetch: Globe,
 };
-
-const SAFE_TOOLS = new Set(['Read', 'Glob', 'Grep', 'WebSearch', 'WebFetch']);
 
 // ============================================================================
 // Tool input preview

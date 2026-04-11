@@ -16,9 +16,12 @@ export type ManualSessionStatus =
 
 export interface ManualSessionEvent {
   timestamp: number;
-  type: 'system' | 'assistant' | 'user' | 'result' | 'error' | 'input_needed' | 'approval_needed' | 'raw';
+  type: 'system' | 'assistant' | 'user' | 'result' | 'error' | 'input_needed' | 'approval_needed' | 'auto_approved' | 'raw';
   data: unknown;
 }
+
+/** Tools that are auto-approved without user confirmation */
+export const SAFE_TOOLS = new Set(['Read', 'Glob', 'Grep', 'WebSearch', 'WebFetch']);
 
 /** A tool that Claude wants to use, pending user approval */
 export interface PendingToolApproval {
