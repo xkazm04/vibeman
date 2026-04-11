@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Plus, ChevronRight, ChevronUp, X, ClipboardCheck, GitBranch } from 'lucide-react';
+import { LayoutDashboard, Plus, ChevronRight, ChevronUp, X, ClipboardCheck, GitBranch, GitPullRequest } from 'lucide-react';
 
 import ProjectsLayout from '@/app/projects/ProjectsLayout';
 import DashboardSectionHeader from './components/DashboardSectionHeader';
@@ -26,6 +26,7 @@ import GlassCard from '@/components/cards/GlassCard';
 import { duration, easing } from '@/lib/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import StaggeredReveal from '@/components/lazy/StaggeredReveal';
+import PRActivityPanel from './components/PRActivityPanel';
 
 interface GoalsLayoutProps {
   projectId: string | null;
@@ -36,6 +37,11 @@ interface CheckinHistory {
   weekOf: string;
 }
 
+interface GoalPRCount {
+  open_count: number;
+  merged_count: number;
+}
+
 interface GoalListItemProps {
   goal: Goal;
   isSelected: boolean;
@@ -43,9 +49,10 @@ interface GoalListItemProps {
   onClick: (goal: Goal) => void;
   tabIndex: number;
   checkinHistory?: CheckinHistory[];
+  prCount?: GoalPRCount;
 }
 
-const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, isFocused, onClick, tabIndex, checkinHistory }: GoalListItemProps) {
+const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, isFocused, onClick, tabIndex, checkinHistory, prCount }: GoalListItemProps) {
   const prefersReduced = useReducedMotion();
   const ref = React.useRef<HTMLButtonElement>(null);
   const statusConfig = getStatusConfig(goal.status);
@@ -92,6 +99,20 @@ const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, isFocu
             {progress > 0 && (
               <span className="text-2xs font-mono text-blue-400/70">{progress}%</span>
             )}
+            {prCount && (prCount.open_count > 0 || prCount.merged_count > 0) && (
+              <span className="inline-flex items-center gap-1 text-2xs">
+                {prCount.open_count > 0 && (
+                  <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded bg-green-500/10 text-green-400/70">
+                    <GitPullRequest className="w-2.5 h-2.5" />{prCount.open_count}
+                  </span>
+                )}
+                {prCount.merged_count > 0 && (
+                  <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded bg-purple-500/10 text-purple-400/70">
+                    <GitPullRequest className="w-2.5 h-2.5" />{prCount.merged_count}
+                  </span>
+                )}
+              </span>
+            )}
             {checkinHistory && checkinHistory.length > 0 && (
               <ConfidenceSparkline history={checkinHistory} />
             )}
@@ -117,6 +138,18 @@ const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, isFocu
 function AnalyticsPanels({ projectId }: { projectId: string | null }) {
   return (
     <>
+      {/* PR Activity */}
+      {projectId && (
+        <GlassCard variant="panel" className="shrink-0 overflow-hidden flex flex-col max-h-[320px]">
+          <div className="p-4 border-b border-white/5 bg-white/[0.03]">
+            <DashboardSectionHeader title="PR Activity" variant="secondary" />
+          </div>
+          <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
+            <PRActivityPanel projectId={projectId} />
+          </div>
+        </GlassCard>
+      )}
+
       {/* Events Chart */}
       <GlassCard variant="panel" className="shrink-0 overflow-hidden flex flex-col">
         <div className="p-4 border-b border-white/5 bg-white/[0.03]">
@@ -168,7 +201,23 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
   const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
   const [showCheckinModal, setShowCheckinModal] = useState(false);
   const [checkinHistoryMap, setCheckinHistoryMap] = useState<Record<string, Array<{ confidence: number; weekOf: string }>>>({});
+  const [prCountsMap, setPrCountsMap] = useState<Record<string, GoalPRCount>>({});
   const [goalView, setGoalView] = useState<'list' | 'graph'>('list');
+
+  // Fetch PR counts per goal
+  useEffect(() => {
+    if (!projectId) return;
+    fetch(`/api/pull-requests?projectId=${projectId}`)
+      .then(r => r.ok ? r.json() : { data: { goalCounts: [] } })
+      .then(json => {
+        const map: Record<string, GoalPRCount> = {};
+        for (const c of (json.data?.goalCounts || [])) {
+          map[c.goal_id] = { open_count: c.open_count, merged_count: c.merged_count };
+        }
+        setPrCountsMap(map);
+      })
+      .catch(() => {});
+  }, [projectId]);
 
   // Fetch check-in history for all goals in this project
   useEffect(() => {
@@ -367,6 +416,7 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
                         onClick={handleGoalClick}
                         tabIndex={focusedIndex === idx ? 0 : -1}
                         checkinHistory={checkinHistoryMap[goal.id]}
+                        prCount={prCountsMap[goal.id]}
                       />
                     ))}
                   </AnimatePresence>
