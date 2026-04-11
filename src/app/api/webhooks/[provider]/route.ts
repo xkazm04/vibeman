@@ -11,6 +11,7 @@ import { verifyWebhookSignature } from '@/lib/integrations/webhookSignature';
 import { dispatchIntegrationEvent } from '@/lib/integrations/engine';
 import { checkRateLimit } from '@/lib/api-helpers/rateLimiter';
 import { decryptFieldOrRaw } from '@/lib/integrations/credentialCrypto';
+import { handlePullRequestEvent } from '@/lib/github/prWebhookHandler';
 import type { IntegrationProvider, IntegrationEventType } from '@/app/db/models/integration.types';
 
 const VALID_PROVIDERS = new Set<string>([
@@ -143,6 +144,19 @@ export async function POST(
     // Slack URL verification challenge (must respond with challenge value)
     if (provider === 'slack' && body.type === 'url_verification' && typeof body.challenge === 'string') {
       return NextResponse.json({ challenge: body.challenge });
+    }
+
+    // Handle GitHub PR events directly (before generic dispatch)
+    if (provider === 'github') {
+      const githubEvent = request.headers.get('x-github-event');
+      if (githubEvent === 'pull_request') {
+        const prResult = await handlePullRequestEvent(integration.project_id, body as any);
+        return NextResponse.json({
+          ok: true,
+          event_type: 'pull_request',
+          pr: prResult,
+        });
+      }
     }
 
     // Map provider event to integration event type

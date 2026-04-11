@@ -1,0 +1,109 @@
+/**
+ * PR Digest Generator
+ *
+ * Uses generateWithLLM() to produce an AI-powered review digest
+ * for a pull request, optionally aligned against a linked goal.
+ * Stores the digest and alignment score in the github_pull_requests table.
+ */
+
+import { generateWithLLM } from '@/lib/llm';
+import { pullRequestRepository } from '@/app/db/repositories/pull-request.repository';
+import { logger } from '@/lib/logger';
+import type { DbGoal } from '@/app/db/models/types';
+
+interface PRData {
+  title: string;
+  body: string | null;
+  additions: number;
+  deletions: number;
+  changed_files: number;
+  head: { ref: string };
+  base: { ref: string };
+}
+
+/**
+ * Generate an AI digest for a PR and store it in the database.
+ * Runs asynchronously — caller should fire-and-forget with error handling.
+ */
+export async function generatePRDigest(
+  prRecordId: string,
+  prData: PRData,
+  linkedGoal: DbGoal | null
+): Promise<void> {
+  const goalContext = linkedGoal
+    ? `\n## Linked Goal\nTitle: ${linkedGoal.title}\nDescription: ${(linkedGoal.description || '').slice(0, 500)}`
+    : '\n## Linked Goal\nNone — this PR has not been linked to a goal.';
+
+  const prompt = `You are reviewing a GitHub Pull Request. Generate a concise review digest.
+
+## Pull Request
+Title: ${prData.title}
+Body: ${(prData.body || 'No description provided.').slice(0, 1000)}
+Branch: ${prData.head.ref} → ${prData.base.ref}
+Changes: +${prData.additions} -${prData.deletions} across ${prData.changed_files} files
+${goalContext}
+
+Generate a review digest with these sections:
+1. **Summary** (2-3 sentences): What does this PR do?
+2. **Key Changes** (bullet points): The most important changes
+3. **Risk Assessment** (1 sentence): Any risks or concerns
+${linkedGoal ? '4. **Goal Alignment** (1 sentence): How well does this PR advance the linked goal?' : ''}
+
+${linkedGoal ? 'Also provide an alignment_score from 0-100 (100 = perfectly aligned with the goal).' : ''}
+
+Respond with ONLY a JSON object (no markdown fences):
+{
+  "summary": "...",
+  "keyChanges": ["...", "..."],
+  "riskAssessment": "...",
+  ${linkedGoal ? '"goalAlignment": "...",' : ''}
+  "alignmentScore": ${linkedGoal ? '0-100' : 'null'}
+}`;
+
+  try {
+    const response = await generateWithLLM(prompt, {
+      taskType: 'pr-digest',
+      taskDescription: `Generate review digest for PR: ${prData.title}`,
+      temperature: 0.2,
+      maxTokens: 1500,
+    });
+
+    if (!response.success || !response.response) {
+      logger.warn('[PRDigest] LLM call failed', { error: response.error });
+      return;
+    }
+
+    const cleaned = response.response.replace(/```json?\s*/g, '').replace(/```/g, '').trim();
+    const data = JSON.parse(cleaned) as {
+      summary: string;
+      keyChanges: string[];
+      riskAssessment: string;
+      goalAlignment?: string;
+      alignmentScore: number | null;
+    };
+
+    // Build a readable digest string
+    const digestParts = [
+      `**Summary:** ${data.summary}`,
+      '',
+      '**Key Changes:**',
+      ...data.keyChanges.map(c => `- ${c}`),
+      '',
+      `**Risk:** ${data.riskAssessment}`,
+    ];
+
+    if (data.goalAlignment) {
+      digestParts.push('', `**Goal Alignment:** ${data.goalAlignment}`);
+    }
+
+    const digest = digestParts.join('\n');
+    pullRequestRepository.updateDigest(prRecordId, digest, data.alignmentScore ?? undefined);
+
+    logger.info('[PRDigest] Digest generated', {
+      prId: prRecordId,
+      alignmentScore: data.alignmentScore,
+    });
+  } catch (error) {
+    logger.error('[PRDigest] Digest generation failed', { error, prId: prRecordId });
+  }
+}
