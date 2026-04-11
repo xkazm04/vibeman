@@ -11,6 +11,7 @@ import type {
   ManualSession,
   ManualSessionEvent,
   ManualSessionStatus,
+  PendingToolApproval,
 } from '../lib/manualSession.types';
 import {
   startInteractiveClaude,
@@ -52,6 +53,12 @@ interface ManualSessionActions {
   /** Update session status */
   updateStatus: (sessionId: string, status: ManualSessionStatus) => void;
 
+  /** Approve all pending tool uses (write "y" to stdin) */
+  approveToolUse: (sessionId: string) => Promise<void>;
+
+  /** Deny all pending tool uses (write "n" to stdin) */
+  denyToolUse: (sessionId: string) => Promise<void>;
+
   /** Get ordered list of sessions (newest first) */
   getSessionList: () => ManualSession[];
 }
@@ -67,6 +74,9 @@ function processExecutionEvent(event: ExecutionEvent): ManualSessionEvent {
   if (event.event_type === 'input_needed') {
     return { timestamp, type: 'input_needed', data };
   }
+  if (event.event_type === 'approval_needed') {
+    return { timestamp, type: 'approval_needed', data };
+  }
   if (event.event_type === 'error') {
     return { timestamp, type: 'error', data };
   }
@@ -79,6 +89,19 @@ function processExecutionEvent(event: ExecutionEvent): ManualSessionEvent {
   }
 
   return { timestamp, type: 'raw', data: event.data };
+}
+
+/** Extract pending tool approvals from an approval_needed event */
+function extractPendingApprovals(event: ManualSessionEvent): PendingToolApproval[] {
+  if (event.type !== 'approval_needed') return [];
+  const data = event.data as Record<string, unknown>;
+  const tools = data?.tools as Array<Record<string, unknown>> | undefined;
+  if (!tools) return [];
+  return tools.map((t) => ({
+    toolUseId: (t.toolUseId as string) || '',
+    toolName: (t.toolName as string) || 'unknown',
+    toolInput: (t.toolInput as Record<string, unknown>) || {},
+  }));
 }
 
 function extractSessionId(event: ManualSessionEvent): string | null {
@@ -148,8 +171,14 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
             if (!s) return state;
 
             let newStatus = s.status;
-            if (event.event_type === 'input_needed') {
+            let newPendingApprovals = s.pendingApprovals;
+
+            if (event.event_type === 'approval_needed') {
+              newStatus = 'waiting_approval';
+              newPendingApprovals = extractPendingApprovals(processed);
+            } else if (event.event_type === 'input_needed') {
               newStatus = 'waiting_input';
+              newPendingApprovals = [];
             } else if (event.event_type === 'data') {
               newStatus = 'running';
             } else if (event.event_type === 'completed') {
@@ -164,6 +193,7 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
                 [sessionId]: {
                   ...s,
                   status: newStatus,
+                  pendingApprovals: newPendingApprovals,
                   events: [...s.events, processed],
                   lastActivityAt: Date.now(),
                   claudeSessionId: claudeSessionId || s.claudeSessionId,
@@ -237,6 +267,50 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
         await writeToClaudeStdin(session.executionId, text);
       } catch (err) {
         console.error('Failed to write to Claude stdin:', err);
+      }
+    },
+
+    approveToolUse: async (sessionId) => {
+      const session = get().sessions[sessionId];
+      if (!session?.executionId || session.status !== 'waiting_approval') return;
+
+      set((state) => ({
+        sessions: {
+          ...state.sessions,
+          [sessionId]: {
+            ...state.sessions[sessionId],
+            status: 'running',
+            pendingApprovals: [],
+          },
+        },
+      }));
+
+      try {
+        await writeToClaudeStdin(session.executionId, 'y');
+      } catch (err) {
+        console.error('Failed to approve tool use:', err);
+      }
+    },
+
+    denyToolUse: async (sessionId) => {
+      const session = get().sessions[sessionId];
+      if (!session?.executionId || session.status !== 'waiting_approval') return;
+
+      set((state) => ({
+        sessions: {
+          ...state.sessions,
+          [sessionId]: {
+            ...state.sessions[sessionId],
+            status: 'running',
+            pendingApprovals: [],
+          },
+        },
+      }));
+
+      try {
+        await writeToClaudeStdin(session.executionId, 'n');
+      } catch (err) {
+        console.error('Failed to deny tool use:', err);
       }
     },
 
