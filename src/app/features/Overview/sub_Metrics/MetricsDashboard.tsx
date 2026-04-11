@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import ProjectHealthCard from './components/ProjectHealthCard';
 import DORAMetricsPanel from './components/DORAMetricsPanel';
+import CostAnalyticsPanel from './components/CostAnalyticsPanel';
 import type { HealthSnapshot } from '@/lib/metrics/projectHealthEngine';
 import type { DORASnapshot, DORATrendPoint } from '@/lib/metrics/doraMetricsEngine';
 
@@ -32,6 +33,15 @@ async function fetchDORA(projectId: string): Promise<{ current: DORASnapshot; tr
   return json.data;
 }
 
+async function fetchCost(projectPath: string | null, days: number) {
+  const params = new URLSearchParams({ days: String(days) });
+  if (projectPath) params.set('projectPath', projectPath);
+  const res = await fetch(`/api/metrics/cost?${params}`);
+  if (!res.ok) return null;
+  const json = await res.json();
+  return json.data;
+}
+
 export default function MetricsDashboard() {
   const { activeProject } = useClientProjectStore();
   const projectId = activeProject?.id ?? null;
@@ -49,6 +59,12 @@ export default function MetricsDashboard() {
     queryKey: ['dora-metrics', projectId, days],
     queryFn: () => fetchDORA(projectId!),
     enabled: !!projectId,
+    staleTime: 60_000,
+  });
+
+  const costQuery = useQuery({
+    queryKey: ['cost-analytics', activeProject?.path, days],
+    queryFn: () => fetchCost(activeProject?.path ?? null, days),
     staleTime: 60_000,
   });
 
@@ -86,6 +102,19 @@ export default function MetricsDashboard() {
             onRecalculate={handleRecalculate}
           />
         </div>
+      </div>
+
+      {/* Section: Cost Analytics */}
+      <div>
+        <h3 className="text-sm font-medium text-zinc-300 mb-3 flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+          Session Cost Analytics
+          <span className="text-[10px] text-zinc-500 ml-1">Last {days} days</span>
+        </h3>
+        <CostAnalyticsPanel
+          data={costQuery.data ?? null}
+          isLoading={costQuery.isLoading}
+        />
       </div>
 
       {/* Section: DORA Metrics */}
