@@ -45,4 +45,4 @@
 - Automated sessions in the sidebar are read-only display — clicking them could open their CompactTerminal in a modal too
 - The `execute_claude` / `abort_claude` registration gap with ProcessManager should be fixed for proper cleanup
 - **2026-04-11** — Claude Code `stop_reason="tool_use"` is the signal that tool approval is needed. Different from `stop_reason="end_turn"` which means normal conversation turn complete.
-- **2026-04-11** — Safe tools list (Read, Glob, Grep, WebSearch, WebFetch) from sdk-service.ts could be used to auto-approve in CLI path too (currently all tools require manual approval in interactive sessions)
+- ~~Safe tools list could be used to auto-approve in CLI path~~ — **DONE** (Run #4: SAFE_TOOLS set in manualSession.types.ts, auto-approve in store)
