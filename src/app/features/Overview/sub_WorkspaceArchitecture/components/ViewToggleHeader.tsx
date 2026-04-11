@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import { ChevronLeft, Activity, Network, Pencil } from 'lucide-react';
+import { ChevronLeft, Activity, Network, Pencil, BarChart3 } from 'lucide-react';
 
-export type OverviewView = 'architecture' | 'observatory' | 'playground';
+export type OverviewView = 'architecture' | 'observatory' | 'playground' | 'metrics';
 
 interface ViewToggleHeaderProps {
   view: OverviewView;
@@ -74,6 +74,19 @@ export function ViewToggleHeader({
         >
           <Activity className={`w-3.5 h-3.5 ${view === 'observatory' ? 'text-cyan-400' : ''}`} />
           Observatory
+        </button>
+        <button
+          onClick={() => onViewChange('metrics')}
+          className={`
+            flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all
+            ${view === 'metrics'
+              ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 text-white shadow-[0_0_20px_rgba(168,85,247,0.15)] border border-purple-500/30'
+              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50'
+            }
+          `}
+        >
+          <BarChart3 className={`w-3.5 h-3.5 ${view === 'metrics' ? 'text-purple-400' : ''}`} />
+          Metrics
         </button>
         <button
           onClick={() => onViewChange('playground')}

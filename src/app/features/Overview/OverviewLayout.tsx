@@ -13,6 +13,7 @@ import StaggeredReveal from '@/components/lazy/StaggeredReveal';
 // Lazy load views
 const MatrixDiagramCanvas = lazy(() => import('./sub_WorkspaceArchitecture/views/MatrixDiagramCanvas'));
 const ArchitecturePlayground = lazy(() => import('./sub_WorkspaceArchitecture/views/ArchitecturePlayground'));
+const MetricsDashboard = lazy(() => import('./sub_Metrics/MetricsDashboard'));
 
 // Loading fallback
 function LoadingFallback() {
@@ -99,6 +100,11 @@ export default function OverviewLayout() {
               <div className="w-full h-full overflow-auto">
                 <ObservatoryDashboard />
               </div>
+            )}
+            {view === 'metrics' && (
+              <Suspense fallback={<LoadingFallback />}>
+                <MetricsDashboard />
+              </Suspense>
             )}
             {view === 'playground' && (
               <Suspense fallback={<LoadingFallback />}>
