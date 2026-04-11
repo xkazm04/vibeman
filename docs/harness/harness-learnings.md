@@ -39,8 +39,10 @@
 - **2026-04-11** — Tauri build artifacts in `src-tauri/target/debug/build/.../tauri-codegen-assets/*.ts` are binary files that tsc picks up as errors. These are not real errors — filter with `grep -v "src-tauri/target"` when counting.
 - **2026-04-11** — The `needs_input` concept already exists at Conductor V3 pipeline level (`reflectPhase.ts:544-555`), distinct from CLI-level `input_needed` which tracks when Claude's stdout goes quiet after an assistant turn.
 
-## Open follow-ups (from Run #1 vibeman-on-vibeman, 2026-04-11)
-- Interactive sessions use `--dangerously-skip-permissions` — permission relay (showing tool approval prompts in UI) is needed for production use
+## Open follow-ups (from Run #2 vibeman-on-vibeman, 2026-04-11)
+- ~~Interactive sessions use `--dangerously-skip-permissions`~~ — **DONE** (Run #2: permission relay via approval_needed events + ToolApprovalCard)
 - No persistence of manual sessions across page refresh (events live in Zustand memory only)
 - Automated sessions in the sidebar are read-only display — clicking them could open their CompactTerminal in a modal too
 - The `execute_claude` / `abort_claude` registration gap with ProcessManager should be fixed for proper cleanup
+- **2026-04-11** — Claude Code `stop_reason="tool_use"` is the signal that tool approval is needed. Different from `stop_reason="end_turn"` which means normal conversation turn complete.
+- **2026-04-11** — Safe tools list (Read, Glob, Grep, WebSearch, WebFetch) from sdk-service.ts could be used to auto-approve in CLI path too (currently all tools require manual approval in interactive sessions)
