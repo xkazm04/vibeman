@@ -1,0 +1,280 @@
+/**
+ * Manual Session Store
+ *
+ * Manages interactive Claude Code CLI sessions where the user
+ * sends messages directly to Claude (multi-turn conversation).
+ * Separate from the automated cliSessionStore's 4-slot system.
+ */
+
+import { create } from 'zustand';
+import type {
+  ManualSession,
+  ManualSessionEvent,
+  ManualSessionStatus,
+} from '../lib/manualSession.types';
+import {
+  startInteractiveClaude,
+  writeToClaudeStdin,
+  listenToExecution,
+  isTauriTerminalAvailable,
+} from '@/lib/tauri/tauriTerminalStrategy';
+import type { ExecutionEvent } from '@/lib/tauri/tauriTerminalStrategy';
+
+// ============================================================================
+// Store state
+// ============================================================================
+
+interface ManualSessionState {
+  sessions: Record<string, ManualSession>;
+  activeSessionId: string | null;
+  /** Unlisten handles for Tauri event listeners, keyed by session ID */
+  _unlisteners: Record<string, (() => void) | null>;
+}
+
+interface ManualSessionActions {
+  /** Create and start a new interactive session */
+  createSession: (params: {
+    projectId: string;
+    projectPath: string;
+    projectName: string;
+    label?: string;
+  }) => Promise<string | null>;
+
+  /** Send a user message to an active session */
+  sendMessage: (sessionId: string, text: string) => Promise<void>;
+
+  /** Select a session as active (for modal display) */
+  selectSession: (sessionId: string | null) => void;
+
+  /** Close and clean up a session */
+  closeSession: (sessionId: string) => void;
+
+  /** Update session status */
+  updateStatus: (sessionId: string, status: ManualSessionStatus) => void;
+
+  /** Get ordered list of sessions (newest first) */
+  getSessionList: () => ManualSession[];
+}
+
+// ============================================================================
+// Event processing
+// ============================================================================
+
+function processExecutionEvent(event: ExecutionEvent): ManualSessionEvent {
+  const data = event.data as Record<string, unknown>;
+  const timestamp = Date.now();
+
+  if (event.event_type === 'input_needed') {
+    return { timestamp, type: 'input_needed', data };
+  }
+  if (event.event_type === 'error') {
+    return { timestamp, type: 'error', data };
+  }
+  if (event.event_type === 'data' && data) {
+    // Parse stream-json event type from the data payload
+    const eventType = (data.type as string) || 'raw';
+    if (eventType === 'system' || eventType === 'assistant' || eventType === 'user' || eventType === 'result') {
+      return { timestamp, type: eventType, data };
+    }
+  }
+
+  return { timestamp, type: 'raw', data: event.data };
+}
+
+function extractSessionId(event: ManualSessionEvent): string | null {
+  const data = event.data as Record<string, unknown>;
+  if (event.type === 'system' && data?.session_id) {
+    return data.session_id as string;
+  }
+  if (event.type === 'result' && data?.session_id) {
+    return data.session_id as string;
+  }
+  return null;
+}
+
+// ============================================================================
+// Store
+// ============================================================================
+
+export const useManualSessionStore = create<ManualSessionState & ManualSessionActions>(
+  (set, get) => ({
+    sessions: {},
+    activeSessionId: null,
+    _unlisteners: {},
+
+    createSession: async ({ projectId, projectPath, projectName, label }) => {
+      if (!isTauriTerminalAvailable()) {
+        console.warn('Manual sessions require Tauri runtime');
+        return null;
+      }
+
+      const sessionId = `manual_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const now = Date.now();
+
+      const session: ManualSession = {
+        id: sessionId,
+        executionId: null,
+        pid: null,
+        projectId,
+        projectPath,
+        projectName,
+        status: 'starting',
+        events: [],
+        createdAt: now,
+        lastActivityAt: now,
+        claudeSessionId: null,
+        label: label || `Session ${Object.keys(get().sessions).length + 1}`,
+      };
+
+      set((state) => ({
+        sessions: { ...state.sessions, [sessionId]: session },
+        activeSessionId: sessionId,
+      }));
+
+      try {
+        const result = await startInteractiveClaude({
+          project_path: projectPath,
+          project_id: projectId,
+        });
+
+        // Listen to execution events
+        const unlisten = await listenToExecution(result.execution_id, (event) => {
+          const processed = processExecutionEvent(event);
+          const claudeSessionId = extractSessionId(processed);
+
+          set((state) => {
+            const s = state.sessions[sessionId];
+            if (!s) return state;
+
+            let newStatus = s.status;
+            if (event.event_type === 'input_needed') {
+              newStatus = 'waiting_input';
+            } else if (event.event_type === 'data') {
+              newStatus = 'running';
+            } else if (event.event_type === 'completed') {
+              newStatus = 'completed';
+            } else if (event.event_type === 'error') {
+              newStatus = 'failed';
+            }
+
+            return {
+              sessions: {
+                ...state.sessions,
+                [sessionId]: {
+                  ...s,
+                  status: newStatus,
+                  events: [...s.events, processed],
+                  lastActivityAt: Date.now(),
+                  claudeSessionId: claudeSessionId || s.claudeSessionId,
+                },
+              },
+            };
+          });
+        });
+
+        set((state) => ({
+          sessions: {
+            ...state.sessions,
+            [sessionId]: {
+              ...state.sessions[sessionId],
+              executionId: result.execution_id,
+              pid: result.pid,
+              status: 'waiting_input', // Interactive session starts waiting for first message
+            },
+          },
+          _unlisteners: { ...state._unlisteners, [sessionId]: unlisten },
+        }));
+
+        return sessionId;
+      } catch (err) {
+        set((state) => ({
+          sessions: {
+            ...state.sessions,
+            [sessionId]: {
+              ...state.sessions[sessionId],
+              status: 'failed',
+              events: [
+                ...state.sessions[sessionId].events,
+                {
+                  timestamp: Date.now(),
+                  type: 'error' as const,
+                  data: { error: String(err) },
+                },
+              ],
+            },
+          },
+        }));
+        return null;
+      }
+    },
+
+    sendMessage: async (sessionId, text) => {
+      const session = get().sessions[sessionId];
+      if (!session?.executionId) return;
+
+      // Add user message to events immediately
+      set((state) => ({
+        sessions: {
+          ...state.sessions,
+          [sessionId]: {
+            ...state.sessions[sessionId],
+            status: 'running',
+            events: [
+              ...state.sessions[sessionId].events,
+              {
+                timestamp: Date.now(),
+                type: 'user' as const,
+                data: { text },
+              },
+            ],
+            lastActivityAt: Date.now(),
+          },
+        },
+      }));
+
+      try {
+        await writeToClaudeStdin(session.executionId, text);
+      } catch (err) {
+        console.error('Failed to write to Claude stdin:', err);
+      }
+    },
+
+    selectSession: (sessionId) => {
+      set({ activeSessionId: sessionId });
+    },
+
+    closeSession: (sessionId) => {
+      const unlistener = get()._unlisteners[sessionId];
+      if (unlistener) unlistener();
+
+      set((state) => {
+        const { [sessionId]: _removed, ...remaining } = state.sessions;
+        const { [sessionId]: _removedUl, ...remainingUl } = state._unlisteners;
+        return {
+          sessions: remaining,
+          _unlisteners: remainingUl,
+          activeSessionId: state.activeSessionId === sessionId ? null : state.activeSessionId,
+        };
+      });
+    },
+
+    updateStatus: (sessionId, status) => {
+      set((state) => {
+        const s = state.sessions[sessionId];
+        if (!s) return state;
+        return {
+          sessions: {
+            ...state.sessions,
+            [sessionId]: { ...s, status, lastActivityAt: Date.now() },
+          },
+        };
+      });
+    },
+
+    getSessionList: () => {
+      return Object.values(get().sessions).sort(
+        (a, b) => b.createdAt - a.createdAt,
+      );
+    },
+  }),
+);
