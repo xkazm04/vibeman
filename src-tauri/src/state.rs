@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use crate::db::Database;
 use crate::process::ProcessManager;
@@ -14,6 +16,8 @@ pub struct AppState {
     pub process_manager: Arc<ProcessManager>,
     /// Unified execution runtime (Wave 1 — Items 19, 1, 2, 3)
     pub runtime: Arc<ExecutionRuntime>,
+    /// Stdin handles for interactive CLI sessions (execution_id → ChildStdin)
+    pub interactive_stdins: Arc<Mutex<HashMap<String, tokio::process::ChildStdin>>>,
 }
 
 impl AppState {
@@ -39,6 +43,7 @@ impl AppState {
             db,
             process_manager: Arc::new(ProcessManager::new()),
             runtime: Arc::new(ExecutionRuntime::new()),
+            interactive_stdins: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 

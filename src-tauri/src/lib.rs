@@ -104,6 +104,9 @@ pub fn run() {
             commands::execute_claude,
             commands::abort_claude,
             commands::claude_execution_status,
+            // Interactive CLI sessions
+            commands::start_interactive_claude,
+            commands::write_to_claude,
             // Brain & Intelligence
             commands::get_brain_dashboard,
             commands::get_brain_signals,

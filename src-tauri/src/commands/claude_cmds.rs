@@ -355,6 +355,280 @@ fn build_cli_command(args: &ExecuteClaudeArgs) -> (String, Vec<String>) {
     }
 }
 
+// ============================================================================
+// Interactive session commands
+// ============================================================================
+
+/// Arguments for starting an interactive Claude session (no predefined prompt)
+#[derive(Debug, Deserialize)]
+pub struct StartInteractiveClaudeArgs {
+    pub project_path: String,
+    pub project_id: Option<String>,
+    pub provider: Option<String>,
+    pub model: Option<String>,
+    pub session_name: Option<String>,
+    pub resume_session_id: Option<String>,
+    pub max_budget_usd: Option<f64>,
+    pub extra_env: Option<HashMap<String, String>>,
+}
+
+/// Start an interactive Claude Code CLI session.
+///
+/// Unlike execute_claude, this does NOT send a prompt upfront.
+/// The session waits for user input via write_to_claude.
+/// Emits "input_needed" events when Claude finishes responding.
+#[tauri::command]
+pub async fn start_interactive_claude(
+    args: StartInteractiveClaudeArgs,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<ExecuteResult, String> {
+    let execution_id = uuid::Uuid::new_v4().to_string();
+
+    let provider = args.provider.as_deref().unwrap_or("claude");
+    let program = if provider == "gemini" {
+        "gemini".to_string()
+    } else if cfg!(target_os = "windows") {
+        "claude.cmd".to_string()
+    } else {
+        "claude".to_string()
+    };
+
+    // Build CLI args for interactive mode (no -p flag)
+    let mut cli_args = vec![
+        "--output-format".to_string(),
+        "stream-json".to_string(),
+        "--verbose".to_string(),
+        "--dangerously-skip-permissions".to_string(),
+    ];
+
+    if let Some(ref session_id) = args.resume_session_id {
+        cli_args.push("--resume".to_string());
+        cli_args.push(session_id.clone());
+    }
+    if let Some(ref name) = args.session_name {
+        cli_args.push("--name".to_string());
+        cli_args.push(name.clone());
+    }
+    if let Some(budget) = args.max_budget_usd {
+        cli_args.push("--max-budget-usd".to_string());
+        cli_args.push(format!("{:.2}", budget));
+    }
+    if let Some(ref model) = args.model {
+        cli_args.push("--model".to_string());
+        cli_args.push(model.clone());
+    }
+
+    let mut cmd = Command::new(&program);
+    cmd.args(&cli_args)
+        .current_dir(&args.project_path)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .stdin(std::process::Stdio::piped());
+
+    // Set environment variables
+    let mut env = args.extra_env.unwrap_or_default();
+    if let Some(ref pid) = args.project_id {
+        env.insert("VIBEMAN_PROJECT_ID".to_string(), pid.clone());
+    }
+    env.insert(
+        "VIBEMAN_HOOK_SECRET".to_string(),
+        uuid::Uuid::new_v4().to_string(),
+    );
+    for (key, value) in &env {
+        cmd.env(key, value);
+    }
+    cmd.env_remove("ANTHROPIC_API_KEY");
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x00000200);
+    }
+
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("Failed to spawn {}: {}", program, e))?;
+
+    let pid = child.id().unwrap_or(0);
+
+    // Store stdin handle for interactive writes (don't close it)
+    if let Some(stdin) = child.stdin.take() {
+        let mut stdins = state.interactive_stdins.lock().await;
+        stdins.insert(execution_id.clone(), stdin);
+    }
+
+    // Spawn stdout reader with input_needed detection
+    let exec_id = execution_id.clone();
+    let app_handle = app.clone();
+    if let Some(stdout) = child.stdout.take() {
+        let exec_id_stdout = exec_id.clone();
+        let app_stdout = app_handle.clone();
+        tokio::spawn(async move {
+            let reader = BufReader::new(stdout);
+            let mut lines = reader.lines();
+            let mut expecting_input = false;
+
+            loop {
+                tokio::select! {
+                    line_result = lines.next_line() => {
+                        match line_result {
+                            Ok(Some(line)) => {
+                                expecting_input = false;
+                                let parsed = StreamEvent::parse_line(&line);
+                                let data = if let Some(ref event) = parsed {
+                                    // Check if this is an end-of-turn assistant message
+                                    if let StreamEvent::Assistant { ref message } = event {
+                                        if message.stop_reason.as_deref() == Some("end_turn") {
+                                            expecting_input = true;
+                                        }
+                                    }
+                                    // Result events also mean Claude is done with this turn
+                                    if matches!(event, StreamEvent::Result { .. }) {
+                                        expecting_input = true;
+                                    }
+                                    serde_json::to_value(event)
+                                        .unwrap_or(serde_json::json!({"raw": line}))
+                                } else {
+                                    serde_json::json!({"raw": line})
+                                };
+
+                                let _ = app_stdout.emit(
+                                    "claude-execution-event",
+                                    ExecutionEvent {
+                                        execution_id: exec_id_stdout.clone(),
+                                        event_type: "data".to_string(),
+                                        data,
+                                    },
+                                );
+                            }
+                            Ok(None) => break, // EOF
+                            Err(_) => break,
+                        }
+                    }
+                    _ = tokio::time::sleep(std::time::Duration::from_secs(2)) => {
+                        if expecting_input {
+                            let _ = app_stdout.emit(
+                                "claude-execution-event",
+                                ExecutionEvent {
+                                    execution_id: exec_id_stdout.clone(),
+                                    event_type: "input_needed".to_string(),
+                                    data: serde_json::json!({"message": "Claude is waiting for input"}),
+                                },
+                            );
+                            expecting_input = false;
+                        }
+                    }
+                }
+            }
+
+            let _ = app_stdout.emit(
+                "claude-execution-event",
+                ExecutionEvent {
+                    execution_id: exec_id_stdout,
+                    event_type: "stdout_end".to_string(),
+                    data: serde_json::json!(null),
+                },
+            );
+        });
+    }
+
+    // Stderr reader (same as execute_claude)
+    if let Some(stderr) = child.stderr.take() {
+        let exec_id_stderr = exec_id.clone();
+        let app_stderr = app_handle.clone();
+        tokio::spawn(async move {
+            let reader = BufReader::new(stderr);
+            let mut lines = reader.lines();
+            while let Ok(Some(line)) = lines.next_line().await {
+                let _ = app_stderr.emit(
+                    "claude-execution-event",
+                    ExecutionEvent {
+                        execution_id: exec_id_stderr.clone(),
+                        event_type: "stderr".to_string(),
+                        data: serde_json::json!({"message": line}),
+                    },
+                );
+            }
+        });
+    }
+
+    // Completion waiter
+    let exec_id_wait = exec_id.clone();
+    let app_wait = app_handle;
+    let stdins_ref = state.interactive_stdins.clone();
+    tokio::spawn(async move {
+        let result = child.wait().await;
+        // Clean up stdin handle when process exits
+        stdins_ref.lock().await.remove(&exec_id_wait);
+
+        match result {
+            Ok(exit_status) => {
+                let _ = app_wait.emit(
+                    "claude-execution-event",
+                    ExecutionEvent {
+                        execution_id: exec_id_wait,
+                        event_type: "completed".to_string(),
+                        data: serde_json::json!({
+                            "exit_code": exit_status.code().unwrap_or(-1),
+                            "success": exit_status.success(),
+                        }),
+                    },
+                );
+            }
+            Err(err) => {
+                let _ = app_wait.emit(
+                    "claude-execution-event",
+                    ExecutionEvent {
+                        execution_id: exec_id_wait,
+                        event_type: "error".to_string(),
+                        data: serde_json::json!({"error": err.to_string()}),
+                    },
+                );
+            }
+        }
+    });
+
+    log::info!(
+        "Started interactive Claude session {} (PID: {}) in {}",
+        execution_id, pid, args.project_path
+    );
+
+    Ok(ExecuteResult { execution_id, pid })
+}
+
+/// Write text to an interactive Claude session's stdin
+#[tauri::command]
+pub async fn write_to_claude(
+    execution_id: String,
+    text: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut stdins = state.interactive_stdins.lock().await;
+    if let Some(stdin) = stdins.get_mut(&execution_id) {
+        use tokio::io::AsyncWriteExt;
+        let message = if text.ends_with('\n') {
+            text
+        } else {
+            format!("{}\n", text)
+        };
+        stdin
+            .write_all(message.as_bytes())
+            .await
+            .map_err(|e| format!("Failed to write to stdin: {}", e))?;
+        stdin
+            .flush()
+            .await
+            .map_err(|e| format!("Failed to flush stdin: {}", e))?;
+        Ok(())
+    } else {
+        Err(format!(
+            "No interactive session found for execution {}",
+            execution_id
+        ))
+    }
+}
+
 /// Get execution status by checking if process is still running
 #[tauri::command]
 pub async fn claude_execution_status(
