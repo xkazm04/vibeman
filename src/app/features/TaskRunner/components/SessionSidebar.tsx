@@ -31,6 +31,7 @@ const STATUS_CONFIG: Record<ManualSessionStatus, {
   starting: { label: 'Starting', dotClass: 'bg-blue-400 animate-pulse', textClass: 'text-blue-400' },
   running: { label: 'Running', dotClass: 'bg-green-400 animate-pulse', textClass: 'text-green-400' },
   waiting_input: { label: 'Needs input', dotClass: 'bg-amber-400 animate-pulse', textClass: 'text-amber-400' },
+  waiting_approval: { label: 'Approval needed', dotClass: 'bg-orange-400 animate-pulse', textClass: 'text-orange-400' },
   completed: { label: 'Done', dotClass: 'bg-gray-500', textClass: 'text-gray-500' },
   failed: { label: 'Failed', dotClass: 'bg-red-400', textClass: 'text-red-400' },
 };

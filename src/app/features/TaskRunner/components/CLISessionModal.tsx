@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import BaseModal from '@/components/ui/BaseModal';
 import { useManualSessionStore } from '../store/manualSessionStore';
+import { ToolApprovalCard } from './ToolApprovalCard';
 import type { ManualSessionEvent, ManualSessionStatus } from '../lib/manualSession.types';
 
 // ============================================================================
@@ -172,6 +173,7 @@ const STATUS_COLORS: Record<ManualSessionStatus, string> = {
   starting: 'text-blue-400',
   running: 'text-green-400',
   waiting_input: 'text-amber-400',
+  waiting_approval: 'text-orange-400',
   completed: 'text-gray-500',
   failed: 'text-red-400',
 };
@@ -189,6 +191,8 @@ export function CLISessionModal({ isOpen, onClose }: CLISessionModalProps) {
   const activeSessionId = useManualSessionStore((s) => s.activeSessionId);
   const sessions = useManualSessionStore((s) => s.sessions);
   const sendMessage = useManualSessionStore((s) => s.sendMessage);
+  const approveToolUse = useManualSessionStore((s) => s.approveToolUse);
+  const denyToolUse = useManualSessionStore((s) => s.denyToolUse);
 
   const session = activeSessionId ? sessions[activeSessionId] : null;
 
@@ -236,6 +240,7 @@ export function CLISessionModal({ isOpen, onClose }: CLISessionModalProps) {
   if (!session) return null;
 
   const canSendInput = session.status === 'waiting_input' && !isSending;
+  const isWaitingApproval = session.status === 'waiting_approval' && session.pendingApprovals.length > 0;
   const statusColor = STATUS_COLORS[session.status] || 'text-gray-400';
 
   // Filter out raw/empty events for cleaner display
@@ -304,6 +309,15 @@ export function CLISessionModal({ isOpen, onClose }: CLISessionModalProps) {
         )}
       </div>
 
+      {/* Tool approval card — shown when Claude proposes tool_use */}
+      {isWaitingApproval && activeSessionId && (
+        <ToolApprovalCard
+          tools={session.pendingApprovals}
+          onApprove={() => approveToolUse(activeSessionId)}
+          onDeny={() => denyToolUse(activeSessionId)}
+        />
+      )}
+
       {/* Input area */}
       <div className="border-t border-gray-700/50 bg-gray-800/50 p-3">
         <div className="flex items-end gap-2">
@@ -313,13 +327,15 @@ export function CLISessionModal({ isOpen, onClose }: CLISessionModalProps) {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={
-              canSendInput
-                ? 'Type your message... (Enter to send, Shift+Enter for newline)'
-                : session.status === 'running'
-                  ? 'Claude is processing...'
-                  : session.status === 'completed'
-                    ? 'Session completed'
-                    : 'Waiting...'
+              isWaitingApproval
+                ? 'Approve or deny the tool use above'
+                : canSendInput
+                  ? 'Type your message... (Enter to send, Shift+Enter for newline)'
+                  : session.status === 'running'
+                    ? 'Claude is processing...'
+                    : session.status === 'completed'
+                      ? 'Session completed'
+                      : 'Waiting...'
             }
             disabled={!canSendInput}
             rows={1}

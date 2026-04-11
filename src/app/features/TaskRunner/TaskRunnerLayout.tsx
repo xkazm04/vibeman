@@ -41,7 +41,7 @@ const TaskRunnerLayout = () => {
     (s) => Object.keys(s.sessions).length,
   );
   const hasWaitingSession = useManualSessionStore(
-    (s) => Object.values(s.sessions).some((sess) => sess.status === 'waiting_input'),
+    (s) => Object.values(s.sessions).some((sess) => sess.status === 'waiting_input' || sess.status === 'waiting_approval'),
   );
 
   const handleSelectSession = useCallback((sessionId: string, isManual: boolean) => {
