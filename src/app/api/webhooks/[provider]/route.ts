@@ -150,7 +150,7 @@ export async function POST(
     if (provider === 'github') {
       const githubEvent = request.headers.get('x-github-event');
       if (githubEvent === 'pull_request') {
-        const prResult = await handlePullRequestEvent(integration.project_id, body as any);
+        const prResult = await handlePullRequestEvent(integration.project_id, body as Record<string, unknown> & { action: string; number: number; pull_request: Record<string, unknown> });
         return NextResponse.json({
           ok: true,
           event_type: 'pull_request',
