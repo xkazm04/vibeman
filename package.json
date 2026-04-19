@@ -24,7 +24,7 @@
     "tauri:build": "tauri build"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.90",
+    "@anthropic-ai/claude-agent-sdk": "^0.2.114",
     "@anthropic-ai/sdk": "^0.90.0",
     "@aws-sdk/client-bedrock-runtime": "^3.1032.0",
     "@aws-sdk/credential-providers": "^3.1032.0",
