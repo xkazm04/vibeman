@@ -360,3 +360,48 @@ export interface TaskRunnerActions {
   setProcessedCount: React.Dispatch<React.SetStateAction<number>>;
   setError: React.Dispatch<React.SetStateAction<string | undefined>>;
 }
+
+// ============================================================================
+// Kanban Board Types
+// ============================================================================
+
+export type KanbanColumnId = 'backlog' | 'in-progress' | 'done' | 'failed';
+
+export interface KanbanColumnConfig {
+  id: KanbanColumnId;
+  label: string;
+  statuses: Array<TaskStatusUnion['type']>;
+  dotColor: string;
+  borderColor: string;
+}
+
+export const KANBAN_COLUMNS: KanbanColumnConfig[] = [
+  { id: 'backlog', label: 'Backlog', statuses: ['idle'], dotColor: 'bg-gray-400', borderColor: 'border-gray-500/30' },
+  { id: 'in-progress', label: 'In Progress', statuses: ['queued', 'running'], dotColor: 'bg-blue-400', borderColor: 'border-blue-500/30' },
+  { id: 'done', label: 'Done', statuses: ['completed'], dotColor: 'bg-green-400', borderColor: 'border-green-500/30' },
+  { id: 'failed', label: 'Failed', statuses: ['failed'], dotColor: 'bg-red-400', borderColor: 'border-red-500/30' },
+];
+
+export function statusToKanbanColumn(statusType: TaskStatusUnion['type']): KanbanColumnId {
+  switch (statusType) {
+    case 'idle': return 'backlog';
+    case 'queued':
+    case 'running': return 'in-progress';
+    case 'completed': return 'done';
+    case 'failed': return 'failed';
+  }
+}
+
+export function kanbanColumnToStatuses(columnId: KanbanColumnId): Array<TaskStatusUnion['type']> {
+  const col = KANBAN_COLUMNS.find(c => c.id === columnId);
+  return col?.statuses ?? [];
+}
+
+// ============================================================================
+// Dependency Types
+// ============================================================================
+
+export interface DependencyEdge {
+  from: RequirementIdString; // parent (must complete first)
+  to: RequirementIdString;   // child (blocked until parent completes)
+}

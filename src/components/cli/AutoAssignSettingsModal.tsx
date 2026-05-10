@@ -155,6 +155,7 @@ export function AutoAssignSettingsModal({ isOpen, onClose }: AutoAssignSettingsM
                       >
                         <option value="claude">Claude</option>
                         <option value="ollama">Ollama</option>
+                        <option value="codex">Codex</option>
                       </select>
                     </div>
                   </div>

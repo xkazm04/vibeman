@@ -39,7 +39,7 @@ export interface CLISessionState {
   enabledSkills: SkillId[]; // Active skills for this session
   gitEnabled: boolean; // Whether to auto-commit after tasks
   gitConfig: CLIGitConfig | null; // Git commands and template
-  provider: CLIProvider; // CLI provider: 'claude' or 'ollama'
+  provider: CLIProvider; // CLI provider: 'claude', 'ollama', or 'codex'
   model: CLIModel | null; // Model override (null = provider default)
 }
 
@@ -356,7 +356,7 @@ export const useCLISessionStore = create<CLISessionStoreState>()(
             [sessionId]: {
               ...state.sessions[sessionId],
               provider,
-              model: null, // Reset model when provider changes
+              model: provider === 'codex' ? 'gpt-5.5' : null, // Codex MVP defaults to subscription-draining GPT-5.5
               claudeSessionId: null, // Can't resume across providers
               lastActivityAt: Date.now(),
             },

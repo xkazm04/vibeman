@@ -25,6 +25,103 @@ import {
 } from '@/lib/tauri/tauriTerminalStrategy';
 import type { ExecutionEvent } from '@/lib/tauri/tauriTerminalStrategy';
 
+// ============================================================================
+// API-based interactive session helpers (browser fallback when Tauri unavailable)
+// ============================================================================
+
+async function apiStartInteractive(projectPath: string): Promise<{ executionId: string; streamUrl: string }> {
+  const res = await fetch('/api/claude-terminal/interactive', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectPath }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ error: 'Failed to start session' }));
+    throw new Error(data.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+async function apiWriteToSession(executionId: string, text: string): Promise<void> {
+  const res = await fetch('/api/claude-terminal/interactive', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ executionId, text }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ error: 'Write failed' }));
+    throw new Error(data.error || `HTTP ${res.status}`);
+  }
+}
+
+async function apiSessionAlive(executionId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/claude-terminal/interactive?executionId=${encodeURIComponent(executionId)}`);
+    if (!res.ok) return false;
+    const data = await res.json();
+    return !!data.alive;
+  } catch {
+    return false;
+  }
+}
+
+/** Poll the interactive session API for new events and map them to ManualSessionEvents */
+function startApiEventPolling(
+  executionId: string,
+  onEvent: (event: ManualSessionEvent, rawType: string) => void,
+  onDone: () => void,
+): () => void {
+  let stopped = false;
+
+  // Open SSE for real-time streaming
+  let es: EventSource | null = null;
+  if (typeof EventSource !== 'undefined') {
+    es = new EventSource(`/api/claude-terminal/stream?executionId=${encodeURIComponent(executionId)}`);
+    es.onmessage = (msg) => {
+      try {
+        const data = JSON.parse(msg.data);
+        const ts = Date.now();
+        const eventType = data.type || 'raw';
+
+        // Map stream event types to ManualSessionEvent types.
+        // Note: the stream route converts CLI 'init' events → 'connected' protocol events,
+        // so 'connected' signals Claude is ready and waiting for the first user message.
+        if (eventType === 'heartbeat') {
+          // ignore — keep-alive only
+          return;
+        }
+        if (eventType === 'connected' || eventType === 'init' || eventType === 'system') {
+          // Claude is ready / spawned — transition to waiting_input
+          onEvent({ timestamp: ts, type: 'system', data }, 'ready');
+        } else if (eventType === 'message' || eventType === 'text') {
+          onEvent({ timestamp: ts, type: 'assistant', data }, 'data');
+        } else if (eventType === 'tool_use') {
+          onEvent({ timestamp: ts, type: 'assistant', data }, 'data');
+        } else if (eventType === 'tool_result') {
+          onEvent({ timestamp: ts, type: 'raw', data }, 'data');
+        } else if (eventType === 'result') {
+          // Claude finished its turn — back to waiting for next user input
+          onEvent({ timestamp: ts, type: 'result', data }, 'turn_complete');
+        } else if (eventType === 'error') {
+          onEvent({ timestamp: ts, type: 'error', data }, 'error');
+          if (!stopped) { stopped = true; onDone(); }
+        } else {
+          onEvent({ timestamp: ts, type: 'raw', data }, 'data');
+        }
+      } catch { /* ignore parse errors */ }
+    };
+    es.onerror = () => {
+      // SSE closed — could be session ended or network issue
+      if (es) { es.close(); es = null; }
+    };
+  }
+
+  return () => {
+    stopped = true;
+    if (es) { es.close(); es = null; }
+  };
+}
+
 const MAX_PERSISTED_EVENTS = 100;
 const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -137,10 +234,7 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
     _unlisteners: {},
 
     createSession: async ({ projectId, projectPath, projectName, label }) => {
-      if (!isTauriTerminalAvailable()) {
-        console.warn('Manual sessions require Tauri runtime');
-        return null;
-      }
+      const useTauri = isTauriTerminalAvailable();
 
       const sessionId = `manual_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       const now = Date.now();
@@ -167,98 +261,163 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
       }));
 
       try {
-        const result = await startInteractiveClaude({
-          project_path: projectPath,
-          project_id: projectId,
-        });
+        if (useTauri) {
+          // ── Tauri path (desktop app) ──
+          const result = await startInteractiveClaude({
+            project_path: projectPath,
+            project_id: projectId,
+          });
 
-        // Listen to execution events
-        const unlisten = await listenToExecution(result.execution_id, (event) => {
-          const processed = processExecutionEvent(event);
-          const claudeSessionId = extractSessionId(processed);
+          const unlisten = await listenToExecution(result.execution_id, (event) => {
+            const processed = processExecutionEvent(event);
+            const claudeSessionId = extractSessionId(processed);
 
-          set((state) => {
-            const s = state.sessions[sessionId];
-            if (!s) return state;
+            set((state) => {
+              const s = state.sessions[sessionId];
+              if (!s) return state;
 
-            let newStatus = s.status;
-            let newPendingApprovals = s.pendingApprovals;
+              let newStatus = s.status;
+              let newPendingApprovals = s.pendingApprovals;
 
-            if (event.event_type === 'approval_needed') {
-              const tools = extractPendingApprovals(processed);
-              const allSafe = tools.length > 0 && tools.every((t) => SAFE_TOOLS.has(t.toolName));
+              if (event.event_type === 'approval_needed') {
+                const tools = extractPendingApprovals(processed);
+                const allSafe = tools.length > 0 && tools.every((t) => SAFE_TOOLS.has(t.toolName));
 
-              if (allSafe) {
-                // Auto-approve safe tools — write "y" to stdin immediately
-                newStatus = 'running';
-                newPendingApprovals = [];
-                const execId = s.executionId;
-                if (execId) {
-                  // Fire-and-forget async write (can't await inside set())
-                  writeToClaudeStdin(execId, 'y').catch(console.error);
+                if (allSafe) {
+                  newStatus = 'running';
+                  newPendingApprovals = [];
+                  const execId = s.executionId;
+                  if (execId) {
+                    writeToClaudeStdin(execId, 'y').catch(console.error);
+                  }
+                  const autoEvent: ManualSessionEvent = {
+                    timestamp: Date.now(),
+                    type: 'auto_approved',
+                    data: { tools: tools.map((t) => t.toolName) },
+                  };
+                  return {
+                    sessions: {
+                      ...state.sessions,
+                      [sessionId]: {
+                        ...s,
+                        status: 'running',
+                        pendingApprovals: [],
+                        events: [...s.events, autoEvent],
+                        lastActivityAt: Date.now(),
+                        claudeSessionId: claudeSessionId || s.claudeSessionId,
+                      },
+                    },
+                  };
                 }
-                // Replace the approval_needed event with auto_approved
-                const autoEvent: ManualSessionEvent = {
-                  timestamp: Date.now(),
-                  type: 'auto_approved',
-                  data: { tools: tools.map((t) => t.toolName) },
-                };
+
+                newStatus = 'waiting_approval';
+                newPendingApprovals = tools;
+              } else if (event.event_type === 'input_needed') {
+                newStatus = 'waiting_input';
+                newPendingApprovals = [];
+              } else if (event.event_type === 'data') {
+                newStatus = 'running';
+              } else if (event.event_type === 'completed') {
+                newStatus = 'completed';
+              } else if (event.event_type === 'error') {
+                newStatus = 'failed';
+              }
+
+              return {
+                sessions: {
+                  ...state.sessions,
+                  [sessionId]: {
+                    ...s,
+                    status: newStatus,
+                    pendingApprovals: newPendingApprovals,
+                    events: [...s.events, processed],
+                    lastActivityAt: Date.now(),
+                    claudeSessionId: claudeSessionId || s.claudeSessionId,
+                  },
+                },
+              };
+            });
+          });
+
+          set((state) => ({
+            sessions: {
+              ...state.sessions,
+              [sessionId]: {
+                ...state.sessions[sessionId],
+                executionId: result.execution_id,
+                pid: result.pid,
+                status: 'waiting_input',
+              },
+            },
+            _unlisteners: { ...state._unlisteners, [sessionId]: unlisten },
+          }));
+        } else {
+          // ── API path (browser / next dev) ──
+          const result = await apiStartInteractive(projectPath);
+
+          const unlisten = startApiEventPolling(
+            result.executionId,
+            (event, rawType) => {
+              const claudeSessionId = extractSessionId(event);
+
+              set((state) => {
+                const s = state.sessions[sessionId];
+                if (!s) return state;
+
+                let newStatus = s.status;
+
+                if (rawType === 'error') {
+                  newStatus = 'failed';
+                } else if (rawType === 'ready' || rawType === 'turn_complete') {
+                  // Claude is ready / finished a turn — waiting for next user input
+                  newStatus = 'waiting_input';
+                } else if (event.type === 'assistant') {
+                  // Only actual assistant/tool events mean Claude is working
+                  newStatus = 'running';
+                }
+                // 'raw' events (tool_result, etc.) don't change status
+
                 return {
                   sessions: {
                     ...state.sessions,
                     [sessionId]: {
                       ...s,
-                      status: 'running',
-                      pendingApprovals: [],
-                      events: [...s.events, autoEvent],
+                      status: newStatus,
+                      events: [...s.events, event],
                       lastActivityAt: Date.now(),
                       claudeSessionId: claudeSessionId || s.claudeSessionId,
                     },
                   },
                 };
-              }
-
-              newStatus = 'waiting_approval';
-              newPendingApprovals = tools;
-            } else if (event.event_type === 'input_needed') {
-              newStatus = 'waiting_input';
-              newPendingApprovals = [];
-            } else if (event.event_type === 'data') {
-              newStatus = 'running';
-            } else if (event.event_type === 'completed') {
-              newStatus = 'completed';
-            } else if (event.event_type === 'error') {
-              newStatus = 'failed';
-            }
-
-            return {
-              sessions: {
-                ...state.sessions,
-                [sessionId]: {
-                  ...s,
-                  status: newStatus,
-                  pendingApprovals: newPendingApprovals,
-                  events: [...s.events, processed],
-                  lastActivityAt: Date.now(),
-                  claudeSessionId: claudeSessionId || s.claudeSessionId,
-                },
-              },
-            };
-          });
-        });
-
-        set((state) => ({
-          sessions: {
-            ...state.sessions,
-            [sessionId]: {
-              ...state.sessions[sessionId],
-              executionId: result.execution_id,
-              pid: result.pid,
-              status: 'waiting_input', // Interactive session starts waiting for first message
+              });
             },
-          },
-          _unlisteners: { ...state._unlisteners, [sessionId]: unlisten },
-        }));
+            () => {
+              // Session ended
+              set((state) => {
+                const s = state.sessions[sessionId];
+                if (!s || s.status === 'completed' || s.status === 'failed') return state;
+                return {
+                  sessions: {
+                    ...state.sessions,
+                    [sessionId]: { ...s, status: 'completed', lastActivityAt: Date.now() },
+                  },
+                };
+              });
+            },
+          );
+
+          set((state) => ({
+            sessions: {
+              ...state.sessions,
+              [sessionId]: {
+                ...state.sessions[sessionId],
+                executionId: result.executionId,
+                status: 'waiting_input',
+              },
+            },
+            _unlisteners: { ...state._unlisteners, [sessionId]: unlisten },
+          }));
+        }
 
         return sessionId;
       } catch (err) {
@@ -308,7 +467,11 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
       }));
 
       try {
-        await writeToClaudeStdin(session.executionId, text);
+        if (isTauriTerminalAvailable()) {
+          await writeToClaudeStdin(session.executionId, text);
+        } else {
+          await apiWriteToSession(session.executionId, text);
+        }
       } catch (err) {
         console.error('Failed to write to Claude stdin:', err);
       }
@@ -330,7 +493,11 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
       }));
 
       try {
-        await writeToClaudeStdin(session.executionId, 'y');
+        if (isTauriTerminalAvailable()) {
+          await writeToClaudeStdin(session.executionId, 'y');
+        } else {
+          await apiWriteToSession(session.executionId, 'y');
+        }
       } catch (err) {
         console.error('Failed to approve tool use:', err);
       }
@@ -352,7 +519,11 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
       }));
 
       try {
-        await writeToClaudeStdin(session.executionId, 'n');
+        if (isTauriTerminalAvailable()) {
+          await writeToClaudeStdin(session.executionId, 'n');
+        } else {
+          await apiWriteToSession(session.executionId, 'n');
+        }
       } catch (err) {
         console.error('Failed to deny tool use:', err);
       }
@@ -393,6 +564,7 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
     recoverSessions: async () => {
       const sessions = get().sessions;
       const now = Date.now();
+      const useTauri = isTauriTerminalAvailable();
 
       for (const [sessionId, session] of Object.entries(sessions)) {
         // Remove stale sessions (> 24h)
@@ -409,54 +581,103 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
         if (!activeStatuses.includes(session.status) || !session.executionId) continue;
 
         try {
-          const alive = await interactiveSessionAlive(session.executionId);
+          const alive = useTauri
+            ? await interactiveSessionAlive(session.executionId)
+            : await apiSessionAlive(session.executionId);
+
           if (alive) {
-            // Reconnect event listener
-            const unlisten = await listenToExecution(session.executionId, (event) => {
-              const processed = processExecutionEvent(event);
-              const claudeSessionId = extractSessionId(processed);
-              const approvals = extractPendingApprovals(processed);
+            if (useTauri) {
+              // Reconnect Tauri event listener
+              const unlisten = await listenToExecution(session.executionId, (event) => {
+                const processed = processExecutionEvent(event);
+                const claudeSessionId = extractSessionId(processed);
+                const approvals = extractPendingApprovals(processed);
 
-              set((state) => {
-                const s = state.sessions[sessionId];
-                if (!s) return state;
+                set((state) => {
+                  const s = state.sessions[sessionId];
+                  if (!s) return state;
 
-                let newStatus = s.status;
-                let newPendingApprovals = s.pendingApprovals;
+                  let newStatus = s.status;
+                  let newPendingApprovals = s.pendingApprovals;
 
-                if (event.event_type === 'approval_needed') {
-                  newStatus = 'waiting_approval';
-                  newPendingApprovals = approvals;
-                } else if (event.event_type === 'input_needed') {
-                  newStatus = 'waiting_input';
-                  newPendingApprovals = [];
-                } else if (event.event_type === 'data') {
-                  newStatus = 'running';
-                } else if (event.event_type === 'completed') {
-                  newStatus = 'completed';
-                } else if (event.event_type === 'error') {
-                  newStatus = 'failed';
-                }
+                  if (event.event_type === 'approval_needed') {
+                    newStatus = 'waiting_approval';
+                    newPendingApprovals = approvals;
+                  } else if (event.event_type === 'input_needed') {
+                    newStatus = 'waiting_input';
+                    newPendingApprovals = [];
+                  } else if (event.event_type === 'data') {
+                    newStatus = 'running';
+                  } else if (event.event_type === 'completed') {
+                    newStatus = 'completed';
+                  } else if (event.event_type === 'error') {
+                    newStatus = 'failed';
+                  }
 
-                return {
-                  sessions: {
-                    ...state.sessions,
-                    [sessionId]: {
-                      ...s,
-                      status: newStatus,
-                      pendingApprovals: newPendingApprovals,
-                      events: [...s.events, processed],
-                      lastActivityAt: Date.now(),
-                      claudeSessionId: claudeSessionId || s.claudeSessionId,
+                  return {
+                    sessions: {
+                      ...state.sessions,
+                      [sessionId]: {
+                        ...s,
+                        status: newStatus,
+                        pendingApprovals: newPendingApprovals,
+                        events: [...s.events, processed],
+                        lastActivityAt: Date.now(),
+                        claudeSessionId: claudeSessionId || s.claudeSessionId,
+                      },
                     },
-                  },
-                };
+                  };
+                });
               });
-            });
 
-            set((state) => ({
-              _unlisteners: { ...state._unlisteners, [sessionId]: unlisten },
-            }));
+              set((state) => ({
+                _unlisteners: { ...state._unlisteners, [sessionId]: unlisten },
+              }));
+            } else {
+              // Reconnect API event polling
+              const unlisten = startApiEventPolling(
+                session.executionId,
+                (event, rawType) => {
+                  const claudeSessionId = extractSessionId(event);
+                  set((state) => {
+                    const s = state.sessions[sessionId];
+                    if (!s) return state;
+                    let newStatus = s.status;
+                    if (rawType === 'error') newStatus = 'failed';
+                    else if (rawType === 'ready' || rawType === 'turn_complete') newStatus = 'waiting_input';
+                    else if (event.type === 'assistant') newStatus = 'running';
+                    return {
+                      sessions: {
+                        ...state.sessions,
+                        [sessionId]: {
+                          ...s,
+                          status: newStatus,
+                          events: [...s.events, event],
+                          lastActivityAt: Date.now(),
+                          claudeSessionId: claudeSessionId || s.claudeSessionId,
+                        },
+                      },
+                    };
+                  });
+                },
+                () => {
+                  set((state) => {
+                    const s = state.sessions[sessionId];
+                    if (!s || s.status === 'completed' || s.status === 'failed') return state;
+                    return {
+                      sessions: {
+                        ...state.sessions,
+                        [sessionId]: { ...s, status: 'completed', lastActivityAt: Date.now() },
+                      },
+                    };
+                  });
+                },
+              );
+
+              set((state) => ({
+                _unlisteners: { ...state._unlisteners, [sessionId]: unlisten },
+              }));
+            }
           } else {
             // Process died — mark as completed
             set((state) => ({
@@ -471,7 +692,7 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
             }));
           }
         } catch {
-          // Can't check (Tauri not available) — mark as completed
+          // Can't check — mark as completed
           set((state) => ({
             sessions: {
               ...state.sessions,

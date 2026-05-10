@@ -168,6 +168,7 @@ const TaskItemWithStableCallbacks = React.memo(function TaskItemWithStableCallba
   return (
     <TaskItem
       requirement={requirement}
+      requirementId={reqId}
       isSelected={isSelected}
       onToggleSelect={handleToggle}
       onDelete={handleDel}

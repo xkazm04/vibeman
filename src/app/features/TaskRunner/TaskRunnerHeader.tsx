@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Wifi, WifiOff, Upload } from 'lucide-react';
+import { X, Wifi, WifiOff, Upload, Terminal } from 'lucide-react';
 import type { ProjectRequirement, TaskRunnerActions } from './lib/types';
 import { CLIBatchPanel } from '@/components/cli';
 import TaskMonitor from './components/TaskMonitor';
@@ -20,6 +20,11 @@ interface TaskRunnerHeaderProps {
   getRequirementId: (req: ProjectRequirement) => string;
   /** Number of pending Conductor Q&A items (0 = banner hidden) */
   conductorQACount?: number;
+  /** Manual session controls */
+  manualSessionCount?: number;
+  hasWaitingSession?: boolean;
+  onToggleSidebar?: () => void;
+  sidebarOpen?: boolean;
 }
 
 export default function TaskRunnerHeader({
@@ -33,6 +38,10 @@ export default function TaskRunnerHeader({
   actions,
   getRequirementId,
   conductorQACount = 0,
+  manualSessionCount = 0,
+  hasWaitingSession = false,
+  onToggleSidebar,
+  sidebarOpen = false,
 }: TaskRunnerHeaderProps) {
   const { setRequirements, setIsRunning, setProcessedCount, setError } = actions;
 
@@ -104,6 +113,31 @@ export default function TaskRunnerHeader({
       <div className="flex items-center justify-between">
         <div className="flex-1" />
         <div className="flex-1 flex justify-end gap-2">
+          {/* Sessions toggle */}
+          {onToggleSidebar && (
+            <button
+              onClick={onToggleSidebar}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/30 active:scale-95 ${
+                sidebarOpen
+                  ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                  : 'bg-gray-800/50 text-gray-400 hover:text-purple-300 hover:bg-purple-500/10 border border-gray-700/50 hover:border-purple-500/30'
+              }`}
+              title={sidebarOpen ? 'Close sessions panel' : 'Open sessions panel'}
+              data-testid="sessions-toggle-btn"
+            >
+              <Terminal className="w-3.5 h-3.5" />
+              <span>Sessions</span>
+              {manualSessionCount > 0 && (
+                <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-semibold leading-none">
+                  {manualSessionCount}
+                </span>
+              )}
+              {hasWaitingSession && (
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              )}
+            </button>
+          )}
+
           {/* Sync Projects to Supabase */}
           <button
             onClick={handleSyncProjects}

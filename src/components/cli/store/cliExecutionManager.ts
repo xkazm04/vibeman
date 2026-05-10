@@ -162,6 +162,9 @@ export async function startCLIExecution(
 
   // Read session provider/model config
   const session = store.sessions[sessionId];
+  const effectiveResumeSessionId = session.provider === 'codex'
+    ? undefined
+    : resumeSessionId || undefined;
 
   // Execute via strategy
   const result = await strategy.execute(
@@ -174,7 +177,7 @@ export async function startCLIExecution(
       directPrompt: task.directPrompt,
     },
     {
-      resumeSessionId: resumeSessionId || undefined,
+      resumeSessionId: effectiveResumeSessionId,
       provider: session.provider,
       model: session.model,
     }
@@ -201,9 +204,10 @@ export async function startCLIExecution(
 
       if (event.type === 'result') {
         // Extract claude session ID if present
-        const eventData = event.data as Record<string, any> | undefined;
-        const claudeSessionId = eventData?.data?.sessionId || eventData?.claudeSessionId;
-        if (claudeSessionId) {
+        const eventData = event.data as Record<string, unknown> | undefined;
+        const nestedData = eventData?.data as Record<string, unknown> | undefined;
+        const claudeSessionId = nestedData?.sessionId || eventData?.claudeSessionId;
+        if (typeof claudeSessionId === 'string' && claudeSessionId) {
           store.setClaudeSessionId(sessionId, claudeSessionId);
         }
 

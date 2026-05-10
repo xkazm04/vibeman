@@ -273,6 +273,21 @@ export function CLIBatchPanel({
     setModel(sessionId, model);
   }, [setModel]);
 
+  // In nerd mode, hide idle/empty session cards. A session is "active" if it
+  // has work in flight, work queued, recovery in progress, or has produced
+  // results worth showing. Drops the rendering cost of empty sessions to zero.
+  const isSessionActive = (s: typeof sessions[CLISessionId] | undefined) =>
+    !!s && (
+      s.queue.length > 0 ||
+      s.isRunning ||
+      s.isRecovering ||
+      s.completedCount > 0 ||
+      !!s.claudeSessionId
+    );
+  const visibleSessions = nerdMode
+    ? SESSIONS.filter((id) => isSessionActive(sessions[id]))
+    : SESSIONS;
+
   return (
     <div className="space-y-3 w-full">
       {/* Header */}
@@ -282,21 +297,30 @@ export function CLIBatchPanel({
             <Terminal className={`w-4 h-4 ${nerdMode ? 'text-emerald-400' : 'text-purple-400'}`} />
           </div>
           <span className={`text-sm font-medium tracking-tight ${nerdMode ? 'font-mono text-gray-100' : 'text-gray-200'}`}>
-            {nerdMode ? 'CLI :: SESSIONS' : 'CLI Sessions'}
+            {nerdMode ? 'CLI :: AMBIENT' : 'CLI Sessions'}
           </span>
-          <span className={`text-xs tabular-nums ${nerdMode ? 'font-mono text-gray-500' : 'text-gray-500'}`}>
-            ({selectedTaskIds.length} selected)
-          </span>
+          {!nerdMode && (
+            <span className="text-xs tabular-nums text-gray-500">
+              ({selectedTaskIds.length} selected)
+            </span>
+          )}
+          {nerdMode && (
+            <span className="text-xs tabular-nums font-mono text-gray-600">
+              {visibleSessions.length}/{SESSIONS.length} active
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1">
-          {/* Auto-Assign Settings */}
-          <button
-            onClick={() => setShowSettings(true)}
-            className="p-2 rounded-lg transition-colors border bg-gray-700/30 text-gray-400 hover:bg-gray-700/50 hover:text-gray-300 border-gray-700"
-            title="Auto-assign settings"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
+          {/* Auto-Assign Settings — hidden in ambient mode */}
+          {!nerdMode && (
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-2 rounded-lg transition-colors border bg-gray-700/30 text-gray-400 hover:bg-gray-700/50 hover:text-gray-300 border-gray-700"
+              title="Auto-assign settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          )}
           {/* Nerd Mode Toggle */}
           <button
             onClick={toggleNerdMode}
@@ -305,7 +329,7 @@ export function CLIBatchPanel({
                 ? 'bg-emerald-600/20 text-emerald-400 border-emerald-600/40'
                 : 'bg-gray-700/30 text-gray-400 hover:bg-gray-700/50 hover:text-gray-300 border-gray-700'
             }`}
-            title={nerdMode ? 'Switch to rich UI' : 'Nerd mode (minimal UI)'}
+            title={nerdMode ? 'Exit ambient mode (restore full UI)' : 'Ambient mode (collapse UI to active sessions only)'}
           >
             <TerminalSquare className="w-4 h-4" />
           </button>
@@ -313,33 +337,44 @@ export function CLIBatchPanel({
       </div>
 
       {/* Session Grid - 1 col on tablet/smaller, 2x2 on desktop */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {SESSIONS.map((sessionId, index) => (
-          <CLISession
-            key={sessionId}
-            sessionId={sessionId}
-            session={sessions[sessionId]}
-            index={index}
-            selectedCount={selectedTaskIds.length}
-            onAddTasks={handleAddToSession}
-            onDeleteSession={handleDeleteSession}
-            onStartSession={handleStartSession}
-            onToggleSkill={handleToggleSkill}
-            onToggleGit={handleToggleGit}
-            onGitConfigChange={handleGitConfigChange}
-            onTaskStart={handleTaskStart}
-            onTaskComplete={handleTaskComplete}
-            onQueueEmpty={handleQueueEmpty}
-            onExecutionChange={handleExecutionChange}
-            onProviderChange={handleProviderChange}
-            onModelChange={handleModelChange}
-            nerdMode={nerdMode}
-          />
-        ))}
-      </div>
+      {nerdMode && visibleSessions.length === 0 ? (
+        <div className="px-3 py-6 text-center text-2xs font-mono text-gray-600 border border-dashed border-gray-800 rounded">
+          no active sessions · idle
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {visibleSessions.map((sessionId) => {
+            const index = SESSIONS.indexOf(sessionId);
+            return (
+              <CLISession
+                key={sessionId}
+                sessionId={sessionId}
+                session={sessions[sessionId]}
+                index={index}
+                selectedCount={selectedTaskIds.length}
+                onAddTasks={handleAddToSession}
+                onDeleteSession={handleDeleteSession}
+                onStartSession={handleStartSession}
+                onToggleSkill={handleToggleSkill}
+                onToggleGit={handleToggleGit}
+                onGitConfigChange={handleGitConfigChange}
+                onTaskStart={handleTaskStart}
+                onTaskComplete={handleTaskComplete}
+                onQueueEmpty={handleQueueEmpty}
+                onExecutionChange={handleExecutionChange}
+                onProviderChange={handleProviderChange}
+                onModelChange={handleModelChange}
+                nerdMode={nerdMode}
+              />
+            );
+          })}
+        </div>
+      )}
 
-      {/* Auto-Assign Settings Modal */}
-      <AutoAssignSettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
+      {/* Auto-Assign Settings Modal — only mounted in rich mode */}
+      {!nerdMode && (
+        <AutoAssignSettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
+      )}
     </div>
   );
 }

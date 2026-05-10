@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -64,14 +64,17 @@ function SessionCard({
   const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.idle;
 
   return (
-    <motion.button
+    <motion.div
+      role="button"
+      tabIndex={0}
       layout
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -10 }}
       onClick={onSelect}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(); } }}
       className={`
-        w-full text-left px-3 py-2.5 rounded-lg transition-colors group relative
+        w-full text-left px-3 py-2.5 rounded-lg transition-colors group relative cursor-pointer
         ${isActive
           ? 'bg-purple-500/15 border border-purple-500/30'
           : 'bg-gray-800/50 border border-gray-700/30 hover:bg-gray-800 hover:border-gray-600/50'
@@ -124,7 +127,7 @@ function SessionCard({
           <X className="w-3 h-3 text-gray-500 hover:text-gray-300" />
         </button>
       )}
-    </motion.button>
+    </motion.div>
   );
 }
 
@@ -139,7 +142,11 @@ interface SessionSidebarProps {
 }
 
 export function SessionSidebar({ isOpen, onClose, onSelectSession }: SessionSidebarProps) {
-  const manualSessions = useManualSessionStore((s) => s.getSessionList());
+  const sessions = useManualSessionStore((s) => s.sessions);
+  const manualSessions = useMemo(
+    () => Object.values(sessions).sort((a, b) => b.createdAt - a.createdAt),
+    [sessions],
+  );
   const activeSessionId = useManualSessionStore((s) => s.activeSessionId);
   const createSession = useManualSessionStore((s) => s.createSession);
   const closeSession = useManualSessionStore((s) => s.closeSession);

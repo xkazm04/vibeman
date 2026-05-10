@@ -1,15 +1,36 @@
 ---
 name: vibeman
-description: Run the Vibeman autonomous development pipeline. Select a project, define a goal, and execute a PLAN > IMPLEMENT > VERIFY cycle with quality gates, brain signal recording, and detailed achievement reporting.
+description: Run a Vibeman pipeline on a project. Two modes — (A) goal-based development (PLAN > IMPLEMENT > VERIFY > REPORT) or (B) audit-driven scan + triage + wave-based fix implementation. Both run with quality gates, brain-signal recording, and structured per-wave/per-phase reporting.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(node *), Bash(npx *), Bash(curl *), Bash(git *)
 argument-hint: [project-name-or-goal?]
 ---
 
 # Vibeman Pipeline — Autonomous Development Cycle
 
-Execute a full PLAN > IMPLEMENT > VERIFY > REPORT development cycle on a Vibeman-managed project. This skill mirrors the Conductor v3 pipeline but runs directly inside Claude Code, using your own tools to implement changes.
+Vibeman offers two pipelines on a project. Pick one at Phase 0 based on what the user wants:
+
+- **Pipeline A — Goal-based development** (the original): user defines a goal, the skill plans → implements → verifies → reports. Best when the user knows what to build.
+- **Pipeline B — Scan + Triage + Implementation** (the audit pipeline): user picks a scan agent (e.g. `bug-hunter`) and a context scope; the skill runs parallel per-context audits, compiles a triage INDEX, and then offers wave-based fix sessions until the user pauses. Best when the user wants to discover and remediate problems they don't yet know about.
+
+Both pipelines use the same quality gates (TypeScript / lint / tests) and the same baseline-comparison discipline. Phases 1-7 below are Pipeline A; Pipeline B's phases (B1-B7) live further down before "Error Handling".
 
 **Prerequisite**: Vibeman must be running at `http://localhost:3000`. If not, tell the user to start it first.
+
+## Phase 0: Pipeline Selection
+
+If the user invocation makes the pipeline obvious (e.g. they explicitly say "run a bug hunter scan" or "implement this goal"), skip the prompt and proceed.
+
+Otherwise, ask:
+
+```
+What pipeline?
+  A. Goal-based development — define a goal, plan, implement, verify, report.
+  B. Scan + Triage + Implementation — audit the codebase with a chosen agent
+     (bug-hunter, security review, etc.), compile a triage INDEX, then run
+     wave-based fix sessions until you pause.
+```
+
+Both pipelines start with the same Phase 1 (project selection). Pipeline A continues to Phase 2 (goal definition); Pipeline B jumps to Phase B1 (scan configuration).
 
 Throughout execution, track these counters for the final report:
 - `FILES_CREATED` — number of new files written
@@ -748,6 +769,342 @@ curl -s -X PUT http://localhost:3000/api/goals \
   -H 'Content-Type: application/json' \
   -d '{"id": "GOAL_ID", "status": "done"}'
 ```
+
+---
+
+# Pipeline B — Scan + Triage + Implementation
+
+The audit pipeline. User picks a scan agent, a context scope, and the skill produces a triage INDEX over the codebase, then runs wave-based fix sessions until the user pauses. Battle-tested in the 2026-04-27 personas bug-hunt that closed 49 findings across 7 themed waves with 0 regressions.
+
+Pipeline B counters track different things from Pipeline A. Maintain throughout:
+
+- `SCAN_TYPE` — the agent prompt slug used (e.g. `bug-hunter`)
+- `CONTEXTS_SCANNED` — number of contexts the scan covered
+- `FILES_READ_SCAN` — approximate files read by all scan subagents combined
+- `FINDINGS_TOTAL` / `FINDINGS_CRITICAL` / `FINDINGS_HIGH` / `FINDINGS_MEDIUM` / `FINDINGS_LOW`
+- `WAVES_COMPLETED` — number of fix waves the user approved + completed
+- `FIXES_COMMITTED` — total findings actually closed across all waves
+- `FILES_MODIFIED_FIX` — number of unique source files touched
+- `TSC_RUNS_FIX` / `TESTS_RUNS_FIX`
+- `PATTERN_CATALOGUE_SIZE` — running count of durable patterns extracted across waves
+
+## Phase B1: Scan Configuration
+
+After Phase 1 (project selection), gather scan parameters.
+
+### Scan-type registry
+
+Discover available scan agents from the prompts registry:
+
+```bash
+ls C:/Users/kazda/kiro/vibeman/src/lib/prompts/registry/agents/*.ts 2>/dev/null
+```
+
+Read the `name` and `description` fields from each `.ts` file. Present them as a numbered list:
+
+```
+Available scan types:
+1. bug-hunter — elite systems failure analyst (latent failures, race conditions,
+   edge cases, silent failures)
+2. <other-agents-as-discovered>
+```
+
+If `` was given (e.g. `/vibeman bug-hunter`), match it against agent slugs and skip the prompt.
+
+### Context scope
+
+Fetch contexts via `GET /api/contexts?projectId=PROJECT_ID`. Increment `API_CALLS`. Group by `groupName`. Present:
+
+```
+This project has N contexts in M groups:
+  Group: Agents & Personas (4 contexts)
+  Group: Credential Vault (3 contexts)
+  ...
+
+Scope?
+  a. All contexts (recommended — full coverage)
+  b. Specific group(s)
+  c. Specific context(s)
+  d. Custom file globs (advanced)
+```
+
+For each context, ALSO ask scope-within-context:
+
+```
+Side scope (per context):
+  i. Client-side only (descope src-tauri/) — typical for frontend audits
+  ii. Backend only (src-tauri/ only) — for Rust audits
+  iii. Both — full-stack audit
+```
+
+Store as `SCAN_SCOPE_FILTER` (a function that filters a context's `filePaths` to the requested side).
+
+### Output directory
+
+Create `PROJECT_PATH/docs/harness/<scan-slug>-<YYYY-MM-DD>/` (e.g. `bug-hunt-2026-04-27/`). Subagent reports go inside; `INDEX.md` and `FIXES-WAVE-N.md` files live alongside.
+
+### Findings target
+
+Ask the user (or default by scan type):
+
+```
+Findings target per context: [6-15 default]
+Total expected across N contexts: ~N×10 findings.
+```
+
+Set `FINDINGS_TARGET_LO` / `FINDINGS_TARGET_HI` for the per-context-subagent prompt to reference.
+
+## Phase B2: Health Snapshot
+
+Same as Phase 3 of Pipeline A: capture `tsc --noEmit` error count, `vitest run` pass count, `eslint` error count. Store as baseline for Phase B7's regression check.
+
+## Phase B3: Parallel Scan Dispatch
+
+The core of the pipeline.
+
+For each context in scope, spawn a `general-purpose` subagent with:
+
+- **Role prompt**: the chosen agent's role/expertiseAreas/focusAreas/dontInstructions (read from the `.ts` registry file)
+- **Project context**: project name, tech stack, working directory
+- **Context name + description**: from the Vibeman API response
+- **Scope filter**: the `filePaths` from the context, run through `SCAN_SCOPE_FILTER` so src-tauri/ is dropped if user picked client-side-only
+- **Findings target**: `FINDINGS_TARGET_LO`–`FINDINGS_TARGET_HI`
+- **Output path**: `<output-dir>/<context-slug>.md`
+- **Output format**: structured markdown with `## N. <title>`, `- **Severity**:`, `- **Category**:`, `- **File**:`, `- **Scenario**:`, `- **Root cause**:`, `- **Impact**:`, `- **Fix sketch**:`
+- **Reply format**: under 150 words, must include the file slug used, total findings, severity breakdown, 1-line summary of most critical, approx files read
+
+**Wave size**: max 8 parallel subagents. Group contexts into waves of ≤8. After each wave completes, dispatch the next.
+
+**Why this shape works**: each subagent runs in isolation, writes one file, replies with terse stats. The orchestrator (this skill) doesn't read the per-context reports during scanning — only the reply summaries — keeping orchestrator context manageable across 17+ scans.
+
+After every wave returns, accumulate `FILES_READ_SCAN` and findings-count stats from the replies.
+
+## Phase B4: Triage Compilation (INDEX.md)
+
+Once all subagents have completed, produce the triage `INDEX.md`.
+
+### Verify findings counts two ways
+
+1. Grep `^> Total:` headers across all `*.md` files in the output dir. Sum.
+2. Grep `^- \*\*Severity\*\*:` bullets across all `*.md` files. Count.
+
+Both numbers must match. If they don't, surface the discrepancy and ask the user before continuing — likely indicates a malformed report.
+
+### Build INDEX.md
+
+The INDEX has these sections in order:
+
+```markdown
+# <ScanType> Scan — <Project>, <Date>
+
+> <One-line description of scan>
+> <N> parallel subagent runs, batched in waves of <wave-size>.
+
+---
+
+## Totals
+
+| | Critical | High | Medium | Low | **Total** |
+|---|---:|---:|---:|---:|---:|
+| Across N contexts | C | H | M | L | **T** |
+| Share | C/T% | H/T% | M/T% | L/T% | 100% |
+
+---
+
+## Per-context breakdown
+
+(Sorted by criticals desc, then by total)
+
+| # | Context | Critical | High | Medium | Low | Total | Report |
+| ... |
+
+---
+
+## All N critical findings — one-line summary
+
+Sorted into themes for triage. Each item links to its full entry in the per-context report.
+
+### A. <Theme name detected from grouping>
+1. **<Context> — <Title>** — <one-line scenario summary>. `<file:line>`
+...
+
+---
+
+## Triage themes
+
+11+ themes detected by clustering finding categories + descriptions. Format:
+
+| Theme | Approx count | Why this is a wave, not just individual fixes |
+|---|---:|---|
+
+---
+
+## Suggested next-phase split
+
+A 5-7 wave plan organising the findings by theme. Each wave should be sessionable
+(roughly 5-7 fixes) and share a mental model so the fixes compound.
+
+---
+
+## How this scan was run
+
+(Provenance: scanner prompt id, date, scope, method, file-read counts, verification)
+```
+
+The themes are detected by clustering on the `Category:` field across reports plus keyword similarity in titles/scenarios. Common buckets seen in practice: stale-closure-during-async, optimistic-update-without-rollback, cleanup-gap, silent-success-theater, race-window, time/timezone, divide-by-zero, secret-leak.
+
+## Phase B5: Approval Gate
+
+Display the INDEX summary to the user:
+
+```
+Scan complete. <N> findings across <M> contexts.
+
+  Critical: <C>    High: <H>    Medium: <Med>    Low: <L>
+
+Top criticals:
+  1. <one-liner>
+  2. <one-liner>
+  ...
+
+Themes (suggested fix-wave split):
+  Wave 1 — <theme> (<count> findings)
+  Wave 2 — <theme> (<count> findings)
+  ...
+
+Proceed with Wave 1 now? Or pause for review?
+```
+
+If user pauses, write the INDEX and stop. Future sessions can resume by reading the INDEX and picking up at Phase B6.
+
+## Phase B6: Wave-Based Implementation Loop
+
+The user-driven fix loop. Each wave is one focused session (5-7 findings, single mental model).
+
+For each wave:
+
+### B6.1 — Wave planning
+
+Ask user (or recommend based on the INDEX):
+
+- **Scope**: pick a theme | pick severity (e.g. all criticals) | pick specific finding ids
+- **Size**: recommend 5-7 findings per wave; warn if user picks >10 (context exhaustion risk)
+
+Create a TaskCreate entry per planned fix.
+
+### B6.2 — Per-fix loop
+
+For each finding:
+
+1. **Read the source finding** from the per-context report file (grep the heading `^## N\. ` to find the right one; read the surrounding 10-15 lines).
+2. **Read the target source file(s)** at the line-range given in the finding.
+3. **Apply the fix** with Edit/Write following the `Fix sketch` as guidance.
+4. **Run `npx tsc --noEmit`** and grep for errors in the changed files. If any, fix-forward in the same task; do NOT move on with TS errors.
+5. **Atomically commit** with this message structure:
+
+```
+fix(<scope>): <one-line summary>
+
+<2-4 sentence body explaining the scenario, the root cause, and what the fix
+does. Reference what the prior buggy behaviour was so future readers can recover
+the context without re-running the scan.>
+
+Refs: docs/harness/<scan-slug>-<date>/<context-slug>.md finding #N
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+```
+
+6. **Mark the TaskUpdate completed** and move to the next.
+
+### B6.3 — Wave verification
+
+After all fixes in the wave are committed:
+
+1. Full `npx tsc --noEmit` — must be 0 errors (matches Phase B2 baseline).
+2. Full `npx vitest run` — pass count must match Phase B2 baseline. If a single test fails, re-run once to check for flake; if it persists, investigate.
+3. Optional `npm run lint` if the wave touched many files.
+
+Surface any regressions; fix-forward before declaring the wave done.
+
+### B6.4 — Wave summary doc
+
+Write `<output-dir>/FIXES-WAVE-<N>.md` with:
+
+```markdown
+# <Scan> Fix Wave <N> — <Theme name>
+
+> <X> commits, <Y> findings closed.
+> Baseline preserved: <prior counts> → <after counts>.
+
+## Commits
+
+| # | Commit | Findings closed | Severity | Files |
+| ... |
+
+## What was fixed (grouped by sub-pattern)
+
+1. **<Title>** — <2-3 sentence narrative including the bug + the fix.>
+...
+
+## Verification table (before/after counters)
+
+## Cumulative status (across all waves so far)
+
+## Patterns established (additions to the catalogue, items <X-Y>)
+
+<New durable patterns discovered. Each is one short paragraph: name + when-it-bites + how-to-fix.>
+
+## What remains
+
+<Brief — what themes are still open per the INDEX.>
+```
+
+Commit the summary doc as a separate `docs(harness): wave-N fix summary` commit.
+
+### B6.5 — Pattern catalogue accumulation
+
+Each wave should extract 2-5 durable patterns and append them to a running catalogue. The catalogue is the most valuable artefact across multiple waves — it lets future audits grep proactively for known shapes instead of re-scanning. Catalogue entries are concise: `<N>. **<Pattern name>** — <when it bites> <how to fix>.`
+
+### B6.6 — Continue or pause
+
+After each wave: ask the user "continue with next wave (suggest: <theme>) or pause?". On pause, the INDEX + per-wave docs are durable artefacts; a future session resumes by reading them.
+
+## Phase B7: Cumulative Status + Final Summary
+
+When the user pauses (or the user explicitly ends the session), produce a cumulative status block:
+
+```
+Cumulative status (waves 1-N):
+  <N> findings closed in <K> atomic commits across <N> themed waves.
+
+  | Wave | Theme | Closed |
+  | ... |
+
+  Pattern catalogue: <SIZE> items.
+
+  Remaining: <one-line summary of what's still open per INDEX themes>.
+```
+
+Recommend the next wave or note clean handoff points for future sessions.
+
+---
+
+## Pipeline B — Anti-patterns
+
+Discovered during the 2026-04-27 personas run; codify here so future runs don't relearn:
+
+- **Don't read the per-context reports during scanning.** The orchestrator should only read terse subagent replies. Reading reports inflates context and prevents 17+ scans from fitting in one session.
+- **Don't commit a single mega-commit at end of wave.** Every fix is its own atomic commit with a finding reference. This makes `git revert` per-bug-fix work and lets future readers `git log` to recover the why.
+- **Don't bundle fixes across themes in one wave.** A wave with one mental model is 3-5x more efficient than a wave that hops between themes — the per-fix context remains warm.
+- **Don't trust counts from a single source.** Always verify findings two ways (header sum + bullet count) — discrepancies indicate malformed reports that would corrupt the INDEX.
+- **Don't skip the wave verification.** If TS errors crept in mid-wave, find and fix before writing the summary doc — otherwise the doc lies about regressions.
+- **Don't let a wave exceed 7 fixes without a strong reason.** Past 7 fixes per session, context budget tightens and quality degrades. Pause and let the user start a fresh session for the next wave.
+
+## Pipeline B — When to use this vs Pipeline A
+
+- **Use Pipeline A** when the user knows what they want built. Goal is a feature or an enhancement.
+- **Use Pipeline B** when the user wants to discover problems they don't yet know about. Goal is reliability/security/quality remediation. Common triggers: "audit the auth flow", "find race conditions", "check for memory leaks", "do a security review of the credential code".
+- Pipeline B can be re-run with a different scan agent to layer audits (e.g. bug-hunter + security-review + performance-audit on the same codebase, each producing its own INDEX).
 
 ---
 

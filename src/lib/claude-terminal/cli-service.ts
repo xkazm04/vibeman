@@ -80,6 +80,8 @@ export type CLIMessage =
   | CLIUserMessage
   | CLIResultMessage;
 
+type CodexJsonLine = Record<string, unknown>;
+
 // Events emitted during execution
 export interface CLIExecutionEvent {
   type: 'init' | 'text' | 'tool_use' | 'tool_result' | 'result' | 'error' | 'stdout' | 'rate_limit';
@@ -257,6 +259,20 @@ function buildSpawnConfig(
     return { command: 'claude', args, env, stdinPrompt: true };
   }
 
+  if (provider === 'codex') {
+    const args = [
+      'exec',
+      '--json',
+      '--sandbox', 'workspace-write',
+      '-c', 'approval_policy="never"',
+      '--color', 'never',
+    ];
+    if (model) args.push('--model', model);
+
+    const env = { ...baseEnv };
+    return { command: 'codex', args, env, stdinPrompt: true };
+  }
+
   // Claude (default)
   const args = [
     '-p', '-', // Read from stdin
@@ -328,6 +344,135 @@ export function extractToolUses(msg: CLIAssistantMessage): Array<{
       name: c.name || '',
       input: c.input || {},
     }));
+}
+
+function parseCodexJsonLine(line: string): CodexJsonLine | null {
+  try {
+    const trimmed = line.trim();
+    if (!trimmed || !trimmed.startsWith('{')) return null;
+    return JSON.parse(trimmed) as CodexJsonLine;
+  } catch {
+    return null;
+  }
+}
+
+function extractString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function extractTextFromCodexValue(value: unknown): string | null {
+  if (!value) return null;
+  if (typeof value === 'string') return value.trim() ? value : null;
+  if (Array.isArray(value)) {
+    const parts = value
+      .map((item) => extractTextFromCodexValue(item))
+      .filter((part): part is string => !!part);
+    return parts.length > 0 ? parts.join('\n') : null;
+  }
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    return (
+      extractString(obj.text) ||
+      extractString(obj.content) ||
+      extractString(obj.message) ||
+      extractString(obj.output_text) ||
+      extractTextFromCodexValue(obj.delta) ||
+      extractTextFromCodexValue(obj.item)
+    );
+  }
+  return null;
+}
+
+function mapCodexEvent(
+  parsed: CodexJsonLine,
+  execution: CLIExecution,
+  emitEvent: (event: CLIExecutionEvent) => void
+): boolean {
+  const rawType = String(parsed.type || parsed.event || parsed.kind || 'codex_event');
+  const lowerType = rawType.toLowerCase();
+  const timestamp = Date.now();
+
+  if (lowerType.includes('session') && (lowerType.includes('start') || lowerType.includes('init'))) {
+    const sessionId = extractString(parsed.session_id) || extractString(parsed.sessionId) || extractString(parsed.id);
+    if (sessionId) execution.sessionId = sessionId;
+    emitEvent({
+      type: 'init',
+      data: {
+        sessionId,
+        model: parsed.model,
+        tools: parsed.tools,
+        version: parsed.version,
+        provider: 'codex',
+      },
+      timestamp,
+    });
+    return false;
+  }
+
+  const text =
+    extractTextFromCodexValue(parsed.message) ||
+    extractTextFromCodexValue(parsed.item) ||
+    extractTextFromCodexValue(parsed.delta) ||
+    extractTextFromCodexValue(parsed.output) ||
+    extractTextFromCodexValue(parsed.content) ||
+    extractString(parsed.text);
+  if (text && (lowerType.includes('message') || lowerType.includes('output') || lowerType.includes('content') || lowerType.includes('item'))) {
+    emitEvent({
+      type: 'text',
+      data: { content: text, model: parsed.model, provider: 'codex' },
+      timestamp,
+    });
+  }
+
+  if (lowerType.includes('tool') || lowerType.includes('command') || lowerType.includes('exec')) {
+    emitEvent({
+      type: 'tool_use',
+      data: {
+        id: parsed.id || parsed.call_id,
+        name: parsed.name || parsed.command || rawType,
+        input: parsed.input || parsed.args || parsed,
+      },
+      timestamp,
+    });
+  }
+
+  const isFinalResult =
+    lowerType === 'result' ||
+    lowerType.includes('final') ||
+    lowerType.includes('turn.completed') ||
+    lowerType.includes('task.completed') ||
+    lowerType.includes('session.completed');
+
+  if (isFinalResult) {
+    const sessionId = extractString(parsed.session_id) || extractString(parsed.sessionId) || execution.sessionId;
+    if (sessionId) execution.sessionId = sessionId;
+    emitEvent({
+      type: 'result',
+      data: {
+        sessionId,
+        usage: parsed.usage,
+        durationMs: parsed.duration_ms || parsed.durationMs,
+        isError: parsed.is_error || parsed.isError || false,
+        provider: 'codex',
+      },
+      timestamp,
+    });
+    return true;
+  }
+
+  if (lowerType.includes('error') || parsed.error) {
+    emitEvent({
+      type: 'error',
+      data: {
+        message: extractTextFromCodexValue(parsed.error) || extractString(parsed.message) || 'Codex execution failed',
+        provider: 'codex',
+      },
+      timestamp,
+    });
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -472,6 +617,16 @@ export function startExecution(
     // Process a single line of JSON output.
     // Handles Claude CLI stream-json format.
     const processLine = (line: string) => {
+      if (provider === 'codex') {
+        const parsedCodex = parseCodexJsonLine(line);
+        if (parsedCodex) {
+          if (mapCodexEvent(parsedCodex, execution, emitEvent)) {
+            resultEventEmitted = true;
+          }
+        }
+        return;
+      }
+
       const parsed = parseStreamJsonLine(line);
       if (!parsed) return;
 
@@ -630,6 +785,18 @@ export function startExecution(
           data: { exitCode: code, message: errorMsg },
           timestamp: Date.now(),
         });
+      } else if (!resultEventEmitted && provider === 'codex') {
+        logMessage('[CODEX] Emitting result event from successful process exit');
+        resultEventEmitted = true;
+        emitEvent({
+          type: 'result',
+          data: {
+            sessionId: execution.sessionId,
+            isError: false,
+            provider: 'codex',
+          },
+          timestamp: Date.now(),
+        });
       } else if (!resultEventEmitted) {
         // Process completed successfully but no result event was captured
         // Only emit synthetic result if CLI actually started and did meaningful work:
@@ -712,6 +879,228 @@ export function startExecution(
   }
 
   return executionId;
+}
+
+// ============================================================================
+// Interactive sessions (stdin kept open for multi-turn conversation)
+// ============================================================================
+
+/**
+ * Start an interactive CLI session.
+ * Unlike startExecution, this keeps stdin open so the user can send messages.
+ * Returns the executionId; use writeToExecution() to send messages.
+ */
+export function startInteractiveExecution(
+  projectPath: string,
+  providerConfig?: CLIProviderConfig,
+): string {
+  const runningCount = Array.from(activeExecutions.values()).filter(e => e.status === 'running').length;
+  if (runningCount >= MAX_CONCURRENT_EXECUTIONS) {
+    throw new Error(
+      `CLI execution limit reached (${MAX_CONCURRENT_EXECUTIONS} concurrent). ` +
+      `Wait for a running task to complete or abort one before starting new executions.`
+    );
+  }
+
+  const provider = providerConfig?.provider || 'claude';
+  const executionId = `interactive-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  ensureLogsDirectory(projectPath);
+  const logFilePath = getLogFilePath(projectPath, executionId, provider);
+  const hookSecret = provider === 'claude' ? randomUUID() : undefined;
+
+  const execution: CLIExecution = {
+    id: executionId,
+    projectPath,
+    prompt: '(interactive)',
+    process: null,
+    provider,
+    status: 'running',
+    startTime: Date.now(),
+    events: [],
+    logFilePath,
+    hookSecret,
+  };
+
+  activeExecutions.set(executionId, execution);
+  executionBus.emit('registered', executionId);
+
+  const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+  let streamClosed = false;
+
+  const logMessage = (msg: string) => {
+    if (!streamClosed) {
+      try { logStream.write(`[${new Date().toISOString()}] ${msg}\n`); } catch { /* ignore */ }
+    }
+  };
+  const closeLogStream = () => { if (!streamClosed) { streamClosed = true; logStream.end(); } };
+
+  const MAX_EVENTS = 500;
+  const emitEvent = (event: CLIExecutionEvent) => {
+    execution.events.push(event);
+    if (execution.events.length > MAX_EVENTS * 2) {
+      execution.events.splice(0, execution.events.length - MAX_EVENTS);
+    }
+  };
+
+  logMessage(`=== Interactive Session Started (${provider}) ===`);
+  logMessage(`Execution ID: ${executionId}`);
+  logMessage(`Project Path: ${projectPath}`);
+
+  // Build args for interactive multi-turn mode:
+  // -p - reads from stdin, --input-format stream-json enables multi-turn,
+  // --output-format stream-json gives us structured events
+  const baseEnv = { ...process.env };
+  delete baseEnv.CLAUDECODE;
+  delete baseEnv.CLAUDE_CODE_ENTRYPOINT;
+
+  const args = [
+    '-p', '-',
+    '--output-format', 'stream-json',
+    '--input-format', 'stream-json',
+    '--verbose',
+    '--dangerously-skip-permissions',
+  ];
+  if (providerConfig?.model) args.push('--model', providerConfig.model);
+
+  const spawnEnv = { ...baseEnv };
+  if (provider === 'ollama') {
+    const ollamaBaseUrl = envConfig.ollamaBaseUrl();
+    spawnEnv.ANTHROPIC_BASE_URL = ollamaBaseUrl;
+    spawnEnv.ANTHROPIC_API_KEY = '';
+    spawnEnv.ANTHROPIC_AUTH_TOKEN = 'ollama';
+  } else {
+    delete spawnEnv.ANTHROPIC_API_KEY;
+  }
+  if (hookSecret) spawnEnv.VIBEMAN_HOOK_SECRET = hookSecret;
+
+  const isWindows = process.platform === 'win32';
+
+  try {
+    const childProcess = spawn('claude', args, {
+      cwd: projectPath,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      shell: isWindows,
+      env: spawnEnv,
+    });
+
+    execution.process = childProcess;
+    execution.pid = childProcess.pid;
+
+    // Do NOT close stdin — keep it open for user messages
+
+    let lineBuffer = '';
+    let initEventReceived = false;
+
+    const processLine = (line: string) => {
+      const parsed = parseStreamJsonLine(line);
+      if (!parsed) return;
+
+      if (parsed.type === 'system' && parsed.subtype === 'init') {
+        initEventReceived = true;
+        execution.sessionId = parsed.session_id;
+        if (parsed.session_id) sessionToExecution.set(parsed.session_id, execution.id);
+        emitEvent({ type: 'init', data: { sessionId: parsed.session_id, tools: parsed.tools, model: parsed.model }, timestamp: Date.now() });
+      } else if (parsed.type === 'assistant') {
+        const textContent = extractTextContent(parsed);
+        if (textContent) {
+          emitEvent({ type: 'text', data: { content: textContent, model: parsed.message.model }, timestamp: Date.now() });
+        }
+        const toolUses = extractToolUses(parsed);
+        for (const toolUse of toolUses) {
+          emitEvent({ type: 'tool_use', data: { id: toolUse.id, name: toolUse.name, input: toolUse.input }, timestamp: Date.now() });
+        }
+      } else if (parsed.type === 'user' && parsed.message?.content) {
+        const results = parsed.message.content.filter((c: any) => c.type === 'tool_result');
+        for (const result of results) {
+          const rawContent = result.content;
+          const normalizedContent = typeof rawContent === 'string'
+            ? rawContent
+            : Array.isArray(rawContent)
+              ? rawContent.map((block: { type: string; text?: string }) => block.text || '').join('\n')
+              : String(rawContent || '');
+          emitEvent({ type: 'tool_result', data: { toolUseId: result.tool_use_id, content: normalizedContent }, timestamp: Date.now() });
+        }
+      } else if (parsed.type === 'result') {
+        const resultMsg = parsed as CLIResultMessage;
+        emitEvent({
+          type: 'result',
+          data: {
+            sessionId: resultMsg.result?.session_id,
+            usage: resultMsg.result?.usage,
+            cost_usd: resultMsg.cost_usd,
+            duration_ms: resultMsg.duration_ms,
+            is_error: resultMsg.is_error,
+            error: resultMsg.error,
+          },
+          timestamp: Date.now(),
+        });
+      }
+      logMessage(`[EVENT] ${JSON.stringify(parsed).slice(0, 500)}`);
+    };
+
+    childProcess.stdout.on('data', (chunk: Buffer) => {
+      lineBuffer += chunk.toString();
+      const lines = lineBuffer.split('\n');
+      lineBuffer = lines.pop() || '';
+      for (const line of lines) processLine(line);
+    });
+
+    childProcess.stderr.on('data', (chunk: Buffer) => {
+      logMessage(`[STDERR] ${chunk.toString()}`);
+    });
+
+    childProcess.on('close', (code) => {
+      logMessage(`=== Process exited with code ${code} ===`);
+      closeLogStream();
+      execution.status = code === 0 ? 'completed' : 'error';
+      execution.endTime = Date.now();
+      if (lineBuffer.trim()) processLine(lineBuffer);
+      emitEvent({ type: 'result', data: { exitCode: code }, timestamp: Date.now() });
+    });
+
+    childProcess.on('error', (err) => {
+      logMessage(`[ERROR] ${err.message}`);
+      closeLogStream();
+      execution.status = 'error';
+      execution.endTime = Date.now();
+      emitEvent({ type: 'error', data: { message: err.message }, timestamp: Date.now() });
+    });
+  } catch (error) {
+    logMessage(`[EXCEPTION] ${error instanceof Error ? error.message : String(error)}`);
+    closeLogStream();
+    execution.status = 'error';
+    execution.endTime = Date.now();
+    emitEvent({ type: 'error', data: { message: error instanceof Error ? error.message : 'Unknown error' }, timestamp: Date.now() });
+  }
+
+  return executionId;
+}
+
+/**
+ * Write a user message to an interactive execution's stdin.
+ * Sends a stream-json formatted message (JSON line) so Claude processes it as a new turn.
+ */
+export function writeToExecution(executionId: string, text: string): boolean {
+  const execution = activeExecutions.get(executionId);
+  if (!execution?.process?.stdin || execution.process.stdin.destroyed) {
+    return false;
+  }
+  try {
+    const msg = JSON.stringify({ type: 'user', content: text });
+    execution.process.stdin.write(msg + '\n');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if an execution's process is still alive.
+ */
+export function isExecutionAlive(executionId: string): boolean {
+  const execution = activeExecutions.get(executionId);
+  return !!(execution?.process && !execution.process.killed && execution.status === 'running');
 }
 
 /**

@@ -84,6 +84,7 @@ export function CLISession({
   const providerOptions: SelectOption[] = useMemo(() => [
     { value: 'claude', label: 'Claude' },
     { value: 'ollama', label: 'Ollama' },
+    { value: 'codex', label: 'Codex' },
   ], []);
 
   const modelOptions: SelectOption[] = useMemo(() => [
@@ -254,14 +255,14 @@ export function CLISession({
           </div>
         )}
 
-        {/* Terminal (same in both modes) */}
-        <div className="flex-1 min-h-[200px]">
+        {/* Terminal — minimal mode in nerd mode (logs hidden, execution still runs) */}
+        <div className="min-h-0">
           {session.projectPath ? (
             <CompactTerminal
               instanceId={sessionId}
               projectPath={session.projectPath}
               title=""
-              className="h-full border-0 rounded-none"
+              className="border-0 rounded-none"
               taskQueue={session.queue}
               autoStart={session.autoStart}
               enabledSkills={session.enabledSkills}
@@ -273,9 +274,10 @@ export function CLISession({
               onExecutionChange={handleExecutionChange}
               provider={session.provider}
               model={session.model}
+              minimal
             />
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-600 text-2xs font-mono">
+            <div className="flex items-center justify-center py-2 text-gray-600 text-2xs font-mono">
               awaiting tasks...
             </div>
           )}

@@ -132,6 +132,11 @@ pub async fn execute_claude(
     let exec_id = execution_id.clone();
     let app_handle = app.clone();
 
+    let provider_for_stdout = args
+        .provider
+        .clone()
+        .unwrap_or_else(|| "claude".to_string());
+
     if let Some(stdout) = child.stdout.take() {
         let exec_id_stdout = exec_id.clone();
         let app_stdout = app_handle.clone();
@@ -140,8 +145,11 @@ pub async fn execute_claude(
             let mut lines = reader.lines();
 
             while let Ok(Some(line)) = lines.next_line().await {
-                // Try to parse as stream-json
-                let data = if let Some(event) = StreamEvent::parse_line(&line) {
+                // Try to parse provider-specific JSONL output.
+                let data = if provider_for_stdout == "codex" {
+                    serde_json::from_str::<serde_json::Value>(line.trim())
+                        .unwrap_or_else(|_| serde_json::json!({"raw": line}))
+                } else if let Some(event) = StreamEvent::parse_line(&line) {
                     serde_json::to_value(&event).unwrap_or(serde_json::json!({"raw": line}))
                 } else {
                     serde_json::json!({"raw": line})
@@ -349,6 +357,31 @@ fn build_cli_command(args: &ExecuteClaudeArgs) -> (String, Vec<String>) {
 
             (program, cli_args)
         }
+        "codex" => {
+            let program = if cfg!(target_os = "windows") {
+                "codex.cmd".to_string()
+            } else {
+                "codex".to_string()
+            };
+
+            let mut cli_args = vec![
+                "exec".to_string(),
+                "--json".to_string(),
+                "--sandbox".to_string(),
+                "workspace-write".to_string(),
+                "-c".to_string(),
+                "approval_policy=\"never\"".to_string(),
+                "--color".to_string(),
+                "never".to_string(),
+            ];
+
+            if let Some(ref model) = args.model {
+                cli_args.push("--model".to_string());
+                cli_args.push(model.clone());
+            }
+
+            (program, cli_args)
+        }
         other => {
             (other.to_string(), vec!["-p".to_string(), "-".to_string()])
         }
@@ -383,6 +416,10 @@ pub async fn start_interactive_claude(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<ExecuteResult, String> {
+    if args.provider.as_deref() == Some("codex") {
+        return Err("Interactive Codex sessions are not supported in the MVP; use automated task execution instead.".to_string());
+    }
+
     let execution_id = uuid::Uuid::new_v4().to_string();
 
     let provider = args.provider.as_deref().unwrap_or("claude");

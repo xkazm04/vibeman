@@ -273,12 +273,13 @@ export interface DbPendingApproval {
 // ─── Multi-Provider Support ──────────────────────────────────────────
 
 /** CLI Provider - which CLI tool to use for execution */
-export type CLIProvider = 'claude' | 'ollama';
+export type CLIProvider = 'claude' | 'ollama' | 'codex';
 
 /** Model options per provider */
 export type ClaudeModel = 'opus' | 'sonnet';
 export type OllamaModel = 'qwen3.5:cloud' | 'qwen3.5:latest';
-export type CLIModel = ClaudeModel | OllamaModel;
+export type CodexModel = 'gpt-5.5' | 'gpt-5.3-codex';
+export type CLIModel = ClaudeModel | OllamaModel | CodexModel;
 
 /** Provider configuration for process spawning */
 export interface CLIProviderConfig {
@@ -301,5 +302,9 @@ export const PROVIDER_MODELS: Record<CLIProvider, { id: CLIModel; label: string 
   ollama: [
     { id: 'qwen3.5:cloud', label: 'Qwen 3.5 Cloud' },
     { id: 'qwen3.5:latest', label: 'Qwen 3.5 Local' },
+  ],
+  codex: [
+    { id: 'gpt-5.5', label: 'GPT-5.5' },
+    { id: 'gpt-5.3-codex', label: 'GPT-5.3 Codex' },
   ],
 };

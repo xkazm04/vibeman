@@ -115,6 +115,13 @@ export interface CompactTerminalProps {
   // Multi-provider support
   provider?: CLIProvider;
   model?: CLIModel | null;
+  /**
+   * Resource-saving mode: skip rendering the streaming log list, input box,
+   * spinner, and file-change badges, and short-circuit log accumulation so
+   * framer-motion + per-frame re-renders stop entirely. Lifecycle callbacks,
+   * autoStart queue draining, SSE handling, and recovery still run.
+   */
+  minimal?: boolean;
 }
 
 /**

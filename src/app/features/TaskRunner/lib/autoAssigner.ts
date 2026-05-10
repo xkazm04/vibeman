@@ -16,6 +16,7 @@ import type { DbIdea } from '@/app/db';
 import type { CLIProvider, CLIModel } from '@/lib/claude-terminal/types';
 import type { ContextInfo } from '../hooks/useTaskColumnData';
 import { SESSION_IDS } from './taskRunnerConfig';
+import { useDependencyStore } from '../store/dependencyStore';
 
 export interface AutoAssignInput {
   /** Requirements to auto-assign (selected + idle only) */
@@ -228,6 +229,23 @@ export function autoAssignTasks(input: AutoAssignInput): SessionAssignment[] {
   );
   if (deduplicatedReqs.length === 0) return [];
 
+  // Filter out dependency-blocked requirements
+  const depStore = useDependencyStore.getState();
+  const taskStates = (() => {
+    try {
+      // Dynamic import to avoid circular dependency at module level
+      const { useTaskRunnerStore } = require('../store/taskRunnerStore');
+      return useTaskRunnerStore.getState().tasks;
+    } catch {
+      return {};
+    }
+  })();
+  const unblockedReqs = deduplicatedReqs.filter(req => {
+    const reqId = getRequirementId(req);
+    return !depStore.isBlocked(reqId, taskStates);
+  });
+  if (unblockedReqs.length === 0) return [];
+
   // Get free sessions in order
   const freeSessions: CLISessionId[] = SESSION_IDS.filter(id => isSessionFree(sessions[id]));
   if (freeSessions.length === 0) return [];
@@ -235,9 +253,9 @@ export function autoAssignTasks(input: AutoAssignInput): SessionAssignment[] {
   // Step 1: Consolidate by context if enabled
   let taskItems: TaskItem[];
   if (config.consolidateBeforeAssign && contextsMap && Object.keys(contextsMap).length > 0) {
-    taskItems = consolidateByContext(deduplicatedReqs, ideasMap, contextsMap, getRequirementId);
+    taskItems = consolidateByContext(unblockedReqs, ideasMap, contextsMap, getRequirementId);
   } else {
-    taskItems = deduplicatedReqs.map(req => ({
+    taskItems = unblockedReqs.map(req => ({
       type: 'single' as const,
       primaryReq: req,
       allReqs: [req],

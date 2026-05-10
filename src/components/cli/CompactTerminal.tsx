@@ -160,6 +160,7 @@ export function CompactTerminal({
   onExecutionChange,
   provider = 'claude',
   model,
+  minimal = false,
 }: CompactTerminalProps) {
   // Local state for this instance
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -193,6 +194,23 @@ export function CompactTerminal({
   // RAF batching for log updates - reduces re-renders from 20+/sec to 60fps max
   const pendingLogsRef = useRef<LogEntry[]>([]);
   const rafIdRef = useRef<number | null>(null);
+
+  // Resource-saving mode: keep latest value in a ref so addLog/addFileChange
+  // can short-circuit without changing identity (and without re-memoising
+  // protocol on every nerd-mode toggle).
+  const minimalRef = useRef(minimal);
+  useEffect(() => {
+    minimalRef.current = minimal;
+    if (!minimal) return;
+    // Drop accumulated state to free memory; cancel any pending RAF flush.
+    pendingLogsRef.current = [];
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    setLogs([]);
+    setFileChanges([]);
+  }, [minimal]);
 
   // Determine if we should use virtualization (for performance with many logs)
   const useVirtualization = logs.length > VIRTUALIZATION_THRESHOLD;
@@ -266,6 +284,10 @@ export function CompactTerminal({
   // Add log entry with RAF batching
   // Collects logs and flushes once per animation frame to reduce re-renders
   const addLog = useCallback((entry: LogEntry) => {
+    // Resource-saving mode: drop the entry entirely so framer-motion +
+    // per-frame re-renders never fire. Lifecycle callbacks still run.
+    if (minimalRef.current) return;
+
     pendingLogsRef.current.push(entry);
 
     // Schedule flush if not already scheduled
@@ -285,6 +307,7 @@ export function CompactTerminal({
 
   // Add file change
   const addFileChange = useCallback((change: FileChange) => {
+    if (minimalRef.current) return;
     setFileChanges(prev => {
       const exists = prev.some(c => c.filePath === change.filePath && c.toolUseId === change.toolUseId);
       return exists ? prev : [...prev, change];
@@ -533,7 +556,14 @@ export function CompactTerminal({
       // Only use worktree isolation when there's a single task (worktree sessions can't be resumed for chaining)
       const hasMultipleTasks = taskQueue.filter(t => t.status.type === 'queued' || t.status.type === 'running').length > 1;
       const useWorktree = provider === 'claude' && !resumeSession && !hasMultipleTasks ? true : undefined;
-      const executeBody = { projectPath: task.projectPath, prompt: taskPrompt, resumeSessionId: resumeSession ? sessionId : undefined, provider, model: model || undefined, useWorktree };
+      const executeBody = {
+        projectPath: task.projectPath,
+        prompt: taskPrompt,
+        resumeSessionId: provider === 'codex' ? undefined : (resumeSession ? sessionId : undefined),
+        provider,
+        model: model || undefined,
+        useWorktree,
+      };
 
       const response = await fetch(executeUrl, {
         method: 'POST',
@@ -818,6 +848,54 @@ export function CompactTerminal({
   const editCount = fileChanges.filter(c => c.changeType === 'edit').length;
   const writeCount = fileChanges.filter(c => c.changeType === 'write').length;
   const queuePendingCount = taskQueue.filter(t => t.status.type === 'queued').length;
+
+  // Resource-saving render: single-line strip, no log list, no input,
+  // no animations. Counts/status only — execution still drives via the
+  // SSE handler and queue effect above.
+  if (minimal) {
+    const queueDoneCount = taskQueue.filter(t => t.status.type === 'completed').length;
+    const queueFailedCount = taskQueue.filter(t => t.status.type === 'failed').length;
+    const queueRunningCount = taskQueue.filter(t => t.status.type === 'running').length;
+    const tokensK = lastResult?.usage
+      ? ((lastResult.usage.inputTokens + lastResult.usage.outputTokens) / 1000).toFixed(1)
+      : null;
+    return (
+      <div
+        className={`flex items-center justify-between px-3 py-1.5 bg-gray-950/80 border border-gray-800/80 rounded-lg text-2xs font-mono ${className}`}
+        title="Logs hidden in resource-saving mode"
+      >
+        <div className="flex items-center gap-2">
+          {isStreaming ? (
+            <span className="text-yellow-400">▶ running</span>
+          ) : error ? (
+            <span className="text-red-400">! error</span>
+          ) : lastResult?.isError ? (
+            <span className="text-red-400">! error</span>
+          ) : lastResult ? (
+            <span className="text-emerald-400">✓ done</span>
+          ) : (
+            <span className="text-gray-500">ready</span>
+          )}
+          {queuePendingCount > 0 && (
+            <span className="text-cyan-400">q={queuePendingCount}</span>
+          )}
+          {queueRunningCount > 0 && (
+            <span className="text-blue-400">run={queueRunningCount}</span>
+          )}
+          {queueDoneCount > 0 && (
+            <span className="text-emerald-400">done={queueDoneCount}</span>
+          )}
+          {queueFailedCount > 0 && (
+            <span className="text-red-400">fail={queueFailedCount}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 text-gray-600">
+          {tokensK && <span>{tokensK}k</span>}
+          <span className="text-gray-700">logs hidden</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex flex-col bg-gradient-to-br from-gray-900 to-gray-950 border border-gray-800/80 rounded-lg overflow-hidden shadow-inner ${className}`}>

@@ -172,7 +172,7 @@ export const AVAILABLE_LLM_MODELS: Record<LLMProvider, Array<{ value: string; la
   ],
   anthropic: [
     { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku' },
-    { value: 'claude-sonnet-4-5', label: 'Claude Sonnet' }
+    { value: 'claude-sonnet-4-6', label: 'Claude Sonnet' }
   ]
 };
 
