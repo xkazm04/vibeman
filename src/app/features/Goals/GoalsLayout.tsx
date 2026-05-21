@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Plus, ChevronRight, ChevronUp, X, ClipboardCheck, GitBranch, GitPullRequest } from 'lucide-react';
+import { LayoutDashboard, Plus, ChevronRight, ChevronUp, X, ClipboardCheck, GitBranch, GitPullRequest, History, CalendarDays } from 'lucide-react';
 
 import ProjectsLayout from '@/app/projects/ProjectsLayout';
 import DashboardSectionHeader from './components/DashboardSectionHeader';
@@ -18,6 +18,7 @@ import ImplementationLogList from './sub_ImplementationLog/ImplementationLogList
 import ScreenCatalog from './sub_ScreenCatalog/ScreenCatalog';
 import EventsBarChart from './sub_EventsBarChart/EventsBarChart';
 import StandupHistoryTimeline from '@/app/features/DailyStandup/components/StandupHistoryTimeline';
+import SprintPlannerPanel from '@/app/features/DailyStandup/components/SprintPlannerPanel';
 import { ContextTargetsList } from '@/components/ContextComponents';
 import GoalEmptyState from './components/GoalEmptyState';
 import GoalConstellation from './components/GoalConstellation';
@@ -136,6 +137,9 @@ const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, isFocu
 });
 
 function AnalyticsPanels({ projectId }: { projectId: string | null }) {
+  // Toggle between backward-looking standup history and forward-looking sprint plan
+  const [standupView, setStandupView] = useState<'history' | 'sprint'>('history');
+
   return (
     <>
       {/* PR Activity */}
@@ -160,16 +164,43 @@ function AnalyticsPanels({ projectId }: { projectId: string | null }) {
         </div>
       </GlassCard>
 
-      {/* Standup History Timeline */}
+      {/* Standup History ↔ Sprint Planner toggle */}
       <GlassCard variant="panel" className="lg:flex-1 overflow-hidden flex flex-col min-h-0">
         <div className="p-4 border-b border-white/5 bg-white/[0.03]">
-          <DashboardSectionHeader title="Standup History" variant="secondary" />
+          <DashboardSectionHeader
+            title={standupView === 'history' ? 'Standup History' : 'Sprint Plan'}
+            variant="secondary"
+            action={projectId ? (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setStandupView('history')}
+                  className={`p-1.5 rounded-lg transition-colors ${standupView === 'history' ? 'bg-primary/20 text-primary' : 'hover:bg-white/10 text-white/60 hover:text-white'}`}
+                  title="Standup history"
+                >
+                  <History className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setStandupView('sprint')}
+                  className={`p-1.5 rounded-lg transition-colors ${standupView === 'sprint' ? 'bg-primary/20 text-primary' : 'hover:bg-white/10 text-white/60 hover:text-white'}`}
+                  title="Predictive sprint planner"
+                >
+                  <CalendarDays className="w-4 h-4" />
+                </button>
+              </div>
+            ) : null}
+          />
         </div>
-        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar max-h-[300px] lg:max-h-none">
+        <div className="flex-1 overflow-y-auto custom-scrollbar max-h-[300px] lg:max-h-none">
           {projectId ? (
-            <StandupHistoryTimeline projectId={projectId} limit={30} />
+            standupView === 'history' ? (
+              <div className="p-4">
+                <StandupHistoryTimeline projectId={projectId} limit={30} />
+              </div>
+            ) : (
+              <SprintPlannerPanel projectId={projectId} />
+            )
           ) : (
-            <div className="flex items-center justify-center h-full text-white/30 text-xs">
+            <div className="flex items-center justify-center h-full text-white/30 text-xs p-4">
               Select a project
             </div>
           )}
