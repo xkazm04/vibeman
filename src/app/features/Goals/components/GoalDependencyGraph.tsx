@@ -44,7 +44,7 @@ interface GraphNode extends d3.SimulationNodeDatum {
 
 interface GraphEdge extends d3.SimulationLinkDatum<GraphNode> {
   id: string;
-  type: 'blocks' | 'depends_on' | 'related';
+  type: 'blocks' | 'depends_on' | 'related' | 'context_link';
 }
 
 // ── Colors ─────────────────────────────────────────────────────────────────
@@ -61,6 +61,7 @@ const EDGE_COLORS: Record<string, string> = {
   blocks: '#ef4444',
   depends_on: '#f59e0b',
   related: '#6b7280',
+  context_link: '#475569', // slate-600 — neutral, lower-visibility tie
 };
 
 // ── Node sizing ────────────────────────────────────────────────────────────
@@ -133,6 +134,35 @@ export default function GoalDependencyGraph({ goals, projectId, onGoalClick }: G
       }
     }
 
+    // Context-linkage edges: connect goals that share a contextId. Skip pairs
+    // that already have a dependency edge (in either direction) to avoid stacking.
+    const goalsByContext = new Map<string, string[]>();
+    for (const goal of goals) {
+      if (!goal.contextId) continue;
+      const arr = goalsByContext.get(goal.contextId) ?? [];
+      arr.push(goal.id);
+      goalsByContext.set(goal.contextId, arr);
+    }
+    for (const [ctxId, ids] of goalsByContext) {
+      if (ids.length < 2) continue;
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          const a = ids[i];
+          const b = ids[j];
+          // Skip if a dependency already connects this pair in either direction
+          if (edgeSet.has(`${a}->${b}`) || edgeSet.has(`${b}->${a}`)) continue;
+          const eid = `ctx:${ctxId}:${a}<>${b}`;
+          edgeSet.add(eid);
+          edgeList.push({
+            id: eid,
+            source: a,
+            target: b,
+            type: 'context_link',
+          });
+        }
+      }
+    }
+
     return { nodes: Array.from(nodeMap.values()), edges: edgeList };
   }, [goals, dependencies]);
 
@@ -196,20 +226,22 @@ export default function GoalDependencyGraph({ goals, projectId, onGoalClick }: G
       .on('zoom', (event) => g.attr('transform', event.transform));
     svg.call(zoom);
 
-    // Links
+    // Links — directional dependency edges get arrows; context_link edges are
+    // ambient ties (dashed, no arrow, lower opacity).
     const link = g.append('g')
       .selectAll('line')
       .data(edges)
       .join('line')
       .attr('stroke', d => EDGE_COLORS[d.type] || '#666')
-      .attr('stroke-width', 2)
-      .attr('stroke-opacity', 0.6)
-      .attr('marker-end', d => `url(#arrow-${d.type})`);
+      .attr('stroke-width', d => d.type === 'context_link' ? 1 : 2)
+      .attr('stroke-opacity', d => d.type === 'context_link' ? 0.3 : 0.6)
+      .attr('stroke-dasharray', d => d.type === 'context_link' ? '2,4' : null)
+      .attr('marker-end', d => d.type === 'context_link' ? null : `url(#arrow-${d.type})`);
 
-    // Edge labels
+    // Edge labels — skip context_link edges (would crowd the canvas)
     const edgeLabel = g.append('g')
       .selectAll('text')
-      .data(edges)
+      .data(edges.filter(e => e.type !== 'context_link'))
       .join('text')
       .attr('text-anchor', 'middle')
       .attr('fill', d => EDGE_COLORS[d.type] || '#666')
@@ -549,7 +581,7 @@ export default function GoalDependencyGraph({ goals, projectId, onGoalClick }: G
         />
 
         {/* Legend */}
-        <div className="absolute bottom-2 left-2 flex gap-3 text-2xs text-muted-foreground/50 font-mono">
+        <div className="absolute bottom-2 left-2 flex flex-wrap gap-x-3 gap-y-1 text-2xs text-muted-foreground/50 font-mono max-w-[80%]">
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-red-500" /> blocks
           </span>
@@ -564,6 +596,9 @@ export default function GoalDependencyGraph({ goals, projectId, onGoalClick }: G
           </span>
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-blue-500" /> open
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-3 h-0 border-t border-dashed border-slate-500" /> shared context
           </span>
         </div>
 
