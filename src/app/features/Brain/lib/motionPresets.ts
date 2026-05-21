@@ -1,11 +1,14 @@
 /**
  * Brain module motion presets
  *
- * Shared animation variants for detail panels across the Brain module.
- * Import these instead of defining inline motion props in individual components.
+ * Brain-domain drawer / panel variants. These are *consumers* of the
+ * app-wide motion primitives (@/lib/motion); they do NOT re-define
+ * duration or easing values. If you reach for a raw cubic-bezier or
+ * literal duration in this file, import it from @/lib/motion instead.
  */
 
 import type { Variants } from 'framer-motion';
+import { duration, easing } from '@/lib/motion';
 
 /** Bottom sheet drawer — slides up from below with spring physics */
 export const bottomSheet: Variants = {
@@ -28,8 +31,8 @@ export const sidePanel: Variants = {
 };
 
 export const sidePanelTransition = {
-  duration: 0.2,
-  ease: [0.0, 0.0, 0.2, 1] as const,
+  duration: duration.normal,
+  ease: easing.entrance,
 };
 
 /** Inline expand — drops down for drill-down panels within cards */
@@ -40,8 +43,8 @@ export const inlineExpand: Variants = {
 };
 
 export const inlineExpandTransition = {
-  duration: 0.15,
-  ease: [0.0, 0.0, 0.2, 1] as const,
+  duration: duration.snappy,
+  ease: easing.entrance,
 };
 
 /** Full drawer — slides in from the right edge, covering full height */
@@ -65,6 +68,6 @@ export const collapse: Variants = {
 };
 
 export const collapseTransition = {
-  duration: 0.2,
-  ease: [0.0, 0.0, 0.2, 1] as const,
+  duration: duration.normal,
+  ease: easing.entrance,
 };
