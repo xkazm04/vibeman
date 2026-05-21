@@ -128,6 +128,53 @@ export function validateFilePath(
 }
 
 /**
+ * Sensitive system path prefixes that should never be browsed via the directories API.
+ * Case-insensitive match on the normalized absolute path.
+ */
+const FORBIDDEN_SYSTEM_PREFIXES = [
+  // Windows
+  'c:\\windows',
+  'c:\\program files',
+  'c:\\program files (x86)',
+  'c:\\programdata',
+  'c:\\$recycle.bin',
+  'c:\\system volume information',
+  // Unix-like
+  '/etc',
+  '/root',
+  '/sys',
+  '/proc',
+  '/dev',
+  '/boot',
+  '/usr/bin',
+  '/usr/sbin',
+  '/sbin',
+  '/bin',
+  '/var/log',
+];
+
+/**
+ * Validates a user-provided absolute base path for the directories-listing API.
+ * Combines traversal-pattern rejection with a deny-list of sensitive system roots,
+ * so callers can browse user dirs but not enumerate OS internals.
+ *
+ * Returns an error string if the path is unsafe, or null if safe.
+ */
+export function validateSafeBasePath(basePath: string): string | null {
+  const traversalError = validatePathTraversal(basePath);
+  if (traversalError) return traversalError;
+
+  const normalized = path.normalize(basePath).toLowerCase();
+  for (const prefix of FORBIDDEN_SYSTEM_PREFIXES) {
+    if (normalized === prefix || normalized.startsWith(prefix + path.sep) || normalized.startsWith(prefix + '/')) {
+      return 'Invalid base path: system directory not allowed';
+    }
+  }
+
+  return null;
+}
+
+/**
  * Validates a project path for use as a base directory.
  * Must be an absolute path, exist as a string, and not contain traversal.
  */
