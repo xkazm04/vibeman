@@ -52,12 +52,6 @@ interface DrillDownDrawerProps {
 }
 
 /** Local alias — maps statusConfig from design tokens to the shape used here. */
-const STATUS_CONFIG = {
-  accepted: { color: statusConfig.accepted.color, bg: statusConfig.accepted.bgColor, border: statusConfig.accepted.borderColor, label: statusConfig.accepted.label },
-  rejected: { color: statusConfig.rejected.color, bg: statusConfig.rejected.bgColor, border: statusConfig.rejected.borderColor, label: statusConfig.rejected.label },
-  implemented: { color: statusConfig.implemented.color, bg: statusConfig.implemented.bgColor, border: statusConfig.implemented.borderColor, label: statusConfig.implemented.label },
-  pending: { color: statusConfig.pending.color, bg: statusConfig.pending.bgColor, border: statusConfig.pending.borderColor, label: statusConfig.pending.label },
-} as const;
 
 export default function DrillDownDrawer({ context, onClose, onIdeaAction }: DrillDownDrawerProps) {
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -181,7 +175,7 @@ export default function DrillDownDrawer({ context, onClose, onIdeaAction }: Dril
                   ALL {context.ideas.length}
                 </button>
                 {Object.entries(statusCounts).map(([status, count]) => {
-                  const config = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
+                  const config = statusConfig[status as keyof typeof statusConfig];
                   if (!config) return null;
                   return (
                     <button
@@ -189,7 +183,7 @@ export default function DrillDownDrawer({ context, onClose, onIdeaAction }: Dril
                       onClick={() => setFilter(filter === status ? null : status)}
                       className={`px-2 py-0.5 rounded-full text-2xs font-mono transition-all border ${
                         filter === status
-                          ? `${config.bg} ${config.color} ${config.border}`
+                          ? `${config.bgColor} ${config.color} ${config.borderColor}`
                           : 'bg-gray-800/40 text-gray-500 border-gray-700/30 hover:text-gray-300'
                       }`}
                     >
@@ -214,7 +208,7 @@ export default function DrillDownDrawer({ context, onClose, onIdeaAction }: Dril
                   </motion.div>
                 ) : (
                   filteredIdeas.map((idea, index) => {
-                    const statusConf = STATUS_CONFIG[idea.status];
+                    const statusConf = statusConfig[idea.status as keyof typeof statusConfig];
                     const isProcessing = processingId === idea.id;
 
                     return (
@@ -226,7 +220,7 @@ export default function DrillDownDrawer({ context, onClose, onIdeaAction }: Dril
                         exit={{ opacity: 0, x: -20, scale: 0.95 }}
                         transition={{ delay: Math.min(index * 0.03, 0.3) }}
                         className={`group relative rounded-lg border p-3 transition-all duration-200
-                          ${statusConf.border} ${statusConf.bg}
+                          ${statusConf?.borderColor ?? ''} ${statusConf?.bgColor ?? ''}
                           hover:shadow-lg hover:shadow-black/20`}
                       >
                         <div className="flex items-start gap-2.5">
@@ -252,8 +246,8 @@ export default function DrillDownDrawer({ context, onClose, onIdeaAction }: Dril
 
                             {/* Metadata row */}
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-micro font-mono px-1.5 py-0.5 rounded ${statusConf.bg} ${statusConf.color} ${statusConf.border} border`}>
-                                {statusConf.label}
+                              <span className={`text-micro font-mono px-1.5 py-0.5 rounded ${statusConf?.bgColor ?? ''} ${statusConf?.color ?? ''} ${statusConf?.borderColor ?? ''} border`}>
+                                {statusConf?.label}
                               </span>
 
                               {idea.scanType && (
