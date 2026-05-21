@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, LucideIcon, Loader2 } from 'lucide-react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
-import { zIndex } from '@/lib/design-tokens';
+import { zIndex, modalSizes, type ModalSize } from '@/lib/design-tokens';
 
 // Icon button styles for header actions
 const HEADER_ACTION_STYLES = {
@@ -48,6 +48,15 @@ interface UniversalModalProps {
   iconBgColor?: string;
   iconColor?: string;
   children: React.ReactNode;
+  /**
+   * Preferred way to set modal width — pick a token from modalSizes.
+   * Takes precedence over `maxWidth` when both are passed.
+   */
+  size?: ModalSize;
+  /**
+   * Escape hatch for one-off modal widths. Prefer `size` for new code.
+   * @deprecated Use `size` instead.
+   */
   maxWidth?: string;
   maxHeight?: string;
   showBackdrop?: boolean;
@@ -65,6 +74,7 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
   iconBgColor = "from-slate-800/60 to-slate-900/60",
   iconColor = "text-slate-300",
   children,
+  size,
   maxWidth = "max-w-4xl",
   maxHeight = "max-h-[85vh]",
   showBackdrop = true,
@@ -135,6 +145,9 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
   // Don't render until mounted (SSR safety) or if not open
   if (!mounted || !isOpen) return null;
 
+  // `size` token wins over the legacy `maxWidth` string when both passed
+  const widthClass = size ? modalSizes[size] : maxWidth;
+
   const modalContent = (
     <AnimatePresence>
       {/* Enhanced Modal Container with Backdrop Inside */}
@@ -170,7 +183,7 @@ export const UniversalModal: React.FC<UniversalModalProps> = ({
           className="relative"
         >
         <div
-          className={`relative w-full ${maxWidth} ${maxHeight} overflow-hidden`}
+          className={`relative w-full ${widthClass} ${maxHeight} overflow-hidden`}
           onClick={(e) => e.stopPropagation()}
           data-modal="true"
           role="dialog"

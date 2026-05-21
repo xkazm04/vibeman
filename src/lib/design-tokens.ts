@@ -622,6 +622,35 @@ export const statusConfig = {
 export type StatusConfigKey = keyof typeof statusConfig;
 
 // =============================================================================
+// MODAL SIZE TOKENS
+// =============================================================================
+
+/**
+ * Named modal size tier → Tailwind max-width class.
+ *
+ * Use the `size` prop on UniversalModal instead of passing a raw
+ * Tailwind class. Adding a new tier here is the only place size
+ * semantics should be defined.
+ *
+ *   xs  — small confirmations (28rem / 448px)
+ *   sm  — single-column forms (32rem / 512px)
+ *   md  — typical content (42rem / 672px)
+ *   lg  — current default; rich content (56rem / 896px)
+ *   xl  — wide dashboards (72rem / 1152px)
+ *   full — near-fullscreen workflows (80rem / 1280px)
+ */
+export const modalSizes = {
+  xs: 'max-w-md',
+  sm: 'max-w-lg',
+  md: 'max-w-2xl',
+  lg: 'max-w-4xl',
+  xl: 'max-w-6xl',
+  full: 'max-w-7xl',
+} as const;
+
+export type ModalSize = keyof typeof modalSizes;
+
+// =============================================================================
 // COMBINED EXPORTS
 // =============================================================================
 
