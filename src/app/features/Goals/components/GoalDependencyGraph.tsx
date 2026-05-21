@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, Link2, Plus, Trash2, X, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import type { Goal } from '@/types';
 import { getStatusConfig } from '../sub_GoalModal/lib/goalConstants';
+import { classifyMomentum } from '../lib/goalMomentum';
 import { duration } from '@/lib/motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
@@ -159,7 +160,7 @@ export default function GoalDependencyGraph({ goals, projectId, onGoalClick }: G
 
     const { width, height } = dimensions;
 
-    // Defs for arrow markers
+    // Defs for arrow markers + momentum filters
     const defs = svg.append('defs');
     for (const [type, color] of Object.entries(EDGE_COLORS)) {
       defs.append('marker')
@@ -174,6 +175,18 @@ export default function GoalDependencyGraph({ goals, projectId, onGoalClick }: G
         .attr('d', 'M0,-5L10,0L0,5')
         .attr('fill', color);
     }
+
+    // Glow filter for accelerating goals
+    const glow = defs.append('filter')
+      .attr('id', 'momentum-glow-accelerating')
+      .attr('x', '-50%').attr('y', '-50%')
+      .attr('width', '200%').attr('height', '200%');
+    glow.append('feGaussianBlur')
+      .attr('stdDeviation', '3')
+      .attr('result', 'coloredBlur');
+    const glowMerge = glow.append('feMerge');
+    glowMerge.append('feMergeNode').attr('in', 'coloredBlur');
+    glowMerge.append('feMergeNode').attr('in', 'SourceGraphic');
 
     const g = svg.append('g');
 
@@ -264,6 +277,41 @@ export default function GoalDependencyGraph({ goals, projectId, onGoalClick }: G
       .attr('stroke-width', 2)
       .attr('stroke-dasharray', '4,3')
       .attr('opacity', 0.8);
+
+    // Momentum: accelerating goals get a soft green glow halo
+    node.filter(d => classifyMomentum(d.goal) === 'accelerating')
+      .append('circle')
+      .attr('r', d => getNodeRadius(d.goal.progress) + 5)
+      .attr('fill', 'none')
+      .attr('stroke', '#22c55e')
+      .attr('stroke-width', 2.5)
+      .attr('opacity', 0.7)
+      .attr('filter', 'url(#momentum-glow-accelerating)');
+
+    // Momentum: stalled goals get a pulsing red ring
+    if (!prefersReduced) {
+      const stalledRing = node.filter(d => classifyMomentum(d.goal) === 'stalled')
+        .append('circle')
+        .attr('r', d => getNodeRadius(d.goal.progress) + 5)
+        .attr('fill', 'none')
+        .attr('stroke', '#ef4444')
+        .attr('stroke-width', 2)
+        .attr('opacity', 0.85);
+      stalledRing.append('animate')
+        .attr('attributeName', 'opacity')
+        .attr('values', '0.85;0.25;0.85')
+        .attr('dur', '1.6s')
+        .attr('repeatCount', 'indefinite');
+    } else {
+      // Reduced-motion fallback: static dim red ring, no animation
+      node.filter(d => classifyMomentum(d.goal) === 'stalled')
+        .append('circle')
+        .attr('r', d => getNodeRadius(d.goal.progress) + 5)
+        .attr('fill', 'none')
+        .attr('stroke', '#ef4444')
+        .attr('stroke-width', 2)
+        .attr('opacity', 0.6);
+    }
 
     // Status icon (first letter)
     node.append('text')
