@@ -363,7 +363,61 @@ export default function GoalDependencyGraph({ goals, projectId, onGoalClick }: G
 
     simulationRef.current = simulation;
 
-    return () => { simulation.stop(); };
+    // ── Signal-flow particles ─────────────────────────────────────────────
+    // Edges adjacent to an accelerating goal are "active" — animate small
+    // particles along them to convey signal flow. Particle motion runs on an
+    // independent d3.timer so it continues after the force simulation settles.
+    let particleTimer: d3.Timer | null = null;
+    if (!prefersReduced) {
+      const acceleratingIds = new Set(
+        nodes.filter(n => classifyMomentum(n.goal) === 'accelerating').map(n => n.id),
+      );
+      const activeEdges = edges.filter(e => {
+        const sId = typeof e.source === 'string' ? e.source : (e.source as GraphNode).id;
+        const tId = typeof e.target === 'string' ? e.target : (e.target as GraphNode).id;
+        return acceleratingIds.has(sId) || acceleratingIds.has(tId);
+      });
+
+      if (activeEdges.length > 0) {
+        const particleData = activeEdges.flatMap((e, i) => [
+          { edge: e, offset: (i * 0.41) % 1 },
+          { edge: e, offset: (i * 0.41 + 0.5) % 1 },
+        ]);
+        const particles = g.append('g')
+          .attr('class', 'signal-particles')
+          .attr('pointer-events', 'none')
+          .selectAll('circle')
+          .data(particleData)
+          .join('circle')
+          .attr('r', 2.5)
+          .attr('fill', '#22c55e')
+          .attr('opacity', 0.9);
+
+        const PERIOD_MS = 2200;
+        particleTimer = d3.timer((elapsed) => {
+          particles
+            .attr('cx', d => {
+              const s = d.edge.source as GraphNode;
+              const tgt = d.edge.target as GraphNode;
+              if (s.x == null || tgt.x == null) return 0;
+              const t = ((elapsed / PERIOD_MS) + d.offset) % 1;
+              return s.x + (tgt.x - s.x) * t;
+            })
+            .attr('cy', d => {
+              const s = d.edge.source as GraphNode;
+              const tgt = d.edge.target as GraphNode;
+              if (s.y == null || tgt.y == null) return 0;
+              const t = ((elapsed / PERIOD_MS) + d.offset) % 1;
+              return s.y + (tgt.y - s.y) * t;
+            });
+        });
+      }
+    }
+
+    return () => {
+      simulation.stop();
+      if (particleTimer) particleTimer.stop();
+    };
   }, [nodes, edges, dimensions, blockedIds, onGoalClick]);
 
   // Add dependency handler
