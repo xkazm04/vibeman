@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { List, ChevronRight } from 'lucide-react';
+import { zIndex } from '@/lib/design-tokens';
 
 interface TOCItem {
   id: string;
@@ -129,7 +130,8 @@ export default function TableOfContents({ headings }: TableOfContentsProps) {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 100 }}
           transition={{ duration: 0.3 }}
-          className="fixed right-6 top-1/2 transform -translate-y-1/2 z-[100]"
+          className="fixed right-6 top-1/2 transform -translate-y-1/2"
+          style={{ zIndex: zIndex.sticky }}
         >
           <div
             className={`bg-gray-900/90 backdrop-blur-sm border border-gray-700 rounded-lg shadow-2xl transition-all duration-300 ${

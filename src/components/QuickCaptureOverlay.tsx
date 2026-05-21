@@ -7,6 +7,7 @@ import { Zap, Target, Calendar, Tag, Loader2, Check, AlertCircle } from 'lucide-
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useQueryClient } from '@tanstack/react-query';
 import { goalKeys } from '@/lib/queries/goalQueries';
+import { zIndex } from '@/lib/design-tokens';
 
 interface QuickCaptureResult {
   success: boolean;
@@ -125,7 +126,8 @@ export default function QuickCaptureOverlay() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998]"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            style={{ zIndex: zIndex.modalBackdrop }}
             onClick={close}
           />
 
@@ -135,7 +137,8 @@ export default function QuickCaptureOverlay() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.97 }}
             transition={{ duration: 0.2, ease: [0, 0, 0.2, 1] }}
-            className="fixed top-[20vh] left-1/2 -translate-x-1/2 w-full max-w-[600px] z-[9999]"
+            className="fixed top-[20vh] left-1/2 -translate-x-1/2 w-full max-w-[600px]"
+            style={{ zIndex: zIndex.modal }}
           >
             <div className="mx-4 bg-gradient-to-br from-slate-900/98 via-slate-900/99 to-slate-800/98 border border-slate-700/60 rounded-xl shadow-2xl shadow-black/40 overflow-hidden">
               {/* Header bar */}
