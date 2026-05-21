@@ -82,7 +82,7 @@ export default function WeeklyCheckinModal({ isOpen, onClose, goals, projectId, 
       icon={ClipboardCheck}
       iconBgColor="from-emerald-800/60 to-cyan-900/60"
       iconColor="text-emerald-300"
-      maxWidth="max-w-lg"
+      size="sm"
     >
       <div className="space-y-1 max-h-[60vh] overflow-y-auto custom-scrollbar px-1">
         {activeGoals.map((goal, idx) => {

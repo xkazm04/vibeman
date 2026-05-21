@@ -2,6 +2,7 @@
 import React from 'react';
 import { LucideIcon } from 'lucide-react';
 import { UniversalModal } from '@/components/UniversalModal';
+import type { ModalSize } from '@/lib/design-tokens';
 
 interface GoalModalShellProps {
   isOpen: boolean;
@@ -11,6 +12,12 @@ interface GoalModalShellProps {
   icon: LucideIcon;
   iconBgColor?: string;
   iconColor?: string;
+  /** Preferred way to set width — pick a modalSizes token. */
+  size?: ModalSize;
+  /**
+   * Legacy maxWidth string. Prefer `size` for new code.
+   * @deprecated Use `size` instead.
+   */
   maxWidth?: string;
   children: React.ReactNode;
 }
@@ -27,6 +34,7 @@ export default function GoalModalShell({
   icon,
   iconBgColor = 'from-cyan-800/60 to-blue-900/60',
   iconColor = 'text-cyan-300',
+  size,
   maxWidth = 'max-w-2xl',
   children,
 }: GoalModalShellProps) {
@@ -39,6 +47,7 @@ export default function GoalModalShell({
       icon={icon}
       iconBgColor={iconBgColor}
       iconColor={iconColor}
+      size={size}
       maxWidth={maxWidth}
     >
       {children}

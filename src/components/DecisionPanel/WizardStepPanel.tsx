@@ -128,7 +128,7 @@ export default function WizardStepPanel({
       icon={Icon}
       iconBgColor={colors.iconBg}
       iconColor={colors.iconColor}
-      maxWidth="max-w-4xl"
+      size="lg"
       maxHeight="max-h-[85vh]"
       headerActions={headerActions}
       footerActions={footerActions}

@@ -253,7 +253,7 @@ export default function RunReportModal({ isOpen, onClose, runId }: RunReportModa
       icon={FileText}
       iconBgColor={MODAL_ICON_GRADIENT.report.bg}
       iconColor={MODAL_ICON_GRADIENT.report.text}
-      maxWidth="max-w-4xl"
+      size="lg"
       maxHeight="max-h-[85vh]"
       footerActions={[
         {

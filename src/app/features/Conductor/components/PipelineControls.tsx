@@ -113,7 +113,7 @@ function TriageModal({ isOpen, triageData, runId, onClose }: TriageModalProps) {
       icon={ShieldAlert}
       iconBgColor={MODAL_ICON_GRADIENT.triage.bg}
       iconColor={MODAL_ICON_GRADIENT.triage.text}
-      maxWidth="max-w-2xl"
+      size="md"
       maxHeight="max-h-[80vh]"
       footerActions={[
         { icon: X, label: 'Cancel', onClick: onClose, variant: 'secondary' },

@@ -255,7 +255,7 @@ export default function GoalModal({
         icon={Target}
         iconBgColor="from-blue-600/20 to-slate-600/20"
         iconColor="text-blue-400"
-        maxWidth="max-w-6xl"
+        size="xl"
       >
         <GoalsDetailModalContent
           goal={goal}

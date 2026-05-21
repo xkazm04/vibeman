@@ -235,7 +235,7 @@ export default function GoalCandidatesModal({ isOpen, onClose, onGoalCreated }: 
       icon={Sparkles}
       iconBgColor="from-purple-800/60 to-pink-900/60"
       iconColor="text-purple-300"
-      maxWidth="max-w-4xl"
+      size="lg"
     >
       <div className="space-y-6">
         {/* Header Actions */}
