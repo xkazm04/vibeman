@@ -11,7 +11,7 @@ import type { KnowledgeDomain, KnowledgeQuery, KnowledgeLayer, KnowledgeLanguage
 import { KNOWLEDGE_DOMAINS, KNOWLEDGE_LANGUAGES, KNOWLEDGE_LAYERS } from '@/app/db/models/knowledge.types';
 import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
 import { withObservability } from '@/lib/observability/middleware';
-import { validateProjectPath } from '@/lib/pathSecurity';
+import { validateProjectPath, validateSafeBasePath } from '@/lib/pathSecurity';
 
 async function handleGet(request: NextRequest) {
   try {
@@ -128,7 +128,12 @@ async function handlePost(request: NextRequest) {
       if (!body.projectPath) {
         return buildErrorResponse('projectPath required', { status: 400 });
       }
-      const pathError = validateProjectPath(body.projectPath);
+      // Layered validation: absolute + no traversal (validateProjectPath)
+      // then reject sensitive system roots (validateSafeBasePath).
+      // KB export writes files to disk, so system paths must be denied.
+      const pathError =
+        validateProjectPath(body.projectPath) ||
+        validateSafeBasePath(body.projectPath);
       if (pathError) {
         return buildErrorResponse(pathError, { status: 400 });
       }
