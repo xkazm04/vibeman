@@ -651,6 +651,39 @@ export const modalSizes = {
 export type ModalSize = keyof typeof modalSizes;
 
 // =============================================================================
+// BADGE SIZE TOKENS
+// =============================================================================
+
+/**
+ * Named badge size tier → Tailwind padding/text classes.
+ * Pair with `badgeIconSizes[size]` for the matching icon dimensions.
+ *
+ *   xs — dense lists, table cells
+ *   sm — default; metadata chips
+ *   md — primary status indicators
+ *   lg — section headers, prominent labels
+ *
+ * Components: ui/wizard/Badge.tsx is the primary consumer; new
+ * badge/pill/chip components should consume from here too rather
+ * than re-defining their own scale.
+ */
+export const badgeSizes = {
+  xs: 'px-1.5 py-0.5 text-xs',
+  sm: 'px-2 py-1 text-xs',
+  md: 'px-3 py-1.5 text-sm',
+  lg: 'px-4 py-2 text-sm',
+} as const;
+
+export const badgeIconSizes = {
+  xs: 'w-2.5 h-2.5',
+  sm: 'w-3 h-3',
+  md: 'w-3.5 h-3.5',
+  lg: 'w-4 h-4',
+} as const;
+
+export type BadgeSize = keyof typeof badgeSizes;
+
+// =============================================================================
 // COMBINED EXPORTS
 // =============================================================================
 
