@@ -20,7 +20,7 @@ const MOMENTUM_CHIP: Record<Momentum, { label: string; cls: string }> = {
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-interface GoalDependencyGraphProps {
+interface GoalConstellationProps {
   goals: Goal[];
   projectId: string;
   onGoalClick?: (goal: Goal) => void;
@@ -85,7 +85,7 @@ function getNodeRadius(progress: number | null | undefined): number {
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-export default function GoalDependencyGraph({ goals, projectId, onGoalClick }: GoalDependencyGraphProps) {
+export default function GoalConstellation({ goals, projectId, onGoalClick }: GoalConstellationProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const simulationRef = useRef<d3.Simulation<GraphNode, GraphEdge> | null>(null);
@@ -532,7 +532,7 @@ export default function GoalDependencyGraph({ goals, projectId, onGoalClick }: G
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground/50 text-sm">
-        Loading dependency graph...
+        Loading constellation...
       </div>
     );
   }

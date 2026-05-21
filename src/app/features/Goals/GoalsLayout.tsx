@@ -20,7 +20,7 @@ import EventsBarChart from './sub_EventsBarChart/EventsBarChart';
 import StandupHistoryTimeline from '@/app/features/DailyStandup/components/StandupHistoryTimeline';
 import { ContextTargetsList } from '@/components/ContextComponents';
 import GoalEmptyState from './components/GoalEmptyState';
-import GoalDependencyGraph from './components/GoalDependencyGraph';
+import GoalConstellation from './components/GoalConstellation';
 import { GoalProgressMini } from './components/GoalProgressRing';
 import GlassCard from '@/components/cards/GlassCard';
 import { duration, easing } from '@/lib/motion';
@@ -367,14 +367,14 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
             <GlassCard variant="panel" className="flex-1 overflow-hidden flex flex-col">
               <div className="p-4 border-b border-white/5 bg-white/[0.03]">
                 <DashboardSectionHeader
-                  title={goalView === 'list' ? 'Active Goals' : 'Dependency Graph'}
+                  title={goalView === 'list' ? 'Active Goals' : 'Constellation'}
                   variant="secondary"
                   action={
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => setGoalView(v => v === 'list' ? 'graph' : 'list')}
                         className={`p-1.5 rounded-lg transition-colors ${goalView === 'graph' ? 'bg-primary/20 text-primary' : 'hover:bg-white/10 text-white/60 hover:text-white'}`}
-                        title={goalView === 'list' ? 'Show dependency graph' : 'Show goal list'}
+                        title={goalView === 'list' ? 'Show constellation' : 'Show goal list'}
                       >
                         <GitBranch className="w-4 h-4" />
                       </button>
@@ -443,7 +443,7 @@ function GoalsLayoutContent({ projectId }: GoalsLayoutProps) {
               ) : (
                 <div className="flex-1 min-h-0 relative">
                   {projectId && (
-                    <GoalDependencyGraph
+                    <GoalConstellation
                       goals={projectGoals}
                       projectId={projectId}
                       onGoalClick={handleGoalClick}
