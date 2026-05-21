@@ -3,12 +3,20 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import * as d3 from 'd3';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, Link2, Plus, Trash2, X, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { AlertTriangle, Link2, Plus, Trash2, X, ZoomIn, ZoomOut, Maximize2, Activity, ExternalLink } from 'lucide-react';
 import type { Goal } from '@/types';
 import { getStatusConfig } from '../sub_GoalModal/lib/goalConstants';
-import { classifyMomentum } from '../lib/goalMomentum';
+import { classifyMomentum, type Momentum } from '../lib/goalMomentum';
+import type { LifecycleData } from './GoalLifecyclePanel';
 import { duration } from '@/lib/motion';
+import { formatRelativeTime } from '@/lib/formatDate';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+
+const MOMENTUM_CHIP: Record<Momentum, { label: string; cls: string }> = {
+  stalled: { label: 'STALLED', cls: 'bg-red-500/15 text-red-300 border-red-500/30' },
+  steady: { label: 'STEADY', cls: 'bg-slate-500/15 text-slate-300 border-slate-500/30' },
+  accelerating: { label: 'ACCELERATING', cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
+};
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -87,12 +95,33 @@ export default function GoalDependencyGraph({ goals, projectId, onGoalClick }: G
   const [blockedGoals, setBlockedGoals] = useState<BlockedGoal[]>([]);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [lifecycleData, setLifecycleData] = useState<LifecycleData | null>(null);
+  const [lifecycleLoading, setLifecycleLoading] = useState(false);
   const [showAddDep, setShowAddDep] = useState(false);
   const [addDepFrom, setAddDepFrom] = useState('');
   const [addDepTo, setAddDepTo] = useState('');
   const [loading, setLoading] = useState(true);
 
   const prefersReduced = useReducedMotion();
+
+  // Fetch lifecycle data for the selected node
+  useEffect(() => {
+    if (!selectedNode) {
+      setLifecycleData(null);
+      return;
+    }
+    const controller = new AbortController();
+    setLifecycleLoading(true);
+    fetch(`/api/goals/lifecycle?goalId=${encodeURIComponent(selectedNode)}`, { signal: controller.signal })
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (json?.data) setLifecycleData(json.data);
+        else setLifecycleData(null);
+      })
+      .catch(() => { /* abort or fetch failure — silently fall back to summary */ })
+      .finally(() => setLifecycleLoading(false));
+    return () => controller.abort();
+  }, [selectedNode]);
 
   // Fetch dependencies
   const fetchDeps = useCallback(async () => {
@@ -364,13 +393,13 @@ export default function GoalDependencyGraph({ goals, projectId, onGoalClick }: G
       .attr('font-family', 'sans-serif')
       .text(d => d.goal.title.length > 20 ? d.goal.title.slice(0, 18) + '...' : d.goal.title);
 
-    // Hover effects
+    // Hover effects — single click opens the inline panel, the panel's
+    // "open full details" button is the path to the modal.
     node
       .on('mouseenter', (_, d) => setHoveredNode(d.id))
       .on('mouseleave', () => setHoveredNode(null))
       .on('click', (_, d) => {
         setSelectedNode(prev => prev === d.id ? null : d.id);
-        onGoalClick?.(d.goal);
       });
 
     // Simulation
@@ -645,49 +674,148 @@ export default function GoalDependencyGraph({ goals, projectId, onGoalClick }: G
           )}
         </AnimatePresence>
 
-        {/* Dependency list for selected node */}
+        {/* Inline lifecycle panel for selected node */}
         <AnimatePresence>
-          {selectedNode && (
-            <motion.div
-              initial={prefersReduced ? false : { opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10 }}
-              className="absolute top-2 left-2 w-56 rounded-lg bg-background/95 border border-white/10 backdrop-blur-sm shadow-xl overflow-hidden"
-            >
-              <div className="flex items-center justify-between px-3 py-2 border-b border-white/5">
-                <span className="text-xs font-medium text-foreground truncate">
-                  {goals.find(g => g.id === selectedNode)?.title}
-                </span>
-                <button onClick={() => setSelectedNode(null)} className="p-0.5 hover:bg-white/10 rounded text-muted-foreground">
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-              <div className="p-2 space-y-1 max-h-[200px] overflow-y-auto custom-scrollbar">
-                {dependencies.filter(d => d.parent_goal_id === selectedNode || d.child_goal_id === selectedNode).map(dep => (
-                  <div key={dep.id} className="flex items-center justify-between gap-1 px-2 py-1 rounded bg-white/5 group">
+          {selectedNode && (() => {
+            const selectedGoal = goals.find(g => g.id === selectedNode);
+            if (!selectedGoal) return null;
+            const cfg = getStatusConfig(selectedGoal.status);
+            const StatusIcon = cfg.icon;
+            const momentum = classifyMomentum(selectedGoal);
+            const chip = MOMENTUM_CHIP[momentum];
+            const selectedDeps = dependencies.filter(d => d.parent_goal_id === selectedNode || d.child_goal_id === selectedNode);
+            const progress = lifecycleData?.inferredProgress ?? selectedGoal.progress ?? 0;
+            const subStats = lifecycleData?.subGoalStats;
+            const recentSignals = (lifecycleData?.signals ?? []).slice(0, 3);
+
+            return (
+              <motion.div
+                initial={prefersReduced ? false : { opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+                transition={{ duration: duration.snappy }}
+                className="absolute top-2 left-2 w-80 max-h-[calc(100%-1rem)] rounded-lg bg-background/95 border border-white/10 backdrop-blur-sm shadow-xl overflow-hidden flex flex-col"
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between gap-2 px-3 py-2.5 border-b border-white/5 bg-white/[0.02]">
+                  <div className="flex items-start gap-2 flex-1 min-w-0">
+                    <StatusIcon className={`w-4 h-4 mt-0.5 shrink-0 ${cfg.color}`} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-2xs text-muted-foreground/60">
-                        {dep.parent_goal_id === selectedNode ? 'blocks' : 'blocked by'}
+                      <p className="text-xs font-medium text-foreground line-clamp-2 leading-snug">
+                        {selectedGoal.title}
                       </p>
-                      <p className="text-xs text-foreground/80 truncate">
-                        {dep.parent_goal_id === selectedNode ? dep.child_title : dep.parent_title}
-                      </p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className={`text-2xs ${cfg.color}`}>{cfg.text}</span>
+                        <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${chip.cls}`}>
+                          {chip.label}
+                        </span>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => handleDeleteDependency(dep.id)}
-                      className="p-1 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 rounded text-red-400 transition-opacity"
-                      title="Remove dependency"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
                   </div>
-                ))}
-                {dependencies.filter(d => d.parent_goal_id === selectedNode || d.child_goal_id === selectedNode).length === 0 && (
-                  <p className="text-2xs text-muted-foreground/40 text-center py-2">No dependencies</p>
-                )}
-              </div>
-            </motion.div>
-          )}
+                  <button onClick={() => setSelectedNode(null)} className="p-0.5 hover:bg-white/10 rounded text-muted-foreground shrink-0" aria-label="Close panel">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+
+                {/* Body — scrolls when long */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3">
+                  {/* Progress bar */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-2xs text-muted-foreground/60 uppercase tracking-wide">Progress</span>
+                      <span className="text-2xs font-mono text-foreground/70">{Math.round(progress)}%</span>
+                    </div>
+                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all"
+                        style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Sub-goal stats */}
+                  {subStats && subStats.total > 0 && (
+                    <div>
+                      <div className="text-2xs text-muted-foreground/60 uppercase tracking-wide mb-1">Sub-goals</div>
+                      <div className="flex items-center gap-2 text-2xs">
+                        <span className="text-emerald-400">{subStats.done} done</span>
+                        <span className="text-muted-foreground/40">·</span>
+                        <span className="text-yellow-400">{subStats.inProgress} active</span>
+                        <span className="text-muted-foreground/40">·</span>
+                        <span className="text-muted-foreground/60">{subStats.open} open</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recent signals */}
+                  {recentSignals.length > 0 && (
+                    <div>
+                      <div className="text-2xs text-muted-foreground/60 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                        <Activity className="w-3 h-3" /> Recent signals
+                      </div>
+                      <div className="space-y-1">
+                        {recentSignals.map(sig => (
+                          <div key={sig.id} className="flex items-start gap-1.5 text-2xs">
+                            <span className="text-muted-foreground/40 font-mono shrink-0">
+                              {formatRelativeTime(sig.created_at)}
+                            </span>
+                            <span className="text-foreground/80 truncate">
+                              {sig.source_title ?? sig.signal_type}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {lifecycleLoading && recentSignals.length === 0 && !subStats && (
+                    <div className="text-2xs text-muted-foreground/40 italic">Loading lifecycle…</div>
+                  )}
+
+                  {/* Dependencies */}
+                  {selectedDeps.length > 0 && (
+                    <div>
+                      <div className="text-2xs text-muted-foreground/60 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                        <Link2 className="w-3 h-3" /> Dependencies
+                      </div>
+                      <div className="space-y-1">
+                        {selectedDeps.map(dep => (
+                          <div key={dep.id} className="flex items-center justify-between gap-1 px-2 py-1 rounded bg-white/5 group">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-2xs text-muted-foreground/60">
+                                {dep.parent_goal_id === selectedNode ? 'blocks' : 'blocked by'}
+                              </p>
+                              <p className="text-xs text-foreground/80 truncate">
+                                {dep.parent_goal_id === selectedNode ? dep.child_title : dep.parent_title}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteDependency(dep.id)}
+                              className="p-1 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 rounded text-red-400 transition-opacity"
+                              title="Remove dependency"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer — open full details */}
+                <div className="border-t border-white/5 bg-white/[0.02] p-2">
+                  <button
+                    onClick={() => onGoalClick?.(selectedGoal)}
+                    className="w-full flex items-center justify-center gap-1.5 text-xs text-primary/80 hover:text-primary py-1.5 rounded hover:bg-primary/10 transition-colors"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Open full details
+                  </button>
+                </div>
+              </motion.div>
+            );
+          })()}
         </AnimatePresence>
       </div>
 
