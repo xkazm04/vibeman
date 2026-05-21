@@ -5,7 +5,17 @@
  * Anchored on brand accent (#8b5cf6 purple) and primary (#3b82f6 blue).
  *
  * Usage: import { BRAIN_CHART } from '../lib/brainChartColors';
+ *
+ * Signal-type colors derive from the canonical SIGNAL_METADATA registry
+ * in @/types/signals (see line 86) — never hardcode them here.
  */
+
+import { SIGNAL_METADATA, SignalType } from '@/types/signals';
+
+/** Build categorical signal colors from the canonical SIGNAL_METADATA registry. */
+const signalTypeColors: Record<string, string> = Object.fromEntries(
+  Object.values(SignalType).map((t) => [t, SIGNAL_METADATA[t].color])
+);
 
 export const BRAIN_CHART = {
   // ── Semantic chart tokens ────────────────────────────────────────────
@@ -83,15 +93,10 @@ export const BRAIN_CHART = {
   },
 
   // ── Signal type colors (heatmap drill-down, activity views) ────────
-  signalType: {
-    git_activity: '#10b981',
-    api_focus: '#3b82f6',
-    context_focus: '#8b5cf6',
-    implementation: '#f59e0b',
-    cross_task_analysis: '#ec4899',
-    cross_task_selection: '#f43f5e',
-    cli_memory: '#06b6d4',
-  } as Record<string, string>,
+  // Sourced from SIGNAL_METADATA so colors stay in lock-step with the
+  // canonical registry. Previously hardcoded values had drifted
+  // (e.g. context_focus #8b5cf6 here vs #a855f7 canonical).
+  signalType: signalTypeColors,
 
   // ── Verdict / effectiveness colors ─────────────────────────────────
   verdict: {
