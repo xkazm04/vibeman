@@ -62,6 +62,17 @@ const EDGE_COLORS: Record<string, string> = {
   related: '#6b7280',
 };
 
+// ── Node sizing ────────────────────────────────────────────────────────────
+
+const NODE_RADIUS_MIN = 14;
+const NODE_RADIUS_MAX = 26;
+
+/** Scale node radius linearly with goal.progress (0..100). */
+function getNodeRadius(progress: number | null | undefined): number {
+  const p = Math.max(0, Math.min(100, progress ?? 0));
+  return NODE_RADIUS_MIN + ((NODE_RADIUS_MAX - NODE_RADIUS_MIN) * p) / 100;
+}
+
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function GoalDependencyGraph({ goals, projectId, onGoalClick }: GoalDependencyGraphProps) {
@@ -217,9 +228,9 @@ export default function GoalDependencyGraph({ goals, projectId, onGoalClick }: G
         })
       );
 
-    // Node circles
+    // Node circles — radius scales with goal.progress
     node.append('circle')
-      .attr('r', 20)
+      .attr('r', d => getNodeRadius(d.goal.progress))
       .attr('fill', d => {
         const color = STATUS_COLORS[d.goal.status] || '#6b7280';
         return color + '33'; // alpha
@@ -227,10 +238,27 @@ export default function GoalDependencyGraph({ goals, projectId, onGoalClick }: G
       .attr('stroke', d => STATUS_COLORS[d.goal.status] || '#6b7280')
       .attr('stroke-width', d => blockedIds.has(d.id) ? 3 : 2);
 
-    // Blocked indicator ring
+    // Progress arc — partial stroke around the node, length = progress%
+    node.filter(d => (d.goal.progress ?? 0) > 0 && (d.goal.progress ?? 0) < 100)
+      .append('circle')
+      .attr('r', d => getNodeRadius(d.goal.progress) + 3)
+      .attr('fill', 'none')
+      .attr('stroke', d => STATUS_COLORS[d.goal.status] || '#6b7280')
+      .attr('stroke-width', 2)
+      .attr('stroke-linecap', 'round')
+      .attr('stroke-dasharray', d => {
+        const r = getNodeRadius(d.goal.progress) + 3;
+        const C = 2 * Math.PI * r;
+        const filled = (C * (d.goal.progress ?? 0)) / 100;
+        return `${filled} ${C - filled}`;
+      })
+      .attr('transform', d => `rotate(-90)`) // start arc at 12 o'clock
+      .attr('opacity', 0.85);
+
+    // Blocked indicator ring — sized to wrap the (possibly larger) node
     node.filter(d => blockedIds.has(d.id))
       .append('circle')
-      .attr('r', 24)
+      .attr('r', d => getNodeRadius(d.goal.progress) + 7)
       .attr('fill', 'none')
       .attr('stroke', '#ef4444')
       .attr('stroke-width', 2)
@@ -247,10 +275,10 @@ export default function GoalDependencyGraph({ goals, projectId, onGoalClick }: G
       .attr('font-family', 'monospace')
       .text(d => d.goal.title.charAt(0).toUpperCase());
 
-    // Node label (title)
+    // Node label (title) — offset scales with node radius
     node.append('text')
       .attr('text-anchor', 'middle')
-      .attr('dy', '36px')
+      .attr('dy', d => `${getNodeRadius(d.goal.progress) + 16}px`)
       .attr('fill', '#94a3b8')
       .attr('font-size', '10px')
       .attr('font-family', 'sans-serif')
@@ -270,7 +298,7 @@ export default function GoalDependencyGraph({ goals, projectId, onGoalClick }: G
       .force('link', d3.forceLink<GraphNode, GraphEdge>(edges).id(d => d.id).distance(140))
       .force('charge', d3.forceManyBody().strength(-400))
       .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide(50))
+      .force('collision', d3.forceCollide<GraphNode>(d => getNodeRadius(d.goal.progress) + 28))
       .on('tick', () => {
         link
           .attr('x1', d => (d.source as GraphNode).x!)
