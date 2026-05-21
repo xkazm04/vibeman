@@ -248,7 +248,7 @@ export default function OutcomesSummary({ isLoading }: Props) {
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.15 }}
+                transition={{ duration: duration.snappy }}
                 className="absolute right-0 top-full mt-1 z-10 flex flex-col rounded-md border border-zinc-700/50 bg-zinc-900 shadow-xl overflow-hidden"
               >
                 {COMPARE_WINDOWS.map(w => (

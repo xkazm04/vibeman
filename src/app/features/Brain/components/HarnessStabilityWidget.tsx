@@ -15,6 +15,7 @@
 
 import { useMemo, useId } from 'react';
 import { motion } from 'framer-motion';
+import { duration } from '@/lib/motion';
 import { ShieldAlert, Activity, Wrench, ArrowRightLeft, TrendingDown } from 'lucide-react';
 import GlowCard from './GlowCard';
 import BrainPanelHeader from './BrainPanelHeader';
@@ -172,7 +173,7 @@ function KpiRow({ icon: Icon, label, value, sub, color, delay }: {
       className="flex items-center gap-2.5 py-1.5"
       initial={{ opacity: 0, x: -6 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ delay, duration: 0.25 }}
+      transition={{ delay, duration: duration.normal }}
     >
       <div
         className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"

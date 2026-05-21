@@ -9,7 +9,7 @@ import {
 import type { DbKnowledgeEntry, HubLinkedEntry } from '@/app/db/models/knowledge.types';
 import { KNOWLEDGE_CATEGORY_LABELS, KNOWLEDGE_LAYER_LABELS } from '@/app/db/models/knowledge.types';
 import type { KnowledgeCategory, KnowledgeLayer } from '@/app/db/models/knowledge.types';
-import { fadeOnly } from '@/lib/motion';
+import { fadeOnly, duration } from '@/lib/motion';
 import { fullDrawer, fullDrawerTransition } from '../../lib/motionPresets';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import ConfidenceBar from './ConfidenceBar';
@@ -230,7 +230,7 @@ export default function HubEntryEditor({
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                transition={{ duration: duration.normal }}
                 className="flex-shrink-0 border-b border-zinc-800/50 overflow-hidden"
               >
                 <div className="px-6 py-3 space-y-2">

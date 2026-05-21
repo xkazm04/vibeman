@@ -7,6 +7,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
+import { duration } from '@/lib/motion';
 import { BRAIN_CHART } from '../lib/brainChartColors';
 import { DATA_FONT } from '../lib/brainFonts';
 
@@ -62,7 +63,7 @@ export default function HeatmapTooltip({ data, x, y, containerWidth }: HeatmapTo
           initial={{ opacity: 0, y: 4, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 4, scale: 0.96 }}
-          transition={{ duration: 0.12, ease: 'easeOut' }}
+          transition={{ duration: duration.snappy, ease: 'easeOut' }}
           className="absolute z-50 pointer-events-none"
           style={{
             left: clampedX,

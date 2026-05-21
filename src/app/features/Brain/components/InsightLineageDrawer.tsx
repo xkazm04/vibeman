@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fullDrawer, fullDrawerTransition } from '../lib/motionPresets';
-import { transition } from '@/lib/motion';
+import { transition, duration } from '@/lib/motion';
 import {
   ArrowLeft,
   X,
@@ -440,7 +440,7 @@ export default function InsightLineageDrawer({ insightId, insightTitle, onClose 
                           key={node.id}
                           initial={{ opacity: 0, x: -8 }}
                           animate={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.15, delay: idx * 0.03 }}
+                          transition={{ duration: duration.snappy, delay: idx * 0.03 }}
                         >
                           <LineageNodeCard
                             node={node}

@@ -10,6 +10,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { duration } from '@/lib/motion';
 import { Focus, ChevronRight } from 'lucide-react';
 import OutcomesSummary from './OutcomesSummary';
 import ReflectionStatus from './ReflectionStatus';
@@ -68,7 +69,7 @@ export default function FocusFlowGrid({
                   <span>{secondaryCollapsed ? 'Show' : 'Hide'} secondary</span>
                   <motion.div
                     animate={{ rotate: secondaryCollapsed ? 0 : 90 }}
-                    transition={{ duration: 0.15 }}
+                    transition={{ duration: duration.snappy }}
                   >
                     <ChevronRight className="w-3 h-3" />
                   </motion.div>
@@ -85,7 +86,7 @@ export default function FocusFlowGrid({
                       initial={{ width: 0, opacity: 0 }}
                       animate={{ width: 340, opacity: 1 }}
                       exit={{ width: 0, opacity: 0 }}
-                      transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+                      transition={{ duration: duration.normal, ease: [0.25, 0.46, 0.45, 0.94] }}
                       className="overflow-hidden"
                     >
                       <div className="w-[340px] space-y-4">
@@ -178,7 +179,7 @@ function FocusWidget({ widgetId, index, score, scope, isGlobalMode, activeProjec
       layoutId={`focus-${widgetId}`}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.2, layout: SMOOTH_SPRING }}
+      transition={{ delay, duration: duration.normal, layout: SMOOTH_SPRING }}
       className={`relative ${isHighPriority && !compact ? 'ring-1 ring-purple-500/20 rounded-xl' : ''}`}
     >
       {isHighPriority && !compact && (

@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import type { ReactNode } from 'react';
+import { duration } from '@/lib/motion';
 
 interface BrainEmptyStateProps {
   icon: ReactNode;
@@ -98,7 +99,7 @@ export default function BrainEmptyState({ icon, title, description, action }: Br
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: [0, 0, 0.2, 1] }}
+        transition={{ duration: duration.deliberate, ease: [0, 0, 0.2, 1] }}
         className="relative z-10 flex flex-col items-center gap-3"
       >
         <motion.div

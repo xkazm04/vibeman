@@ -361,7 +361,7 @@ export default function TemporalRhythmHeatmap({ scope = 'project' }: TemporalRhy
                           }}
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
-                          transition={{ duration: 0.15, delay: dist * 0.012 }}
+                          transition={{ duration: duration.snappy, delay: dist * 0.012 }}
                           onMouseEnter={(e) => handleCellEnter(e, h, d, cell)}
                           onMouseLeave={handleCellLeave}
                           onClick={() => {
@@ -400,7 +400,7 @@ export default function TemporalRhythmHeatmap({ scope = 'project' }: TemporalRhy
                       initial={{ r: 0, opacity: 0.6 }}
                       animate={{ r: 80, opacity: 0 }}
                       exit={{ opacity: 0 }}
-                      transition={{ duration: 0.5, ease: 'easeOut' }}
+                      transition={{ duration: duration.slow, ease: 'easeOut' }}
                       onAnimationComplete={() => setRipple(null)}
                       pointerEvents="none"
                     />

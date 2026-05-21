@@ -8,6 +8,7 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { duration } from '@/lib/motion';
 import { Lightbulb, X, Zap, AlertTriangle, TrendingUp } from 'lucide-react';
 import type { SignalCorrelation } from '../lib/queries/apiClient';
 import { BRAIN_CHART } from '../lib/brainChartColors';
@@ -177,7 +178,7 @@ export default function CorrelationActionSuggestions({ correlations }: Props) {
               layout
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, x: 20, transition: { duration: 0.15 } }}
+              exit={{ opacity: 0, x: 20, transition: { duration: duration.snappy } }}
               transition={{ delay: i * 0.04 }}
               className="group relative flex items-start gap-3 p-3 rounded-xl"
               style={{

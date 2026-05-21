@@ -345,7 +345,7 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
                     }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ duration: 0.2, delay: dist * 0.018 }}
+                    transition={{ duration: duration.normal, delay: dist * 0.018 }}
                     onMouseEnter={(e) => handleCellEnter(e, cell)}
                     onMouseLeave={handleCellLeave}
                     onClick={() => {
@@ -383,7 +383,7 @@ export default function ActivityHeatmap({ scope = 'project' }: ActivityHeatmapPr
                   initial={{ r: 0, opacity: 0.6 }}
                   animate={{ r: 60, opacity: 0 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                  transition={{ duration: duration.slow, ease: 'easeOut' }}
                   onAnimationComplete={() => setRipple(null)}
                   pointerEvents="none"
                 />
@@ -702,7 +702,7 @@ function TrendChart({
                     fill="url(#trendGradient)"
                     initial={{ height: 0, y: chartHeight }}
                     animate={{ height: barHeight, y }}
-                    transition={{ duration: 0.4, delay: i * 0.03 }}
+                    transition={{ duration: duration.expand, delay: i * 0.03 }}
                   >
                     <title>{week.weekLabel}: {week.count} signals ({week.weight.toFixed(1)}w)</title>
                   </motion.rect>

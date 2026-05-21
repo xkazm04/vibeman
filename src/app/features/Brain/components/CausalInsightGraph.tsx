@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as d3 from 'd3';
 import { motion, AnimatePresence } from 'framer-motion';
+import { duration } from '@/lib/motion';
 import {
   X,
   Play,
@@ -570,7 +571,7 @@ export default function CausalInsightGraph({ insights, onViewLineage }: CausalIn
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 4 }}
-            transition={{ duration: 0.15 }}
+            transition={{ duration: duration.snappy }}
             className="absolute top-14 right-14 z-10 max-w-xs rounded-lg border border-zinc-700/60 bg-zinc-900/95 backdrop-blur-sm p-3 shadow-xl pointer-events-none"
           >
             <div className="flex items-center gap-2 mb-1">
@@ -606,7 +607,7 @@ export default function CausalInsightGraph({ insights, onViewLineage }: CausalIn
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.15 }}
+            transition={{ duration: duration.snappy }}
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-80 rounded-lg border border-zinc-700/60 bg-zinc-900/98 backdrop-blur-sm shadow-2xl"
           >
             <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800/50">

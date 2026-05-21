@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { duration } from '@/lib/motion';
 import { BRAIN_CHART } from '../../lib/brainChartColors';
 
 const AMBER = BRAIN_CHART.warning;   // #f59e0b
@@ -451,7 +452,7 @@ export function KBErrorBanner({ error, context, onDismiss, onRetry, reducedMotio
       initial={reducedMotion ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 8 }}
-      transition={{ duration: 0.3, ease: [0, 0, 0.2, 1] }}
+      transition={{ duration: duration.deliberate, ease: [0, 0, 0.2, 1] }}
       className={`flex flex-col items-center gap-3 py-8 px-6 rounded-xl border ${borderColor} ${bgColor}`}
     >
       <div className="flex-shrink-0">

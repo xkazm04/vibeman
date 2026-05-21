@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { duration } from '@/lib/motion';
 import dynamic from 'next/dynamic';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
@@ -247,7 +248,7 @@ function InsightRow({
   const RTag: any = semantic ? (animationDelay != null ? motion.tr : 'tr') : 'div';
   const CTag = semantic ? 'td' : 'div';
   const rProps = semantic
-    ? (animationDelay != null ? { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.2, delay: animationDelay } } : {})
+    ? (animationDelay != null ? { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, transition: { duration: duration.normal, delay: animationDelay } } : {})
     : { role: 'row' as const };
   const cProps = semantic ? {} : { role: 'cell' as const };
 
