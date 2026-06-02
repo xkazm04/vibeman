@@ -27,7 +27,6 @@ export interface WorkflowSuggestion {
 // Module metadata for quick navigation
 export const MODULE_METADATA: Record<AppModule, { label: string; description: string; keywords: string[]; icon: string }> = {
   overview: { label: 'Overview', description: 'Architecture and system overview', keywords: ['overview', 'architecture', 'dashboard', 'system', 'map'], icon: 'Compass' },
-  mini: { label: 'Mini', description: 'Compact scan-triage-execute dashboard', keywords: ['mini', 'compact', 'quick', 'dashboard', 'scan', 'triage'], icon: 'Minimize2' },
   coder: { label: 'Project / Goals', description: 'View project goals and progress', keywords: ['project', 'goals', 'objectives', 'progress'], icon: 'Target' },
   contexts: { label: 'Contexts', description: 'Manage code contexts and domains', keywords: ['context', 'domain', 'code', 'files'], icon: 'FolderTree' },
   ideas: { label: 'Ideas', description: 'Generate and browse AI ideas', keywords: ['ideas', 'suggestions', 'ai', 'generate'], icon: 'Lightbulb' },
