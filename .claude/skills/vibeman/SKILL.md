@@ -17,6 +17,13 @@ All three pipelines use the same quality gates (TypeScript / lint / tests) and t
 
 **Prerequisite**: Vibeman must be running at `http://localhost:3000`. If not, tell the user to start it first.
 
+**Working directory discipline (CRITICAL — read before running any command).** This skill ships *inside the Vibeman repo* (`.claude/skills/vibeman/`) and is invoked with the shell's current directory set to the **Vibeman repo itself** — NOT the project you're operating on. The target project is a **separate directory** captured as `PROJECT_PATH` in Phase 1 (e.g. `C:\Users\me\kiro\pof`). Every operation on the target — reading, editing, `grep`, typecheck/lint/test/build, **`git add` / `git commit` / `git diff`**, and any temp/scratch files — MUST be scoped to `PROJECT_PATH`, or you will silently mutate and inspect the *Vibeman* codebase instead of the target. Rules:
+
+- **Never run a bare `git add`, `git commit`, `git diff`, `git log`, `tsc`, `vitest`, `eslint`, or `next build` from the skill's cwd.** Always scope to the project: `git -C "PROJECT_PATH" …`, `npm --prefix "PROJECT_PATH" run <script>`, or pass absolute paths under `PROJECT_PATH`. The terse `npx tsc` / `npx vitest` / `git commit` snippets shown later in this file are shorthand — when you actually run them, scope them to `PROJECT_PATH`.
+- **Never write scratch/temp files (scanner prompts, notes, output dirs) into the Vibeman repo or its cwd.** Put working artifacts under `PROJECT_PATH` (e.g. `PROJECT_PATH/docs/harness/…`) or an OS temp dir, and clean them up. `harness-learnings.md`, `goal-judgments.md`, and `followups-*.md` all live under `PROJECT_PATH/docs/harness/`, never under Vibeman.
+- **The ONLY things you read from the Vibeman repo are its scanner/idea *registries*** — `src/lib/prompts/registry/agents/*.ts` (Pipeline B) and `src/app/features/Ideas/lib/agentRegistry.ts` (Pipeline C). These are Vibeman's own catalogs, read-only. Never edit or commit them (or anything else) into Vibeman as part of a pipeline run. The exception: deliberate edits to *this skill file* when the user asks you to improve the skill.
+- **Ignore the harness `gitStatus` shown at session start for commit purposes** — it describes the *Vibeman* repo, not your target. Re-derive the target's state with `git -C "PROJECT_PATH" status`.
+
 ## Phase 0: Pipeline Selection
 
 If the user invocation makes the pipeline obvious (e.g. they explicitly say "run a bug hunter scan" or "implement this goal"), skip the prompt and proceed.
@@ -500,12 +507,12 @@ Increment `TSC_RUNS`. If errors found and fixed, increment `TSC_ERRORS_FIXED`.
 
 4. If the build fails, fix the errors immediately before moving to the next task. Do not skip broken builds.
 
-5. **Commit** after each successful task:
+5. **Commit** after each successful task (scope to the target repo — never the Vibeman cwd):
 ```bash
-git add <changed-files>
-git commit -m "vibeman: <task title>"
+git -C "$PROJECT_PATH" add <changed-files>
+git -C "$PROJECT_PATH" commit -m "vibeman: <task title>"
 ```
-Increment `COMMITS_MADE`. Mark task as `TASKS_COMPLETED`.
+If the project is on its default branch (`master`/`main`), create a working branch with `git -C "$PROJECT_PATH" checkout -b vibeman/<goal-slug>` before the first commit, so the project's main branch stays clean. Increment `COMMITS_MADE`. Mark task as `TASKS_COMPLETED`.
 
 6. **Report progress**: After each task, briefly state what was done and the build status.
 
@@ -1218,6 +1225,8 @@ Increment `API_CALLS`. The response includes `requirementContent` — a full ana
 
    Running scans as subagents keeps the orchestrator's context clean (it sees only the terse reply, not the per-file analysis) — same discipline as Pipeline B's dispatch.
 
+   **Handing the prompt to the subagent:** `requirementContent` is large (~30 KB). Prefer passing it inline in the subagent's prompt. If you must stage it to a file for handoff, write it under `PROJECT_PATH` (e.g. `PROJECT_PATH/.vibeman-scan-tmp/<scan_type>.txt`) or an OS temp dir, then delete it after the run — **never write it into the Vibeman repo / skill cwd** (a stray `.tmp_*` dir in the Vibeman working tree is the classic leak). The subagent itself analyzes `PROJECT_PATH` read-only and only POSTs to Vibeman's API; it must not write into either repo.
+
 3. Collect each subagent's reply: the `scan.id` and the idea count/titles. Sum into `IDEAS_GENERATED` and keep the list of `scan.id`s — you need them in C4. If a scanner saved 0 ideas, note it (the group may be clean on that dimension) and continue.
 
 ## Phase C4: Backlog review (the handshake)
@@ -1260,9 +1269,10 @@ Implement only the accepted ideas. This **reuses Pipeline A's machinery — do n
 1. Capture a baseline first (Phase 3): `tsc --noEmit` error count and `vitest run` pass count, for the Phase 6 regression check.
 2. Treat each accepted idea as a task; order by dependency / shared files so related ideas batch together. Set `TASKS_PLANNED` = accepted count.
 3. For each idea, run the **Phase 4.1b–4.1d host-first / already-existed greps** before writing code — auto-generated ideas are *more* likely than user goals to propose something that already exists, so if 50%+ already exists, rescope or drop it and tell the user. Then implement per the **Phase 5** rules (respect implied target files, follow existing patterns, add types, handle errors, honor the Phase 5 non-goals list and the security check on privileged surfaces).
-4. After each idea: `npx tsc --noEmit` (increment `TSC_RUNS`), fix-forward any errors, then commit atomically:
+4. After each idea: `npm --prefix "$PROJECT_PATH" run typecheck` (or `npx tsc --noEmit -p "$PROJECT_PATH"`) (increment `TSC_RUNS`), fix-forward any errors, then commit atomically **to the target repo** (branch off the project's default branch first, as in Phase 5):
 ```bash
-git commit -m "vibeman(scan-decide): <idea title>"
+git -C "$PROJECT_PATH" add <changed-files>
+git -C "$PROJECT_PATH" commit -m "vibeman(scan-decide): <idea title>"
 ```
 Increment `COMMITS_MADE`, then mark the idea implemented:
 ```bash
@@ -1391,3 +1401,25 @@ This section records *why* each non-obvious rule exists. When a rule looks redun
 **Open questions for the first Pipeline C run:**
 - Is per-scanner subagent dispatch (C3) worth it for only 1–3 scanners, or is inline execution simpler? Measure context cost on the first real run.
 - Should rejected-idea `user_feedback` feed back into C2 scanner selection on a re-run of the same group? Potentially a learning loop like Phase 2a's goal-judgment log.
+
+---
+
+### 2026-06-02 — Working-directory discipline (first Pipeline C run on `pof` surfaced a leak)
+
+**Context:** First real Pipeline C run (group "Character & Combat Authoring" on the `pof` project, 13 ideas generated → all accepted → all implemented). The run went well, but it exposed a structural hazard: the skill ships *inside* the Vibeman repo and is invoked with cwd = the Vibeman repo, while the work targets a *different* repo (`PROJECT_PATH`). Two things nearly went wrong, and one did:
+
+1. **Temp leak (did happen).** I staged the three ~30 KB scanner `requirementContent` prompts to `C:\…\vibeman\.tmp_pof_scan\*.txt` — i.e. *inside the Vibeman working tree* — to hand them to the C3 subagents. Cleaned up at the end, but it should never have been written there.
+2. **Commit hazard (avoided by luck/care).** The skill's Phase 5 and C5 commit snippets were bare `git add` / `git commit`. Run from the Vibeman cwd, those commit to **Vibeman**, not the target. I happened to use `git -C "$PROJECT_PATH"` by hand, but the skill *as written* would have committed 14 commits into the Vibeman repo.
+3. **Build/test hazard (avoided).** Bare `npx tsc` / `npx vitest` / `npx next build` likewise inspect/build the Vibeman repo when run from cwd. I used `npm --prefix "$PROJECT_PATH"` by hand.
+
+**Fixes applied to the skill:**
+- **Added a top-of-file "Working directory discipline (CRITICAL)" block** (right after the Prerequisite). States plainly: the skill ships in the Vibeman repo, cwd = Vibeman, `PROJECT_PATH` is a *different* directory, and every target operation (read/edit/grep/build/test/lint/`git`/temp files) must be scoped to `PROJECT_PATH` via `git -C`, `npm --prefix`, or absolute paths. Calls out that the ONLY things read from the Vibeman repo are the scanner/idea registries, and that the session-start `gitStatus` describes Vibeman, not the target.
+- **Phase 5 commit snippet** → `git -C "$PROJECT_PATH" add/commit`, plus a "branch off the project's default branch first" instruction so the target's `master`/`main` stays clean (this run created `vibeman/char-combat-ideas` in `pof` by hand — now codified).
+- **Phase C5 commit + typecheck snippet** → `git -C "$PROJECT_PATH"` and `npm --prefix "$PROJECT_PATH" run typecheck`.
+- **Phase C3 dispatch** → explicit note: pass `requirementContent` inline to the subagent, or stage under `PROJECT_PATH`/OS-temp and delete — **never** into the Vibeman repo/cwd (named the `.tmp_*`-in-Vibeman leak as the classic mistake).
+
+**Why this matters:** every prior entry assumed cwd = the project, which was true when vibeman was dog-fooded on its own repo, but is false for A/B/C runs against *other* projects — the common case. Bare git/build commands are silent footguns: they "succeed" against the wrong repo. The guard block + `-C`/`--prefix` scoping makes the target explicit at every mutation site.
+
+**Open questions:**
+- Should the skill assert the target up front — e.g. `git -C "$PROJECT_PATH" rev-parse --show-toplevel` and refuse to proceed if it resolves to the Vibeman repo — as a hard guard rather than a documented convention?
+- The terse `npx tsc`/`npx vitest` snippets elsewhere in the file still read as cwd-relative; the guard block covers them by reference, but a future pass could rewrite each to the `--prefix`/`-p` form for zero ambiguity.
