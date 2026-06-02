@@ -1,18 +1,19 @@
 ---
 name: vibeman
-description: Run a Vibeman pipeline on a project. Two modes — (A) goal-based development (PLAN > IMPLEMENT > VERIFY > REPORT) or (B) audit-driven scan + triage + wave-based fix implementation. Both run with quality gates, brain-signal recording, and structured per-wave/per-phase reporting.
+description: Run a Vibeman pipeline on a project. Three modes — (A) goal-based development (PLAN > IMPLEMENT > VERIFY > REPORT), (B) audit-driven scan + triage + wave-based fix implementation, or (C) scan-and-decide (pick one context group; the skill auto-selects Idea scanners, generates a capped backlog, you accept/reject each, then it implements the approved scope). All run with quality gates, brain-signal recording, and structured per-wave/per-phase reporting.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(node *), Bash(npx *), Bash(curl *), Bash(git *)
 argument-hint: [project-name-or-goal?]
 ---
 
 # Vibeman Pipeline — Autonomous Development Cycle
 
-Vibeman offers two pipelines on a project. Pick one at Phase 0 based on what the user wants:
+Vibeman offers three pipelines on a project. Pick one at Phase 0 based on what the user wants:
 
 - **Pipeline A — Goal-based development** (the original): user defines a goal, the skill plans → implements → verifies → reports. Best when the user knows what to build.
 - **Pipeline B — Scan + Triage + Implementation** (the audit pipeline): user picks a scan agent (e.g. `bug-hunter`) and a context scope; the skill runs parallel per-context audits, compiles a triage INDEX, and then offers wave-based fix sessions until the user pauses. Best when the user wants to discover and remediate problems they don't yet know about.
+- **Pipeline C — Scan and Decide** (the decide-for-me pipeline): user picks ONE context group and nothing else; the skill inspects the group, auto-selects the best-fit in-app Idea scanner(s), generates a tight backlog (≤5 ideas per scanner), walks the user through accept/reject on each idea, then implements only the approved scope. Lowest-input pipeline. Best when the user wants to point at one area and have the skill decide and do.
 
-Both pipelines use the same quality gates (TypeScript / lint / tests) and the same baseline-comparison discipline. Phases 1-7 below are Pipeline A; Pipeline B's phases (B1-B7) live further down before "Error Handling".
+All three pipelines use the same quality gates (TypeScript / lint / tests) and the same baseline-comparison discipline. Phases 1-7 below are Pipeline A; Pipeline B's phases (B1-B7) and Pipeline C's phases (C1-C5) live further down before "Error Handling".
 
 **Prerequisite**: Vibeman must be running at `http://localhost:3000`. If not, tell the user to start it first.
 
@@ -28,9 +29,12 @@ What pipeline?
   B. Scan + Triage + Implementation — audit the codebase with a chosen agent
      (bug-hunter, security review, etc.), compile a triage INDEX, then run
      wave-based fix sessions until you pause.
+  C. Scan and decide — pick ONE context group; I auto-select the best-fit Idea
+     scanner(s), generate a small backlog (≤5 ideas per scanner), you accept/reject
+     each idea, then I implement only the approved scope. (Lowest-input mode.)
 ```
 
-Both pipelines start with the same Phase 1 (project selection). Pipeline A continues to Phase 2 (goal definition); Pipeline B jumps to Phase B1 (scan configuration).
+All three pipelines start with the same Phase 1 (project selection). Pipeline A continues to Phase 2 (goal definition); Pipeline B jumps to Phase B1 (scan configuration); Pipeline C jumps to Phase C1 (context-group selection).
 
 Throughout execution, track these counters for the final report:
 - `FILES_CREATED` — number of new files written
@@ -794,11 +798,15 @@ After Phase 1 (project selection), gather scan parameters.
 
 ### Scan-type registry
 
-Discover available scan agents from the prompts registry:
+Discover available scan agents from the Vibeman prompts registry. This skill ships **inside the Vibeman repo** (`.claude/skills/vibeman/`), and the registry lives at `src/lib/prompts/registry/agents/*.ts` relative to that repo root — so when `/vibeman` is invoked from the Vibeman working directory the relative path resolves directly. **Do NOT hardcode a home-directory path** (`C:/Users/<name>/...`); it breaks on every other machine.
 
-```bash
-ls C:/Users/kazda/kiro/vibeman/src/lib/prompts/registry/agents/*.ts 2>/dev/null
+Prefer Glob (independent of cwd):
+
 ```
+Glob: src/lib/prompts/registry/agents/*.ts
+```
+
+If that returns nothing (you're running from a different cwd), fall back to `Glob **/lib/prompts/registry/agents/*.ts`, then `ls src/lib/prompts/registry/agents/*.ts 2>/dev/null`. If still nothing, ask the user for the Vibeman repo path.
 
 Read the `name` and `description` fields from each `.ts` file. Present them as a numbered list:
 
@@ -1108,6 +1116,171 @@ Discovered during the 2026-04-27 personas run; codify here so future runs don't 
 
 ---
 
+# Pipeline C — Scan and Decide
+
+The "decide-for-me" pipeline. The user picks ONE context group and nothing else; the skill inspects the group, autonomously chooses which in-app **Idea scanner(s)** fit it, runs them to produce a tight backlog (≤5 ideas per scanner), walks the user through accept/reject on each idea, then implements only the approved scope.
+
+**How this differs from Pipeline B:** Pipeline B uses *subagent role-prompts* (`bug-hunter`, etc. from `src/lib/prompts/registry/agents/`) that write markdown findings reports, and the user drives wave-based fixes. Pipeline C uses Vibeman's *in-app Idea scanners* — the `AGENT_REGISTRY` scan types (`zen_architect`, `bug_hunter`, `ui_perfectionist`, …) — which persist structured **ideas** into Vibeman's database via `/api/ideas`, and then implements the accepted ones. Use Pipeline C when the user wants "look at this part of the app, decide what's worth doing, and do it."
+
+Pipeline C counters (maintain throughout):
+- `GROUP_SCANNED` — the context group name
+- `SCANNERS_CHOSEN` — which Idea scanners were auto-selected (+ one-line rationale each)
+- `IDEAS_GENERATED` — total ideas created across all scanners
+- `IDEAS_ACCEPTED` / `IDEAS_REJECTED` — outcome of the review handshake
+- `IDEAS_IMPLEMENTED` — accepted ideas that shipped and passed verification
+- plus the standard Pipeline A code counters (`FILES_*`, `TSC_*`, `COMMITS_MADE`) for Phase C5
+
+## Phase C1: Context-group selection
+
+After Phase 1 (project selection), fetch the project's context groups:
+
+```bash
+curl -s "http://localhost:3000/api/context-groups?projectId=PROJECT_ID" 2>/dev/null
+```
+Increment `API_CALLS`. Response shape: `{ "success": true, "data": [ { "id", "name", "color", "icon", ... } ] }`.
+
+- If `data` is empty, the project has no context groups. Pipeline C scans a *group*, not the whole project — tell the user to create one in the Contexts module first, and offer to fall back to Pipeline A or B. Stop Pipeline C.
+- Otherwise, for each group fetch its contexts so the choice is meaningful:
+
+```bash
+curl -s "http://localhost:3000/api/contexts?groupId=GROUP_ID" 2>/dev/null
+```
+Response: `{ "success": true, "data": [ { "id", "name", "description", "file_paths", ... } ] }`. Present a numbered list with the count of contexts and a one-line gist per group:
+
+```
+Which context group should I scan? (pick ONE)
+  1. Server & API (6 contexts) — routes, db repositories, scan queue
+  2. Brain & Memory (4 contexts) — signals, insights, reflection
+  3. UI Shell (5 contexts) — navigation, layouts, shared components
+```
+
+The user picks exactly one. Store `GROUP_ID`, `GROUP_NAME`, and the group's contexts (names + descriptions + file paths) — you need them in C2. This is the ONLY thing Pipeline C asks the user up front; everything else is decided for them until the review gate.
+
+## Phase C2: Scanner auto-selection (the skill decides)
+
+This is the "decide" half. Using the group's contexts (names, descriptions, and the kinds of files in `file_paths`), choose **1–3 Idea scanners** that best fit what the group actually is. Do NOT run all scanners — a focused 1–3 produces a reviewable backlog; running ten produces noise nobody triages.
+
+Idea-scanner registry (these are the `scan_type` values `/api/ideas/claude` accepts):
+
+| Category | Scanner `scan_type` | Pick it when the group is about… |
+|---|---|---|
+| technical | `bug_hunter` | logic, async, data flow — anything that can break at runtime |
+| technical | `security_protector` | auth, input handling, file/path access, external calls, secrets |
+| technical | `perf_optimizer` | hot paths, lists, queries, rendering, large data |
+| technical | `zen_architect` | tangled structure, oversized files, unclear boundaries |
+| technical | `code_refactor` | duplication, dead code, consolidation opportunities |
+| technical | `data_flow_optimizer` | API response shapes, caching, normalization |
+| technical | `dev_experience_engineer` | types, tooling, the DX of a library/util layer |
+| technical | `observability_scout` | logging, health checks, error surfacing |
+| technical | `insight_synth` | cross-cutting unification across several contexts |
+| user | `ui_perfectionist` | components, layout, visual/loading/empty states |
+| user | `delight_designer` | interactions, transitions, micro-delight |
+| user | `user_empathy_champion` | accessibility, error messaging, validation UX |
+| business | `feature_scout` | a feature area missing obvious capabilities |
+| business | `business_visionary` | monetization, growth, strategic surface |
+
+(The live registry is `src/app/features/Ideas/lib/agentRegistry.ts` in the Vibeman repo — read it if you need the full 23-scanner set or fresh descriptions; the table above is the common subset.)
+
+**Selection rules:**
+- Match scanner category to the group's nature: a server/data group → technical scanners (`bug_hunter` + `security_protector`, maybe `perf_optimizer`); a UI group → user scanners (`ui_perfectionist` + `user_empathy_champion`); an architecture/shared group → `zen_architect` + `code_refactor`.
+- Default to the **single best-fit scanner.** Add a second/third only when the group clearly spans two concerns (e.g. an API group with both security and performance surface).
+- Never exceed 3 scanners in one Pipeline C run.
+
+Show the decision — it's autonomous, but the user should see the reasoning and get a cheap override (this is NOT a second blocking prompt; proceed on "ok" or no objection):
+
+```
+Scanning "Server & API" with:
+  • bug_hunter — 6 contexts of route handlers + repositories; runtime-failure surface is the priority
+  • security_protector — routes parse external input and touch the filesystem
+
+(≤5 ideas per scanner. Reply "ok" to run, or name scanners to add/drop.)
+```
+
+Record `SCANNERS_CHOSEN` with the one-line rationale per scanner.
+
+## Phase C3: Apply — run the chosen scanners
+
+`/api/ideas/claude` does NOT run a scan — it returns a `requirementContent` *prompt* that an agent then carries out by analyzing the group's files and POSTing ideas back to Vibeman. (This is exactly why the old "Mini" panel always reported "0 ideas": it called this endpoint and read a non-existent `ideasGenerated` field instead of executing the returned prompt.)
+
+For each chosen scanner:
+
+1. Build the requirement for the group + scanner:
+```bash
+curl -s -X POST http://localhost:3000/api/ideas/claude \
+  -H 'Content-Type: application/json' \
+  -d '{"projectId":"PROJECT_ID","projectName":"PROJECT_NAME","projectPath":"PROJECT_PATH","scanType":"<scan_type>","groupId":"GROUP_ID"}'
+```
+Increment `API_CALLS`. The response includes `requirementContent` — a full analysis-and-save prompt scoped to this group's files.
+
+2. **Execute the requirement.** Spawn one `general-purpose` subagent per scanner (run them in parallel when there are 2–3), handing it the `requirementContent` as its instructions plus this hard cap:
+
+   > Generate **at most 5 ideas** — only the highest-value findings. Follow the requirement's two-step save flow exactly: first `POST /api/scans` to create a scan record, then `POST /api/ideas` for each idea using the returned `scan.id`. Every idea must include `effort`, `impact`, `risk` (1–10) and the most relevant `context_id` from the group. Reply with the `scan.id` you created and the count + titles of the ideas you saved. Do NOT modify the target project's code.
+
+   Running scans as subagents keeps the orchestrator's context clean (it sees only the terse reply, not the per-file analysis) — same discipline as Pipeline B's dispatch.
+
+3. Collect each subagent's reply: the `scan.id` and the idea count/titles. Sum into `IDEAS_GENERATED` and keep the list of `scan.id`s — you need them in C4. If a scanner saved 0 ideas, note it (the group may be clean on that dimension) and continue.
+
+## Phase C4: Backlog review (the handshake)
+
+Fetch this run's freshly generated backlog and walk the user through it. Pull pending ideas for the project:
+
+```bash
+curl -s "http://localhost:3000/api/ideas?projectId=PROJECT_ID&status=pending" 2>/dev/null
+```
+Increment `API_CALLS`. **Filter to the ideas whose `scan_id` matches the scan ids created in C3** — `status=pending` returns ALL pending ideas, and without this filter the review would mix in stale backlog. Group by scanner, ≤5 each, and present:
+
+```
+Backlog from this scan — accept/reject each:
+
+bug_hunter (4 ideas)
+  1. <title> — <one-line description>  [effort 3 · impact 7 · risk 2]
+  2. ...
+security_protector (3 ideas)
+  5. <title> — ...
+
+Reply with your decisions, e.g.:  accept 1,2,5   reject 3,4
+```
+
+This is the **handshake** — no code is written until the user has ruled on each idea. Apply the decisions:
+
+```bash
+# accept
+curl -s -X PATCH http://localhost:3000/api/ideas -H 'Content-Type: application/json' \
+  -d '{"id":"IDEA_ID","status":"accepted"}'
+# reject (capture the reason if the user gave one, so future scans can learn)
+curl -s -X PATCH http://localhost:3000/api/ideas -H 'Content-Type: application/json' \
+  -d '{"id":"IDEA_ID","status":"rejected","user_feedback":"<reason if given>"}'
+```
+Increment `API_CALLS` per call. Tally `IDEAS_ACCEPTED` / `IDEAS_REJECTED`. The accepted set is the **handshaked scope** for C5. If nothing was accepted, stop here with a short summary — there's nothing to implement.
+
+## Phase C5: Execute the handshaked scope
+
+Implement only the accepted ideas. This **reuses Pipeline A's machinery — do not invent a new flow:**
+
+1. Capture a baseline first (Phase 3): `tsc --noEmit` error count and `vitest run` pass count, for the Phase 6 regression check.
+2. Treat each accepted idea as a task; order by dependency / shared files so related ideas batch together. Set `TASKS_PLANNED` = accepted count.
+3. For each idea, run the **Phase 4.1b–4.1d host-first / already-existed greps** before writing code — auto-generated ideas are *more* likely than user goals to propose something that already exists, so if 50%+ already exists, rescope or drop it and tell the user. Then implement per the **Phase 5** rules (respect implied target files, follow existing patterns, add types, handle errors, honor the Phase 5 non-goals list and the security check on privileged surfaces).
+4. After each idea: `npx tsc --noEmit` (increment `TSC_RUNS`), fix-forward any errors, then commit atomically:
+```bash
+git commit -m "vibeman(scan-decide): <idea title>"
+```
+Increment `COMMITS_MADE`, then mark the idea implemented:
+```bash
+curl -s -X PATCH http://localhost:3000/api/ideas -H 'Content-Type: application/json' \
+  -d '{"id":"IDEA_ID","status":"implemented"}'
+```
+Increment `IDEAS_IMPLEMENTED`.
+5. After all ideas, run the **Phase 6 verification** (`tsc` + `next build` for Next.js + tests + lint + regression vs. the C5 baseline) and compute the quality score. Record a brain signal per **Phase 6.9** (pass `requirementId` = the goal id the ideas were tied to, or the originating idea id).
+6. Produce a compact report reusing the Phase 7 template, led by a one-line funnel headline: **"Scan-and-decide: N generated → A accepted → I implemented (group: GROUP_NAME, scanners: …)."**
+
+## Pipeline C — When to use this vs A / B
+
+- **Pipeline A** — the user knows the goal. Plan → implement.
+- **Pipeline B** — the user wants a deep audit + findings report and will drive wave-based fixes themselves.
+- **Pipeline C** — the user wants to point at one area and have the skill *decide and do*: "scan this group and just handle what's worth handling." Lowest-input pipeline; the only required input is the context group. The ≤5-per-scanner cap and the per-idea accept/reject gate keep it from running away.
+
+---
+
 ## Error Handling
 
 - **Vibeman not running**: If any API call to localhost:3000 fails, inform the user and suggest starting Vibeman. Continue pipeline without API features.
@@ -1197,3 +1370,24 @@ This section records *why* each non-obvious rule exists. When a rule looks redun
 - **Auto-snapshot the rendered PDF on Phase 6 for visual diffing.** Tempting, but adds dependency on a headless renderer and only validates one of many possible feature outputs. Run #1's smoke test (pdf renderToFile + magic-byte check) was project-specific; baking it into the skill adds boilerplate for non-PDF projects. Skip until visual smoke testing is the bottleneck on multiple goals.
 - **Force the assistant to commit `harness-learnings.md` separately from feature code.** Considered for cleanliness, but the cost of a tiny extra commit is real and the benefit is purely cosmetic. Run #1 did this organically without a rule. Skip.
 - **Make `next build` mandatory for all stacks, not just Next.js.** The "Next.js or equivalent" wording captures the principle without forcing a specific command. Different stacks have different equivalents (`cargo build`, `vite build`, etc.). Phrasing the rule as a principle is better than a list.
+
+---
+
+### 2026-06-02 — Pipeline C "Scan and decide" added (+ Mini panel removed from the app)
+
+**Context:** User asked for a third Phase-0 mode that minimizes input — pick one context group, let the skill choose the in-app Idea scanner(s), generate a capped backlog, handshake on each idea, then implement the approved scope. Added alongside A/B rather than folded into B because it uses a different engine: Vibeman's in-app Idea scanners (`/api/ideas/claude` → `/api/scans` → `/api/ideas`, the `AGENT_REGISTRY` scan types) that persist structured ideas, vs. Pipeline B's subagent role-prompts that write markdown findings reports.
+
+**Design decisions (and why):**
+- **One context group chosen by the user; scanners chosen by the skill.** The user's only required input is the group — that's the whole point of "decide-for-me." Scanner selection is autonomous (the "decide" in "scan and decide") but displayed with a one-line rationale and a cheap override, so it's transparent without being a second blocking prompt.
+- **Cap 1–3 scanners and ≤5 ideas per scanner.** A backlog reviewable in one sitting is the point; uncapped scans produce noise nobody triages. The 5-idea cap is enforced in the C3 subagent instruction — `/api/ideas/claude`'s own prompt does not cap.
+- **`/api/ideas/claude` returns a prompt, not results (verified against the route).** It builds `requirementContent` for an agent to execute (analyze → `POST /api/scans` → `POST /api/ideas`). C3 must *execute* that prompt via a per-scanner subagent, not just call the endpoint. This same misunderstanding is why the deleted "Mini" dashboard always showed "0 ideas" — `MiniScanPanel` read a non-existent `ideasGenerated` field off this endpoint, so it never reflected real work. That panel was removed from the app in the same change (it duplicated Ideas/Tinder/Tasker and never functioned).
+- **Filter the C4 review to this run's `scan_id`s.** `GET /api/ideas?status=pending` returns ALL pending ideas; without filtering by the C3 scan ids the review mixes in stale backlog.
+- **C5 reuses Phase 4.1b–d + Phase 5 + Phase 6, not a new flow.** Accepted ideas are just tasks. The already-existed grep matters *more* here because auto-generated ideas are likelier than a hand-written goal to propose something already implemented.
+
+**API contracts used (verified 2026-06-02):** `GET /api/context-groups?projectId=` → `{data:[{id,name}]}`; `GET /api/contexts?groupId=` → `{data:[{id,name,description,file_paths}]}`; `POST /api/ideas/claude {projectId,projectName,projectPath,scanType,groupId}` → `{requirementContent}`; `POST /api/scans` → `{scan:{id}}`; `POST /api/ideas {scan_id,project_id,category,title,…}`; `GET /api/ideas?projectId=&status=pending` → `{ideas}`; `PATCH /api/ideas {id,status}`.
+
+**Also fixed this session — Phase B1 hardcoded path.** The scan-type registry step pointed at `C:/Users/kazda/kiro/vibeman/src/lib/prompts/registry/agents/*.ts` — a stale home-directory absolute path from a different machine that returned nothing here (the repo is `C:/Users/mkdol/dolla/vibeman`). Replaced with a cwd-independent Glob on the repo-relative path `src/lib/prompts/registry/agents/*.ts` plus a `**/`-glob fallback, since the skill ships inside the Vibeman repo. Pipeline C was deliberately authored the same way (inline scanner table + API-sourced groups) so it never acquires a machine-specific path.
+
+**Open questions for the first Pipeline C run:**
+- Is per-scanner subagent dispatch (C3) worth it for only 1–3 scanners, or is inline execution simpler? Measure context cost on the first real run.
+- Should rejected-idea `user_feedback` feed back into C2 scanner selection on a re-run of the same group? Potentially a learning loop like Phase 2a's goal-judgment log.
