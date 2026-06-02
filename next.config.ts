@@ -2,6 +2,13 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   turbopack: {},
+  experimental: {
+    // Cap Turbopack's dev compiler memory (bytes). Without this, a large/long-lived
+    // persistent dev cache (.next/dev/cache) can balloon idle RAM to multiple GB and
+    // peg a CPU core on RocksDB compaction at startup. Pair with `npm run clean` when
+    // .next grows large on disk (the memory limit bounds RAM, not the on-disk cache).
+    turbopackMemoryLimit: 2 * 1024 * 1024 * 1024, // 2 GB
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'cdn.simpleicons.org' },
@@ -72,30 +79,6 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
-  },
-  webpack(config, options) {
-    const { isServer } = options;
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const NextFederationPlugin = require('@module-federation/nextjs-mf');
-
-    config.plugins.push(
-      new NextFederationPlugin({
-        name: 'vibeman',
-        filename: 'static/chunks/remoteEntry.js',
-        remotes: {
-          // Remotes will be loaded dynamically, but we can define static ones here if needed
-        },
-        shared: {
-          // react: { singleton: true, eager: true, requiredVersion: false },
-          // 'react-dom': { singleton: true, eager: true, requiredVersion: false },
-        },
-        extraOptions: {
-          automaticAsyncBoundary: true,
-        },
-      })
-    );
-
-    return config;
   },
 };
 
