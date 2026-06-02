@@ -7,7 +7,7 @@ import type { ProjectFormData } from '../../sub_ProjectForm';
 interface ProjectAddProps {
   isOpen: boolean;
   onClose: () => void;
-  onProjectAdded: () => void;
+  onProjectAdded: (projectId?: string) => void;
   // Workspace context for new projects
   workspaceId?: string | null;
   workspaceBasePath?: string | null;
@@ -63,7 +63,7 @@ export default function ProjectAdd({
           console.error('Claude Code initialization error:', initError);
         }
 
-        onProjectAdded();
+        onProjectAdded(data.id);
         onClose();
       } else {
         setError(result.error || 'Failed to add project');

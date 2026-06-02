@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useCallback, useEffect, useMemo, memo } from 'react';
+import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Layers, Map } from 'lucide-react';
+import { Layers, Map, Plus, Trash2, Settings } from 'lucide-react';
 import { caveat } from '@/app/fonts';
 import { useShallow } from 'zustand/react/shallow';
 import { useOnboardingStore } from '@/stores/onboardingStore';
@@ -13,6 +14,11 @@ import { useGlobalIdeaStats } from '@/hooks/useGlobalIdeaStats';
 import { useProjectUpdatesStore } from '@/stores/projectUpdatesStore';
 import { useWorkspaceFilteredProjects } from '@/hooks/useWorkspaceFilteredProjects';
 import { useThemeStore, THEME_CONFIGS } from '@/stores/themeStore';
+
+const WorkspaceManager = dynamic(
+  () => import('@/app/projects/sub_Workspaces/WorkspaceManager'),
+  { ssr: false }
+);
 
 export default memo(function ShortcutsBar() {
   // Onboarding: data via useShallow, action via individual selector
@@ -29,6 +35,8 @@ export default memo(function ShortcutsBar() {
   })));
   const setActiveWorkspace = useWorkspaceStore(s => s.setActiveWorkspace);
   const syncWorkspaces = useWorkspaceStore(s => s.syncWithServer);
+  const createWorkspace = useWorkspaceStore(s => s.createWorkspace);
+  const deleteWorkspace = useWorkspaceStore(s => s.deleteWorkspace);
 
   // Server project: action only
   const syncWithServer = useServerProjectStore(s => s.syncWithServer);
@@ -54,6 +62,10 @@ export default memo(function ShortcutsBar() {
   const colors = useMemo(() => THEME_CONFIGS[theme].colors, [theme]);
 
   const [workspaceDrawerOpen, setWorkspaceDrawerOpen] = useState(false);
+  const [workspaceManagerOpen, setWorkspaceManagerOpen] = useState(false);
+  const [creatingWorkspace, setCreatingWorkspace] = useState(false);
+  const [newWorkspaceName, setNewWorkspaceName] = useState('');
+  const [creating, setCreating] = useState(false);
 
   // Initialize projects and workspaces on mount
   useEffect(() => {
@@ -76,6 +88,41 @@ export default memo(function ShortcutsBar() {
     setSelectedProjectId('all');
     setWorkspaceDrawerOpen(false);
   }, [setActiveWorkspace, setSelectedProjectId]);
+
+  const handleCreateWorkspace = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newWorkspaceName.trim();
+    if (!name || creating) return;
+    setCreating(true);
+    try {
+      const ws = await createWorkspace({ name });
+      if (ws) {
+        setActiveWorkspace(ws.id);
+        setSelectedProjectId('all');
+        setNewWorkspaceName('');
+        setCreatingWorkspace(false);
+        setWorkspaceDrawerOpen(false);
+      }
+    } finally {
+      setCreating(false);
+    }
+  }, [newWorkspaceName, creating, createWorkspace, setActiveWorkspace, setSelectedProjectId]);
+
+  const handleDeleteWorkspace = useCallback(async (
+    e: React.MouseEvent,
+    wsId: string,
+    wsName: string,
+  ) => {
+    e.stopPropagation();
+    const confirmed = window.confirm(
+      `Delete workspace "${wsName}"? Projects inside will become unassigned (not deleted).`
+    );
+    if (!confirmed) return;
+    await deleteWorkspace(wsId);
+    if (activeWorkspaceId === wsId) {
+      setSelectedProjectId('all');
+    }
+  }, [deleteWorkspace, activeWorkspaceId, setSelectedProjectId]);
 
   const handleProjectSelect = useCallback((projectId: string) => {
     setSelectedProjectId(projectId);
@@ -138,7 +185,7 @@ export default memo(function ShortcutsBar() {
                     onClick={() => setWorkspaceDrawerOpen(false)}
                   />
                   <motion.div
-                    className="absolute top-full left-0 mt-1 z-50 min-w-[180px] rounded-lg border border-gray-700/50 bg-gray-900/95 backdrop-blur-xl shadow-2xl overflow-hidden"
+                    className="absolute top-full left-0 mt-1 z-50 min-w-[220px] rounded-lg border border-gray-700/50 bg-gray-900/95 backdrop-blur-xl shadow-2xl overflow-hidden"
                     initial={{ opacity: 0, y: -4, scale: 0.96 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -4, scale: 0.96 }}
@@ -158,25 +205,88 @@ export default memo(function ShortcutsBar() {
                       <span>Unassigned</span>
                     </button>
 
-                    {workspaces.map(ws => (
-                      <button
-                        key={ws.id}
-                        onClick={() => handleWorkspaceSelect(ws.id)}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors ${activeWorkspaceId === ws.id
-                          ? 'text-white'
-                          : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200'
-                          }`}
-                        style={{
-                          background: activeWorkspaceId === ws.id ? `${colors.baseColor}30` : undefined,
-                        }}
-                      >
+                    {workspaces.map(ws => {
+                      const isActive = activeWorkspaceId === ws.id;
+                      return (
                         <div
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ backgroundColor: ws.color || '#6366f1' }}
-                        />
-                        <span className="truncate">{ws.name}</span>
-                      </button>
-                    ))}
+                          key={ws.id}
+                          className={`group w-full flex items-center transition-colors ${isActive
+                            ? 'text-white'
+                            : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200'
+                            }`}
+                          style={{ background: isActive ? `${colors.baseColor}30` : undefined }}
+                        >
+                          <button
+                            onClick={() => handleWorkspaceSelect(ws.id)}
+                            className="flex-1 flex items-center gap-2.5 px-3 py-2 text-sm text-left min-w-0"
+                          >
+                            <div
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: ws.color || '#6366f1' }}
+                            />
+                            <span className="truncate">{ws.name}</span>
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteWorkspace(e, ws.id, ws.name)}
+                            className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-2 mr-1 text-gray-500 hover:text-red-400 transition-all"
+                            aria-label={`Delete workspace ${ws.name}`}
+                            title="Delete workspace"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                    {/* Inline create */}
+                    <div className="border-t border-gray-800">
+                      {creatingWorkspace ? (
+                        <form onSubmit={handleCreateWorkspace} className="px-3 py-2 flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={newWorkspaceName}
+                            onChange={(e) => setNewWorkspaceName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') {
+                                setCreatingWorkspace(false);
+                                setNewWorkspaceName('');
+                              }
+                            }}
+                            placeholder="Workspace name"
+                            autoFocus
+                            disabled={creating}
+                            className="flex-1 min-w-0 px-2 py-1 text-sm bg-gray-800/80 border border-gray-700/50 rounded text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500/50"
+                          />
+                          <button
+                            type="submit"
+                            disabled={!newWorkspaceName.trim() || creating}
+                            className="px-2 py-1 text-xs bg-blue-600/80 text-white rounded hover:bg-blue-500/80 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            Add
+                          </button>
+                        </form>
+                      ) : (
+                        <button
+                          onClick={() => setCreatingWorkspace(true)}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-400 hover:bg-gray-800/60 hover:text-gray-200 transition-colors"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>New workspace</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Manage footer */}
+                    <button
+                      onClick={() => {
+                        setWorkspaceDrawerOpen(false);
+                        setWorkspaceManagerOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-gray-500 hover:bg-gray-800/60 hover:text-gray-300 border-t border-gray-800 transition-colors"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                      <span>Manage workspaces…</span>
+                    </button>
                   </motion.div>
                 </>
               )}
@@ -223,6 +333,15 @@ export default memo(function ShortcutsBar() {
           </span>
         </div>
       </div>
+
+      <AnimatePresence>
+        {workspaceManagerOpen && (
+          <WorkspaceManager
+            isOpen={workspaceManagerOpen}
+            onClose={() => setWorkspaceManagerOpen(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 });

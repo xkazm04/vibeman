@@ -14,10 +14,10 @@ import StructureTemplateEditor from '../Claude/sub_ClaudeStructureScan/component
 import WorkspaceManager from './sub_Workspaces/WorkspaceManager';
 
 export default function ProjectsLayout() {
-  const { activeProject } = useClientProjectStore();
-  const { syncWithServer } = useServerProjectStore();
+  const { activeProject, setActiveProject, setSelectedProjectId } = useClientProjectStore();
+  const { syncWithServer, getProject } = useServerProjectStore();
   const { notifyProjectAdded, notifyProjectUpdated } = useProjectUpdatesStore();
-  const { activeWorkspaceId, workspaces } = useWorkspaceStore();
+  const { activeWorkspaceId, workspaces, syncWithServer: syncWorkspaces } = useWorkspaceStore();
 
   const {
     showAddProject,
@@ -38,10 +38,19 @@ export default function ProjectsLayout() {
     : null;
   const workspaceBasePath = activeWorkspace?.base_path || null;
 
-  // Handle project added - refresh the project list and notify subscribers
+  // Handle project added - refresh the project list, preselect the new project,
+  // and refresh workspace mappings so it appears under the active workspace.
   const handleProjectAdded = async (projectId?: string) => {
-    await syncWithServer();
-    // Notify other components (like UnifiedProjectSelector) about the new project
+    await Promise.all([syncWithServer(), syncWorkspaces()]);
+
+    if (projectId) {
+      const newProject = getProject(projectId);
+      if (newProject) {
+        setActiveProject(newProject);
+        setSelectedProjectId(newProject.id);
+      }
+    }
+
     notifyProjectAdded(projectId || 'new-project');
   };
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { projectDb } from '@/lib/project_database';
+import { workspaceDb } from '@/app/db';
 import { logger } from '@/lib/logger';
 import { detectProjectTypeSync } from '@/lib/projectTypeDetector';
 import type { ProjectType } from '@/types';
@@ -78,9 +79,23 @@ async function handlePost(request: NextRequest) {
 
     projectDb.projects.add(projectData);
 
+    if (projectData.workspaceId) {
+      const ws = workspaceDb.getById(projectData.workspaceId);
+      if (ws) {
+        workspaceDb.addProject(projectData.workspaceId, projectData.id);
+      } else {
+        logger.warn('Project created with unknown workspaceId; skipping workspace assignment', {
+          projectId: projectData.id,
+          workspaceId: projectData.workspaceId,
+        });
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Project added successfully'
+      message: 'Project added successfully',
+      projectId: projectData.id,
+      workspaceId: projectData.workspaceId,
     });
   } catch (error) {
     logger.error('Projects API POST error:', { error: error });
@@ -124,6 +139,19 @@ async function handlePut(request: NextRequest) {
     };
 
     projectDb.projects.update(projectId, projectUpdates);
+
+    if (updates.workspaceId !== undefined) {
+      const current = workspaceDb.getWorkspaceForProject(projectId);
+      const target = updates.workspaceId;
+      if (target) {
+        const ws = workspaceDb.getById(target);
+        if (ws && current?.id !== target) {
+          workspaceDb.addProject(target, projectId);
+        }
+      } else if (current) {
+        workspaceDb.removeProject(current.id, projectId);
+      }
+    }
 
     return NextResponse.json({
       success: true,
