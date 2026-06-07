@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { analyticsAggregationService } from '@/lib/services/analyticsAggregation';
 import { generateExecutiveInsightReport } from '@/app/features/reflector/sub_Reflection/lib/insightGenerator';
 import { TimeWindow, ScanTypeStats } from '@/app/features/reflector/sub_Reflection/lib/types';
-import { contextDb } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { logger } from '@/lib/logger';
 
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 
     if (contextId) {
       try {
-        const context = contextDb.getContextById(contextId);
+        const context = contextRepository.getContextById(contextId);
         contextName = context?.name || null;
       } catch {
         // Ignore - name will be null

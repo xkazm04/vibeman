@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { env } from '@/lib/config/envConfig';
-import { observabilityDb } from '@/app/db';
+import { observabilityRepository } from '@/app/db/repositories/observability.repository';
 import { logger } from '@/lib/logger';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -1132,7 +1132,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if config exists
-    const config = observabilityDb.getConfig(projectId);
+    const config = observabilityRepository.getConfig(projectId);
 
     return NextResponse.json({
       success: true,
@@ -1200,9 +1200,9 @@ export async function POST(request: NextRequest) {
     fs.writeFileSync(requirementPath, content, 'utf-8');
 
     // Create observability config if it doesn't exist
-    let config = observabilityDb.getConfig(project_id);
+    let config = observabilityRepository.getConfig(project_id);
     if (!config) {
-      config = observabilityDb.createConfig({
+      config = observabilityRepository.createConfig({
         project_id,
         enabled: false, // Not enabled until onboarding complete
         provider: 'local'

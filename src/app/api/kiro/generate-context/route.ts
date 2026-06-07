@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ollamaClient } from '../../../../lib/ollama';
-import { contextDb } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
@@ -193,7 +193,7 @@ function saveContextToDatabase(
   hasContextFile: boolean,
   contextFilePath: string | undefined
 ) {
-  return contextDb.createContext({
+  return contextRepository.createContext({
     id: contextId,
     project_id: projectId,
     group_id: groupId || null,

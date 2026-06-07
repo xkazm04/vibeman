@@ -7,7 +7,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { brainInsightDb, insightAnnotationDb } from '@/app/db';
+import { brainInsightRepository } from '@/app/db/repositories/brain-insight.repository';
+import { insightAnnotationRepository } from '@/app/db/repositories/insight-annotation.repository';
 import { getDatabase } from '@/app/db/connection';
 import { getHotWritesDatabase } from '@/app/db/hot-writes';
 import { withObservability } from '@/lib/observability/middleware';
@@ -28,7 +29,7 @@ async function handleGet(request: NextRequest) {
     }
 
     const includeHistory = searchParams.get('includeHistory') !== 'false';
-    const insights = brainInsightDb.getWithMeta(projectId, scope === 'global', includeHistory);
+    const insights = brainInsightRepository.getWithMeta(projectId, scope === 'global', includeHistory);
 
     // Batch-fetch annotations for all returned insights
     // Runtime rows include `id` from bi.* but the TS return type omits it
@@ -38,7 +39,7 @@ async function handleGet(request: NextRequest) {
       if (id) insightIds.push(id);
     }
     if (insightIds.length > 0) {
-      const annotationMap = insightAnnotationDb.getByInsightIds(insightIds);
+      const annotationMap = insightAnnotationRepository.getByInsightIds(insightIds);
       for (const insight of insights) {
         const id = (insight as unknown as { id?: string }).id;
         if (id) {
@@ -66,12 +67,12 @@ async function handleDelete(request: NextRequest) {
       return buildErrorResponse('reflectionId and insightTitle required', { status: 400 });
     }
 
-    const deleted = brainInsightDb.deleteByTitle(reflectionId, insightTitle);
+    const deleted = brainInsightRepository.deleteByTitle(reflectionId, insightTitle);
     if (!deleted) {
       return buildErrorResponse('Insight not found', { status: 404 });
     }
 
-    const remaining = brainInsightDb.countByReflection(reflectionId);
+    const remaining = brainInsightRepository.countByReflection(reflectionId);
     return buildSuccessResponse({ remaining });
   } catch (error) {
     console.error('[Brain Insights DELETE] Error:', error);
@@ -95,7 +96,7 @@ async function handlePost(request: NextRequest) {
 
     // Option 1: Resolve evidence for a specific insight using junction table
     if (body.insightId) {
-      const refs = brainInsightDb.getEvidenceForInsight(body.insightId);
+      const refs = brainInsightRepository.getEvidenceForInsight(body.insightId);
       if (refs.length === 0) {
         return buildSuccessResponse({ evidence: {} });
       }
@@ -257,7 +258,7 @@ async function handlePatch(request: NextRequest) {
     }
 
     // Search directly in the reflection's insights
-    const reflectionInsights = brainInsightDb.getByReflection(reflectionId);
+    const reflectionInsights = brainInsightRepository.getByReflection(reflectionId);
     const insightRow = reflectionInsights.find(i => i.title === insightTitle);
 
     if (!insightRow) {
@@ -266,7 +267,7 @@ async function handlePatch(request: NextRequest) {
 
     // Look up the conflicting insight by ID (cross-reflection), not by title within same reflection
     const otherInsight = insightRow.conflict_with_id
-      ? brainInsightDb.getById(insightRow.conflict_with_id)
+      ? brainInsightRepository.getById(insightRow.conflict_with_id)
       : null;
 
     // All resolutions require the other insight to exist when a conflict link is present
@@ -279,30 +280,30 @@ async function handlePatch(request: NextRequest) {
 
     if (resolution === 'keep_both') {
       // Mark both as resolved
-      brainInsightDb.update(insightRow.id, {
+      brainInsightRepository.update(insightRow.id, {
         conflict_resolved: 1,
         conflict_resolution: 'keep_both',
       });
       if (otherInsight) {
-        brainInsightDb.update(otherInsight.id, {
+        brainInsightRepository.update(otherInsight.id, {
           conflict_resolved: 1,
           conflict_resolution: 'keep_both',
         });
       }
     } else if (resolution === 'keep_this') {
       // Resolve this, delete the other
-      brainInsightDb.update(insightRow.id, {
+      brainInsightRepository.update(insightRow.id, {
         conflict_resolved: 1,
         conflict_resolution: 'keep_this',
         conflict_with_id: null,
         conflict_with_title: null,
         conflict_type: null,
       });
-      brainInsightDb.delete(otherInsight!.id);
+      brainInsightRepository.delete(otherInsight!.id);
     } else if (resolution === 'keep_other') {
       // Delete this, resolve the other
-      brainInsightDb.delete(insightRow.id);
-      brainInsightDb.update(otherInsight!.id, {
+      brainInsightRepository.delete(insightRow.id);
+      brainInsightRepository.update(otherInsight!.id, {
         conflict_resolved: 1,
         conflict_resolution: 'keep_other',
         conflict_with_id: null,
@@ -311,7 +312,7 @@ async function handlePatch(request: NextRequest) {
       });
     }
 
-    const remaining = brainInsightDb.countByReflection(reflectionId);
+    const remaining = brainInsightRepository.countByReflection(reflectionId);
     return buildSuccessResponse({ resolution, remaining });
   } catch (error) {
     console.error('[Brain Insights PATCH] Error:', error);

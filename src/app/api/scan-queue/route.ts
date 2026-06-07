@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { scanQueueDb } from '@/app/db';
+import { scanQueueRepository } from '@/app/db/repositories/scanQueue.repository';
 import type { DbScanQueueItem } from '@/app/db/models/types';
 import { ALL_SCAN_TYPES, isValidScanType, type ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { generateQueueId } from '@/lib/idGenerator';
@@ -28,9 +28,9 @@ async function handleGet(request: NextRequest) {
 
   let queueItems;
   if (status) {
-    queueItems = scanQueueDb.getQueueByStatus(projectId, status as DbScanQueueItem['status']);
+    queueItems = scanQueueRepository.getQueueByStatus(projectId, status as DbScanQueueItem['status']);
   } else {
-    queueItems = scanQueueDb.getQueueByProject(projectId);
+    queueItems = scanQueueRepository.getQueueByProject(projectId);
   }
 
   return NextResponse.json({ queueItems });
@@ -65,7 +65,7 @@ async function handlePost(request: NextRequest) {
   // Create queue item
   const queueId = generateQueueId();
 
-  const queueItem = scanQueueDb.createQueueItem({
+  const queueItem = scanQueueRepository.createQueueItem({
     id: queueId,
     project_id: projectId,
     scan_type: scanType as ScanType,

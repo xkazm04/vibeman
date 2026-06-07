@@ -3,7 +3,8 @@
  * POST - Mark idea as implemented after task completion (cliExecutionManager)
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { ideaDb, contextDb } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
 import {
   IdeasErrorCode,
   createIdeasErrorResponse,
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
     if (validationError) return validationError;
 
     // Find idea by requirement_id
-    const idea = ideaDb.getIdeaByRequirementId(requirementName);
+    const idea = ideaRepository.getIdeaByRequirementId(requirementName);
 
     if (!idea) {
       // Not all tasks have associated ideas (e.g. direct prompts) — this is normal, not an error
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update idea status to 'implemented'
-    const updatedIdea = ideaDb.updateIdea(idea.id, { status: 'implemented' });
+    const updatedIdea = ideaRepository.updateIdea(idea.id, { status: 'implemented' });
 
     if (!updatedIdea) {
       return createIdeasErrorResponse(IdeasErrorCode.UPDATE_FAILED, {
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
     // Increment context's implemented_tasks counter if idea has a context
     let contextUpdated = false;
     if (idea.context_id) {
-      const updatedContext = contextDb.incrementImplementedTasks(idea.context_id);
+      const updatedContext = contextRepository.incrementImplementedTasks(idea.context_id);
       contextUpdated = updatedContext !== null;
     }
 

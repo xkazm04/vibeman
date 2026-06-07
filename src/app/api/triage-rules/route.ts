@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { triageRuleDb } from '@/app/db';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import { triageRuleRepository } from '@/app/db/repositories/triage-rule.repository';
 import { v4 as uuidv4 } from 'uuid';
 import { TriageCondition } from '@/app/db/models/types';
 import { evaluateTriageRules, previewTriageRules } from '@/lib/triage/triageRulesEngine';
-import { ideaDb } from '@/app/db';
 
 const VALID_ACTIONS = ['accept', 'reject', 'archive'] as const;
 const VALID_FIELDS: string[] = ['impact', 'effort', 'risk', 'category', 'scan_type', 'age_days'];
@@ -33,8 +33,8 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get('projectId');
 
     const rules = projectId
-      ? triageRuleDb.getRulesByProject(projectId)
-      : triageRuleDb.getAllRules();
+      ? triageRuleRepository.getRulesByProject(projectId)
+      : triageRuleRepository.getAllRules();
 
     return NextResponse.json({ success: true, rules });
   } catch (error) {
@@ -57,8 +57,8 @@ export async function POST(request: NextRequest) {
       // Run all enabled rules against pending ideas
       const projectId = body.projectId as string | undefined;
       const ideas = projectId
-        ? ideaDb.getIdeasByProject(projectId)
-        : ideaDb.getIdeasByStatus('pending');
+        ? ideaRepository.getIdeasByProject(projectId)
+        : ideaRepository.getIdeasByStatus('pending');
 
       const results = evaluateTriageRules(ideas, projectId);
       const totalAffected = results.reduce((sum, r) => sum + r.ideaIds.length, 0);
@@ -73,8 +73,8 @@ export async function POST(request: NextRequest) {
     if (operation === 'preview') {
       const projectId = body.projectId as string | undefined;
       const ideas = projectId
-        ? ideaDb.getIdeasByProject(projectId)
-        : ideaDb.getIdeasByStatus('pending');
+        ? ideaRepository.getIdeasByProject(projectId)
+        : ideaRepository.getIdeasByStatus('pending');
 
       const results = previewTriageRules(ideas, projectId);
       const totalWouldAffect = results.reduce((sum, r) => sum + r.ideaIds.length, 0);
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: validation.error }, { status: 400 });
     }
 
-    const rule = triageRuleDb.createRule({
+    const rule = triageRuleRepository.createRule({
       id: uuidv4(),
       project_id: projectId ?? null,
       name,
@@ -143,7 +143,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    const rule = triageRuleDb.updateRule(id, {
+    const rule = triageRuleRepository.updateRule(id, {
       name,
       description,
       action,
@@ -176,7 +176,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'id is required' }, { status: 400 });
     }
 
-    const deleted = triageRuleDb.deleteRule(id);
+    const deleted = triageRuleRepository.deleteRule(id);
     if (!deleted) {
       return NextResponse.json({ success: false, error: 'Rule not found' }, { status: 404 });
     }

@@ -9,7 +9,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
-import { brainReflectionDb, brainInsightDb } from '@/app/db';
+import { brainInsightRepository } from '@/app/db/repositories/brain-insight.repository';
+import { brainReflectionRepository } from '@/app/db/repositories/brain-reflection.repository';
 import { withObservability } from '@/lib/observability/middleware';
 import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
 import type { LearningInsight } from '@/app/db/models/brain.types';
@@ -50,7 +51,7 @@ async function handlePost(request: NextRequest) {
 
       const insightId = `ins-${randomUUID().slice(0, 12)}`;
       try {
-        brainInsightDb.create({
+        brainInsightRepository.create({
           id: insightId,
           reflection_id: reflectionId,
           project_id: projectId,
@@ -70,7 +71,7 @@ async function handlePost(request: NextRequest) {
     // 2. Only create the reflection record if at least one insight was created
     //    This prevents orphaned phantom reflections that inflate metrics.
     if (created.length > 0) {
-      brainReflectionDb.create({
+      brainReflectionRepository.create({
         id: reflectionId,
         project_id: projectId,
         trigger_type: 'manual',
@@ -78,7 +79,7 @@ async function handlePost(request: NextRequest) {
       });
 
       // 3. Mark reflection as completed with accurate counts
-      brainReflectionDb.completeReflection(reflectionId, {
+      brainReflectionRepository.completeReflection(reflectionId, {
         directions_analyzed: 0,
         outcomes_analyzed: 0,
         signals_analyzed: created.length,

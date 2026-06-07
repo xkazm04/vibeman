@@ -10,7 +10,9 @@ import { logger } from '@/lib/logger';
 import { env } from '@/lib/config/envConfig';
 import fs from 'fs';
 import path from 'path';
-import { contextDb, contextGroupDb, DbContext, DbContextGroup } from '@/app/db';
+import { contextGroupRepository } from '@/app/db/repositories/context-group.repository';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import type { DbContext, DbContextGroup } from '@/app/db/models/types';
 import { ContextMapEntry } from '../../context-map/route';
 
 interface GenerateQuestionsRequest {
@@ -282,9 +284,9 @@ async function handlePost(request: NextRequest) {
       });
 
       for (const ctxId of selectedContextIds) {
-        const ctx = contextDb.getContextById(ctxId);
+        const ctx = contextRepository.getContextById(ctxId);
         if (ctx) {
-          const group = ctx.group_id ? contextGroupDb.getGroupById(ctx.group_id) : null;
+          const group = ctx.group_id ? contextGroupRepository.getGroupById(ctx.group_id) : null;
           unifiedContexts.push(sqliteContextToUnified(ctx, group));
         }
       }

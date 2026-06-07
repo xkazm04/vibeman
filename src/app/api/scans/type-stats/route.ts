@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { scanDb } from '@/app/db';
+import { scanRepository } from '@/app/db/repositories/scan.repository';
 
 /**
  * GET /api/scans/type-stats?projectId=xxx
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const stats = scanDb.getScanTypeStats(projectId);
+  const stats = scanRepository.getScanTypeStats(projectId);
 
   return NextResponse.json({ stats });
 }

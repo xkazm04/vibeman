@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { crossProjectRelationshipDb } from '@/app/db';
+import { crossProjectRelationshipRepository } from '@/app/db/repositories/cross-project-relationship.repository';
 import { generateId } from '@/app/db/repositories/repository.utils';
 import { validateRequestBody } from '@/lib/validation/apiValidator';
 import {
@@ -45,19 +45,19 @@ export async function GET(request: NextRequest) {
 
     // Get relationships between two specific projects
     if (projectA && projectB) {
-      const relationships = crossProjectRelationshipDb.getBetweenProjects(projectA, projectB);
+      const relationships = crossProjectRelationshipRepository.getBetweenProjects(projectA, projectB);
       return NextResponse.json({ relationships });
     }
 
     // Get relationships for a specific project
     if (projectId) {
-      const relationships = crossProjectRelationshipDb.getByProject(projectId);
+      const relationships = crossProjectRelationshipRepository.getByProject(projectId);
       return NextResponse.json({ relationships });
     }
 
     // Get relationships for a workspace (null = default workspace)
     const wsId = workspaceId === '' ? null : (workspaceId || null);
-    const relationships = crossProjectRelationshipDb.getByWorkspace(wsId);
+    const relationships = crossProjectRelationshipRepository.getByWorkspace(wsId);
     return NextResponse.json({ relationships });
   } catch (error) {
     console.error('Get relationships error:', error);
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     } = result.data as Record<string, unknown>;
 
     // Check for existing relationship
-    const existing = crossProjectRelationshipDb.getBetweenProjects(
+    const existing = crossProjectRelationshipRepository.getBetweenProjects(
       sourceProjectId as string,
       targetProjectId as string,
     );
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
       detected_by: 'manual',
     };
 
-    const relationship = crossProjectRelationshipDb.create(input);
+    const relationship = crossProjectRelationshipRepository.create(input);
     return NextResponse.json({ success: true, relationship });
   } catch (error) {
     console.error('Create relationship error:', error);
@@ -164,13 +164,13 @@ export async function DELETE(request: NextRequest) {
     // Delete all relationships for a workspace
     if (deleteAll && workspaceId !== null) {
       const wsId = workspaceId === '' ? null : workspaceId;
-      const count = crossProjectRelationshipDb.deleteByWorkspace(wsId);
+      const count = crossProjectRelationshipRepository.deleteByWorkspace(wsId);
       return NextResponse.json({ success: true, deleted: count });
     }
 
     // Delete specific relationship
     if (id) {
-      const deleted = crossProjectRelationshipDb.delete(id);
+      const deleted = crossProjectRelationshipRepository.delete(id);
       if (!deleted) {
         return NextResponse.json({ error: 'Relationship not found' }, { status: 404 });
       }

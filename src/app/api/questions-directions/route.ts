@@ -8,7 +8,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { questionDb, directionDb } from '@/app/db';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
+import { questionRepository } from '@/app/db/repositories/question.repository';
 import { withObservability } from '@/lib/observability/middleware';
 import { groupByContextMap } from '@/lib/api-helpers/groupByContextMap';
 
@@ -25,7 +26,7 @@ async function handleGet(request: NextRequest) {
     }
 
     // Fetch questions and directions in sequence (same DB, near-zero overhead)
-    const questions = questionDb.getQuestionsByProject(projectId);
+    const questions = questionRepository.getQuestionsByProject(projectId);
 
     // Derive counts and max depth from the already-fetched array (saves 2 DB roundtrips)
     let pending = 0, answered = 0, maxTreeDepth = 0;
@@ -36,8 +37,8 @@ async function handleGet(request: NextRequest) {
     }
     const questionCounts = { total: questions.length, pending, answered };
 
-    const directions = directionDb.getDirectionsByProjects([projectId]);
-    const directionCounts = directionDb.getDirectionCountsMultiple([projectId]);
+    const directions = directionRepository.getDirectionsByProjects([projectId]);
+    const directionCounts = directionRepository.getDirectionCountsMultiple([projectId]);
 
     return NextResponse.json({
       success: true,

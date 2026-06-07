@@ -5,7 +5,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { implementationLogDb, contextDb } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
 import type { FlowPair, Bottleneck } from '@/app/features/Manager/lib/types';
 
 export async function GET(request: NextRequest) {
@@ -21,10 +22,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all implementation logs for the project
-    const allLogs = implementationLogDb.getLogsByProject(projectId);
+    const allLogs = implementationLogRepository.getLogsByProject(projectId);
 
     // Get all contexts for the project to build file-to-group mapping
-    const contexts = contextDb.getContextsByProject(projectId);
+    const contexts = contextRepository.getContextsByProject(projectId);
 
     // Build a map: context_id -> group_id
     const contextToGroup = new Map<string, string>();

@@ -13,7 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { sessionDb } from '@/app/db';
+import { sessionDb } from '@/app/db/composites/session.db';
 import {
   validateRequired,
   successResponse,

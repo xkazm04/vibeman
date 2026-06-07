@@ -15,7 +15,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { goalDb } from '@/app/db';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
 import { processSignal } from '@/lib/goals/goalLifecycleEngine';
 import { verifyGitHubSignature } from '@/lib/integrations/webhookSignature';
 import { attributeCommitsToGoals, attributePRToGoals } from '@/lib/goals/commitAttribution';
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch active goals for this project
-    const allGoals = goalDb.getGoalsByProject(projectId);
+    const allGoals = goalRepository.getGoalsByProject(projectId);
     const activeGoals = allGoals.filter(
       g => g.status === 'open' || g.status === 'in_progress'
     );
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
 
 async function handlePushEvent(
   body: Record<string, unknown>,
-  goals: ReturnType<typeof goalDb.getGoalsByProject>,
+  goals: ReturnType<typeof goalRepository.getGoalsByProject>,
   projectId: string
 ) {
   const rawCommits = body.commits as Array<{
@@ -214,7 +214,7 @@ async function handlePushEvent(
 
 async function handlePullRequestEvent(
   body: Record<string, unknown>,
-  goals: ReturnType<typeof goalDb.getGoalsByProject>,
+  goals: ReturnType<typeof goalRepository.getGoalsByProject>,
   projectId: string
 ) {
   const action = body.action as string | undefined;

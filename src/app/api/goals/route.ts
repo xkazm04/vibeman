@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { goalDb, contextDb } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
 import { randomUUID } from 'crypto';
 import { logger } from '@/lib/logger';
 import { createErrorResponse, notFoundResponse } from '@/lib/api-helpers';
@@ -23,7 +24,7 @@ async function handleGet(request: NextRequest) {
 
     // If goalId is provided, fetch single goal
     if (goalId) {
-      const goal = goalDb.getGoalById(goalId);
+      const goal = goalRepository.getGoalById(goalId);
 
       if (!goal) {
         return notFoundResponse('Goal');
@@ -39,12 +40,12 @@ async function handleGet(request: NextRequest) {
       const accessDenied = checkProjectAccess(projectFilter.projectId!, request);
       if (accessDenied) return accessDenied;
 
-      const goals = goalDb.getGoalsByProject(projectFilter.projectId!);
+      const goals = goalRepository.getGoalsByProject(projectFilter.projectId!);
       return NextResponse.json({ goals } satisfies GoalsListResponse);
     }
 
     if (projectFilter.mode === 'multi') {
-      const goals = projectFilter.projectIds!.flatMap(pid => goalDb.getGoalsByProject(pid));
+      const goals = projectFilter.projectIds!.flatMap(pid => goalRepository.getGoalsByProject(pid));
       return NextResponse.json({ goals } satisfies GoalsListResponse);
     }
 
@@ -85,10 +86,10 @@ async function handlePost(request: NextRequest) {
     // If no order index provided, get the next available one
     let finalOrderIndex = orderIndex;
     if (finalOrderIndex === undefined) {
-      finalOrderIndex = goalDb.getMaxOrderIndex(projectId) + 1;
+      finalOrderIndex = goalRepository.getMaxOrderIndex(projectId) + 1;
     }
 
-    const goal = goalDb.createGoal({
+    const goal = goalRepository.createGoal({
       id: randomUUID(),
       project_id: projectId,
       context_id: contextId,
@@ -139,7 +140,7 @@ async function handlePost(request: NextRequest) {
           let contextFiles: string[] | undefined;
 
           if (contextId) {
-            const context = contextDb.getContextById(contextId);
+            const context = contextRepository.getContextById(contextId);
             if (context) {
               contextName = context.name;
               try {
@@ -196,7 +197,7 @@ async function handlePut(request: NextRequest) {
     const { id, title, description, status, orderIndex, contextId } = parsed.data;
 
     // Verify goal exists and caller has project access
-    const existingGoal = goalDb.getGoalById(id);
+    const existingGoal = goalRepository.getGoalById(id);
     if (!existingGoal) {
       return notFoundResponse('Goal');
     }
@@ -216,7 +217,7 @@ async function handlePut(request: NextRequest) {
     if (orderIndex !== undefined) updateData.order_index = orderIndex;
     if (contextId !== undefined) updateData.context_id = contextId;
 
-    const goal = goalDb.updateGoal(id, updateData, existingGoal.status as GoalStatus);
+    const goal = goalRepository.updateGoal(id, updateData, existingGoal.status as GoalStatus);
 
     if (!goal) {
       return notFoundResponse('Goal');
@@ -252,7 +253,7 @@ async function handleDelete(request: NextRequest) {
     }
 
     // Get the goal first to capture github_item_id before deletion
-    const goal = goalDb.getGoalById(id);
+    const goal = goalRepository.getGoalById(id);
     const githubItemId = goal?.github_item_id || null;
 
     // Verify goal exists and caller has project access
@@ -262,7 +263,7 @@ async function handleDelete(request: NextRequest) {
     const accessDenied = checkProjectAccess(goal.project_id, request);
     if (accessDenied) return accessDenied;
 
-    const success = goalDb.deleteGoal(id);
+    const success = goalRepository.deleteGoal(id);
 
     if (!success) {
       return notFoundResponse('Goal');

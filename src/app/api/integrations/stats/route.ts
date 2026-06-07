@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { integrationDb, integrationEventDb } from '@/app/db';
+import { integrationEventRepository, integrationRepository } from '@/app/db/repositories/integration.repository';
 import { isTableMissingError } from '@/app/db/repositories/repository.utils';
 
 /**
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
 
     if (integrationId) {
       // Get stats for specific integration
-      const integration = integrationDb.getById(integrationId);
+      const integration = integrationRepository.getById(integrationId);
       if (!integration) {
         return NextResponse.json(
           { success: false, error: 'Integration not found' },
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
         );
       }
 
-      const eventStats = integrationEventDb.getStats(integrationId);
+      const eventStats = integrationEventRepository.getStats(integrationId);
 
       return NextResponse.json({
         success: true,
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
 
     if (projectId) {
       // Get stats for all integrations in project
-      const integrations = integrationDb.getByProject(projectId);
+      const integrations = integrationRepository.getByProject(projectId);
 
       const stats = {
         total: integrations.length,

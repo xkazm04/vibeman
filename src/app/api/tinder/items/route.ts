@@ -4,8 +4,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { ideaDb, directionDb, goalDb } from '@/app/db';
-import type { DbIdea } from '@/app/db';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import type { DbIdea } from '@/app/db/models/types';
 import { TinderItem, TinderFilterMode } from '@/app/features/tinder/lib/tinderTypes';
 import {
   IdeasErrorCode,
@@ -70,27 +72,27 @@ async function handleGet(request: NextRequest) {
   // Only fetch full idea rows when we need them for pagination; otherwise use SQL COUNT
   const pendingIdeasForCount = needIdeasRows
     ? (projectId && projectId !== 'all'
-        ? ideaDb.getIdeasByProject(projectId)
-        : ideaDb.getAllIdeas()
+        ? ideaRepository.getIdeasByProject(projectId)
+        : ideaRepository.getAllIdeas()
       ).filter(idea => idea.status === 'pending')
     : null;
   const ideasCount = pendingIdeasForCount !== null
     ? pendingIdeasForCount.length
     : (projectId && projectId !== 'all'
-        ? ideaDb.countPendingByProject(projectId)
-        : ideaDb.countAllPending());
+        ? ideaRepository.countPendingByProject(projectId)
+        : ideaRepository.countAllPending());
 
   // Only fetch full direction rows when we need them; otherwise use SQL COUNT
   const allDirectionsForCount = needDirectionsRows
     ? (projectId && projectId !== 'all'
-        ? directionDb.getPendingDirections(projectId)
-        : directionDb.getAllPendingDirections())
+        ? directionRepository.getPendingDirections(projectId)
+        : directionRepository.getAllPendingDirections())
     : null;
   const directionsCount = allDirectionsForCount !== null
     ? allDirectionsForCount.length
     : (projectId && projectId !== 'all'
-        ? directionDb.countPendingByProject(projectId)
-        : directionDb.countAllPending());
+        ? directionRepository.countPendingByProject(projectId)
+        : directionRepository.countAllPending());
 
   // Fetch Ideas items if needed
   if (needIdeasRows && pendingIdeasForCount) {
@@ -138,7 +140,7 @@ async function handleGet(request: NextRequest) {
     // Batch-fetch goal titles in a single query instead of N+1
     const goalIds = [...new Set(pendingIdeas.map(idea => idea.goal_id).filter(Boolean))] as string[];
     if (goalIds.length > 0) {
-      const goals = goalDb.getGoalsByIds(goalIds);
+      const goals = goalRepository.getGoalsByIds(goalIds);
       for (const goal of goals) {
         goalTitlesMap[goal.id] = goal.title;
       }

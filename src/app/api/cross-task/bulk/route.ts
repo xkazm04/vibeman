@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { crossTaskPlanDb } from '@/app/db';
+import { crossTaskPlanRepository } from '@/app/db/repositories/cross-task.repository';
 
 interface BulkDeleteRequest {
   planIds: string[];
@@ -27,7 +27,7 @@ export async function DELETE(request: Request) {
     const skippedRunning: string[] = [];
 
     for (const id of planIds) {
-      const plan = crossTaskPlanDb.getById(id);
+      const plan = crossTaskPlanRepository.getById(id);
       if (plan) {
         if (plan.status === 'running') {
           skippedRunning.push(id);
@@ -38,7 +38,7 @@ export async function DELETE(request: Request) {
     }
 
     // Delete the filtered plans
-    const deleted = crossTaskPlanDb.deleteMany(plansToDelete);
+    const deleted = crossTaskPlanRepository.deleteMany(plansToDelete);
 
     return NextResponse.json({
       success: true,

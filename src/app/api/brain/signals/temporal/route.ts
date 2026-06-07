@@ -13,7 +13,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { behavioralSignalDb } from '@/app/db';
+import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-signal.repository';
 import { withObservability } from '@/lib/observability/middleware';
 import { parseQueryInt } from '@/lib/api-helpers/parseQueryInt';
 import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
@@ -45,7 +45,7 @@ async function handleGet(request: NextRequest) {
       paramName: 'days',
     });
 
-    const rawRows = behavioralSignalDb.getTemporalAggregation(projectId, days);
+    const rawRows = behavioralSignalRepository.getTemporalAggregation(projectId, days);
 
     // Aggregate rows into (hour, dayOfWeek) cells with per-type breakdown
     const cellMap = aggregateByKey<typeof rawRows[number], TemporalCell>(

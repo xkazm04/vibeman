@@ -12,7 +12,11 @@ import { ScanType, getAgent, getScanTypeAbbr } from '@/app/features/Ideas/lib/sc
 import { buildPrompt, PromptOptions } from '@/app/projects/ProjectAI/ScanIdeas/prompts';
 import { IMPLEMENTATION_PROCEDURE_EXTENSION } from '@/app/projects/ProjectAI/ScanIdeas/prompts/schemaTemplate';
 import { buildContextSection, buildExistingIdeasSection, buildGoalsSection, buildBehavioralSection } from '@/app/projects/ProjectAI/ScanIdeas/lib/sectionBuilders';
-import { contextDb, contextGroupDb, goalDb, ideaDb, DbContext, DbContextGroup } from '@/app/db';
+import { contextGroupRepository } from '@/app/db/repositories/context-group.repository';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import type { DbContext, DbContextGroup } from '@/app/db/models/types';
 import { logger } from '@/lib/logger';
 import {
   IdeasErrorCode,
@@ -99,22 +103,22 @@ ${contextSection}`;
 
   // Load existing ideas to prevent duplicates
   const existingIdeas = context
-    ? ideaDb.getIdeasByContext(context.id)
-    : ideaDb.getIdeasByProject(projectId);
+    ? ideaRepository.getIdeasByContext(context.id)
+    : ideaRepository.getIdeasByProject(projectId);
   const existingIdeasSection = buildExistingIdeasSection(existingIdeas);
 
   // Load goals for matching — if goalId is set, focus on that specific goal
   let goalsSection: string;
   let goalFocusDirective = '';
   if (goalId) {
-    const targetGoal = goalDb.getGoalById(goalId);
+    const targetGoal = goalRepository.getGoalById(goalId);
     const goalsForSection = targetGoal ? [targetGoal] : [];
     goalsSection = buildGoalsSection(goalsForSection);
     if (targetGoal) {
       goalFocusDirective = `\n\n## GOAL FOCUS\n\n**IMPORTANT:** This scan is specifically driven by the goal: "${targetGoal.title}"\n${targetGoal.description ? `Goal description: ${targetGoal.description}\n` : ''}\nEvery idea you generate MUST directly advance this goal. Set goal_id to "${targetGoal.id}" for all ideas. Do not generate ideas unrelated to this goal.\n`;
     }
   } else {
-    const allGoals = goalDb.getGoalsByProject(projectId);
+    const allGoals = goalRepository.getGoalsByProject(projectId);
     const openGoals = allGoals.filter(goal => goal.status === 'open');
     goalsSection = buildGoalsSection(openGoals);
   }
@@ -398,21 +402,21 @@ ${contextGroupSection}`;
   }
 
   // Load existing ideas for this group's contexts to prevent duplicates
-  const existingIdeas = contexts.flatMap(ctx => ideaDb.getIdeasByContext(ctx.id));
+  const existingIdeas = contexts.flatMap(ctx => ideaRepository.getIdeasByContext(ctx.id));
   const existingIdeasSection = buildExistingIdeasSection(existingIdeas);
 
   // Load goals — if goalId is set, focus on that specific goal
   let goalsSection: string;
   let goalFocusDirective = '';
   if (goalId) {
-    const targetGoal = goalDb.getGoalById(goalId);
+    const targetGoal = goalRepository.getGoalById(goalId);
     const goalsForSection = targetGoal ? [targetGoal] : [];
     goalsSection = buildGoalsSection(goalsForSection);
     if (targetGoal) {
       goalFocusDirective = `\n\n## GOAL FOCUS\n\n**IMPORTANT:** This scan is specifically driven by the goal: "${targetGoal.title}"\n${targetGoal.description ? `Goal description: ${targetGoal.description}\n` : ''}\nEvery idea you generate MUST directly advance this goal. Set goal_id to "${targetGoal.id}" for all ideas. Do not generate ideas unrelated to this goal.\n`;
     }
   } else {
-    const allGoals = goalDb.getGoalsByProject(projectId);
+    const allGoals = goalRepository.getGoalsByProject(projectId);
     const openGoals = allGoals.filter(goal => goal.status === 'open');
     goalsSection = buildGoalsSection(openGoals);
   }
@@ -712,14 +716,14 @@ export async function POST(request: NextRequest) {
 
     if (groupId) {
       // Load group with all its contexts and file paths
-      const group = contextGroupDb.getGroupById(groupId);
+      const group = contextGroupRepository.getGroupById(groupId);
       if (!group) {
         return createIdeasErrorResponse(IdeasErrorCode.CONTEXT_NOT_FOUND, {
           message: `Context group not found: ${groupId}`,
         });
       }
 
-      const groupContexts = contextDb.getContextsByGroup(groupId);
+      const groupContexts = contextRepository.getContextsByGroup(groupId);
       const allFilePaths = groupContexts.flatMap(ctx => {
         try {
           const filePaths = typeof ctx.file_paths === 'string'
@@ -750,7 +754,7 @@ export async function POST(request: NextRequest) {
       requirementSuffix = `-grp-${groupId.slice(0, 8)}`;
     } else {
       // Load context if specified (existing behavior)
-      const context = contextId ? contextDb.getContextById(contextId) : null;
+      const context = contextId ? contextRepository.getContextById(contextId) : null;
 
       requirementContent = buildClaudeIdeaRequirement({
         projectId,

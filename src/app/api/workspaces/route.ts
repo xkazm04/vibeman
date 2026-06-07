@@ -8,13 +8,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { workspaceDb } from '@/app/db';
+import { workspaceRepository } from '@/app/db/repositories/workspace.repository';
 import { withObservability } from '@/lib/observability/middleware';
 
 async function handleGet() {
   try {
-    const workspaces = workspaceDb.getAll();
-    const mappings = workspaceDb.getAllMappings();
+    const workspaces = workspaceRepository.getAll();
+    const mappings = workspaceRepository.getAllMappings();
 
     const result = workspaces.map(ws => ({
       ...ws,
@@ -43,10 +43,10 @@ async function handlePost(request: NextRequest) {
     }
 
     // Get max position for ordering
-    const all = workspaceDb.getAll();
+    const all = workspaceRepository.getAll();
     const maxPosition = all.length > 0 ? Math.max(...all.map(w => w.position)) + 1 : 0;
 
-    const workspace = workspaceDb.create({
+    const workspace = workspaceRepository.create({
       name: name.trim(),
       description: description || null,
       color: color || '#6366f1',
@@ -57,10 +57,10 @@ async function handlePost(request: NextRequest) {
 
     // Assign projects if provided
     if (projectIds && Array.isArray(projectIds) && projectIds.length > 0) {
-      workspaceDb.setProjects(workspace.id, projectIds);
+      workspaceRepository.setProjects(workspace.id, projectIds);
     }
 
-    const resultProjectIds = workspaceDb.getProjectIds(workspace.id);
+    const resultProjectIds = workspaceRepository.getProjectIds(workspace.id);
 
     return NextResponse.json({
       workspace: { ...workspace, projectIds: resultProjectIds },
@@ -85,7 +85,7 @@ async function handlePut(request: NextRequest) {
       );
     }
 
-    const workspace = workspaceDb.update(workspaceId, updates);
+    const workspace = workspaceRepository.update(workspaceId, updates);
     if (!workspace) {
       return NextResponse.json(
         { error: 'Workspace not found' },
@@ -93,7 +93,7 @@ async function handlePut(request: NextRequest) {
       );
     }
 
-    const projectIds = workspaceDb.getProjectIds(workspaceId);
+    const projectIds = workspaceRepository.getProjectIds(workspaceId);
     return NextResponse.json({ workspace: { ...workspace, projectIds } });
   } catch (error) {
     return NextResponse.json(
@@ -115,7 +115,7 @@ async function handleDelete(request: NextRequest) {
       );
     }
 
-    const deleted = workspaceDb.delete(workspaceId);
+    const deleted = workspaceRepository.delete(workspaceId);
     if (!deleted) {
       return NextResponse.json(
         { error: 'Workspace not found' },

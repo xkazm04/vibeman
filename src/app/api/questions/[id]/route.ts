@@ -9,7 +9,7 @@
  * event so the auto-deepen subscriber can trigger gap analysis asynchronously.
  */
 
-import { questionDb } from '@/app/db';
+import { questionRepository } from '@/app/db/repositories/question.repository';
 import { createEntityHandlers } from '@/lib/api-helpers/crudRouteFactory';
 import { emitQuestionAnswered } from '@/lib/events/domainEmitters';
 import type { DbQuestion } from '@/app/db/models/types';
@@ -19,9 +19,9 @@ const { GET, PUT, DELETE } = createEntityHandlers<DbQuestion>({
   endpoint: '/api/questions/[id]',
 
   repo: {
-    getById: (id) => questionDb.getQuestionById(id),
-    update: (id, data) => questionDb.updateQuestion(id, data as Parameters<typeof questionDb.updateQuestion>[1]),
-    delete: (id) => questionDb.deleteQuestion(id),
+    getById: (id) => questionRepository.getQuestionById(id),
+    update: (id, data) => questionRepository.updateQuestion(id, data as Parameters<typeof questionRepository.updateQuestion>[1]),
+    delete: (id) => questionRepository.deleteQuestion(id),
   },
 
   buildUpdatePayload: (body) => {

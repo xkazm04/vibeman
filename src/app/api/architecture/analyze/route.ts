@@ -7,7 +7,7 @@
 import { NextRequest } from 'next/server';
 import { env } from '@/lib/config/envConfig';
 import { architectureAnalysisAgent } from '@/lib/architecture/analysisAgent';
-import { architectureAnalysisDb } from '@/app/db';
+import { architectureAnalysisRepository } from '@/app/db/repositories/architecture-analysis.repository';
 import type { AnalysisTriggerType } from '@/app/db/models/cross-project-architecture.types';
 import {
   successResponse,
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get('projectId');
 
     if (analysisId) {
-      const analysis = architectureAnalysisDb.getById(analysisId);
+      const analysis = architectureAnalysisRepository.getById(analysisId);
       if (!analysis) {
         return notFoundError('Analysis');
       }
@@ -129,9 +129,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (workspaceId) {
-      const running = architectureAnalysisDb.getRunning('workspace', workspaceId);
-      const latest = architectureAnalysisDb.getLatestCompleted('workspace', workspaceId);
-      const history = architectureAnalysisDb.getHistory('workspace', workspaceId, 10);
+      const running = architectureAnalysisRepository.getRunning('workspace', workspaceId);
+      const latest = architectureAnalysisRepository.getLatestCompleted('workspace', workspaceId);
+      const history = architectureAnalysisRepository.getHistory('workspace', workspaceId, 10);
 
       return successResponse({
         isRunning: !!running,
@@ -142,9 +142,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (projectId) {
-      const running = architectureAnalysisDb.getRunning('project', projectId);
-      const latest = architectureAnalysisDb.getLatestCompleted('project', projectId);
-      const history = architectureAnalysisDb.getHistory('project', projectId, 10);
+      const running = architectureAnalysisRepository.getRunning('project', projectId);
+      const latest = architectureAnalysisRepository.getLatestCompleted('project', projectId);
+      const history = architectureAnalysisRepository.getHistory('project', projectId, 10);
 
       return successResponse({
         isRunning: !!running,

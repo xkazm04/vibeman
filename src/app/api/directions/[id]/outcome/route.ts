@@ -7,7 +7,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { directionDb, directionOutcomeDb, insightEffectivenessCache } from '@/app/db';
+import { directionOutcomeRepository } from '@/app/db/repositories/direction-outcome.repository';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
+import { insightEffectivenessCacheRepository } from '@/app/db/repositories/insight-effectiveness-cache.repository';
 import { outcomeTracker } from '@/lib/brain/outcomeTracker';
 import { createParamsRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
@@ -22,7 +24,7 @@ async function handleGet(
   const { id } = await params;
 
   // Verify direction exists
-  const direction = directionDb.getDirectionById(id);
+  const direction = directionRepository.getDirectionById(id);
   if (!direction) {
     return NextResponse.json(
       { success: false, error: 'Direction not found' },
@@ -31,7 +33,7 @@ async function handleGet(
   }
 
   // Get outcome
-  const outcome = directionOutcomeDb.getByDirectionId(id);
+  const outcome = directionOutcomeRepository.getByDirectionId(id);
 
   return NextResponse.json({
     success: true,
@@ -61,7 +63,7 @@ async function handlePost(
   const body = await request.json();
 
   // Verify direction exists
-  const direction = directionDb.getDirectionById(id);
+  const direction = directionRepository.getDirectionById(id);
   if (!direction) {
     return NextResponse.json(
       { success: false, error: 'Direction not found' },
@@ -108,7 +110,7 @@ async function handlePost(
     );
   }
 
-  const outcome = directionOutcomeDb.getById(outcomeId);
+  const outcome = directionOutcomeRepository.getById(outcomeId);
 
   return NextResponse.json({
     success: true,
@@ -133,7 +135,7 @@ async function handlePut(
   const body = await request.json();
 
   // Verify direction exists
-  const direction = directionDb.getDirectionById(id);
+  const direction = directionRepository.getDirectionById(id);
   if (!direction) {
     return NextResponse.json(
       { success: false, error: 'Direction not found' },
@@ -161,7 +163,7 @@ async function handlePut(
       );
     }
 
-    const outcome = directionOutcomeDb.getByDirectionId(id);
+    const outcome = directionOutcomeRepository.getByDirectionId(id);
 
     return NextResponse.json({
       success: true,
@@ -183,10 +185,10 @@ async function handlePut(
       );
     }
 
-    const outcome = directionOutcomeDb.getByDirectionId(id);
+    const outcome = directionOutcomeRepository.getByDirectionId(id);
 
     // Invalidate effectiveness cache since revert affects direction outcome data
-    try { insightEffectivenessCache.invalidate(direction.project_id); } catch { /* non-critical */ }
+    try { insightEffectivenessCacheRepository.invalidate(direction.project_id); } catch { /* non-critical */ }
 
     return NextResponse.json({
       success: true,

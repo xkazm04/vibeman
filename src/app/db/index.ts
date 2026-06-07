@@ -17,10 +17,6 @@ import { implementationLogRepository } from './repositories/implementation-log.r
 import { scanQueueRepository } from './repositories/scanQueue.repository';
 import { standupRepository } from './repositories/standup.repository';
 import {
-  sessionRepository,
-  sessionTaskRepository,
-} from './repositories/session.repository';
-import {
   integrationRepository,
   integrationEventRepository,
   webhookRepository,
@@ -37,36 +33,16 @@ import { brainReflectionRepository } from './repositories/brain-reflection.repos
 import { brainInsightRepository } from './repositories/brain-insight.repository';
 import { insightAnnotationRepository } from './repositories/insight-annotation.repository';
 import { predictiveIntentRepository } from './repositories/predictive-intent.repository';
-import {
-  queryPatternRepository,
-  schemaRecommendationRepository,
-  optimizationHistoryRepository,
-} from './repositories/schema-intelligence.repository';
 import { scanProfileRepository } from './repositories/scan-profile.repository';
 import { ideaDependencyRepository } from './repositories/idea-dependency.repository';
-import {
-  annetteSessionRepository,
-  annetteMessageRepository,
-  annetteMemoryTopicRepository,
-  annettePreferenceRepository,
-  annetteAudioCacheRepository,
-} from './repositories/annette.repository';
-import {
-  annetteMemoryRepository,
-  annetteKnowledgeNodeRepository,
-  annetteKnowledgeEdgeRepository,
-  annetteMemoryConsolidationRepository,
-} from './repositories/annette-memory.repository';
 import { workspaceRepository } from './repositories/workspace.repository';
 import { executiveAnalysisRepository } from './repositories/executive-analysis.repository';
 import { crossProjectRelationshipRepository } from './repositories/cross-project-relationship.repository';
 import { architectureAnalysisRepository } from './repositories/architecture-analysis.repository';
 import { projectArchitectureMetadataRepository } from './repositories/project-architecture-metadata.repository';
 import { crossTaskPlanRepository } from './repositories/cross-task.repository';
-import { annetteRapportRepository } from './repositories/annette-rapport.repository';
 import { groupHealthRepository } from './repositories/group-health.repository';
 import { collectiveMemoryRepository } from './repositories/collective-memory.repository';
-import { agentGoalRepository, agentStepRepository } from './repositories/agent.repository';
 import { insightEffectivenessCacheRepository } from './repositories/insight-effectiveness-cache.repository';
 import { insightInfluenceRepository } from './repositories/insight-influence.repository';
 import { directionPreferenceRepository } from './repositories/direction-preference.repository';
@@ -137,16 +113,9 @@ export const implementationLogDb = createDbExport(implementationLogRepository);
 export const scanQueueDb = createDbExport(scanQueueRepository);
 export const standupDb = createDbExport(standupRepository);
 
-export const sessionDb = createDbExport({
-  ...sessionRepository,
-  getTasksBySessionId: sessionTaskRepository.getBySessionId,
-  getNextPending: sessionTaskRepository.getNextPending,
-  getTaskById: sessionTaskRepository.getById,
-  getTaskByTaskId: sessionTaskRepository.getByTaskId,
-  updateTaskStatus: sessionTaskRepository.updateStatus,
-  getTaskStats: sessionTaskRepository.getStats,
-  tasks: sessionTaskRepository,
-});
+// Composite exports live in ./composites/* so routes can import them
+// directly without pulling this whole barrel into their module graph.
+export { sessionDb } from './composites/session.db';
 
 export const integrationDb = createDbExport(integrationRepository);
 export const integrationEventDb = createDbExport(integrationEventRepository);
@@ -167,27 +136,12 @@ export const insightInfluenceDb = createDbExport(insightInfluenceRepository);
 export const directionPreferenceDb = createDbExport(directionPreferenceRepository);
 export const predictiveIntentDb = createDbExport(predictiveIntentRepository);
 
-export const schemaIntelligenceDb = createDbExport({
-  patterns: queryPatternRepository,
-  recommendations: schemaRecommendationRepository,
-  history: optimizationHistoryRepository,
-});
+export { schemaIntelligenceDb } from './composites/schema-intelligence.db';
 
 export const scanProfileDb = createDbExport(scanProfileRepository);
 export const ideaDependencyDb = createDbExport(ideaDependencyRepository);
 
-export const annetteDb = createDbExport({
-  sessions: annetteSessionRepository,
-  messages: annetteMessageRepository,
-  topics: annetteMemoryTopicRepository,
-  preferences: annettePreferenceRepository,
-  audioCache: annetteAudioCacheRepository,
-  memories: annetteMemoryRepository,
-  knowledgeNodes: annetteKnowledgeNodeRepository,
-  knowledgeEdges: annetteKnowledgeEdgeRepository,
-  consolidations: annetteMemoryConsolidationRepository,
-  rapport: annetteRapportRepository,
-});
+export { annetteDb } from './composites/annette.db';
 
 export const workspaceDb = createDbExport(workspaceRepository);
 export const executiveAnalysisDb = createDbExport(executiveAnalysisRepository);
@@ -198,10 +152,7 @@ export const crossTaskPlanDb = createDbExport(crossTaskPlanRepository);
 export const groupHealthDb = createDbExport(groupHealthRepository);
 export const collectiveMemoryDb = createDbExport(collectiveMemoryRepository);
 
-export const agentDb = createDbExport({
-  goals: agentGoalRepository,
-  steps: agentStepRepository,
-});
+export { agentDb } from './composites/agent.db';
 
 export const fileWriteQueueDb = createDbExport(fileWriteQueueRepository);
 export const scanResultDb = createDbExport(scanResultRepository);

@@ -15,7 +15,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { insightInfluenceDb } from '@/app/db';
+import { insightInfluenceRepository } from '@/app/db/repositories/insight-influence.repository';
 import { computeCausalScores } from '@/lib/brain/insightCausalValidator';
 import { withObservability } from '@/lib/observability/middleware';
 import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
@@ -75,7 +75,7 @@ async function handlePost(request: NextRequest) {
       });
     }
 
-    const recorded = insightInfluenceDb.recordInfluenceBatch(
+    const recorded = insightInfluenceRepository.recordInfluenceBatch(
       projectId,
       directionId,
       decision,

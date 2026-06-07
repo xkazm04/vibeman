@@ -6,7 +6,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { directionDb, questionDb } from '@/app/db';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
+import { questionRepository } from '@/app/db/repositories/question.repository';
 import { logger } from '@/lib/logger';
 import { createParamsRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
@@ -16,7 +17,7 @@ async function handlePost(
 ) {
   const { id } = await params;
 
-  const direction = directionDb.getDirectionById(id);
+  const direction = directionRepository.getDirectionById(id);
   if (!direction) {
     return NextResponse.json(
       { error: 'Direction not found' },
@@ -25,7 +26,7 @@ async function handlePost(
   }
 
     // Gather context: related questions for this context map
-    const relatedQuestions = questionDb
+    const relatedQuestions = questionRepository
       .getQuestionsByProject(direction.project_id)
       .filter(q => q.context_map_id === direction.context_map_id && q.status === 'answered')
       .slice(0, 5);
@@ -37,7 +38,7 @@ async function handlePost(
     // Check if this is a paired direction
     let pairContext = '';
     if (direction.pair_id) {
-      const allDirections = directionDb.getDirectionsByProject(direction.project_id);
+      const allDirections = directionRepository.getDirectionsByProject(direction.project_id);
       const sibling = allDirections.find(
         d => d.pair_id === direction.pair_id && d.id !== direction.id
       );

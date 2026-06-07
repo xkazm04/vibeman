@@ -6,7 +6,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { insightAnnotationDb } from '@/app/db';
+import { insightAnnotationRepository } from '@/app/db/repositories/insight-annotation.repository';
 import { withObservability } from '@/lib/observability/middleware';
 import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
 
@@ -20,9 +20,9 @@ async function handleGet(request: NextRequest) {
   try {
     if (tagsOnly) {
       const tags = scope === 'global'
-        ? insightAnnotationDb.getAllTags()
+        ? insightAnnotationRepository.getAllTags()
         : projectId
-          ? insightAnnotationDb.getAllTagsForProject(projectId)
+          ? insightAnnotationRepository.getAllTagsForProject(projectId)
           : [];
       return buildSuccessResponse({ tags });
     }
@@ -31,7 +31,7 @@ async function handleGet(request: NextRequest) {
       return buildErrorResponse('insightId required', { status: 400 });
     }
 
-    const annotation = insightAnnotationDb.getByInsightId(insightId);
+    const annotation = insightAnnotationRepository.getByInsightId(insightId);
     return buildSuccessResponse({ annotation });
   } catch (error) {
     console.error('[Insight Annotations GET] Error:', error);
@@ -58,7 +58,7 @@ async function handlePut(request: NextRequest) {
       .filter((t: string) => t.length > 0 && t.length <= 50)
       .slice(0, 20);
 
-    const annotation = insightAnnotationDb.upsert(
+    const annotation = insightAnnotationRepository.upsert(
       insightId,
       typeof note === 'string' ? note.slice(0, 2000) : null,
       sanitizedTags,
@@ -80,7 +80,7 @@ async function handleDelete(request: NextRequest) {
       return buildErrorResponse('insightId required', { status: 400 });
     }
 
-    const deleted = insightAnnotationDb.delete(insightId);
+    const deleted = insightAnnotationRepository.delete(insightId);
     return buildSuccessResponse({ deleted });
   } catch (error) {
     console.error('[Insight Annotations DELETE] Error:', error);

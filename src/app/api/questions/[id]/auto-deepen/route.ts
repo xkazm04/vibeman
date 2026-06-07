@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { questionDb } from '@/app/db';
+import { questionRepository } from '@/app/db/repositories/question.repository';
 import { logger } from '@/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { analyzeAnswerGaps, buildGapTargetingPrompt, type GapAnalysis } from '@/lib/questions/gapDetector';
@@ -22,7 +22,7 @@ async function handlePost(
   const { id: questionId } = await params;
 
     // Validate question exists and is answered
-    const question = questionDb.getQuestionById(questionId);
+    const question = questionRepository.getQuestionById(questionId);
     if (!question) {
       return NextResponse.json(
         { error: 'Question not found' },
@@ -41,7 +41,7 @@ async function handlePost(
     const analysis = analyzeAnswerGaps(questionId, question.answer);
 
     // Save gap analysis on the question
-    questionDb.updateQuestion(questionId, {
+    questionRepository.updateQuestion(questionId, {
       gap_score: analysis.gapScore,
       gap_analysis: JSON.stringify(analysis.gaps),
     });
@@ -68,7 +68,7 @@ async function handlePost(
     }
 
     // Check if follow-up children already exist
-    const existingChildren = questionDb.getChildQuestions(questionId);
+    const existingChildren = questionRepository.getChildQuestions(questionId);
     if (existingChildren.length > 0) {
       return NextResponse.json({
         success: true,
@@ -106,7 +106,7 @@ async function handlePost(
 
     try {
     // Get ancestry chain for context
-    const chain = questionDb.getAncestryChain(questionId);
+    const chain = questionRepository.getAncestryChain(questionId);
     const newDepth = (question.tree_depth ?? 0) + 1;
 
     // Build strategic context from the chain
@@ -157,7 +157,7 @@ async function handlePost(
 
     // Create follow-up questions in DB, flagged as auto-deepened
     const createdQuestions = generatedQuestions.map(questionText => {
-      return questionDb.createQuestion({
+      return questionRepository.createQuestion({
         id: `question_${uuidv4()}`,
         project_id: question.project_id,
         context_map_id: question.context_map_id,

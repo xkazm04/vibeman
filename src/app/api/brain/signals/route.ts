@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { behavioralSignalDb } from '@/app/db';
+import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-signal.repository';
 import type { BehavioralSignalType } from '@/types/signals';
 import { SignalType, getAllSignalTypes, isValidSignalType } from '@/types/signals';
 import { withObservability } from '@/lib/observability/middleware';
@@ -146,7 +146,7 @@ async function handleGet(request: NextRequest) {
 
     // Expand a specific cluster: return its child signals
     if (clusterId) {
-      const children = behavioralSignalDb.getByClusterId(clusterId);
+      const children = behavioralSignalRepository.getByClusterId(clusterId);
       return buildSuccessResponse({ signals: children, clusterId });
     }
 
@@ -167,10 +167,10 @@ async function handleGet(request: NextRequest) {
     // Run independent queries in parallel instead of sequentially
     const [signals, counts, contextActivity] = await Promise.all([
       Promise.resolve(compressed
-        ? behavioralSignalDb.getUnclusteredByProject(projectId!, queryOptions)
-        : behavioralSignalDb.getByProject(projectId!, queryOptions)),
-      Promise.resolve(behavioralSignalDb.getCountByType(projectId!)),
-      Promise.resolve(behavioralSignalDb.getContextActivity(projectId!)),
+        ? behavioralSignalRepository.getUnclusteredByProject(projectId!, queryOptions)
+        : behavioralSignalRepository.getByProject(projectId!, queryOptions)),
+      Promise.resolve(behavioralSignalRepository.getCountByType(projectId!)),
+      Promise.resolve(behavioralSignalRepository.getContextActivity(projectId!)),
     ]);
 
     return buildSuccessResponse({

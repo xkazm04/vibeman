@@ -13,7 +13,7 @@ import {
   discoverProjectConfig,
   syncGoalToGitHub,
 } from '@/lib/github';
-import { goalDb } from '@/app/db';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
 import { logger } from '@/lib/logger';
 import { createErrorResponse } from '@/lib/api-helpers';
 import { withObservability } from '@/lib/observability/middleware';
@@ -41,7 +41,7 @@ async function handlePost(request: NextRequest) {
 
     // Handle single goal sync
     if (goalId) {
-      const goal = goalDb.getGoalById(goalId);
+      const goal = goalRepository.getGoalById(goalId);
       if (!goal) {
         return createErrorResponse('Goal not found', 404);
       }

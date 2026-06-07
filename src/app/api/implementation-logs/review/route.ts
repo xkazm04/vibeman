@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { implementationLogDb } from '@/app/db';
+import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
 import { logger } from '@/lib/logger';
 import type { ImplementationLogMetadata } from '@/app/db/models/types';
 
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find the implementation log for this requirement
-    const log = implementationLogDb.getLogByRequirementName(projectId, requirementName);
+    const log = implementationLogRepository.getLogByRequirementName(projectId, requirementName);
     if (!log) {
       return NextResponse.json(
         {
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       reviewedAt: new Date().toISOString(),
     };
 
-    implementationLogDb.updateMetadata(log.id, JSON.stringify(metadata));
+    implementationLogRepository.updateMetadata(log.id, JSON.stringify(metadata));
 
     logger.info('Implementation log review saved', {
       logId: log.id,

@@ -5,7 +5,7 @@
  * POST /api/questions (create question - called by Claude Code)
  */
 
-import { questionDb } from '@/app/db';
+import { questionRepository } from '@/app/db/repositories/question.repository';
 import { isValidQuestionStatus } from '@/lib/stateMachine';
 import { createListHandlers } from '@/lib/api-helpers/crudRouteFactory';
 import type { DbQuestion } from '@/app/db/models/types';
@@ -18,15 +18,15 @@ const { GET, POST } = createListHandlers<DbQuestion>({
   idPrefix: 'question',
 
   repo: {
-    getById: (id) => questionDb.getQuestionById(id),
-    create: (data) => questionDb.createQuestion(data as Parameters<typeof questionDb.createQuestion>[0]),
+    getById: (id) => questionRepository.getQuestionById(id),
+    create: (data) => questionRepository.createQuestion(data as Parameters<typeof questionRepository.createQuestion>[0]),
   },
 
   fetchItems: (projectId, { status, contextMapId }) => {
-    if (contextMapId) return questionDb.getQuestionsByContextMapId(projectId, contextMapId);
-    if (status === 'pending') return questionDb.getPendingQuestions(projectId);
-    if (status === 'answered') return questionDb.getAnsweredQuestions(projectId);
-    return questionDb.getQuestionsByProject(projectId);
+    if (contextMapId) return questionRepository.getQuestionsByContextMapId(projectId, contextMapId);
+    if (status === 'pending') return questionRepository.getPendingQuestions(projectId);
+    if (status === 'answered') return questionRepository.getAnsweredQuestions(projectId);
+    return questionRepository.getQuestionsByProject(projectId);
   },
 
   fetchCounts: (projectId, items, { status, contextMapId }) => {
@@ -39,7 +39,7 @@ const { GET, POST } = createListHandlers<DbQuestion>({
       }
       return { total: items.length, pending, answered };
     }
-    return questionDb.getQuestionCounts(projectId);
+    return questionRepository.getQuestionCounts(projectId);
   },
 
   extraListFields: (_projectId, items) => {
@@ -62,7 +62,7 @@ const { GET, POST } = createListHandlers<DbQuestion>({
     // Resolve tree depth from parent if parent_id is provided
     let treeDepth = (body.tree_depth as number) ?? 0;
     if (body.parent_id && !body.tree_depth) {
-      const parent = questionDb.getQuestionById(body.parent_id as string);
+      const parent = questionRepository.getQuestionById(body.parent_id as string);
       if (parent) {
         treeDepth = (parent.tree_depth ?? 0) + 1;
       }

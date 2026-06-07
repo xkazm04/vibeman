@@ -5,7 +5,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withObservability } from '@/lib/observability/middleware';
-import { directionOutcomeDb, behavioralSignalDb } from '@/app/db';
+import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-signal.repository';
+import { directionOutcomeRepository } from '@/app/db/repositories/direction-outcome.repository';
 import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
 import { OUTCOMES_WINDOW_DAYS } from '@/lib/brain/config';
 
@@ -17,7 +18,7 @@ export const dynamic = 'force-dynamic';
  */
 function computeSignalStats(projectId: string, days?: number) {
   const windowDays = days || OUTCOMES_WINDOW_DAYS;
-  const signals = behavioralSignalDb.getByTypeAndWindow(projectId, 'implementation', windowDays);
+  const signals = behavioralSignalRepository.getByTypeAndWindow(projectId, 'implementation', windowDays);
 
   let successful = 0;
   let failed = 0;
@@ -62,10 +63,10 @@ async function handleGET(request: NextRequest) {
     if (accessDenied) return accessDenied;
 
     // Get recent outcomes
-    const outcomes = directionOutcomeDb.getByProject(projectId, { limit });
+    const outcomes = directionOutcomeRepository.getByProject(projectId, { limit });
 
     // Get statistics
-    const stats = directionOutcomeDb.getStats(projectId, days);
+    const stats = directionOutcomeRepository.getStats(projectId, days);
 
     // Supplement with behavioral signal stats when direction outcomes are sparse
     const signalStats = computeSignalStats(projectId, days);
@@ -98,8 +99,8 @@ async function handleGET(request: NextRequest) {
       const currentStart = new Date(now.getTime() - compareDays * 86400000).toISOString();
       const priorStart = new Date(now.getTime() - compareDays * 2 * 86400000).toISOString();
 
-      const currentWindowStats = directionOutcomeDb.getStatsByDateRange(projectId, currentStart, now.toISOString());
-      const priorWindowStats = directionOutcomeDb.getStatsByDateRange(projectId, priorStart, currentStart);
+      const currentWindowStats = directionOutcomeRepository.getStatsByDateRange(projectId, currentStart, now.toISOString());
+      const priorWindowStats = directionOutcomeRepository.getStatsByDateRange(projectId, priorStart, currentStart);
 
       // Also check behavioral signals for comparison windows
       const currentSignalStats = computeSignalStats(projectId, compareDays);

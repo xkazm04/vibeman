@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { standupDb } from '@/app/db';
+import { standupRepository } from '@/app/db/repositories/standup.repository';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
 
@@ -45,11 +45,11 @@ async function handleGet(request: NextRequest) {
 
     let summaries;
     if (periodType === 'daily') {
-      summaries = standupDb.getRecentDailySummaries(projectId, limit);
+      summaries = standupRepository.getRecentDailySummaries(projectId, limit);
     } else if (periodType === 'weekly') {
-      summaries = standupDb.getRecentWeeklySummaries(projectId, limit);
+      summaries = standupRepository.getRecentWeeklySummaries(projectId, limit);
     } else {
-      summaries = standupDb.getSummariesByProject(projectId, limit);
+      summaries = standupRepository.getSummariesByProject(projectId, limit);
     }
 
     const history: StandupHistoryItem[] = summaries.map((s) => ({

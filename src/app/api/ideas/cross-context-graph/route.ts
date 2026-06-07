@@ -10,7 +10,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { contextDb, contextGroupDb, contextGroupRelationshipDb, ideaDb, directionDb } from '@/app/db';
+import { contextGroupRelationshipRepository } from '@/app/db/repositories/context-group-relationship.repository';
+import { contextGroupRepository } from '@/app/db/repositories/context-group.repository';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
 import { buildContextGraph, analyzeCascade } from '@/lib/ideas/crossContextGraph';
 import { logger } from '@/lib/logger';
 import {
@@ -33,11 +37,11 @@ export async function GET(request: NextRequest) {
 
     // Fetch all data for the project
     const [contexts, groups, groupRelationships, ideas, directions] = [
-      contextDb.getContextsByProject(projectId),
-      contextGroupDb.getGroupsByProject(projectId),
-      contextGroupRelationshipDb.getByProject(projectId),
-      ideaDb.getIdeasByProject(projectId),
-      directionDb.getDirectionsByProject(projectId),
+      contextRepository.getContextsByProject(projectId),
+      contextGroupRepository.getGroupsByProject(projectId),
+      contextGroupRelationshipRepository.getByProject(projectId),
+      ideaRepository.getIdeasByProject(projectId),
+      directionRepository.getDirectionsByProject(projectId),
     ];
 
     // Build the graph

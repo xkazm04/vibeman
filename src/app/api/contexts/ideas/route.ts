@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ideaDb } from '@/app/db';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
 import { deleteRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { DbIdea } from '@/app/db/models/types';
 import {
@@ -34,8 +34,8 @@ async function handleDelete(request: NextRequest) {
 
     // Get all ideas for this context
     const ideas = isGeneralContext
-      ? ideaDb.getIdeasWithNullContext()
-      : ideaDb.getIdeasByContext(contextId);
+      ? ideaRepository.getIdeasWithNullContext()
+      : ideaRepository.getIdeasByContext(contextId);
 
     // Delete requirement files if they exist and projectPath is provided
     if (projectPath) {
@@ -44,8 +44,8 @@ async function handleDelete(request: NextRequest) {
 
     // Delete all ideas from database
     const deletedCount = isGeneralContext
-      ? ideaDb.deleteIdeasWithNullContext()
-      : ideaDb.deleteIdeasByContext(contextId);
+      ? ideaRepository.deleteIdeasWithNullContext()
+      : ideaRepository.deleteIdeasByContext(contextId);
 
     return createIdeasSuccessResponse(
       { deletedCount },

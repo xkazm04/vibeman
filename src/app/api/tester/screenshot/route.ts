@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { contextDb } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
 import { projectDb } from '@/lib/project_database';
 import { connectToBrowser } from '../lib/browserbase';
 import { executeContextScenario } from '../lib/contextScreenshotExecutor';
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get context from database
-    const context = contextDb.getContextById(contextId);
+    const context = contextRepository.getContextById(contextId);
     if (!context) {
       return NextResponse.json(
         { error: 'Context not found' },
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
     // Update test_updated timestamp and preview path if successful
     if (result.success && result.screenshotPath) {
       const now = new Date().toISOString();
-      const updated = contextDb.updateContext(contextId, {
+      const updated = contextRepository.updateContext(contextId, {
         test_updated: now,
         preview: result.screenshotPath, // Update preview with screenshot path
       });
@@ -228,7 +228,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const context = contextDb.getContextById(contextId);
+    const context = contextRepository.getContextById(contextId);
     if (!context) {
       return NextResponse.json(
         { error: 'Context not found' },

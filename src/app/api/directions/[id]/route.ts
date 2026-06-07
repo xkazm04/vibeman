@@ -7,7 +7,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { directionDb } from '@/app/db';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
 import { logger } from '@/lib/logger';
 import { emitDirectionChanged } from '@/lib/events/domainEmitters';
 import { createEntityHandlers } from '@/lib/api-helpers/crudRouteFactory';
@@ -18,9 +18,9 @@ const { GET, PUT, DELETE } = createEntityHandlers<DbDirection>({
   endpoint: '/api/directions/[id]',
 
   repo: {
-    getById: (id) => directionDb.getDirectionById(id),
-    update: (id, data) => directionDb.updateDirection(id, data as Parameters<typeof directionDb.updateDirection>[1]),
-    delete: (id) => directionDb.deleteDirection(id),
+    getById: (id) => directionRepository.getDirectionById(id),
+    update: (id, data) => directionRepository.updateDirection(id, data as Parameters<typeof directionRepository.updateDirection>[1]),
+    delete: (id) => directionRepository.deleteDirection(id),
   },
 
   buildUpdatePayload: (body) => ({
@@ -44,7 +44,7 @@ const { GET, PUT, DELETE } = createEntityHandlers<DbDirection>({
 
     // Handle rejection via dedicated method
     if (status === 'rejected') {
-      const rejectedDirection = directionDb.rejectDirection(id);
+      const rejectedDirection = directionRepository.rejectDirection(id);
       if (!rejectedDirection) {
         return NextResponse.json(
           { error: 'Failed to reject direction' },

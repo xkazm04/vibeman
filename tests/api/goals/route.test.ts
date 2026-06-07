@@ -65,12 +65,13 @@ vi.mock('@/lib/project_database', () => ({
   },
 }));
 
-// Mock the database module to use test database
-vi.mock('@/app/db', async () => {
+// Mock the repository modules (routes import repositories directly, not the
+// @/app/db barrel) to use the test database
+vi.mock('@/app/db/repositories/goal.repository', async () => {
   const { getTestDatabase } = await import('@tests/setup/test-database');
 
   return {
-    goalDb: {
+    goalRepository: {
       getGoalById: (id: string) => {
         const db = getTestDatabase();
         return db.prepare('SELECT * FROM goals WHERE id = ?').get(id);
@@ -147,7 +148,14 @@ vi.mock('@/app/db', async () => {
         return result.changes > 0;
       },
     },
-    contextDb: {
+  };
+});
+
+vi.mock('@/app/db/repositories/context.repository', async () => {
+  const { getTestDatabase } = await import('@tests/setup/test-database');
+
+  return {
+    contextRepository: {
       getContextById: (id: string) => {
         const db = getTestDatabase();
         return db.prepare('SELECT * FROM contexts WHERE id = ?').get(id);

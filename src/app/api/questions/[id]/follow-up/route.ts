@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { questionDb } from '@/app/db';
+import { questionRepository } from '@/app/db/repositories/question.repository';
 import { logger } from '@/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { questionTreeService } from '@/lib/questions/questionTreeService';
@@ -22,7 +22,7 @@ async function handlePost(
     const { count = 3 } = body;
 
     // Validate parent exists and is answered
-    const parent = questionDb.getQuestionById(parentId);
+    const parent = questionRepository.getQuestionById(parentId);
     if (!parent) {
       return NextResponse.json(
         { error: 'Parent question not found' },
@@ -85,7 +85,7 @@ async function handlePost(
 
     // Create follow-up questions in DB
     const createdQuestions = generatedQuestions.map(questionText => {
-      return questionDb.createQuestion({
+      return questionRepository.createQuestion({
         id: `question_${uuidv4()}`,
         project_id: parent.project_id,
         context_map_id: parent.context_map_id,

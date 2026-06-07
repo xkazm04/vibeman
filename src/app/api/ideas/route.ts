@@ -6,7 +6,10 @@
  * DELETE - Delete idea(s) (ideaQueries, ideasHandlers, IdeaDetailModal)
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { ideaDb, contextDb, scanDb, DbIdea, DbIdeaWithColor } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import { scanRepository } from '@/app/db/repositories/scan.repository';
+import type { DbIdea, DbIdeaWithColor } from '@/app/db/models/types';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/lib/logger';
 import {
@@ -72,42 +75,42 @@ async function handleGet(request: NextRequest) {
     if (withColors) {
       // Priority order: goalId > contextId > projectId > status > limit > all
       if (goalId) {
-        ideas = ideaDb.getIdeasByGoal(goalId);
+        ideas = ideaRepository.getIdeasByGoal(goalId);
         if (projectFilter.mode !== 'all') {
           ideas = filterByProject(ideas, projectFilter);
         }
       } else if (contextId) {
-        ideas = ideaDb.getIdeasByContext(contextId);
+        ideas = ideaRepository.getIdeasByContext(contextId);
       } else if (projectFilter.mode === 'single') {
-        ideas = ideaDb.getIdeasByProjectWithColors(projectFilter.projectId!);
+        ideas = ideaRepository.getIdeasByProjectWithColors(projectFilter.projectId!);
       } else if (projectFilter.mode === 'multi') {
-        ideas = ideaDb.getIdeasByProjectIdsWithColors(projectFilter.projectIds!);
+        ideas = ideaRepository.getIdeasByProjectIdsWithColors(projectFilter.projectIds!);
       } else if (status) {
-        ideas = ideaDb.getIdeasByStatusWithColors(status as any);
+        ideas = ideaRepository.getIdeasByStatusWithColors(status as any);
       } else if (limit) {
-        ideas = ideaDb.getRecentIdeas(limit!);
+        ideas = ideaRepository.getRecentIdeas(limit!);
       } else {
-        ideas = ideaDb.getAllIdeasWithColors();
+        ideas = ideaRepository.getAllIdeasWithColors();
       }
     } else {
       // Legacy mode: without colors
       if (goalId) {
-        ideas = ideaDb.getIdeasByGoal(goalId);
+        ideas = ideaRepository.getIdeasByGoal(goalId);
         if (projectFilter.mode !== 'all') {
           ideas = filterByProject(ideas, projectFilter);
         }
       } else if (contextId) {
-        ideas = ideaDb.getIdeasByContext(contextId);
+        ideas = ideaRepository.getIdeasByContext(contextId);
       } else if (projectFilter.mode === 'single') {
-        ideas = ideaDb.getIdeasByProject(projectFilter.projectId!);
+        ideas = ideaRepository.getIdeasByProject(projectFilter.projectId!);
       } else if (projectFilter.mode === 'multi') {
-        ideas = ideaDb.getIdeasByProjectIds(projectFilter.projectIds!);
+        ideas = ideaRepository.getIdeasByProjectIds(projectFilter.projectIds!);
       } else if (status) {
-        ideas = ideaDb.getIdeasByStatus(status as any);
+        ideas = ideaRepository.getIdeasByStatus(status as any);
       } else if (limit) {
-        ideas = ideaDb.getRecentIdeas(limit!);
+        ideas = ideaRepository.getRecentIdeas(limit!);
       } else {
-        ideas = ideaDb.getAllIdeas();
+        ideas = ideaRepository.getAllIdeas();
       }
     }
 
@@ -176,7 +179,7 @@ async function handlePost(request: NextRequest) {
 
     // Validate FK references exist before inserting to prevent opaque FK constraint errors
     const sanitizedScanId = sanitizeId(body.scan_id as string);
-    if (!scanDb.getScanById(sanitizedScanId)) {
+    if (!scanRepository.getScanById(sanitizedScanId)) {
       return createIdeasErrorResponse(IdeasErrorCode.CREATE_FAILED, {
         message: `scan_id "${sanitizedScanId}" does not exist in scans table`,
         field: 'scan_id',
@@ -187,7 +190,7 @@ async function handlePost(request: NextRequest) {
     let resolvedContextId: string | null = null;
     if (body.context_id) {
       const sanitizedCtxId = sanitizeId(body.context_id as string);
-      if (contextDb.getContextById(sanitizedCtxId)) {
+      if (contextRepository.getContextById(sanitizedCtxId)) {
         resolvedContextId = sanitizedCtxId;
       } else {
         logger.warn('[Ideas API] context_id not found in contexts table, setting to null', {
@@ -196,7 +199,7 @@ async function handlePost(request: NextRequest) {
       }
     }
 
-    const idea = ideaDb.createIdea({
+    const idea = ideaRepository.createIdea({
       id: uuidv4(),
       scan_id: sanitizedScanId,
       project_id: sanitizeId(body.project_id as string),
@@ -273,7 +276,7 @@ async function handlePatch(request: NextRequest) {
     if (body.impact !== undefined) updates.impact = body.impact;
     if (body.risk !== undefined) updates.risk = body.risk;
 
-    const idea = ideaDb.updateIdea(sanitizeId(body.id as string), updates);
+    const idea = ideaRepository.updateIdea(sanitizeId(body.id as string), updates);
 
     if (!idea) {
       return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND, {
@@ -309,7 +312,7 @@ async function handleDelete(request: NextRequest) {
       const denied = checkProjectAccess(projectId, request);
       if (denied) return denied;
 
-      const deletedCount = ideaDb.deleteAllIdeas();
+      const deletedCount = ideaRepository.deleteAllIdeas();
       logger.info(`[DELETE ALL IDEAS] Deleted ${deletedCount} ideas from database`);
 
       // Invalidate all analytics cache
@@ -342,8 +345,8 @@ async function handleDelete(request: NextRequest) {
     const sanitizedId = sanitizeId(id);
 
     // Get idea before deletion to access project_id
-    const ideaToDelete = ideaDb.getIdeaById(sanitizedId);
-    const success = ideaDb.deleteIdea(sanitizedId);
+    const ideaToDelete = ideaRepository.getIdeaById(sanitizedId);
+    const success = ideaRepository.deleteIdea(sanitizedId);
 
     if (!success) {
       return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND, {

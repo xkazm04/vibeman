@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { xrayDb } from '@/app/db';
+import { xrayRepository } from '@/app/db/repositories/xray.repository';
 import { addXRayEvent, getRecentEventsFromDb, type XRayEvent } from './stream/route';
 import { getLayerFromPath } from '@/app/features/Docs/sub_DocsAnalysis/lib/xrayTypes';
 import { withObservability } from '@/lib/observability/middleware';
@@ -20,7 +20,7 @@ async function handleGet(request: NextRequest) {
     const contextGroupId = searchParams.get('contextGroupId') || undefined;
 
     // Fetch events from database with filters
-    const dbEvents = xrayDb.getFiltered({
+    const dbEvents = xrayRepository.getFiltered({
       context_id: contextId,
       context_group_id: contextGroupId,
       since: since > 0 ? since : undefined,
@@ -31,8 +31,8 @@ async function handleGet(request: NextRequest) {
     const events = getRecentEventsFromDb(limit);
 
     // Get statistics from database
-    const dbStats = xrayDb.getStats(since > 0 ? since : undefined);
-    const layerTraffic = xrayDb.getLayerTraffic(since > 0 ? since : undefined);
+    const dbStats = xrayRepository.getStats(since > 0 ? since : undefined);
+    const layerTraffic = xrayRepository.getLayerTraffic(since > 0 ? since : undefined);
 
     // Build layer stats from database
     const layers: Record<string, number> = {
@@ -87,7 +87,7 @@ async function handlePost(request: NextRequest) {
     const timestamp = Date.now();
 
     // Persist to database
-    const dbEvent = xrayDb.logEvent({
+    const dbEvent = xrayRepository.logEvent({
       api_call_id: null,
       context_id: contextId || null,
       context_group_id: contextGroupId || null,
@@ -141,10 +141,10 @@ async function handleDelete(request: NextRequest) {
 
     if (olderThanDays > 0) {
       // Delete events older than specified days (retention policy)
-      deletedCount = xrayDb.cleanupOlderThan(olderThanDays);
+      deletedCount = xrayRepository.cleanupOlderThan(olderThanDays);
     } else {
       // Delete all events
-      deletedCount = xrayDb.deleteAll();
+      deletedCount = xrayRepository.deleteAll();
     }
 
     return NextResponse.json({

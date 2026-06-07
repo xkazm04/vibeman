@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { integrationDb, webhookDb } from '@/app/db';
+import { integrationRepository, webhookRepository } from '@/app/db/repositories/integration.repository';
 import type { IntegrationProvider, IntegrationEventType } from '@/app/db/models/integration.types';
 import { isTableMissingError } from '@/app/db/repositories/repository.utils';
 import { encryptField } from '@/lib/integrations/credentialCrypto';
@@ -28,9 +28,9 @@ async function handleGet(request: NextRequest) {
 
     let integrations;
     if (provider) {
-      integrations = integrationDb.getByProvider(projectId, provider);
+      integrations = integrationRepository.getByProvider(projectId, provider);
     } else {
-      integrations = integrationDb.getByProject(projectId);
+      integrations = integrationRepository.getByProject(projectId);
     }
 
     // Parse JSON fields for response
@@ -86,7 +86,7 @@ async function handlePost(request: NextRequest) {
     }
 
     // Create integration
-    const integration = integrationDb.create({
+    const integration = integrationRepository.create({
       project_id: projectId,
       provider,
       name,
@@ -101,7 +101,7 @@ async function handlePost(request: NextRequest) {
 
     // Create webhook if this is a webhook integration
     if (provider === 'webhook' && webhookUrl) {
-      webhookDb.create({
+      webhookRepository.create({
         integration_id: integration.id,
         project_id: projectId,
         url: webhookUrl,
@@ -148,7 +148,7 @@ async function handlePut(request: NextRequest) {
       );
     }
 
-    const existing = integrationDb.getById(id);
+    const existing = integrationRepository.getById(id);
     if (!existing) {
       return NextResponse.json(
         { success: false, error: 'Integration not found' },
@@ -164,7 +164,7 @@ async function handlePut(request: NextRequest) {
     if (credentials !== undefined) updates.credentials = credentials ? encryptField(JSON.stringify(credentials)) : null;
     if (enabledEvents !== undefined) updates.enabled_events = JSON.stringify(enabledEvents);
 
-    const updated = integrationDb.update(id, updates);
+    const updated = integrationRepository.update(id, updates);
 
     return NextResponse.json({
       success: true,
@@ -192,7 +192,7 @@ async function handleDelete(request: NextRequest) {
       );
     }
 
-    const deleted = integrationDb.delete(id);
+    const deleted = integrationRepository.delete(id);
 
   return NextResponse.json({ success: true, deleted });
 }

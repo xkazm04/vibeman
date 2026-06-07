@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { integrationDb, webhookDb } from '@/app/db';
+import { integrationRepository, webhookRepository } from '@/app/db/repositories/integration.repository';
 import { integrationEngine } from '@/lib/integrations';
 import type { IntegrationProvider } from '@/app/db/models/integration.types';
 import { isTableMissingError } from '@/app/db/repositories/repository.utils';
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
     if (id) {
       // Test existing integration
-      const integration = integrationDb.getById(id);
+      const integration = integrationRepository.getById(id);
       if (!integration) {
         return NextResponse.json(
           { success: false, error: 'Integration not found' },
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
 
       // For webhook integrations, include webhook config
       if (testProvider === 'webhook') {
-        const webhook = webhookDb.getByIntegration(id);
+        const webhook = webhookRepository.getByIntegration(id);
         if (webhook) {
           testConfig.webhookConfig = {
             url: webhook.url,
@@ -99,9 +99,9 @@ export async function POST(request: Request) {
     // Update integration status if testing existing integration
     if (id) {
       if (result.success) {
-        integrationDb.updateStatus(id, 'active');
+        integrationRepository.updateStatus(id, 'active');
       } else {
-        integrationDb.updateStatus(id, 'error', result.message);
+        integrationRepository.updateStatus(id, 'error', result.message);
       }
     }
 

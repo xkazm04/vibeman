@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { contextDb } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
 import { withObservability } from '@/lib/observability/middleware';
 
 /**
@@ -41,7 +41,7 @@ async function handlePatch(request: NextRequest) {
       updateData.test_scenario = testScenario || null;
     }
 
-    const updatedContext = contextDb.updateContext(contextId, updateData);
+    const updatedContext = contextRepository.updateContext(contextId, updateData);
 
     if (!updatedContext) {
       return NextResponse.json(

@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { crossTaskPlanDb } from '@/app/db';
+import { crossTaskPlanRepository } from '@/app/db/repositories/cross-task.repository';
 import { signalCollector } from '@/lib/brain/signalCollector';
 import { safeParseJson } from '@/lib/cross-task/safeParseJson';
 
@@ -31,7 +31,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    const plan = crossTaskPlanDb.getById(id);
+    const plan = crossTaskPlanRepository.getById(id);
 
     if (!plan) {
       return NextResponse.json(
@@ -58,7 +58,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     // Update the selection
-    const updated = crossTaskPlanDb.selectPlan(id, planNumber, notes);
+    const updated = crossTaskPlanRepository.selectPlan(id, planNumber, notes);
 
     // Emit Brain signal for cross_task_selection
     const { value: projectIds, warning: projectIdsWarning } = safeParseJson<string[]>(plan.project_ids, [], {

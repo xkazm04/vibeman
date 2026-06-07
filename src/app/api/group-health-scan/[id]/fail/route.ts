@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { groupHealthDb } from '@/app/db';
+import { groupHealthRepository } from '@/app/db/repositories/group-health.repository';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
 
@@ -18,7 +18,7 @@ async function handlePost(
     const { id } = await params;
 
     // Get the scan record
-    const scan = groupHealthDb.getById(id);
+    const scan = groupHealthRepository.getById(id);
     if (!scan) {
       return NextResponse.json(
         { error: 'Scan not found' },
@@ -35,7 +35,7 @@ async function handlePost(
     }
 
     // Mark as failed
-    const updated = groupHealthDb.failScan(id);
+    const updated = groupHealthRepository.failScan(id);
 
     logger.info('[API] Scan marked as failed:', {
       scanId: id,

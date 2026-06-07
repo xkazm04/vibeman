@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { projectDb } from '@/lib/project_database';
-import { workspaceDb } from '@/app/db';
+import { workspaceRepository } from '@/app/db/repositories/workspace.repository';
 import { logger } from '@/lib/logger';
 import { detectProjectTypeSync } from '@/lib/projectTypeDetector';
 import type { ProjectType } from '@/types';
@@ -80,9 +80,9 @@ async function handlePost(request: NextRequest) {
     projectDb.projects.add(projectData);
 
     if (projectData.workspaceId) {
-      const ws = workspaceDb.getById(projectData.workspaceId);
+      const ws = workspaceRepository.getById(projectData.workspaceId);
       if (ws) {
-        workspaceDb.addProject(projectData.workspaceId, projectData.id);
+        workspaceRepository.addProject(projectData.workspaceId, projectData.id);
       } else {
         logger.warn('Project created with unknown workspaceId; skipping workspace assignment', {
           projectId: projectData.id,
@@ -141,15 +141,15 @@ async function handlePut(request: NextRequest) {
     projectDb.projects.update(projectId, projectUpdates);
 
     if (updates.workspaceId !== undefined) {
-      const current = workspaceDb.getWorkspaceForProject(projectId);
+      const current = workspaceRepository.getWorkspaceForProject(projectId);
       const target = updates.workspaceId;
       if (target) {
-        const ws = workspaceDb.getById(target);
+        const ws = workspaceRepository.getById(target);
         if (ws && current?.id !== target) {
-          workspaceDb.addProject(target, projectId);
+          workspaceRepository.addProject(target, projectId);
         }
       } else if (current) {
-        workspaceDb.removeProject(current.id, projectId);
+        workspaceRepository.removeProject(current.id, projectId);
       }
     }
 

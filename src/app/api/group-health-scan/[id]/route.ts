@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { groupHealthDb } from '@/app/db';
+import { groupHealthRepository } from '@/app/db/repositories/group-health.repository';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
 
@@ -18,7 +18,7 @@ async function handleGet(
   try {
     const { id } = await params;
 
-    const scan = groupHealthDb.getById(id);
+    const scan = groupHealthRepository.getById(id);
 
     if (!scan) {
       return NextResponse.json(
@@ -56,7 +56,7 @@ async function handlePut(
     const { id } = await params;
     const body = await request.json();
 
-    const existingScan = groupHealthDb.getById(id);
+    const existingScan = groupHealthRepository.getById(id);
     if (!existingScan) {
       return NextResponse.json(
         { error: 'Scan not found' },
@@ -66,7 +66,7 @@ async function handlePut(
 
     // If action is 'start', update status to running
     if (body.action === 'start') {
-      const scan = groupHealthDb.startScan(id);
+      const scan = groupHealthRepository.startScan(id);
       logger.info('[API] Group health scan started:', { id });
       return NextResponse.json({
         success: true,
@@ -76,7 +76,7 @@ async function handlePut(
 
     // If action is 'fail', mark as failed
     if (body.action === 'fail') {
-      const scan = groupHealthDb.failScan(id);
+      const scan = groupHealthRepository.failScan(id);
       logger.info('[API] Group health scan failed:', { id });
       return NextResponse.json({
         success: true,
@@ -85,7 +85,7 @@ async function handlePut(
     }
 
     // General update
-    const scan = groupHealthDb.update(id, body);
+    const scan = groupHealthRepository.update(id, body);
     if (!scan) {
       return NextResponse.json(
         { error: 'Failed to update scan' },
@@ -113,7 +113,7 @@ async function handleDelete(
   try {
     const { id } = await params;
 
-    const existingScan = groupHealthDb.getById(id);
+    const existingScan = groupHealthRepository.getById(id);
     if (!existingScan) {
       return NextResponse.json(
         { error: 'Scan not found' },
@@ -123,7 +123,7 @@ async function handleDelete(
 
     // If scan is running, mark it as failed instead of deleting
     if (existingScan.status === 'running') {
-      const scan = groupHealthDb.failScan(id);
+      const scan = groupHealthRepository.failScan(id);
       logger.info('[API] Running scan cancelled:', { id });
       return NextResponse.json({
         success: true,
@@ -133,7 +133,7 @@ async function handleDelete(
     }
 
     // Delete the scan
-    const deleted = groupHealthDb.delete(id);
+    const deleted = groupHealthRepository.delete(id);
     if (!deleted) {
       return NextResponse.json(
         { error: 'Failed to delete scan' },

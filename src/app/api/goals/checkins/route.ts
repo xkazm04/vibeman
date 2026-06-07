@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { goalCheckinDb, goalDb } from '@/app/db';
+import { goalCheckinRepository } from '@/app/db/repositories/goal-checkin.repository';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
 import { randomUUID } from 'crypto';
 import { logger } from '@/lib/logger';
 import { createErrorResponse } from '@/lib/api-helpers';
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     if (goalId) {
       const limit = limitParam ? parseInt(limitParam, 10) : 12;
-      const checkins = goalCheckinDb.getCheckinsByGoal(goalId, limit);
+      const checkins = goalCheckinRepository.getCheckinsByGoal(goalId, limit);
       return NextResponse.json({ success: true, checkins });
     }
 
@@ -39,11 +40,11 @@ export async function GET(request: NextRequest) {
       if (accessDenied) return accessDenied;
 
       if (weekOf) {
-        const checkins = goalCheckinDb.getCheckinsByProjectWeek(projectId, weekOf);
+        const checkins = goalCheckinRepository.getCheckinsByProjectWeek(projectId, weekOf);
         return NextResponse.json({ success: true, checkins });
       }
 
-      const checkins = goalCheckinDb.getLatestCheckinsByProject(projectId);
+      const checkins = goalCheckinRepository.getLatestCheckinsByProject(projectId);
       return NextResponse.json({ success: true, checkins });
     }
 
@@ -84,10 +85,10 @@ export async function POST(request: NextRequest) {
       }
 
       // Verify the goal exists and belongs to the project
-      const goal = goalDb.getGoalById(item.goalId);
+      const goal = goalRepository.getGoalById(item.goalId);
       if (!goal || goal.project_id !== projectId) continue;
 
-      const result = goalCheckinDb.upsertCheckin({
+      const result = goalCheckinRepository.upsertCheckin({
         id: randomUUID(),
         goal_id: item.goalId,
         project_id: projectId,

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { hallOfFameDb } from '@/app/db';
+import { hallOfFameRepository } from '@/app/db/repositories/hall-of-fame.repository';
 
 /**
  * GET /api/hall-of-fame/star
@@ -7,7 +7,7 @@ import { hallOfFameDb } from '@/app/db';
  */
 export async function GET() {
   try {
-    const starredIds = hallOfFameDb.getStarredComponentIds();
+    const starredIds = hallOfFameRepository.getStarredComponentIds();
     return NextResponse.json({ starredIds });
   } catch (error) {
     console.error('Error fetching starred components:', error);
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = hallOfFameDb.toggle(componentId);
+    const result = hallOfFameRepository.toggle(componentId);
     return NextResponse.json(result);
   } catch (error) {
     console.error('Error toggling star status:', error);

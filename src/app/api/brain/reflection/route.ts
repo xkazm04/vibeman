@@ -7,7 +7,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { reflectionAgent } from '@/lib/brain/reflectionAgent';
-import { brainReflectionDb, brainInsightDb } from '@/app/db';
+import { brainInsightRepository } from '@/app/db/repositories/brain-insight.repository';
+import { brainReflectionRepository } from '@/app/db/repositories/brain-reflection.repository';
 import { withObservability } from '@/lib/observability/middleware';
 import type { ReflectionTriggerType } from '@/app/db/models/brain.types';
 import { dbInsightToLearning } from '@/app/db/repositories/brain-insight.repository';
@@ -38,11 +39,11 @@ async function handleGet(request: NextRequest) {
         );
       }
 
-      const reflections = brainReflectionDb.getByProject(projectId, limit);
+      const reflections = brainReflectionRepository.getByProject(projectId, limit);
 
       // Batch-fetch all insights for these reflections in one query (avoids N+1)
       const reflectionIds = reflections.map(r => r.id);
-      const insightsByReflection = brainInsightDb.getByReflectionIds(reflectionIds);
+      const insightsByReflection = brainInsightRepository.getByReflectionIds(reflectionIds);
 
       // Compute stats for each reflection
       const history = reflections.map((r) => {

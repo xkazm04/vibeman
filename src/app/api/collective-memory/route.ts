@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withObservability } from '@/lib/observability/middleware';
-import { collectiveMemoryDb } from '@/app/db';
+import { collectiveMemoryRepository } from '@/app/db/repositories/collective-memory.repository';
 import {
   recordTaskLearning,
   getRelevantKnowledge,
@@ -65,7 +65,7 @@ async function handleGET(request: NextRequest) {
 
       case 'trends': {
         const days = parseInt(searchParams.get('days') || '30', 10);
-        const trends = collectiveMemoryDb.getEffectivenessTrends(projectId, days);
+        const trends = collectiveMemoryRepository.getEffectivenessTrends(projectId, days);
         return NextResponse.json({ success: true, trends });
       }
 
@@ -74,7 +74,7 @@ async function handleGET(request: NextRequest) {
         if (!memoryId) {
           return NextResponse.json({ error: 'memoryId required for applications' }, { status: 400 });
         }
-        const apps = collectiveMemoryDb.getApplicationsByMemory(memoryId);
+        const apps = collectiveMemoryRepository.getApplicationsByMemory(memoryId);
         return NextResponse.json({ success: true, applications: apps });
       }
 
@@ -84,8 +84,8 @@ async function handleGET(request: NextRequest) {
         const limit = parseInt(searchParams.get('limit') || '50', 10);
 
         const memories = type
-          ? collectiveMemoryDb.getByType(projectId, type, limit)
-          : collectiveMemoryDb.getByProject(projectId, limit);
+          ? collectiveMemoryRepository.getByType(projectId, type, limit)
+          : collectiveMemoryRepository.getByProject(projectId, limit);
 
         return NextResponse.json({ success: true, memories });
       }
@@ -126,7 +126,7 @@ async function handlePOST(request: NextRequest) {
           return NextResponse.json({ error: 'memoryId and projectId required' }, { status: 400 });
         }
         const appId = `cma_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const application = collectiveMemoryDb.createApplication({
+        const application = collectiveMemoryRepository.createApplication({
           id: appId,
           memory_id: memoryId,
           project_id: projectId,
@@ -134,7 +134,7 @@ async function handlePOST(request: NextRequest) {
           task_id: taskId,
           requirement_name: requirementName,
         });
-        collectiveMemoryDb.updateLastApplied(memoryId);
+        collectiveMemoryRepository.updateLastApplied(memoryId);
         return NextResponse.json({ success: true, application });
       }
 
@@ -149,7 +149,7 @@ async function handlePOST(request: NextRequest) {
             { status: 400 }
           );
         }
-        collectiveMemoryDb.resolveApplication(applicationId, outcome as ApplicationOutcome, details);
+        collectiveMemoryRepository.resolveApplication(applicationId, outcome as ApplicationOutcome, details);
         return NextResponse.json({ success: true });
       }
 
@@ -158,7 +158,7 @@ async function handlePOST(request: NextRequest) {
         if (!memoryId) {
           return NextResponse.json({ error: 'memoryId required' }, { status: 400 });
         }
-        const deleted = collectiveMemoryDb.delete(memoryId);
+        const deleted = collectiveMemoryRepository.delete(memoryId);
         return NextResponse.json({ success: true, deleted });
       }
 

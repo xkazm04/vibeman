@@ -6,7 +6,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { crossTaskPlanDb } from '@/app/db';
+import { crossTaskPlanRepository } from '@/app/db/repositories/cross-task.repository';
 import { safeParseJson } from '@/lib/cross-task/safeParseJson';
 
 interface RouteParams {
@@ -16,7 +16,7 @@ interface RouteParams {
 export async function GET(request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const plan = crossTaskPlanDb.getById(id);
+    const plan = crossTaskPlanRepository.getById(id);
 
     if (!plan) {
       return NextResponse.json(
@@ -52,7 +52,7 @@ export async function GET(request: Request, { params }: RouteParams) {
 export async function DELETE(request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const plan = crossTaskPlanDb.getById(id);
+    const plan = crossTaskPlanRepository.getById(id);
 
     if (!plan) {
       return NextResponse.json(
@@ -69,7 +69,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       );
     }
 
-    const deleted = crossTaskPlanDb.delete(id);
+    const deleted = crossTaskPlanRepository.delete(id);
 
     return NextResponse.json({
       success: deleted,
@@ -90,7 +90,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const body = await request.json();
     const { action, executionId } = body;
 
-    const plan = crossTaskPlanDb.getById(id);
+    const plan = crossTaskPlanRepository.getById(id);
 
     if (!plan) {
       return NextResponse.json(
@@ -107,7 +107,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         );
       }
 
-      const updated = crossTaskPlanDb.startAnalysis(id, executionId);
+      const updated = crossTaskPlanRepository.startAnalysis(id, executionId);
 
       return NextResponse.json({
         success: true,
