@@ -43,19 +43,16 @@ function createDriver(config: DbConfig): DbDriver {
 /**
  * Get or create the database driver instance
  * This is the main entry point for database access
+ *
+ * NOTE: Schema/migration initialization is NOT performed here — it runs
+ * once at server boot via src/instrumentation.ts → ensureDbReady()
+ * (see src/app/db/init.ts). Keeping it out of this synchronous path keeps
+ * the migrations subtree out of every consumer's static module graph.
  */
 export function getDbDriver(): DbDriver {
   if (!driverInstance) {
     const config = loadDbConfig();
     driverInstance = createDriver(config);
-
-    // Initialize tables and run migrations on first access
-    try {
-      driverInstance.initializeTables();
-    } catch (error) {
-      // Re-throw error to be handled by caller
-      throw new Error(`Failed to initialize database tables: ${error instanceof Error ? error.message : String(error)}`);
-    }
   }
 
   return driverInstance;
@@ -80,21 +77,7 @@ export function closeDatabase(): void {
   }
 }
 
-/**
- * Run database migrations
- * Convenience method that delegates to the driver
- */
-export function runMigrations(): void {
-  getDbDriver().runMigrations();
-}
-
-/**
- * Initialize database tables
- * Convenience method that delegates to the driver
- */
-export function initializeTables(): void {
-  getDbDriver().initializeTables();
-}
-
-// NOTE: Shutdown handlers are consolidated in src/app/db/index.ts
+// NOTE: Shutdown handlers are consolidated in src/app/db/init.ts
 // to ensure deterministic ordering (stop aggregation worker → close hot DB → close main DB).
+// Schema initialization and migrations live in src/app/db/schema.ts and are
+// invoked asynchronously from src/app/db/init.ts (ensureDbReady).

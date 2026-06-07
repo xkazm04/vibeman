@@ -14,8 +14,6 @@ import type {
   DbDriverType,
   SqliteConfig
 } from './types';
-import { runMigrations } from '../migrations/index';
-import { initializeTables } from '../schema';
 
 /**
  * SQLite connection wrapper
@@ -122,16 +120,6 @@ export class SqliteDriver implements DbDriver {
       this.connection.close();
       this.connection = null;
     }
-  }
-
-  runMigrations(): void {
-    // Run the existing migrations function
-    runMigrations();
-  }
-
-  initializeTables(): void {
-    // Run the existing schema initialization function
-    initializeTables();
   }
 
   getDriverType(): DbDriverType {

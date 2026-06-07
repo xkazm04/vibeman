@@ -92,16 +92,6 @@ export interface DbDriver {
   close(): void;
 
   /**
-   * Run all database migrations
-   */
-  runMigrations(): void;
-
-  /**
-   * Initialize database tables
-   */
-  initializeTables(): void;
-
-  /**
    * Get the driver type
    */
   getDriverType(): DbDriverType;

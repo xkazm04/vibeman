@@ -8,7 +8,9 @@ import { runPostInitHooks } from './schema.postinit';
  * Initialize all database tables
  * Creates tables if they don't exist and runs migrations
  *
- * NOTE: This function is now called automatically by the driver factory.
+ * NOTE: Called once at server boot from src/app/db/init.ts (ensureDbReady),
+ * which loads this module via dynamic import so the schema + migrations
+ * subtree stays out of every route's static module graph.
  * It uses the driver-agnostic connection interface.
  *
  * Composed from three phases:

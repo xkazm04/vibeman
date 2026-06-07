@@ -4,9 +4,7 @@
  */
 
 import { getDatabase, closeDatabase } from './connection';
-import { closeHotWritesDatabase } from './hot-writes';
-import { initializeTables } from './schema';
-import { startAggregationWorker, stopAggregationWorker } from '@/lib/db/hotWritesAggregator';
+import { ensureDbReady } from './init';
 import { goalRepository } from './repositories/goal.repository';
 import { goalCandidateRepository } from './repositories/goal-candidate.repository';
 import { contextGroupRepository } from './repositories/context-group.repository';
@@ -108,33 +106,19 @@ function createDbExport<T extends object>(repository: T): T & { close: typeof cl
   return { ...repository, close: closeDatabase };
 }
 
-// Initialize database on first import.
-// Store flag on globalThis so it survives Next.js HMR module reloads —
-// without this, each HMR cycle re-runs initializeTables and spawns a
-// duplicate aggregation worker.
-// Use a distinct key to prevent TOCTOU race when multiple API routes
-// import db/index.ts concurrently during Next.js server startup.
-const GLOBAL_DB_INIT_KEY = '__dbInitialized';
+// Kick off initialization on first import (idempotent, HMR-safe — the
+// promise guard lives on globalThis inside ensureDbReady). The hard
+// boot-time guarantee is src/instrumentation.ts, which AWAITS
+// ensureDbReady() before the server accepts requests; this fire-and-forget
+// covers contexts that don't run instrumentation (vitest, scripts).
+// Schema + migrations load as a shared async chunk, so importing this
+// barrel no longer pulls the migrations subtree into the static graph.
+void ensureDbReady().catch((err) => {
+  console.error('[db] Initialization failed:', err);
+});
 
-function ensureInitialized() {
-  const g = globalThis as Record<string, unknown>;
-  if (!g[GLOBAL_DB_INIT_KEY]) {
-    // Set flag BEFORE initializing so concurrent callers skip immediately
-    g[GLOBAL_DB_INIT_KEY] = true;
-    try {
-      initializeTables();
-      // Start hot-writes aggregation worker (rolls up obs_api_calls -> obs_endpoint_stats)
-      startAggregationWorker();
-    } catch (err) {
-      // Reset flag so next import retries initialization
-      g[GLOBAL_DB_INIT_KEY] = undefined;
-      throw err;
-    }
-  }
-}
-
-// Auto-initialize
-ensureInitialized();
+// Re-export for callers that need to await readiness explicitly
+export { ensureDbReady };
 
 export const goalDb = createDbExport(goalRepository);
 export const goalCandidateDb = createDbExport(goalCandidateRepository);
@@ -224,25 +208,5 @@ export const scanResultDb = createDbExport(scanResultRepository);
 export const triageRuleDb = createDbExport(triageRuleRepository);
 export const savedViewDb = createDbExport(savedViewRepository);
 
-// Cleanup handlers
-if (typeof process !== 'undefined') {
-  process.on('exit', () => {
-    stopAggregationWorker();
-    closeHotWritesDatabase();
-    closeDatabase();
-  });
-
-  process.on('SIGINT', () => {
-    stopAggregationWorker();
-    closeHotWritesDatabase();
-    closeDatabase();
-    process.exit(0);
-  });
-
-  process.on('SIGTERM', () => {
-    stopAggregationWorker();
-    closeHotWritesDatabase();
-    closeDatabase();
-    process.exit(0);
-  });
-}
+// Process shutdown handlers are registered in ./init.ts once initialization
+// completes (stop aggregation worker → close hot DB → close main DB).
