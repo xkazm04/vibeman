@@ -26,6 +26,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: [
     'ts-morph',
     '@ts-morph/common',
+    'better-sqlite3', // native module — keep its graph out of the bundle
   ],
   async headers() {
     return [
