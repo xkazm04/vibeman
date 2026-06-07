@@ -30,13 +30,19 @@ export function ensureDbReady(): Promise<void> {
   const g = globalThis as Record<string, unknown>;
   if (!g[INIT_PROMISE_KEY]) {
     g[INIT_PROMISE_KEY] = (async () => {
-      const [{ initializeTables }, aggregator] = await Promise.all([
+      const [{ initializeTables }, aggregator, { env }] = await Promise.all([
         import('./schema'),
         import('@/lib/db/hotWritesAggregator'),
+        import('@/lib/config/envConfig'),
       ]);
       initializeTables();
-      // Start hot-writes aggregation worker (rolls up obs_api_calls -> obs_endpoint_stats)
-      aggregator.startAggregationWorker();
+      // Start hot-writes aggregation worker (rolls up obs_api_calls ->
+      // obs_endpoint_stats AND prunes aggregated raw calls). Default ON;
+      // HOT_WRITES_AGGREGATOR_ENABLED=false opts out — note the hot-writes
+      // DB then grows unbounded since pruning runs in this worker.
+      if (env.hotWritesAggregatorEnabled()) {
+        aggregator.startAggregationWorker();
+      }
       registerCleanupHandlers(aggregator.stopAggregationWorker);
     })().catch((err: unknown) => {
       // Reset so the next caller retries initialization instead of caching the failure
