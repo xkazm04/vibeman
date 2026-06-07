@@ -20,7 +20,7 @@
 import React from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { LayoutGrid, Columns3 } from 'lucide-react';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useProjectContexts } from '@/lib/queries/contextsQueries';

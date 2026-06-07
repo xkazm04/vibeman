@@ -2,7 +2,7 @@
  * Idea Tools - Implementation for Annette's idea-related tool calls
  */
 
-import { ideaDb } from '@/app/db';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
 
 export async function executeIdeaTools(
   name: string,
@@ -15,7 +15,7 @@ export async function executeIdeaTools(
       const contextId = input.context_id as string | undefined;
 
       // Get next pending idea
-      const ideas = ideaDb.getIdeasByProject(projectId);
+      const ideas = ideaRepository.getIdeasByProject(projectId);
       const pending = ideas.filter(i => i.status === 'pending');
 
       let filtered = pending;
@@ -133,7 +133,7 @@ export async function executeIdeaTools(
     }
 
     case 'get_idea_stats': {
-      const ideas = ideaDb.getIdeasByProject(projectId);
+      const ideas = ideaRepository.getIdeasByProject(projectId);
       const stats = {
         total: ideas.length,
         pending: ideas.filter(i => i.status === 'pending').length,

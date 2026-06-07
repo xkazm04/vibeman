@@ -21,7 +21,7 @@ import StatusFilter from './StatusFilter';
 import DateRangeFilter from './DateRangeFilter';
 import SearchInput from './SearchInput';
 import { UniversalSelect } from '@/components/ui/UniversalSelect';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 
 interface FilterBarProps {
   projects: Array<{ id: string; name: string }>;

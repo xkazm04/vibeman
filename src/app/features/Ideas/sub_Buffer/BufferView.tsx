@@ -4,7 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, XCircle } from 'lucide-react';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import BufferColumn from './BufferColumn';
 import { createIdeaStagingBuffer } from '@/lib/staging-buffer';
 

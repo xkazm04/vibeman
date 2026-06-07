@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import type { IdeaStatus } from '@/lib/ideas/ideaStateMachine';
 
 export type { IdeaStatus };

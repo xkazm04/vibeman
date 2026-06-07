@@ -3,7 +3,7 @@
  * Also includes stats calculation helpers
  */
 
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import { SuggestionFilter } from './unifiedTypes';
 
 // ============================================================================

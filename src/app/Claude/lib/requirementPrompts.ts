@@ -1,4 +1,4 @@
-import { DbGoal, DbContext } from '@/app/db';
+import type { DbContext, DbGoal } from '@/app/db/models/types';
 import * as fs from 'fs';
 import * as path from 'path';
 

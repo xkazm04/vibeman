@@ -36,7 +36,7 @@ import {
   HelpCircle, Compass, Check, Clock, Sparkles, Target,
   FileText, AlertTriangle, X,
 } from 'lucide-react';
-import { DbQuestion, DbDirection } from '@/app/db';
+import type { DbDirection, DbQuestion } from '@/app/db/models/types';
 import type { QuestionTreeNode } from '@/lib/questions/questionTreeService';
 import EmptyState from '@/components/ui/EmptyState';
 

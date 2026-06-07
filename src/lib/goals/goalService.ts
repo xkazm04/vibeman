@@ -5,9 +5,10 @@
  * extracted from API route handlers for testability and reuse.
  */
 
-import { goalDb, implementationLogDb, contextDb } from '@/app/db';
-import { goalCandidateRepository } from '@/app/db/repositories/goal-candidate.repository';
+import { contextRepository } from '@/app/db/repositories/context.repository';
 import { goalRepository } from '@/app/db/repositories/goal.repository';
+import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
+import { goalCandidateRepository } from '@/app/db/repositories/goal-candidate.repository';
 import { getDatabase } from '@/app/db/connection';
 import { processSignal } from '@/lib/goals/goalLifecycleEngine';
 import { logger } from '@/lib/logger';
@@ -62,13 +63,13 @@ export function checkGoalCompletion(
   projectId: string,
   logTitle?: string
 ): CompletionCheckResult {
-  const matchingGoals = goalDb.getActiveGoalsByContextId(contextId);
+  const matchingGoals = goalRepository.getActiveGoalsByContextId(contextId);
 
   if (matchingGoals.length === 0) {
     return { matched: 0, goalIds: [], progress: 0 };
   }
 
-  const contextLogs = implementationLogDb.getLogsByContext(contextId);
+  const contextLogs = implementationLogRepository.getLogsByContext(contextId);
   const testedCount = contextLogs.filter(l => l.tested === 1).length;
   const totalCount = contextLogs.length;
   const progress = calculateGoalProgress(testedCount, totalCount);
@@ -77,13 +78,13 @@ export function checkGoalCompletion(
 
   for (const goal of matchingGoals) {
     if (goal.status === 'open') {
-      goalDb.updateGoal(goal.id, { status: 'in_progress' });
+      goalRepository.updateGoal(goal.id, { status: 'in_progress' });
     }
     // Determine source: hybrid if lifecycle engine has also been tracking
     const source = (goal.progress_source === 'inferred' || goal.progress_source === 'hybrid')
       ? 'hybrid' as const
       : 'manual' as const;
-    goalDb.updateGoalProgress(goal.id, progress, source, 100);
+    goalRepository.updateGoalProgress(goal.id, progress, source, 100);
     updatedGoals.push(goal.id);
   }
 
@@ -117,7 +118,7 @@ export function checkGoalCompletion(
  * Returns goals sorted by progress descending (most likely to complete first).
  */
 export function getCompletionSuggestions(projectId: string): CompletionSuggestion[] {
-  const goals = goalDb.getGoalsByProject(projectId);
+  const goals = goalRepository.getGoalsByProject(projectId);
   const inProgressGoals = goals.filter(
     g => (g.status === 'in_progress' || g.status === 'open') && g.context_id
   );
@@ -127,10 +128,10 @@ export function getCompletionSuggestions(projectId: string): CompletionSuggestio
   for (const goal of inProgressGoals) {
     if (!goal.context_id) continue;
 
-    const contextLogs = implementationLogDb.getLogsByContext(goal.context_id);
+    const contextLogs = implementationLogRepository.getLogsByContext(goal.context_id);
     if (contextLogs.length === 0) continue;
 
-    const context = contextDb.getContextById(goal.context_id);
+    const context = contextRepository.getContextById(goal.context_id);
     const testedCount = contextLogs.filter(l => l.tested === 1).length;
 
     suggestions.push({

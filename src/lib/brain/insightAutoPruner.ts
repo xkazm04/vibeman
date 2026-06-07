@@ -6,11 +6,12 @@
  * 2. Auto-resolve conflicts where one insight has significantly higher effectiveness
  * 3. Leave genuinely ambiguous conflicts for human resolution
  *
- * Uses the brain_insights table via brainInsightDb repository
+ * Uses the brain_insights table via brainInsightRepository repository
  * instead of parsing JSON blobs from brain_reflections.
  */
 
-import { getDatabase, brainInsightDb } from '@/app/db';
+import { getDatabase } from '@/app/db/connection';
+import { brainInsightRepository } from '@/app/db/repositories/brain-insight.repository';
 import type { DbBrainInsight } from '@/app/db/models/brain.types';
 import { EFFECTIVENESS_HELPFUL_THRESHOLD, EFFECTIVENESS_MISLEADING_THRESHOLD } from '@/lib/brain/config';
 
@@ -81,7 +82,7 @@ export function autoPruneInsights(projectId: string, minDirections: number = 3):
   let conflictsAutoResolved = 0;
 
   // 1. Load all insights from brain_insights table (joined with reflection completed_at)
-  const insightRows = brainInsightDb.getForEffectiveness(projectId);
+  const insightRows = brainInsightRepository.getForEffectiveness(projectId);
 
   // 2. Load all non-pending directions (raw SQL -- same as before)
   const directions = db.prepare(`
@@ -96,7 +97,7 @@ export function autoPruneInsights(projectId: string, minDirections: number = 3):
     return {
       misleadingDemoted: 0,
       conflictsAutoResolved: 0,
-      conflictsRemaining: brainInsightDb.countUnresolvedConflicts(projectId),
+      conflictsRemaining: brainInsightRepository.countUnresolvedConflicts(projectId),
       actions: [],
     };
   }
@@ -127,7 +128,7 @@ export function autoPruneInsights(projectId: string, minDirections: number = 3):
       const newConfidence = Math.max(10, oldConfidence - 30);
 
       if (newConfidence < oldConfidence) {
-        brainInsightDb.update(row.id, {
+        brainInsightRepository.update(row.id, {
           confidence: newConfidence,
           auto_pruned: 1,
           auto_prune_reason: `Effectiveness score ${effectiveness.score}% — acceptance rate dropped after this insight was learned`,
@@ -184,7 +185,7 @@ export function autoPruneInsights(projectId: string, minDirections: number = 3):
             thisUpdate.original_confidence = row.original_confidence ?? row.confidence;
           }
 
-          brainInsightDb.update(row.id, thisUpdate);
+          brainInsightRepository.update(row.id, thisUpdate);
 
           // Also resolve the other side
           const otherRow = otherEffectiveness.row;
@@ -205,7 +206,7 @@ export function autoPruneInsights(projectId: string, minDirections: number = 3):
               otherUpdate.original_confidence = otherRow.original_confidence ?? otherRow.confidence;
             }
 
-            brainInsightDb.update(otherRow.id, otherUpdate);
+            brainInsightRepository.update(otherRow.id, otherUpdate);
           }
 
           conflictsAutoResolved++;
@@ -225,7 +226,7 @@ export function autoPruneInsights(projectId: string, minDirections: number = 3):
   return {
     misleadingDemoted,
     conflictsAutoResolved,
-    conflictsRemaining: brainInsightDb.countUnresolvedConflicts(projectId),
+    conflictsRemaining: brainInsightRepository.countUnresolvedConflicts(projectId),
     actions,
   };
 }

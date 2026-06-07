@@ -11,7 +11,7 @@
  *   progress via SSE
  */
 
-import { agentDb } from '@/app/db';
+import { agentDb } from '@/app/db/composites/agent.db';
 import { executeTool, getToolDefinitions } from './toolRegistry';
 import { formatBrainForPrompt } from './brainInjector';
 import { generateWithLLM } from '@/lib/llm/llm-manager';

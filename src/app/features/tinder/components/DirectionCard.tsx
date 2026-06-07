@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { motion, useTransform } from 'framer-motion';
 import { duration } from '@/lib/motion';
-import { DbDirection } from '@/app/db';
+import type { DbDirection } from '@/app/db/models/types';
 import { Calendar, Compass, MapPin, Check, X, Trash2 } from 'lucide-react';
 import { formatCardDate } from '../lib/tinderUtils';
 import { useDragSwipe } from '../lib/tinderHooks';

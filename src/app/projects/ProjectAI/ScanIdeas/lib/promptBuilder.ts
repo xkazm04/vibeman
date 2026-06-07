@@ -4,7 +4,8 @@
  */
 
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
-import { DbContext, DbIdea, goalDb } from '@/app/db';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
+import type { DbContext, DbIdea } from '@/app/db/models/types';
 import { buildPrompt, PromptOptions as NewPromptOptions } from '../prompts';
 import { buildContextSection, buildExistingIdeasSection, buildGoalsSection, buildBehavioralSection, buildProjectStructureSection } from './sectionBuilders';
 import { buildFeedbackSection } from '@/lib/ideas/feedbackSynthesis';
@@ -59,7 +60,7 @@ export function buildIdeaGenerationPrompt(
   const { projectId, projectName, context, existingIdeas } = options;
 
   // Fetch open goals for the project
-  const allGoals = goalDb.getGoalsByProject(projectId);
+  const allGoals = goalRepository.getGoalsByProject(projectId);
   const openGoals = allGoals.filter(goal => goal.status === 'open');
 
   // Build sections

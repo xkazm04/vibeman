@@ -11,7 +11,7 @@
  * contextualRecaller queries this single system.
  */
 
-import { annetteDb } from '@/app/db';
+import { annetteDb } from '@/app/db/composites/annette.db';
 import { getConnection } from '@/app/db/drivers';
 import type {
   DbAnnetteKnowledgeNode,

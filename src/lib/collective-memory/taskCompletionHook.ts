@@ -5,7 +5,7 @@
  */
 
 import { recordTaskLearning, getRelevantKnowledge, formatKnowledgeForPrompt } from './collectiveMemoryService';
-import { collectiveMemoryDb } from '@/app/db';
+import { collectiveMemoryRepository } from '@/app/db/repositories/collective-memory.repository';
 import type { DbCollectiveMemoryEntry, ApplicationOutcome } from '@/app/db/models/collective-memory.types';
 
 /**
@@ -73,14 +73,14 @@ export function getTaskKnowledge(params: {
     for (const memory of memories) {
       try {
         const appId = `cma_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        collectiveMemoryDb.createApplication({
+        collectiveMemoryRepository.createApplication({
           id: appId,
           memory_id: memory.id,
           project_id: params.projectId,
           task_id: params.taskId,
           requirement_name: params.requirementName,
         });
-        collectiveMemoryDb.updateLastApplied(memory.id);
+        collectiveMemoryRepository.updateLastApplied(memory.id);
         applicationIds.push(appId);
       } catch {
         // Individual application record failure shouldn't block others
@@ -106,7 +106,7 @@ export function resolveTaskApplications(
 ): void {
   for (const appId of applicationIds) {
     try {
-      collectiveMemoryDb.resolveApplication(appId, outcome, details);
+      collectiveMemoryRepository.resolveApplication(appId, outcome, details);
     } catch {
       // Individual resolution failure shouldn't block others
     }

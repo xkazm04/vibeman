@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Proposal, ProposalState, DirectionProposal, toDirectionProposal } from '../types';
-import { DbDirection } from '@/app/db';
+import type { DbDirection } from '@/app/db/models/types';
 import { useCarousel } from './useCarousel';
 import { CAROUSEL_DELAYS } from './carouselConfig';
 

@@ -18,7 +18,10 @@
  * - transitionRules.ts  – status FSM logic
  */
 
-import { goalDb, implementationLogDb, goalDependencyDb, getDatabase } from '@/app/db';
+import { getDatabase } from '@/app/db/connection';
+import { goalDependencyRepository } from '@/app/db/repositories/goal-dependency.repository';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
+import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
 import { goalSignalRepository, goalSubGoalRepository } from '@/app/db/repositories/goal-lifecycle.repository';
 import type { DbGoal, GoalSignalType } from '@/app/db/models/types';
 import { logger } from '@/lib/logger';
@@ -114,7 +117,7 @@ export function processSignal(input: LifecycleSignalInput): {
  * Get full lifecycle status for a goal
  */
 export function getGoalLifecycleStatus(goalId: string): GoalLifecycleStatus | null {
-  const goal = goalDb.getGoalById(goalId);
+  const goal = goalRepository.getGoalById(goalId);
   if (!goal) return null;
 
   const signals = goalSignalRepository.getByGoal(goalId, 50);
@@ -164,7 +167,7 @@ export function getProjectLifecycleSummary(projectId: string): Array<{
   blockedBy: Array<{ goalId: string; title: string; status: string }>;
   blocks: Array<{ goalId: string; title: string; status: string }>;
 }> {
-  const goals = goalDb.getGoalsByProject(projectId);
+  const goals = goalRepository.getGoalsByProject(projectId);
   if (goals.length === 0) return [];
 
   // Batch-fetch all sub-goal stats in a single query instead of N+1
@@ -173,8 +176,8 @@ export function getProjectLifecycleSummary(projectId: string): Array<{
   const defaultStats = { total: 0, done: 0, inProgress: 0, open: 0 };
 
   // Fetch all dependency info for the project in one query
-  const blockedGoals = goalDependencyDb.getBlockedGoals(projectId);
-  const allDeps = goalDependencyDb.getByProject(projectId);
+  const blockedGoals = goalDependencyRepository.getBlockedGoals(projectId);
+  const allDeps = goalDependencyRepository.getByProject(projectId);
 
   // Build lookup maps for blocked-by and blocks relationships
   const blockedByMap = new Map<string, Array<{ goalId: string; title: string; status: string }>>();
@@ -225,7 +228,7 @@ export function getProjectLifecycleSummary(projectId: string): Array<{
  * Manually confirm auto-completion of a goal
  */
 export function confirmGoalCompletion(goalId: string): DbGoal | null {
-  const goal = goalDb.getGoalById(goalId);
+  const goal = goalRepository.getGoalById(goalId);
   if (!goal) return null;
 
   goalSignalRepository.create({
@@ -236,7 +239,7 @@ export function confirmGoalCompletion(goalId: string): DbGoal | null {
     progress_delta: 100,
   });
 
-  return goalDb.updateGoal(goalId, { status: 'done' });
+  return goalRepository.updateGoal(goalId, { status: 'done' });
 }
 
 /**
@@ -262,14 +265,14 @@ export function catchUpGoalProgress(projectId: string): {
   let signalsCreated = 0;
 
   try {
-    const goals = goalDb.getGoalsByProject(projectId);
+    const goals = goalRepository.getGoalsByProject(projectId);
     const activeGoals = goals.filter(g => g.status === 'open' || g.status === 'in_progress');
 
     for (const goal of activeGoals) {
       if (!goal.context_id) continue;
 
       // Check for implementation logs in this context that aren't signaled yet
-      const contextLogs = implementationLogDb.getLogsByContext(goal.context_id);
+      const contextLogs = implementationLogRepository.getLogsByContext(goal.context_id);
       const existingSignals = goalSignalRepository.getByGoal(goal.id);
       const existingSourceIds = new Set(existingSignals.map(s => s.source_id).filter(Boolean));
 

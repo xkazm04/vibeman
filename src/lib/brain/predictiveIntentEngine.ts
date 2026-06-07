@@ -12,7 +12,8 @@
  * Updated after each reflection cycle or on-demand via API.
  */
 
-import { behavioralSignalDb, predictiveIntentDb } from '@/app/db';
+import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-signal.repository';
+import { predictiveIntentRepository } from '@/app/db/repositories/predictive-intent.repository';
 import type { DbBehavioralSignal } from '@/app/db/models/brain.types';
 import type { TransitionCount } from '@/app/db/repositories/predictive-intent.repository';
 
@@ -187,7 +188,7 @@ export const predictiveIntentEngine = {
    */
   ingestTransitions: (projectId: string, windowDays: number = 7): number => {
     try {
-      const signals = behavioralSignalDb.getByProject(projectId, {
+      const signals = behavioralSignalRepository.getByProject(projectId, {
         limit: 500,
         since: new Date(Date.now() - windowDays * 86400000).toISOString(),
       });
@@ -197,7 +198,7 @@ export const predictiveIntentEngine = {
       let recorded = 0;
       for (const t of transitions) {
         try {
-          predictiveIntentDb.createTransition({
+          predictiveIntentRepository.createTransition({
             id: generateId(),
             project_id: projectId,
             from_context_id: t.fromContextId,
@@ -228,14 +229,14 @@ export const predictiveIntentEngine = {
   predict: (projectId: string, topK: number = 3): PredictionResult => {
     try {
       // Expire stale predictions first
-      predictiveIntentDb.expireOldPredictions(projectId, 4);
+      predictiveIntentRepository.expireOldPredictions(projectId, 4);
 
       // Get the transition counts for the Markov chain
-      const counts = predictiveIntentDb.getTransitionCounts(projectId, 30);
+      const counts = predictiveIntentRepository.getTransitionCounts(projectId, 30);
       const matrix = buildTransitionMatrix(counts);
 
       // Find the current/most recent context from signals
-      const recentSignals = behavioralSignalDb.getByProject(projectId, {
+      const recentSignals = behavioralSignalRepository.getByProject(projectId, {
         limit: 10,
       });
       const currentSignal = recentSignals.find(s => s.context_id && s.context_name);
@@ -282,10 +283,10 @@ export const predictiveIntentEngine = {
       }
 
       // Get accuracy stats
-      const accuracy = predictiveIntentDb.getAccuracyStats(projectId, 30);
+      const accuracy = predictiveIntentRepository.getAccuracyStats(projectId, 30);
 
       // Total model size
-      const modelSize = predictiveIntentDb.getTransitionCount(projectId);
+      const modelSize = predictiveIntentRepository.getTransitionCount(projectId);
 
       return {
         predictions,
@@ -316,12 +317,12 @@ export const predictiveIntentEngine = {
     fromContextName: string | null
   ): void => {
     // Expire any existing active predictions before creating new ones
-    predictiveIntentDb.expireOldPredictions(projectId, 0);
+    predictiveIntentRepository.expireOldPredictions(projectId, 0);
 
     for (const p of predictions) {
       if (p.confidence < 0.1) continue; // Don't store very low confidence predictions
       try {
-        predictiveIntentDb.createPrediction({
+        predictiveIntentRepository.createPrediction({
           id: generateId(),
           project_id: projectId,
           predicted_context_id: p.contextId,
@@ -341,7 +342,7 @@ export const predictiveIntentEngine = {
    * Resolve a prediction (user accepted or dismissed).
    */
   resolvePrediction: (predictionId: string, action: 'accepted' | 'dismissed'): void => {
-    predictiveIntentDb.resolvePrediction(predictionId, action);
+    predictiveIntentRepository.resolvePrediction(predictionId, action);
   },
 
   /**
@@ -353,7 +354,7 @@ export const predictiveIntentEngine = {
     predictiveIntentEngine.ingestTransitions(projectId, 30);
 
     // Clean up old transitions
-    predictiveIntentDb.deleteOldTransitions(projectId, 60);
+    predictiveIntentRepository.deleteOldTransitions(projectId, 60);
 
     // Generate fresh predictions
     const result = predictiveIntentEngine.predict(projectId);

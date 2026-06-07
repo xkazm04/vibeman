@@ -1,5 +1,5 @@
 import type { ProjectRequirement } from './types';
-import type { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import type { ContextInfo } from '../hooks/useTaskColumnData';
 import type { GroupedRequirement } from '../components/TaskGroupedList';
 

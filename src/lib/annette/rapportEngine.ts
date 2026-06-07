@@ -7,7 +7,7 @@
  * detect frustration, and adapt personality over time.
  */
 
-import { annetteDb } from '@/app/db';
+import { annetteDb } from '@/app/db/composites/annette.db';
 import type { DbAnnetteRapport } from '@/app/db/models/annette.types';
 import { logger } from '@/lib/logger';
 

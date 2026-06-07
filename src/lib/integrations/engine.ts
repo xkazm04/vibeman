@@ -3,11 +3,7 @@
  * Orchestrates event dispatch to external integrations
  */
 
-import {
-  integrationDb,
-  integrationEventDb,
-  webhookDb,
-} from '@/app/db';
+import { integrationEventRepository, integrationRepository, webhookRepository } from '@/app/db/repositories/integration.repository';
 import type {
   DbIntegration,
   IntegrationEventType,
@@ -88,7 +84,7 @@ export class IntegrationEngine {
     const results = { sent: 0, failed: 0, skipped: 0 };
 
     // Get all active integrations for this project that are subscribed to this event
-    const integrations = integrationDb.getByEventType(projectId, eventType);
+    const integrations = integrationRepository.getByEventType(projectId, eventType);
 
     if (integrations.length === 0) {
       return results;
@@ -118,7 +114,7 @@ export class IntegrationEngine {
         }
 
         // Create event log entry
-        const eventLog = integrationEventDb.create({
+        const eventLog = integrationEventRepository.create({
           integration_id: integration.id,
           project_id: projectId,
           event_type: eventType,
@@ -132,26 +128,26 @@ export class IntegrationEngine {
         const result = await this.sendToIntegration(integration, payload);
 
         if (result.success) {
-          integrationEventDb.updateStatus(
+          integrationEventRepository.updateStatus(
             eventLog.id,
             'sent',
             JSON.stringify(result.response)
           );
-          integrationDb.recordSync(integration.id);
+          integrationRepository.recordSync(integration.id);
           results.sent++;
         } else {
-          integrationEventDb.updateStatus(
+          integrationEventRepository.updateStatus(
             eventLog.id,
             'failed',
             undefined,
             result.error
           );
-          integrationDb.updateStatus(integration.id, 'error', result.error);
+          integrationRepository.updateStatus(integration.id, 'error', result.error);
           results.failed++;
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        integrationDb.updateStatus(integration.id, 'error', errorMessage);
+        integrationRepository.updateStatus(integration.id, 'error', errorMessage);
         results.failed++;
       }
     });
@@ -179,7 +175,7 @@ export class IntegrationEngine {
 
     // For webhook integrations, get additional config from webhooks table
     if (integration.provider === 'webhook') {
-      const webhook = webhookDb.getByIntegration(integration.id);
+      const webhook = webhookRepository.getByIntegration(integration.id);
       if (webhook) {
         (config as Record<string, unknown>).webhookConfig = {
           url: webhook.url,
@@ -234,14 +230,14 @@ export class IntegrationEngine {
   async retryFailedEvents(maxRetries: number = 3): Promise<{ retried: number; succeeded: number }> {
     const results = { retried: 0, succeeded: 0 };
 
-    const failedEvents = integrationEventDb.getFailedEvents(maxRetries);
+    const failedEvents = integrationEventRepository.getFailedEvents(maxRetries);
 
     for (const event of failedEvents) {
       results.retried++;
 
-      const integration = integrationDb.getById(event.integration_id);
+      const integration = integrationRepository.getById(event.integration_id);
       if (!integration || integration.status !== 'active') {
-        integrationEventDb.updateStatus(event.id, 'skipped');
+        integrationEventRepository.updateStatus(event.id, 'skipped');
         continue;
       }
 
@@ -255,11 +251,11 @@ export class IntegrationEngine {
       const result = await this.sendToIntegration(integration, payload);
 
       if (result.success) {
-        integrationEventDb.updateStatus(event.id, 'sent', JSON.stringify(result.response));
-        integrationDb.recordSync(integration.id);
+        integrationEventRepository.updateStatus(event.id, 'sent', JSON.stringify(result.response));
+        integrationRepository.recordSync(integration.id);
         results.succeeded++;
       } else {
-        integrationEventDb.updateStatus(event.id, 'failed', undefined, result.error);
+        integrationEventRepository.updateStatus(event.id, 'failed', undefined, result.error);
       }
     }
 
@@ -272,14 +268,14 @@ export class IntegrationEngine {
   async processPendingEvents(): Promise<{ processed: number; succeeded: number }> {
     const results = { processed: 0, succeeded: 0 };
 
-    const pendingEvents = integrationEventDb.getPendingEvents();
+    const pendingEvents = integrationEventRepository.getPendingEvents();
 
     for (const event of pendingEvents) {
       results.processed++;
 
-      const integration = integrationDb.getById(event.integration_id);
+      const integration = integrationRepository.getById(event.integration_id);
       if (!integration || integration.status !== 'active') {
-        integrationEventDb.updateStatus(event.id, 'skipped');
+        integrationEventRepository.updateStatus(event.id, 'skipped');
         continue;
       }
 
@@ -293,11 +289,11 @@ export class IntegrationEngine {
       const result = await this.sendToIntegration(integration, payload);
 
       if (result.success) {
-        integrationEventDb.updateStatus(event.id, 'sent', JSON.stringify(result.response));
-        integrationDb.recordSync(integration.id);
+        integrationEventRepository.updateStatus(event.id, 'sent', JSON.stringify(result.response));
+        integrationRepository.recordSync(integration.id);
         results.succeeded++;
       } else {
-        integrationEventDb.updateStatus(event.id, 'failed', undefined, result.error);
+        integrationEventRepository.updateStatus(event.id, 'failed', undefined, result.error);
       }
     }
 

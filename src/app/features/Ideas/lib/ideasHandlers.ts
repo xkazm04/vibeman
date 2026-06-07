@@ -2,7 +2,7 @@
  * Handler functions for ideas page operations
  */
 
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 

@@ -9,13 +9,11 @@
  * signal queries (goal signals + behavioral signals in one stream).
  */
 
-import {
-  goalDb,
-  goalSignalDb,
-  implementationLogDb,
-  behavioralSignalDb,
-  ideaDb,
-} from '@/app/db';
+import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-signal.repository';
+import { goalSignalRepository } from '@/app/db/repositories/goal-lifecycle.repository';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
 import type {
   GoalRiskAssessment,
   VelocityComparison,
@@ -127,10 +125,10 @@ export function assessSingleGoalRisk(
  * Get risk assessment for a single goal, fetching its signals from DB.
  */
 export function getGoalRisk(goalId: string): GoalRiskAssessment | null {
-  const goal = goalDb.getGoalById(goalId);
+  const goal = goalRepository.getGoalById(goalId);
   if (!goal) return null;
 
-  const signals = goalSignalDb.getByGoal(goalId, 20);
+  const signals = goalSignalRepository.getByGoal(goalId, 20);
   return assessSingleGoalRisk(goal, signals);
 }
 
@@ -147,7 +145,7 @@ function sortByRisk(a: GoalRiskAssessment, b: GoalRiskAssessment): number {
  * Get risk assessments for all active goals in a project.
  */
 export function getAllRisks(projectId: string): GoalRiskAssessment[] {
-  const goals = goalDb.getGoalsByProject(projectId);
+  const goals = goalRepository.getGoalsByProject(projectId);
   const activeGoals = goals.filter(g => g.status === 'open' || g.status === 'in_progress');
   if (activeGoals.length === 0) return [];
 
@@ -155,7 +153,7 @@ export function getAllRisks(projectId: string): GoalRiskAssessment[] {
 
   // Batch-fetch recent signals for all active goals in a single query
   const goalIds = activeGoals.map(g => g.id);
-  const signalsByGoal = goalSignalDb.getRecentByGoalIds(goalIds, 20);
+  const signalsByGoal = goalSignalRepository.getRecentByGoalIds(goalIds, 20);
 
   return activeGoals.map(goal => {
     const signals = signalsByGoal.get(goal.id) || [];
@@ -185,7 +183,7 @@ export function getAllRisksFromCollected(collected: CollectedStandupData): GoalR
  * This is the signal-based progress maintained by the lifecycle engine.
  */
 export function getGoalProgress(goalId: string): number {
-  const goal = goalDb.getGoalById(goalId);
+  const goal = goalRepository.getGoalById(goalId);
   if (!goal) return 0;
   return goal.progress || 0;
 }
@@ -382,9 +380,9 @@ function computePeriodVelocity(
   const startISO = start.toISOString();
   const endISO = end.toISOString();
 
-  const logCount = implementationLogDb.countLogsByProjectInRange(projectId, startISO, endISO);
-  const periodAccepted = ideaDb.countIdeasByProjectInRange(projectId, startISO, endISO, 'accepted');
-  const periodSignals = behavioralSignalDb.getByTypeAndRange(projectId, 'implementation', startISO, endISO);
+  const logCount = implementationLogRepository.countLogsByProjectInRange(projectId, startISO, endISO);
+  const periodAccepted = ideaRepository.countIdeasByProjectInRange(projectId, startISO, endISO, 'accepted');
+  const periodSignals = behavioralSignalRepository.getByTypeAndRange(projectId, 'implementation', startISO, endISO);
 
   return computeVelocityMetrics(logCount, periodAccepted, periodSignals, start, end);
 }

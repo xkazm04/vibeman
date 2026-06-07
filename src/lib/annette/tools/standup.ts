@@ -2,7 +2,7 @@
  * Standup/Reporting Tools - Implementation for Annette's standup-related tool calls
  */
 
-import { standupDb } from '@/app/db';
+import { standupRepository } from '@/app/db/repositories/standup.repository';
 
 export async function executeStandupTools(
   name: string,
@@ -37,7 +37,7 @@ export async function executeStandupTools(
       const limit = parseInt(String(input.limit || '5'), 10);
 
       try {
-        const standups = standupDb.getSummariesByProject(projectId, limit);
+        const standups = standupRepository.getSummariesByProject(projectId, limit);
         return JSON.stringify({
           total: standups.length,
           standups: standups.map(s => ({

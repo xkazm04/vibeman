@@ -3,7 +3,7 @@
  * Constructs different sections of the LLM prompt from various data sources
  */
 
-import { DbIdea, DbContext, DbGoal } from '@/app/db';
+import type { DbContext, DbGoal, DbIdea } from '@/app/db/models/types';
 import { getBehavioralContext, formatBehavioralForPrompt } from '@/lib/brain/behavioralContext';
 import { NEXTJS_STRUCTURE, type ProjectStructureTemplate } from '@/app/api/structure-scan/structureTemplates';
 

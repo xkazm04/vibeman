@@ -15,7 +15,7 @@ import {
   TrendingUp,
   FlaskConical,
 } from 'lucide-react';
-import { DbQuestion, DbDirection } from '@/app/db';
+import type { DbDirection, DbQuestion } from '@/app/db/models/types';
 import { useModal } from '@/contexts/ModalContext';
 import MarkdownViewer from '@/components/markdown/MarkdownViewer';
 import { type DecisionRecord, renderAdrMarkdown } from '@/lib/directions/adrGenerator';

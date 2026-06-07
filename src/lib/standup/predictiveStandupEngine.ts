@@ -8,13 +8,11 @@
  * or fetches its own data when called standalone (e.g. /api/standup/predict).
  */
 
-import {
-  implementationLogDb,
-  behavioralSignalDb,
-  contextDb,
-  goalDb,
-  goalDependencyDb,
-} from '@/app/db';
+import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-signal.repository';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { goalDependencyRepository } from '@/app/db/repositories/goal-dependency.repository';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
+import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
 import { getBehavioralContext } from '@/lib/brain/behavioralContext';
 import { logger } from '@/lib/logger';
 import {
@@ -158,10 +156,10 @@ function detectContextDecay(projectId: string): ContextDecayAlert[] {
   const STALE_WEIGHT_THRESHOLD = 3;
 
   try {
-    const contextActivity = behavioralSignalDb.getContextActivity(projectId, 14);
-    const recentActivity = behavioralSignalDb.getContextActivity(projectId, 3);
-    const contexts = contextDb.getContextsByProject(projectId);
-    const goals = goalDb.getGoalsByProject(projectId);
+    const contextActivity = behavioralSignalRepository.getContextActivity(projectId, 14);
+    const recentActivity = behavioralSignalRepository.getContextActivity(projectId, 3);
+    const contexts = contextRepository.getContextsByProject(projectId);
+    const goals = goalRepository.getGoalsByProject(projectId);
     const activeGoalContextIds = new Set(
       goals
         .filter(g => g.status === 'open' || g.status === 'in_progress')
@@ -357,7 +355,7 @@ function detectPredictedBlockers(
   const behavioralCtx = getBehavioralContext(projectId, 7);
   let untestedLogs: Array<{ id: string }> = [];
   try {
-    untestedLogs = implementationLogDb.getUntestedLogsByProject(projectId);
+    untestedLogs = implementationLogRepository.getUntestedLogsByProject(projectId);
   } catch (error) {
     logger.warn('[PredictiveStandup] Failed to fetch untested logs for blockers:', { projectId, error });
   }
@@ -378,7 +376,7 @@ function detectDependencyBlockers(projectId: string): PredictedBlocker[] {
   const blockers: PredictedBlocker[] = [];
 
   try {
-    const blockedGoals = goalDependencyDb.getBlockedGoals(projectId);
+    const blockedGoals = goalDependencyRepository.getBlockedGoals(projectId);
     if (blockedGoals.length === 0) return [];
 
     // Group by blocker goal to create consolidated warnings
@@ -478,7 +476,7 @@ function buildTaskRecommendations(
 ): TaskRecommendation[] {
   let untestedLogs: Array<{ id: string }> = [];
   try {
-    untestedLogs = implementationLogDb.getUntestedLogsByProject(projectId);
+    untestedLogs = implementationLogRepository.getUntestedLogsByProject(projectId);
   } catch (error) {
     logger.warn('[PredictiveStandup] Failed to fetch untested logs for task recommendations:', { projectId, error });
   }

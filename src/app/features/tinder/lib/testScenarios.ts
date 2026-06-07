@@ -9,7 +9,7 @@
  * - URL param: ?testMode=true&scenario=all_rejected
  */
 
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 
 // ===== Configuration =====
 

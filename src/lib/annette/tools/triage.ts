@@ -8,7 +8,8 @@
  * - get_triage_stats: Get triage statistics
  */
 
-import { ideaDb, directionDb } from '@/app/db';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
 
 export async function executeTriageTools(
   name: string,
@@ -29,7 +30,7 @@ export async function executeTriageTools(
       } = { totalPending: 0 };
 
       if (itemType === 'idea' || itemType === 'all') {
-        const allIdeas = ideaDb.getIdeasByProject(projectId);
+        const allIdeas = ideaRepository.getIdeasByProject(projectId);
         let pending = allIdeas.filter(i => i.status === 'pending');
         if (category) {
           pending = pending.filter(i => i.category === category);
@@ -50,7 +51,7 @@ export async function executeTriageTools(
       }
 
       if (itemType === 'direction' || itemType === 'all') {
-        const pendingDirections = directionDb.getPendingDirections(projectId);
+        const pendingDirections = directionRepository.getPendingDirections(projectId);
         result.directions = pendingDirections.slice(0, limit).map(d => ({
           id: d.id,
           title: d.summary,
@@ -109,7 +110,7 @@ export async function executeTriageTools(
               requirementId: data.requirementId,
             });
           } else {
-            ideaDb.updateIdea(itemId, {
+            ideaRepository.updateIdea(itemId, {
               status: 'rejected',
               user_feedback: reason || undefined,
             });
@@ -137,7 +138,7 @@ export async function executeTriageTools(
               requirementId: data.requirementId,
             });
           } else {
-            directionDb.rejectDirection(itemId);
+            directionRepository.rejectDirection(itemId);
             return JSON.stringify({
               success: true,
               message: 'Direction rejected.',
@@ -196,7 +197,7 @@ export async function executeTriageTools(
                 results.push({ ...item, success: false, error: await response.text() });
               }
             } else {
-              ideaDb.updateIdea(item.id, { status: 'rejected' });
+              ideaRepository.updateIdea(item.id, { status: 'rejected' });
               rejected++;
               results.push({ ...item, success: true });
             }
@@ -215,7 +216,7 @@ export async function executeTriageTools(
                 results.push({ ...item, success: false, error: await response.text() });
               }
             } else {
-              directionDb.rejectDirection(item.id);
+              directionRepository.rejectDirection(item.id);
               rejected++;
               results.push({ ...item, success: true });
             }
@@ -240,7 +241,7 @@ export async function executeTriageTools(
     }
 
     case 'get_triage_stats': {
-      const ideas = ideaDb.getIdeasByProject(projectId);
+      const ideas = ideaRepository.getIdeasByProject(projectId);
       const ideaStats = {
         total: ideas.length,
         pending: ideas.filter(i => i.status === 'pending').length,
@@ -249,7 +250,7 @@ export async function executeTriageTools(
         implemented: ideas.filter(i => i.status === 'implemented').length,
       };
 
-      const directionCounts = directionDb.getDirectionCounts(projectId);
+      const directionCounts = directionRepository.getDirectionCounts(projectId);
 
       return JSON.stringify({
         ideas: ideaStats,

@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Trash2, Edit2, Zap, Play, Link2 } from 'lucide-react';
 import { duration, easing } from '@/lib/motion';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import ContextMenu from '@/components/ContextMenu';
 import { getCategoryConfig, EffortIcon, ImpactIcon, effortScale, impactScale } from '../lib/ideaConfig';
 import { getStatusClasses, type StatusType } from '@/lib/design-tokens/useEntityStyling';

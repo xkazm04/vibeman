@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 
 // Lib imports
 import { calculateImplementedStats } from '@/app/features/reflector/lib/filterIdeas';

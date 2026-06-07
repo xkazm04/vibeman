@@ -1,4 +1,4 @@
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 
 export interface GroupedIdea extends DbIdea {
   projectName?: string;

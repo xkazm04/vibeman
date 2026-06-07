@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { duration } from '@/lib/motion';
-import { DbIdea, DbDirection } from '@/app/db';
+import type { DbDirection, DbIdea } from '@/app/db/models/types';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useContextStore } from '@/stores/contextStore';
 import { groupIdeasByProjectAndContext } from '../lib/groupIdeasByProjectAndContext';

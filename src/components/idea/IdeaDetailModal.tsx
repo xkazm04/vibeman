@@ -3,7 +3,7 @@ import React, { useState, useEffect, useId, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import FocusTrap from 'focus-trap-react';
 import { AlertCircle, X } from 'lucide-react';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import { generateRequirementForGoal } from '@/app/Claude/lib/requirementApi';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useAIOperation } from '@/hooks/useAIOperation';

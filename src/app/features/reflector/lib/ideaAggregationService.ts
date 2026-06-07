@@ -4,7 +4,8 @@
  * Efficiently retrieves and organizes all ideas with their associated project and context metadata
  */
 
-import { DbIdea, ideaDb } from '@/app/db';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import type { DbIdea } from '@/app/db/models/types';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { Context } from '@/stores/contextStore';
 
@@ -97,7 +98,7 @@ export function getAllIdeasWithMetadata(
 ): IdeaWithMetadata[] {
   try {
     // Get all ideas from database
-    const ideas = ideaDb.getAllIdeas();
+    const ideas = ideaRepository.getAllIdeas();
 
     // Get project store for project names
     const projectStore = useServerProjectStore.getState();
@@ -181,7 +182,7 @@ function calculateAverageMetrics(ideas: DbIdea[]) {
 export function getProjectStats(): ProjectStats[] {
   try {
     // Get all ideas
-    const ideas = ideaDb.getAllIdeas();
+    const ideas = ideaRepository.getAllIdeas();
 
     // Get project store
     const projectStore = useServerProjectStore.getState();
@@ -234,7 +235,7 @@ function groupIdeasByContext(ideas: DbIdea[]): Map<string, DbIdea[]> {
 export function getContextStats(contexts: Context[]): ContextStats[] {
   try {
     // Get all ideas
-    const ideas = ideaDb.getAllIdeas();
+    const ideas = ideaRepository.getAllIdeas();
 
     // Get project store
     const projectStore = useServerProjectStore.getState();
@@ -382,7 +383,7 @@ export interface OverallStats {
 
 export function getOverallStats(contexts: Context[]): OverallStats {
   try {
-    const ideas = ideaDb.getAllIdeas();
+    const ideas = ideaRepository.getAllIdeas();
     const projectStats = getProjectStats();
     const contextStats = getContextStats(contexts);
 

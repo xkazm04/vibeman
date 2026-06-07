@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { DbQuestion } from '@/app/db';
+import type { DbQuestion } from '@/app/db/models/types';
 import {
   generateQuestionRequirement,
   setupContextMapGenerator,

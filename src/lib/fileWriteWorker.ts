@@ -9,7 +9,8 @@
  * and can be triggered externally via /api/file-write-queue/process.
  */
 
-import { fileWriteQueueDb, ideaDb } from '@/app/db';
+import { fileWriteQueueRepository } from '@/app/db/repositories/file-write-queue.repository';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { logger } from '@/lib/logger';
 
@@ -17,7 +18,7 @@ import { logger } from '@/lib/logger';
  * Process a single queue item. Returns true if the file was written successfully.
  */
 export function processNextFileWrite(): boolean {
-  const item = fileWriteQueueDb.claimNext();
+  const item = fileWriteQueueRepository.claimNext();
   if (!item) return false;
 
   try {
@@ -28,8 +29,8 @@ export function processNextFileWrite(): boolean {
     }
 
     // File written — transition idea to 'accepted' and mark queue item completed
-    fileWriteQueueDb.markCompleted(item.id);
-    ideaDb.updateIdea(item.idea_id, { status: 'accepted' });
+    fileWriteQueueRepository.markCompleted(item.id);
+    ideaRepository.updateIdea(item.idea_id, { status: 'accepted' });
 
     logger.info('[FileWriteWorker] File written successfully', {
       ideaId: item.idea_id,
@@ -39,7 +40,7 @@ export function processNextFileWrite(): boolean {
     return true;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    fileWriteQueueDb.markFailed(item.id, errorMsg);
+    fileWriteQueueRepository.markFailed(item.id, errorMsg);
 
     logger.error('[FileWriteWorker] File write failed', {
       ideaId: item.idea_id,
@@ -65,7 +66,7 @@ export function drainFileWriteQueue(maxItems: number = 20): {
   let failed = 0;
 
   for (let i = 0; i < maxItems; i++) {
-    const pending = fileWriteQueueDb.countByStatus('pending') + fileWriteQueueDb.countByStatus('failed');
+    const pending = fileWriteQueueRepository.countByStatus('pending') + fileWriteQueueRepository.countByStatus('failed');
     if (pending === 0) break;
 
     const success = processNextFileWrite();

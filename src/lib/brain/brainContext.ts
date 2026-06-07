@@ -8,7 +8,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { observabilityDb } from '@/app/db';
+import { observabilityRepository } from '@/app/db/repositories/observability.repository';
 
 export interface BrainContext {
   exists: boolean;
@@ -186,7 +186,7 @@ export interface ObservabilityContext {
  */
 export function getObservabilityContext(projectId: string, days: number = 7): ObservabilityContext {
   try {
-    const hasData = observabilityDb.hasData(projectId);
+    const hasData = observabilityRepository.hasData(projectId);
 
     if (!hasData) {
       return {
@@ -198,21 +198,21 @@ export function getObservabilityContext(projectId: string, days: number = 7): Ob
     }
 
     // Get top endpoints
-    const topEndpoints = observabilityDb.getTopEndpoints(projectId, 10, days).map(ep => ({
+    const topEndpoints = observabilityRepository.getTopEndpoints(projectId, 10, days).map(ep => ({
       endpoint: ep.endpoint,
       method: ep.method,
       calls: ep.total_calls
     }));
 
     // Get high error endpoints
-    const highErrorEndpoints = observabilityDb.getHighErrorEndpoints(projectId, 5, days).map(ep => ({
+    const highErrorEndpoints = observabilityRepository.getHighErrorEndpoints(projectId, 5, days).map(ep => ({
       endpoint: ep.endpoint,
       method: ep.method,
       errorRate: ep.error_rate
     }));
 
     // Get trends
-    const rawTrends = observabilityDb.getUsageTrends(projectId, days);
+    const rawTrends = observabilityRepository.getUsageTrends(projectId, days);
     const trends = rawTrends
       .filter(t => t.direction !== 'stable')
       .slice(0, 5)

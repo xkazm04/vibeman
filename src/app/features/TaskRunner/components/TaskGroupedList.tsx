@@ -5,7 +5,7 @@ import { Square, CheckSquare } from 'lucide-react';
 import TaskItem from '../TaskItem';
 import { TruncateTooltip } from '@/components/ui/TruncateTooltip';
 import type { ProjectRequirement } from '../lib/types';
-import type { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import type { ContextInfo } from '../hooks/useTaskColumnData';
 
 interface GroupedRequirement {

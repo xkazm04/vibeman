@@ -3,7 +3,7 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Grid3X3, Check, X, Eye, TrendingUp, Clock } from 'lucide-react';
-import { DbDirection } from '@/app/db';
+import type { DbDirection } from '@/app/db/models/types';
 import { useModal } from '@/contexts/ModalContext';
 import MarkdownViewer from '@/components/markdown/MarkdownViewer';
 

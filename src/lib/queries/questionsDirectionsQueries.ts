@@ -5,7 +5,7 @@
 
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { DbQuestion, DbDirection } from '@/app/db';
+import type { DbDirection, DbQuestion } from '@/app/db/models/types';
 import { Context, ContextGroup } from '@/lib/queries/contextQueries';
 import {
   fetchQuestions,

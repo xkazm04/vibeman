@@ -6,7 +6,7 @@ import {
   X, Check, XIcon, Loader2,
   Lightbulb, Zap, Target,
 } from 'lucide-react';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import { duration } from '@/lib/motion';
 import { statusConfig } from '@/lib/design-tokens';
 

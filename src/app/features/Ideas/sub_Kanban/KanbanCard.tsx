@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { GripVertical } from 'lucide-react';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import { getCategoryConfig, effortScale, impactScale, EffortIcon, ImpactIcon } from '../lib/ideaConfig';
 import { getAgent, type ScanType } from '../lib/scanTypes';
 

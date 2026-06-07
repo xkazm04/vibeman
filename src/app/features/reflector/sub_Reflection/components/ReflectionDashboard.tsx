@@ -23,7 +23,7 @@ import { buildURLFromFilters } from '@/app/features/reflector/lib/urlFilterSync'
 import SuggestionTypeToggle from '../../components/SuggestionTypeToggle';
 import DrillDownDrawer, { DrillDownContext, dbIdeaToDrillDown } from '../../components/DrillDownDrawer';
 import { SuggestionFilter } from '../../lib/unifiedTypes';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 
 type ViewMode = 'analytics' | 'executive';
 

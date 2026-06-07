@@ -19,7 +19,9 @@ import { detectConflicts, markConflictsOnInsights } from '@/lib/brain/insightCon
 import { autoPruneInsights, type AutoPruneResult } from '@/lib/brain/insightAutoPruner';
 import { InsightDeduplicator } from '@/lib/brain/InsightDeduplicator';
 import { predictiveIntentEngine } from '@/lib/brain/predictiveIntentEngine';
-import { brainReflectionDb, brainInsightDb, behavioralSignalDb } from '@/app/db';
+import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-signal.repository';
+import { brainInsightRepository } from '@/app/db/repositories/brain-insight.repository';
+import { brainReflectionRepository } from '@/app/db/repositories/brain-reflection.repository';
 import { dbInsightToLearning } from '@/app/db/repositories/brain-insight.repository';
 import { getDatabase } from '@/app/db/connection';
 import { getHotWritesDatabase } from '@/app/db/hot-writes';
@@ -185,7 +187,7 @@ export function deleteSignal(signalId: string): boolean {
   const hotDb = getHotWritesDatabase();
   const signal = hotDb.prepare('SELECT project_id FROM behavioral_signals WHERE id = ?').get(signalId) as { project_id: string } | undefined;
 
-  const deleted = behavioralSignalDb.deleteById(signalId);
+  const deleted = behavioralSignalRepository.deleteById(signalId);
   if (!deleted) return false;
 
   if (signal?.project_id) {
@@ -263,7 +265,7 @@ export async function completeReflection(input: CompleteReflectionInput): Promis
   const { reflectionId, directionsAnalyzed, outcomesAnalyzed, signalsAnalyzed, insights, guideSectionsUpdated } = input;
 
   // Verify reflection exists and is running
-  const reflection = brainReflectionDb.getById(reflectionId);
+  const reflection = brainReflectionRepository.getById(reflectionId);
   if (!reflection) {
     return { success: false, error: 'Reflection not found', status: 404 };
   }
@@ -315,7 +317,7 @@ export async function completeReflection(input: CompleteReflectionInput): Promis
     const db = getDatabase();
     const runCompletion = db.transaction(() => {
       // Deduplicate insights against previously stored ones (canonical_id based)
-      const existingDbInsights = brainInsightDb.getByProject(projectId);
+      const existingDbInsights = brainInsightRepository.getByProject(projectId);
       const deduplicator = new InsightDeduplicator(projectId, existingDbInsights);
       dedupedInsights = deduplicator.deduplicate(validatedInsights);
 
@@ -350,7 +352,7 @@ export async function completeReflection(input: CompleteReflectionInput): Promis
       }
 
       // Insert insights into the first-class brain_insights table
-      brainInsightDb.createBatch(reflectionId, projectId, dedupedInsights, deduplicator);
+      brainInsightRepository.createBatch(reflectionId, projectId, dedupedInsights, deduplicator);
     });
 
     runCompletion();
@@ -396,7 +398,7 @@ export async function completeReflection(input: CompleteReflectionInput): Promis
     console.warn('[Brain] Cross-project promotion failed:', err);
   }
 
-  const updatedReflection = brainReflectionDb.getById(reflectionId);
+  const updatedReflection = brainReflectionRepository.getById(reflectionId);
 
   return {
     success: true,
@@ -460,8 +462,8 @@ export function applySignalDecay(
   retentionDays: number
 ): { decayed: number; deleted: number } {
   const decayStartDays = Math.max(DECAY_START_MIN_DAYS, Math.floor(retentionDays * DECAY_START_FRACTION));
-  const decayed = behavioralSignalDb.applyDecay(projectId, decayFactor, decayStartDays);
-  const deleted = behavioralSignalDb.deleteOld(projectId, retentionDays);
+  const decayed = behavioralSignalRepository.applyDecay(projectId, decayFactor, decayStartDays);
+  const deleted = behavioralSignalRepository.deleteOld(projectId, retentionDays);
   invalidateContextCache(projectId);
   return { decayed, deleted };
 }

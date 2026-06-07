@@ -3,7 +3,7 @@
  * Client-side functions for interacting with the Directions API
  */
 
-import { DbDirection } from '@/app/db';
+import type { DbDirection } from '@/app/db/models/types';
 import { safeResponseJson, parseApiResponse, DirectionsResponseSchema, DirectionMutationSchema, AcceptDirectionResponseSchema, SuccessResponseSchema } from '@/lib/apiResponseGuard';
 import type { GenericListResponse } from '@/lib/api-helpers/groupByContextMap';
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import type { ProjectRequirement } from '../lib/types';
 import type { AggregationCheckResult } from '../lib/ideaAggregator';
 import type { ContextInfo } from './useTaskColumnData';
-import type { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 
 interface BatchDataResult {
   /** Aggregation check results keyed by projectId */

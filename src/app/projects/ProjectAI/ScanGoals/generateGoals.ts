@@ -1,4 +1,4 @@
-import { goalDb } from '@/app/db';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
 import { generateWithLLM, DefaultProviderStorage } from '../../../../lib/llm';
 import { buildStrategicGoalsPrompt } from '../lib/promptBuilder';
 import { readAIDocs } from './lib/utils';
@@ -20,7 +20,7 @@ export async function generateGoals(
   provider?: string
 ): Promise<string> {
   // Get existing goals to prevent duplicates
-  const existingGoals = goalDb.getGoalsByProject(projectId);
+  const existingGoals = goalRepository.getGoalsByProject(projectId);
 
   // Try to read AI docs if project path is provided
   let aiDocsContent: string | null = null;

@@ -7,16 +7,13 @@
  * on a coherent snapshot of the same data.
  */
 
-import {
-  goalDb,
-  goalSignalDb,
-  goalSignalSummaryDb,
-  implementationLogDb,
-  behavioralSignalDb,
-  contextDb,
-  ideaDb,
-  scanDb,
-} from '@/app/db';
+import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-signal.repository';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { goalSignalRepository, goalSignalSummaryRepository } from '@/app/db/repositories/goal-lifecycle.repository';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
+import { scanRepository } from '@/app/db/repositories/scan.repository';
 import { getBehavioralContext } from '@/lib/brain/behavioralContext';
 import { StandupSourceData } from '@/app/db/models/standup.types';
 import type { ActivitySignal } from '@/types/activity-signal';
@@ -31,7 +28,7 @@ export interface CollectedStandupData {
   sourceData: StandupSourceData;
 
   /** All goals for the project (any status) */
-  goals: ReturnType<typeof goalDb.getGoalsByProject>;
+  goals: ReturnType<typeof goalRepository.getGoalsByProject>;
 
   /** Goal signals keyed by goal ID (full DbGoalSignal for unified stream) */
   goalSignals: Map<string, import('@/app/db/models/types').DbGoalSignal[]>;
@@ -40,10 +37,10 @@ export interface CollectedStandupData {
   goalSignalSummaries: Map<string, import('@/app/db/models/types').DbGoalSignalSummary>;
 
   /** Behavioral context activity over 14 days */
-  contextActivity14d: ReturnType<typeof behavioralSignalDb.getContextActivity>;
+  contextActivity14d: ReturnType<typeof behavioralSignalRepository.getContextActivity>;
 
   /** Behavioral context activity over 3 days */
-  contextActivity3d: ReturnType<typeof behavioralSignalDb.getContextActivity>;
+  contextActivity3d: ReturnType<typeof behavioralSignalRepository.getContextActivity>;
 
   /** Velocity data: implementation count for current week */
   currentWeekLogCount: number;
@@ -54,12 +51,12 @@ export interface CollectedStandupData {
   /** Velocity data: accepted ideas count for previous week */
   previousWeekAccepted: number;
   /** Velocity data: behavioral signals for current week */
-  currentWeekSignals: ReturnType<typeof behavioralSignalDb.getByTypeAndRange>;
+  currentWeekSignals: ReturnType<typeof behavioralSignalRepository.getByTypeAndRange>;
   /** Velocity data: behavioral signals for previous week */
-  previousWeekSignals: ReturnType<typeof behavioralSignalDb.getByTypeAndRange>;
+  previousWeekSignals: ReturnType<typeof behavioralSignalRepository.getByTypeAndRange>;
 
   /** Untested implementation logs */
-  untestedLogs: ReturnType<typeof implementationLogDb.getUntestedLogsByProject>;
+  untestedLogs: ReturnType<typeof implementationLogRepository.getUntestedLogsByProject>;
 
   /** Behavioral context for blocker detection (revert rate, patterns) */
   behavioralContext: ReturnType<typeof getBehavioralContext>;
@@ -81,13 +78,13 @@ export function collectStandupData(
   endISO: string
 ): CollectedStandupData {
   // ── Shared: contexts & goals (used by both pipelines) ──
-  const contexts = contextDb.getContextsByProject(projectId);
-  const goals = goalDb.getGoalsByProject(projectId);
+  const contexts = contextRepository.getContextsByProject(projectId);
+  const goals = goalRepository.getGoalsByProject(projectId);
 
   // ── Retrospective: period-scoped data ──
-  const periodLogs = implementationLogDb.getLogsByProjectInRange(projectId, startISO, endISO);
-  const periodIdeas = ideaDb.getIdeasByProjectInRange(projectId, startISO, endISO);
-  const periodScans = scanDb.getScansByProjectInRange(projectId, startISO, endISO);
+  const periodLogs = implementationLogRepository.getLogsByProjectInRange(projectId, startISO, endISO);
+  const periodIdeas = ideaRepository.getIdeasByProjectInRange(projectId, startISO, endISO);
+  const periodScans = scanRepository.getScansByProjectInRange(projectId, startISO, endISO);
 
   const sourceData: StandupSourceData = {
     implementationLogs: periodLogs.map((log) => ({
@@ -126,14 +123,14 @@ export function collectStandupData(
   // ── Predictive: goal signals (single batch query replaces N+1) ──
   const activeGoals = goals.filter(g => g.status === 'open' || g.status === 'in_progress');
   const activeGoalIds = activeGoals.map(g => g.id);
-  const goalSignals = goalSignalDb.getRecentByGoalIds(activeGoalIds, 20);
+  const goalSignals = goalSignalRepository.getRecentByGoalIds(activeGoalIds, 20);
 
   // ── Predictive: pre-computed signal summaries (single query from materialized view) ──
-  const goalSignalSummaries = goalSignalSummaryDb.getByGoalIds(activeGoalIds);
+  const goalSignalSummaries = goalSignalSummaryRepository.getByGoalIds(activeGoalIds);
 
   // ── Predictive: context decay signals ──
-  const contextActivity14d = behavioralSignalDb.getContextActivity(projectId, 14);
-  const contextActivity3d = behavioralSignalDb.getContextActivity(projectId, 3);
+  const contextActivity14d = behavioralSignalRepository.getContextActivity(projectId, 14);
+  const contextActivity3d = behavioralSignalRepository.getContextActivity(projectId, 3);
 
   // ── Predictive: velocity comparison (current vs previous week) ──
   const now = new Date();
@@ -144,17 +141,17 @@ export function collectStandupData(
   const twoWeeksAgoISO = twoWeeksAgo.toISOString();
   const nowISO = now.toISOString();
 
-  const currentWeekLogCount = implementationLogDb.countLogsByProjectInRange(projectId, weekAgoISO, nowISO);
-  const previousWeekLogCount = implementationLogDb.countLogsByProjectInRange(projectId, twoWeeksAgoISO, weekAgoISO);
-  const currentWeekAccepted = ideaDb.countIdeasByProjectInRange(projectId, weekAgoISO, nowISO, 'accepted');
-  const previousWeekAccepted = ideaDb.countIdeasByProjectInRange(projectId, twoWeeksAgoISO, weekAgoISO, 'accepted');
-  const currentWeekSignals = behavioralSignalDb.getByTypeAndRange(projectId, 'implementation', weekAgoISO, nowISO);
-  const previousWeekSignals = behavioralSignalDb.getByTypeAndRange(projectId, 'implementation', twoWeeksAgoISO, weekAgoISO);
+  const currentWeekLogCount = implementationLogRepository.countLogsByProjectInRange(projectId, weekAgoISO, nowISO);
+  const previousWeekLogCount = implementationLogRepository.countLogsByProjectInRange(projectId, twoWeeksAgoISO, weekAgoISO);
+  const currentWeekAccepted = ideaRepository.countIdeasByProjectInRange(projectId, weekAgoISO, nowISO, 'accepted');
+  const previousWeekAccepted = ideaRepository.countIdeasByProjectInRange(projectId, twoWeeksAgoISO, weekAgoISO, 'accepted');
+  const currentWeekSignals = behavioralSignalRepository.getByTypeAndRange(projectId, 'implementation', weekAgoISO, nowISO);
+  const previousWeekSignals = behavioralSignalRepository.getByTypeAndRange(projectId, 'implementation', twoWeeksAgoISO, weekAgoISO);
 
   // ── Predictive: untested logs & behavioral context ──
-  let untestedLogs: ReturnType<typeof implementationLogDb.getUntestedLogsByProject> = [];
+  let untestedLogs: ReturnType<typeof implementationLogRepository.getUntestedLogsByProject> = [];
   try {
-    untestedLogs = implementationLogDb.getUntestedLogsByProject(projectId);
+    untestedLogs = implementationLogRepository.getUntestedLogsByProject(projectId);
   } catch { /* silent - non-critical */ }
 
   const behavioralContext = getBehavioralContext(projectId, 7);

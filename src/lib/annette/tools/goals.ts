@@ -2,7 +2,7 @@
  * Goal Tools - Implementation for Annette's goal-related tool calls
  */
 
-import { goalDb } from '@/app/db';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
 
 export async function executeGoalTools(
   name: string,
@@ -13,7 +13,7 @@ export async function executeGoalTools(
   switch (name) {
     case 'list_goals': {
       const status = input.status as string | undefined;
-      const goals = goalDb.getGoalsByProject(projectId);
+      const goals = goalRepository.getGoalsByProject(projectId);
 
       let filtered = goals;
       if (status) {

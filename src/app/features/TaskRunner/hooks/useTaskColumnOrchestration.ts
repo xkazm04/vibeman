@@ -5,7 +5,7 @@ import { groupRequirementsByContext, calculateSelectionStats } from '../lib/task
 import type { ProjectRequirement } from '../lib/types';
 import { useTaskRunnerStore } from '../store/taskRunnerStore';
 import type { AggregationCheckResult } from '../lib/ideaAggregator';
-import type { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 
 export interface UseTaskColumnOrchestrationProps {
   projectId: string;

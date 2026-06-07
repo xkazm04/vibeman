@@ -3,8 +3,10 @@
  * Builds Claude Code prompt for AI-driven executive insight analysis
  */
 
-import { ideaDb, directionDb, architectureAnalysisDb } from '@/app/db';
-import type { DbIdea, DbDirection } from '@/app/db';
+import { architectureAnalysisRepository } from '@/app/db/repositories/architecture-analysis.repository';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import type { DbDirection, DbIdea } from '@/app/db/models/types';
 import type { ScanType, ALL_SCAN_TYPES } from '@/app/features/Ideas/lib/scanTypes';
 import type { TimeWindow } from '@/app/features/reflector/sub_Reflection/lib/types';
 
@@ -126,12 +128,12 @@ export async function gatherExecutiveAnalysisData(
   // Get ideas
   let ideas: DbIdea[] = [];
   if (projectId) {
-    ideas = ideaDb.getIdeasByProject(projectId);
+    ideas = ideaRepository.getIdeasByProject(projectId);
     if (contextId) {
       ideas = ideas.filter(i => i.context_id === contextId);
     }
   } else {
-    ideas = ideaDb.getAllIdeas();
+    ideas = ideaRepository.getAllIdeas();
   }
   ideas = filterByDate(ideas, dateFilter);
 
@@ -185,7 +187,7 @@ export async function gatherExecutiveAnalysisData(
   // Get directions
   let directions: DbDirection[] = [];
   if (projectId) {
-    directions = directionDb.getDirectionsByProject(projectId);
+    directions = directionRepository.getDirectionsByProject(projectId);
     if (contextId) {
       directions = directions.filter(d => d.context_id === contextId);
     }
@@ -232,7 +234,7 @@ export async function gatherExecutiveAnalysisData(
   try {
     const scope = projectId ? 'project' : 'workspace';
     const scopeId = projectId || null;
-    const latestArch = architectureAnalysisDb.getLatestCompleted(scope, scopeId);
+    const latestArch = architectureAnalysisRepository.getLatestCompleted(scope, scopeId);
     if (latestArch) {
       let patterns: string[] = [];
       if (latestArch.detected_patterns) {

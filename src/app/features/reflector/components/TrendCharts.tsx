@@ -26,7 +26,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from 'lucide-react';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import { getScanTypeName, type ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { REFLECTOR_CHART_COLORS } from '../lib/chartColors';
 import ChartTooltip from './ChartTooltip';

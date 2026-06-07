@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { DbScan } from '@/app/db';
+import type { DbScan } from '@/app/db/models/types';
 
 // Query key factory for consistent cache keys
 export const scanQueryKeys = {

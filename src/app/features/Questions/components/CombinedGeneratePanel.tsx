@@ -12,7 +12,7 @@ import {
   MessageSquare,
   Globe2
 } from 'lucide-react';
-import { DbQuestion, DbContext } from '@/app/db';
+import type { DbContext, DbQuestion } from '@/app/db/models/types';
 import { transitions } from '@/lib/design-tokens';
 import { useAsyncOperation } from '@/hooks/useAsyncOperation';
 

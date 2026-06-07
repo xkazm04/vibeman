@@ -4,11 +4,9 @@
  * Uses BaseAnalysisAgent for shared lifecycle (completeAnalysis / failAnalysis).
  */
 
-import {
-  architectureAnalysisDb,
-  crossProjectRelationshipDb,
-  projectArchitectureMetadataDb,
-} from '@/app/db';
+import { architectureAnalysisRepository } from '@/app/db/repositories/architecture-analysis.repository';
+import { crossProjectRelationshipRepository } from '@/app/db/repositories/cross-project-relationship.repository';
+import { projectArchitectureMetadataRepository } from '@/app/db/repositories/project-architecture-metadata.repository';
 import type {
   DbArchitectureAnalysisSession,
   AnalysisTriggerType,
@@ -58,8 +56,8 @@ export interface AnalysisCompleteResult {
 
 const lifecycle = createBaseAgentLifecycle<DbArchitectureAnalysisSession>({
   label: 'ArchitectureAnalysisAgent',
-  getById: (id) => architectureAnalysisDb.getById(id),
-  failAnalysis: (id, msg) => architectureAnalysisDb.failAnalysis(id, msg),
+  getById: (id) => architectureAnalysisRepository.getById(id),
+  failAnalysis: (id, msg) => architectureAnalysisRepository.failAnalysis(id, msg),
 });
 
 // ============================================================================
@@ -73,7 +71,7 @@ export const architectureAnalysisAgent = {
   analyzeWorkspace: async (config: AnalyzeWorkspaceConfig): Promise<AnalysisStartResult> => {
     const { workspaceId, projects, triggerType, baseUrl } = config;
 
-    const running = architectureAnalysisDb.getRunning('workspace', workspaceId);
+    const running = architectureAnalysisRepository.getRunning('workspace', workspaceId);
     if (running) {
       return {
         success: false,
@@ -84,14 +82,14 @@ export const architectureAnalysisAgent = {
     }
 
     const analysisId = generateId('arch-analysis');
-    architectureAnalysisDb.create({
+    architectureAnalysisRepository.create({
       id: analysisId,
       workspace_id: workspaceId,
       scope: 'workspace',
       trigger_type: triggerType,
     });
 
-    const existingRels = crossProjectRelationshipDb.getByWorkspace(workspaceId);
+    const existingRels = crossProjectRelationshipRepository.getByWorkspace(workspaceId);
     const existingRelationships = existingRels.map(r => ({
       sourceId: r.source_project_id,
       targetId: r.target_project_id,
@@ -120,7 +118,7 @@ export const architectureAnalysisAgent = {
     const { newProject, existingProjects, workspaceId, baseUrl } = config;
 
     const analysisId = generateId('arch-analysis');
-    architectureAnalysisDb.create({
+    architectureAnalysisRepository.create({
       id: analysisId,
       workspace_id: workspaceId || null,
       project_id: newProject.id,
@@ -144,7 +142,7 @@ export const architectureAnalysisAgent = {
    * Mark analysis as started (running)
    */
   startAnalysis: (analysisId: string, executionId?: string): DbArchitectureAnalysisSession | null => {
-    return architectureAnalysisDb.startAnalysis(analysisId, executionId);
+    return architectureAnalysisRepository.startAnalysis(analysisId, executionId);
   },
 
   /**
@@ -154,7 +152,7 @@ export const architectureAnalysisAgent = {
     analysisId: string,
     rawResult: unknown
   ): Promise<AnalysisCompleteResult> => {
-    const analysis = architectureAnalysisDb.getById(analysisId);
+    const analysis = architectureAnalysisRepository.getById(analysisId);
     if (!analysis) {
       return {
         success: false,
@@ -169,13 +167,13 @@ export const architectureAnalysisAgent = {
       lifecycle.failAnalysis(analysisId, 'Failed to parse analysis result');
       return {
         success: false,
-        analysis: architectureAnalysisDb.getById(analysisId),
+        analysis: architectureAnalysisRepository.getById(analysisId),
         relationshipsCreated: 0,
         error: 'Failed to parse analysis result',
       };
     }
 
-    const relationshipsCreated = crossProjectRelationshipDb.upsertMany(
+    const relationshipsCreated = crossProjectRelationshipRepository.upsertMany(
       analysis.workspace_id,
       result.relationships
     );
@@ -183,7 +181,7 @@ export const architectureAnalysisAgent = {
     const rawData = typeof rawResult === 'string' ? JSON.parse(rawResult) : rawResult;
     if (rawData?.project_metadata && analysis.project_id) {
       const meta = rawData.project_metadata;
-      projectArchitectureMetadataDb.upsert({
+      projectArchitectureMetadataRepository.upsert({
         id: generateId('pam'),
         project_id: analysis.project_id,
         workspace_id: analysis.workspace_id,
@@ -194,7 +192,7 @@ export const architectureAnalysisAgent = {
       });
     }
 
-    const completed = architectureAnalysisDb.completeAnalysis(analysisId, {
+    const completed = architectureAnalysisRepository.completeAnalysis(analysisId, {
       projects_analyzed: analysis.scope === 'workspace'
         ? new Set([
             ...result.relationships.map(r => r.source_project_id),
@@ -215,21 +213,21 @@ export const architectureAnalysisAgent = {
    */
   failAnalysis: (analysisId: string, error: string): DbArchitectureAnalysisSession | null => {
     lifecycle.failAnalysis(analysisId, error);
-    return architectureAnalysisDb.getById(analysisId);
+    return architectureAnalysisRepository.getById(analysisId);
   },
 
   /**
    * Get analysis status
    */
   getAnalysis: (analysisId: string): DbArchitectureAnalysisSession | null => {
-    return architectureAnalysisDb.getById(analysisId);
+    return architectureAnalysisRepository.getById(analysisId);
   },
 
   /**
    * Get latest completed analysis for a workspace
    */
   getLatestWorkspaceAnalysis: (workspaceId: string | null): DbArchitectureAnalysisSession | null => {
-    return architectureAnalysisDb.getLatestCompleted('workspace', workspaceId);
+    return architectureAnalysisRepository.getLatestCompleted('workspace', workspaceId);
   },
 
   /**
@@ -239,14 +237,14 @@ export const architectureAnalysisAgent = {
     workspaceId: string | null,
     limit: number = 10
   ): DbArchitectureAnalysisSession[] => {
-    return architectureAnalysisDb.getHistory('workspace', workspaceId, limit);
+    return architectureAnalysisRepository.getHistory('workspace', workspaceId, limit);
   },
 
   /**
    * Check if analysis is running
    */
   isAnalysisRunning: (scope: 'project' | 'workspace', scopeId: string | null): boolean => {
-    return architectureAnalysisDb.getRunning(scope, scopeId) !== null;
+    return architectureAnalysisRepository.getRunning(scope, scopeId) !== null;
   },
 };
 

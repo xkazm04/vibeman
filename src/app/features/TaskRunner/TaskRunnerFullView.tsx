@@ -26,7 +26,7 @@ import { fetchAutoAssignConfig } from '@/lib/autoAssignConfig';
 import { autoAssignTasks } from '@/app/features/TaskRunner/lib/autoAssigner';
 import { createQueuedStatus } from '@/app/features/TaskRunner/lib/types';
 import type { ProjectRequirement } from '@/app/features/TaskRunner/lib/types';
-import type { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 
 const TaskRunnerFullView = () => {
   // Cleanup all SSE/polling connections when unmounting (including when toggling

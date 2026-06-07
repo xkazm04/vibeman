@@ -4,7 +4,7 @@
  * for cross-session learning.
  */
 
-import { collectiveMemoryDb } from '@/app/db';
+import { collectiveMemoryRepository } from '@/app/db/repositories/collective-memory.repository';
 import type {
   CollectiveMemoryType,
   CreateCollectiveMemoryInput,
@@ -68,22 +68,22 @@ export function recordTaskLearning(params: {
   }
 
   // Check for similar existing memories to avoid duplicates
-  const existing = collectiveMemoryDb.search(projectId, title, 3);
+  const existing = collectiveMemoryRepository.search(projectId, title, 3);
   if (existing.length > 0) {
     // Update existing memory instead of creating duplicate
     const match = existing[0];
     if (success) {
-      collectiveMemoryDb.incrementSuccess(match.id);
+      collectiveMemoryRepository.incrementSuccess(match.id);
     } else {
-      collectiveMemoryDb.incrementFailure(match.id);
+      collectiveMemoryRepository.incrementFailure(match.id);
     }
-    collectiveMemoryDb.updateLastApplied(match.id);
+    collectiveMemoryRepository.updateLastApplied(match.id);
     return match;
   }
 
   const id = `cm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-  return collectiveMemoryDb.create({
+  return collectiveMemoryRepository.create({
     id,
     project_id: projectId,
     session_id: sessionId,
@@ -129,7 +129,7 @@ export function getRelevantKnowledge(params: {
   const results: Map<string, DbCollectiveMemoryEntry> = new Map();
 
   for (const keyword of keywords.slice(0, 3)) {
-    const matches = collectiveMemoryDb.search(projectId, keyword, limit * 2);
+    const matches = collectiveMemoryRepository.search(projectId, keyword, limit * 2);
     for (const m of matches) {
       if (m.effectiveness_score >= MIN_INJECTION_SCORE && !results.has(m.id)) {
         results.set(m.id, m);
@@ -141,7 +141,7 @@ export function getRelevantKnowledge(params: {
   if (requirementContent) {
     const contentKeywords = extractKeywords(requirementContent).filter(k => !keywords.includes(k));
     for (const keyword of contentKeywords.slice(0, 3)) {
-      const matches = collectiveMemoryDb.search(projectId, keyword, limit);
+      const matches = collectiveMemoryRepository.search(projectId, keyword, limit);
       for (const m of matches) {
         if (m.effectiveness_score >= MIN_INJECTION_SCORE && !results.has(m.id)) {
           results.set(m.id, m);
@@ -153,7 +153,7 @@ export function getRelevantKnowledge(params: {
   // Strategy 3: Match by file patterns
   if (filePatterns.length > 0) {
     const tags = extractKeywords(requirementName);
-    const similar = collectiveMemoryDb.findSimilar(projectId, filePatterns, tags, limit);
+    const similar = collectiveMemoryRepository.findSimilar(projectId, filePatterns, tags, limit);
     for (const m of similar) {
       if (m.effectiveness_score >= MIN_INJECTION_SCORE && !results.has(m.id)) {
         results.set(m.id, m);
@@ -163,7 +163,7 @@ export function getRelevantKnowledge(params: {
 
   // Strategy 4: Add top effective patterns as fallback
   if (results.size < limit) {
-    const topEffective = collectiveMemoryDb.getTopEffective(projectId, limit - results.size);
+    const topEffective = collectiveMemoryRepository.getTopEffective(projectId, limit - results.size);
     for (const m of topEffective) {
       if (!results.has(m.id)) results.set(m.id, m);
     }
@@ -229,8 +229,8 @@ function formatMemoryItem(m: DbCollectiveMemoryEntry): string {
  * Get aggregate statistics for the collective memory system.
  */
 export function getCollectiveStats(projectId: string) {
-  const stats = collectiveMemoryDb.getStats(projectId);
-  const recentApps = collectiveMemoryDb.getRecentApplications(projectId, 10);
+  const stats = collectiveMemoryRepository.getStats(projectId);
+  const recentApps = collectiveMemoryRepository.getRecentApplications(projectId, 10);
 
   const pendingApps = recentApps.filter(a => a.outcome === 'pending').length;
   const successApps = recentApps.filter(a => a.outcome === 'success').length;

@@ -3,7 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trash2, AlertTriangle } from 'lucide-react';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import BufferItem from './BufferItem';
 import { createIdeaStagingBuffer } from '@/lib/staging-buffer';
 import { getColorAccent } from '../lib/ideaConfig';

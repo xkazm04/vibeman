@@ -1,4 +1,5 @@
-import { ideaDb, scanDb } from '@/app/db';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import { scanRepository } from '@/app/db/repositories/scan.repository';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/lib/logger';
 import { validateScore } from '@/app/db/repositories/repository.utils';
@@ -28,7 +29,7 @@ interface SaveIdeasParams extends SaveIdeasBaseParams {
 export function createScanAndSaveIdeas(params: SaveIdeasParams & {
   inputTokens?: number;
   outputTokens?: number;
-}): { savedIdeas: ReturnType<typeof ideaDb.createIdea>[]; scanId: string } {
+}): { savedIdeas: ReturnType<typeof ideaRepository.createIdea>[]; scanId: string } {
   const {
     parsedIdeas,
     projectId,
@@ -49,7 +50,7 @@ export function createScanAndSaveIdeas(params: SaveIdeasParams & {
   const scanSummary = `Generated ${parsedIdeas.length} ideas for ${projectName}${contextId ? ` - Context: ${contextId}` : ''}`;
 
   logger.info('Creating scan record');
-  scanDb.createScan({
+  scanRepository.createScan({
     id: scanId,
     project_id: projectId,
     scan_type: effectiveScanType,
@@ -83,7 +84,7 @@ export function createScanAndSaveIdeas(params: SaveIdeasParams & {
 /**
  * Save individual ideas to the database with field validation and normalization.
  */
-function saveIdeasToDB(params: SaveIdeasBaseParams & { scanId: string }): ReturnType<typeof ideaDb.createIdea>[] {
+function saveIdeasToDB(params: SaveIdeasBaseParams & { scanId: string }): ReturnType<typeof ideaRepository.createIdea>[] {
   const {
     parsedIdeas,
     scanId,
@@ -151,7 +152,7 @@ function saveIdeasToDB(params: SaveIdeasBaseParams & { scanId: string }): Return
         validatedContextId = null;
       }
 
-      return ideaDb.createIdea({
+      return ideaRepository.createIdea({
         id: ideaId,
         scan_id: scanId,
         project_id: projectId,

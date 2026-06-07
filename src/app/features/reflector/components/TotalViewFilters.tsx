@@ -10,7 +10,7 @@ import ContextFilter from './ContextFilter';
 import StatusFilter from './StatusFilter';
 import DateRangeFilter from './DateRangeFilter';
 import SearchInput from './SearchInput';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 
 interface TotalViewFiltersProps {
   projects: Array<{ id: string; name: string }>;

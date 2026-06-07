@@ -2,7 +2,8 @@
  * Task/Execution Tools - Implementation for Annette's task-related tool calls
  */
 
-import { scanQueueDb, implementationLogDb } from '@/app/db';
+import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
+import { scanQueueRepository } from '@/app/db/repositories/scanQueue.repository';
 
 /**
  * CLI Execution info returned when a tool triggers immediate execution
@@ -31,7 +32,7 @@ export async function executeTaskTools(
 ): Promise<string> {
   switch (name) {
     case 'get_queue_status': {
-      const items = scanQueueDb.getQueueByProject(projectId);
+      const items = scanQueueRepository.getQueueByProject(projectId);
       const pending = items.filter(i => i.status === 'queued');
       const running = items.filter(i => i.status === 'running');
       const completed = items.filter(i => i.status === 'completed');
@@ -111,7 +112,7 @@ export async function executeTaskTools(
       const limit = parseInt(String(input.limit || '5'), 10);
 
       try {
-        const logs = implementationLogDb.getRecentLogsByProject(projectId, limit);
+        const logs = implementationLogRepository.getRecentLogsByProject(projectId, limit);
         return JSON.stringify({
           total: logs.length,
           logs: logs.map(l => ({

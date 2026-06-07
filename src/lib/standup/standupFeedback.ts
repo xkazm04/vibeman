@@ -10,7 +10,7 @@
  */
 
 import { goalSignalRepository, goalSubGoalRepository } from '@/app/db/repositories/goal-lifecycle.repository';
-import { goalDb } from '@/app/db';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
 import { logger } from '@/lib/logger';
 import type {
   PredictiveStandupData,
@@ -91,7 +91,7 @@ export function feedStandupInsightsToGoals(
     );
 
     for (const decay of criticalDecay) {
-      const linkedGoals = goalDb.getActiveGoalsByContextId(decay.contextId);
+      const linkedGoals = goalRepository.getActiveGoalsByContextId(decay.contextId);
       for (const goal of linkedGoals) {
         if (result.goalsFlagged.includes(goal.id)) continue;
         if (hasRecentRiskAlert(goal.id, today)) continue;

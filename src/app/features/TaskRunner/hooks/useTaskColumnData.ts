@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { usePolling } from '@/hooks/usePolling';
 import type { ProjectRequirement } from '../lib/types';
 import type { AggregationCheckResult } from '../lib/ideaAggregator';
-import type { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 
 export interface ContextInfo {
   id: string;
