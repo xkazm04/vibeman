@@ -3,13 +3,12 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Trophy, Calendar, Network, BarChart3 } from 'lucide-react';
+import { Trophy, Calendar, BarChart3 } from 'lucide-react';
 import { DbIdea } from '@/app/db';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import TotalViewFilters from '@/app/features/reflector/components/TotalViewFilters';
 import TotalViewDashboard from '@/app/features/reflector/components/TotalViewDashboard';
 import ActiveFiltersDisplay from '@/app/features/reflector/components/ActiveFiltersDisplay';
-import DependenciesTab from '@/app/features/Depndencies/DependenciesTab';
 import ReflectionDashboard from '@/app/features/reflector/sub_Reflection/components/ReflectionDashboard';
 import { FilterState, getEmptyFilterState, applyFilters } from '@/app/features/reflector/lib/filterIdeas';
 
@@ -24,7 +23,7 @@ export default function ReflectorPage() {
 function ReflectorPageContent() {
   const [ideas, setIdeas] = useState<DbIdea[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'weekly' | 'total' | 'ideas_stats' | 'dependencies'>('weekly');
+  const [viewMode, setViewMode] = useState<'weekly' | 'total' | 'ideas_stats'>('weekly');
   const [filters, setFilters] = useState<FilterState>(getEmptyFilterState());
 
   const { projects, initializeProjects } = useServerProjectStore();
@@ -260,25 +259,13 @@ function ReflectorPageContent() {
               <BarChart3 className="w-4 h-4" />
               Ideas Stats
             </button>
-            <button
-              onClick={() => setViewMode('dependencies')}
-              data-testid="reflector-dependencies-tab"
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                viewMode === 'dependencies'
-                  ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40'
-                  : 'bg-gray-800/40 text-gray-400 border border-gray-700/40 hover:bg-gray-800/60'
-              }`}
-            >
-              <Network className="w-4 h-4" />
-              Dependencies
-            </button>
           </div>
         </div>
       </motion.div>
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {loading && viewMode !== 'dependencies' && viewMode !== 'ideas_stats' ? (
+        {loading && viewMode !== 'ideas_stats' ? (
           <div className="flex items-center justify-center py-24">
             <div className="text-gray-400">Loading...</div>
           </div>
@@ -288,8 +275,6 @@ function ReflectorPageContent() {
             <br />
             {displayedIdeas.length} ideas implemented in the last 7 days
           </div>
-        ) : viewMode === 'dependencies' ? (
-          <DependenciesTab />
         ) : viewMode === 'ideas_stats' ? (
           <ReflectionDashboard />
         ) : (

@@ -1,8 +1,6 @@
 'use client';
 
 import { SessionState } from '../../lib';
-import { useState, useEffect } from 'react';
-import { isMonitoringEnabled, setMonitoringEnabled } from '@/app/monitor/lib';
 
 interface ConvControlsProps {
   sessionState: SessionState;
@@ -10,7 +8,6 @@ interface ConvControlsProps {
   onStart: () => void;
   onStop: () => void;
   onClear: () => void;
-  onMonitoringChange?: (enabled: boolean) => void;
 }
 
 export default function ConvControls({
@@ -18,22 +15,8 @@ export default function ConvControls({
   isPlaying,
   onStart,
   onStop,
-  onClear,
-  onMonitoringChange
+  onClear
 }: ConvControlsProps) {
-  const [monitoring, setMonitoring] = useState(false);
-
-  useEffect(() => {
-    setMonitoring(isMonitoringEnabled());
-  }, []);
-
-  const handleMonitoringToggle = () => {
-    const newValue = !monitoring;
-    setMonitoring(newValue);
-    setMonitoringEnabled(newValue);
-    onMonitoringChange?.(newValue);
-  };
-
   return (
     <div>
       <h3 className="text-sm font-semibold mb-2 bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
@@ -72,25 +55,6 @@ export default function ConvControls({
           </svg>
           Clear
         </button>
-      </div>
-      
-      {/* Monitoring Toggle */}
-      <div className="mb-3 flex items-center gap-3 text-sm bg-slate-800/40 px-3 py-2 rounded-lg border border-slate-700/50">
-        <label className="flex items-center gap-2 cursor-pointer flex-1">
-          <input
-            type="checkbox"
-            checked={monitoring}
-            onChange={handleMonitoringToggle}
-            disabled={isPlaying}
-            className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
-          />
-          <span className="text-slate-300 font-medium">Enable Call Monitoring</span>
-        </label>
-        {monitoring && (
-          <span className="px-2 py-1 bg-cyan-500/20 border border-cyan-500/30 rounded text-cyan-400 text-sm font-mono">
-            TRACKING
-          </span>
-        )}
       </div>
       
       <div className="flex items-center gap-2 text-sm bg-slate-800/40 px-3 py-2 rounded-lg border border-slate-700/50">

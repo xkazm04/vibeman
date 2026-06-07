@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Calendar, BarChart3, Network, Activity, GitBranch } from 'lucide-react';
+import { Calendar, BarChart3, Activity, GitBranch } from 'lucide-react';
 import { useTabNavigation } from '@/hooks/useTabNavigation';
 
-export type ViewMode = 'weekly' | 'ideas_stats' | 'dependencies' | 'cross_context' | 'observability';
+export type ViewMode = 'weekly' | 'ideas_stats' | 'cross_context' | 'observability';
 
 interface ReflectorViewTabsProps {
   viewMode: ViewMode;
@@ -20,7 +20,6 @@ interface TabConfig {
 const TABS: TabConfig[] = [
   { id: 'weekly', label: 'Weekly', icon: Calendar },
   { id: 'ideas_stats', label: 'Ideas Stats', icon: BarChart3 },
-  { id: 'dependencies', label: 'Dependencies', icon: Network },
   { id: 'cross_context', label: 'Context Graph', icon: GitBranch },
   { id: 'observability', label: 'Observability', icon: Activity },
 ];
