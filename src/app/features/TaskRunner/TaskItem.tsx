@@ -9,7 +9,7 @@ import { TaskProgress } from './components/TaskProgress';
 import { RequirementViewer } from '@/components/RequirementViewer';
 import { getTheme } from './lib/taskStatusUtils';
 import type { ProjectRequirement } from './lib/types';
-import type { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import { TruncateTooltip } from '@/components/ui/TruncateTooltip';
 import ContextMenu from '@/components/ContextMenu';
 import {

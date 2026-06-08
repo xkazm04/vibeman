@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { annetteDb } from '@/app/db';
+import { annetteDb } from '@/app/db/composites/annette.db';
 import type { DbAnnetteSession, DbAnnetteMessage } from '@/app/db/models/annette.types';
 import type { RecalledContext } from '../lib/contextualRecaller';
 

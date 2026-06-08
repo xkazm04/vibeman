@@ -8,7 +8,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { groupHealthDb, contextGroupDb } from '@/app/db';
+import { contextGroupRepository } from '@/app/db/repositories/context-group.repository';
+import { groupHealthRepository } from '@/app/db/repositories/group-health.repository';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
 import type { HealthScanSummary } from '@/app/db/models/group-health.types';
@@ -21,7 +22,7 @@ async function handlePost(
     const { id } = await params;
     const body = await request.json();
 
-    const existingScan = groupHealthDb.getById(id);
+    const existingScan = groupHealthRepository.getById(id);
     if (!existingScan) {
       return NextResponse.json(
         { error: 'Scan not found' },
@@ -47,7 +48,7 @@ async function handlePost(
     }
 
     // Complete the scan with results
-    const completedScan = groupHealthDb.completeScan(id, {
+    const completedScan = groupHealthRepository.completeScan(id, {
       health_score: healthScore,
       issues_found: issuesFound || 0,
       issues_fixed: issuesFixed || 0,
@@ -65,7 +66,7 @@ async function handlePost(
 
     // Also update the context group with the health score
     try {
-      const group = contextGroupDb.getGroupById(existingScan.group_id);
+      const group = contextGroupRepository.getGroupById(existingScan.group_id);
       if (group) {
         // The repository's completeScan already updates context_groups,
         // but we can do additional updates here if needed

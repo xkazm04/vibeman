@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { integrationDb } from '@/app/db';
+import { integrationRepository } from '@/app/db/repositories/integration.repository';
 import { verifyWebhookSignature } from '@/lib/integrations/webhookSignature';
 import { dispatchIntegrationEvent } from '@/lib/integrations/engine';
 import { checkRateLimit } from '@/lib/api-helpers/rateLimiter';
@@ -87,12 +87,12 @@ export async function POST(
 
     let integration;
     if (integrationId) {
-      integration = integrationDb.getById(integrationId);
+      integration = integrationRepository.getById(integrationId);
       if (!integration) {
         return NextResponse.json({ error: 'Integration not found' }, { status: 404 });
       }
     } else if (projectId) {
-      const integrations = integrationDb.getByProvider(projectId, provider as IntegrationProvider);
+      const integrations = integrationRepository.getByProvider(projectId, provider as IntegrationProvider);
       integration = integrations.find((i) => i.status === 'active') || integrations[0];
       if (!integration) {
         return NextResponse.json({ error: 'No integration configured for this provider' }, { status: 404 });

@@ -6,11 +6,9 @@
  * regardless of which domain produced the signal.
  */
 
-import {
-  goalSignalDb,
-  goalDb,
-  behavioralSignalDb,
-} from '@/app/db';
+import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-signal.repository';
+import { goalSignalRepository } from '@/app/db/repositories/goal-lifecycle.repository';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
 import type { DbGoalSignal } from '@/app/db/models/types';
 import type { DbBehavioralSignal } from '@/app/db/models/brain.types';
 import type {
@@ -105,7 +103,7 @@ export function queryActivityStream(query: ActivityStreamQuery): ActivitySignal[
 
   // ── Behavioral signals ──
   if (includeBehavioral) {
-    const behavioralSignals = behavioralSignalDb.getByProject(projectId, {
+    const behavioralSignals = behavioralSignalRepository.getByProject(projectId, {
       contextId,
       since,
       limit,
@@ -134,10 +132,10 @@ export function getActivityAggregate(
   contextId?: string
 ): ActivityAggregate[] {
   // Behavioral: context-level aggregation
-  const behavioralActivity = behavioralSignalDb.getContextActivity(projectId, windowDays);
+  const behavioralActivity = behavioralSignalRepository.getContextActivity(projectId, windowDays);
 
   // Goal: aggregate signals per context (via goal→context mapping)
-  const goals = goalDb.getGoalsByProject(projectId);
+  const goals = goalRepository.getGoalsByProject(projectId);
   const goalContextMap = new Map<string, string[]>();
   for (const goal of goals) {
     if (goal.context_id) {
@@ -165,7 +163,7 @@ export function getActivityAggregate(
   // Add goal signal contributions per context
   for (const [ctxId, goalIds] of goalContextMap) {
     if (contextId && ctxId !== contextId) continue;
-    const signalMap = goalSignalDb.getRecentByGoalIds(goalIds, 50);
+    const signalMap = goalSignalRepository.getRecentByGoalIds(goalIds, 50);
     let goalCount = 0;
     let goalWeight = 0;
     for (const [, signals] of signalMap) {
@@ -214,7 +212,7 @@ function fetchGoalSignals(
   since?: string,
   limit: number = 100
 ): Array<{ signal: DbGoalSignal; resolvedContextId: string | null }> {
-  const goals = goalDb.getGoalsByProject(projectId);
+  const goals = goalRepository.getGoalsByProject(projectId);
   const goalContextLookup = new Map<string, string | null>();
 
   // Filter goals to the requested context if provided
@@ -229,7 +227,7 @@ function fetchGoalSignals(
   if (relevantGoals.length === 0) return [];
 
   const goalIds = relevantGoals.map(g => g.id);
-  const signalMap = goalSignalDb.getRecentByGoalIds(goalIds, limit);
+  const signalMap = goalSignalRepository.getRecentByGoalIds(goalIds, limit);
 
   const results: Array<{ signal: DbGoalSignal; resolvedContextId: string | null }> = [];
   for (const [goalId, signals] of signalMap) {

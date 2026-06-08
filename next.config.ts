@@ -7,6 +7,14 @@ const nextConfig: NextConfig = {
     // persistent dev cache (.next/dev/cache) can balloon idle RAM to multiple GB and
     // peg a CPU core on RocksDB compaction at startup. Pair with `npm run clean` when
     // .next grows large on disk (the memory limit bounds RAM, not the on-disk cache).
+    //
+    // Measured 2026-06-07 (A/B, clean cache, root page + 4 API routes):
+    //  - persistent dev cache ON vs OFF: identical in-session RSS (~3.0 GB idle
+    //    after compiling `/`); cache makes warm restarts 11x faster (`/` 1.2s vs
+    //    14s) and post-restart RSS ~1.1 GB vs ~3 GB -> KEEP the cache ON.
+    //  - limit 1 GB vs 2 GB: identical RSS and compile times -> the limit does
+    //    not bound in-session compile state; keep 2 GB as the cache-compaction
+    //    guard. In-session RSS is driven by module-graph size (see A2/D10).
     turbopackMemoryLimit: 2 * 1024 * 1024 * 1024, // 2 GB
   },
   images: {
@@ -18,6 +26,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: [
     'ts-morph',
     '@ts-morph/common',
+    'better-sqlite3', // native module — keep its graph out of the bundle
   ],
   async headers() {
     return [

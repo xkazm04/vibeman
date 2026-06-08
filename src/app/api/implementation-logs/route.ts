@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { implementationLogDb } from '@/app/db';
+import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
 import { randomUUID } from 'crypto';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
@@ -23,7 +23,7 @@ async function handleGet(request: NextRequest) {
 
     const limit = limitParam ? parseInt(limitParam, 10) : 5;
 
-    const logs = implementationLogDb.getRecentLogsByProject(projectId, limit);
+    const logs = implementationLogRepository.getRecentLogsByProject(projectId, limit);
 
     return NextResponse.json({ logs });
   } catch (error) {
@@ -80,7 +80,7 @@ async function handlePost(request: NextRequest) {
       );
     }
 
-    const log = implementationLogDb.createLog({
+    const log = implementationLogRepository.createLog({
       id: logId,
       project_id: projectId,
       context_id: contextId || undefined,
@@ -157,7 +157,7 @@ async function handlePatch(request: NextRequest) {
       );
     }
 
-    const log = implementationLogDb.updateLog(id, {
+    const log = implementationLogRepository.updateLog(id, {
       tested: tested !== undefined ? tested : undefined,
       overview: overview !== undefined ? overview : undefined,
       overview_bullets: overview_bullets !== undefined ? overview_bullets : undefined,
@@ -198,7 +198,7 @@ async function handleDelete(request: NextRequest) {
       );
     }
 
-    implementationLogDb.deleteLog(id);
+    implementationLogRepository.deleteLog(id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

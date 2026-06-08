@@ -4,7 +4,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { directionDb, insightEffectivenessCache } from '@/app/db';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
+import { insightEffectivenessCacheRepository } from '@/app/db/repositories/insight-effectiveness-cache.repository';
 import { logger } from '@/lib/logger';
 
 export async function DELETE(
@@ -15,11 +16,11 @@ export async function DELETE(
     const { pairId } = await params;
 
     // Get pair before deletion to access project_id
-    const pair = directionDb.getDirectionPair(pairId);
+    const pair = directionRepository.getDirectionPair(pairId);
     const projectId = pair.directionA?.project_id || pair.directionB?.project_id;
 
     // Delete both directions in the pair
-    const deletedCount = directionDb.deleteDirectionPair(pairId);
+    const deletedCount = directionRepository.deleteDirectionPair(pairId);
 
     if (deletedCount === 0) {
       return NextResponse.json(
@@ -32,7 +33,7 @@ export async function DELETE(
 
     // Invalidate effectiveness cache since both directions were deleted
     if (projectId) {
-      try { insightEffectivenessCache.invalidate(projectId); } catch { /* non-critical */ }
+      try { insightEffectivenessCacheRepository.invalidate(projectId); } catch { /* non-critical */ }
     }
 
     return NextResponse.json({

@@ -12,7 +12,7 @@
  *   ideaDb.updateIdea(id, { status: 'accepted', ...result.sideEffects });
  */
 
-import type { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 
 // ---------------------------------------------------------------------------
 // Types

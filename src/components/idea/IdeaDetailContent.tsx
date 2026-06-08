@@ -1,6 +1,6 @@
 'use client';
 import { AnimatePresence } from 'framer-motion';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import { AIErrorDisplay } from '@/components/ui';
 import IdeaDetailMeta from './IdeaDetailMeta';
 import IdeaDetailDescription from './IdeaDetailDescription';

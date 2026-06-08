@@ -7,7 +7,7 @@ import ExpandChevron from '@/components/ui/ExpandChevron';
 import { useThemeStore } from '@/stores/themeStore';
 import { getFocusRingStyles } from '@/lib/ui/focusRing';
 import { transitions } from '@/lib/design-tokens';
-import { DbDirection } from '@/app/db';
+import type { DbDirection } from '@/app/db/models/types';
 import { DirectionProposal, toDirectionProposal } from '../types';
 import { explainDirection } from '@/app/features/Questions/lib/directionsApi';
 import { useCarousel } from '../lib/useCarousel';

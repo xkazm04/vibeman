@@ -175,7 +175,6 @@ const SIMULATED_ROUTES = [
   { path: '/api/structure-scan', methods: ['POST'], layer: 'server' },
   { path: '/api/voicebot/llm', methods: ['POST'], layer: 'external' },
   { path: '/api/tester/screenshot', methods: ['POST'], layer: 'external' },
-  { path: '/api/dependencies/scan', methods: ['POST'], layer: 'external' },
 ];
 
 export function startXRaySimulation(intensity: 'low' | 'medium' | 'high' = 'medium') {

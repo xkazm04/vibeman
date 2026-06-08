@@ -4,7 +4,9 @@
  */
 
 import { getBehavioralContext, formatBehavioralForPrompt } from '@/lib/brain/behavioralContext';
-import { directionOutcomeDb, brainInsightDb, contextDb } from '@/app/db';
+import { brainInsightRepository } from '@/app/db/repositories/brain-insight.repository';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { directionOutcomeRepository } from '@/app/db/repositories/direction-outcome.repository';
 import { logger } from '@/lib/logger';
 import { safeParseJson } from '@/lib/json-utils';
 
@@ -79,7 +81,7 @@ export function formatBrainForPrompt(projectId: string): string {
 
 function getOutcomesSummary(projectId: string): string {
   try {
-    const stats = directionOutcomeDb.getStats(projectId, 14); // 2-week window
+    const stats = directionOutcomeRepository.getStats(projectId, 14); // 2-week window
     if (!stats || stats.total === 0) return '';
 
     const rate = stats.total > 0
@@ -106,7 +108,7 @@ function getOutcomesSummary(projectId: string): string {
 
 function getReflectionInsights(projectId: string): string {
   try {
-    const insights = brainInsightDb.getAllInsights(projectId, 3);
+    const insights = brainInsightRepository.getAllInsights(projectId, 3);
 
     if (insights.length === 0) return '';
 
@@ -131,7 +133,7 @@ function getContextMapSummary(projectId: string): string {
 
     const lines: string[] = [];
     for (const id of activeIds) {
-      const ctx = contextDb.getContextById(id);
+      const ctx = contextRepository.getContextById(id);
       if (!ctx) continue;
 
       let keywords: string[] = [];

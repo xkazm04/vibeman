@@ -5,7 +5,10 @@
  */
 
 import { NextResponse } from 'next/server';
-import { crossTaskPlanDb, contextDb, crossProjectRelationshipDb, architectureAnalysisDb } from '@/app/db';
+import { architectureAnalysisRepository } from '@/app/db/repositories/architecture-analysis.repository';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { crossProjectRelationshipRepository } from '@/app/db/repositories/cross-project-relationship.repository';
+import { crossTaskPlanRepository } from '@/app/db/repositories/cross-task.repository';
 import { projectDb } from '@/lib/project_database';
 import { generateId } from '@/app/db/repositories/repository.utils';
 import { buildCrossTaskPrompt } from '@/lib/cross-task/promptBuilder';
@@ -44,7 +47,7 @@ export async function POST(request: Request) {
     }
 
     // Check for running analysis
-    const running = crossTaskPlanDb.getRunning(workspaceId);
+    const running = crossTaskPlanRepository.getRunning(workspaceId);
     if (running) {
       return NextResponse.json(
         { error: 'An analysis is already running for this workspace', runningPlanId: running.id },
@@ -61,7 +64,7 @@ export async function POST(request: Request) {
 
     for (const project of projects) {
       // Get contexts for this project
-      const contexts = contextDb.getContextsByProject(project.id);
+      const contexts = contextRepository.getContextsByProject(project.id);
 
       const validCategories = new Set(['ui', 'lib', 'api', 'data']);
 
@@ -106,7 +109,7 @@ export async function POST(request: Request) {
     let architectureContext: CrossTaskArchitectureContext | null = null;
     try {
       // Get all relationships for this workspace
-      const allRelationships = crossProjectRelationshipDb.getByWorkspace(workspaceId);
+      const allRelationships = crossProjectRelationshipRepository.getByWorkspace(workspaceId);
 
       // Filter to relationships involving selected projects
       const projectIdSet = new Set(projectIds);
@@ -147,7 +150,7 @@ export async function POST(request: Request) {
       }));
 
       // Get latest completed analysis for patterns and narrative
-      const latestAnalysis = architectureAnalysisDb.getLatestCompleted('workspace', workspaceId);
+      const latestAnalysis = architectureAnalysisRepository.getLatestCompleted('workspace', workspaceId);
       let patterns: CrossTaskArchitectureContext['patterns'] = [];
       let narrative: string | null = null;
 
@@ -191,7 +194,7 @@ export async function POST(request: Request) {
     });
 
     // Create the plan record
-    const plan = crossTaskPlanDb.create({
+    const plan = crossTaskPlanRepository.create({
       id: planId,
       workspace_id: workspaceId,
       project_ids: projectIds,
@@ -199,7 +202,7 @@ export async function POST(request: Request) {
     });
 
     // Save the prompt used
-    crossTaskPlanDb.updatePrompt(planId, promptContent);
+    crossTaskPlanRepository.updatePrompt(planId, promptContent);
 
     return NextResponse.json({
       success: true,
@@ -229,9 +232,9 @@ export async function GET(request: Request) {
 
     let plans;
     if (search) {
-      plans = crossTaskPlanDb.search(workspaceId, search, limit);
+      plans = crossTaskPlanRepository.search(workspaceId, search, limit);
     } else {
-      plans = crossTaskPlanDb.getByWorkspace(workspaceId, limit);
+      plans = crossTaskPlanRepository.getByWorkspace(workspaceId, limit);
     }
 
     // Parse project_ids JSON for each plan
@@ -248,7 +251,7 @@ export async function GET(request: Request) {
     });
 
     // Also get counts by status
-    const counts = crossTaskPlanDb.getCountByStatus(workspaceId);
+    const counts = crossTaskPlanRepository.getCountByStatus(workspaceId);
 
     return NextResponse.json({
       success: true,

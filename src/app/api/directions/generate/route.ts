@@ -21,8 +21,10 @@ import { getBehavioralContext, formatBehavioralForPrompt } from '@/lib/brain/beh
 import { computePreferenceProfile, formatPreferenceForPrompt } from '@/lib/directions/preferenceEngine';
 import { createRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 import { aiOrchestrator } from '@/lib/ai/aiOrchestrator';
-import { contextDb, contextGroupDb, directionPreferenceDb } from '@/app/db';
-import type { DbContext, DbContextGroup } from '@/app/db';
+import { contextGroupRepository } from '@/app/db/repositories/context-group.repository';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { directionPreferenceRepository } from '@/app/db/repositories/direction-preference.repository';
+import type { DbContext, DbContextGroup } from '@/app/db/models/types';
 
 interface AnsweredQuestion {
   id: string;
@@ -580,9 +582,9 @@ async function handlePost(request: NextRequest) {
       logger.info('[API] Fetching contexts from SQLite database', { count: selectedContextIds.length });
 
       for (const ctxId of selectedContextIds) {
-        const ctx = contextDb.getContextById(ctxId);
+        const ctx = contextRepository.getContextById(ctxId);
         if (ctx) {
-          const group = ctx.group_id ? contextGroupDb.getGroupById(ctx.group_id) : null;
+          const group = ctx.group_id ? contextGroupRepository.getGroupById(ctx.group_id) : null;
           unifiedContexts.push(sqliteContextToUnified(ctx, group));
         } else {
           logger.warn('[API] Context not found in SQLite:', { ctxId });
@@ -650,7 +652,7 @@ async function handlePost(request: NextRequest) {
     // Load user preference profile from pair decision history
     let preferenceSection = '';
     try {
-      const cached = directionPreferenceDb.get(projectId);
+      const cached = directionPreferenceRepository.get(projectId);
       let profile;
       if (cached) {
         profile = {
@@ -664,7 +666,7 @@ async function handlePost(request: NextRequest) {
       } else {
         profile = computePreferenceProfile(projectId);
         if (profile.sampleCount > 0) {
-          directionPreferenceDb.set(
+          directionPreferenceRepository.set(
             projectId,
             JSON.stringify(profile.vector),
             profile.sampleCount,

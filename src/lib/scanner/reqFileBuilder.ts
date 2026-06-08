@@ -3,7 +3,7 @@
  * Creates Claude Code requirement files from ideas with proper structure
  */
 
-import { DbIdea, DbGoal, DbContext } from '@/app/db';
+import type { DbContext, DbGoal, DbIdea } from '@/app/db/models/types';
 
 export interface RequirementBuilderOptions {
   idea: DbIdea;

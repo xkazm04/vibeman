@@ -2,8 +2,14 @@
  * Brain Tools - Implementation for Annette's brain-related tool calls
  */
 
-import { behavioralSignalDb, directionOutcomeDb, brainReflectionDb, brainInsightDb, directionDb, contextDb, ideaDb } from '@/app/db';
-import { BehavioralSignalType } from '@/app/db';
+import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-signal.repository';
+import { directionOutcomeRepository } from '@/app/db/repositories/direction-outcome.repository';
+import { brainReflectionRepository } from '@/app/db/repositories/brain-reflection.repository';
+import { brainInsightRepository } from '@/app/db/repositories/brain-insight.repository';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import type { BehavioralSignalType } from '@/types/signals';
 import { getBehavioralContext } from '@/lib/brain/behavioralContext';
 
 export async function executeBrainTools(
@@ -33,8 +39,8 @@ export async function executeBrainTools(
 
     case 'get_outcomes': {
       const limit = parseInt(String(input.limit || '10'), 10);
-      const stats = directionOutcomeDb.getStats(projectId, 30);
-      const recent = directionOutcomeDb.getByProject(projectId, { limit });
+      const stats = directionOutcomeRepository.getStats(projectId, 30);
+      const recent = directionOutcomeRepository.getByProject(projectId, { limit });
 
       return JSON.stringify({
         stats: {
@@ -58,12 +64,12 @@ export async function executeBrainTools(
     }
 
     case 'get_reflection_status': {
-      const lastReflection = brainReflectionDb.getLatestCompleted(projectId);
-      const running = brainReflectionDb.getRunning(projectId);
+      const lastReflection = brainReflectionRepository.getLatestCompleted(projectId);
+      const running = brainReflectionRepository.getRunning(projectId);
 
       // Count direction decisions (accepted/rejected) since last reflection
       let decisionCount = 0;
-      const allDirections = directionDb.getDirectionsByProject(projectId);
+      const allDirections = directionRepository.getDirectionsByProject(projectId);
       const lastReflectedAt = lastReflection?.completed_at;
       if (lastReflectedAt) {
         decisionCount = allDirections.filter(d =>
@@ -88,7 +94,7 @@ export async function executeBrainTools(
 
     case 'trigger_reflection': {
       // Check if already running
-      const existingRunning = brainReflectionDb.getRunning(projectId);
+      const existingRunning = brainReflectionRepository.getRunning(projectId);
       if (existingRunning) {
         return JSON.stringify({
           success: false,
@@ -110,9 +116,9 @@ export async function executeBrainTools(
 
       let signals;
       if (signalType) {
-        signals = behavioralSignalDb.getByTypeAndWindow(projectId, signalType, 7);
+        signals = behavioralSignalRepository.getByTypeAndWindow(projectId, signalType, 7);
       } else {
-        signals = behavioralSignalDb.getByProject(projectId, { limit });
+        signals = behavioralSignalRepository.getByProject(projectId, { limit });
       }
 
       return JSON.stringify({
@@ -128,7 +134,7 @@ export async function executeBrainTools(
     }
 
     case 'get_insights': {
-      const insights = brainInsightDb.getAllInsights(projectId, 20);
+      const insights = brainInsightRepository.getAllInsights(projectId, 20);
       if (insights.length === 0) {
         return JSON.stringify({
           hasInsights: false,
@@ -136,7 +142,7 @@ export async function executeBrainTools(
         });
       }
 
-      const lastReflection = brainReflectionDb.getLatestCompleted(projectId);
+      const lastReflection = brainReflectionRepository.getLatestCompleted(projectId);
       return JSON.stringify({
         hasInsights: true,
         reflectionDate: lastReflection?.completed_at ?? null,
@@ -149,13 +155,13 @@ export async function executeBrainTools(
       const ctx = getBehavioralContext(projectId, 14);
 
       // Get outcome stats
-      const outcomeStats = directionOutcomeDb.getStats(projectId, 30);
+      const outcomeStats = directionOutcomeRepository.getStats(projectId, 30);
       const successRate = outcomeStats.total > 0
         ? Math.round((outcomeStats.successful / outcomeStats.total) * 100)
         : null;
 
       // Get direction counts
-      const directions = directionDb.getDirectionsByProject(projectId);
+      const directions = directionRepository.getDirectionsByProject(projectId);
       const directionStats = {
         total: directions.length,
         pending: directions.filter(d => d.status === 'pending').length,
@@ -164,7 +170,7 @@ export async function executeBrainTools(
       };
 
       // Get idea counts
-      const ideas = ideaDb.getIdeasByProject(projectId);
+      const ideas = ideaRepository.getIdeasByProject(projectId);
       const ideaStats = {
         total: ideas.length,
         pending: ideas.filter(i => i.status === 'pending').length,
@@ -173,10 +179,10 @@ export async function executeBrainTools(
       };
 
       // Get context count
-      const contexts = contextDb.getContextsByProject(projectId);
+      const contexts = contextRepository.getContextsByProject(projectId);
 
       // Get reflection stats
-      const reflectionStats = brainReflectionDb.getStats(projectId);
+      const reflectionStats = brainReflectionRepository.getStats(projectId);
 
       // Build strengths / weaknesses from behavioral data
       const strengths: string[] = [];
@@ -235,7 +241,7 @@ export async function executeBrainTools(
       const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
       // Get reflections within the window
-      const reflections = brainReflectionDb.getByProject(projectId, 50);
+      const reflections = brainReflectionRepository.getByProject(projectId, 50);
       const recentReflections = reflections.filter(
         r => r.status === 'completed' && r.completed_at && r.completed_at >= cutoffDate
       );
@@ -253,7 +259,7 @@ export async function executeBrainTools(
       }> = [];
 
       for (const reflection of recentReflections) {
-        const insightRows = brainInsightDb.getByReflection(reflection.id);
+        const insightRows = brainInsightRepository.getByReflection(reflection.id);
         timeline.push({
           date: reflection.completed_at!,
           reflectionId: reflection.id,

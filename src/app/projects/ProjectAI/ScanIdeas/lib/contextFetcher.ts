@@ -1,4 +1,5 @@
-import { contextDb, goalDb } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
 import { logger } from '@/lib/logger';
 
 /**
@@ -6,7 +7,7 @@ import { logger } from '@/lib/logger';
  */
 export function fetchValidGoalIds(projectId: string): Set<string> {
   const validGoalIds = new Set(
-    goalDb.getGoalsByProject(projectId).map(g => g.id)
+    goalRepository.getGoalsByProject(projectId).map(g => g.id)
   );
   logger.info('Found valid goal IDs for validation', { count: validGoalIds.size });
   return validGoalIds;
@@ -16,7 +17,7 @@ export function fetchValidGoalIds(projectId: string): Set<string> {
  * Fetch context information and count context files
  */
 export function fetchContextData(contextId?: string): {
-  context: ReturnType<typeof contextDb.getContextById>;
+  context: ReturnType<typeof contextRepository.getContextById>;
   contextFilesCount: number;
 } {
   let context = null;
@@ -24,7 +25,7 @@ export function fetchContextData(contextId?: string): {
 
   if (contextId) {
     logger.info('Fetching context', { contextId });
-    context = contextDb.getContextById(contextId);
+    context = contextRepository.getContextById(contextId);
 
     // Count context files
     if (context && context.file_paths) {

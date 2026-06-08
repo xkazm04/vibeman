@@ -2,7 +2,7 @@
  * Type definitions for unified Tinder system (Ideas + Directions)
  */
 
-import { DbIdea, DbDirection } from '@/app/db';
+import type { DbDirection, DbIdea } from '@/app/db/models/types';
 
 // Discriminated union types for item identification
 export type TinderItemType = 'idea' | 'direction' | 'direction_pair';

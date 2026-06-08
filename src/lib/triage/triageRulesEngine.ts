@@ -4,7 +4,8 @@
  * Inspired by Gmail filters and Linear auto-triage.
  */
 
-import { triageRuleDb, ideaDb } from '@/app/db';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import { triageRuleRepository } from '@/app/db/repositories/triage-rule.repository';
 import { getDatabase } from '@/app/db/connection';
 import { DbIdea, DbTriageRule, TriageCondition, TriageAction } from '@/app/db/models/types';
 
@@ -96,11 +97,11 @@ function parseConditions(conditionsJson: string): TriageCondition[] {
 function applyAction(ideaId: string, action: TriageAction): boolean {
   switch (action) {
     case 'accept':
-      return ideaDb.updateIdea(ideaId, { status: 'accepted' }) !== null;
+      return ideaRepository.updateIdea(ideaId, { status: 'accepted' }) !== null;
     case 'reject':
-      return ideaDb.updateIdea(ideaId, { status: 'rejected', user_feedback: 'Auto-rejected by triage rule' }) !== null;
+      return ideaRepository.updateIdea(ideaId, { status: 'rejected', user_feedback: 'Auto-rejected by triage rule' }) !== null;
     case 'archive':
-      return ideaDb.updateIdea(ideaId, { status: 'rejected', user_feedback: 'Auto-archived by triage rule' }) !== null;
+      return ideaRepository.updateIdea(ideaId, { status: 'rejected', user_feedback: 'Auto-archived by triage rule' }) !== null;
     default:
       return false;
   }
@@ -113,8 +114,8 @@ function applyAction(ideaId: string, action: TriageAction): boolean {
  */
 export function evaluateTriageRules(ideas: DbIdea[], projectId?: string): TriageResult[] {
   const rules = projectId
-    ? triageRuleDb.getEnabledRulesForProject(projectId)
-    : triageRuleDb.getEnabledRules();
+    ? triageRuleRepository.getEnabledRulesForProject(projectId)
+    : triageRuleRepository.getEnabledRules();
 
   if (rules.length === 0 || ideas.length === 0) return [];
 
@@ -147,7 +148,7 @@ export function evaluateTriageRules(ideas: DbIdea[], projectId?: string): Triage
       }
 
       if (matchedIds.length > 0) {
-        triageRuleDb.recordFiring(rule.id, matchedIds.length);
+        triageRuleRepository.recordFiring(rule.id, matchedIds.length);
         results.push({
           ruleId: rule.id,
           ruleName: rule.name,
@@ -168,7 +169,7 @@ export function evaluateTriageRules(ideas: DbIdea[], projectId?: string): Triage
  * Called after scan completion.
  */
 export function evaluateTriageRulesForScan(scanId: string, projectId: string): TriageResult[] {
-  const ideas = ideaDb.getIdeasByScanId(scanId);
+  const ideas = ideaRepository.getIdeasByScanId(scanId);
   return evaluateTriageRules(ideas, projectId);
 }
 
@@ -177,8 +178,8 @@ export function evaluateTriageRulesForScan(scanId: string, projectId: string): T
  */
 export function previewTriageRules(ideas: DbIdea[], projectId?: string): TriageResult[] {
   const rules = projectId
-    ? triageRuleDb.getEnabledRulesForProject(projectId)
-    : triageRuleDb.getEnabledRules();
+    ? triageRuleRepository.getEnabledRulesForProject(projectId)
+    : triageRuleRepository.getEnabledRules();
 
   if (rules.length === 0 || ideas.length === 0) return [];
 

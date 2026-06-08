@@ -5,7 +5,7 @@
  * POST /api/directions (create direction - called by Claude Code)
  */
 
-import { directionDb } from '@/app/db';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
 import { isValidDirectionStatus } from '@/lib/stateMachine';
 import { parseProjectIds } from '@/lib/api-helpers/projectFilter';
 import { signalCollector } from '@/lib/brain/signalCollector';
@@ -20,8 +20,8 @@ const { GET, POST } = createListHandlers<DbDirection>({
   idPrefix: 'direction',
 
   repo: {
-    getById: (id) => directionDb.getDirectionById(id),
-    create: (data) => directionDb.createDirection(data as Parameters<typeof directionDb.createDirection>[0]),
+    getById: (id) => directionRepository.getDirectionById(id),
+    create: (data) => directionRepository.createDirection(data as Parameters<typeof directionRepository.createDirection>[0]),
   },
 
   fetchItems: (_projectId, { status, contextMapId, searchParams }) => {
@@ -33,13 +33,13 @@ const { GET, POST } = createListHandlers<DbDirection>({
     const contextId = searchParams.get('contextId');
     const contextGroupId = searchParams.get('contextGroupId');
 
-    if (contextId) return directionDb.getDirectionsByContextIdMultiple(projectIds, contextId);
-    if (contextGroupId) return directionDb.getDirectionsByContextGroupIdMultiple(projectIds, contextGroupId);
-    if (contextMapId) return directionDb.getDirectionsByContextMapIdMultiple(projectIds, contextMapId);
-    if (status === 'pending') return directionDb.getPendingDirectionsMultiple(projectIds);
-    if (status === 'accepted') return directionDb.getAcceptedDirectionsMultiple(projectIds);
-    if (status === 'rejected') return directionDb.getRejectedDirectionsMultiple(projectIds);
-    return directionDb.getDirectionsByProjects(projectIds);
+    if (contextId) return directionRepository.getDirectionsByContextIdMultiple(projectIds, contextId);
+    if (contextGroupId) return directionRepository.getDirectionsByContextGroupIdMultiple(projectIds, contextGroupId);
+    if (contextMapId) return directionRepository.getDirectionsByContextMapIdMultiple(projectIds, contextMapId);
+    if (status === 'pending') return directionRepository.getPendingDirectionsMultiple(projectIds);
+    if (status === 'accepted') return directionRepository.getAcceptedDirectionsMultiple(projectIds);
+    if (status === 'rejected') return directionRepository.getRejectedDirectionsMultiple(projectIds);
+    return directionRepository.getDirectionsByProjects(projectIds);
   },
 
   fetchCounts: (_projectId, _items, { searchParams }) => {
@@ -47,7 +47,7 @@ const { GET, POST } = createListHandlers<DbDirection>({
     const projectIds = projectFilter.mode === 'single'
       ? [projectFilter.projectId!]
       : projectFilter.projectIds || [_projectId];
-    return directionDb.getDirectionCountsMultiple(projectIds);
+    return directionRepository.getDirectionCountsMultiple(projectIds);
   },
 
   validateCreate: (body) => {

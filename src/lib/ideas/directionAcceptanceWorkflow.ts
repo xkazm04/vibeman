@@ -15,11 +15,9 @@
  *   7. adr           — generate ADR (non-critical)
  */
 
-import {
-  directionDb,
-  scanDb,
-  ideaDb,
-} from '@/app/db';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import { scanRepository } from '@/app/db/repositories/scan.repository';
 import { DbDirection } from '@/app/db/models/types';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { generateAdr, generatePairedAdr } from '@/lib/directions/adrGenerator';
@@ -143,14 +141,14 @@ export function acceptDirection(opts: AcceptDirectionOptions): AcceptDirectionOu
   let rejectedDirection: DbDirection | null = null;
 
   if ('pairId' in opts) {
-    const pair = directionDb.getDirectionPair(opts.pairId);
+    const pair = directionRepository.getDirectionPair(opts.pairId);
     if (!pair.directionA || !pair.directionB) {
       return { success: false, code: 'NOT_FOUND', message: 'Direction pair not found or incomplete' };
     }
     targetDirection = opts.variant === 'A' ? pair.directionA : pair.directionB;
     rejectedDirection = opts.variant === 'A' ? pair.directionB : pair.directionA;
   } else {
-    const dir = directionDb.getDirectionById(opts.directionId);
+    const dir = directionRepository.getDirectionById(opts.directionId);
     if (!dir) {
       return { success: false, code: 'NOT_FOUND', message: 'Direction not found' };
     }
@@ -158,12 +156,12 @@ export function acceptDirection(opts: AcceptDirectionOptions): AcceptDirectionOu
 
     // Auto-detect pair partner
     if (dir.pair_id) {
-      rejectedDirection = directionDb.getPairedDirection(dir.id);
+      rejectedDirection = directionRepository.getPairedDirection(dir.id);
     }
   }
 
   // 2. Claim direction (optimistic lock)
-  const claimed = directionDb.claimDirectionForProcessing(targetDirection.id);
+  const claimed = directionRepository.claimDirectionForProcessing(targetDirection.id);
   if (!claimed) {
     return {
       success: false,
@@ -196,14 +194,14 @@ export function acceptDirection(opts: AcceptDirectionOptions): AcceptDirectionOu
         filePath = result.filePath || '';
       },
       compensate: () => {
-        directionDb.updateDirection(targetDirection.id, { status: 'pending' });
+        directionRepository.updateDirection(targetDirection.id, { status: 'pending' });
       },
     },
     {
       name: 'updateDb',
       execute: () => {
         if (rejectedDirection) {
-          const pairResult = directionDb.acceptPairedDirection(
+          const pairResult = directionRepository.acceptPairedDirection(
             targetDirection.id,
             requirementId,
             filePath,
@@ -212,7 +210,7 @@ export function acceptDirection(opts: AcceptDirectionOptions): AcceptDirectionOu
           updatedDirection = pairResult.accepted;
           dbRejected = pairResult.rejected;
         } else {
-          const updated = directionDb.acceptDirection(
+          const updated = directionRepository.acceptDirection(
             targetDirection.id,
             requirementId,
             filePath,
@@ -222,19 +220,19 @@ export function acceptDirection(opts: AcceptDirectionOptions): AcceptDirectionOu
         }
       },
       compensate: () => {
-        directionDb.updateDirection(targetDirection.id, { status: 'pending' });
+        directionRepository.updateDirection(targetDirection.id, { status: 'pending' });
       },
     },
     {
       name: 'createRecords',
       execute: () => {
-        scanDb.createScan({
+        scanRepository.createScan({
           id: scanId,
           project_id: targetDirection.project_id,
           scan_type: 'direction_accepted',
           summary: `Direction accepted: ${targetDirection.summary}`,
         });
-        ideaDb.createIdea({
+        ideaRepository.createIdea({
           id: ideaId,
           scan_id: scanId,
           project_id: targetDirection.project_id,
@@ -291,8 +289,8 @@ export function acceptDirection(opts: AcceptDirectionOptions): AcceptDirectionOu
           contextMapTitle: targetDirection.context_map_title,
           problemStatement: targetDirection.problem_statement,
         });
-    directionDb.updateDirection(targetDirection.id, { decision_record: JSON.stringify(adr) });
-    updatedDirection = directionDb.getDirectionById(targetDirection.id) ?? updatedDirection;
+    directionRepository.updateDirection(targetDirection.id, { decision_record: JSON.stringify(adr) });
+    updatedDirection = directionRepository.getDirectionById(targetDirection.id) ?? updatedDirection;
   } catch { /* ADR generation failure is non-critical */ }
 
   return {

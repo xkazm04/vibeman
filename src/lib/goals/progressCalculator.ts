@@ -6,7 +6,7 @@
  * Writes to the single authoritative `progress` field with source/confidence metadata.
  */
 
-import { goalDb } from '@/app/db';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
 import { goalSignalRepository, goalSubGoalRepository } from '@/app/db/repositories/goal-lifecycle.repository';
 
 /**
@@ -51,7 +51,7 @@ export function computeInferredProgress(goalId: string): number {
   progress = Math.min(progress, 95);
 
   // Write unified progress with inferred source
-  goalDb.updateGoalProgress(goalId, progress, 'inferred', confidence);
+  goalRepository.updateGoalProgress(goalId, progress, 'inferred', confidence);
 
   return progress;
 }

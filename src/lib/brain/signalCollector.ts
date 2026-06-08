@@ -3,7 +3,9 @@
  * Central service for capturing and storing behavioral signals
  */
 
-import { behavioralSignalDb, contextDb, predictiveIntentDb } from '@/app/db';
+import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-signal.repository';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { predictiveIntentRepository } from '@/app/db/repositories/predictive-intent.repository';
 import type {
   BehavioralSignalType,
   GitActivitySignalData,
@@ -92,7 +94,7 @@ function recordContextTransition(
   // If there's a previous context and it's different, record a transition
   if (prev && prev.contextId !== toContextId && (now - prev.timestamp) < TRANSITION_MAX_GAP_MS) {
     try {
-      predictiveIntentDb.createTransition({
+      predictiveIntentRepository.createTransition({
         id: `tr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         project_id: projectId,
         from_context_id: prev.contextId,
@@ -125,7 +127,7 @@ export const signalCollector = {
     try {
       const dataStr = JSON.stringify(data);
       if (isDuplicate(projectId, SignalType.GIT_ACTIVITY, dataStr)) return;
-      behavioralSignalDb.create({
+      behavioralSignalRepository.create({
         id: generateSignalId(),
         project_id: projectId,
         signal_type: SignalType.GIT_ACTIVITY,
@@ -152,7 +154,7 @@ export const signalCollector = {
     try {
       const dataStr = JSON.stringify(data);
       if (isDuplicate(projectId, SignalType.API_FOCUS, dataStr)) return;
-      behavioralSignalDb.create({
+      behavioralSignalRepository.create({
         id: generateSignalId(),
         project_id: projectId,
         signal_type: SignalType.API_FOCUS,
@@ -182,7 +184,7 @@ export const signalCollector = {
       let enrichedData = dataStr;
       if (data.contextId) {
         try {
-          const ctx = contextDb.getContextById(data.contextId);
+          const ctx = contextRepository.getContextById(data.contextId);
           if (ctx) {
             const parsed = JSON.parse(dataStr);
             let dbTables: string[] = [];
@@ -196,7 +198,7 @@ export const signalCollector = {
         } catch { /* enrichment is best-effort */ }
       }
 
-      behavioralSignalDb.create({
+      behavioralSignalRepository.create({
         id: generateSignalId(),
         project_id: projectId,
         signal_type: SignalType.CONTEXT_FOCUS,
@@ -226,7 +228,7 @@ export const signalCollector = {
     try {
       const dataStr = JSON.stringify(data);
       if (isDuplicate(projectId, SignalType.IMPLEMENTATION, dataStr)) return;
-      behavioralSignalDb.create({
+      behavioralSignalRepository.create({
         id: generateSignalId(),
         project_id: projectId,
         signal_type: SignalType.IMPLEMENTATION,
@@ -260,7 +262,7 @@ export const signalCollector = {
     try {
       const dataStr = JSON.stringify(data);
       if (isDuplicate(projectId, SignalType.CONTEXT_FOCUS, `idea_decision:${data.ideaId}`)) return;
-      behavioralSignalDb.create({
+      behavioralSignalRepository.create({
         id: generateSignalId(),
         project_id: projectId,
         signal_type: SignalType.CONTEXT_FOCUS,
@@ -293,7 +295,7 @@ export const signalCollector = {
     try {
       const dataStr = JSON.stringify(data);
       if (isDuplicate(projectId, SignalType.CONTEXT_FOCUS, `goal_lifecycle:${data.goalId}:${data.signalType}`)) return;
-      behavioralSignalDb.create({
+      behavioralSignalRepository.create({
         id: generateSignalId(),
         project_id: projectId,
         signal_type: SignalType.CONTEXT_FOCUS,
@@ -318,7 +320,7 @@ export const signalCollector = {
     try {
       const dataStr = JSON.stringify(data);
       if (isDuplicate(projectId, SignalType.CROSS_TASK_ANALYSIS, dataStr)) return;
-      behavioralSignalDb.create({
+      behavioralSignalRepository.create({
         id: generateSignalId(),
         project_id: projectId,
         signal_type: SignalType.CROSS_TASK_ANALYSIS,
@@ -343,7 +345,7 @@ export const signalCollector = {
     try {
       const dataStr = JSON.stringify(data);
       if (isDuplicate(projectId, SignalType.CROSS_TASK_SELECTION, dataStr)) return;
-      behavioralSignalDb.create({
+      behavioralSignalRepository.create({
         id: generateSignalId(),
         project_id: projectId,
         signal_type: SignalType.CROSS_TASK_SELECTION,
@@ -370,7 +372,7 @@ export const signalCollector = {
     try {
       const dataStr = JSON.stringify(data);
       if (isDuplicate(projectId, SignalType.CLI_MEMORY, dataStr)) return;
-      behavioralSignalDb.create({
+      behavioralSignalRepository.create({
         id: generateSignalId(),
         project_id: projectId,
         signal_type: SignalType.CLI_MEMORY,
@@ -404,7 +406,7 @@ export const signalCollector = {
     let recorded = 0;
     for (const ep of endpoints) {
       try {
-        behavioralSignalDb.create({
+        behavioralSignalRepository.create({
           id: generateSignalId(),
           project_id: projectId,
           signal_type: SignalType.API_FOCUS,
@@ -474,14 +476,14 @@ export const signalCollector = {
    */
   applyDecay: (projectId: string, decayFactor: number = DEFAULT_DECAY_FACTOR, retentionDays: number = DEFAULT_RETENTION_DAYS): number => {
     const decayStartDays = Math.max(DECAY_START_MIN_DAYS, Math.floor(retentionDays * DECAY_START_FRACTION));
-    return behavioralSignalDb.applyDecay(projectId, decayFactor, decayStartDays);
+    return behavioralSignalRepository.applyDecay(projectId, decayFactor, decayStartDays);
   },
 
   /**
    * Clean up old signals beyond retention
    */
   cleanup: (projectId: string, retentionDays: number = DEFAULT_RETENTION_DAYS): number => {
-    return behavioralSignalDb.deleteOld(projectId, retentionDays);
+    return behavioralSignalRepository.deleteOld(projectId, retentionDays);
   },
 };
 

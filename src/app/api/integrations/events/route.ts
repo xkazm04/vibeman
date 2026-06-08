@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { integrationEventDb, integrationDb } from '@/app/db';
+import { integrationEventRepository, integrationRepository } from '@/app/db/repositories/integration.repository';
 import { dispatchIntegrationEvent, integrationEngine } from '@/lib/integrations';
 import type { IntegrationEventType } from '@/app/db/models/integration.types';
 import { isTableMissingError } from '@/app/db/repositories/repository.utils';
@@ -22,9 +22,9 @@ export async function GET(request: Request) {
 
     let events;
     if (integrationId) {
-      events = integrationEventDb.getByIntegration(integrationId, limit);
+      events = integrationEventRepository.getByIntegration(integrationId, limit);
     } else if (projectId) {
-      events = integrationEventDb.getByProject(projectId, limit);
+      events = integrationEventRepository.getByProject(projectId, limit);
     } else {
       return NextResponse.json(
         { success: false, error: 'projectId or integrationId is required' },

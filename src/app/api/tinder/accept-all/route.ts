@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { ideaDb } from '@/app/db';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
 import { withObservability } from '@/lib/observability/middleware';
 import { acceptIdea as acceptIdeaWorkflow } from '@/lib/ideas/ideaAcceptanceWorkflow';
 import { handleIdeasApiError } from '@/app/features/Ideas/lib/ideasHandlers';
@@ -33,10 +33,10 @@ async function handlePost(request: NextRequest) {
     let pendingIdeas: import('@/app/db').DbIdea[];
     if (projectId && projectId !== 'all') {
       // Fetch all with a large limit (no pagination needed for bulk accept)
-      const result = ideaDb.getIdeasByProjectAndStatus(projectId, 'pending', 10000, null);
+      const result = ideaRepository.getIdeasByProjectAndStatus(projectId, 'pending', 10000, null);
       pendingIdeas = result.ideas;
     } else {
-      pendingIdeas = ideaDb.getIdeasByStatus('pending');
+      pendingIdeas = ideaRepository.getIdeasByStatus('pending');
     }
 
     let accepted = 0;

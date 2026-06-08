@@ -6,7 +6,7 @@
  * Caches results in memory for fast access, invalidated only on data changes.
  */
 
-import { ideaDb } from '@/app/db';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
 import { DbIdea } from '@/app/db/models/types';
 import { ALL_SCAN_TYPES } from '@/app/features/Ideas/lib/scanTypes';
 
@@ -322,7 +322,7 @@ class AnalyticsAggregationService {
    * Compute aggregated statistics
    */
   private computeAggregatedStats(key: CacheKey): AggregatedStats {
-    const allIdeas = ideaDb.getAllIdeas();
+    const allIdeas = ideaRepository.getAllIdeas();
     const { start, end } = this.getDateRange(key.timeWindow);
 
     const filteredIdeas = this.filterIdeas(
@@ -403,7 +403,7 @@ class AnalyticsAggregationService {
     startDate: string | null,
     endDate: string | null
   ): AggregatedStats {
-    const allIdeas = ideaDb.getAllIdeas();
+    const allIdeas = ideaRepository.getAllIdeas();
 
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : new Date();

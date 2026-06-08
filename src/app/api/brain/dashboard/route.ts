@@ -10,7 +10,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withObservability } from '@/lib/observability/middleware';
 import { getContext } from '@/lib/brain/brainService';
-import { directionOutcomeDb, behavioralSignalDb } from '@/app/db';
+import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-signal.repository';
+import { directionOutcomeRepository } from '@/app/db/repositories/direction-outcome.repository';
 import { reflectionAgent } from '@/lib/brain/reflectionAgent';
 import { detectAnomalies } from '@/lib/brain/anomalyDetector';
 import { CONTEXT_WINDOW_DAYS, OUTCOMES_WINDOW_DAYS } from '@/lib/brain/config';
@@ -24,7 +25,7 @@ export const dynamic = 'force-dynamic';
  */
 function computeSignalStats(projectId: string, days?: number) {
   const windowDays = days || OUTCOMES_WINDOW_DAYS;
-  const signals = behavioralSignalDb.getByTypeAndWindow(projectId, 'implementation', windowDays);
+  const signals = behavioralSignalRepository.getByTypeAndWindow(projectId, 'implementation', windowDays);
 
   let successful = 0;
   let failed = 0;
@@ -60,8 +61,8 @@ async function handleGET(request: NextRequest) {
 
         // 2. Outcomes + stats
         Promise.resolve((() => {
-          const outcomes = directionOutcomeDb.getByProject(projectId, { limit: 10 });
-          const stats = directionOutcomeDb.getStats(projectId);
+          const outcomes = directionOutcomeRepository.getByProject(projectId, { limit: 10 });
+          const stats = directionOutcomeRepository.getStats(projectId);
           const signalStats = computeSignalStats(projectId);
 
           const useSignals = signalStats.total > stats.total;

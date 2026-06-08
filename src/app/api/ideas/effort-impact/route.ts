@@ -3,7 +3,7 @@
  * GET - Effort/impact matrix data (EffortImpactMatrix)
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { ideaDb } from '@/app/db';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
 import { createRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
 /**
@@ -19,7 +19,7 @@ async function handleGet(request: NextRequest) {
     const contextId = searchParams.get('contextId');
 
     // Get ideas based on filters
-    let ideas = ideaDb.getAllIdeas();
+    let ideas = ideaRepository.getAllIdeas();
 
     if (projectId) {
       ideas = ideas.filter(idea => idea.project_id === projectId);

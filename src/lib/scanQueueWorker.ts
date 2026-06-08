@@ -3,7 +3,8 @@
  * Processes queued scans with progress tracking and notifications
  */
 
-import { scanQueueDb, ideaDb } from '@/app/db';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import { scanQueueRepository } from '@/app/db/repositories/scanQueue.repository';
 import { getDatabase } from '@/app/db/connection';
 import { DbScanQueueItem } from '@/app/db/models/types';
 import { executeLlmScan as executeContextScan } from '@/app/features/Ideas/sub_IdeasSetup/lib/ideaExecutor';
@@ -73,7 +74,7 @@ class ScanQueueWorker {
     message: string,
     data: NotificationData
   ): void {
-    scanQueueDb.createNotification({
+    scanQueueRepository.createNotification({
       id: generateNotificationId(),
       queue_item_id: queueItem.id,
       project_id: queueItem.project_id,
@@ -102,7 +103,7 @@ class ScanQueueWorker {
 
     // Reset orphaned DB items stuck in 'running' from a previous crash back to 'queued'
     try {
-      const recovered = scanQueueDb.resetOrphanedRunning();
+      const recovered = scanQueueRepository.resetOrphanedRunning();
       if (recovered > 0) {
         console.log(`[ScanQueueWorker] Recovered ${recovered} orphaned running item(s) on startup`);
       }
@@ -296,7 +297,7 @@ class ScanQueueWorker {
 
     // Atomically claim the next pending item
     // This prevents race conditions where multiple poll cycles claim the same item
-    const queueItem = scanQueueDb.claimNextPending();
+    const queueItem = scanQueueRepository.claimNextPending();
 
     if (!queueItem) {
       return false; // No pending items - queue is empty
@@ -312,10 +313,10 @@ class ScanQueueWorker {
       // Errors are handled in processQueueItem, but ensure we don't leave items stuck
       // If processQueueItem failed to update status, mark as failed
       try {
-        const currentItem = scanQueueDb.getQueueItemById(queueItem.id);
+        const currentItem = scanQueueRepository.getQueueItemById(queueItem.id);
         if (currentItem && currentItem.status === 'running') {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          scanQueueDb.updateStatus(queueItem.id, 'failed', `Worker error: ${errorMessage}`);
+          scanQueueRepository.updateStatus(queueItem.id, 'failed', `Worker error: ${errorMessage}`);
         }
       } catch {
         // Best effort - database might be unavailable
@@ -335,7 +336,7 @@ class ScanQueueWorker {
   private async processQueueItem(queueItem: DbScanQueueItem): Promise<void> {
     try {
       // Status already set to 'running' by claimNextPending(), just update progress
-      scanQueueDb.updateProgress(queueItem.id, 0, 'Starting scan...', 'initialize', 4);
+      scanQueueRepository.updateProgress(queueItem.id, 0, 'Starting scan...', 'initialize', 4);
 
       // Create notification for scan started
       this.createNotification(
@@ -353,7 +354,7 @@ class ScanQueueWorker {
       const projectInfo = await this.getProjectInfo(queueItem.project_id);
 
       // Update progress: gathering files
-      scanQueueDb.updateProgress(queueItem.id, 25, 'Gathering codebase files...', 'gather_files', 4);
+      scanQueueRepository.updateProgress(queueItem.id, 25, 'Gathering codebase files...', 'gather_files', 4);
 
       // Get context file paths if context_id is specified
       let contextFilePaths: string[] | undefined;
@@ -370,7 +371,7 @@ class ScanQueueWorker {
       }
 
       // Update progress: executing scan
-      scanQueueDb.updateProgress(queueItem.id, 50, 'Analyzing code with AI...', 'execute_scan', 4);
+      scanQueueRepository.updateProgress(queueItem.id, 50, 'Analyzing code with AI...', 'execute_scan', 4);
 
       // Execute the scan with an AbortController to cancel zombie LLM requests on timeout
       const timeoutMs = this.config.scanTimeoutMs;
@@ -401,21 +402,21 @@ class ScanQueueWorker {
       clearTimeout(timeoutId);
 
       // Update progress: processing results
-      scanQueueDb.updateProgress(queueItem.id, 75, 'Processing scan results...', 'process_results', 4);
+      scanQueueRepository.updateProgress(queueItem.id, 75, 'Processing scan results...', 'process_results', 4);
 
       // Get the latest scan ID for this project and scan type (efficient single-row query)
-      const latestScanId = ideaDb.getLatestScanId(queueItem.project_id, queueItem.scan_type);
+      const latestScanId = ideaRepository.getLatestScanId(queueItem.project_id, queueItem.scan_type);
 
       // Link the scan to the queue item
       if (latestScanId) {
-        scanQueueDb.linkScan(queueItem.id, latestScanId, `Generated ${ideaCount} ideas`);
+        scanQueueRepository.linkScan(queueItem.id, latestScanId, `Generated ${ideaCount} ideas`);
       }
 
       // Update progress: finalizing
-      scanQueueDb.updateProgress(queueItem.id, 100, 'Scan completed successfully', 'complete', 4);
+      scanQueueRepository.updateProgress(queueItem.id, 100, 'Scan completed successfully', 'complete', 4);
 
       // Update status to completed
-      scanQueueDb.updateStatus(queueItem.id, 'completed');
+      scanQueueRepository.updateStatus(queueItem.id, 'completed');
 
       // Create completion notification
       this.createNotification(
@@ -434,7 +435,7 @@ class ScanQueueWorker {
       // Re-fetch the queue item from DB so scan_id (set by linkScan above) is current.
       // The in-memory queueItem still has scan_id=null from before linkScan ran.
       if (queueItem.auto_merge_enabled) {
-        const freshItem = scanQueueDb.getQueueItemById(queueItem.id);
+        const freshItem = scanQueueRepository.getQueueItemById(queueItem.id);
         if (freshItem) {
           await this.handleAutoMerge(freshItem);
         }
@@ -442,8 +443,8 @@ class ScanQueueWorker {
     } catch (error) {
       // Update status to failed
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      scanQueueDb.updateStatus(queueItem.id, 'failed', errorMessage);
-      scanQueueDb.updateProgress(queueItem.id, 0, `Failed: ${errorMessage}`, 'error', 4);
+      scanQueueRepository.updateStatus(queueItem.id, 'failed', errorMessage);
+      scanQueueRepository.updateProgress(queueItem.id, 0, `Failed: ${errorMessage}`, 'error', 4);
 
       // Create failure notification
       this.createNotification(
@@ -466,20 +467,20 @@ class ScanQueueWorker {
    */
   private async handleAutoMerge(queueItem: DbScanQueueItem): Promise<void> {
     try {
-      scanQueueDb.updateAutoMergeStatus(queueItem.id, 'in_progress');
+      scanQueueRepository.updateAutoMergeStatus(queueItem.id, 'in_progress');
 
       // Get ideas directly by scan ID (more efficient than fetching all project ideas)
       if (!queueItem.scan_id) {
         throw new Error('No scan ID available for auto-merge');
       }
 
-      const ideas = ideaDb.getIdeasByScanId(queueItem.scan_id);
+      const ideas = ideaRepository.getIdeasByScanId(queueItem.scan_id);
 
       // Filter ideas that qualify for auto-accept (high-impact, low-effort)
       const eligibleIdeas = ideas.filter(idea => idea.impact === 3 && idea.effort === 1);
 
       if (eligibleIdeas.length === 0) {
-        scanQueueDb.updateAutoMergeStatus(queueItem.id, 'completed: no eligible ideas');
+        scanQueueRepository.updateAutoMergeStatus(queueItem.id, 'completed: no eligible ideas');
         return;
       }
 
@@ -487,7 +488,7 @@ class ScanQueueWorker {
       const db = getDatabase();
       const acceptBatch = db.transaction(() => {
         for (const idea of eligibleIdeas) {
-          const result = ideaDb.updateIdea(idea.id, { status: 'accepted' });
+          const result = ideaRepository.updateIdea(idea.id, { status: 'accepted' });
           if (result === null) {
             throw new Error(`Failed to update idea "${idea.title}" (${idea.id}) - row not affected`);
           }
@@ -496,7 +497,7 @@ class ScanQueueWorker {
 
       acceptBatch();
 
-      scanQueueDb.updateAutoMergeStatus(queueItem.id, 'completed');
+      scanQueueRepository.updateAutoMergeStatus(queueItem.id, 'completed');
 
       this.createNotification(
         queueItem,
@@ -510,7 +511,7 @@ class ScanQueueWorker {
       );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      scanQueueDb.updateAutoMergeStatus(queueItem.id, `failed: ${errorMessage}`);
+      scanQueueRepository.updateAutoMergeStatus(queueItem.id, `failed: ${errorMessage}`);
     }
   }
 

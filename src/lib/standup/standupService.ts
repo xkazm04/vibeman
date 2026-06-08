@@ -9,7 +9,11 @@
  * the algorithmic predictive analysis from the same dataset.
  */
 
-import { standupDb, implementationLogDb, ideaDb, scanDb, contextDb } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
+import { scanRepository } from '@/app/db/repositories/scan.repository';
+import { standupRepository } from '@/app/db/repositories/standup.repository';
 import {
   StandupSummaryResponse,
   StandupSourceData,
@@ -111,10 +115,10 @@ export function gatherStandupSourceData(
   startISO: string,
   endISO: string
 ): StandupSourceData {
-  const periodLogs = implementationLogDb.getLogsByProjectInRange(projectId, startISO, endISO);
-  const periodIdeas = ideaDb.getIdeasByProjectInRange(projectId, startISO, endISO);
-  const periodScans = scanDb.getScansByProjectInRange(projectId, startISO, endISO);
-  const contexts = contextDb.getContextsByProject(projectId);
+  const periodLogs = implementationLogRepository.getLogsByProjectInRange(projectId, startISO, endISO);
+  const periodIdeas = ideaRepository.getIdeasByProjectInRange(projectId, startISO, endISO);
+  const periodScans = scanRepository.getScansByProjectInRange(projectId, startISO, endISO);
+  const contexts = contextRepository.getContextsByProject(projectId);
 
   return {
     implementationLogs: periodLogs.map((log) => ({
@@ -185,14 +189,14 @@ export function getExistingSummary(
   periodType: 'daily' | 'weekly',
   periodStartStr: string
 ) {
-  return standupDb.getSummaryByPeriod(projectId, periodType, periodStartStr);
+  return standupRepository.getSummaryByPeriod(projectId, periodType, periodStartStr);
 }
 
 /**
  * Save (upsert) a standup summary to the database.
  */
 export function saveSummary(summary: Omit<DbStandupSummary, 'created_at' | 'updated_at'>) {
-  return standupDb.upsertSummary(summary);
+  return standupRepository.upsertSummary(summary);
 }
 
 // ── Unified Pipeline ──

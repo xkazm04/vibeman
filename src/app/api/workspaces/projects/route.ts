@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { workspaceDb } from '@/app/db';
+import { workspaceRepository } from '@/app/db/repositories/workspace.repository';
 import { withObservability } from '@/lib/observability/middleware';
 
 async function handlePut(request: NextRequest) {
@@ -29,7 +29,7 @@ async function handlePut(request: NextRequest) {
       );
     }
 
-    const workspace = workspaceDb.getById(workspaceId);
+    const workspace = workspaceRepository.getById(workspaceId);
     if (!workspace) {
       return NextResponse.json(
         { error: 'Workspace not found' },
@@ -37,9 +37,9 @@ async function handlePut(request: NextRequest) {
       );
     }
 
-    workspaceDb.setProjects(workspaceId, projectIds);
+    workspaceRepository.setProjects(workspaceId, projectIds);
 
-    const updatedProjectIds = workspaceDb.getProjectIds(workspaceId);
+    const updatedProjectIds = workspaceRepository.getProjectIds(workspaceId);
     return NextResponse.json({
       workspace: { ...workspace, projectIds: updatedProjectIds },
     });
@@ -63,7 +63,7 @@ async function handlePost(request: NextRequest) {
       );
     }
 
-    const workspace = workspaceDb.getById(workspaceId);
+    const workspace = workspaceRepository.getById(workspaceId);
     if (!workspace) {
       return NextResponse.json(
         { error: 'Workspace not found' },
@@ -71,9 +71,9 @@ async function handlePost(request: NextRequest) {
       );
     }
 
-    workspaceDb.addProject(workspaceId, projectId);
+    workspaceRepository.addProject(workspaceId, projectId);
 
-    const projectIds = workspaceDb.getProjectIds(workspaceId);
+    const projectIds = workspaceRepository.getProjectIds(workspaceId);
     return NextResponse.json({
       workspace: { ...workspace, projectIds },
     });
@@ -98,7 +98,7 @@ async function handleDelete(request: NextRequest) {
       );
     }
 
-    const removed = workspaceDb.removeProject(workspaceId, projectId);
+    const removed = workspaceRepository.removeProject(workspaceId, projectId);
     if (!removed) {
       return NextResponse.json(
         { error: 'Project not found in workspace' },

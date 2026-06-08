@@ -6,17 +6,17 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { fileWriteQueueDb } from '@/app/db';
+import { fileWriteQueueRepository } from '@/app/db/repositories/file-write-queue.repository';
 import { drainFileWriteQueue } from '@/lib/fileWriteWorker';
 import { withObservability } from '@/lib/observability/middleware';
 
 export const dynamic = 'force-dynamic';
 
 async function handleGET() {
-  const pending = fileWriteQueueDb.countByStatus('pending');
-  const writing = fileWriteQueueDb.countByStatus('writing');
-  const failed = fileWriteQueueDb.countByStatus('failed');
-  const completed = fileWriteQueueDb.countByStatus('completed');
+  const pending = fileWriteQueueRepository.countByStatus('pending');
+  const writing = fileWriteQueueRepository.countByStatus('writing');
+  const failed = fileWriteQueueRepository.countByStatus('failed');
+  const completed = fileWriteQueueRepository.countByStatus('completed');
 
   return NextResponse.json({
     success: true,

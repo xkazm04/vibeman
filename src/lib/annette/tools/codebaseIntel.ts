@@ -9,7 +9,10 @@
  * - get_dependency_analysis: Analyze project dependencies
  */
 
-import { ideaDb, goalDb, contextDb, brainInsightDb } from '@/app/db';
+import { brainInsightRepository } from '@/app/db/repositories/brain-insight.repository';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
 import { getBehavioralContext } from '@/lib/brain/behavioralContext';
 import { projectDb } from '@/lib/project_database';
 import { logger } from '@/lib/logger';
@@ -182,19 +185,19 @@ async function generateBacklogItems(
 
   try {
     // Gather current state from databases
-    const goals = goalDb.getGoalsByProject(projectId);
+    const goals = goalRepository.getGoalsByProject(projectId);
     const openGoals = goals.filter(g => g.status === 'open' || g.status === 'in_progress');
 
-    const pendingIdeas = ideaDb.getIdeasByProject(projectId).filter(i => i.status === 'pending');
-    const acceptedIdeas = ideaDb.getIdeasByProject(projectId).filter(i => i.status === 'accepted');
-    const rejectedIdeas = ideaDb.getIdeasByProject(projectId).filter(i => i.status === 'rejected');
+    const pendingIdeas = ideaRepository.getIdeasByProject(projectId).filter(i => i.status === 'pending');
+    const acceptedIdeas = ideaRepository.getIdeasByProject(projectId).filter(i => i.status === 'accepted');
+    const rejectedIdeas = ideaRepository.getIdeasByProject(projectId).filter(i => i.status === 'rejected');
 
-    const contexts = contextDb.getContextsByProject(projectId);
+    const contexts = contextRepository.getContextsByProject(projectId);
 
     // If contextId provided, get that context's file paths for scope
     let contextScope: { name: string; filePaths: string[] } | null = null;
     if (contextId) {
-      const ctx = contextDb.getContextById(contextId);
+      const ctx = contextRepository.getContextById(contextId);
       if (ctx) {
         let filePaths: string[] = [];
         try { filePaths = JSON.parse(ctx.file_paths || '[]'); } catch { /* empty */ }
@@ -205,7 +208,7 @@ async function generateBacklogItems(
     // Get brain insights for intelligence
     let insightSummary: string[] = [];
     try {
-      const insights = brainInsightDb.getByProject(projectId, 10);
+      const insights = brainInsightRepository.getByProject(projectId, 10);
       insightSummary = insights
         .filter(i => i.type === 'preference_learned' || i.type === 'pattern_detected')
         .slice(0, 5)
@@ -434,7 +437,7 @@ async function assessProjectHealth(
     // ── Brain insights ──
     let brainInsightsCount = 0;
     try {
-      const insights = brainInsightDb.getByProject(projectId, 50);
+      const insights = brainInsightRepository.getByProject(projectId, 50);
       brainInsightsCount = insights.length;
       if (brainInsightsCount > 10) {
         strengths.push({ area: 'Brain Learning', detail: 'Rich pattern database built', metric: `${brainInsightsCount} insights recorded` });
@@ -463,7 +466,7 @@ async function assessProjectHealth(
 
     // ── Idea acceptance/rejection ratio ──
     try {
-      const allIdeas = ideaDb.getIdeasByProject(projectId);
+      const allIdeas = ideaRepository.getIdeasByProject(projectId);
       const accepted = allIdeas.filter(i => i.status === 'accepted').length;
       const rejected = allIdeas.filter(i => i.status === 'rejected').length;
       const pending = allIdeas.filter(i => i.status === 'pending').length;
@@ -505,7 +508,7 @@ async function assessProjectHealth(
 
     // ── Goal progress ──
     try {
-      const goals = goalDb.getGoalsByProject(projectId);
+      const goals = goalRepository.getGoalsByProject(projectId);
       const doneGoals = goals.filter(g => g.status === 'done').length;
       const totalGoals = goals.length;
       metrics.goals = { total: totalGoals, done: doneGoals };

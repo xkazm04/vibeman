@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
-import { contextDb } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
 import { logger } from '@/lib/logger';
 
 interface BatchContextFileResult {
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       contextIds.map(async (contextId: string): Promise<BatchContextFileResult> => {
         try {
           // Get context from database
-          const context = contextDb.getContextById(contextId);
+          const context = contextRepository.getContextById(contextId);
 
           if (!context) {
             return {

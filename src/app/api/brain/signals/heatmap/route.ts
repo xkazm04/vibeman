@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { behavioralSignalDb } from '@/app/db';
+import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-signal.repository';
 import { withObservability } from '@/lib/observability/middleware';
 import { parseQueryInt } from '@/lib/api-helpers/parseQueryInt';
 import { buildSuccessResponse, buildErrorResponse } from '@/lib/api-helpers/apiResponse';
@@ -32,7 +32,7 @@ async function handleGet(request: NextRequest) {
       paramName: 'days',
     });
 
-    const rawData = behavioralSignalDb.getDailyHeatmap(projectId, days);
+    const rawData = behavioralSignalRepository.getDailyHeatmap(projectId, days);
 
     // Aggregate into per-day totals for heatmap cells
     const dailyMap = aggregateByKey(

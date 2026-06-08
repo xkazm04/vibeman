@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { directionDb } from '@/app/db';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
 import { withObservability } from '@/lib/observability/middleware';
 
 async function handleGet(request: NextRequest) {
@@ -23,13 +23,13 @@ async function handleGet(request: NextRequest) {
     }
 
     // Use SQL aggregation instead of loading all directions into JS
-    const counts = directionDb.getDirectionCounts(projectId);
+    const counts = directionRepository.getDirectionCounts(projectId);
     const overall = {
       ...counts,
       acceptanceRatio: counts.total > 0 ? Math.round((counts.accepted / counts.total) * 100) : 0,
     };
 
-    const contextMapRows = directionDb.getDirectionCountsByContextMap(projectId);
+    const contextMapRows = directionRepository.getDirectionCountsByContextMap(projectId);
     const contextMaps = contextMapRows.map(row => ({
       contextMapId: row.context_map_id,
       contextMapTitle: row.context_map_title,
@@ -41,7 +41,7 @@ async function handleGet(request: NextRequest) {
     }));
 
     // Build daily stats: initialize all days, then fill from SQL results
-    const dailyRows = directionDb.getDirectionDailyCounts(projectId, days);
+    const dailyRows = directionRepository.getDirectionDailyCounts(projectId, days);
     const dailyMap = new Map(dailyRows.map(r => [r.date, r]));
 
     const daily: Array<{ date: string; pending: number; accepted: number; rejected: number; total: number; acceptanceRatio: number }> = [];

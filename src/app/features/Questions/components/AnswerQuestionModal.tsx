@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HelpCircle, X, Loader2, Save, Pencil } from 'lucide-react';
-import { DbQuestion } from '@/app/db';
+import type { DbQuestion } from '@/app/db/models/types';
 
 interface AnswerQuestionModalProps {
   question: DbQuestion | null;

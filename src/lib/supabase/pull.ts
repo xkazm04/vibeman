@@ -4,7 +4,7 @@
  */
 
 import { createSupabaseClient } from './client';
-import { ideaDb } from '@/app/db';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createLogger } from '@/lib/utils/logger';
 
@@ -91,7 +91,7 @@ function convertSupabaseIdeaToSQLite(idea: SupabaseIdea) {
 function insertIdeaToSQLite(idea: SupabaseIdea): boolean {
   try {
     const ideaData = convertSupabaseIdeaToSQLite(idea);
-    ideaDb.createIdea(ideaData);
+    ideaRepository.createIdea(ideaData);
     return true;
   } catch (error) {
     logger.error(`Failed to insert idea ${idea.id}:`, error);
@@ -148,7 +148,7 @@ function createFailedPullResult(errorMessage: string): PullResult {
  * Replace local ideas with Supabase data
  */
 function replaceLocalIdeas(supabaseIdeas: SupabaseIdea[]): { deletedCount: number; insertedCount: number } {
-  const deletedCount = ideaDb.deleteAllIdeas();
+  const deletedCount = ideaRepository.deleteAllIdeas();
   logger.info(`Deleted ${deletedCount} existing ideas from SQLite`);
 
   const insertedCount = insertIdeasToSQLite(supabaseIdeas);

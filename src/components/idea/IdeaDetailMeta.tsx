@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { transition } from '@/lib/motion';
 import { Target, Box } from 'lucide-react';
-import { DbIdea, DbGoal } from '@/app/db';
+import type { DbGoal, DbIdea } from '@/app/db/models/types';
 import ContextMenu from '@/components/ContextMenu';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 

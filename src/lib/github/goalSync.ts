@@ -5,7 +5,7 @@
 
 import { formatDateISO } from '@/lib/formatDate';
 import { createLogger } from '@/lib/utils/logger';
-import { goalDb } from '@/app/db';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
 import { env } from '@/lib/config/envConfig';
 import {
   isGitHubConfigured,
@@ -271,7 +271,7 @@ export async function syncGoalToGitHub(goal: DbGoal): Promise<GitHubSyncResult> 
       );
 
       // Store the GitHub item ID in the goal
-      goalDb.updateGoal(goal.id, { github_item_id: githubItemId } as any);
+      goalRepository.updateGoal(goal.id, { github_item_id: githubItemId } as any);
 
       logger.info(`Created GitHub item ${githubItemId} for goal ${goal.id}`);
     }
@@ -378,7 +378,7 @@ export async function batchSyncGoalsToGitHub(
     };
   }
 
-  const goals = goalDb.getGoalsByProject(projectId);
+  const goals = goalRepository.getGoalsByProject(projectId);
   const results: GitHubSyncResult[] = [];
   let synced = 0;
   let failed = 0;

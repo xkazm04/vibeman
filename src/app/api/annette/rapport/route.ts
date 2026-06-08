@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getRapportData } from '@/lib/annette/rapportEngine';
-import { annetteDb } from '@/app/db';
+import { annetteDb } from '@/app/db/composites/annette.db';
 import { logger } from '@/lib/logger';
 import { safeParseJson } from '@/lib/json-utils';
 

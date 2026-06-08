@@ -18,7 +18,7 @@ import {
   getEmptyFilterState
 } from '../../lib/filterIdeas';
 import { SuggestionFilter } from '../../lib/unifiedTypes';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 
 // FilterBar configuration for WeeklyDashboard
 const WEEKLY_FILTER_CONFIG: FilterBarConfig = {

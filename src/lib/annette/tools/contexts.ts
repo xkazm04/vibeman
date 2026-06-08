@@ -2,7 +2,7 @@
  * Context Tools - Implementation for Annette's context-related tool calls
  */
 
-import { contextDb } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
 import { safeParseJson } from '@/lib/json-utils';
 
 export async function executeContextTools(
@@ -12,7 +12,7 @@ export async function executeContextTools(
 ): Promise<string> {
   switch (name) {
     case 'list_contexts': {
-      const contexts = contextDb.getContextsByProject(projectId);
+      const contexts = contextRepository.getContextsByProject(projectId);
 
       return JSON.stringify({
         total: contexts.length,
@@ -36,7 +36,7 @@ export async function executeContextTools(
         return JSON.stringify({ error: 'context_id is required' });
       }
 
-      const context = contextDb.getContextById(contextId);
+      const context = contextRepository.getContextById(contextId);
       if (!context) {
         return JSON.stringify({ error: `Context ${contextId} not found` });
       }
@@ -113,7 +113,7 @@ export async function executeContextTools(
         return JSON.stringify({ error: 'query is required' });
       }
 
-      const allContexts = contextDb.getContextsByProject(projectId);
+      const allContexts = contextRepository.getContextsByProject(projectId);
 
       // Score each context by keyword match + name match + description match
       const scored = allContexts.map(c => {

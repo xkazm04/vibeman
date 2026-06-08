@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { questionDb } from '@/app/db';
+import { questionRepository } from '@/app/db/repositories/question.repository';
 import { logger } from '@/lib/logger';
 import { questionTreeService } from '@/lib/questions/questionTreeService';
 import { createParamsRouteHandler } from '@/lib/api-helpers/createRouteHandler';
@@ -18,7 +18,7 @@ async function handlePost(
 ) {
   const { id: questionId } = await params;
 
-    const question = questionDb.getQuestionById(questionId);
+    const question = questionRepository.getQuestionById(questionId);
     if (!question) {
       return NextResponse.json(
         { error: 'Question not found' },

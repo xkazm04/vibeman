@@ -21,7 +21,7 @@ import {
   isTaskQueued,
   getRequirementId,
 } from '@/app/features/TaskRunner/lib/types';
-import type { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import { useTaskRunnerStore } from '@/app/features/TaskRunner/store';
 
 export { getRequirementId };

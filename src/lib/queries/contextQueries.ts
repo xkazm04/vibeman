@@ -1,4 +1,7 @@
-import { contextDb, contextGroupDb, contextGroupRelationshipDb, DbContext, DbContextGroup } from '@/app/db'
+import { contextGroupRelationshipRepository } from '@/app/db/repositories/context-group-relationship.repository';
+import { contextGroupRepository } from '@/app/db/repositories/context-group.repository';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import type { DbContext, DbContextGroup } from '@/app/db/models/types';
 import type { ContextGroupLayerType } from '@/app/db/repositories/context-group.repository'
 import { DbContextGroupRelationship } from '@/app/db/models/types'
 import { CONTEXT_GROUP_COLORS } from '@/lib/constants/contextColors'
@@ -151,7 +154,7 @@ export const contextGroupQueries = {
   getGroupsByProject: async (projectId: string): Promise<ContextGroup[]> => {
     return handleAsyncOperation(
       async () => {
-        const dbGroups = contextGroupDb.getGroupsByProject(projectId);
+        const dbGroups = contextGroupRepository.getGroupsByProject(projectId);
         return dbGroups.map(dbContextGroupToContextGroup);
       },
       'Failed to fetch context groups'
@@ -167,13 +170,13 @@ export const contextGroupQueries = {
   }): Promise<ContextGroup> => {
     try {
       // Check if we've reached the maximum number of groups (9)
-      const groupCount = contextGroupDb.getGroupCount(data.projectId);
+      const groupCount = contextGroupRepository.getGroupCount(data.projectId);
       if (groupCount >= 20) {
         throw new Error('Maximum of 20 context groups allowed');
       }
 
       // Get the next position
-      const maxPosition = contextGroupDb.getMaxPosition(data.projectId);
+      const maxPosition = contextGroupRepository.getMaxPosition(data.projectId);
 
       // Auto-assign color if not provided
       const color = data.color || CONTEXT_GROUP_COLORS[groupCount % CONTEXT_GROUP_COLORS.length];
@@ -187,7 +190,7 @@ export const contextGroupQueries = {
         icon: data.icon,
       };
 
-      const dbGroup = contextGroupDb.createGroup(groupData);
+      const dbGroup = contextGroupRepository.createGroup(groupData);
       return dbContextGroupToContextGroup(dbGroup);
     } catch (error) {
       logger.error('Failed to create context group:', error);
@@ -205,7 +208,7 @@ export const contextGroupQueries = {
   }): Promise<ContextGroup | null> => {
     return handleAsyncOperation(
       async () => {
-        const dbGroup = contextGroupDb.updateGroup(groupId, updates);
+        const dbGroup = contextGroupRepository.updateGroup(groupId, updates);
         return dbGroup ? dbContextGroupToContextGroup(dbGroup) : null;
       },
       'Failed to update context group'
@@ -216,7 +219,7 @@ export const contextGroupQueries = {
   getGroupsWithType: async (projectId: string): Promise<ContextGroup[]> => {
     return handleAsyncOperation(
       async () => {
-        const dbGroups = contextGroupDb.getGroupsWithType(projectId);
+        const dbGroups = contextGroupRepository.getGroupsWithType(projectId);
         return dbGroups.map(dbContextGroupToContextGroup);
       },
       'Failed to fetch architecture groups'
@@ -226,7 +229,7 @@ export const contextGroupQueries = {
   // Delete a context group
   deleteGroup: async (groupId: string): Promise<boolean> => {
     return handleAsyncOperation(
-      async () => contextGroupDb.deleteGroup(groupId),
+      async () => contextGroupRepository.deleteGroup(groupId),
       'Failed to delete context group'
     );
   },
@@ -234,7 +237,7 @@ export const contextGroupQueries = {
   // Delete all context groups for a project
   deleteAllByProject: async (projectId: string): Promise<number> => {
     return handleAsyncOperation(
-      async () => contextGroupDb.deleteAllByProject(projectId),
+      async () => contextGroupRepository.deleteAllByProject(projectId),
       'Failed to delete all context groups'
     );
   },
@@ -242,7 +245,7 @@ export const contextGroupQueries = {
   // Get group count for a project
   getGroupCount: async (projectId: string): Promise<number> => {
     try {
-      return contextGroupDb.getGroupCount(projectId);
+      return contextGroupRepository.getGroupCount(projectId);
     } catch (error) {
       logger.error('Failed to get group count:', error);
       return 0;
@@ -253,7 +256,7 @@ export const contextGroupQueries = {
   getGroupsByProjects: async (projectIds: string[]): Promise<ContextGroup[]> => {
     return handleAsyncOperation(
       async () => {
-        const dbGroups = contextGroupDb.getGroupsByProjects(projectIds);
+        const dbGroups = contextGroupRepository.getGroupsByProjects(projectIds);
         return dbGroups.map(dbContextGroupToContextGroup);
       },
       'Failed to fetch context groups for multiple projects'
@@ -264,7 +267,7 @@ export const contextGroupQueries = {
   getAllGroups: async (): Promise<ContextGroup[]> => {
     return handleAsyncOperation(
       async () => {
-        const dbGroups = contextGroupDb.getAllGroups();
+        const dbGroups = contextGroupRepository.getAllGroups();
         return dbGroups.map(dbContextGroupToContextGroup);
       },
       'Failed to fetch all context groups'
@@ -278,7 +281,7 @@ export const contextGroupRelationshipQueries = {
   getByProject: async (projectId: string): Promise<ContextGroupRelationship[]> => {
     return handleAsyncOperation(
       async () => {
-        const dbRels = contextGroupRelationshipDb.getByProject(projectId);
+        const dbRels = contextGroupRelationshipRepository.getByProject(projectId);
         return dbRels.map(dbRelationshipToRelationship);
       },
       'Failed to fetch context group relationships'
@@ -300,7 +303,7 @@ export const contextGroupRelationshipQueries = {
           target_group_id: data.targetGroupId,
         };
 
-        const dbRel = contextGroupRelationshipDb.create(relData);
+        const dbRel = contextGroupRelationshipRepository.create(relData);
         return dbRel ? dbRelationshipToRelationship(dbRel) : null;
       },
       'Failed to create context group relationship'
@@ -310,7 +313,7 @@ export const contextGroupRelationshipQueries = {
   // Delete a relationship
   delete: async (id: string): Promise<boolean> => {
     return handleAsyncOperation(
-      async () => contextGroupRelationshipDb.delete(id),
+      async () => contextGroupRelationshipRepository.delete(id),
       'Failed to delete context group relationship'
     );
   },
@@ -318,7 +321,7 @@ export const contextGroupRelationshipQueries = {
   // Check if relationship exists
   exists: async (sourceGroupId: string, targetGroupId: string): Promise<boolean> => {
     try {
-      return contextGroupRelationshipDb.exists(sourceGroupId, targetGroupId);
+      return contextGroupRelationshipRepository.exists(sourceGroupId, targetGroupId);
     } catch (error) {
       logger.error('Failed to check relationship existence:', error);
       return false;
@@ -332,7 +335,7 @@ export const contextQueries = {
   getContextById: async (contextId: string): Promise<Context | null> => {
     return handleAsyncOperation(
       async () => {
-        const dbContext = contextDb.getContextById(contextId);
+        const dbContext = contextRepository.getContextById(contextId);
         return dbContext ? dbContextToContext(dbContext) : null;
       },
       'Failed to fetch context by ID'
@@ -343,7 +346,7 @@ export const contextQueries = {
   getContextByName: async (name: string, projectId: string): Promise<Context | null> => {
     return handleAsyncOperation(
       async () => {
-        const dbContext = contextDb.getContextByName(name, projectId);
+        const dbContext = contextRepository.getContextByName(name, projectId);
         return dbContext ? dbContextToContext(dbContext) : null;
       },
       'Failed to fetch context by name'
@@ -354,7 +357,7 @@ export const contextQueries = {
   getContextsByProject: async (projectId: string): Promise<Context[]> => {
     return handleAsyncOperation(
       async () => {
-        const dbContexts = contextDb.getContextsByProject(projectId);
+        const dbContexts = contextRepository.getContextsByProject(projectId);
         return dbContexts.map(dbContextToContext);
       },
       'Failed to fetch contexts'
@@ -365,7 +368,7 @@ export const contextQueries = {
   getContextsByGroup: async (groupId: string): Promise<Context[]> => {
     return handleAsyncOperation(
       async () => {
-        const dbContexts = contextDb.getContextsByGroup(groupId);
+        const dbContexts = contextRepository.getContextsByGroup(groupId);
         return dbContexts.map(dbContextToContext);
       },
       'Failed to fetch contexts'
@@ -405,7 +408,7 @@ export const contextQueries = {
           tech_stack: data.techStack ? JSON.stringify(data.techStack) : undefined,
         };
 
-        const dbContext = contextDb.createContext(contextData);
+        const dbContext = contextRepository.createContext(contextData);
         return dbContextToContext(dbContext);
       },
       'Failed to create context'
@@ -446,7 +449,7 @@ export const contextQueries = {
           tech_stack: updates.techStack ? JSON.stringify(updates.techStack) : undefined,
         };
 
-        const dbContext = contextDb.updateContext(contextId, updateData);
+        const dbContext = contextRepository.updateContext(contextId, updateData);
         return dbContext ? dbContextToContext(dbContext) : null;
       },
       'Failed to update context'
@@ -456,7 +459,7 @@ export const contextQueries = {
   // Delete a context
   deleteContext: async (contextId: string): Promise<boolean> => {
     return handleAsyncOperation(
-      async () => contextDb.deleteContext(contextId),
+      async () => contextRepository.deleteContext(contextId),
       'Failed to delete context'
     );
   },
@@ -465,7 +468,7 @@ export const contextQueries = {
   moveContextToGroup: async (contextId: string, newGroupId: string): Promise<Context | null> => {
     return handleAsyncOperation(
       async () => {
-        const dbContext = contextDb.moveContextToGroup(contextId, newGroupId);
+        const dbContext = contextRepository.moveContextToGroup(contextId, newGroupId);
         return dbContext ? dbContextToContext(dbContext) : null;
       },
       'Failed to move context'
@@ -475,7 +478,7 @@ export const contextQueries = {
   // Get context count for a group
   getContextCountByGroup: async (groupId: string): Promise<number> => {
     try {
-      return contextDb.getContextCountByGroup(groupId);
+      return contextRepository.getContextCountByGroup(groupId);
     } catch (error) {
       logger.error('Failed to get context count:', error);
       return 0;
@@ -486,7 +489,7 @@ export const contextQueries = {
   batchMoveContexts: async (moves: Array<{ contextId: string; newGroupId: string | null }>): Promise<Context[]> => {
     return handleAsyncOperation(
       async () => {
-        const dbContexts = contextDb.batchMoveContexts(moves);
+        const dbContexts = contextRepository.batchMoveContexts(moves);
         return dbContexts.map(dbContextToContext);
       },
       'Failed to batch move contexts'
@@ -496,7 +499,7 @@ export const contextQueries = {
   // Delete all contexts for a project
   deleteAllContextsByProject: async (projectId: string): Promise<number> => {
     return handleAsyncOperation(
-      async () => contextDb.deleteAllContextsByProject(projectId),
+      async () => contextRepository.deleteAllContextsByProject(projectId),
       'Failed to delete all contexts'
     );
   },
@@ -505,7 +508,7 @@ export const contextQueries = {
   getContextsByProjects: async (projectIds: string[]): Promise<Context[]> => {
     return handleAsyncOperation(
       async () => {
-        const dbContexts = contextDb.getContextsByProjects(projectIds);
+        const dbContexts = contextRepository.getContextsByProjects(projectIds);
         return dbContexts.map(dbContextToContext);
       },
       'Failed to fetch contexts for multiple projects'
@@ -516,7 +519,7 @@ export const contextQueries = {
   getAllContexts: async (): Promise<Context[]> => {
     return handleAsyncOperation(
       async () => {
-        const dbContexts = contextDb.getAllContexts();
+        const dbContexts = contextRepository.getAllContexts();
         return dbContexts.map(dbContextToContext);
       },
       'Failed to fetch all contexts'

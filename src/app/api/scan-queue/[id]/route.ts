@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { scanQueueDb } from '@/app/db';
+import { scanQueueRepository } from '@/app/db/repositories/scanQueue.repository';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
 
@@ -48,7 +48,7 @@ async function handleGet(
 
     let queueItem;
     try {
-      queueItem = scanQueueDb.getQueueItemById(id);
+      queueItem = scanQueueRepository.getQueueItemById(id);
     } catch (dbError) {
       logger.error('[ScanQueue API] Database error:', { dbError });
       return createErrorResponse(
@@ -85,9 +85,9 @@ async function handlePatch(
 
     try {
       if (status !== undefined) {
-        queueItem = scanQueueDb.updateStatus(id, status, errorMessage);
+        queueItem = scanQueueRepository.updateStatus(id, status, errorMessage);
       } else if (progress !== undefined) {
-        queueItem = scanQueueDb.updateProgress(
+        queueItem = scanQueueRepository.updateProgress(
           id,
           progress,
           progressMessage,
@@ -133,7 +133,7 @@ async function handleDelete(
     let queueItem;
     try {
       // Update status to cancelled instead of deleting
-      queueItem = scanQueueDb.updateStatus(id, 'cancelled');
+      queueItem = scanQueueRepository.updateStatus(id, 'cancelled');
     } catch (dbError) {
       logger.error('[ScanQueue API] Database error during cancellation:', { dbError });
       return createErrorResponse(

@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { observabilityDb } from '@/app/db';
+import { observabilityRepository } from '@/app/db/repositories/observability.repository';
 import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
@@ -25,18 +25,18 @@ export async function POST(request: NextRequest) {
 
     // If this is a status update (onboarding confirmation)
     if (status === 'onboarded') {
-      let config = observabilityDb.getConfig(project_id);
+      let config = observabilityRepository.getConfig(project_id);
 
       if (!config) {
         // Create config if it doesn't exist
-        config = observabilityDb.createConfig({
+        config = observabilityRepository.createConfig({
           project_id,
           enabled: true,
           provider: 'local'
         });
       } else {
         // Enable observability
-        observabilityDb.updateConfig(project_id, { enabled: true });
+        observabilityRepository.updateConfig(project_id, { enabled: true });
       }
 
       logger.info('[API] Project onboarding confirmed', { projectId: project_id });
@@ -99,7 +99,7 @@ function handleSingleCall(project_id: string, callData: Record<string, unknown>)
     );
   }
 
-  const config = observabilityDb.getConfig(project_id);
+  const config = observabilityRepository.getConfig(project_id);
   if (!config?.enabled) {
     return NextResponse.json({
       success: true,
@@ -116,7 +116,7 @@ function handleSingleCall(project_id: string, callData: Record<string, unknown>)
     });
   }
 
-  const apiCall = observabilityDb.logApiCall({
+  const apiCall = observabilityRepository.logApiCall({
     project_id,
     endpoint: endpoint as string,
     method: (method as string).toUpperCase() as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
@@ -139,7 +139,7 @@ function handleSingleCall(project_id: string, callData: Record<string, unknown>)
 }
 
 function handleBatch(project_id: string, batch: Record<string, unknown>[]) {
-  const config = observabilityDb.getConfig(project_id);
+  const config = observabilityRepository.getConfig(project_id);
   if (!config?.enabled) {
     return NextResponse.json({
       success: true,
@@ -165,7 +165,7 @@ function handleBatch(project_id: string, batch: Record<string, unknown>[]) {
     }
 
     try {
-      observabilityDb.logApiCall({
+      observabilityRepository.logApiCall({
         project_id,
         endpoint: endpoint as string,
         method: (method as string).toUpperCase() as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
@@ -196,7 +196,7 @@ function handleBatch(project_id: string, batch: Record<string, unknown>[]) {
 function triggerAggregation(project_id: string) {
   if (Math.random() < 0.01) {
     try {
-      observabilityDb.aggregateHourlyStats(project_id);
+      observabilityRepository.aggregateHourlyStats(project_id);
     } catch (e) {
       logger.error('[API] Failed to aggregate stats', { error: e });
     }
@@ -219,8 +219,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const config = observabilityDb.getConfig(projectId);
-    const hasData = observabilityDb.hasData(projectId);
+    const config = observabilityRepository.getConfig(projectId);
+    const hasData = observabilityRepository.hasData(projectId);
 
     return NextResponse.json({
       success: true,

@@ -4,9 +4,7 @@
  */
 
 import { getDatabase, closeDatabase } from './connection';
-import { closeHotWritesDatabase } from './hot-writes';
-import { initializeTables } from './schema';
-import { startAggregationWorker, stopAggregationWorker } from '@/lib/db/hotWritesAggregator';
+import { ensureDbReady } from './init';
 import { goalRepository } from './repositories/goal.repository';
 import { goalCandidateRepository } from './repositories/goal-candidate.repository';
 import { contextGroupRepository } from './repositories/context-group.repository';
@@ -18,10 +16,6 @@ import { ideaRepository } from './repositories/idea.repository';
 import { implementationLogRepository } from './repositories/implementation-log.repository';
 import { scanQueueRepository } from './repositories/scanQueue.repository';
 import { standupRepository } from './repositories/standup.repository';
-import {
-  sessionRepository,
-  sessionTaskRepository,
-} from './repositories/session.repository';
 import {
   integrationRepository,
   integrationEventRepository,
@@ -39,36 +33,16 @@ import { brainReflectionRepository } from './repositories/brain-reflection.repos
 import { brainInsightRepository } from './repositories/brain-insight.repository';
 import { insightAnnotationRepository } from './repositories/insight-annotation.repository';
 import { predictiveIntentRepository } from './repositories/predictive-intent.repository';
-import {
-  queryPatternRepository,
-  schemaRecommendationRepository,
-  optimizationHistoryRepository,
-} from './repositories/schema-intelligence.repository';
 import { scanProfileRepository } from './repositories/scan-profile.repository';
 import { ideaDependencyRepository } from './repositories/idea-dependency.repository';
-import {
-  annetteSessionRepository,
-  annetteMessageRepository,
-  annetteMemoryTopicRepository,
-  annettePreferenceRepository,
-  annetteAudioCacheRepository,
-} from './repositories/annette.repository';
-import {
-  annetteMemoryRepository,
-  annetteKnowledgeNodeRepository,
-  annetteKnowledgeEdgeRepository,
-  annetteMemoryConsolidationRepository,
-} from './repositories/annette-memory.repository';
 import { workspaceRepository } from './repositories/workspace.repository';
 import { executiveAnalysisRepository } from './repositories/executive-analysis.repository';
 import { crossProjectRelationshipRepository } from './repositories/cross-project-relationship.repository';
 import { architectureAnalysisRepository } from './repositories/architecture-analysis.repository';
 import { projectArchitectureMetadataRepository } from './repositories/project-architecture-metadata.repository';
 import { crossTaskPlanRepository } from './repositories/cross-task.repository';
-import { annetteRapportRepository } from './repositories/annette-rapport.repository';
 import { groupHealthRepository } from './repositories/group-health.repository';
 import { collectiveMemoryRepository } from './repositories/collective-memory.repository';
-import { agentGoalRepository, agentStepRepository } from './repositories/agent.repository';
 import { insightEffectivenessCacheRepository } from './repositories/insight-effectiveness-cache.repository';
 import { insightInfluenceRepository } from './repositories/insight-influence.repository';
 import { directionPreferenceRepository } from './repositories/direction-preference.repository';
@@ -108,33 +82,19 @@ function createDbExport<T extends object>(repository: T): T & { close: typeof cl
   return { ...repository, close: closeDatabase };
 }
 
-// Initialize database on first import.
-// Store flag on globalThis so it survives Next.js HMR module reloads —
-// without this, each HMR cycle re-runs initializeTables and spawns a
-// duplicate aggregation worker.
-// Use a distinct key to prevent TOCTOU race when multiple API routes
-// import db/index.ts concurrently during Next.js server startup.
-const GLOBAL_DB_INIT_KEY = '__dbInitialized';
+// Kick off initialization on first import (idempotent, HMR-safe — the
+// promise guard lives on globalThis inside ensureDbReady). The hard
+// boot-time guarantee is src/instrumentation.ts, which AWAITS
+// ensureDbReady() before the server accepts requests; this fire-and-forget
+// covers contexts that don't run instrumentation (vitest, scripts).
+// Schema + migrations load as a shared async chunk, so importing this
+// barrel no longer pulls the migrations subtree into the static graph.
+void ensureDbReady().catch((err) => {
+  console.error('[db] Initialization failed:', err);
+});
 
-function ensureInitialized() {
-  const g = globalThis as Record<string, unknown>;
-  if (!g[GLOBAL_DB_INIT_KEY]) {
-    // Set flag BEFORE initializing so concurrent callers skip immediately
-    g[GLOBAL_DB_INIT_KEY] = true;
-    try {
-      initializeTables();
-      // Start hot-writes aggregation worker (rolls up obs_api_calls -> obs_endpoint_stats)
-      startAggregationWorker();
-    } catch (err) {
-      // Reset flag so next import retries initialization
-      g[GLOBAL_DB_INIT_KEY] = undefined;
-      throw err;
-    }
-  }
-}
-
-// Auto-initialize
-ensureInitialized();
+// Re-export for callers that need to await readiness explicitly
+export { ensureDbReady };
 
 export const goalDb = createDbExport(goalRepository);
 export const goalCandidateDb = createDbExport(goalCandidateRepository);
@@ -153,16 +113,9 @@ export const implementationLogDb = createDbExport(implementationLogRepository);
 export const scanQueueDb = createDbExport(scanQueueRepository);
 export const standupDb = createDbExport(standupRepository);
 
-export const sessionDb = createDbExport({
-  ...sessionRepository,
-  getTasksBySessionId: sessionTaskRepository.getBySessionId,
-  getNextPending: sessionTaskRepository.getNextPending,
-  getTaskById: sessionTaskRepository.getById,
-  getTaskByTaskId: sessionTaskRepository.getByTaskId,
-  updateTaskStatus: sessionTaskRepository.updateStatus,
-  getTaskStats: sessionTaskRepository.getStats,
-  tasks: sessionTaskRepository,
-});
+// Composite exports live in ./composites/* so routes can import them
+// directly without pulling this whole barrel into their module graph.
+export { sessionDb } from './composites/session.db';
 
 export const integrationDb = createDbExport(integrationRepository);
 export const integrationEventDb = createDbExport(integrationEventRepository);
@@ -183,27 +136,12 @@ export const insightInfluenceDb = createDbExport(insightInfluenceRepository);
 export const directionPreferenceDb = createDbExport(directionPreferenceRepository);
 export const predictiveIntentDb = createDbExport(predictiveIntentRepository);
 
-export const schemaIntelligenceDb = createDbExport({
-  patterns: queryPatternRepository,
-  recommendations: schemaRecommendationRepository,
-  history: optimizationHistoryRepository,
-});
+export { schemaIntelligenceDb } from './composites/schema-intelligence.db';
 
 export const scanProfileDb = createDbExport(scanProfileRepository);
 export const ideaDependencyDb = createDbExport(ideaDependencyRepository);
 
-export const annetteDb = createDbExport({
-  sessions: annetteSessionRepository,
-  messages: annetteMessageRepository,
-  topics: annetteMemoryTopicRepository,
-  preferences: annettePreferenceRepository,
-  audioCache: annetteAudioCacheRepository,
-  memories: annetteMemoryRepository,
-  knowledgeNodes: annetteKnowledgeNodeRepository,
-  knowledgeEdges: annetteKnowledgeEdgeRepository,
-  consolidations: annetteMemoryConsolidationRepository,
-  rapport: annetteRapportRepository,
-});
+export { annetteDb } from './composites/annette.db';
 
 export const workspaceDb = createDbExport(workspaceRepository);
 export const executiveAnalysisDb = createDbExport(executiveAnalysisRepository);
@@ -214,35 +152,12 @@ export const crossTaskPlanDb = createDbExport(crossTaskPlanRepository);
 export const groupHealthDb = createDbExport(groupHealthRepository);
 export const collectiveMemoryDb = createDbExport(collectiveMemoryRepository);
 
-export const agentDb = createDbExport({
-  goals: agentGoalRepository,
-  steps: agentStepRepository,
-});
+export { agentDb } from './composites/agent.db';
 
 export const fileWriteQueueDb = createDbExport(fileWriteQueueRepository);
 export const scanResultDb = createDbExport(scanResultRepository);
 export const triageRuleDb = createDbExport(triageRuleRepository);
 export const savedViewDb = createDbExport(savedViewRepository);
 
-// Cleanup handlers
-if (typeof process !== 'undefined') {
-  process.on('exit', () => {
-    stopAggregationWorker();
-    closeHotWritesDatabase();
-    closeDatabase();
-  });
-
-  process.on('SIGINT', () => {
-    stopAggregationWorker();
-    closeHotWritesDatabase();
-    closeDatabase();
-    process.exit(0);
-  });
-
-  process.on('SIGTERM', () => {
-    stopAggregationWorker();
-    closeHotWritesDatabase();
-    closeDatabase();
-    process.exit(0);
-  });
-}
+// Process shutdown handlers are registered in ./init.ts once initialization
+// completes (stop aggregation worker → close hot DB → close main DB).

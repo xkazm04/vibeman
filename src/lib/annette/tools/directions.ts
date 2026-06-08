@@ -2,7 +2,8 @@
  * Direction Tools - Implementation for Annette's direction-related tool calls
  */
 
-import { directionDb, contextDb } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
 import { logger } from '@/lib/logger';
 
 export async function executeDirectionTools(
@@ -54,7 +55,7 @@ export async function executeDirectionTools(
       const status = input.status as string | undefined;
       const limit = parseInt(String(input.limit || '10'), 10);
 
-      const directions = directionDb.getDirectionsByProject(projectId);
+      const directions = directionRepository.getDirectionsByProject(projectId);
       let filtered = directions;
 
       if (status) {
@@ -84,14 +85,14 @@ export async function executeDirectionTools(
         return JSON.stringify({ error: 'direction_id is required' });
       }
 
-      const direction = directionDb.getDirectionById(directionId);
+      const direction = directionRepository.getDirectionById(directionId);
       if (!direction) {
         return JSON.stringify({ error: `Direction ${directionId} not found` });
       }
 
       let contextName: string | undefined;
       if (direction.context_id) {
-        const ctx = contextDb.getContextById(direction.context_id);
+        const ctx = contextRepository.getContextById(direction.context_id);
         contextName = ctx?.name;
       }
 
@@ -142,12 +143,12 @@ export async function executeDirectionTools(
       }
 
       try {
-        const direction = directionDb.getDirectionById(directionId);
+        const direction = directionRepository.getDirectionById(directionId);
         if (!direction) {
           return JSON.stringify({ error: `Direction ${directionId} not found` });
         }
 
-        directionDb.deleteDirection(directionId);
+        directionRepository.deleteDirection(directionId);
         return JSON.stringify({
           success: true,
           message: `Direction "${direction.summary}" has been rejected and removed.`,

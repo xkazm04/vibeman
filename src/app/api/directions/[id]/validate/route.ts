@@ -6,7 +6,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { directionDb, directionOutcomeDb } from '@/app/db';
+import { directionOutcomeRepository } from '@/app/db/repositories/direction-outcome.repository';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
 import {
   parseAssertions,
   validateAssertions,
@@ -25,7 +26,7 @@ async function handleGet(
 ) {
   const { id } = await params;
 
-    const direction = directionDb.getDirectionById(id);
+    const direction = directionRepository.getDirectionById(id);
     if (!direction) {
       return NextResponse.json(
         { success: false, error: 'Direction not found' },
@@ -43,7 +44,7 @@ async function handleGet(
       });
     }
 
-    const outcome = directionOutcomeDb.getByDirectionId(id);
+    const outcome = directionOutcomeRepository.getByDirectionId(id);
     const validation = validateAssertions(id, assertions, outcome);
 
   return NextResponse.json({
@@ -69,7 +70,7 @@ async function handlePost(
   const { id } = await params;
   const body = await request.json();
 
-    const direction = directionDb.getDirectionById(id);
+    const direction = directionRepository.getDirectionById(id);
     if (!direction) {
       return NextResponse.json(
         { success: false, error: 'Direction not found' },
@@ -88,7 +89,7 @@ async function handlePost(
 
     // Save assertions to direction
     const serialized = serializeAssertions(assertions as HypothesisAssertion[]);
-    directionDb.updateDirection(id, { hypothesis_assertions: serialized });
+    directionRepository.updateDirection(id, { hypothesis_assertions: serialized });
 
     const response: Record<string, unknown> = {
       success: true,
@@ -98,7 +99,7 @@ async function handlePost(
 
     // Optionally validate immediately
     if (validate) {
-      const outcome = directionOutcomeDb.getByDirectionId(id);
+      const outcome = directionOutcomeRepository.getByDirectionId(id);
       response.validation = validateAssertions(id, assertions as HypothesisAssertion[], outcome);
       response.hasOutcome = !!outcome;
     }

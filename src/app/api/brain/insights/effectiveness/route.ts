@@ -19,7 +19,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase, insightEffectivenessCache } from '@/app/db';
+import { getDatabase } from '@/app/db/connection';
+import { insightEffectivenessCacheRepository } from '@/app/db/repositories/insight-effectiveness-cache.repository';
 import { withObservability } from '@/lib/observability/middleware';
 import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
 import { logger } from '@/lib/logger';
@@ -90,7 +91,7 @@ async function handleGet(request: NextRequest) {
     // Check cache first (unless explicitly bypassed)
     if (!noCache) {
       try {
-        const cached = insightEffectivenessCache.get(projectId, minDirections, windowDays);
+        const cached = insightEffectivenessCacheRepository.get(projectId, minDirections, windowDays);
         if (cached) {
           try {
             const insights = JSON.parse(cached.insightsJson);
@@ -110,10 +111,10 @@ async function handleGet(request: NextRequest) {
             // Corrupted cache entry — invalidate and fall through to recomputation
             logger.warn('[Effectiveness] Corrupted cache entry, invalidating', { projectId });
             try {
-              insightEffectivenessCache.invalidate(projectId);
+              insightEffectivenessCacheRepository.invalidate(projectId);
             } catch (invalidateError) {
               logger.error('[Effectiveness] Cache invalidation failed, expiring entry as fallback', { projectId, error: invalidateError });
-              try { insightEffectivenessCache.expire(projectId); } catch (expireError) {
+              try { insightEffectivenessCacheRepository.expire(projectId); } catch (expireError) {
                 logger.error('[Effectiveness] Cache expire fallback also failed', { projectId, error: expireError });
               }
             }
@@ -247,7 +248,7 @@ async function handleGet(request: NextRequest) {
     // 7. Store in cache for future requests
     let cacheVersion = 1;
     try {
-      insightEffectivenessCache.set(
+      insightEffectivenessCacheRepository.set(
         projectId,
         minDirections,
         windowDays,
@@ -255,7 +256,7 @@ async function handleGet(request: NextRequest) {
         JSON.stringify(summary)
       );
       // Retrieve the version that was just written
-      const freshCache = insightEffectivenessCache.get(projectId, minDirections, windowDays);
+      const freshCache = insightEffectivenessCacheRepository.get(projectId, minDirections, windowDays);
       cacheVersion = freshCache?.version || 1;
       logger.debug('[Effectiveness] Cached results', { projectId, insightCount: results.length, version: cacheVersion });
     } catch {

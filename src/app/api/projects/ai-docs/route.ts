@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateAIReview } from '@/app/projects/ProjectAI/generateAIReview';
 import { readFile, readdir } from 'fs/promises';
 import { join, extname, relative } from 'path';
-import { contextDb } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
 
 /**
  * Gather codebase files organized by type for AI analysis
@@ -16,7 +16,7 @@ async function gatherCodebaseResources(projectPath: string, projectId?: string) 
   let contexts: Array<{ name: string; description: string; file_paths: string[] }> = [];
   if (projectId) {
     try {
-      const dbContexts = contextDb.getContextsByProject(projectId);
+      const dbContexts = contextRepository.getContextsByProject(projectId);
       contexts = dbContexts.map(ctx => {
         let filePaths: string[] = [];
         try {

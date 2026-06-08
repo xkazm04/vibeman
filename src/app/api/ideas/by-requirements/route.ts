@@ -3,7 +3,7 @@
  * POST - Fetch ideas matching requirement IDs (screenshotApi, useTaskRunnerBatchData, useTaskColumnData)
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { ideaDb } from '@/app/db';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
 import { createRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
 /**
@@ -34,7 +34,7 @@ async function handlePost(request: NextRequest) {
       );
     }
 
-    const ideas = ideaDb.getIdeasByRequirementIds(requirementIds);
+    const ideas = ideaRepository.getIdeasByRequirementIds(requirementIds);
 
     return NextResponse.json({ ideas });
 }

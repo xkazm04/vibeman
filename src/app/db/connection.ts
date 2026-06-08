@@ -15,6 +15,7 @@ import { getConnection as getDriverConnection, closeDatabase as closeDriver } fr
 import { queryPatternCollector } from '@/lib/db/queryPatternCollector';
 import { queryPatternRepository } from './repositories/schema-intelligence.repository';
 import { statementCache } from '@/lib/db/PreparedStatementCache';
+import { env } from '@/lib/config/envConfig';
 
 // Wire collector flush to persist patterns into the DB
 let collectorWired = false;
@@ -97,14 +98,23 @@ export function getDatabase(): Database.Database {
   // In the future, repositories should use the DbConnection interface instead
   const rawDb: Database.Database = (connection as any).db || connection;
 
-  // Wrap prepare() to instrument all queries and cache prepared statements
+  // Wrap prepare() to cache prepared statements (always — pure win), and
+  // additionally instrument query timing for Schema Intelligence only when
+  // enabled (off by default: it adds per-query overhead, a 500-record
+  // buffer, and a 60s flush timer that runs for the life of the process).
   const originalPrepare = rawDb.prepare.bind(rawDb);
-  rawDb.prepare = function (sql: string) {
-    const stmt = statementCache.get(sql, (s) => originalPrepare(s));
-    return instrumentStatement(stmt, sql);
-  } as typeof rawDb.prepare;
+  if (env.schemaIntelligenceEnabled()) {
+    rawDb.prepare = function (sql: string) {
+      const stmt = statementCache.get(sql, (s) => originalPrepare(s));
+      return instrumentStatement(stmt, sql);
+    } as typeof rawDb.prepare;
+    wireCollector();
+  } else {
+    rawDb.prepare = function (sql: string) {
+      return statementCache.get(sql, (s) => originalPrepare(s));
+    } as typeof rawDb.prepare;
+  }
 
-  wireCollector();
   instrumentedDb = rawDb;
   return instrumentedDb;
 }

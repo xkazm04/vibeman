@@ -3,7 +3,7 @@
 import React, { useMemo, useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HelpCircle, Compass } from 'lucide-react';
-import { DbQuestion, DbDirection } from '@/app/db';
+import type { DbDirection, DbQuestion } from '@/app/db/models/types';
 import { DataTable, TableColumn, TableStat } from '@/components/tables';
 import { QuestionDirectionRow, UnifiedItem } from './QuestionDirectionRow';
 

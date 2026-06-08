@@ -14,7 +14,10 @@
  * reimplementing the workflow.
  */
 
-import { ideaDb, goalDb, contextDb, type DbIdea } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import type { DbIdea } from '@/app/db/models/types';
 import { ideaDependencyRepository } from '@/app/db/repositories/idea-dependency.repository';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { buildRequirementFromIdea } from '@/lib/scanner/reqFileBuilder';
@@ -79,11 +82,11 @@ function rollbackStatus(
 ): boolean {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      ideaDb.updateIdea(ideaId, {
+      ideaRepository.updateIdea(ideaId, {
         status: previousStatus,
         requirement_id: previousRequirementId ?? null,
       });
-      const verify = ideaDb.getIdeaById(ideaId);
+      const verify = ideaRepository.getIdeaById(ideaId);
       if (verify && verify.status === previousStatus) return true;
       logger.warn('[IdeaAcceptance] Rollback verification failed, retrying...', { attempt, ideaId });
     } catch (rollbackError) {
@@ -101,7 +104,7 @@ export function acceptIdea(opts: AcceptIdeaOptions): AcceptIdeaOutcome {
   const { ideaId, projectPath, wrapperMode = 'mcp' } = opts;
 
   // 1. Validate idea exists and has a title
-  const idea = ideaDb.getIdeaById(ideaId);
+  const idea = ideaRepository.getIdeaById(ideaId);
   if (!idea) {
     return { success: false, code: 'IDEA_NOT_FOUND', message: 'Idea not found' };
   }
@@ -122,8 +125,8 @@ export function acceptIdea(opts: AcceptIdeaOptions): AcceptIdeaOutcome {
   let goal = null;
   let context = null;
   try {
-    goal = idea.goal_id ? goalDb.getGoalById(idea.goal_id) : null;
-    context = idea.context_id ? contextDb.getContextById(idea.context_id) : null;
+    goal = idea.goal_id ? goalRepository.getGoalById(idea.goal_id) : null;
+    context = idea.context_id ? contextRepository.getContextById(idea.context_id) : null;
   } catch (error) {
     logger.error('[IdeaAcceptance] Failed to fetch associated data:', { error });
   }
@@ -162,7 +165,7 @@ export function acceptIdea(opts: AcceptIdeaOptions): AcceptIdeaOutcome {
   const previousStatus = idea.status;
   const previousRequirementId = idea.requirement_id;
   try {
-    ideaDb.updateIdea(ideaId, { status: 'accepted', requirement_id: requirementName });
+    ideaRepository.updateIdea(ideaId, { status: 'accepted', requirement_id: requirementName });
   } catch (error) {
     logger.error('[IdeaAcceptance] Failed to update idea status:', { error });
     return { success: false, code: 'DB_UPDATE_FAILED', message: 'Failed to update idea status' };
@@ -178,7 +181,7 @@ export function acceptIdea(opts: AcceptIdeaOptions): AcceptIdeaOutcome {
     if (!ok) {
       // Last-resort: clear requirement_id so the idea doesn't point to a nonexistent file
       try {
-        ideaDb.updateIdea(ideaId, { requirement_id: null });
+        ideaRepository.updateIdea(ideaId, { requirement_id: null });
       } catch {
         // Truly unrecoverable — log for manual intervention
       }

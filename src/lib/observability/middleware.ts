@@ -5,7 +5,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { observabilityDb, xrayDb } from '@/app/db';
+// Import repositories directly — NOT the @/app/db barrel. This wrapper is in
+// the module graph of ~112 API routes; importing the barrel here would drag
+// the entire 60-repository DB layer into every one of those route graphs.
+import { observabilityRepository } from '@/app/db/repositories/observability.repository';
+import { xrayRepository } from '@/app/db/repositories/xray.repository';
 import { mapPathToContext, determineSourceLayer, type ContextMapping } from './contextMapper';
 import { logger } from '@/lib/logger';
 import { env } from '@/lib/config/envConfig';
@@ -132,7 +136,7 @@ function logApiCall(data: {
   setImmediate(() => {
     try {
       // Log to obs_api_calls table
-      const apiCall = observabilityDb.logApiCall({
+      const apiCall = observabilityRepository.logApiCall({
         project_id: VIBEMAN_PROJECT_ID,
         endpoint: data.endpoint,
         method: data.method,
@@ -149,7 +153,7 @@ function logApiCall(data: {
           // Map context layer to target layer (pages/client are source layers, not targets)
           const targetLayer = data.contextMapping?.layer === 'external' ? 'external' : 'server';
 
-          xrayDb.logEvent({
+          xrayRepository.logEvent({
             api_call_id: null, // obs_api_calls lives in hot-writes DB; FK can't resolve cross-database
             context_id: data.contextMapping?.contextId || null,
             context_group_id: data.contextMapping?.contextGroupId || null,

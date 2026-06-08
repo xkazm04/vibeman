@@ -3,8 +3,13 @@
  * Maps API paths to contexts for X-Ray visualization and traffic analysis
  */
 
-import { contextApiRouteDb, contextDb, contextGroupDb } from '@/app/db';
-import type { DbContextApiRoute, DbContext, DbContextGroup } from '@/app/db';
+// Import repositories directly — NOT the @/app/db barrel. This module is in
+// the observability middleware's graph (~112 API routes); the barrel would
+// drag the entire 60-repository DB layer into every one of those routes.
+import { contextApiRouteRepository } from '@/app/db/repositories/context-api-route.repository';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { contextGroupRepository } from '@/app/db/repositories/context-group.repository';
+import type { DbContextApiRoute, DbContextGroup } from '@/app/db/models/types';
 
 /**
  * Context mapping result with full context details
@@ -114,13 +119,13 @@ function matchApiRoute(requestPath: string): DbContextApiRoute | null {
   const normalizedRequest = normalizePath(requestPath);
 
   // First try exact match
-  const exactMatch = contextApiRouteDb.findByPath(normalizedRequest);
+  const exactMatch = contextApiRouteRepository.findByPath(normalizedRequest);
   if (exactMatch) {
     return exactMatch;
   }
 
   // Try pattern matching for dynamic routes
-  const allRoutes = contextApiRouteDb.getAll();
+  const allRoutes = contextApiRouteRepository.getAll();
 
   for (const route of allRoutes) {
     const pattern = route.api_path;
@@ -164,11 +169,11 @@ export function mapPathToContext(apiPath: string): ContextMapping | null {
   }
 
   // Get full context and group details
-  const context = contextDb.getContextById(route.context_id);
+  const context = contextRepository.getContextById(route.context_id);
   let contextGroup: DbContextGroup | null = null;
 
   if (context?.group_id) {
-    contextGroup = contextGroupDb.getGroupById(context.group_id);
+    contextGroup = contextGroupRepository.getGroupById(context.group_id);
   }
 
   const mapping: ContextMapping = {
@@ -207,10 +212,10 @@ export function getAllMappedRoutes(): Array<{
   contextName: string | null;
   layer: string;
 }> {
-  const routes = contextApiRouteDb.getAll();
+  const routes = contextApiRouteRepository.getAll();
 
   return routes.map(route => {
-    const context = contextDb.getContextById(route.context_id);
+    const context = contextRepository.getContextById(route.context_id);
     return {
       apiPath: route.api_path,
       httpMethods: route.http_methods,

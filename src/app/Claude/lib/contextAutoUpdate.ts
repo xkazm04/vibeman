@@ -23,7 +23,8 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import { contextDb, DbContext } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import type { DbContext } from '@/app/db/models/types';
 import { contextQueries } from '@/lib/queries/contextQueries';
 import { llmManager } from '@/lib/llm/llm-manager';
 import { SupportedProvider } from '@/lib/llm/types';
@@ -234,7 +235,7 @@ export async function analyzeChanges(
   newFeatureFiles?: string[];
 }> {
   // Get all contexts for the project
-  const allContexts = contextDb.getContextsByProject(projectId);
+  const allContexts = contextRepository.getContextsByProject(projectId);
 
   const createdFiles = changes.filter((c) => c.status === 'created').map((c) => c.relativePath);
   const deletedFiles = changes.filter((c) => c.status === 'deleted').map((c) => c.relativePath);

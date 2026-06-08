@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, ReactElement, CSSProperties } from 'react';
 import { motion } from 'framer-motion';
 import { List, RowComponentProps } from 'react-window';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import { ContextGroup } from '../lib/groupIdeasByProjectAndContext';
 import { IdeaCard } from './IdeaCard';
 

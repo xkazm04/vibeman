@@ -8,7 +8,9 @@
  * - create_directions_from_analysis: Convert findings into direction cards
  */
 
-import { contextDb, implementationLogDb, directionOutcomeDb } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { directionOutcomeRepository } from '@/app/db/repositories/direction-outcome.repository';
+import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
 import { getBehavioralContext } from '@/lib/brain/behavioralContext';
 import { safeParseJson } from '@/lib/json-utils';
 import { buildAnalysisPrompt, type AnalysisType } from '../prompts/analysisPrompts';
@@ -59,7 +61,7 @@ async function assessCodebaseHealth(
     const minScore = input.min_score ? parseInt(String(input.min_score), 10) : 0;
 
     // Fetch all contexts for the project
-    const contexts = contextDb.getContextsByProject(projectId);
+    const contexts = contextRepository.getContextsByProject(projectId);
     if (contexts.length === 0) {
       return JSON.stringify({
         contexts: [],
@@ -74,13 +76,13 @@ async function assessCodebaseHealth(
     // Get implementation outcome stats
     let outcomeStats = { total: 0, successful: 0, failed: 0, reverted: 0, pending: 0 };
     try {
-      outcomeStats = directionOutcomeDb.getStats(projectId, 14);
+      outcomeStats = directionOutcomeRepository.getStats(projectId, 14);
     } catch { /* no outcome data yet */ }
 
     // Get recent implementation logs
     let implLogs: Array<{ overview?: string; tested?: number }> = [];
     try {
-      implLogs = implementationLogDb.getRecentLogsByProject(projectId, 20);
+      implLogs = implementationLogRepository.getRecentLogsByProject(projectId, 20);
     } catch { /* no logs yet */ }
 
     // Score each context
@@ -265,7 +267,7 @@ async function analyzeContext(
   }
 
   // Fetch context details
-  const context = contextDb.getContextById(contextId);
+  const context = contextRepository.getContextById(contextId);
   if (!context) {
     return JSON.stringify({ error: `Context ${contextId} not found` });
   }

@@ -1,4 +1,4 @@
-import { DbDirection } from '@/app/db';
+import type { DbDirection } from '@/app/db/models/types';
 
 export interface Proposal {
   id: string;

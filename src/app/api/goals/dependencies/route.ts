@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { goalDependencyDb, goalDb } from '@/app/db';
+import { goalDependencyRepository } from '@/app/db/repositories/goal-dependency.repository';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
 import { createErrorResponse, notFoundResponse } from '@/lib/api-helpers';
 import { withObservability } from '@/lib/observability/middleware';
 import { logger } from '@/lib/logger';
@@ -13,13 +14,13 @@ async function handleGet(request: NextRequest) {
     const goalId = searchParams.get('goalId');
 
     if (goalId) {
-      const deps = goalDependencyDb.getAllForGoal(goalId);
+      const deps = goalDependencyRepository.getAllForGoal(goalId);
       return NextResponse.json({ dependencies: deps });
     }
 
     if (projectId) {
-      const deps = goalDependencyDb.getByProject(projectId);
-      const blocked = goalDependencyDb.getBlockedGoals(projectId);
+      const deps = goalDependencyRepository.getByProject(projectId);
+      const blocked = goalDependencyRepository.getBlockedGoals(projectId);
       return NextResponse.json({ dependencies: deps, blockedGoals: blocked });
     }
 
@@ -49,17 +50,17 @@ async function handlePost(request: NextRequest) {
     }
 
     // Verify both goals exist
-    const parent = goalDb.getGoalById(parentGoalId);
-    const child = goalDb.getGoalById(childGoalId);
+    const parent = goalRepository.getGoalById(parentGoalId);
+    const child = goalRepository.getGoalById(childGoalId);
     if (!parent) return notFoundResponse('Parent goal');
     if (!child) return notFoundResponse('Child goal');
 
     // Cycle detection
-    if (relationshipType === 'blocks' && goalDependencyDb.wouldCreateCycle(parentGoalId, childGoalId)) {
+    if (relationshipType === 'blocks' && goalDependencyRepository.wouldCreateCycle(parentGoalId, childGoalId)) {
       return createErrorResponse('Adding this dependency would create a circular dependency', 400);
     }
 
-    const dep = goalDependencyDb.create(parentGoalId, childGoalId, relationshipType);
+    const dep = goalDependencyRepository.create(parentGoalId, childGoalId, relationshipType);
     return NextResponse.json({ dependency: dep });
   } catch (error) {
     logger.error('Error in POST /api/goals/dependencies:', { error });
@@ -77,7 +78,7 @@ async function handleDelete(request: NextRequest) {
       return createErrorResponse('Dependency ID is required', 400);
     }
 
-    const success = goalDependencyDb.delete(id);
+    const success = goalDependencyRepository.delete(id);
     if (!success) {
       return notFoundResponse('Dependency');
     }

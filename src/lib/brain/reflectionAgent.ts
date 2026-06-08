@@ -4,7 +4,8 @@
  * Supports both per-project and global (cross-project) reflection modes
  */
 
-import { brainReflectionDb, directionDb } from '@/app/db';
+import { brainReflectionRepository } from '@/app/db/repositories/brain-reflection.repository';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
 import type { ReflectionTriggerType } from '@/app/db/models/brain.types';
 import {
   gatherReflectionData,
@@ -70,10 +71,10 @@ export const reflectionAgent = {
     config = DEFAULT_REFLECTION_CONFIG
   ): { shouldTrigger: boolean; reason: string } => {
     // Auto-recover stuck running reflections before checking
-    brainReflectionDb.recoverStuckRunning();
+    brainReflectionRepository.recoverStuckRunning();
 
     // Check minimum gap
-    if (!brainReflectionDb.canReflect(projectId, config.minGapHours)) {
+    if (!brainReflectionRepository.canReflect(projectId, config.minGapHours)) {
       return {
         shouldTrigger: false,
         reason: `Minimum gap not met (${config.minGapHours}h between reflections)`,
@@ -81,7 +82,7 @@ export const reflectionAgent = {
     }
 
     // Check if already running
-    const running = brainReflectionDb.getRunning(projectId);
+    const running = brainReflectionRepository.getRunning(projectId);
     if (running) {
       return {
         shouldTrigger: false,
@@ -90,13 +91,13 @@ export const reflectionAgent = {
     }
 
     // Get last reflection
-    const lastReflection = brainReflectionDb.getLatestCompleted(projectId);
+    const lastReflection = brainReflectionRepository.getLatestCompleted(projectId);
     const lastReflectionDate = lastReflection?.completed_at
       ? new Date(lastReflection.completed_at)
       : null;
 
     // Count decisions since last reflection using optimized SQL COUNT
-    const decisionsSinceLastReflection = directionDb.getDecidedCountSince(projectId, lastReflectionDate);
+    const decisionsSinceLastReflection = directionRepository.getDecidedCountSince(projectId, lastReflectionDate);
 
     // Check threshold
     if (decisionsSinceLastReflection >= config.triggerThreshold) {
@@ -136,15 +137,15 @@ export const reflectionAgent = {
    */
   getStatus: (projectId: string) => {
     // Auto-recover stuck running reflections before reporting status
-    brainReflectionDb.recoverStuckRunning();
+    brainReflectionRepository.recoverStuckRunning();
 
-    const running = brainReflectionDb.getRunning(projectId);
-    const lastCompleted = brainReflectionDb.getLatestCompleted(projectId);
-    const stats = brainReflectionDb.getStats(projectId);
+    const running = brainReflectionRepository.getRunning(projectId);
+    const lastCompleted = brainReflectionRepository.getLatestCompleted(projectId);
+    const stats = brainReflectionRepository.getStats(projectId);
 
     // Count decisions since last reflection using optimized SQL COUNT
     const lastDate = lastCompleted?.completed_at ? new Date(lastCompleted.completed_at) : null;
-    const decisionsSinceLastReflection = directionDb.getDecidedCountSince(projectId, lastDate);
+    const decisionsSinceLastReflection = directionRepository.getDecidedCountSince(projectId, lastDate);
 
     return {
       isRunning: !!running,
@@ -174,7 +175,7 @@ export const reflectionAgent = {
   }> => {
     try {
       // Check if can reflect
-      if (!brainReflectionDb.canReflect(projectId, 1)) {
+      if (!brainReflectionRepository.canReflect(projectId, 1)) {
         // Allow if manual, just warn
         if (triggerType !== 'manual') {
           return {
@@ -188,7 +189,7 @@ export const reflectionAgent = {
       // WHERE status IN ('pending', 'running') prevents duplicates at the DB level.
       // No TOCTOU race — the INSERT fails atomically if one already exists.
       const reflectionId = generateReflectionId();
-      const result = brainReflectionDb.createIfNotActive({
+      const result = brainReflectionRepository.createIfNotActive({
         id: reflectionId,
         project_id: projectId,
         trigger_type: triggerType,
@@ -221,7 +222,7 @@ export const reflectionAgent = {
       });
 
       // Mark as running
-      brainReflectionDb.startReflection(reflectionId);
+      brainReflectionRepository.startReflection(reflectionId);
 
       return {
         success: true,
@@ -249,10 +250,10 @@ export const reflectionAgent = {
     config = DEFAULT_GLOBAL_REFLECTION_CONFIG
   ): { shouldTrigger: boolean; reason: string } => {
     // Auto-recover stuck running reflections before checking
-    brainReflectionDb.recoverStuckRunning();
+    brainReflectionRepository.recoverStuckRunning();
 
     // Check if a global reflection is already running
-    const running = brainReflectionDb.getRunningGlobal();
+    const running = brainReflectionRepository.getRunningGlobal();
     if (running) {
       return {
         shouldTrigger: false,
@@ -261,7 +262,7 @@ export const reflectionAgent = {
     }
 
     // Check minimum gap for global reflections
-    const lastGlobal = brainReflectionDb.getLatestCompletedGlobal();
+    const lastGlobal = brainReflectionRepository.getLatestCompletedGlobal();
     if (lastGlobal?.completed_at) {
       const hoursSinceGlobal = (Date.now() - new Date(lastGlobal.completed_at).getTime()) / (1000 * 60 * 60);
       if (hoursSinceGlobal < config.minGapHours) {
@@ -275,7 +276,7 @@ export const reflectionAgent = {
     // Count total decisions across all projects since last global reflection using optimized SQL COUNT
     const lastGlobalDate = lastGlobal?.completed_at ? new Date(lastGlobal.completed_at) : null;
     const projectIds = projects.map(p => p.id);
-    const totalDecisions = directionDb.getDecidedCountSinceMultiple(projectIds, lastGlobalDate);
+    const totalDecisions = directionRepository.getDecidedCountSinceMultiple(projectIds, lastGlobalDate);
 
     if (totalDecisions >= config.triggerThreshold) {
       return {
@@ -295,10 +296,10 @@ export const reflectionAgent = {
    */
   getGlobalStatus: () => {
     // Auto-recover stuck running reflections before reporting status
-    brainReflectionDb.recoverStuckRunning();
+    brainReflectionRepository.recoverStuckRunning();
 
-    const running = brainReflectionDb.getRunningGlobal();
-    const lastCompleted = brainReflectionDb.getLatestCompletedGlobal();
+    const running = brainReflectionRepository.getRunningGlobal();
+    const lastCompleted = brainReflectionRepository.getLatestCompletedGlobal();
 
     return {
       isRunning: !!running,
@@ -325,7 +326,7 @@ export const reflectionAgent = {
       // WHERE status IN ('pending', 'running') prevents duplicates at the DB level.
       // No TOCTOU race — the INSERT fails atomically if one already exists.
       const reflectionId = generateReflectionId();
-      const result = brainReflectionDb.createIfNotActive({
+      const result = brainReflectionRepository.createIfNotActive({
         id: reflectionId,
         project_id: '__global__',
         trigger_type: 'manual',
@@ -353,7 +354,7 @@ export const reflectionAgent = {
         workspacePath,
       });
 
-      brainReflectionDb.startReflection(reflectionId);
+      brainReflectionRepository.startReflection(reflectionId);
 
       return {
         success: true,
@@ -386,7 +387,7 @@ export const reflectionAgent = {
     }
   ): boolean => {
     try {
-      const result = brainReflectionDb.completeReflection(reflectionId, {
+      const result = brainReflectionRepository.completeReflection(reflectionId, {
         directions_analyzed: data.directionsAnalyzed,
         outcomes_analyzed: data.outcomesAnalyzed,
         signals_analyzed: data.signalsAnalyzed,
@@ -405,7 +406,7 @@ export const reflectionAgent = {
    */
   failReflection: (reflectionId: string, errorMessage: string): boolean => {
     try {
-      const result = brainReflectionDb.failReflection(reflectionId, errorMessage);
+      const result = brainReflectionRepository.failReflection(reflectionId, errorMessage);
       return !!result;
     } catch (error) {
       console.error('[ReflectionAgent] Failed to fail reflection:', error);
@@ -417,13 +418,13 @@ export const reflectionAgent = {
    * Get reflection history for a project
    */
   getHistory: (projectId: string, limit: number = 10) => {
-    return brainReflectionDb.getByProject(projectId, limit);
+    return brainReflectionRepository.getByProject(projectId, limit);
   },
 
   /**
    * Cleanup stale reflections
    */
   cleanup: (olderThanDays: number = 7): number => {
-    return brainReflectionDb.cleanupStale(olderThanDays);
+    return brainReflectionRepository.cleanupStale(olderThanDays);
   },
 };

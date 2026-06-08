@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Check, XCircle, Trash2, RefreshCw, Layers, Save, LucideIcon } from 'lucide-react';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 
 interface Project {
   id: string;

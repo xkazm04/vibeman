@@ -4,7 +4,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Trash2, RefreshCw, X, Check } from 'lucide-react';
 import IdeasLoadingState from '@/app/features/Ideas/components/IdeasLoadingState';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { GradientButton } from '@/components/ui';

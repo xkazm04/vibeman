@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { observabilityDb } from '@/app/db';
+import { observabilityRepository } from '@/app/db/repositories/observability.repository';
 import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const config = observabilityDb.getConfig(projectId);
+    const config = observabilityRepository.getConfig(projectId);
 
     if (!config) {
       return NextResponse.json({
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if config already exists
-    const existing = observabilityDb.getConfig(project_id);
+    const existing = observabilityRepository.getConfig(project_id);
     if (existing) {
       return NextResponse.json(
         { error: 'Configuration already exists. Use PUT to update.' },
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const config = observabilityDb.createConfig({
+    const config = observabilityRepository.createConfig({
       project_id,
       enabled,
       provider,
@@ -107,7 +107,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Check if config exists
-    const existing = observabilityDb.getConfig(project_id);
+    const existing = observabilityRepository.getConfig(project_id);
     if (!existing) {
       return NextResponse.json(
         { error: 'Configuration not found. Use POST to create.' },
@@ -123,7 +123,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const config = observabilityDb.updateConfig(project_id, {
+    const config = observabilityRepository.updateConfig(project_id, {
       enabled,
       provider,
       sentry_dsn,
@@ -159,7 +159,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const deleted = observabilityDb.deleteConfig(projectId);
+    const deleted = observabilityRepository.deleteConfig(projectId);
 
     if (!deleted) {
       return NextResponse.json(

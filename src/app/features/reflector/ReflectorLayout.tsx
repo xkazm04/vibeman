@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 
 // Lib imports
 import { calculateImplementedStats } from '@/app/features/reflector/lib/filterIdeas';
@@ -9,7 +9,6 @@ import { calculateImplementedStats } from '@/app/features/reflector/lib/filterId
 // Component imports
 import ReflectorHeader from '@/app/features/reflector/components/ReflectorHeader';
 import ReflectorViewTabs, { ViewMode } from '@/app/features/reflector/components/ReflectorViewTabs';
-import DependenciesTab from '@/app/features/Depndencies/DependenciesTab';
 import CrossContextDashboard from '@/app/features/reflector/sub_Dependencies/CrossContextDashboard';
 import ReflectionDashboard from '@/app/features/reflector/sub_Reflection/components/ReflectionDashboard';
 import { WeeklyDashboard } from '@/app/features/reflector/sub_Weekly/components';
@@ -64,8 +63,6 @@ const ReflectorLayout = () => {
           </div>
         ) : viewMode === 'weekly' ? (
           <WeeklyDashboard />
-        ) : viewMode === 'dependencies' ? (
-          <DependenciesTab />
         ) : viewMode === 'cross_context' ? (
           <CrossContextDashboard />
         ) : viewMode === 'ideas_stats' ? (

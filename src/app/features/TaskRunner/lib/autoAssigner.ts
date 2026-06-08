@@ -12,7 +12,7 @@ import type { QueuedTask } from '@/components/cli/types';
 import { requirementToQueuedTask } from '@/components/cli/types';
 import type { CLISessionId, CLISessionState } from '@/components/cli/store/cliSessionStore';
 import type { AutoAssignConfig } from '@/lib/autoAssignConfig';
-import type { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import type { CLIProvider, CLIModel } from '@/lib/claude-terminal/types';
 import type { ContextInfo } from '../hooks/useTaskColumnData';
 import { SESSION_IDS } from './taskRunnerConfig';

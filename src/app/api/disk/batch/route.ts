@@ -14,7 +14,7 @@ import { existsSync } from 'fs';
 import { withAccessControl, verifyProjectExists } from '@/lib/api-helpers/accessControl';
 import { validateProjectPath, validateFilename } from '@/lib/pathSecurity';
 import { handleApiError } from '@/lib/api-errors';
-import { contextDb } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ContextToSave {
@@ -67,10 +67,10 @@ async function handlePost(request: NextRequest) {
         await writeFile(filePath, context.content, 'utf-8');
 
         try {
-          const existingContext = contextDb.findContextByFilePath(projectId, relativeContextPath);
+          const existingContext = contextRepository.findContextByFilePath(projectId, relativeContextPath);
 
           if (existingContext) {
-            contextDb.updateContext(existingContext.id, {
+            contextRepository.updateContext(existingContext.id, {
               name: context.title,
               description: context.description,
               file_paths: context.filePaths,
@@ -79,7 +79,7 @@ async function handlePost(request: NextRequest) {
             });
           } else {
             const contextId = uuidv4();
-            contextDb.createContextFromFile({
+            contextRepository.createContextFromFile({
               id: contextId,
               project_id: projectId,
               name: context.title,

@@ -11,7 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { directionDb } from '@/app/db';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
 import { logger } from '@/lib/logger';
 import { createParamsRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 import { acceptDirection } from '@/lib/ideas/directionAcceptanceWorkflow';
@@ -47,7 +47,7 @@ async function handlePost(
       return NextResponse.json({ error: outcome.message }, { status: 404 });
     }
     if (outcome.code === 'ALREADY_PROCESSED') {
-      const direction = directionDb.getDirectionById(id);
+      const direction = directionRepository.getDirectionById(id);
       return NextResponse.json(
         {
           error: outcome.message,

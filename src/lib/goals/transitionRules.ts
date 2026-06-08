@@ -5,7 +5,8 @@
  * Handles auto-start and auto-completion detection.
  */
 
-import { goalDb, getDatabase } from '@/app/db';
+import { getDatabase } from '@/app/db/connection';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
 import { goalSubGoalRepository } from '@/app/db/repositories/goal-lifecycle.repository';
 import type { DbGoal } from '@/app/db/models/types';
 import { logger } from '@/lib/logger';
@@ -18,7 +19,7 @@ export function findMatchingGoals(input: {
   contextId?: string;
   signalType: string;
 }): DbGoal[] {
-  const allGoals = goalDb.getGoalsByProject(input.projectId);
+  const allGoals = goalRepository.getGoalsByProject(input.projectId);
 
   // Only match active goals (open or in_progress)
   const activeGoals = allGoals.filter(

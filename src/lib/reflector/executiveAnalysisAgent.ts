@@ -4,7 +4,7 @@
  * Uses BaseAnalysisAgent for shared lifecycle (completeAnalysis / failAnalysis).
  */
 
-import { executiveAnalysisDb } from '@/app/db';
+import { executiveAnalysisRepository } from '@/app/db/repositories/executive-analysis.repository';
 import type {
   DbExecutiveAnalysis,
   CompleteExecutiveAnalysisData,
@@ -52,8 +52,8 @@ function generateAnalysisId(): string {
 
 const lifecycle = createBaseAgentLifecycle<DbExecutiveAnalysis>({
   label: 'ExecutiveAnalysisAgent',
-  getById: (id) => executiveAnalysisDb.getById(id),
-  failAnalysis: (id, msg) => executiveAnalysisDb.failAnalysis(id, msg),
+  getById: (id) => executiveAnalysisRepository.getById(id),
+  failAnalysis: (id, msg) => executiveAnalysisRepository.failAnalysis(id, msg),
 });
 
 // ============================================================================
@@ -65,16 +65,16 @@ export const executiveAnalysisAgent = {
    * Check if analysis is allowed (respects minimum gap)
    */
   canAnalyze(projectId: string | null, minGapHours: number = 1): boolean {
-    return executiveAnalysisDb.canAnalyze(projectId, minGapHours);
+    return executiveAnalysisRepository.canAnalyze(projectId, minGapHours);
   },
 
   /**
    * Get current analysis status
    */
   getStatus(projectId: string | null): AnalysisStatus {
-    const runningAnalysis = executiveAnalysisDb.getRunning(projectId);
-    const lastCompleted = executiveAnalysisDb.getLatestCompleted(projectId);
-    const canAnalyze = !runningAnalysis && executiveAnalysisDb.canAnalyze(projectId, 1);
+    const runningAnalysis = executiveAnalysisRepository.getRunning(projectId);
+    const lastCompleted = executiveAnalysisRepository.getLatestCompleted(projectId);
+    const canAnalyze = !runningAnalysis && executiveAnalysisRepository.canAnalyze(projectId, 1);
 
     return {
       isRunning: !!runningAnalysis,
@@ -97,7 +97,7 @@ export const executiveAnalysisAgent = {
     } = options;
 
     // Check if analysis is already running
-    const existing = executiveAnalysisDb.getRunning(projectId);
+    const existing = executiveAnalysisRepository.getRunning(projectId);
     if (existing) {
       return {
         success: false,
@@ -107,7 +107,7 @@ export const executiveAnalysisAgent = {
     }
 
     // Check minimum gap
-    if (!executiveAnalysisDb.canAnalyze(projectId, 1)) {
+    if (!executiveAnalysisRepository.canAnalyze(projectId, 1)) {
       return {
         success: false,
         error: 'Analysis was run recently. Please wait before running again.',
@@ -117,7 +117,7 @@ export const executiveAnalysisAgent = {
     try {
       const analysisId = generateAnalysisId();
 
-      executiveAnalysisDb.create({
+      executiveAnalysisRepository.create({
         id: analysisId,
         project_id: projectId,
         context_id: contextId,
@@ -140,7 +140,7 @@ export const executiveAnalysisAgent = {
         apiBaseUrl: '',
       });
 
-      executiveAnalysisDb.startAnalysis(analysisId);
+      executiveAnalysisRepository.startAnalysis(analysisId);
 
       return { success: true, analysisId, promptContent };
     } catch (error) {
@@ -157,7 +157,7 @@ export const executiveAnalysisAgent = {
    */
   completeAnalysis(analysisId: string, data: CompleteExecutiveAnalysisData): boolean {
     return lifecycle.completeAnalysis(analysisId, () => {
-      executiveAnalysisDb.completeAnalysis(analysisId, data);
+      executiveAnalysisRepository.completeAnalysis(analysisId, data);
       return true;
     }) as boolean;
   },
@@ -171,7 +171,7 @@ export const executiveAnalysisAgent = {
    * Get analysis history
    */
   getHistory(projectId: string | null, limit: number = 10): DbExecutiveAnalysis[] {
-    return executiveAnalysisDb.getHistory(projectId, limit);
+    return executiveAnalysisRepository.getHistory(projectId, limit);
   },
 
 };

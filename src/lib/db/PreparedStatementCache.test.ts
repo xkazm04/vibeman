@@ -46,4 +46,48 @@ describe('PreparedStatementCache', () => {
     cache.clear();
     expect(cache.size).toBe(0);
   });
+
+  it('should never grow beyond maxSize', () => {
+    const cache = new PreparedStatementCache(3);
+    const factory = (sql: string) => ({ source: sql } as Database.Statement);
+
+    for (let i = 0; i < 10; i++) {
+      cache.get(`SELECT ${i}`, factory);
+    }
+
+    expect(cache.size).toBe(3);
+  });
+
+  it('should evict the least-recently-used statement when full', () => {
+    const cache = new PreparedStatementCache(2);
+    const factory = vi.fn((sql: string) => ({ source: sql } as Database.Statement));
+
+    cache.get('SELECT a', factory); // [a]
+    cache.get('SELECT b', factory); // [a, b]
+    cache.get('SELECT a', factory); // refresh a -> [b, a]
+    cache.get('SELECT c', factory); // evicts b -> [a, c]
+
+    expect(factory).toHaveBeenCalledTimes(3);
+
+    // a survived (was refreshed), so this hit does not call the factory
+    cache.get('SELECT a', factory);
+    expect(factory).toHaveBeenCalledTimes(3);
+
+    // b was evicted, so this miss re-creates it
+    cache.get('SELECT b', factory);
+    expect(factory).toHaveBeenCalledTimes(4);
+  });
+
+  it('should keep returning the same instance after a recency refresh', () => {
+    const cache = new PreparedStatementCache(2);
+    const mockStmt = { source: 'SELECT 1' } as Database.Statement;
+    const factory = vi.fn().mockReturnValue(mockStmt);
+
+    const first = cache.get('SELECT 1', factory);
+    const second = cache.get('SELECT 1', factory);
+
+    expect(first).toBe(mockStmt);
+    expect(second).toBe(mockStmt);
+    expect(factory).toHaveBeenCalledTimes(1);
+  });
 });

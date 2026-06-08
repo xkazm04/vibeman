@@ -338,6 +338,17 @@ export const env = {
 
   observabilityEnabled: () => readBool('OBSERVABILITY_ENABLED', true),
 
+  // Schema Intelligence query-pattern collection: wraps every prepared
+  // statement with timing instrumentation and runs a 60s flush timer.
+  // Off by default — opt in when actively using the Schema Intelligence
+  // dashboards (query_patterns data goes stale while disabled, nothing breaks).
+  schemaIntelligenceEnabled: () => readBool('SCHEMA_INTELLIGENCE_ENABLED', false),
+
+  // Hot-writes aggregation worker (5-min interval): rolls up obs_api_calls
+  // into obs_endpoint_stats AND prunes aggregated raw calls. Leave ON unless
+  // you accept the hot-writes DB growing unbounded (pruning runs here).
+  hotWritesAggregatorEnabled: () => readBool('HOT_WRITES_AGGREGATOR_ENABLED', true),
+
   vibemanProjectId: () =>
     readOr('VIBEMAN_PROJECT_ID', ''),
 

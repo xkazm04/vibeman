@@ -4,7 +4,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { directionDb, brainInsightDb, insightInfluenceDb, insightEffectivenessCache } from '@/app/db';
+import { brainInsightRepository } from '@/app/db/repositories/brain-insight.repository';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
+import { insightEffectivenessCacheRepository } from '@/app/db/repositories/insight-effectiveness-cache.repository';
+import { insightInfluenceRepository } from '@/app/db/repositories/insight-influence.repository';
 import { logger } from '@/lib/logger';
 
 export async function POST(
@@ -15,7 +18,7 @@ export async function POST(
     const { pairId } = await params;
 
     // Reject both directions in the pair
-    const rejectedCount = directionDb.rejectDirectionPair(pairId);
+    const rejectedCount = directionRepository.rejectDirectionPair(pairId);
 
     if (rejectedCount === 0) {
       return NextResponse.json(
@@ -28,10 +31,10 @@ export async function POST(
 
     // Record insight influence for causal validation
     try {
-      const pair = directionDb.getDirectionPair(pairId);
+      const pair = directionRepository.getDirectionPair(pairId);
       const projectId = pair.directionA?.project_id || pair.directionB?.project_id;
       if (projectId) {
-        const activeInsights = brainInsightDb.getForEffectiveness(projectId);
+        const activeInsights = brainInsightRepository.getForEffectiveness(projectId);
         if (activeInsights.length > 0) {
           const now = new Date().toISOString();
           const insightBatch = activeInsights.map(i => ({
@@ -40,14 +43,14 @@ export async function POST(
             shownAt: i.completed_at || now,
           }));
           if (pair.directionA) {
-            insightInfluenceDb.recordInfluenceBatch(projectId, pair.directionA.id, 'rejected', insightBatch);
+            insightInfluenceRepository.recordInfluenceBatch(projectId, pair.directionA.id, 'rejected', insightBatch);
           }
           if (pair.directionB) {
-            insightInfluenceDb.recordInfluenceBatch(projectId, pair.directionB.id, 'rejected', insightBatch);
+            insightInfluenceRepository.recordInfluenceBatch(projectId, pair.directionB.id, 'rejected', insightBatch);
           }
         }
         // Invalidate effectiveness cache since both directions were rejected
-        try { insightEffectivenessCache.invalidate(projectId); } catch { /* non-critical */ }
+        try { insightEffectivenessCacheRepository.invalidate(projectId); } catch { /* non-critical */ }
       }
     } catch {
       // Influence tracking must never break the main flow

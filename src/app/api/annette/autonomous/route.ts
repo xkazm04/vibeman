@@ -13,7 +13,7 @@ import {
   cancelGoal,
   getAgentStatus,
 } from '@/lib/annette/autonomousAgent';
-import { agentDb } from '@/app/db';
+import { agentDb } from '@/app/db/composites/agent.db';
 import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {

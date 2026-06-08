@@ -12,13 +12,11 @@
  * - Any future AI interaction
  */
 
-import {
-  contextDb,
-  contextGroupDb,
-  contextGroupRelationshipDb,
-  directionDb,
-  groupHealthDb,
-} from '@/app/db';
+import { contextGroupRelationshipRepository } from '@/app/db/repositories/context-group-relationship.repository';
+import { contextGroupRepository } from '@/app/db/repositories/context-group.repository';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
+import { groupHealthRepository } from '@/app/db/repositories/group-health.repository';
 import type { DbContext, DbContextGroup, DbContextGroupRelationship } from '@/app/db/models/types';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -138,11 +136,11 @@ function buildContextNode(ctx: DbContext): ContextNode {
  */
 export function assembleContextGraph(projectId: string): ContextGraph {
   // 1. Fetch all contexts for the project
-  const allContexts = contextDb.getContextsByProject(projectId);
+  const allContexts = contextRepository.getContextsByProject(projectId);
   const contextNodes = allContexts.map(buildContextNode);
 
   // 2. Fetch all groups for the project
-  const allGroups = contextGroupDb.getGroupsByProject(projectId);
+  const allGroups = contextGroupRepository.getGroupsByProject(projectId);
 
   // 3. Build group nodes with their contexts
   const groupMap = new Map<string, DbContextGroup>();
@@ -179,7 +177,7 @@ export function assembleContextGraph(projectId: string): ContextGraph {
   }
 
   // 4. Fetch group relationships (edges)
-  const relationships = contextGroupRelationshipDb.getByProject(projectId);
+  const relationships = contextGroupRelationshipRepository.getByProject(projectId);
   const groupEdges: GroupEdge[] = relationships.map((rel: DbContextGroupRelationship) => ({
     sourceGroupId: rel.source_group_id,
     sourceGroupName: groupMap.get(rel.source_group_id)?.name || 'Unknown',
@@ -191,7 +189,7 @@ export function assembleContextGraph(projectId: string): ContextGraph {
   let pendingDirections: ActiveDirection[] = [];
   let acceptedDirections: ActiveDirection[] = [];
   try {
-    const pending = directionDb.getPendingDirections(projectId);
+    const pending = directionRepository.getPendingDirections(projectId);
     pendingDirections = pending.slice(0, 10).map(d => ({
       id: d.id,
       summary: d.summary,
@@ -199,7 +197,7 @@ export function assembleContextGraph(projectId: string): ContextGraph {
       contextName: d.context_name,
       contextGroupId: d.context_group_id,
     }));
-    const accepted = directionDb.getAcceptedDirections(projectId);
+    const accepted = directionRepository.getAcceptedDirections(projectId);
     acceptedDirections = accepted.slice(0, 10).map(d => ({
       id: d.id,
       summary: d.summary,
@@ -214,7 +212,7 @@ export function assembleContextGraph(projectId: string): ContextGraph {
   // 6. Fetch recent scan results
   let recentScans: RecentScanResult[] = [];
   try {
-    const scans = groupHealthDb.getByProject(projectId);
+    const scans = groupHealthRepository.getByProject(projectId);
     recentScans = scans
       .filter(s => s.status === 'completed')
       .slice(0, 5)

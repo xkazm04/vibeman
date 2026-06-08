@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateWithLLM } from '@/lib/llm/llm-manager';
 import { contextRepository } from '@/app/db/repositories/context.repository';
-import { goalDb } from '@/app/db';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
 import { randomUUID } from 'crypto';
 import { signalCollector } from '@/lib/brain/signalCollector';
 
@@ -156,7 +156,7 @@ JSON:`,
     }
 
     // Step 4: Create the goal
-    const orderIndex = goalDb.getMaxOrderIndex(projectId) + 1;
+    const orderIndex = goalRepository.getMaxOrderIndex(projectId) + 1;
 
     // Build description including target date info if present
     if (parsed.targetDate) {
@@ -164,7 +164,7 @@ JSON:`,
       description = description ? `${description} | ${dateNote}` : dateNote;
     }
 
-    const goal = goalDb.createGoal({
+    const goal = goalRepository.createGoal({
       id: randomUUID(),
       project_id: projectId,
       context_id: matchedContextId || undefined,

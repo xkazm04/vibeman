@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { standupDb } from '@/app/db';
+import { standupRepository } from '@/app/db/repositories/standup.repository';
 import { StandupSummaryResponse } from '@/app/db/models/standup.types';
 import { StandupBlockerSchema, StandupHighlightSchema, StandupFocusAreaSchema, parseStandupJsonArray } from '@/lib/api/schemas/standup';
 import { logger } from '@/lib/logger';
@@ -43,7 +43,7 @@ async function handleGet(request: NextRequest) {
     }
 
     // Find summary for the period
-    const dbSummary = standupDb.getSummaryByPeriod(projectId, periodType, periodStart);
+    const dbSummary = standupRepository.getSummaryByPeriod(projectId, periodType, periodStart);
 
     if (!dbSummary) {
       return NextResponse.json(

@@ -12,13 +12,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  ideaDb,
-  directionDb,
-  insightEffectivenessCache,
-  brainInsightDb,
-  insightInfluenceDb,
-} from '@/app/db';
+import { brainInsightRepository } from '@/app/db/repositories/brain-insight.repository';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import { insightEffectivenessCacheRepository } from '@/app/db/repositories/insight-effectiveness-cache.repository';
+import { insightInfluenceRepository } from '@/app/db/repositories/insight-influence.repository';
 import { deleteRequirement } from '@/app/Claude/lib/claudeCodeManager';
 import { type WrapperMode } from '@/lib/prompts/requirement_file';
 import { signalCollector } from '@/lib/brain/signalCollector';
@@ -95,7 +93,7 @@ function acceptIdea(ideaId: string, projectPath: string, wrapperMode: WrapperMod
 }
 
 function rejectIdea(ideaId: string, projectPath?: string, rejectionReason?: string) {
-  const idea = ideaDb.getIdeaById(ideaId);
+  const idea = ideaRepository.getIdeaById(ideaId);
   if (!idea) return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND);
 
   // Delete requirement file if it exists
@@ -103,7 +101,7 @@ function rejectIdea(ideaId: string, projectPath?: string, rejectionReason?: stri
     try { deleteRequirement(projectPath, idea.requirement_id); } catch { /* non-critical */ }
   }
 
-  ideaDb.updateIdea(ideaId, {
+  ideaRepository.updateIdea(ideaId, {
     status: 'rejected',
     requirement_id: null,
     ...(rejectionReason ? { user_feedback: rejectionReason } : {}),
@@ -127,7 +125,7 @@ function rejectIdea(ideaId: string, projectPath?: string, rejectionReason?: stri
 }
 
 function deleteIdea(ideaId: string) {
-  const success = ideaDb.deleteIdea(ideaId);
+  const success = ideaRepository.deleteIdea(ideaId);
   if (!success) return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND);
   return NextResponse.json({ success: true });
 }
@@ -161,10 +159,10 @@ function acceptDirection(directionId: string, projectPath: string) {
 }
 
 function rejectDirection(directionId: string) {
-  const direction = directionDb.getDirectionById(directionId);
+  const direction = directionRepository.getDirectionById(directionId);
   if (!direction) return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND, { message: 'Direction not found' });
 
-  const rejectedDirection = directionDb.rejectDirection(directionId);
+  const rejectedDirection = directionRepository.rejectDirection(directionId);
   if (!rejectedDirection) return createIdeasErrorResponse(IdeasErrorCode.UPDATE_FAILED, { message: 'Failed to reject direction' });
 
   try {
@@ -177,29 +175,29 @@ function rejectDirection(directionId: string) {
   } catch { /* non-critical */ }
 
   try {
-    const activeInsights = brainInsightDb.getForEffectiveness(direction.project_id);
+    const activeInsights = brainInsightRepository.getForEffectiveness(direction.project_id);
     if (activeInsights.length > 0) {
       const now = new Date().toISOString();
-      insightInfluenceDb.recordInfluenceBatch(
+      insightInfluenceRepository.recordInfluenceBatch(
         direction.project_id, directionId, 'rejected',
         activeInsights.map(i => ({ id: i.id, title: i.title, shownAt: i.completed_at || now }))
       );
     }
   } catch { /* non-critical */ }
 
-  try { insightEffectivenessCache.invalidate(direction.project_id); } catch { /* non-critical */ }
+  try { insightEffectivenessCacheRepository.invalidate(direction.project_id); } catch { /* non-critical */ }
 
   return NextResponse.json({ success: true });
 }
 
 function deleteDirection(directionId: string) {
-  const direction = directionDb.getDirectionById(directionId);
+  const direction = directionRepository.getDirectionById(directionId);
   if (!direction) return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND, { message: 'Direction not found' });
 
-  const deleted = directionDb.deleteDirection(directionId);
+  const deleted = directionRepository.deleteDirection(directionId);
   if (!deleted) return createIdeasErrorResponse(IdeasErrorCode.DELETE_FAILED, { message: 'Failed to delete direction' });
 
-  try { insightEffectivenessCache.invalidate(direction.project_id); } catch { /* non-critical */ }
+  try { insightEffectivenessCacheRepository.invalidate(direction.project_id); } catch { /* non-critical */ }
 
   return NextResponse.json({ success: true });
 }
@@ -232,23 +230,23 @@ function acceptPairVariant(pairId: string, variant: 'A' | 'B', projectPath: stri
 }
 
 function rejectPair(pairId: string) {
-  const rejectedCount = directionDb.rejectDirectionPair(pairId);
+  const rejectedCount = directionRepository.rejectDirectionPair(pairId);
   if (rejectedCount === 0) {
     return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND, { message: 'Direction pair not found or already processed' });
   }
 
   try {
-    const pair = directionDb.getDirectionPair(pairId);
+    const pair = directionRepository.getDirectionPair(pairId);
     const projectId = pair.directionA?.project_id || pair.directionB?.project_id;
     if (projectId) {
-      const activeInsights = brainInsightDb.getForEffectiveness(projectId);
+      const activeInsights = brainInsightRepository.getForEffectiveness(projectId);
       if (activeInsights.length > 0) {
         const now = new Date().toISOString();
         const insightBatch = activeInsights.map(i => ({ id: i.id, title: i.title, shownAt: i.completed_at || now }));
-        if (pair.directionA) insightInfluenceDb.recordInfluenceBatch(projectId, pair.directionA.id, 'rejected', insightBatch);
-        if (pair.directionB) insightInfluenceDb.recordInfluenceBatch(projectId, pair.directionB.id, 'rejected', insightBatch);
+        if (pair.directionA) insightInfluenceRepository.recordInfluenceBatch(projectId, pair.directionA.id, 'rejected', insightBatch);
+        if (pair.directionB) insightInfluenceRepository.recordInfluenceBatch(projectId, pair.directionB.id, 'rejected', insightBatch);
       }
-      try { insightEffectivenessCache.invalidate(projectId); } catch { /* non-critical */ }
+      try { insightEffectivenessCacheRepository.invalidate(projectId); } catch { /* non-critical */ }
     }
   } catch { /* non-critical */ }
 
@@ -256,19 +254,19 @@ function rejectPair(pairId: string) {
 }
 
 function deletePair(pairId: string) {
-  const pair = directionDb.getDirectionPair(pairId);
+  const pair = directionRepository.getDirectionPair(pairId);
   if (!pair.directionA && !pair.directionB) {
     return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND, { message: 'Direction pair not found' });
   }
   const projectId = pair.directionA?.project_id || pair.directionB?.project_id;
 
-  const deletedCount = directionDb.deleteDirectionPair(pairId);
+  const deletedCount = directionRepository.deleteDirectionPair(pairId);
   if (deletedCount === 0) {
     return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND, { message: 'Direction pair not found' });
   }
 
   if (projectId) {
-    try { insightEffectivenessCache.invalidate(projectId); } catch { /* non-critical */ }
+    try { insightEffectivenessCacheRepository.invalidate(projectId); } catch { /* non-critical */ }
   }
 
   return NextResponse.json({ success: true, deletedCount });

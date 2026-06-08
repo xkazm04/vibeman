@@ -5,7 +5,7 @@
 
 import * as path from 'path';
 import chokidar, { FSWatcher } from 'chokidar';
-import { scanQueueDb } from '@/app/db';
+import { scanQueueRepository } from '@/app/db/repositories/scanQueue.repository';
 import { DbFileWatchConfig } from '@/app/db/models/types';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { generateId, generateNotificationId } from '@/lib/idGenerator';
@@ -25,7 +25,7 @@ class FileWatcherManager {
   startWatching(projectId: string, projectPath: string): boolean {
     try {
       // Get file watch config from database
-      const config = scanQueueDb.getFileWatchConfig(projectId);
+      const config = scanQueueRepository.getFileWatchConfig(projectId);
 
       if (!config) {
         console.log(`No file watch config found for project ${projectId}`);
@@ -148,7 +148,7 @@ class FileWatcherManager {
       for (const scanType of scanTypes) {
         const queueId = generateId('auto');
 
-        scanQueueDb.createQueueItem({
+        scanQueueRepository.createQueueItem({
           id: queueId,
           project_id: projectId,
           scan_type: scanType,
@@ -166,7 +166,7 @@ class FileWatcherManager {
 
       // Create notification for user
       const notificationId = generateNotificationId();
-      scanQueueDb.createNotification({
+      scanQueueRepository.createNotification({
         id: notificationId,
         queue_item_id: 'file-watch-trigger', // Generic ID for file watch notifications
         project_id: projectId,

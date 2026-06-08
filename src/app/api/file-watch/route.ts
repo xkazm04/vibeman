@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { scanQueueDb } from '@/app/db';
+import { scanQueueRepository } from '@/app/db/repositories/scanQueue.repository';
 import { fileWatcherManager } from '@/lib/fileWatcher';
 import { logger } from '@/lib/logger';
 import { createErrorResponse, handleApiError, notFoundResponse } from '@/lib/api-helpers';
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       return createErrorResponse('projectId is required', 400);
     }
 
-    const config = scanQueueDb.getFileWatchConfig(projectId);
+    const config = scanQueueRepository.getFileWatchConfig(projectId);
 
     return NextResponse.json({ config });
   } catch (error) {
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     const configId = `watch-${projectId}`;
 
-    const config = scanQueueDb.upsertFileWatchConfig({
+    const config = scanQueueRepository.upsertFileWatchConfig({
       id: configId,
       project_id: projectId,
       enabled,
@@ -79,7 +79,7 @@ export async function PATCH(request: NextRequest) {
       return createErrorResponse('projectId is required', 400);
     }
 
-    const config = scanQueueDb.toggleFileWatch(projectId);
+    const config = scanQueueRepository.toggleFileWatch(projectId);
 
     if (!config) {
       return notFoundResponse('File watch config');

@@ -3,7 +3,12 @@
  * Computes and formats behavioral signals for prompt injection
  */
 
-import { behavioralSignalDb, directionOutcomeDb, observabilityDb, contextDb, brainInsightDb, getDatabase } from '@/app/db';
+import { getDatabase } from '@/app/db/connection';
+import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-signal.repository';
+import { brainInsightRepository } from '@/app/db/repositories/brain-insight.repository';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { directionOutcomeRepository } from '@/app/db/repositories/direction-outcome.repository';
+import { observabilityRepository } from '@/app/db/repositories/observability.repository';
 import { safeParseJson } from '@/lib/json-utils';
 import type {
   BehavioralContext,
@@ -20,7 +25,7 @@ export function getBehavioralContext(
   projectId: string,
   windowDays: number = 7
 ): BehavioralContext {
-  const hasSignals = behavioralSignalDb.hasSignals(projectId);
+  const hasSignals = behavioralSignalRepository.hasSignals(projectId);
 
   if (!hasSignals) {
     return {
@@ -48,7 +53,7 @@ export function getBehavioralContext(
   }
 
   // Get context activity (aggregated by context)
-  const contextActivity = behavioralSignalDb.getContextActivity(projectId, windowDays);
+  const contextActivity = behavioralSignalRepository.getContextActivity(projectId, windowDays);
   const activeContexts = contextActivity
     .filter(c => c.context_id && c.context_name)
     .slice(0, 5)
@@ -60,7 +65,7 @@ export function getBehavioralContext(
       };
       // Enrich with AI navigation metadata
       try {
-        const ctx = contextDb.getContextById(c.context_id);
+        const ctx = contextRepository.getContextById(c.context_id);
         if (ctx) {
           base.keywords = safeParseJson(ctx.keywords, []);
           base.entryPoints = safeParseJson(ctx.entry_points, []);
@@ -71,7 +76,7 @@ export function getBehavioralContext(
     });
 
   // Get git activity signals for recent files and commit themes
-  const gitSignals = behavioralSignalDb.getByTypeAndWindow(projectId, 'git_activity', windowDays);
+  const gitSignals = behavioralSignalRepository.getByTypeAndWindow(projectId, 'git_activity', windowDays);
   const recentFiles = extractRecentFiles(gitSignals);
   const recentCommitThemes = extractCommitThemes(gitSignals);
 
@@ -88,10 +93,10 @@ export function getBehavioralContext(
   const neglectedAreas = findNeglectedAreas(contextActivity);
 
   // Get outcome statistics
-  const outcomeStats = directionOutcomeDb.getStats(projectId, windowDays);
+  const outcomeStats = directionOutcomeRepository.getStats(projectId, windowDays);
 
   // Calculate implementation patterns
-  const implementationSignals = behavioralSignalDb.getByTypeAndWindow(
+  const implementationSignals = behavioralSignalRepository.getByTypeAndWindow(
     projectId,
     'implementation',
     windowDays
@@ -109,7 +114,7 @@ export function getBehavioralContext(
     const { computeTechFingerprint, computeSimilarity } = require('@/lib/brain/projectSimilarity');
     const currentFP = computeTechFingerprint(projectId);
 
-    const globalPractices = brainInsightDb.getAllInsightsGlobal(50)
+    const globalPractices = brainInsightRepository.getAllInsightsGlobal(50)
       .filter(i => i.type === 'best_practice' && i.confidence >= 50)
       .filter(gp => !topInsights.some(ti => ti.title === gp.title))
       .map(i => {
@@ -292,7 +297,7 @@ function getTopEffectiveInsights(
     const db = getDatabase();
 
     // Get all insights from brain_insights table with reflection timestamps
-    const insightRows = brainInsightDb.getForEffectiveness(projectId);
+    const insightRows = brainInsightRepository.getForEffectiveness(projectId);
 
     if (insightRows.length === 0) return [];
 
@@ -428,7 +433,7 @@ function getApiTrends(
   days: number
 ): Array<{ path: string; trend: 'up' | 'down' | 'stable'; changePercent: number }> {
   try {
-    const trends = observabilityDb.getUsageTrends(projectId, days);
+    const trends = observabilityRepository.getUsageTrends(projectId, days);
     return trends
       .filter(t => t.direction !== 'stable' || t.change_percent > 20)
       .slice(0, 5)

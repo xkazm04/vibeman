@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { scanQueueDb } from '@/app/db';
+import { scanQueueRepository } from '@/app/db/repositories/scanQueue.repository';
 import { withObservability } from '@/lib/observability/middleware';
 
 async function handleGet(request: NextRequest) {
@@ -22,7 +22,7 @@ async function handleGet(request: NextRequest) {
       );
     }
 
-    const notifications = scanQueueDb.getNotifications(projectId, unreadOnly);
+    const notifications = scanQueueRepository.getNotifications(projectId, unreadOnly);
 
     return NextResponse.json({ notifications });
   } catch (error) {
@@ -39,10 +39,10 @@ async function handlePatch(request: NextRequest) {
     const { notificationId, projectId, markAll } = body;
 
     if (markAll && projectId) {
-      const count = scanQueueDb.markAllNotificationsRead(projectId);
+      const count = scanQueueRepository.markAllNotificationsRead(projectId);
       return NextResponse.json({ success: true, markedCount: count });
     } else if (notificationId) {
-      const success = scanQueueDb.markNotificationRead(notificationId);
+      const success = scanQueueRepository.markNotificationRead(notificationId);
       if (!success) {
         return NextResponse.json(
           { error: 'Notification not found' },
@@ -76,7 +76,7 @@ async function handleDelete(request: NextRequest) {
       );
     }
 
-    const success = scanQueueDb.deleteNotification(notificationId);
+    const success = scanQueueRepository.deleteNotification(notificationId);
 
     if (!success) {
       return NextResponse.json(

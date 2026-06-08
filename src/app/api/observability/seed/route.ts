@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { env } from '@/lib/config/envConfig';
-import { observabilityDb } from '@/app/db';
+import { observabilityRepository } from '@/app/db/repositories/observability.repository';
 import { logger } from '@/lib/logger';
 
 // Use actual Vibeman project ID from database for dashboard integration
@@ -69,21 +69,21 @@ export async function POST(request: NextRequest) {
     const clearExisting = body.clearExisting === true; // Require explicit true instead of defaulting to true
 
     // Ensure config exists
-    let config = observabilityDb.getConfig(VIBEMAN_PROJECT_ID);
+    let config = observabilityRepository.getConfig(VIBEMAN_PROJECT_ID);
     if (!config) {
-      observabilityDb.createConfig({
+      observabilityRepository.createConfig({
         project_id: VIBEMAN_PROJECT_ID,
         enabled: true,
         provider: 'local',
         sample_rate: 1.0
       });
     } else if (!config.enabled) {
-      observabilityDb.updateConfig(VIBEMAN_PROJECT_ID, { enabled: true });
+      observabilityRepository.updateConfig(VIBEMAN_PROJECT_ID, { enabled: true });
     }
 
     // Clear existing data if requested
     if (clearExisting) {
-      observabilityDb.deleteOldApiCalls(VIBEMAN_PROJECT_ID, new Date(Date.now() + 86400000).toISOString());
+      observabilityRepository.deleteOldApiCalls(VIBEMAN_PROJECT_ID, new Date(Date.now() + 86400000).toISOString());
     }
 
     const now = new Date();
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
             ? [400, 401, 404, 500, 503][randomInRange(0, 4)]
             : [200, 201][randomInRange(0, 1)];
 
-          observabilityDb.logApiCall({
+          observabilityRepository.logApiCall({
             project_id: VIBEMAN_PROJECT_ID,
             endpoint: endpoint.endpoint,
             method: endpoint.method,
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Aggregate stats
-    const aggregateCount = observabilityDb.aggregateHourlyStats(VIBEMAN_PROJECT_ID);
+    const aggregateCount = observabilityRepository.aggregateHourlyStats(VIBEMAN_PROJECT_ID);
 
     logger.info('[API] Seeded observability data', {
       projectId: VIBEMAN_PROJECT_ID,
@@ -174,11 +174,11 @@ export async function POST(request: NextRequest) {
  */
 export async function GET() {
   try {
-    const hasData = observabilityDb.hasData(VIBEMAN_PROJECT_ID);
-    const config = observabilityDb.getConfig(VIBEMAN_PROJECT_ID);
+    const hasData = observabilityRepository.hasData(VIBEMAN_PROJECT_ID);
+    const config = observabilityRepository.getConfig(VIBEMAN_PROJECT_ID);
 
     if (hasData) {
-      const stats = observabilityDb.getDashboardStats(VIBEMAN_PROJECT_ID, 7);
+      const stats = observabilityRepository.getDashboardStats(VIBEMAN_PROJECT_ID, 7);
       return NextResponse.json({
         success: true,
         hasData: true,

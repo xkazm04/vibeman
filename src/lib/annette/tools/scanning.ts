@@ -7,7 +7,8 @@
  * - get_scan_results: Get results from recent scans
  */
 
-import { scanDb, ideaDb } from '@/app/db';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import { scanRepository } from '@/app/db/repositories/scan.repository';
 import { AGENT_REGISTRY, type AgentCategory } from '@/app/features/Ideas/lib/agentRegistry';
 
 export async function executeScanningTools(
@@ -90,13 +91,13 @@ export async function executeScanningTools(
       const scanType = input.scanType as string | undefined;
       const limit = parseInt(String(input.limit || '10'), 10);
 
-      const { scans, total } = scanDb.getScansByProjectFiltered(projectId, {
+      const { scans, total } = scanRepository.getScansByProjectFiltered(projectId, {
         scanType,
         limit,
       });
 
       const results = scans.map(scan => {
-        const ideas = ideaDb.getIdeasByScanId(scan.id);
+        const ideas = ideaRepository.getIdeasByScanId(scan.id);
         return {
           scanId: scan.id,
           scanType: scan.scan_type,

@@ -6,7 +6,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { groupHealthDb, contextDb } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { groupHealthRepository } from '@/app/db/repositories/group-health.repository';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
 
@@ -19,9 +20,9 @@ async function handleGet(request: NextRequest) {
 
     if (groupId) {
       // Get scans for specific group
-      const scans = groupHealthDb.getByGroup(groupId, limit);
-      const latestCompleted = groupHealthDb.getLatestCompletedByGroup(groupId);
-      const running = groupHealthDb.getRunningByGroup(groupId);
+      const scans = groupHealthRepository.getByGroup(groupId, limit);
+      const latestCompleted = groupHealthRepository.getLatestCompletedByGroup(groupId);
+      const running = groupHealthRepository.getRunningByGroup(groupId);
 
       return NextResponse.json({
         success: true,
@@ -32,8 +33,8 @@ async function handleGet(request: NextRequest) {
       });
     } else if (projectId) {
       // Get all scans for project
-      const scans = groupHealthDb.getByProject(projectId, limit);
-      const stats = groupHealthDb.getStats(projectId);
+      const scans = groupHealthRepository.getByProject(projectId, limit);
+      const stats = groupHealthRepository.getStats(projectId);
 
       return NextResponse.json({
         success: true,
@@ -69,7 +70,7 @@ async function handlePost(request: NextRequest) {
     }
 
     // Check if there's already an active scan for this group
-    const existingRunning = groupHealthDb.getRunningByGroup(groupId);
+    const existingRunning = groupHealthRepository.getRunningByGroup(groupId);
     if (existingRunning) {
       // Check if it's stale (older than 10 minutes) - auto-fail it
       const startedAt = existingRunning.started_at ? new Date(existingRunning.started_at).getTime() : 0;
@@ -77,7 +78,7 @@ async function handlePost(request: NextRequest) {
 
       if (isStale) {
         logger.info('[API] Cleaning up stale running scan:', { scanId: existingRunning.id });
-        groupHealthDb.failScan(existingRunning.id);
+        groupHealthRepository.failScan(existingRunning.id);
       } else {
         return NextResponse.json(
           { error: 'A scan is already running for this group', scan: existingRunning },
@@ -87,19 +88,19 @@ async function handlePost(request: NextRequest) {
     }
 
     // Also check for stale pending scans (older than 2 minutes) and clean them up
-    const latestScan = groupHealthDb.getLatestByGroup(groupId);
+    const latestScan = groupHealthRepository.getLatestByGroup(groupId);
     if (latestScan && latestScan.status === 'pending') {
       const createdAt = new Date(latestScan.created_at).getTime();
       const isStale = Date.now() - createdAt > 2 * 60 * 1000;
 
       if (isStale) {
         logger.info('[API] Cleaning up stale pending scan:', { scanId: latestScan.id });
-        groupHealthDb.failScan(latestScan.id);
+        groupHealthRepository.failScan(latestScan.id);
       }
     }
 
     // Get all contexts in this group to build file list
-    const contexts = contextDb.getContextsByGroup(groupId);
+    const contexts = contextRepository.getContextsByGroup(groupId);
     if (!contexts || contexts.length === 0) {
       return NextResponse.json(
         { error: 'No contexts found in this group' },
@@ -130,7 +131,7 @@ async function handlePost(request: NextRequest) {
     }
 
     // Create the scan record
-    const scan = groupHealthDb.create({
+    const scan = groupHealthRepository.create({
       group_id: groupId,
       project_id: projectId,
     });

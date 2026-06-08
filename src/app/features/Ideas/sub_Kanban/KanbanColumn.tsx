@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import KanbanCard from './KanbanCard';
 import type { IdeaStatus } from '@/lib/ideas/ideaStateMachine';
 

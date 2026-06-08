@@ -4,7 +4,9 @@
  * and produces a task-specific knowledge section for injection into execution prompts.
  */
 
-import { contextDb, brainInsightDb, implementationLogDb } from '@/app/db';
+import { brainInsightRepository } from '@/app/db/repositories/brain-insight.repository';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
 import type { DbContext } from '@/app/db/models/types';
 import type { ImplementationLogMetadata } from '@/app/db/models/types';
 import { safeParseJson } from '@/lib/json-utils';
@@ -91,7 +93,7 @@ function extractTaskSignals(content: string): TaskSignals {
 // ── Context matching ─────────────────────────────────────────────────
 
 function matchContexts(projectId: string, signals: TaskSignals): MatchedContext[] {
-  const contexts = contextDb.getContextsByProject(projectId);
+  const contexts = contextRepository.getContextsByProject(projectId);
   const results: MatchedContext[] = [];
 
   for (const ctx of contexts) {
@@ -151,7 +153,7 @@ function gatherBestPractices(
   categories: string[]
 ): Array<{ title: string; description: string }> {
   try {
-    const allInsights = brainInsightDb.getAllInsights(projectId, 50);
+    const allInsights = brainInsightRepository.getAllInsights(projectId, 50);
     const practices = allInsights
       .filter(i => i.type === 'best_practice')
       .filter(i => {
@@ -173,7 +175,7 @@ function gatherPastPatterns(
   if (!contextId) return [];
 
   try {
-    const logs = implementationLogDb.getLogsByContext(contextId);
+    const logs = implementationLogRepository.getLogsByContext(contextId);
     return logs
       .filter(log => log.metadata)
       .slice(0, 5)

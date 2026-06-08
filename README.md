@@ -39,6 +39,7 @@
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
 - [Available Scripts](#available-scripts)
+- [Dev Shells & Memory](#dev-shells--memory)
 - [Documentation](#documentation)
 - [Cross-Platform Notes](#cross-platform-notes)
 - [Security Notice](#security-notice)
@@ -502,12 +503,32 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for a detailed technical deep-dive.
 | Script | Description |
 |--------|-------------|
 | `npm run dev` | Start dev server with Turbopack |
+| `npm run dev:clean` | Wipe `.next` then start dev server (fresh compiler cache) |
+| `npm run clean` | Delete the `.next` directory |
 | `npm run build` | Production build |
 | `npm start` | Start production server |
 | `npm test` | Run test suite (Vitest) |
 | `npm run lint` | Run ESLint |
 | `npm run build:mcp` | Compile MCP server |
 | `npm run security:audit` | Run dependency security audit |
+| `npm run tauri:dev` | Desktop shell (Vite + Tauri) — see note below |
+
+---
+
+## Dev Shells & Memory
+
+Vibeman carries **two build shells**: the primary Next.js/Turbopack web app (`npm run dev`) and an optional Vite + Tauri desktop shell (`npm run tauri:dev`). Each runs its own compiler with its own multi-GB working set.
+
+**Convention: run ONE dev shell at a time.** Two shells (or dev servers from multiple projects) stack their compiler memory — when investigating "mystery" RAM usage, check the command line of each `node` process before assuming it's this repo.
+
+Measured behavior of the Next dev server (2026-06):
+
+- A blank server (booted, zero requests) idles at roughly **1 GB** and stays flat; memory grows with the size of the module graphs you compile by visiting pages, not with uptime.
+- The persistent Turbopack cache (`.next/dev/cache`) is **kept ON deliberately**: it makes warm restarts ~11x faster and *lowers* post-restart memory. It does not affect in-session memory either way.
+- The cache grows on disk across weeks of work. If `.next` gets large (GBs) or startup pegs a core compacting it, run `npm run clean` — that is the intended hygiene, not a bug workaround.
+- `experimental.turbopackMemoryLimit` stays at 2 GB; lowering it was measured to change nothing in-session (see `next.config.ts` for the full A/B notes).
+
+Background workers are env-gated (see `.env.example`): Schema Intelligence query collection is **off by default** (`SCHEMA_INTELLIGENCE_ENABLED`); the hot-writes aggregator is **on by default** because it also prunes `obs_api_calls` (`HOT_WRITES_AGGREGATOR_ENABLED`).
 
 ---
 

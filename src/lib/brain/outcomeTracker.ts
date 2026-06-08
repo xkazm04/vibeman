@@ -3,7 +3,8 @@
  * Tracks direction implementation outcomes and detects reverts
  */
 
-import { directionOutcomeDb, directionDb } from '@/app/db';
+import { directionOutcomeRepository } from '@/app/db/repositories/direction-outcome.repository';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
 import { signalCollector } from './signalCollector';
 
 /**
@@ -26,7 +27,7 @@ export const outcomeTracker = {
   ): string => {
     const outcomeId = generateOutcomeId();
 
-    directionOutcomeDb.create({
+    directionOutcomeRepository.create({
       id: outcomeId,
       direction_id: directionId,
       project_id: projectId,
@@ -51,7 +52,7 @@ export const outcomeTracker = {
     }
   ): Promise<void> => {
     try {
-      directionOutcomeDb.updateExecution(outcomeId, {
+      directionOutcomeRepository.updateExecution(outcomeId, {
         execution_completed_at: new Date().toISOString(),
         execution_success: result.success,
         execution_error: result.error,
@@ -83,12 +84,12 @@ export const outcomeTracker = {
   ): Promise<string | null> => {
     try {
       // Check if outcome already exists
-      let outcome = directionOutcomeDb.getByDirectionId(directionId);
+      let outcome = directionOutcomeRepository.getByDirectionId(directionId);
 
       if (!outcome) {
         // Create new outcome
         const outcomeId = generateOutcomeId();
-        outcome = directionOutcomeDb.create({
+        outcome = directionOutcomeRepository.create({
           id: outcomeId,
           direction_id: directionId,
           project_id: projectId,
@@ -96,7 +97,7 @@ export const outcomeTracker = {
       }
 
       // Update with execution result
-      directionOutcomeDb.updateExecution(outcome.id, {
+      directionOutcomeRepository.updateExecution(outcome.id, {
         execution_completed_at: new Date().toISOString(),
         execution_success: result.success,
         execution_error: result.error,
@@ -107,7 +108,7 @@ export const outcomeTracker = {
       });
 
       // Also record as behavioral signal
-      const direction = directionDb.getDirectionById(directionId);
+      const direction = directionRepository.getDirectionById(directionId);
       signalCollector.recordImplementation(projectId, {
         requirementId: direction?.requirement_id || '',
         requirementName: direction?.requirement_path || '',
@@ -137,13 +138,13 @@ export const outcomeTracker = {
     feedback?: string
   ): boolean => {
     try {
-      const outcome = directionOutcomeDb.getByDirectionId(directionId);
+      const outcome = directionOutcomeRepository.getByDirectionId(directionId);
       if (!outcome) {
         console.warn('[OutcomeTracker] No outcome found for direction:', directionId);
         return false;
       }
 
-      directionOutcomeDb.updateFeedback(outcome.id, satisfaction, feedback);
+      directionOutcomeRepository.updateFeedback(outcome.id, satisfaction, feedback);
       return true;
     } catch (error) {
       console.error('[OutcomeTracker] Failed to record feedback:', error);
@@ -159,13 +160,13 @@ export const outcomeTracker = {
     revertCommitSha?: string
   ): boolean => {
     try {
-      const outcome = directionOutcomeDb.getByDirectionId(directionId);
+      const outcome = directionOutcomeRepository.getByDirectionId(directionId);
       if (!outcome) {
         console.warn('[OutcomeTracker] No outcome found for direction:', directionId);
         return false;
       }
 
-      directionOutcomeDb.markReverted(outcome.id, revertCommitSha);
+      directionOutcomeRepository.markReverted(outcome.id, revertCommitSha);
       return true;
     } catch (error) {
       console.error('[OutcomeTracker] Failed to mark reverted:', error);
@@ -177,21 +178,21 @@ export const outcomeTracker = {
    * Get outcome for a direction
    */
   getOutcome: (directionId: string) => {
-    return directionOutcomeDb.getByDirectionId(directionId);
+    return directionOutcomeRepository.getByDirectionId(directionId);
   },
 
   /**
    * Get outcome statistics for a project
    */
   getStats: (projectId: string, days?: number) => {
-    return directionOutcomeDb.getStats(projectId, days);
+    return directionOutcomeRepository.getStats(projectId, days);
   },
 
   /**
    * Get recent outcomes for revert scanning
    */
   getRecentForRevertScan: (projectId: string, days: number = 7) => {
-    return directionOutcomeDb.getRecentWithCommits(projectId, days);
+    return directionOutcomeRepository.getRecentWithCommits(projectId, days);
   },
 
   /**
@@ -203,7 +204,7 @@ export const outcomeTracker = {
     projectId: string,
     checkRevert: (commitSha: string) => Promise<{ reverted: boolean; revertSha?: string }>
   ): Promise<number> => {
-    const recentOutcomes = directionOutcomeDb.getRecentWithCommits(projectId, 7);
+    const recentOutcomes = directionOutcomeRepository.getRecentWithCommits(projectId, 7);
     let revertCount = 0;
 
     for (const outcome of recentOutcomes) {
@@ -212,7 +213,7 @@ export const outcomeTracker = {
       try {
         const result = await checkRevert(outcome.commit_sha);
         if (result.reverted) {
-          directionOutcomeDb.markReverted(outcome.id, result.revertSha);
+          directionOutcomeRepository.markReverted(outcome.id, result.revertSha);
           revertCount++;
         }
       } catch (error) {

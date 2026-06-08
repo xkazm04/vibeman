@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { scanDb } from '@/app/db';
+import { scanRepository } from '@/app/db/repositories/scan.repository';
 import { v4 as uuidv4 } from 'uuid';
 import {
   IdeasErrorCode,
@@ -40,7 +40,7 @@ async function handleGet(request: NextRequest) {
   }
 
   // Push filtering and pagination to SQL
-  const { scans, total } = scanDb.getScansByProjectFiltered(projectId, {
+  const { scans, total } = scanRepository.getScansByProjectFiltered(projectId, {
     scanType: scanType || undefined,
     limit: parsedLimit,
     offset: parsedOffset,
@@ -84,7 +84,7 @@ async function handlePost(request: NextRequest) {
     });
   }
 
-  const scan = scanDb.createScan({
+  const scan = scanRepository.createScan({
     id: uuidv4(),
     project_id,
     scan_type: scan_type as ScanType,
@@ -110,7 +110,7 @@ async function handlePatch(request: NextRequest) {
     });
   }
 
-  const scan = scanDb.updateTokenUsage(id, input_tokens, output_tokens);
+  const scan = scanRepository.updateTokenUsage(id, input_tokens, output_tokens);
 
   if (!scan) {
     return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND, {
@@ -136,7 +136,7 @@ async function handleDelete(request: NextRequest) {
     return createMissingFieldError('id');
   }
 
-  const success = scanDb.deleteScan(id);
+  const success = scanRepository.deleteScan(id);
 
   if (!success) {
     return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND, {

@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { observabilityDb } from '@/app/db';
+import { observabilityRepository } from '@/app/db/repositories/observability.repository';
 import { logger } from '@/lib/logger';
 import { ObsStatsResponse } from '@/app/db/models/observability.types';
 
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if project has data
-    const hasData = observabilityDb.hasData(projectId);
+    const hasData = observabilityRepository.hasData(projectId);
 
     if (!hasData) {
       return NextResponse.json({
@@ -37,19 +37,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Get dashboard stats
-    const dashboardStats = observabilityDb.getDashboardStats(projectId, days);
+    const dashboardStats = observabilityRepository.getDashboardStats(projectId, days);
 
     // Get endpoint summaries
-    const endpoints = observabilityDb.getEndpointSummary(projectId, days);
+    const endpoints = observabilityRepository.getEndpointSummary(projectId, days);
 
     // Get top endpoints
-    const topEndpoints = observabilityDb.getTopEndpoints(projectId, 10, days);
+    const topEndpoints = observabilityRepository.getTopEndpoints(projectId, 10, days);
 
     // Get high error endpoints
-    const highErrorEndpoints = observabilityDb.getHighErrorEndpoints(projectId, 5, days);
+    const highErrorEndpoints = observabilityRepository.getHighErrorEndpoints(projectId, 5, days);
 
     // Get usage trends
-    const trends = observabilityDb.getUsageTrends(projectId, days);
+    const trends = observabilityRepository.getUsageTrends(projectId, days);
 
     // Calculate period
     const endDate = new Date();

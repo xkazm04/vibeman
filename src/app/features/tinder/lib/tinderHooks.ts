@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useMotionValue, useTransform, PanInfo, MotionValue } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { fetchIdeasBatch, acceptIdeaById, rejectIdeaById, deleteIdeaById } from './tinderItemsApi';
 import { TINDER_CONSTANTS } from './tinderUtils';

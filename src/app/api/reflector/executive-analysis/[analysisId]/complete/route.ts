@@ -7,7 +7,7 @@
 
 import { NextRequest } from 'next/server';
 import { executiveAnalysisAgent } from '@/lib/reflector/executiveAnalysisAgent';
-import { executiveAnalysisDb } from '@/app/db';
+import { executiveAnalysisRepository } from '@/app/db/repositories/executive-analysis.repository';
 import type { ExecutiveAIInsight, CompleteExecutiveAnalysisData } from '@/app/db/models/reflector.types';
 import {
   successResponse,
@@ -57,7 +57,7 @@ export async function POST(
       return validationError('analysisId is required');
     }
 
-    const analysis = executiveAnalysisDb.getById(analysisId);
+    const analysis = executiveAnalysisRepository.getById(analysisId);
     if (!analysis) {
       return notFoundError('Analysis');
     }

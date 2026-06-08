@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { crossTaskPlanDb } from '@/app/db';
+import { crossTaskPlanRepository } from '@/app/db/repositories/cross-task.repository';
 import { signalCollector } from '@/lib/brain/signalCollector';
 import { safeParseJson } from '@/lib/cross-task/safeParseJson';
 
@@ -27,7 +27,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     const { id } = await params;
     const body: CompleteRequest = await request.json();
 
-    const plan = crossTaskPlanDb.getById(id);
+    const plan = crossTaskPlanRepository.getById(id);
 
     if (!plan) {
       return NextResponse.json(
@@ -69,7 +69,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     const executionTimeMs = Date.now() - startTime;
 
     // Complete the plan with results
-    const updated = crossTaskPlanDb.completePlan(id, {
+    const updated = crossTaskPlanRepository.completePlan(id, {
       requirement_summary: body.requirement_summary,
       current_flow_analysis: body.current_flow_analysis,
       plan_option_1: plan1.content,
@@ -112,7 +112,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     // Try to mark the plan as failed
     try {
       const { id } = await params;
-      crossTaskPlanDb.failPlan(id, error instanceof Error ? error.message : 'Unknown error');
+      crossTaskPlanRepository.failPlan(id, error instanceof Error ? error.message : 'Unknown error');
     } catch {
       // Ignore errors during failure marking
     }

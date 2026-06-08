@@ -4,7 +4,8 @@
  * Used for weighted cross-project best practice transfer.
  */
 
-import { contextDb, projectArchitectureMetadataDb } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { projectArchitectureMetadataRepository } from '@/app/db/repositories/project-architecture-metadata.repository';
 
 // In-memory cache with 5-minute TTL
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -24,7 +25,7 @@ export function computeTechFingerprint(projectId: string): Set<string> {
 
   try {
     // Gather tech_stack from all contexts
-    const contexts = contextDb.getContextsByProject(projectId);
+    const contexts = contextRepository.getContextsByProject(projectId);
     for (const ctx of contexts) {
       if (ctx.tech_stack) {
         try {
@@ -38,7 +39,7 @@ export function computeTechFingerprint(projectId: string): Set<string> {
 
     // Add framework from project architecture metadata
     try {
-      const meta = projectArchitectureMetadataDb.getByProject(projectId);
+      const meta = projectArchitectureMetadataRepository.getByProject(projectId);
       if (meta?.framework) {
         techs.add(meta.framework.toLowerCase().trim());
       }

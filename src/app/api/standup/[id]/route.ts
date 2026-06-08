@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { standupDb } from '@/app/db';
+import { standupRepository } from '@/app/db/repositories/standup.repository';
 import { StandupSummaryResponse } from '@/app/db/models/standup.types';
 import { parseStandupJsonArray, StandupBlockerSchema, StandupHighlightSchema, StandupFocusAreaSchema } from '@/lib/api/schemas/standup';
 import { logger } from '@/lib/logger';
@@ -19,7 +19,7 @@ async function handleGet(request: NextRequest, context: RouteParams) {
   try {
     const { id } = await context.params;
 
-    const dbSummary = standupDb.getSummaryById(id);
+    const dbSummary = standupRepository.getSummaryById(id);
 
     if (!dbSummary) {
       return NextResponse.json(
@@ -79,7 +79,7 @@ async function handleDelete(request: NextRequest, context: RouteParams) {
   try {
     const { id } = await context.params;
 
-    const deleted = standupDb.deleteSummary(id);
+    const deleted = standupRepository.deleteSummary(id);
 
     if (!deleted) {
       return NextResponse.json(

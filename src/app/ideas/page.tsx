@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import { Context } from '@/lib/queries/contextQueries';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useClientProjectStore } from '@/stores/clientProjectStore';

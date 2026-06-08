@@ -5,7 +5,7 @@
  */
 
 import { createSupabaseClient, isSupabaseConfigured } from './client';
-import { goalDb } from '@/app/db';
+import { goalRepository } from '@/app/db/repositories/goal.repository';
 import { createLogger } from '@/lib/utils/logger';
 import type { DbGoal } from '@/app/db/models/types';
 import type { Database } from '@/lib/supabase';
@@ -262,7 +262,7 @@ export async function batchSyncGoals(projectId: string): Promise<BatchSyncResult
     const supabase = createSupabaseClient();
 
     // Fetch all goals for the project from SQLite
-    const goals = goalDb.getGoalsByProject(projectId);
+    const goals = goalRepository.getGoalsByProject(projectId);
 
     if (goals.length === 0) {
       logger.info(`No goals to sync for project ${projectId}`);

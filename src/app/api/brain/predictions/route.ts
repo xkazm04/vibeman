@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { predictiveIntentEngine } from '@/lib/brain/predictiveIntentEngine';
-import { predictiveIntentDb } from '@/app/db';
+import { predictiveIntentRepository } from '@/app/db/repositories/predictive-intent.repository';
 import { withObservability } from '@/lib/observability/middleware';
 import { checkProjectAccess } from '@/lib/api-helpers/accessControl';
 

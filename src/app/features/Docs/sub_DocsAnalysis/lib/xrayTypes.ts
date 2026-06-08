@@ -109,7 +109,6 @@ export const API_ROUTE_LAYER_MAP: Record<string, 'pages' | 'client' | 'server' |
   // External service routes
   '/api/voicebot': 'external',
   '/api/tester': 'external',
-  '/api/dependencies': 'external',
   '/api/security': 'external',
 
   // Page routes (Next.js pages)

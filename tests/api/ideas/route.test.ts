@@ -43,12 +43,13 @@ vi.mock('@/lib/services/analyticsAggregation', () => ({
   },
 }));
 
-// Mock the database module to use test database
-vi.mock('@/app/db', async () => {
+// Mock the repository modules (routes import repositories directly, not the
+// @/app/db barrel) to use the test database
+vi.mock('@/app/db/repositories/idea.repository', async () => {
   const { getTestDatabase } = await import('@tests/setup/test-database');
 
   return {
-    ideaDb: {
+    ideaRepository: {
       getAllIdeas: () => {
         const db = getTestDatabase();
         return db.prepare('SELECT * FROM ideas ORDER BY created_at DESC').all();
@@ -186,20 +187,32 @@ vi.mock('@/app/db', async () => {
         return result.changes;
       },
     },
-    scanDb: {
+  };
+});
+
+vi.mock('@/app/db/repositories/scan.repository', async () => {
+  const { getTestDatabase } = await import('@tests/setup/test-database');
+
+  return {
+    scanRepository: {
       getScanById: (id: string) => {
         const db = getTestDatabase();
         return db.prepare('SELECT * FROM scans WHERE id = ?').get(id);
       },
     },
-    contextDb: {
+  };
+});
+
+vi.mock('@/app/db/repositories/context.repository', async () => {
+  const { getTestDatabase } = await import('@tests/setup/test-database');
+
+  return {
+    contextRepository: {
       getContextById: (id: string) => {
         const db = getTestDatabase();
         return db.prepare('SELECT * FROM contexts WHERE id = ?').get(id);
       },
     },
-    DbIdea: {},
-    DbIdeaWithColor: {},
   };
 });
 

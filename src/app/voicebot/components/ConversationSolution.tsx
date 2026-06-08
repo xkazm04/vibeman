@@ -26,7 +26,6 @@ import {
   generateEvaluationPrompt
 } from '../lib';
 import type { MultiModelLog } from '@/lib/voice/voicebotTypes';
-import { generateCallId, generateMessageId, isMonitoringEnabled } from '@/app/monitor/lib';
 import { SimpleSpinner } from '@/components/ui/Spinner';
 
 export default function ConversationSolution() {
@@ -41,8 +40,6 @@ export default function ConversationSolution() {
   const [evaluation, setEvaluation] = useState<string | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isMultiModel, setIsMultiModel] = useState(false);
-  const [currentCallId, setCurrentCallId] = useState<string | null>(null);
-  const [monitoring, setMonitoring] = useState(false);
   // Nova Sonic state
   const [voiceProvider, setVoiceProvider] = useState<VoiceProvider>('elevenlabs');
   const [novaVoiceId, setNovaVoiceId] = useState('tiffany');
@@ -54,7 +51,6 @@ export default function ConversationSolution() {
   const responsesRef = useRef<string[]>([]);
   const multiModelResponsesRef = useRef<Record<string, string[]>>({});
   const timingsRef = useRef<Array<{ llmMs?: number; ttsMs?: number; novaMs?: number; totalMs?: number }>>([]);
-  const callStartTimeRef = useRef<string | null>(null);
 
   // Load test questions on mount
   useEffect(() => {
@@ -342,45 +338,6 @@ export default function ConversationSolution() {
       responsesRef.current.push(assistantText);
       timingsRef.current.push(timing);
 
-      // Track messages if monitoring is enabled
-      if (currentCallId) {
-        const timestamp = new Date().toISOString();
-
-        // Track user message (question)
-        fetch('/api/monitor/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messageId: generateMessageId(),
-            callId: currentCallId,
-            role: 'user',
-            content: sentence,
-            timestamp,
-            metadata: { questionIndex: currentSentenceIndex }
-          })
-        }).catch(error => console.error('Failed to track user message:', error));
-
-        // Track assistant message (response)
-        fetch('/api/monitor/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messageId: generateMessageId(),
-            callId: currentCallId,
-            role: 'assistant',
-            content: assistantText,
-            timestamp: new Date().toISOString(),
-            latencyMs: timing.totalMs,
-            metadata: {
-              ...timing,
-              voiceProvider,
-              provider: voiceProvider === 'nova-sonic' ? 'nova-sonic' : provider,
-              model: voiceProvider === 'nova-sonic' ? 'amazon.nova-2-sonic-v1:0' : model,
-            }
-          })
-        }).catch(error => console.error('Failed to track assistant message:', error));
-      }
-
       const providerLabel = voiceProvider === 'nova-sonic' ? 'Nova Sonic' : provider;
       const timingDisplay = voiceProvider === 'nova-sonic'
         ? `[Nova: ${timing.novaMs}ms | Total: ${timing.totalMs}ms]`
@@ -414,7 +371,7 @@ export default function ConversationSolution() {
       setIsPlaying(false);
       isPlayingRef.current = false;
     }
-  }, [currentSentenceIndex, logs, provider, model, addLog, runEvaluation, testQuestions, currentCallId, voiceProvider, novaVoiceId]);
+  }, [currentSentenceIndex, logs, provider, model, addLog, runEvaluation, testQuestions, voiceProvider, novaVoiceId]);
 
   const startConversation = useCallback(() => {
     sentenceIndexRef.current = 0;
@@ -429,38 +386,6 @@ export default function ConversationSolution() {
     timingsRef.current = [];
     multiModelResponsesRef.current = {};
 
-    // Create monitoring call if enabled
-    if (monitoring && isMonitoringEnabled()) {
-      const callId = generateCallId();
-      const startTime = new Date().toISOString();
-
-      callStartTimeRef.current = startTime;
-      setCurrentCallId(callId);
-
-      fetch('/api/monitor/calls', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          callId,
-          userId: 'conversation-test-user',
-          startTime,
-          status: 'active',
-          intent: 'conversation-test',
-          promptVersionId: voiceProvider === 'nova-sonic'
-            ? `nova-sonic:${novaVoiceId}`
-            : isMultiModel ? 'multi-model' : `${provider}:${model}`,
-          metadata: {
-            voiceProvider,
-            provider: voiceProvider === 'nova-sonic' ? 'nova-sonic' : provider,
-            model: voiceProvider === 'nova-sonic' ? 'amazon.nova-2-sonic-v1:0' : model,
-            type: 'conversation-test',
-            isMultiModel: voiceProvider === 'elevenlabs' && isMultiModel,
-            questionCount: testQuestions.length
-          }
-        })
-      }).catch(error => console.error('Failed to create monitoring call:', error));
-    }
-
     if (voiceProvider === 'nova-sonic') {
       addLog('system', `Starting conversation test with Nova Sonic (voice: ${novaVoiceId})`);
       playNextSentence();
@@ -471,7 +396,7 @@ export default function ConversationSolution() {
       addLog('system', `Starting conversation test with ${provider} (${model})`);
       playNextSentence();
     }
-  }, [provider, model, isMultiModel, addLog, playNextSentence, playNextSentenceMultiModel, monitoring, testQuestions.length, voiceProvider, novaVoiceId]);
+  }, [provider, model, isMultiModel, addLog, playNextSentence, playNextSentenceMultiModel, voiceProvider, novaVoiceId]);
 
   const stopConversation = useCallback(() => {
     setIsPlaying(false);
@@ -483,35 +408,8 @@ export default function ConversationSolution() {
       audioRef.current = null;
     }
 
-    // Update monitoring call if enabled
-    if (currentCallId && callStartTimeRef.current) {
-      const endTime = new Date().toISOString();
-      const startMs = new Date(callStartTimeRef.current).getTime();
-      const endMs = new Date(endTime).getTime();
-      const duration = endMs - startMs;
-
-      fetch('/api/monitor/calls', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          callId: currentCallId,
-          endTime,
-          duration,
-          status: 'completed',
-          outcome: 'test-completed',
-          metadata: {
-            totalQuestions: questionsRef.current.length,
-            totalResponses: responsesRef.current.length
-          }
-        })
-      }).catch(error => console.error('Failed to update monitoring call:', error));
-
-      setCurrentCallId(null);
-      callStartTimeRef.current = null;
-    }
-
     addLog('system', 'Conversation test stopped');
-  }, [addLog, currentCallId]);
+  }, [addLog]);
 
   const clearLogs = useCallback(() => {
     setLogs([]);
@@ -569,7 +467,6 @@ export default function ConversationSolution() {
             onStart={startConversation}
             onStop={stopConversation}
             onClear={clearLogs}
-            onMonitoringChange={setMonitoring}
           />
         </div>
 

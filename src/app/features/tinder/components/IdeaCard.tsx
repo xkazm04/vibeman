@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, useTransform, useMotionTemplate } from 'framer-motion';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import {
   getCategoryConfig,
   effortScale,

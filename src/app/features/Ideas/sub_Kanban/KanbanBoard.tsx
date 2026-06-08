@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 import { Sparkles } from 'lucide-react';
 import KanbanColumn, { COLUMN_CONFIGS, type IdeaStatus } from './KanbanColumn';
 import { useIdeas, useUpdateIdea, useInvalidateIdeas } from '@/lib/queries/ideaQueries';

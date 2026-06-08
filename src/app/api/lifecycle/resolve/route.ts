@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { env } from '@/lib/config/envConfig';
-import { ideaDb } from '@/app/db';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
 import { logger } from '@/lib/logger';
 import { createRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
@@ -21,7 +21,7 @@ async function handlePost(request: NextRequest) {
     }
 
     // Get the idea
-    const idea = ideaDb.getIdeaById(ideaId);
+    const idea = ideaRepository.getIdeaById(ideaId);
 
     if (!idea) {
       return NextResponse.json(
@@ -31,7 +31,7 @@ async function handlePost(request: NextRequest) {
     }
 
     // Update idea status to indicate it's being processed
-    ideaDb.updateIdea(ideaId, { status: 'accepted' });
+    ideaRepository.updateIdea(ideaId, { status: 'accepted' });
 
     // Generate requirement name
     const requirementName = `lifecycle_${ideaId}_${Date.now()}`;
@@ -55,7 +55,7 @@ async function handlePost(request: NextRequest) {
         const result = await response.json();
 
         // Mark idea as implemented
-        ideaDb.updateIdea(ideaId, { status: 'implemented' });
+        ideaRepository.updateIdea(ideaId, { status: 'implemented' });
 
         return NextResponse.json({
           success: true,

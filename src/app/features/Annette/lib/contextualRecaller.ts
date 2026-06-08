@@ -11,7 +11,8 @@
  * - memoryMaintenance.ts – decay, pruning, learning
  */
 
-import { annetteDb, contextDb } from '@/app/db';
+import { annetteDb } from '@/app/db/composites/annette.db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
 import type { DbAnnetteMemory, DbAnnetteKnowledgeNode } from '@/app/db/models/annette.types';
 import {
   unifiedKnowledgeStore,
@@ -217,7 +218,7 @@ export const contextualRecaller = {
     signals: ConversationContext
   ): Array<{ id: string; name: string; keywords: string[]; entryPoints: Array<{ path: string; type: string }>; apiSurface: Array<{ path: string; methods: string }> }> {
     try {
-      const allContexts = contextDb.getContextsByProject(projectId);
+      const allContexts = contextRepository.getContextsByProject(projectId);
       const queryTerms = [...signals.topics, ...signals.entities].map(t => t.toLowerCase());
 
       if (queryTerms.length === 0) return [];

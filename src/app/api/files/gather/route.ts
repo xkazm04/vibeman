@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { contextDb } from '@/app/db';
+import { contextRepository } from '@/app/db/repositories/context.repository';
 import { logger } from '@/lib/logger';
 
 /**
@@ -100,7 +100,7 @@ async function gatherFilesFromContext(
 ): Promise<CodebaseFile[]> {
   try {
     logger.info('Gathering files from context', { contextId });
-    const context = contextDb.getContextById(contextId);
+    const context = contextRepository.getContextById(contextId);
 
     if (!context) {
       logger.warn('Context not found', { contextId });

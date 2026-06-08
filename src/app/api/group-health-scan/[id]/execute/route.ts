@@ -6,7 +6,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { groupHealthDb, contextDb, contextGroupDb } from '@/app/db';
+import { contextGroupRepository } from '@/app/db/repositories/context-group.repository';
+import { contextRepository } from '@/app/db/repositories/context.repository';
+import { groupHealthRepository } from '@/app/db/repositories/group-health.repository';
 import { startExecution } from '@/lib/claude-terminal/cli-service';
 import { buildRefactorScanPrompt } from '@/app/features/Context/sub_ContextGroups/lib/healthScanPrompt';
 import { buildBeautifyScanPrompt } from '@/app/features/Context/sub_ContextGroups/lib/beautifyScanPrompt';
@@ -43,7 +45,7 @@ async function handlePost(
     }
 
     // Get the scan record
-    const scan = groupHealthDb.getById(id);
+    const scan = groupHealthRepository.getById(id);
     if (!scan) {
       return NextResponse.json(
         { error: 'Scan not found' },
@@ -60,10 +62,10 @@ async function handlePost(
     }
 
     // Get the group info for the prompt
-    const group = contextGroupDb.getGroupById(scan.group_id);
+    const group = contextGroupRepository.getGroupById(scan.group_id);
     if (!group) {
       // Mark scan as failed since group doesn't exist
-      groupHealthDb.failScan(id);
+      groupHealthRepository.failScan(id);
       return NextResponse.json(
         { error: 'Context group not found' },
         { status: 404 }
@@ -71,7 +73,7 @@ async function handlePost(
     }
 
     // Get file paths from contexts in this group
-    const contexts = contextDb.getContextsByGroup(scan.group_id);
+    const contexts = contextRepository.getContextsByGroup(scan.group_id);
     const filePaths: string[] = [];
     for (const ctx of contexts) {
       try {
@@ -88,7 +90,7 @@ async function handlePost(
 
     if (filePaths.length === 0) {
       // Mark scan as failed since no files
-      groupHealthDb.failScan(id);
+      groupHealthRepository.failScan(id);
       return NextResponse.json(
         { error: 'No files found in this group\'s contexts' },
         { status: 400 }
@@ -148,7 +150,7 @@ async function handlePost(
     } catch (execError) {
       // CLI failed to start - mark scan as failed
       logger.error('[API] Failed to start CLI execution:', { execError });
-      groupHealthDb.failScan(id);
+      groupHealthRepository.failScan(id);
       return NextResponse.json(
         { error: `Failed to start CLI: ${execError instanceof Error ? execError.message : 'Unknown error'}` },
         { status: 500 }
@@ -156,7 +158,7 @@ async function handlePost(
     }
 
     // Update scan record with execution ID and status
-    groupHealthDb.update(id, {
+    groupHealthRepository.update(id, {
       status: 'running',
       started_at: new Date().toISOString(),
     });
@@ -180,7 +182,7 @@ async function handlePost(
     // Mark scan as failed on any error
     if (scanId) {
       try {
-        groupHealthDb.failScan(scanId);
+        groupHealthRepository.failScan(scanId);
       } catch {
         // Ignore cleanup errors
       }

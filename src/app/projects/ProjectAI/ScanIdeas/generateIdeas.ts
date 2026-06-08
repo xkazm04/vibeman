@@ -1,4 +1,4 @@
-import { ideaDb } from '@/app/db';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
 import { generateWithLLM, DefaultProviderStorage } from '@/lib/llm';
 import { buildIdeaGenerationPrompt } from './lib/promptBuilder';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
@@ -69,8 +69,8 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
     // 3. Get existing ideas to prevent duplicates
     logger.info('Fetching existing ideas');
     const existingIdeas = contextId
-      ? ideaDb.getIdeasByContext(contextId)
-      : ideaDb.getIdeasByProject(projectId);
+      ? ideaRepository.getIdeasByContext(contextId)
+      : ideaRepository.getIdeasByProject(projectId);
 
     // 4. Build prompt using specialized prompt builder
     const effectiveScanType: ScanType = scanType ?? 'zen_architect';

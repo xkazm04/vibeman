@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import { X } from 'lucide-react';
-import { DbIdea } from '@/app/db';
+import type { DbIdea } from '@/app/db/models/types';
 
 interface IdeaDetailHeaderProps {
   idea: DbIdea;

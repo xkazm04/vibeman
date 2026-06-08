@@ -10,7 +10,11 @@
  * - Behavioral pattern shift → suggestion
  */
 
-import { brainReflectionDb, brainInsightDb, directionOutcomeDb, behavioralSignalDb, directionDb } from '@/app/db';
+import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-signal.repository';
+import { brainInsightRepository } from '@/app/db/repositories/brain-insight.repository';
+import { brainReflectionRepository } from '@/app/db/repositories/brain-reflection.repository';
+import { directionOutcomeRepository } from '@/app/db/repositories/direction-outcome.repository';
+import { directionRepository } from '@/app/db/repositories/direction.repository';
 import { consumeTaskEvents, TaskNotificationEvent } from '@/lib/brain/taskNotificationEmitter';
 import { consumeAgentEvents, AgentNotificationEvent } from './agentNotificationBridge';
 import { logger } from '@/lib/logger';
@@ -78,7 +82,7 @@ export function checkForNotifications(projectId: string): AnnetteNotification[] 
  * Check if a reflection recently completed with new insights
  */
 function checkReflectionCompleted(projectId: string): AnnetteNotification | null {
-  const latest = brainReflectionDb.getLatestCompleted(projectId);
+  const latest = brainReflectionRepository.getLatestCompleted(projectId);
   if (!latest || !latest.completed_at) return null;
 
   const completedAt = new Date(latest.completed_at).getTime();
@@ -87,7 +91,7 @@ function checkReflectionCompleted(projectId: string): AnnetteNotification | null
   // Only notify if completed in last 5 minutes
   if (completedAt < fiveMinAgo) return null;
 
-  const insightCount = brainInsightDb.countByReflection(latest.id);
+  const insightCount = brainInsightRepository.countByReflection(latest.id);
 
   return {
     id: `reflection-${latest.id}`,
@@ -109,7 +113,7 @@ function checkReflectionCompleted(projectId: string): AnnetteNotification | null
  */
 function checkRecentOutcomes(projectId: string): AnnetteNotification[] {
   const notifications: AnnetteNotification[] = [];
-  const recent = directionOutcomeDb.getByProject(projectId, { limit: 5 });
+  const recent = directionOutcomeRepository.getByProject(projectId, { limit: 5 });
   const oneHourAgo = Date.now() - 60 * 60 * 1000;
 
   for (const outcome of recent) {
@@ -166,8 +170,8 @@ function checkRecentOutcomes(projectId: string): AnnetteNotification[] {
  * Check if decision threshold is approaching
  */
 function checkDecisionThreshold(projectId: string): AnnetteNotification | null {
-  const lastReflection = brainReflectionDb.getLatestCompleted(projectId);
-  const allDirections = directionDb.getDirectionsByProject(projectId);
+  const lastReflection = brainReflectionRepository.getLatestCompleted(projectId);
+  const allDirections = directionRepository.getDirectionsByProject(projectId);
 
   const lastReflectedAt = lastReflection?.completed_at;
   let decisionCount: number;

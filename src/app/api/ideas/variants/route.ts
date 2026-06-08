@@ -4,7 +4,7 @@
  * POST - Generate variants via LLM (variantApi)
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { ideaDb } from '@/app/db';
+import { ideaRepository } from '@/app/db/repositories/idea.repository';
 import { generateWithLLM } from '@/lib/llm';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
@@ -160,7 +160,7 @@ async function handlePost(request: NextRequest) {
       });
     }
 
-    const idea = ideaDb.getIdeaById(body.ideaId);
+    const idea = ideaRepository.getIdeaById(body.ideaId);
     if (!idea) {
       return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND);
     }

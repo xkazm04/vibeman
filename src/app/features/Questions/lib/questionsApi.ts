@@ -3,7 +3,7 @@
  * Client-side functions for interacting with the Questions API
  */
 
-import { DbQuestion } from '@/app/db';
+import type { DbQuestion } from '@/app/db/models/types';
 import { Context, ContextGroup } from '@/lib/queries/contextQueries';
 import { safeResponseJson, parseApiResponse, QuestionsResponseSchema, QuestionMutationSchema, SuccessResponseSchema } from '@/lib/apiResponseGuard';
 import type { GenericListResponse } from '@/lib/api-helpers/groupByContextMap';

@@ -1,4 +1,4 @@
-import { eventDb } from '@/app/db';
+import { eventRepository } from '@/app/db/repositories/event.repository';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -26,7 +26,7 @@ function safelyLogEvent(
   try {
     const eventId = uuidv4();
 
-    eventDb.createEvent({
+    eventRepository.createEvent({
       id: eventId,
       project_id: projectId,
       title,

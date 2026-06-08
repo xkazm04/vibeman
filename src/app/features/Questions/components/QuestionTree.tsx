@@ -13,7 +13,7 @@ import {
   GitBranch, FileText, Zap, Compass, Sparkles, Check, Clock, Trash2, Target,
 } from 'lucide-react';
 import ExpandChevron from '@/components/ui/ExpandChevron';
-import { DbQuestion } from '@/app/db';
+import type { DbQuestion } from '@/app/db/models/types';
 import type { QuestionTreeNode } from '@/lib/questions/questionTreeService';
 import { transitions } from '@/lib/design-tokens';
 import EmptyState from '@/components/ui/EmptyState';

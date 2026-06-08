@@ -5,8 +5,8 @@
  */
 
 import { NextRequest } from 'next/server';
-import { xrayDb } from '@/app/db';
-import type { DbXRayEvent } from '@/app/db';
+import { xrayRepository } from '@/app/db/repositories/xray.repository';
+import type { DbXRayEvent } from '@/app/db/models/types';
 
 // X-Ray event structure for SSE streaming
 export interface XRayEvent {
@@ -83,7 +83,7 @@ export function emitXRayEventFromDb(dbEvent: DbXRayEvent & {
  * Get recent events from database with context details
  */
 export function getRecentEventsFromDb(limit: number = 50): XRayEvent[] {
-  const dbEvents = xrayDb.getWithContextDetails(limit);
+  const dbEvents = xrayRepository.getWithContextDetails(limit);
   return dbEvents.map(dbEventToXRayEvent);
 }
 
