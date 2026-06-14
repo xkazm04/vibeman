@@ -35,6 +35,7 @@ import {
 } from '../lib/RuleBasedInsightTypes';
 import { SCAN_TYPE_CONFIG } from '../lib/config';
 import { useReflectorStore } from '@/stores/reflectorStore';
+import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { ExecutiveAnalysisTrigger } from './ExecutiveAnalysisTrigger';
 import { ExecutiveAnalysisTerminal } from './ExecutiveAnalysisTerminal';
 import type { ExecutiveAIInsight } from '@/app/db/models/reflector.types';
@@ -448,6 +449,16 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
     fetchAnalysisStatus,
   } = useReflectorStore();
 
+  // The analysis terminal runs the CLI in a real project directory. This is a
+  // 'use client' component, so `process.cwd()` is unavailable (it throws in the
+  // browser and crashes the panel). Resolve a valid path from the project store
+  // instead — the filtered project if set, else the first known project.
+  const serverProjects = useServerProjectStore((s) => s.projects);
+  const analysisProjectPath =
+    serverProjects.find((p) => p.id === filters.projectId)?.path ||
+    serverProjects[0]?.path ||
+    '';
+
   const loadInsights = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -607,7 +618,7 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
             analysisStatus={analysisStatus}
             promptContent={promptContent}
             runningAnalysisId={runningAnalysisId}
-            projectPath={process.cwd()}
+            projectPath={analysisProjectPath}
             projectId={filters.projectId || 'reflector'}
             projectName={report.filterContext.projectName || 'Reflector'}
             onStatusRefresh={handleStatusRefresh}
