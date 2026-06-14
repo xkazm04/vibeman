@@ -76,16 +76,29 @@ export const sessionRepository = {
   },
 
   /**
-   * Get active sessions for a project (not completed/failed)
+   * Get active sessions for a project (not completed/failed).
+   *
+   * A 'pending' or 'running' session whose heartbeat (updated_at) is older than
+   * `staleThresholdMinutes` is treated as dead and excluded: nothing actually
+   * reaps stale sessions (the getStale* helpers have no callers), so a spawn that
+   * threw before flipping to 'running', or a CLI that crashed mid-run, would
+   * otherwise count as active indefinitely and inflate session-limit gating and
+   * the sidebar's active count. 'paused' sessions are intentionally idle and
+   * always count.
    */
-  getActive(projectId: string): DbClaudeCodeSession[] {
+  getActive(projectId: string, staleThresholdMinutes: number = 15): DbClaudeCodeSession[] {
     const db = getDatabase();
+    const cutoff = new Date(Date.now() - staleThresholdMinutes * 60 * 1000).toISOString();
     const stmt = db.prepare(`
       SELECT * FROM claude_code_sessions
-      WHERE project_id = ? AND status IN ('pending', 'running', 'paused')
+      WHERE project_id = ?
+        AND (
+          status = 'paused'
+          OR (status IN ('pending', 'running') AND updated_at >= ?)
+        )
       ORDER BY created_at DESC
     `);
-    return stmt.all(projectId) as DbClaudeCodeSession[];
+    return stmt.all(projectId, cutoff) as DbClaudeCodeSession[];
   },
 
   /**
