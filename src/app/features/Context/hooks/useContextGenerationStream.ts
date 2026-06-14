@@ -104,9 +104,16 @@ export function useContextGenerationStream({ streamUrl }: UseContextGenerationSt
       setSummary(summaryDataRef.current);
       setStatus('completed');
 
-      // Deferred cleanup: delete old data now that new data has been created
+      // Deferred cleanup: delete old data ONLY when new data actually replaced it.
+      // `onResult` fires on any normal process completion — including a token cutoff
+      // or a mid-run error that never emitted the generation summary and never
+      // created any contexts. Deleting `previousDataIds` in that case wipes the
+      // user's entire existing context map with no undo, so gate cleanup on the
+      // generation having produced at least one new context or group.
+      const summary = summaryDataRef.current;
+      const producedNewData = summary.contextsCreated > 0 || summary.groupsCreated > 0;
       const scan = useContextGenerationStore.getState().activeScan;
-      if (scan?.previousDataIds) {
+      if (scan?.previousDataIds && producedNewData) {
         fetch('/api/context-generation/cleanup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -115,6 +122,11 @@ export function useContextGenerationStream({ streamUrl }: UseContextGenerationSt
             previousDataIds: scan.previousDataIds,
           }),
         }).catch(err => console.error('[ContextGeneration] Deferred cleanup failed:', err));
+      } else if (scan?.previousDataIds && !producedNewData) {
+        appendMessage(createMsg(
+          'system',
+          'Generation produced no new contexts — keeping the existing context map (cleanup skipped).'
+        ));
       }
     },
 
