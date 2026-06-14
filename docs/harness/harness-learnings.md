@@ -52,9 +52,9 @@
 - ~~Safe tools list could be used to auto-approve in CLI path~~ — **DONE** (Run #4: SAFE_TOOLS set in manualSession.types.ts, auto-approve in store)
 
 ## Open follow-ups (from bug-hunter+ui-perfectionist scan, 2026-06-14)
-Full triage: `docs/harness/bug-ux-scan-2026-06-14/INDEX.md` (50 findings across 10 live contexts). Wave 1 + remote cheap-subset = 8 fixes shipped on branch `vibeman/bug-ux-fixes`. Remaining:
+Full triage: `docs/harness/bug-ux-scan-2026-06-14/INDEX.md` (50 findings across 10 live contexts). Wave 1 + remote cheap-subset = 8 fixes; Wave 2 = 4 fixes. All shipped on branch `vibeman/bug-ux-fixes` (see `FIXES-WAVE-1.md`, `FIXES-WAVE-2.md`). Remaining:
 - **Remote auth/ownership (remote #1, #2)** — mesh/fleet have zero auth and there is no device-ownership model. Deferred: needs an API-key-auth + ownership design, not a quick fix.
-- **Wave 2 — concurrency/double-exec (7):** scan-queue PATCH status overwrite, orphan-recovery requeues running jobs, file-watch never wakes worker, taskrunner taskId=requirementName collisions, architecture analysis never marked running.
+- ~~**Wave 2 — concurrency/double-exec:**~~ **DONE** (4 of 5): scan-queue PATCH status guard, orphan-recovery age threshold, file-watch wakes worker, architecture analysis marked running. **taskrunner #2 (taskId=requirementName collisions) DEFERRED** — its file `src/app/Claude/lib/claudeExecutionQueue.ts` is in the active headless-slim WIP; editing it would entangle the refactor into the fix commit. Pick up once that file is committed/stashed.
 - **Wave 3 — orphaned lifecycle (4):** orphaned "running" exec-analyses never reaped, PID orphan-reaping never engages, stale session reaping gaps, orphaned direction half-pairs.
 - **Wave 4 — DB integrity (6):** nested-transaction migration 067 crash, `buildUpdateStatement` double-binds `updated_at`, migration success recorded outside txn, `batchMoveContexts` CASE-without-ELSE NULLs group_id, JSON-column no safe-parse, WAL/FK pragmas unverified.
 - **Wave 5 — computed-data correctness (5):** `getChangedFiles` HEAD~1 mis-attribution, X-Ray edge-id keying mismatch, impact-simulator id-vs-path, dead context-refresh route, proposalAdapter path-into-rationale leak.
