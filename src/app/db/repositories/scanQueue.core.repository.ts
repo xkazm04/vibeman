@@ -282,21 +282,26 @@ export const scanQueueCoreRepository = {
 
   /**
    * Reset orphaned running items back to queued.
-   * Items stuck in 'running' status after a crash are recovered so they can be reprocessed.
+   * Only items whose `started_at` is older than `staleThresholdMinutes` (or null)
+   * are recovered — a job that started recently is most likely still genuinely
+   * in flight (e.g. an LLM scan, or a concurrent live process / Next.js HMR
+   * reload). Requeuing those would re-claim and execute them a second time.
    * Returns the number of items reset.
    */
-  resetOrphanedRunning: (): number => {
+  resetOrphanedRunning: (staleThresholdMinutes: number = 10): number => {
     const db = getDatabase();
     const now = new Date().toISOString();
+    const cutoff = new Date(Date.now() - staleThresholdMinutes * 60_000).toISOString();
 
     const stmt = db.prepare(`
       UPDATE scan_queue
       SET status = 'queued', started_at = NULL, updated_at = ?,
           progress = 0, progress_message = 'Requeued after worker restart', current_step = NULL
       WHERE status = 'running'
+        AND (started_at IS NULL OR started_at < ?)
     `);
 
-    const result = stmt.run(now);
+    const result = stmt.run(now, cutoff);
     return result.changes;
   },
 
