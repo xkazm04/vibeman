@@ -246,9 +246,29 @@ export const POST = withRemoteSupabase('Fleet', async (supabase, request: NextRe
         );
       }
 
-      if (!command_type) {
+      // Enforce the same command_type allow-list the main /commands and mesh
+      // routes use — fleet previously accepted any truthy string verbatim, letting
+      // a caller inject command types the allow-listed paths reject.
+      const FLEET_ALLOWED_COMMAND_TYPES = [
+        'create_goal', 'update_goal', 'delete_goal',
+        'accept_idea', 'reject_idea', 'skip_idea',
+        'start_batch', 'pause_batch', 'resume_batch', 'stop_batch',
+        'trigger_scan',
+      ];
+      if (!command_type || !FLEET_ALLOWED_COMMAND_TYPES.includes(command_type)) {
         return NextResponse.json(
-          { success: false, error: 'command_type is required' },
+          { success: false, error: `Invalid command_type. Must be one of: ${FLEET_ALLOWED_COMMAND_TYPES.join(', ')}` },
+          { status: 400 }
+        );
+      }
+
+      // Cap fan-out: an unbounded device_ids array would insert one pending command
+      // per id, a queue-flooding / DoS amplification primitive against the shared
+      // command queue.
+      const MAX_FLEET_DEVICES = 200;
+      if (device_ids.length > MAX_FLEET_DEVICES) {
+        return NextResponse.json(
+          { success: false, error: `Too many devices in one batch: ${device_ids.length} (max ${MAX_FLEET_DEVICES})` },
           { status: 400 }
         );
       }
