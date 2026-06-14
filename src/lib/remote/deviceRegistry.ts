@@ -270,6 +270,49 @@ class DeviceRegistry extends SupabaseService {
   }
 
   /**
+   * Update a SPECIFIC device's status by id, rather than this server's own
+   * locally-registered device. PATCH /api/remote/devices/[id] must mutate the
+   * device named in the URL; using updateStatus() (which targets this.deviceId)
+   * silently wrote to the wrong device and echoed the target's unchanged row back
+   * as success.
+   */
+  async updateStatusById(
+    deviceId: string,
+    status: 'online' | 'offline' | 'busy' | 'idle',
+    activeSessions?: number
+  ): Promise<boolean> {
+    if (!this.supabase || !deviceId) {
+      return false;
+    }
+
+    try {
+      const update: Record<string, unknown> = {
+        status,
+        last_heartbeat_at: new Date().toISOString(),
+      };
+
+      if (activeSessions !== undefined) {
+        update.active_sessions = activeSessions;
+      }
+
+      const { error } = await this.supabase
+        .from('vibeman_devices')
+        .update(update)
+        .eq('device_id', deviceId);
+
+      if (error) {
+        console.error('[DeviceRegistry] Update status by id failed:', error);
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error('[DeviceRegistry] Update status by id error:', err);
+      return false;
+    }
+  }
+
+  /**
    * Delete a device (admin operation)
    */
   async deleteDevice(deviceId: string): Promise<boolean> {
