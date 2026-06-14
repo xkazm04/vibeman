@@ -85,6 +85,27 @@ async function handlePatch(
 
     try {
       if (status !== undefined) {
+        const VALID_STATUSES = ['queued', 'running', 'completed', 'failed', 'cancelled'];
+        if (!VALID_STATUSES.includes(status)) {
+          return NextResponse.json(
+            { error: `Invalid status: ${status}` },
+            { status: 400 }
+          );
+        }
+        // Guard worker-owned transitions: a client must not move a job that is
+        // currently 'running' back to 'queued'/'running'. claimNextPending would
+        // then re-claim and execute it a second time, concurrently with the
+        // in-flight run (duplicate scans, duplicate ideas, lying timestamps).
+        const current = scanQueueRepository.getQueueItemById(id);
+        if (!current) {
+          return createNotFoundResponse();
+        }
+        if (current.status === 'running' && (status === 'queued' || status === 'running')) {
+          return NextResponse.json(
+            { error: `Cannot set status to '${status}' on a running job; cancel it instead.` },
+            { status: 409 }
+          );
+        }
         queueItem = scanQueueRepository.updateStatus(id, status, errorMessage);
       } else if (progress !== undefined) {
         queueItem = scanQueueRepository.updateProgress(
