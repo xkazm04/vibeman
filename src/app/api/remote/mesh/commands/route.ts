@@ -72,6 +72,15 @@ export const GET = withRemoteSupabase('Mesh/Commands', async (supabase, request:
 
   // Filter by target device (include null targets for broadcast)
   if (targetDeviceId) {
+    // target_device_id is interpolated into a PostgREST .or() filter grammar, where
+    // commas/dots/parens are operators — a crafted value could inject extra
+    // predicates and widen the result set. Restrict to a safe id charset.
+    if (!/^[A-Za-z0-9_-]+$/.test(targetDeviceId)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid target_device_id' },
+        { status: 400 }
+      );
+    }
     query = query.or(`target_device_id.is.null,target_device_id.eq.${targetDeviceId}`);
   }
 
