@@ -444,6 +444,27 @@ export async function scanBuildErrors(projectPath: string, buildCommand?: string
     const errors = uniqueErrors.filter(e => e.severity === 'error');
     const warnings = uniqueErrors.filter(e => e.severity === 'warning');
 
+    // A non-zero exit with nothing parseable means the build genuinely failed in a
+    // way our TS/ESLint parsers don't recognize (command-not-found, crash, OOM, a
+    // webpack/Next stack trace, or `spawn` itself erroring). Reporting success here
+    // would suppress the very signal this scanner exists to surface, so treat it as
+    // a hard failure instead of "build passed, 0 errors".
+    if (exitCode !== 0 && uniqueErrors.length === 0) {
+      const outputTail = output.trim().slice(-1500);
+      logger.error('Build exited non-zero with no parseable diagnostics; reporting failure. exit code:', exitCode);
+      return {
+        success: false,
+        totalErrors: 0,
+        totalWarnings: 0,
+        errors: [],
+        warnings: [],
+        errorGroups: [],
+        buildCommand: command,
+        executionTime: Date.now() - startTime,
+        error: `Build command "${command}" exited with code ${exitCode} but produced no parseable TypeScript/ESLint diagnostics. The build likely failed to run or emitted an unrecognized output format.${outputTail ? `\n\n--- build output (tail) ---\n${outputTail}` : ''}`,
+      };
+    }
+
     logger.info(`Found ${errors.length} errors and ${warnings.length} warnings`);
 
     const errorGroups = errors.length > 0 ? createIntelligentErrorGroups(errors) : [];
