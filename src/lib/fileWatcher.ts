@@ -9,6 +9,7 @@ import { scanQueueRepository } from '@/app/db/repositories/scanQueue.repository'
 import { DbFileWatchConfig } from '@/app/db/models/types';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { generateId, generateNotificationId } from '@/lib/idGenerator';
+import { scanQueueWorker } from '@/lib/scanQueueWorker';
 
 interface WatcherInstance {
   watcher: FSWatcher;
@@ -162,6 +163,15 @@ class FileWatcherManager {
         });
 
         console.log(`Queued ${scanType} scan (ID: ${queueId}) for project ${projectId}`);
+      }
+
+      // Wake the queue worker so these auto-scans run immediately. Without this,
+      // file-change scans sit in 'queued' until something else starts the worker
+      // (it is only started by a POST /api/scan-queue/worker) or, if already
+      // running, until the next adaptive poll (up to 60s). start() is idempotent.
+      if (scanTypes.length > 0) {
+        scanQueueWorker.start();
+        scanQueueWorker.notifyNewItem();
       }
 
       // Create notification for user
