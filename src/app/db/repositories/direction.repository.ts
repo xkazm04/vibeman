@@ -657,9 +657,15 @@ export const directionRepository = {
   },
 
   /**
-   * Get both directions in a pair by pair_id
+   * Get both directions in a pair by pair_id.
+   *
+   * Paired directions are created by two independent POSTs sharing a pair_id, so
+   * if the second never lands the DB holds an orphaned half-pair. `complete` is
+   * false in that case so callers can avoid presenting a one-sided "A vs B"
+   * comparison as if it were whole (the lone variant is still surfaced as a
+   * single by getPendingDirectionsGrouped).
    */
-  getDirectionPair: (pairId: string): { directionA: DbDirection | null; directionB: DbDirection | null } => {
+  getDirectionPair: (pairId: string): { directionA: DbDirection | null; directionB: DbDirection | null; complete: boolean } => {
     const db = getDatabase();
     const stmt = db.prepare(`
       SELECT * FROM directions
@@ -668,9 +674,13 @@ export const directionRepository = {
     `);
     const results = stmt.all(pairId) as DbDirection[];
 
+    const directionA = results.find(d => d.pair_label === 'A') || null;
+    const directionB = results.find(d => d.pair_label === 'B') || null;
+
     return {
-      directionA: results.find(d => d.pair_label === 'A') || null,
-      directionB: results.find(d => d.pair_label === 'B') || null,
+      directionA,
+      directionB,
+      complete: directionA !== null && directionB !== null,
     };
   },
 
