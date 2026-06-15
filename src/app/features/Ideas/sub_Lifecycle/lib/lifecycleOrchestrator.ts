@@ -72,6 +72,15 @@ class LifecycleOrchestrator {
    * Initialize the orchestrator with a project configuration
    */
   async initialize(projectId: string, config?: Partial<LifecycleConfig>): Promise<void> {
+    // Single-instance orchestrator: refuse to re-initialize for a DIFFERENT project
+    // while a cycle is actively running, or its config/cycle would be silently
+    // clobbered (cross-project state bleed). The running project keeps the slot.
+    if (this._isRunning && this.config && this.config.project_id !== projectId) {
+      throw new Error(
+        `Lifecycle orchestrator is busy with project ${this.config.project_id}; cannot initialize for ${projectId}.`
+      );
+    }
+
     const now = new Date().toISOString();
 
     this.config = {
@@ -491,6 +500,11 @@ class LifecycleOrchestrator {
 
   getConfig(): LifecycleConfig | null {
     return this.config;
+  }
+
+  /** The project this single-instance orchestrator is currently serving, if any. */
+  getProjectId(): string | null {
+    return this.config?.project_id ?? null;
   }
 
   updateConfig(updates: Partial<LifecycleConfig>): void {
