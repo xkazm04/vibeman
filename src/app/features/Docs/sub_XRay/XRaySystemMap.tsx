@@ -154,7 +154,9 @@ function calculateRowPositions(modules: SystemModule[], layerConfig: typeof LAYE
     }];
   }
 
-  const maxSpread = 60;
+  // Widen spread as node count grows so a crowded layer overlaps less; clamp to
+  // stay roughly on-screen. Mirrors SystemMap/helpers.ts.
+  const maxSpread = Math.min(96, 60 + Math.max(0, count - 4) * 4);
   const nodeSpacing = Math.min(18, maxSpread / (count - 1));
   const totalWidth = nodeSpacing * (count - 1);
   const startX = centerX - totalWidth / 2;
