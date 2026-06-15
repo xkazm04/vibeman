@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { motion } from 'framer-motion';
-import { Target, ChevronDown, Zap } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Target, ChevronDown, Zap, X, AlertTriangle } from 'lucide-react';
 import { Youtube } from '@/components/icons/brand-icons';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { toast } from '@/stores/messageStore';
@@ -39,6 +39,25 @@ export default function ScanInitiator({
   // Generated Ideas state
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [isDetailedProcessing, setIsDetailedProcessing] = React.useState(false);
+
+  // Scan progress state — drives the progress bar + "agent × context" ticker
+  interface ScanProgress {
+    done: number;
+    total: number;
+    currentLabel: string;
+    errors: number;
+  }
+  const [scanProgress, setScanProgress] = React.useState<ScanProgress | null>(null);
+  const abortControllerRef = React.useRef<AbortController | null>(null);
+
+  const handleCancelScan = React.useCallback(() => {
+    abortControllerRef.current?.abort();
+  }, []);
+
+  React.useEffect(() => {
+    // Abort any in-flight scan if the component unmounts.
+    return () => abortControllerRef.current?.abort();
+  }, []);
 
   // YouTube Scout state
   const [youtubeUrl, setYoutubeUrl] = React.useState('');
@@ -166,17 +185,20 @@ export default function ScanInitiator({
       return;
     }
 
+    const itemCount = currentSelectedContextIds.length > 0
+      ? currentSelectedContextIds.length
+      : propSelectedGroupIds.length > 0
+        ? propSelectedGroupIds.length
+        : 1;
+    const expectedFiles = selectedScanTypes.length * itemCount;
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     setIsProcessing(true);
+    setScanProgress({ done: 0, total: expectedFiles, currentLabel: '', errors: 0 });
     toast.info('Creating files', 'Creating Claude Code requirement files...');
 
     try {
-      const itemCount = currentSelectedContextIds.length > 0
-        ? currentSelectedContextIds.length
-        : propSelectedGroupIds.length > 0
-          ? propSelectedGroupIds.length
-          : 1;
-      const expectedFiles = selectedScanTypes.length * itemCount;
-
       const result = await executeClaudeCodeScan({
         projectId: activeProject.id,
         projectName: activeProject.name,
@@ -185,9 +207,20 @@ export default function ScanInitiator({
         contextIds: currentSelectedContextIds,
         groupIds: propSelectedGroupIds,
         youtubeUrl: isYoutubeSelected ? youtubeUrl.trim() : undefined,
+        signal: controller.signal,
+        onProgress: (done, total, currentLabel, status) =>
+          setScanProgress(prev => ({
+            done,
+            total,
+            currentLabel,
+            errors: (prev?.errors ?? 0) + (status === 'error' ? 1 : 0),
+          })),
       });
 
-      if (result.success) {
+      if (controller.signal.aborted) {
+        toast.warning('Scan cancelled', `${result.itemCount}/${expectedFiles} requirement files created before cancel.`);
+        if (result.itemCount > 0) onScanComplete();
+      } else if (result.success) {
         toast.success('Files created', `${result.itemCount}/${expectedFiles} requirement files created! Use TaskRunner to execute them.`);
         onScanComplete();
       } else {
@@ -198,6 +231,8 @@ export default function ScanInitiator({
       toast.error('Creation failed', errorMessage);
     } finally {
       setIsProcessing(false);
+      setScanProgress(null);
+      abortControllerRef.current = null;
     }
   };
 
@@ -213,17 +248,20 @@ export default function ScanInitiator({
       return;
     }
 
+    const itemCount = currentSelectedContextIds.length > 0
+      ? currentSelectedContextIds.length
+      : propSelectedGroupIds.length > 0
+        ? propSelectedGroupIds.length
+        : 1;
+    const expectedFiles = selectedScanTypes.length * itemCount;
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     setIsDetailedProcessing(true);
+    setScanProgress({ done: 0, total: expectedFiles, currentLabel: '', errors: 0 });
     toast.info('Creating files', 'Creating detailed requirement files with implementation procedures...');
 
     try {
-      const itemCount = currentSelectedContextIds.length > 0
-        ? currentSelectedContextIds.length
-        : propSelectedGroupIds.length > 0
-          ? propSelectedGroupIds.length
-          : 1;
-      const expectedFiles = selectedScanTypes.length * itemCount;
-
       const result = await executeClaudeCodeScan({
         projectId: activeProject.id,
         projectName: activeProject.name,
@@ -233,9 +271,20 @@ export default function ScanInitiator({
         groupIds: propSelectedGroupIds,
         detailed: true,
         youtubeUrl: isYoutubeSelected ? youtubeUrl.trim() : undefined,
+        signal: controller.signal,
+        onProgress: (done, total, currentLabel, status) =>
+          setScanProgress(prev => ({
+            done,
+            total,
+            currentLabel,
+            errors: (prev?.errors ?? 0) + (status === 'error' ? 1 : 0),
+          })),
       });
 
-      if (result.success) {
+      if (controller.signal.aborted) {
+        toast.warning('Scan cancelled', `${result.itemCount}/${expectedFiles} detailed requirement files created before cancel.`);
+        if (result.itemCount > 0) onScanComplete();
+      } else if (result.success) {
         toast.success('Files created', `${result.itemCount}/${expectedFiles} detailed requirement files created! Use TaskRunner to execute them.`);
         onScanComplete();
       } else {
@@ -246,6 +295,8 @@ export default function ScanInitiator({
       toast.error('Creation failed', errorMessage);
     } finally {
       setIsDetailedProcessing(false);
+      setScanProgress(null);
+      abortControllerRef.current = null;
     }
   };
 
@@ -358,6 +409,58 @@ export default function ScanInitiator({
             </div>
           )}
         </div>
+
+        {/* Scan Progress — bar + "agent × context" ticker + Cancel */}
+        <AnimatePresence>
+          {scanProgress && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="pt-3 border-t border-gray-700/20 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex items-center gap-2 text-2xs text-gray-400">
+                    <span className="font-mono tabular-nums text-gray-300">
+                      {scanProgress.done}/{scanProgress.total}
+                    </span>
+                    {scanProgress.currentLabel && (
+                      <span className="truncate text-gray-500" title={scanProgress.currentLabel}>
+                        {scanProgress.currentLabel}
+                      </span>
+                    )}
+                    {scanProgress.errors > 0 && (
+                      <span className="flex items-center gap-1 text-red-400 flex-shrink-0">
+                        <AlertTriangle className="w-3 h-3" />
+                        {scanProgress.errors}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleCancelScan}
+                    className="flex items-center gap-1 px-2 py-1 rounded-md border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-300 text-2xs transition-colors flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/70"
+                    title="Cancel scan"
+                    aria-label="Cancel scan"
+                  >
+                    <X className="w-3 h-3" />
+                    Cancel
+                  </button>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-gray-700/40 overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full bg-cyan-400"
+                    initial={{ width: 0 }}
+                    animate={{
+                      width: `${scanProgress.total > 0 ? (scanProgress.done / scanProgress.total) * 100 : 0}%`,
+                    }}
+                    transition={{ ease: 'easeOut', duration: 0.3 }}
+                  />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

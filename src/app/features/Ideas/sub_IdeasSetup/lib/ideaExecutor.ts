@@ -17,6 +17,21 @@ export { GatherFilesError };
 
 // ── Shared types ────────────────────────────────────────────────────────
 
+/** Per-task progress status reported to onProgress. */
+export type ScanProgressStatus = 'success' | 'error';
+
+/**
+ * Progress callback invoked once per (scanType × target) task as the loop
+ * advances. `done` is the number of tasks completed (success or error) so far,
+ * `total` the full task count, `label` the "agent × context" pair just run.
+ */
+export type ScanProgressCallback = (
+  done: number,
+  total: number,
+  label: string,
+  status: ScanProgressStatus,
+) => void;
+
 export interface ExecutionConfig {
   projectId: string;
   projectName: string;
@@ -28,6 +43,10 @@ export interface ExecutionConfig {
   detailed?: boolean;
   /** YouTube URL for the youtube_scout scan type */
   youtubeUrl?: string;
+  /** Aborts the in-flight fetch and stops the loop between tasks. */
+  signal?: AbortSignal;
+  /** Invoked after each (scanType × target) task completes (success or error). */
+  onProgress?: ScanProgressCallback;
 }
 
 export interface ExecutionResult {
@@ -128,11 +147,21 @@ export async function executeClaudeCodeScan(config: ExecutionConfig): Promise<Ex
       ? config.groupIds!.map(id => ({ groupId: id, label: `grp-${id.slice(0, 8)}` }))
       : [{ label: 'full-project' }];
 
+  const total = config.scanTypes.length * targets.length;
+  let done = 0;
+
   for (const scanType of config.scanTypes) {
     for (const target of targets) {
+      // Stop cleanly between tasks when cancelled.
+      if (config.signal?.aborted) {
+        result.success = result.itemCount > 0;
+        return result;
+      }
+
       const scanConfig = getAgent(scanType);
       const scanLabel = scanConfig?.label ?? scanType;
       const itemLabel = target.label;
+      const taskLabel = `${scanLabel} × ${itemLabel}`;
 
       try {
         // Step 1: Build prompt via API
@@ -150,6 +179,7 @@ export async function executeClaudeCodeScan(config: ExecutionConfig): Promise<Ex
             detailed: config.detailed,
             youtubeUrl: config.youtubeUrl,
           }),
+          signal: config.signal,
         });
 
         if (!apiResponse.ok) {
@@ -173,19 +203,32 @@ export async function executeClaudeCodeScan(config: ExecutionConfig): Promise<Ex
             content: apiResult.requirementContent,
             overwrite: true,
           }),
+          signal: config.signal,
         });
 
         if (writeResponse.ok) {
           const writeResult = await writeResponse.json();
           result.itemCount++;
           result.requirementPaths.push(writeResult.filePath || apiResult.requirementName);
+          done++;
+          config.onProgress?.(done, total, taskLabel, 'success');
         } else {
           const writeError = await writeResponse.json().catch(() => ({ error: 'Unknown write error' }));
           result.errors.push(`${scanLabel}/${itemLabel}: ${writeError.error || writeError.details || 'Failed to write requirement file'}`);
+          done++;
+          config.onProgress?.(done, total, taskLabel, 'error');
         }
       } catch (error) {
+        // A cancellation surfaces as an AbortError from fetch; stop without
+        // recording it as a task error.
+        if (config.signal?.aborted) {
+          result.success = result.itemCount > 0;
+          return result;
+        }
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         result.errors.push(`${scanLabel}/${itemLabel}: ${errorMessage}`);
+        done++;
+        config.onProgress?.(done, total, taskLabel, 'error');
       }
     }
   }
