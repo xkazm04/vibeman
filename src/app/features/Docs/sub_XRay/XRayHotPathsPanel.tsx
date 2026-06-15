@@ -183,7 +183,10 @@ export default function XRayHotPathsPanel({ isExpanded, onToggle }: XRayHotPaths
                               }}
                               initial={{ width: 0 }}
                               animate={{
-                                width: `${Math.min(100, (path.requestCount / hotPaths[0].requestCount) * 100)}%`,
+                                // Guard against a 0 (or missing) top-row requestCount:
+                                // `count / 0` is NaN, which renders as `width: 'NaN%'`
+                                // and a broken/blank bar on the busiest row.
+                                width: `${hotPaths[0]?.requestCount > 0 ? Math.min(100, (path.requestCount / hotPaths[0].requestCount) * 100) : 0}%`,
                               }}
                               transition={{ duration: duration.slow, delay: index * 0.1 }}
                             />
