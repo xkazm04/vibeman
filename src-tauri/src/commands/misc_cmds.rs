@@ -142,9 +142,12 @@ pub async fn get_generation_history(
 ) -> Result<Vec<serde_json::Value>, String> {
     let db = state.db()?;
     let limit = limit.unwrap_or(50);
+    // generation_history has no project_id column; it links to a template via
+    // template_id. Filter by templates discovered from a matching project path
+    // (mirrors get_discovered_templates' source_project_path LIKE filter).
     db.query_map(
-        "SELECT * FROM generation_history WHERE project_id = ?1 ORDER BY created_at DESC LIMIT ?2",
-        params![project_id, limit],
+        "SELECT gh.* FROM generation_history gh WHERE gh.template_id IN (SELECT template_id FROM discovered_templates WHERE source_project_path LIKE ?1) ORDER BY gh.created_at DESC LIMIT ?2",
+        params![format!("%{}%", project_id), limit],
         row_to_json,
     )
     .map_err(|e| format!("Failed to get generation history: {}", e))
