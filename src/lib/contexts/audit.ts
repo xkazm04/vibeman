@@ -27,6 +27,10 @@ export interface ContextAuditReport {
     uncategorizedContexts: number;
     groupsMissingDomain: number;
     overlappingFiles: number;
+    /** Contexts with at least one file missing from disk (includes staleContexts). */
+    missingFiles: number;
+    /** Contexts whose every file is missing from disk (deleted feature still tracked). */
+    staleContexts: number;
   };
   findings: AuditFinding[];
   /** true when there are no warn-level findings. */
@@ -48,16 +52,33 @@ export interface AuditGroupInput {
 }
 
 const MAX_OVERLAP_FINDINGS = 20;
+/** Cap on example missing paths carried in a single finding message. */
+const MAX_MISSING_EXAMPLES = 5;
+
+export interface AuditOptions {
+  /** Used to pick the granularity policy tier; defaults to the total tracked file count. */
+  sourceFileCount?: number;
+  /**
+   * Optional disk resolver: given a context's stored (project-relative) file path,
+   * returns true if the file exists on disk. When provided, the audit emits
+   * `stale_context` / `missing_files` findings for context-map drift. When omitted,
+   * disk checks are skipped (keeping the audit DB-only / pure).
+   */
+  fileExists?: (filePath: string) => boolean;
+}
 
 export function auditContexts(
   contexts: AuditContextInput[],
   groups: AuditGroupInput[],
-  opts?: { sourceFileCount?: number }
+  opts?: AuditOptions
 ): ContextAuditReport {
   const totalFiles = contexts.reduce((n, c) => n + (c.filePaths?.length ?? 0), 0);
   const sourceFileCount = opts?.sourceFileCount ?? totalFiles;
   const { tier, policy } = getPolicy(sourceFileCount);
   const findings: AuditFinding[] = [];
+  const fileExists = opts?.fileExists;
+  let missingFiles = 0;
+  let staleContexts = 0;
 
   // ── Per-context: size, category, grouping ──────────────────────────────────
   for (const c of contexts) {
@@ -75,6 +96,34 @@ export function auditContexts(
     }
     if (!c.groupId) {
       findings.push({ severity: 'warn', code: 'context_orphan', contextId: c.id, message: `"${c.name}" is not assigned to any group.` });
+    }
+
+    // ── Disk drift: files[] that no longer exist on disk ──────────────────────
+    if (fileExists && n > 0) {
+      const missing = (c.filePaths ?? []).filter((f) => !fileExists(f));
+      if (missing.length > 0) {
+        missingFiles++;
+        const examples = missing.slice(0, MAX_MISSING_EXAMPLES);
+        const more = missing.length - examples.length;
+        const exampleText = `${examples.join(', ')}${more > 0 ? `, +${more} more` : ''}`;
+        if (missing.length === n) {
+          // Every file is gone — a deleted feature still tracked as a context.
+          staleContexts++;
+          findings.push({
+            severity: 'warn',
+            code: 'stale_context',
+            contextId: c.id,
+            message: `"${c.name}" is stale — all ${n} files are missing from disk: ${exampleText}.`,
+          });
+        } else {
+          findings.push({
+            severity: 'warn',
+            code: 'missing_files',
+            contextId: c.id,
+            message: `"${c.name}" references ${missing.length} of ${n} files that are missing from disk: ${exampleText}.`,
+          });
+        }
+      }
     }
   }
 
@@ -136,6 +185,8 @@ export function auditContexts(
       uncategorizedContexts,
       groupsMissingDomain,
       overlappingFiles,
+      missingFiles,
+      staleContexts,
     },
     findings,
     ok: !findings.some((f) => f.severity === 'warn'),

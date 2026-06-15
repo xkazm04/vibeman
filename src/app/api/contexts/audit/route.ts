@@ -9,8 +9,12 @@
  * Query params: projectId (required)
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { existsSync } from 'fs';
+import path from 'path';
 import { contextQueries, contextGroupQueries } from '@/lib/queries/contextQueries';
 import { auditContexts } from '@/lib/contexts/audit';
+import { projectDb } from '@/lib/project_database';
+import { validatePathWithinBase } from '@/lib/pathSecurity';
 import { withObservability } from '@/lib/observability/middleware';
 
 async function handleGet(request: NextRequest) {
@@ -26,6 +30,17 @@ async function handleGet(request: NextRequest) {
       contextGroupQueries.getGroupsByProject(projectId),
     ]);
 
+    // Resolve the project's filesystem root so we can detect context-map drift
+    // (files[] entries that 404). If the project has no path we skip disk checks.
+    const projectPath = projectDb.getProject(projectId)?.path;
+    const fileExists = projectPath
+      ? (filePath: string): boolean => {
+          // Reject anything that would escape the project root before touching disk.
+          if (validatePathWithinBase(filePath, projectPath) !== null) return false;
+          return existsSync(path.resolve(projectPath, filePath));
+        }
+      : undefined;
+
     const report = auditContexts(
       contexts.map((c) => ({
         id: c.id,
@@ -35,6 +50,7 @@ async function handleGet(request: NextRequest) {
         category: c.category,
       })),
       groups.map((g) => ({ id: g.id, name: g.name, domain: g.domain })),
+      { fileExists },
     );
 
     return NextResponse.json({ success: true, projectId, ...report });

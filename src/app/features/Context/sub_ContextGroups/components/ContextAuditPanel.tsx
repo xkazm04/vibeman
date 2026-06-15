@@ -125,6 +125,12 @@ export default function ContextAuditPanel({ projectId, onSelectGroup }: ContextA
           <span className={totals.groupsMissingDomain > 0 ? 'text-amber-400' : ''}>
             {totals.groupsMissingDomain} missing domain
           </span>
+          <span className={totals.staleContexts > 0 ? 'text-amber-400' : ''}>
+            {totals.staleContexts} stale
+          </span>
+          <span className={totals.missingFiles > 0 ? 'text-amber-400' : ''}>
+            {totals.missingFiles} with missing files
+          </span>
         </div>
       </div>
 
