@@ -11,8 +11,8 @@ import {
   Loader2,
   MessageCircle,
   ShieldCheck,
-  X,
   Minimize2,
+  DollarSign,
 } from 'lucide-react';
 import BaseModal from '@/components/ui/BaseModal';
 import { useManualSessionStore } from '../store/manualSessionStore';
@@ -22,6 +22,20 @@ import type { ManualSessionEvent, ManualSessionStatus } from '../lib/manualSessi
 // ============================================================================
 // Event renderer
 // ============================================================================
+
+/** Format a USD amount with adaptive precision (e.g. $0.0042, $1.23). */
+export function formatCost(usd: number): string {
+  if (usd <= 0) return '$0.00';
+  if (usd < 0.01) return `$${usd.toFixed(4)}`;
+  return `$${usd.toFixed(2)}`;
+}
+
+/** Compact token count (e.g. 850, 12.4k, 1.2M). */
+export function formatTokens(tokens: number): string {
+  if (tokens < 1000) return `${tokens}`;
+  if (tokens < 1_000_000) return `${(tokens / 1000).toFixed(1)}k`;
+  return `${(tokens / 1_000_000).toFixed(1)}M`;
+}
 
 const EVENT_ICONS: Record<string, { icon: typeof User; colorClass: string }> = {
   user: { icon: User, colorClass: 'text-blue-400' },
@@ -289,6 +303,18 @@ export function CLISessionModal({ isOpen, onClose }: CLISessionModalProps) {
               </span>
               <span className="text-2xs text-gray-600">·</span>
               <span className="text-2xs text-gray-500">{session.projectName}</span>
+              {session.turnCount > 0 && (
+                <>
+                  <span className="text-2xs text-gray-600">·</span>
+                  <span
+                    className="inline-flex items-center gap-0.5 text-2xs text-emerald-400 tabular-nums"
+                    title={`${session.turnCount} turn${session.turnCount !== 1 ? 's' : ''} · ${formatTokens(session.totalTokens)} tokens · ${(session.totalDurationMs / 1000).toFixed(1)}s`}
+                  >
+                    <DollarSign className="w-2.5 h-2.5" />
+                    {formatCost(session.totalCostUsd).replace('$', '')}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -1,11 +1,14 @@
 'use client';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Wifi, WifiOff, Upload, Terminal } from 'lucide-react';
+import { X, Wifi, WifiOff, Upload, Terminal, DollarSign } from 'lucide-react';
 import type { ProjectRequirement, TaskRunnerActions } from './lib/types';
 import { CLIBatchPanel } from '@/components/cli';
 import TaskMonitor from './components/TaskMonitor';
 import { useRemoteTaskRunner } from './hooks/useRemoteTaskRunner';
+import { useManualSessionStore } from './store/manualSessionStore';
+import { formatCost } from './components/CLISessionModal';
+import { BatchProgressBar } from './components/BatchProgressBar';
 
 interface TaskRunnerHeaderProps {
   selectedCount: number;
@@ -48,6 +51,11 @@ export default function TaskRunnerHeader({
     targetDeviceName,
     toggleRemoteMode,
   } = useRemoteTaskRunner();
+
+  // Batch-wide cost: sum of all manual session totals (finding #1)
+  const batchCostUsd = useManualSessionStore((s) =>
+    Object.values(s.sessions).reduce((sum, sess) => sum + (sess.totalCostUsd || 0), 0),
+  );
 
   // Sync projects to Supabase
   const [isSyncing, setIsSyncing] = useState(false);
@@ -102,10 +110,28 @@ export default function TaskRunnerHeader({
         </motion.div>
       )}
 
+      {/* Live batch progress bar + ETA (finding #3) */}
+      <BatchProgressBar
+        isRunning={isRunning}
+        processedCount={processedCount}
+        totalCount={totalCount}
+      />
+
       {/* Controls Row */}
       <div className="flex items-center justify-between">
         <div className="flex-1" />
         <div className="flex-1 flex justify-end gap-2">
+          {/* Batch cost total (finding #1) */}
+          {batchCostUsd > 0 && (
+            <span
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 tabular-nums"
+              title="Total cost across all sessions this run"
+            >
+              <DollarSign className="w-3.5 h-3.5" />
+              {formatCost(batchCostUsd).replace('$', '')}
+            </span>
+          )}
+
           {/* Sessions toggle */}
           {onToggleSidebar && (
             <button

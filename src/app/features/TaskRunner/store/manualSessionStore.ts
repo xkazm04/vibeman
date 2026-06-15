@@ -11,6 +11,7 @@ import { persist } from 'zustand/middleware';
 import { createPersistConfig } from '@/stores/utils/persistence';
 import {
   SAFE_TOOLS,
+  extractResultMetrics,
   type ManualSession,
   type ManualSessionEvent,
   type ManualSessionStatus,
@@ -22,6 +23,7 @@ import {
   listenToExecution,
   isTauriTerminalAvailable,
   interactiveSessionAlive,
+  abortClaude,
 } from '@/lib/tauri/tauriTerminalStrategy';
 import type { ExecutionEvent } from '@/lib/tauri/tauriTerminalStrategy';
 
@@ -51,6 +53,16 @@ async function apiWriteToSession(executionId: string, text: string): Promise<voi
   if (!res.ok) {
     const data = await res.json().catch(() => ({ error: 'Write failed' }));
     throw new Error(data.error || `HTTP ${res.status}`);
+  }
+}
+
+async function apiAbortSession(executionId: string): Promise<void> {
+  try {
+    await fetch(`/api/claude-terminal/interactive?executionId=${encodeURIComponent(executionId)}`, {
+      method: 'DELETE',
+    });
+  } catch (err) {
+    console.error('Failed to abort interactive session:', err);
   }
 }
 
@@ -154,6 +166,9 @@ interface ManualSessionActions {
   /** Close and clean up a session */
   closeSession: (sessionId: string) => void;
 
+  /** Abort a running session's underlying Claude process and mark it completed */
+  abortSession: (sessionId: string) => Promise<void>;
+
   /** Update session status */
   updateStatus: (sessionId: string, status: ManualSessionStatus) => void;
 
@@ -222,6 +237,32 @@ function extractSessionId(event: ManualSessionEvent): string | null {
   return null;
 }
 
+/**
+ * Accumulate cost/duration/token totals from a `result` event onto a session.
+ * Returns the running-total fields to spread into the updated session record.
+ * For non-result events the existing totals are returned unchanged.
+ */
+function accumulateTotals(
+  session: ManualSession,
+  event: ManualSessionEvent,
+): Pick<ManualSession, 'totalCostUsd' | 'totalDurationMs' | 'totalTokens' | 'turnCount'> {
+  if (event.type !== 'result') {
+    return {
+      totalCostUsd: session.totalCostUsd,
+      totalDurationMs: session.totalDurationMs,
+      totalTokens: session.totalTokens,
+      turnCount: session.turnCount,
+    };
+  }
+  const m = extractResultMetrics(event.data);
+  return {
+    totalCostUsd: session.totalCostUsd + m.costUsd,
+    totalDurationMs: session.totalDurationMs + m.durationMs,
+    totalTokens: session.totalTokens + m.tokens,
+    turnCount: session.turnCount + 1,
+  };
+}
+
 // ============================================================================
 // Store
 // ============================================================================
@@ -253,6 +294,10 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
         claudeSessionId: null,
         label: label || `Session ${Object.keys(get().sessions).length + 1}`,
         pendingApprovals: [],
+        totalCostUsd: 0,
+        totalDurationMs: 0,
+        totalTokens: 0,
+        turnCount: 0,
       };
 
       set((state) => ({
@@ -333,6 +378,7 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
                     events: [...s.events, processed],
                     lastActivityAt: Date.now(),
                     claudeSessionId: claudeSessionId || s.claudeSessionId,
+                    ...accumulateTotals(s, processed),
                   },
                 },
               };
@@ -386,6 +432,7 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
                       events: [...s.events, event],
                       lastActivityAt: Date.now(),
                       claudeSessionId: claudeSessionId || s.claudeSessionId,
+                      ...accumulateTotals(s, event),
                     },
                   },
                 };
@@ -548,6 +595,46 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
       });
     },
 
+    abortSession: async (sessionId) => {
+      const session = get().sessions[sessionId];
+      if (!session) return;
+
+      // Stop receiving further events for this session.
+      const unlistener = get()._unlisteners[sessionId];
+      if (unlistener) unlistener();
+
+      // Abort the underlying Claude process (best-effort).
+      if (session.executionId) {
+        try {
+          if (isTauriTerminalAvailable()) {
+            await abortClaude(session.executionId);
+          } else {
+            await apiAbortSession(session.executionId);
+          }
+        } catch (err) {
+          console.error('Failed to abort manual session:', err);
+        }
+      }
+
+      set((state) => {
+        const s = state.sessions[sessionId];
+        if (!s) return state;
+        const { [sessionId]: _removedUl, ...remainingUl } = state._unlisteners;
+        return {
+          sessions: {
+            ...state.sessions,
+            [sessionId]: {
+              ...s,
+              status: 'completed',
+              pendingApprovals: [],
+              lastActivityAt: Date.now(),
+            },
+          },
+          _unlisteners: remainingUl,
+        };
+      });
+    },
+
     updateStatus: (sessionId, status) => {
       set((state) => {
         const s = state.sessions[sessionId];
@@ -624,6 +711,7 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
                         events: [...s.events, processed],
                         lastActivityAt: Date.now(),
                         claudeSessionId: claudeSessionId || s.claudeSessionId,
+                        ...accumulateTotals(s, processed),
                       },
                     },
                   };
@@ -655,6 +743,7 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
                           events: [...s.events, event],
                           lastActivityAt: Date.now(),
                           claudeSessionId: claudeSessionId || s.claudeSessionId,
+                          ...accumulateTotals(s, event),
                         },
                       },
                     };
@@ -725,6 +814,18 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
         ]),
       ),
     }) as Partial<ManualSessionState & ManualSessionActions>,
+    // Backfill cost/token totals for sessions persisted before these fields existed,
+    // so accumulateTotals never operates on `undefined` (which would yield NaN).
+    onRehydrateStorage: () => (state) => {
+      if (state?.sessions) {
+        for (const session of Object.values(state.sessions)) {
+          if (typeof session.totalCostUsd !== 'number') session.totalCostUsd = 0;
+          if (typeof session.totalDurationMs !== 'number') session.totalDurationMs = 0;
+          if (typeof session.totalTokens !== 'number') session.totalTokens = 0;
+          if (typeof session.turnCount !== 'number') session.turnCount = 0;
+        }
+      }
+    },
   }),
   )
 );
