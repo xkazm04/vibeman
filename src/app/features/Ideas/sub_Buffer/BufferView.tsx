@@ -197,6 +197,57 @@ export default function BufferView({
     [ideas, getProject, invalidateIdeas]
   );
 
+  const handleContextQueueAll = React.useCallback(
+    async (contextId: string) => {
+      const isGeneralContext = contextId === 'no-context';
+
+      // Collect the pending ideas in this column.
+      const pendingIdeas = filteredIdeas.filter(
+        (idea) =>
+          idea.status === 'pending' &&
+          (isGeneralContext ? idea.context_id === null : idea.context_id === contextId),
+      );
+      if (pendingIdeas.length === 0) return;
+
+      // Accept each pending idea through the existing per-idea accept call.
+      // Sequential to avoid overwhelming the filesystem with concurrent
+      // requirement-file writes (mirrors /api/tinder/accept-all behavior).
+      let failures = 0;
+      for (const idea of pendingIdeas) {
+        const project = getProject(idea.project_id);
+        if (!project?.path) {
+          failures++;
+          continue;
+        }
+        try {
+          const response = await fetch('/api/tinder/actions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              itemType: 'idea',
+              itemId: idea.id,
+              action: 'accept',
+              projectPath: project.path,
+            }),
+          });
+          // 409 = already accepted/processed; treated as success (see single-idea path).
+          if (!response.ok && response.status !== 409) {
+            failures++;
+          }
+        } catch {
+          failures++;
+        }
+      }
+
+      invalidateIdeas();
+
+      if (failures > 0) {
+        showError(`Queued ${pendingIdeas.length - failures}/${pendingIdeas.length} ideas. ${failures} failed.`);
+      }
+    },
+    [filteredIdeas, getProject, invalidateIdeas, showError],
+  );
+
   const handleIdeaQueueForExecution = React.useCallback(
     async (ideaId: string) => {
       const idea = ideas.find((i) => i.id === ideaId);
@@ -341,6 +392,7 @@ export default function BufferView({
                   onContextDelete={handleContextDelete}
                   onIdeaConvert={handleIdeaConvert}
                   onIdeaQueueForExecution={handleIdeaQueueForExecution}
+                  onContextQueueAll={handleContextQueueAll}
                 />
               ))}
             </AnimatePresence>
