@@ -102,17 +102,19 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete, onC
           {/* Category Emoji */}
           <span className="text-sm">{categoryConfig.emoji}</span>
 
-          {/* Impact Badge */}
-          {impactCfg && (
-            <div className="flex items-center gap-0.5" title={`Impact: ${impactCfg.label}`}>
+          {/* Impact Badge — icon + numeric score (mirrors dependency badge) */}
+          {impactCfg && idea.impact != null && (
+            <div className="flex items-center gap-0.5" title={`Impact: ${impactCfg.description}`}>
               <ImpactIcon className={`w-3 h-3 ${impactCfg.color}`} />
+              <span className={`text-2xs font-medium ${impactCfg.color}`}>{idea.impact}</span>
             </div>
           )}
 
-          {/* Effort Badge */}
-          {effortCfg && (
-            <div className="flex items-center gap-0.5" title={`Effort: ${effortCfg.label}`}>
+          {/* Effort Badge — icon + numeric score (mirrors dependency badge) */}
+          {effortCfg && idea.effort != null && (
+            <div className="flex items-center gap-0.5" title={`Effort: ${effortCfg.description}`}>
               <EffortIcon className={`w-3 h-3 ${effortCfg.color}`} />
+              <span className={`text-2xs font-medium ${effortCfg.color}`}>{idea.effort}</span>
             </div>
           )}
 
