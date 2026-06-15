@@ -102,14 +102,16 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
   // This sends all queued moves in a single batch API call
   const handleDragEndWithFlush = useCallback(async (event: Parameters<typeof handleDragEnd>[0]) => {
     handleDragEnd(event);
-    // Flush after a short delay to allow the queue to populate
-    setTimeout(async () => {
-      try {
-        await flushPendingMoves();
-      } catch (error) {
-        console.error('Failed to batch move contexts:', error);
-      }
-    }, 0);
+    // queueMove writes to the (synchronous) store, so the queue is already
+    // populated — flush immediately. The previous setTimeout(0) added no benefit
+    // and opened a race window where a second drag, or removeGroup filtering
+    // pendingMoves, could mutate the queue before the deferred flush fired and
+    // silently drop moves.
+    try {
+      await flushPendingMoves();
+    } catch (error) {
+      console.error('Failed to batch move contexts:', error);
+    }
   }, [handleDragEnd, flushPendingMoves]);
 
 
