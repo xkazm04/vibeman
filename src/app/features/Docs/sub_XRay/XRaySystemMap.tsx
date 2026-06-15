@@ -640,11 +640,15 @@ export default function XRaySystemMap({
     return conns;
   }, [positionedModules, nodePositions, systemModules]);
 
-  // Get X-Ray stats for each connection
+  // Get X-Ray stats for each connection. The connection's endpoints are stored in
+  // an arbitrary order (deduped by `[id, connId].sort()`), while edge IDs are
+  // directional (`source->target`), so a single-direction lookup misses ~half the
+  // time. Check both directions and use whichever the store recorded.
   const getConnectionXRayData = useCallback((fromLayer: ModuleLayer, toLayer: ModuleLayer) => {
-    const edgeId = createEdgeId(fromLayer, toLayer);
-    const edgeData = edges[edgeId];
-    const animation = animations[edgeId];
+    const forwardId = createEdgeId(fromLayer, toLayer);
+    const reverseId = createEdgeId(toLayer, fromLayer);
+    const edgeData = edges[forwardId] || edges[reverseId];
+    const animation = animations[forwardId] || animations[reverseId];
 
     return {
       trafficIntensity: animation?.pulseIntensity || 0,
