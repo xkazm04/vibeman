@@ -230,7 +230,7 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
                   ) : (
                     <div className="flex items-center justify-center h-full">
                       <p className="text-gray-500 text-sm">
-                        {selectedGroupId ? 'No changes in this group' : 'Select a group to filter'}
+                        {selectedGroupId ? 'No changes in this group' : 'No changes to review'}
                       </p>
                     </div>
                   )}
