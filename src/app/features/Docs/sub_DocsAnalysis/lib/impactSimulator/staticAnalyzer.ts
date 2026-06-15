@@ -65,10 +65,15 @@ function analyzeImportPatterns(
 ): ImportPathChange[] {
   const changes: ImportPathChange[] = [];
 
-  // Get all files from other contexts that might reference these files
+  // Get all files from other contexts that might reference these files. Exclude
+  // the moved context's OWN files by path membership: the previous filter compared
+  // a context id (ctx.id) to a file path (contextFiles[0]), which never matched, so
+  // the moved files were left in otherFiles and the analyzer reported the context
+  // "importing itself", inflating every import-change / effort / risk estimate.
+  const movedFileSet = new Set(contextFiles);
   const otherFiles = allContexts
-    .filter(ctx => ctx.id !== contextFiles[0]) // Exclude current context
-    .flatMap(ctx => ctx.filePaths || []);
+    .flatMap(ctx => ctx.filePaths || [])
+    .filter(file => !movedFileSet.has(file));
 
   for (const movedFile of contextFiles) {
     const fileName = movedFile.split('/').pop() || movedFile;
