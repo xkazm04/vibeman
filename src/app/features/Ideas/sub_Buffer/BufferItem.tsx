@@ -60,8 +60,11 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete, onC
   // Get status-based styling using design tokens
   const statusClasses = getStatusClasses((idea.status || 'pending') as StatusType);
 
-  const effortCfg = idea.effort ? effortScale.entries[idea.effort] || null : null;
-  const impactCfg = idea.impact ? impactScale.entries[idea.impact] || null : null;
+  // Use a null check, not a truthiness check: `idea.effort ?` treats a real 0
+  // score the same as "no score". (The scale is keyed 1-10, so a 0 still has no
+  // entry — but the code no longer conflates 0 with null/undefined.)
+  const effortCfg = idea.effort != null ? effortScale.entries[idea.effort] ?? null : null;
+  const impactCfg = idea.impact != null ? impactScale.entries[idea.impact] ?? null : null;
 
   // Handle keyboard navigation for accessibility
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
