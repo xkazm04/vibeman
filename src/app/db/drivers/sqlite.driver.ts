@@ -95,14 +95,27 @@ export class SqliteDriver implements DbDriver {
       // Create database connection
       const db = new Database(this.config.path);
 
-      // Enable WAL mode for better concurrent access
+      // Enable WAL mode for better concurrent access. journal_mode returns the
+      // mode actually applied — it can silently stay 'delete'/'memory' on a
+      // network/locked filesystem (e.g. a OneDrive-synced or mapped-drive path on
+      // Windows), so verify rather than assume.
       if (this.config.walMode !== false) {
-        db.pragma('journal_mode = WAL');
+        const journalResult = db.pragma('journal_mode = WAL') as Array<{ journal_mode?: string }>;
+        const journalMode = journalResult?.[0]?.journal_mode?.toLowerCase();
+        if (journalMode !== 'wal') {
+          console.warn(`[SqliteDriver] WAL mode NOT applied (got '${journalMode}') for ${this.config.path}; crash durability is reduced.`);
+        }
         db.pragma('journal_size_limit = 67108864');
       }
 
-      // Enforce foreign key constraints (SQLite disables them by default)
+      // Enforce foreign key constraints (SQLite disables them by default). If this
+      // silently fails to take effect, every ON DELETE CASCADE / FK is a no-op and
+      // orphaned rows accumulate, so verify it actually enabled.
       db.pragma('foreign_keys = ON');
+      const fkEnabled = db.pragma('foreign_keys', { simple: true });
+      if (fkEnabled !== 1) {
+        console.warn(`[SqliteDriver] foreign_keys did NOT enable (got '${fkEnabled}') for ${this.config.path}; FK constraints and cascades are silently off.`);
+      }
 
       // Performance pragmas
       db.pragma('cache_size = -64000');
