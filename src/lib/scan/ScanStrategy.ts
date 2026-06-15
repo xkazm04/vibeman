@@ -1,11 +1,16 @@
 /**
- * ScanStrategy Interface (FIXED VERSION)
+ * ScanStrategy — core contract for refactor-wizard scan strategies.
  *
- * CHANGES:
- * - Added selectedGroups parameter to detectOpportunities()
- * - Added shouldRunGroup() helper method to RefactorScanStrategy
- *
- * TO APPLY: Copy this file to src/lib/scan/ScanStrategy.ts
+ * - `ScanStrategy` interface: the per-tech-stack contract (name, techStack,
+ *   scan/ignore patterns, file scanning, async opportunity detection with
+ *   optional group filtering and progress reporting, and canHandle()).
+ * - `RefactorScanStrategy` abstract base class: implements `ScanStrategy` with
+ *   shared functionality — group filtering (shouldRunGroup), batched file
+ *   processing that yields to the event loop, a declarative detector pipeline
+ *   (detectPatterns), glob-based project file scanning, and opportunity helpers.
+ * - `detector()` helper: builds a `PatternDetector` from a group id and a
+ *   per-file detect function, so strategies can declare their checks without
+ *   duplicating the factory.
  */
 
 import type { FileAnalysis } from '@/app/features/RefactorWizard/lib/types';
