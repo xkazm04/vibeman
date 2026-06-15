@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit2, Trash2, RotateCcw, FileSearch } from 'lucide-react';
+import { Edit2, Trash2, RotateCcw, FileSearch, Play } from 'lucide-react';
 
 import { useGlobalModal } from '@/hooks/useGlobalModal';
 import { TaskProgress } from './components/TaskProgress';
@@ -23,6 +23,7 @@ import {
 import { useLiveTaskActivity, getPhaseColor } from './hooks/useLiveTaskActivity';
 import { DependencyBadge } from './components/DependencyBadge';
 import { useDependencyStore } from './store/dependencyStore';
+import { retryTask } from './lib/retryTask';
 
 
 interface TaskItemProps {
@@ -115,6 +116,12 @@ const TaskItem = React.memo(function TaskItem({
   // Determine if task has a status that can be reset (not idle/open)
   const hasStatus = status.type !== 'idle';
 
+  // Retry / run-again is offered for failed or completed tasks (finding #2)
+  const canRetry = status.type === 'failed' || status.type === 'completed';
+  const handleRetry = useCallback(() => {
+    void retryTask(requirement, reqId);
+  }, [requirement, reqId]);
+
   // Build context menu items based on task state
   const contextMenuItems = isInProgress
     ? [
@@ -137,6 +144,16 @@ const TaskItem = React.memo(function TaskItem({
       ]
     : [
         // Open or Completed/Failed: Show full menu
+        // Retry / Run again (only for failed or completed tasks)
+        ...(canRetry
+          ? [
+              {
+                label: status.type === 'failed' ? 'Retry' : 'Run again',
+                icon: Play,
+                onClick: handleRetry,
+              },
+            ]
+          : []),
         // Reset option (only if task has a status to reset from)
         ...(hasStatus && onReset
           ? [

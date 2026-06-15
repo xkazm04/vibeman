@@ -8,7 +8,7 @@
 'use client';
 
 import React, { useCallback } from 'react';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, Play } from 'lucide-react';
 import { useDraggableItem } from '@/hooks/dnd';
 import { getTheme } from '../lib/taskStatusUtils';
 import { statusToKanbanColumn } from '../lib/types';
@@ -18,6 +18,7 @@ import { DependencyBadge } from './DependencyBadge';
 import { TaskProgress } from './TaskProgress';
 import { TruncateTooltip } from '@/components/ui/TruncateTooltip';
 import { useDependencyStore } from '../store/dependencyStore';
+import { retryTask } from '../lib/retryTask';
 
 interface KanbanTaskCardProps {
   requirement: ProjectRequirement;
@@ -40,6 +41,12 @@ const KanbanTaskCard = React.memo(function KanbanTaskCard({
   const StatusIcon = theme.Icon;
   const isRunning = status.type === 'running';
   const isDisabled = isRunning || status.type === 'queued';
+  const canRetry = status.type === 'failed' || status.type === 'completed';
+
+  const handleRetry = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    void retryTask(requirement, requirementId);
+  }, [requirement, requirementId]);
 
   // DnD
   const {
@@ -126,6 +133,22 @@ const KanbanTaskCard = React.memo(function KanbanTaskCard({
         <DependencyBadge requirementId={requirementId} />
         {isSelected && !isDisabled && (
           <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0 ml-auto" />
+        )}
+        {canRetry && (
+          <button
+            onClick={handleRetry}
+            className={`shrink-0 ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs font-medium
+              transition-colors opacity-0 group-hover:opacity-100
+              ${status.type === 'failed'
+                ? 'bg-red-500/10 text-red-300 hover:bg-red-500/20 border border-red-500/20'
+                : 'bg-gray-700/40 text-gray-300 hover:bg-gray-700/70 border border-gray-600/30'
+              }`}
+            title={status.type === 'failed' ? 'Retry this task' : 'Run again'}
+            data-testid={`kanban-retry-${requirementName}`}
+          >
+            <Play className="w-2.5 h-2.5" />
+            {status.type === 'failed' ? 'Retry' : 'Run again'}
+          </button>
         )}
       </div>
 
