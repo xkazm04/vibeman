@@ -159,11 +159,14 @@ export function PreviewModal({ componentId, onClose }: PreviewModalProps) {
     }
   };
 
-  if (!component) return null;
-
+  // Don't early-return null when there's no component: that unmounts
+  // AnimatePresence before it can play the exit animation. The component is
+  // always mounted (parent passes a possibly-null componentId), so gate the
+  // content on `componentId && component` and let AnimatePresence animate the
+  // close. (renderPreview and copyCode already self-guard against a null component.)
   return (
     <AnimatePresence>
-      {componentId && (
+      {componentId && component && (
         <>
           <motion.div
             initial={{ opacity: 0 }}
