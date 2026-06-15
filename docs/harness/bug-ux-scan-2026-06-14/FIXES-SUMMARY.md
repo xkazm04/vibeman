@@ -23,7 +23,7 @@ per-wave reports said "all 9 Criticals closed"; that was wrong and is corrected 
 Baseline held every wave: **tsc 0 → 0 errors**, **tests 539/542** (the 3 failures are a deleted-Brain-module
 import in `signal-types.test.ts`, caused by the refactor — unchanged by this work).
 
-Fix commits: 41 (two pairs shared a file: database #2+#4, ideas #2+#3). Doc commits: 10.
+Fix commits: 41 (two pairs shared a file: database #2+#4, ideas #2+#3). Doc commits: 8. Total: 49.
 
 ## Waves (what shipped)
 
