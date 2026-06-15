@@ -4,25 +4,26 @@
 > 50 findings (9C / 24H / 13M / 4L). All fixes on branch `vibeman/bug-ux-fixes` (off HEAD), each `git add`
 > scoped so the in-progress 708-file refactor stayed uncommitted and separate.
 
-## Outcome (accurate ledger)
+## Outcome (accurate ledger — after Wave 8)
 
 | Status | Count | Severity |
 |---|---:|---|
-| **Fixed** | **36** | 7C · 16H · 10M · 3L |
-| Remaining — clean, fixable now (a "Wave 8") | 7 | 3H · 3M · 1L |
+| **Fixed** | **43** | 7C · 19H · 13M · 4L |
 | Remaining — WIP-blocked (in `headless-slim` files) | 5 | 5H |
 | Remaining — deferred by user decision (remote auth) | 2 | 2C |
 | **Total** | **50** | 9C · 24H · 13M · 4L |
 
-**Correction to earlier per-wave reports:** I said "all 9 Criticals closed" — that was wrong. **7 of 9
-Criticals are fixed**; the other 2 (remote #1 no-auth, remote #2 no-ownership) were *deferred by your
-"remote cheap-subset" decision*, not closed. And Wave 7 was **not** the last clean wave: 7 clean findings
-(below) were never selected into a wave and remain fixable now.
+**Every clean (non-WIP-blocked) finding is now closed.** The only remaining work is gated on the user's
+in-progress `headless-slim` refactor (5 findings) or is the deferred remote auth/ownership design (2 Criticals).
+
+**Note on Criticals:** **7 of 9 fixed.** The 2 open Criticals are remote #1 (no auth) and remote #2
+(no ownership), *deferred by the "remote cheap-subset" decision* — not closed. (An earlier draft of the
+per-wave reports said "all 9 Criticals closed"; that was wrong and is corrected here.)
 
 Baseline held every wave: **tsc 0 → 0 errors**, **tests 539/542** (the 3 failures are a deleted-Brain-module
 import in `signal-types.test.ts`, caused by the refactor — unchanged by this work).
 
-Fix commits: 34 (two pairs shared a file: database #2+#4, ideas #2+#3). Doc commits: 9.
+Fix commits: 41 (two pairs shared a file: database #2+#4, ideas #2+#3). Doc commits: 10.
 
 ## Waves (what shipped)
 
@@ -39,16 +40,9 @@ Fix commits: 34 (two pairs shared a file: database #2+#4, ideas #2+#3). Doc comm
 
 Per-wave detail + verification in `FIXES-WAVE-1.md` … `FIXES-WAVE-7.md`.
 
-## Remaining — clean & fixable now (proposed Wave 8)
+## ~~Remaining — clean & fixable now~~ → ALL CLOSED in Wave 8
 
-These were flagged but never selected into a wave. None overlap the WIP; all could be fixed next:
-- **ideas #1 (H)** — Lifecycle orchestrator is a process-global singleton with no project scoping → cross-project state bleed. `sub_Lifecycle/lib/lifecycleOrchestrator.ts`, `api/lifecycle/route.ts`
-- **workspace #2 (H)** — `/api/observability/register` ingests unvalidated/unauth external payloads → stats corruption. `api/observability/register/route.ts`
-- **workspace #3 (H)** — git `/branches` unbounded `exec` fan-out → dev-server DoS. `api/git/branches/route.ts`
-- **context #4 (M)** — drag-end `setTimeout(0)` flush races the queue → dropped moves. `Context/ContextLayout.tsx`
-- **reflector #4 (M)** — "ran recently" cooldown mis-surfaced as a generic thrown error. `lib/reflector/executiveAnalysisAgent.ts` + `stores/reflectorStore.ts`
-- **scan-queue #5 (M)** — file-watch notification insert violates an FK and is silently swallowed. `lib/fileWatcher.ts`
-- **reflector #5 (L)** — trigger button "Starting…" loading state is dead code (double-submit risk). `ExecutiveAnalysisTrigger.tsx`
+ideas #1, workspace #2/#3, context #4, reflector #4/#5, scan-queue #5 — all fixed. See `FIXES-WAVE-8.md`.
 
 ## Remaining — WIP-blocked
 
