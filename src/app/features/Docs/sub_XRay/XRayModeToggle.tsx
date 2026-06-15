@@ -7,13 +7,17 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Radio, Wifi, WifiOff } from 'lucide-react';
+import { Radio, Wifi, WifiOff, Beaker } from 'lucide-react';
 
 interface XRayModeToggleProps {
   isEnabled: boolean;
   onToggle: () => void;
   isConnected?: boolean;
   eventCount?: number;
+  /** Whether the synthetic demo generator is feeding the X-Ray view (vs the real SSE stream). */
+  useDemoData?: boolean;
+  /** Toggle between the real /api/xray/stream feed and the synthetic demo generator. */
+  onToggleDemoData?: () => void;
 }
 
 export default function XRayModeToggle({
@@ -21,8 +25,11 @@ export default function XRayModeToggle({
   onToggle,
   isConnected = false,
   eventCount = 0,
+  useDemoData = false,
+  onToggleDemoData,
 }: XRayModeToggleProps) {
   return (
+    <div className="flex items-center gap-2">
     <motion.button
       onClick={onToggle}
       className={`relative flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${
@@ -113,5 +120,25 @@ export default function XRayModeToggle({
         </div>
       </div>
     </motion.button>
+
+      {/* Demo-data sub-toggle: switch between the real SSE stream and the synthetic generator */}
+      {isEnabled && onToggleDemoData && (
+        <motion.button
+          onClick={onToggleDemoData}
+          className={`relative flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-2xs font-medium transition-all ${
+            useDemoData
+              ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+              : 'bg-gray-800/40 border-gray-700/40 text-gray-400 hover:text-gray-300 hover:border-gray-600/50'
+          }`}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          title={useDemoData ? 'Showing synthetic demo traffic — click for real traffic' : 'Showing real traffic — click for demo data'}
+          data-testid="xray-demo-data-toggle"
+        >
+          <Beaker className="w-3 h-3" />
+          <span>{useDemoData ? 'Demo data' : 'Live data'}</span>
+        </motion.button>
+      )}
+    </div>
   );
 }
