@@ -23,12 +23,16 @@ export function ExecutiveAnalysisTrigger({
     analysisStatus,
     lastAnalysis,
     error,
+    isLoading: isStarting,
     triggerAnalysis,
     clearError,
   } = useReflectorStore();
 
   const isRunning = analysisStatus === 'running';
-  const isLoading = analysisStatus === 'pending';
+  // Use the store's in-flight flag. The old `analysisStatus === 'pending'` was dead
+  // code — the store sets `isLoading: true` during the POST and never sets
+  // analysisStatus to 'pending', so the button stayed enabled (double-submit risk).
+  const isLoading = isStarting;
 
   const handleTrigger = useCallback(async () => {
     clearError();
