@@ -92,6 +92,7 @@ import { migrate228GithubPullRequests } from './228_github_pull_requests';
 import { migrate229CliTranscriptMirror } from './229_cli_transcript_mirror';
 import { migrate230CliTokenUsage } from './230_cli_token_usage';
 import { migrate231ContextCategorization } from './231_context_categorization';
+import { migrate232DropOrphanedSchema } from './232_drop_orphaned_schema';
 
 /**
  * Migration logger utility
@@ -333,6 +334,7 @@ export function runMigrations() {
     once('m229', () => migrate229CliTranscriptMirror(db as any, migrationLogger));
     once('m230', () => migrate230CliTokenUsage(db as any, migrationLogger));
     once('m231', () => migrate231ContextCategorization(db as any, migrationLogger));
+    once('m232', () => migrate232DropOrphanedSchema(db as any, migrationLogger));
 
     // Report any failed migrations that need attention
     const failed = getFailedMigrations(db);
