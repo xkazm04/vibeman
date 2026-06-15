@@ -6,7 +6,7 @@
  * PATCH /api/reflector/executive-analysis - Cancel running analysis
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { executiveAnalysisAgent } from '@/lib/reflector/executiveAnalysisAgent';
 import type { TimeWindow } from '@/app/features/reflector/sub_Reflection/lib/types';
 import {
@@ -63,6 +63,14 @@ export async function POST(request: NextRequest) {
     });
 
     if (!result.success) {
+      // A "ran recently" cooldown is an expected throttle, not a failure — return
+      // 429 so the client can show guidance instead of a red error banner.
+      if (result.cooldown) {
+        return NextResponse.json(
+          { error: result.error || 'Analysis was run recently. Please wait before running again.', cooldown: true },
+          { status: 429 }
+        );
+      }
       return createApiErrorResponse(
         result.analysisId ? ApiErrorCode.RESOURCE_CONFLICT : ApiErrorCode.VALIDATION_ERROR,
         result.error || 'Failed to start analysis',

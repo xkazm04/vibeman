@@ -117,6 +117,7 @@ export const executiveAnalysisAgent = {
     if (!executiveAnalysisRepository.canAnalyze(projectId, 1)) {
       return {
         success: false,
+        cooldown: true,
         error: 'Analysis was run recently. Please wait before running again.',
       };
     }
