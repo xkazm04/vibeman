@@ -269,10 +269,13 @@ export const contextRepository = {
 
     const placeholders = ids.map(() => '?').join(', ');
 
-    // Single UPDATE with CASE/WHEN
+    // Single UPDATE with CASE/WHEN. The ELSE is required: a CASE with no ELSE
+    // returns NULL for any WHERE-matched row that matches no WHEN, which would
+    // silently eject that context from its group. Keep the existing group_id for
+    // any such row (defends against the id lists drifting, e.g. a duplicate id).
     db.prepare(`
       UPDATE contexts
-      SET group_id = CASE ${caseParts.join(' ')} END,
+      SET group_id = CASE ${caseParts.join(' ')} ELSE group_id END,
           updated_at = ?
       WHERE id IN (${placeholders})
     `).run(...caseValues, now, ...ids);
