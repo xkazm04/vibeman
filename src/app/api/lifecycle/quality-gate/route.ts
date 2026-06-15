@@ -212,46 +212,62 @@ async function runTests(type: 'unit' | 'integration', timeout: number): Promise<
   }
 }
 
+// Evaluate a parsed `npm audit --json` report against the high/critical
+// threshold. Shared by both the zero-exit and non-zero-exit paths so the gate
+// applies the same rule regardless of npm's exit code.
+function evaluateAuditResult(auditResult: { metadata?: { vulnerabilities?: Record<string, number> } }): GateResult {
+  const vulns = auditResult.metadata?.vulnerabilities;
+  const highVulns = vulns?.high || 0;
+  const criticalVulns = vulns?.critical || 0;
+
+  if (highVulns > 0 || criticalVulns > 0) {
+    return {
+      passed: false,
+      message: `Found ${criticalVulns} critical and ${highVulns} high vulnerabilities`,
+      details: vulns,
+    };
+  }
+
+  return {
+    passed: true,
+    message: 'No high or critical vulnerabilities found',
+    details: vulns,
+  };
+}
+
 async function runSecurityScan(timeout: number): Promise<GateResult> {
   try {
-    // Try npm audit
-    const { stdout, stderr } = await execAsync('npm audit --json', { timeout });
-
-    let auditResult;
+    const { stdout } = await execAsync('npm audit --json', { timeout });
     try {
-      auditResult = JSON.parse(stdout);
+      return evaluateAuditResult(JSON.parse(stdout));
     } catch {
-      // If not JSON, just check exit code
-      return {
-        passed: true,
-        message: 'Security scan passed',
-        output: stdout,
-      };
+      return { passed: true, message: 'Security scan passed (audit output not JSON)', output: stdout };
     }
-
-    const highVulns = auditResult.metadata?.vulnerabilities?.high || 0;
-    const criticalVulns = auditResult.metadata?.vulnerabilities?.critical || 0;
-
-    if (highVulns > 0 || criticalVulns > 0) {
-      return {
-        passed: false,
-        message: `Found ${criticalVulns} critical and ${highVulns} high vulnerabilities`,
-        details: auditResult.metadata?.vulnerabilities,
-      };
-    }
-
-    return {
-      passed: true,
-      message: 'No high or critical vulnerabilities found',
-      details: auditResult.metadata?.vulnerabilities,
-    };
   } catch (error: unknown) {
+    // `npm audit` exits NON-ZERO whenever ANY vulnerability exists, but still
+    // writes the full report as JSON to stdout. The previous code blanket-passed
+    // here, so a project with critical/high CVEs always passed the gate. Evaluate
+    // the report from stdout against the same threshold instead.
     const execError = error as { stdout?: string; stderr?: string; message?: string };
-    // npm audit returns non-zero even for moderate vulns
+    const out = (execError.stdout || '').trim();
+    if (out) {
+      try {
+        return evaluateAuditResult(JSON.parse(out));
+      } catch {
+        // fall through — audit ran but produced unparseable output
+      }
+    }
+    // No parseable audit report (npm missing, no lockfile, registry/network
+    // failure). We cannot assert the project is clean, so do NOT pass — surface
+    // it the same way the test/coverage gates report an unrunnable gate.
     return {
-      passed: true,
-      message: 'Security scan completed with warnings',
-      output: execError.stdout || execError.stderr || '',
+      passed: false,
+      message: 'Security scan could not be evaluated',
+      details: {
+        status: 'no_tests',
+        warning: 'npm audit produced no parseable output (missing lockfile, npm, or registry access).',
+      },
+      output: execError.stdout || execError.stderr || execError.message || '',
     };
   }
 }
