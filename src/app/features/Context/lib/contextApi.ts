@@ -3,6 +3,34 @@
  * Handles all API calls related to context file management
  */
 
+import type { ContextAuditReport } from '@/lib/contexts/audit';
+
+/** Response shape of GET /api/contexts/audit. */
+export interface ContextAuditResponse extends ContextAuditReport {
+  success: true;
+  projectId: string;
+}
+
+/**
+ * Fetch the advisory Context Balance Audit for a project.
+ * GET /api/contexts/audit?projectId=…
+ */
+export async function auditProject(projectId: string): Promise<ContextAuditResponse> {
+  const response = await fetch(
+    `/api/contexts/audit?projectId=${encodeURIComponent(projectId)}`
+  );
+  const result: ContextAuditResponse | { success: false; error?: string } =
+    await response.json();
+
+  if (!result.success) {
+    throw new Error(
+      ('error' in result && result.error) || 'Failed to run context audit'
+    );
+  }
+
+  return result;
+}
+
 /**
  * Save context file to disk
  */

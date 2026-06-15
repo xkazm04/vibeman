@@ -12,6 +12,7 @@ import ContextEditModal from './sub_ContextGen/ContextEditModal';
 import ContextSection from './sub_ContextGroups/ContextSection';
 import CG_modal from './sub_ContextGroups/ContextGroupManagement/CG_modal';
 import HorizontalContextBarHeader from './sub_ContextGroups/HorizontalContextBarHeader';
+import ContextAuditPanel from './sub_ContextGroups/components/ContextAuditPanel';
 import { GroupDetailView, useContextDetail } from './sub_ContextDetail';
 import ContextJailCard from '@/components/ContextComponents/ContextJailCard';
 import { useDragDropContext, useDropZoneValidator, DEFAULT_TARGET_TRANSFORMS } from '@/hooks/dnd';
@@ -40,7 +41,7 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
   const clearPendingMoves = useContextStore(s => s.clearPendingMoves);
   const deleteAllContexts = useContextStore(s => s.deleteAllContexts);
   const { activeProject } = useClientProjectStore();
-  const { showFullScreenModal } = useGlobalModal();
+  const { showFullScreenModal, showInfoModal, hideModal } = useGlobalModal();
   const { isDetailOpen, selectedGroupId, closeGroupDetail, openGroupDetail } = useContextDetail();
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
@@ -212,6 +213,22 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
     }
   }, [activeProject?.id]);
 
+  const handleAuditClick = useCallback(() => {
+    if (!activeProject?.id) return;
+    const projectId = activeProject.id;
+    showInfoModal(
+      'Context Balance Audit',
+      <ContextAuditPanel
+        projectId={projectId}
+        onSelectGroup={(groupId) => {
+          hideModal();
+          openGroupDetail(groupId);
+        }}
+      />,
+      { maxWidth: 'max-w-3xl', maxHeight: 'max-h-[90vh]' }
+    );
+  }, [activeProject?.id, showInfoModal, hideModal, openGroupDetail]);
+
   // Load project data when active project changes or on initial mount
   useEffect(() => {
     if (!activeProject?.id) return;
@@ -275,6 +292,7 @@ const HorizontalContextBar = React.memo(({ selectedFilesCount }: HorizontalConte
                 onToggleExpanded={handleToggleExpanded}
                 onDeleteAllClick={handleDeleteAllClick}
                 onExportClick={handleExportClick}
+                onAuditClick={handleAuditClick}
               />
             </div>
 

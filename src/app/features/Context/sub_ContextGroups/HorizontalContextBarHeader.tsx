@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SimpleSpinner } from '@/components/ui';
-import { Save, Plus, Grid3X3, ChevronUp, Trash2, Download, Check, Loader2 } from 'lucide-react';
+import { Save, Plus, Grid3X3, ChevronUp, Trash2, Download, Check, Loader2, ClipboardCheck } from 'lucide-react';
 import { ContextGroup } from '../../../../stores/contextStore';
 import { useActiveOnboardingStep } from '@/app/features/Onboarding/lib/useOnboardingConditions';
 import { buttonVariants } from '@/lib/design-tokens';
@@ -18,6 +18,7 @@ interface HorizontalContextBarHeaderProps {
   onToggleExpanded: () => void;
   onDeleteAllClick: () => Promise<void>;
   onExportClick?: () => Promise<void>;
+  onAuditClick?: () => void;
 }
 
 const HorizontalContextBarHeader = React.memo(({
@@ -31,7 +32,8 @@ const HorizontalContextBarHeader = React.memo(({
   onAddContextClick,
   onToggleExpanded,
   onDeleteAllClick,
-  onExportClick
+  onExportClick,
+  onAuditClick
 }: HorizontalContextBarHeaderProps) => {
   // Onboarding
   const { isReviewContextsActive } = useActiveOnboardingStep();
@@ -174,6 +176,21 @@ const HorizontalContextBarHeader = React.memo(({
                     ) : (
                       <Download className="w-5 h-5" />
                     )}
+                  </motion.button>
+                )}
+
+                {/* Audit Context Map Button */}
+                {contextsCount > 0 && onAuditClick && (
+                  <motion.button
+                    onClick={onAuditClick}
+                    className="p-3 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-amber-400 rounded-xl hover:from-amber-500/30 hover:to-yellow-500/30 transition-all border border-amber-500/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                    title="Audit context balance"
+                    aria-label="Audit context balance"
+                    data-testid="audit-contexts-btn"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <ClipboardCheck className="w-5 h-5" />
                   </motion.button>
                 )}
 
