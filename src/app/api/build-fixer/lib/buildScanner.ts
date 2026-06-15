@@ -324,23 +324,43 @@ export function createIntelligentErrorGroups(errors: BuildError[]): ErrorGroup[]
   return result;
 }
 
+type RequirementScope = 'file' | 'directory';
+
+interface RequirementMarkdownInput {
+  /** The label for the group: a single file path or a directory path. */
+  scope: RequirementScope;
+  /** The path of the group (file path for `file` scope, directory path for `directory` scope). */
+  groupPath: string;
+  /** Distinct files the errors span. */
+  files: string[];
+  /** All errors in the group. */
+  errors: BuildError[];
+  /** Detected build command so the agent can self-verify the fix. */
+  buildCommand?: string;
+  /** When false, omits the raw-error appendix. Defaults to true. */
+  includeRawErrors?: boolean;
+}
+
 /**
- * Format errors for a requirement file
+ * Single source of truth for the requirement document Claude Code consumes.
+ * One consistent structure parameterized by scope:
+ *   header → intro → grouped errors → one instructions block → optional raw-error appendix.
  */
-export function formatErrorGroup(group: ErrorGroup): string {
-  const { file, errors } = group;
+function buildRequirementMarkdown(input: RequirementMarkdownInput): string {
+  const { scope, groupPath, files, errors, buildCommand, includeRawErrors = true } = input;
+  const isDirectory = scope === 'directory';
 
-  const uniqueFiles = [...new Set(errors.map(e => e.file))];
-  const isDirectoryGroup = uniqueFiles.length > 1;
+  const plural = (count: number) => (count === 1 ? '' : 's');
 
-  const header = isDirectoryGroup
-    ? `# Fix Build Errors - ${file}/ (${uniqueFiles.length} files)`
-    : `# Fix Build Errors - ${file}`;
+  const header = isDirectory
+    ? `# Fix Build Errors - ${groupPath}/ (${files.length} files)`
+    : `# Fix Build Errors - ${groupPath}`;
 
-  const intro = isDirectoryGroup
-    ? `This requirement contains ${errors.length} build error${errors.length > 1 ? 's' : ''} across ${uniqueFiles.length} file${uniqueFiles.length > 1 ? 's' : ''} in the \`${file}/\` directory.`
-    : `This requirement contains ${errors.length} build error${errors.length > 1 ? 's' : ''} in \`${file}\`.`;
+  const intro = isDirectory
+    ? `This requirement contains ${errors.length} build error${plural(errors.length)} across ${files.length} file${plural(files.length)} in the \`${groupPath}/\` directory.`
+    : `This requirement contains ${errors.length} build error${plural(errors.length)} in \`${groupPath}\`.`;
 
+  // Grouped errors — list per-file headings only for directory scope.
   const errorsByFile = new Map<string, BuildError[]>();
   for (const error of errors) {
     const fileErrors = errorsByFile.get(error.file) || [];
@@ -352,7 +372,7 @@ export function formatErrorGroup(group: ErrorGroup): string {
   let globalIndex = 1;
 
   for (const [fileName, fileErrors] of errorsByFile.entries()) {
-    if (isDirectoryGroup) {
+    if (isDirectory) {
       errorSections.push(`\n### ${fileName} (${fileErrors.length} errors)\n`);
     }
 
@@ -369,45 +389,75 @@ export function formatErrorGroup(group: ErrorGroup): string {
 
   const errorList = errorSections.join('\n');
 
-  const instructions = isDirectoryGroup
-    ? `
-## Instructions
+  // One instructions block, parameterized by scope. Shared steps live in a single
+  // place; the directory scope adds a leading "work through each file" step and a
+  // pattern-spotting tip.
+  const verifyStep = buildCommand
+    ? `Run \`${buildCommand}\` to verify the fixes`
+    : 'Run the type checker to verify the fixes';
 
-This requirement groups related errors in the \`${file}/\` directory. Please fix all errors systematically:
+  const steps = isDirectory
+    ? [
+        'Work through each file listed above',
+        'For each error, navigate to the specified line number',
+        'Understand the error message and apply the appropriate fix',
+        'Ensure fixes are consistent across related files',
+        verifyStep,
+      ]
+    : [
+        'Navigate to each specified line number',
+        'Understand the error message and rule violation',
+        'Apply the appropriate fix',
+        "Ensure the fix doesn't introduce new errors",
+        verifyStep,
+      ];
 
-1. Work through each file listed above
-2. For each error, navigate to the specified line number
-3. Understand the error message and apply the appropriate fix
-4. Ensure fixes are consistent across related files
-5. Run the type checker after fixing to verify
+  const introLine = isDirectory
+    ? `This requirement groups related errors in the \`${groupPath}/\` directory. Please fix all errors systematically:`
+    : 'Please review and fix all the errors listed above:';
 
-**Tip**: Many errors in the same directory may share common causes (e.g., missing imports, type definitions). Look for patterns to fix multiple errors efficiently.
-`
-    : `
-## Instructions
+  const tip = isDirectory
+    ? '\n\n**Tip**: Many errors in the same directory may share common causes (e.g., missing imports, type definitions). Look for patterns to fix multiple errors efficiently.'
+    : '';
 
-Please review and fix all the errors listed above:
+  const numberedSteps = steps.map((step, i) => `${i + 1}. ${step}`).join('\n');
+  const instructions = `\n## Instructions\n\n${introLine}\n\n${numberedSteps}${tip}\n`;
 
-1. Navigate to each specified line number
-2. Understand the error message and rule violation
-3. Apply the appropriate fix
-4. Ensure the fix doesn't introduce new errors
-5. Run the type checker to verify the fixes
-`;
+  // Optional raw-error appendix (machine-readable form). Gated so we don't always
+  // re-dump every error a second time.
+  const errorDetails = includeRawErrors
+    ? `\n## Error Details\n\n\`\`\`\n${errors.map(e => {
+        const loc = e.line ? `${e.file}:${e.line}:${e.column || 0}` : e.file;
+        const rule = e.rule ? ` [${e.rule}]` : '';
+        return `${loc} - ${e.severity}${rule}: ${e.message}`;
+      }).join('\n')}\n\`\`\`\n`
+    : '';
 
-  const errorDetails = `
-## Error Details
+  return `${header}\n\n${intro}\n\n## Errors\n${errorList}\n${instructions}${errorDetails}`;
+}
 
-\`\`\`
-${errors.map(e => {
-  const loc = e.line ? `${e.file}:${e.line}:${e.column || 0}` : e.file;
-  const rule = e.rule ? ` [${e.rule}]` : '';
-  return `${loc} - ${e.severity}${rule}: ${e.message}`;
-}).join('\n')}
-\`\`\`
-`;
+/**
+ * Format errors for a requirement file.
+ *
+ * @param buildCommand Optional detected build command, embedded into the verify
+ *   step so the auto-fixer can self-verify its fix.
+ */
+export function formatErrorGroup(group: ErrorGroup, buildCommand?: string): string {
+  const { file, errors } = group;
 
-  return `${header}\n\n${intro}\n\n## Errors\n${errorList}\n${instructions}\n${errorDetails}`;
+  const files = [...new Set(errors.map(e => e.file))];
+  const scope: RequirementScope = files.length > 1 ? 'directory' : 'file';
+
+  return buildRequirementMarkdown({
+    scope,
+    groupPath: file,
+    files,
+    errors,
+    buildCommand,
+    // Drop the duplicated second error dump by default; the grouped list above
+    // already conveys every error. Kept reachable via the flag if needed later.
+    includeRawErrors: false,
+  });
 }
 
 /**

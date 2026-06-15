@@ -44,7 +44,7 @@ function handleScanOnly(scanResult: any, startTime: number) {
  * Handles full execution with requirement file creation
  */
 async function handleFullExecution(projectPath: string, scanResult: any, startTime: number) {
-  const createResult = await createRequirementFiles(projectPath, scanResult.errorGroups);
+  const createResult = await createRequirementFiles(projectPath, scanResult.errorGroups, scanResult.buildCommand);
 
   return createBuildFixerResponse({
     success: true,
