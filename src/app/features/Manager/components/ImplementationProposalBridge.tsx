@@ -46,14 +46,17 @@ export interface ImplementationProposalBridgeProps {
  */
 function ImplementationProposalBridgeInner({
   implementationLog,
-  projectPath,
   onProposalAction,
   showImplementWithAI,
   onError,
 }: ImplementationProposalBridgeProps) {
-  // Generate proposals from the implementation log
+  // Generate proposals from the implementation log.
+  // NOTE: generateProposalsFromLog's 2nd arg is `contextDescription`, not a path.
+  // Passing projectPath there leaked the raw local filesystem path into every
+  // proposal rationale ("Additional context: C:\...") and into generated
+  // requirement files — so it is intentionally not passed.
   const [proposals, setProposals] = useState<Proposal[]>(() =>
-    generateProposalsFromLog(implementationLog, projectPath)
+    generateProposalsFromLog(implementationLog)
   );
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -62,11 +65,11 @@ function ImplementationProposalBridgeInner({
 
   // Regenerate proposals when implementation log changes
   useEffect(() => {
-    const newProposals = generateProposalsFromLog(implementationLog, projectPath);
+    const newProposals = generateProposalsFromLog(implementationLog);
     setProposals(newProposals);
     setCurrentIndex(0);
     setIsVisible(newProposals.length > 0);
-  }, [implementationLog.id, projectPath]);
+  }, [implementationLog.id]);
 
   // Current proposal
   const currentProposal = useMemo(() => {
