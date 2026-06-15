@@ -42,6 +42,7 @@
   ],
   "exclude": [
     "node_modules",
+    "src-tauri",
     "docs",
     "tests",
     "vitest.config.ts",

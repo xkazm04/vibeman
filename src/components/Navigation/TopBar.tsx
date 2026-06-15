@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MoreHorizontal, Component, Activity, Users, Sunrise, HelpCircle, Plug, Brain, Bot, ClipboardList, Workflow, LayoutGrid, Database } from 'lucide-react';
+import { MoreHorizontal, Component, Activity, ClipboardList, Database } from 'lucide-react';
 import { useOnboardingStore, type AppModule } from '@/stores/onboardingStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -80,18 +80,10 @@ const mainNavigationItems: NavigationItem[] = [
 
 // Hidden in "Other" dropdown
 const otherNavigationItems: NavigationItem[] = [
-  { module: 'commander', label: 'Annette', icon: Bot },
-  { module: 'brain', label: 'Brain', icon: Brain },
-  { module: 'conductor', label: 'Conductor', icon: Workflow },
   { module: 'manager', label: 'Manager', icon: ClipboardList },
   { module: 'halloffame', label: 'Hall of Fame', icon: Component },
-  { module: 'integrations', label: 'Integrations', icon: Plug },
-  { module: 'questions', label: 'Questions', icon: HelpCircle },
   { module: 'reflector', label: 'Reflector', icon: Activity },
-  { module: 'social', label: 'Social', icon: Users },
-  { module: 'views', label: 'Views', icon: LayoutGrid },
   { module: 'explorer', label: 'Explorer', icon: Database },
-  { module: 'zen', label: 'Zen Mode', icon: Sunrise },
 ];
 
 // Navigation item component

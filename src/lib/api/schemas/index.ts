@@ -44,12 +44,6 @@ export {
   parseStandupJsonArray,
 } from './standup';
 
-// Questions API schemas
-export {
-  QuestionsResponseSchema,
-  QuestionMutationSchema,
-} from './questions';
-
 // Directions API schemas
 export {
   DirectionsResponseSchema,

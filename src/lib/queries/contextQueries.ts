@@ -15,6 +15,7 @@ export interface ContextGroup {
   color: string;
   position: number;
   type: 'pages' | 'client' | 'server' | 'external' | null;
+  domain: 'feature' | 'infrastructure' | 'shared' | 'integration' | 'data' | null;
   icon: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -26,6 +27,7 @@ export interface ContextGroupRelationship {
   projectId: string;
   sourceGroupId: string;
   targetGroupId: string;
+  relationshipType?: string | null;
   createdAt: Date;
 }
 
@@ -57,6 +59,10 @@ export interface Context {
   apiSurface?: Array<{ path: string; methods: string; description: string }>;
   crossRefs?: Array<{ contextId: string; relationship: 'depends_on' | 'depended_by' | 'shares_data' }>;
   techStack?: string[];
+  // Categorization (see src/lib/contexts/taxonomy.ts)
+  category?: string | null;
+  businessFeature?: string | null;
+  apiRoutes?: string[];
   // Additional fields from JOIN queries
   groupName?: string;
   groupColor?: string;
@@ -95,6 +101,7 @@ function dbContextGroupToContextGroup(dbGroup: DbContextGroup): ContextGroup {
     color: dbGroup.color,
     position: dbGroup.position,
     type: dbGroup.type || null,
+    domain: dbGroup.domain || null,
     icon: dbGroup.icon || null,
     createdAt: new Date(dbGroup.created_at),
     updatedAt: new Date(dbGroup.updated_at),
@@ -108,6 +115,7 @@ function dbRelationshipToRelationship(dbRel: DbContextGroupRelationship): Contex
     projectId: dbRel.project_id,
     sourceGroupId: dbRel.source_group_id,
     targetGroupId: dbRel.target_group_id,
+    relationshipType: dbRel.relationship_type || null,
     createdAt: new Date(dbRel.created_at),
   };
 }
@@ -141,6 +149,9 @@ function dbContextToContext(dbContext: DbContext & { group_name?: string; group_
     apiSurface: safeJsonParse(dbContext.api_surface),
     crossRefs: safeJsonParse(dbContext.cross_refs),
     techStack: safeJsonParse(dbContext.tech_stack),
+    category: dbContext.category || undefined,
+    businessFeature: dbContext.business_feature || undefined,
+    apiRoutes: safeJsonParse(dbContext.api_routes),
     createdAt: new Date(dbContext.created_at),
     updatedAt: new Date(dbContext.updated_at),
     groupName: dbContext.group_name,
@@ -167,6 +178,7 @@ export const contextGroupQueries = {
     name: string;
     color?: string;
     icon?: string;
+    domain?: string;
   }): Promise<ContextGroup> => {
     try {
       // Check if we've reached the maximum number of groups (9)
@@ -188,6 +200,7 @@ export const contextGroupQueries = {
         color,
         position: maxPosition + 1,
         icon: data.icon,
+        domain: data.domain,
       };
 
       const dbGroup = contextGroupRepository.createGroup(groupData);
@@ -205,6 +218,7 @@ export const contextGroupQueries = {
     position?: number;
     type?: 'pages' | 'client' | 'server' | 'external' | null;
     icon?: string | null;
+    domain?: 'feature' | 'infrastructure' | 'shared' | 'integration' | 'data' | null;
   }): Promise<ContextGroup | null> => {
     return handleAsyncOperation(
       async () => {
@@ -293,6 +307,7 @@ export const contextGroupRelationshipQueries = {
     projectId: string;
     sourceGroupId: string;
     targetGroupId: string;
+    relationshipType?: string;
   }): Promise<ContextGroupRelationship | null> => {
     return handleAsyncOperation(
       async () => {
@@ -301,6 +316,7 @@ export const contextGroupRelationshipQueries = {
           project_id: data.projectId,
           source_group_id: data.sourceGroupId,
           target_group_id: data.targetGroupId,
+          relationship_type: data.relationshipType,
         };
 
         const dbRel = contextGroupRelationshipRepository.create(relData);
@@ -389,6 +405,9 @@ export const contextQueries = {
     apiSurface?: Array<{ path: string; methods: string; description: string }>;
     crossRefs?: Array<{ contextId: string; relationship: string }>;
     techStack?: string[];
+    category?: string;
+    businessFeature?: string;
+    apiRoutes?: string[];
   }): Promise<Context> => {
     return handleAsyncOperation(
       async () => {
@@ -406,6 +425,9 @@ export const contextQueries = {
           api_surface: data.apiSurface ? JSON.stringify(data.apiSurface) : undefined,
           cross_refs: data.crossRefs ? JSON.stringify(data.crossRefs) : undefined,
           tech_stack: data.techStack ? JSON.stringify(data.techStack) : undefined,
+          category: data.category,
+          business_feature: data.businessFeature,
+          api_routes: data.apiRoutes ? JSON.stringify(data.apiRoutes) : undefined,
         };
 
         const dbContext = contextRepository.createContext(contextData);
@@ -430,6 +452,9 @@ export const contextQueries = {
     apiSurface?: Array<{ path: string; methods: string; description: string }>;
     crossRefs?: Array<{ contextId: string; relationship: string }>;
     techStack?: string[];
+    category?: string | null;
+    businessFeature?: string | null;
+    apiRoutes?: string[];
   }): Promise<Context | null> => {
     return handleAsyncOperation(
       async () => {
@@ -447,6 +472,9 @@ export const contextQueries = {
           api_surface: updates.apiSurface ? JSON.stringify(updates.apiSurface) : undefined,
           cross_refs: updates.crossRefs ? JSON.stringify(updates.crossRefs) : undefined,
           tech_stack: updates.techStack ? JSON.stringify(updates.techStack) : undefined,
+          category: updates.category,
+          business_feature: updates.businessFeature,
+          api_routes: updates.apiRoutes ? JSON.stringify(updates.apiRoutes) : undefined,
         };
 
         const dbContext = contextRepository.updateContext(contextId, updateData);

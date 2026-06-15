@@ -20,9 +20,16 @@ pub enum StreamEvent {
     #[serde(rename = "result")]
     Result {
         result: Option<String>,
+        // Claude Code emits this as `total_cost_usd`; accept either key.
+        #[serde(default, alias = "total_cost_usd")]
         cost_usd: Option<f64>,
         duration_ms: Option<u64>,
         session_id: Option<String>,
+        #[serde(default)]
+        num_turns: Option<u64>,
+        /// Cumulative token usage for the whole session (authoritative totals).
+        #[serde(default)]
+        usage: Option<TokenUsage>,
     },
 }
 
@@ -49,10 +56,16 @@ pub enum ContentBlock {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TokenUsage {
     pub input_tokens: Option<u64>,
     pub output_tokens: Option<u64>,
+    /// Tokens served from the provider prompt cache (the prefix-reuse win).
+    #[serde(default)]
+    pub cache_read_input_tokens: Option<u64>,
+    /// Tokens written into the provider prompt cache on this turn.
+    #[serde(default)]
+    pub cache_creation_input_tokens: Option<u64>,
 }
 
 impl StreamEvent {

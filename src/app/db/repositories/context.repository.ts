@@ -86,13 +86,16 @@ export const contextRepository = {
     api_surface?: string;
     cross_refs?: string;
     tech_stack?: string;
+    category?: string;
+    business_feature?: string;
+    api_routes?: string;
   }): DbContext => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
 
     const stmt = db.prepare(`
-      INSERT INTO contexts (id, project_id, group_id, name, description, file_paths, has_context_file, context_file_path, preview, test_scenario, entry_points, db_tables, keywords, api_surface, cross_refs, tech_stack, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO contexts (id, project_id, group_id, name, description, file_paths, has_context_file, context_file_path, preview, test_scenario, entry_points, db_tables, keywords, api_surface, cross_refs, tech_stack, category, business_feature, api_routes, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -112,6 +115,9 @@ export const contextRepository = {
       context.api_surface || null,
       context.cross_refs || null,
       context.tech_stack || null,
+      context.category || null,
+      context.business_feature || null,
+      context.api_routes || null,
       now,
       now
     );
@@ -171,6 +177,9 @@ export const contextRepository = {
     api_surface?: string | null;
     cross_refs?: string | null;
     tech_stack?: string | null;
+    category?: string | null;
+    business_feature?: string | null;
+    api_routes?: string | null;
   }): DbContext | null => {
     // Transform fields that need special handling before delegating to base.update
     const dbUpdates: Record<string, unknown> = { ...updates };

@@ -16,9 +16,9 @@ import { emitTaskExecutionCompleted } from '@/lib/events/domainEmitters';
 import { performTaskCleanup } from '@/lib/execution/taskCleanup';
 import { env } from '@/lib/config/envConfig';
 import { emitTaskChange, type ClassifiedActivity } from './taskChangeEmitter';
-import { detectErrorType, getErrorDescription } from '@/app/features/Conductor/lib/selfHealing/errorClassifier';
-import { buildHealingContext } from '@/app/features/Conductor/lib/selfHealing/promptPatcher';
-import type { ErrorType, HealingPatch } from '@/app/features/Conductor/lib/types';
+import { detectErrorType, getErrorDescription } from '@/lib/selfHealing/errorClassifier';
+import { buildHealingContext } from '@/lib/selfHealing/promptPatcher';
+import type { ErrorType, HealingPatch } from '@/lib/selfHealing/types';
 
 export interface GitExecutionConfig {
   enabled: boolean;

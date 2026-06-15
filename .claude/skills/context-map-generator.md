@@ -60,6 +60,17 @@ for dir in */; do echo "$dir: $(find "$dir" -name "*.ts" -o -name "*.tsx" 2>/dev
 **If monorepo detected** → Each package with 20+ files becomes its own group.
 **If single app** → Group by business features within the app.
 
+### REQUIRED metadata (standardized taxonomy)
+
+Every group and context MUST be tagged so context maps are consistent and comparable across projects. Use these EXACT enum values:
+
+- **Group `domain`** (the group's business role — pick one): `feature` (user-facing capability), `infrastructure` (auth/logging/config/build/deploy), `shared` (reusable primitives consumed across features), `integration` (external services / third-party / webhooks), `data` (persistence: schema/repositories/migrations).
+- **Context `category`** (the context's primary technical layer — pick one): `ui`, `api`, `lib`, `data`, `test`, `config`.
+- **Context `business_feature`**: a short human-readable feature name (often equals the context name).
+- **Relationship `relationship_type`**: `calls`, `uses`, `depends_on`, `triggers`.
+
+**Coverage rule:** every meaningful source file must belong to **exactly one** context — no file in two contexts (no overlap), no meaningful file left uncovered (no gaps). Config/test files group into `config`/`test` contexts rather than being dropped.
+
 **Universal Analysis Commands (work with any project):**
 
 ```bash
@@ -142,9 +153,12 @@ curl -s -X POST "http://localhost:3000/api/context-groups" \
     \"projectId\": \"$PROJECT_ID\",
     \"name\": \"Core Simulator Engine\",
     \"color\": \"#3B82F6\",
-    \"position\": 1
+    \"position\": 1,
+    \"domain\": \"feature\"
   }"
 ```
+
+**`domain` is REQUIRED** — one of `feature|infrastructure|shared|integration|data`.
 
 **Save the returned group IDs** for creating contexts.
 
@@ -160,9 +174,18 @@ curl -s -X POST "http://localhost:3000/api/contexts" \
     "groupId": "GROUP_ID",
     "name": "Feature Name",
     "description": "What this feature DOES for users (1-2 sentences)",
-    "filePaths": ["path/to/file1.tsx", "path/to/file2.ts", "path/to/api/route.ts"]
+    "filePaths": ["path/to/file1.tsx", "path/to/file2.ts", "path/to/api/route.ts"],
+    "category": "ui",
+    "business_feature": "Feature Name",
+    "api_routes": ["/api/feature"],
+    "entry_points": [{"path": "path/to/file1.tsx", "type": "page"}],
+    "db_tables": ["table_name"],
+    "keywords": ["feature", "keyword"],
+    "tech_stack": ["react", "typescript"]
   }'
 ```
+
+**`category` and `business_feature` are REQUIRED.** `category` is one of `ui|api|lib|data|test|config` (the context's primary layer). Also include the AI-navigation fields when they apply: `api_routes` (HTTP paths this context owns), `entry_points`, `db_tables`, `keywords`, `tech_stack`.
 
 **Context Naming Guidelines:**
 - Use action-oriented names: "Image Generation", "Prompt Builder", "Character Roster"
@@ -194,11 +217,11 @@ curl -s -X POST "http://localhost:3000/api/context-group-relationships" \
   }'
 ```
 
-**Relationship Types:**
-- `calls` - Makes API/function calls
-- `uses` - Imports/depends on code
-- `depends-on` - Requires data from
-- `triggers` - Actions that lead to
+**Relationship Types** (use these EXACT values — note `depends_on` is underscored):
+- `calls` - Source invokes target at runtime (HTTP/RPC/function call)
+- `uses` - Source imports/consumes target code or types
+- `depends_on` - Source cannot function without target (hard dependency)
+- `triggers` - Source emits an event/job the target reacts to
 
 ### Step 7: Verify Creation
 
@@ -388,13 +411,15 @@ rm context_map.json 2>/dev/null
 ## Validation Checklist
 
 Before finalizing:
-- [ ] Each group represents a BUSINESS DOMAIN (not code layer)
+- [ ] Each group represents a BUSINESS DOMAIN (not code layer) and has a `domain`
 - [ ] Each context represents a USER CAPABILITY
-- [ ] Each context has 5-15 files
+- [ ] Each context has 5-15 files (SPLIT anything over 15 at a clean boundary; MERGE contexts under 3 files that share a DB table / API namespace)
+- [ ] Every context has a `category` (ui|api|lib|data|test|config) and `business_feature`
+- [ ] COVERAGE: every meaningful source file belongs to exactly ONE context (no overlap, no gaps)
 - [ ] Context descriptions say what users CAN DO
 - [ ] Files are grouped by feature, not by type
-- [ ] Every group has at least 2 contexts
-- [ ] Every group has at least 1 relationship
+- [ ] Every group has 3-6 contexts
+- [ ] Every group has at least 1 relationship (with a `relationship_type`)
 - [ ] No orphan contexts (all belong to a group)
 - [ ] Verified via API calls that data is persisted
 

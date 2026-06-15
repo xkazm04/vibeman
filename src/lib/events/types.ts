@@ -7,7 +7,23 @@
  */
 
 import type { McpProgressData } from '@/app/Claude/lib/taskChangeEmitter';
-import type { AgentEventType } from '@/lib/annette/agentNotificationBridge';
+
+/**
+ * Agent lifecycle event types.
+ * Inlined here after the Annette module (which formerly defined this in
+ * lib/annette/agentNotificationBridge) was removed.
+ */
+export type AgentEventType =
+  | 'decomposing'
+  | 'running'
+  | 'paused'
+  | 'resumed'
+  | 'cancelled'
+  | 'completed'
+  | 'failed'
+  | 'step_started'
+  | 'step_completed'
+  | 'step_failed';
 
 // ── Base ─────────────────────────────────────────────────────────────────────
 

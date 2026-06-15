@@ -16,12 +16,6 @@ import { ideaRepository } from './repositories/idea.repository';
 import { implementationLogRepository } from './repositories/implementation-log.repository';
 import { scanQueueRepository } from './repositories/scanQueue.repository';
 import { standupRepository } from './repositories/standup.repository';
-import {
-  integrationRepository,
-  integrationEventRepository,
-  webhookRepository,
-} from './repositories/integration.repository';
-import { questionRepository } from './repositories/question.repository';
 import { directionRepository } from './repositories/direction.repository';
 import { hallOfFameRepository } from './repositories/hall-of-fame.repository';
 import { observabilityRepository } from './repositories/observability.repository';
@@ -52,16 +46,13 @@ import { goalDependencyRepository } from './repositories/goal-dependency.reposit
 import { fileWriteQueueRepository } from './repositories/file-write-queue.repository';
 import { scanResultRepository } from './repositories/scanResult.repository';
 import { triageRuleRepository } from './repositories/triage-rule.repository';
-import { savedViewRepository } from './repositories/saved-view.repository';
 
 // Export types
 export * from './models/types';
 export * from './models/standup.types';
 export * from './models/session.types';
-export * from './models/integration.types';
 export * from './models/observability.types';
 export * from './models/brain.types';
-export * from './models/annette.types';
 export * from './models/reflector.types';
 export * from './models/cross-project-architecture.types';
 export * from './models/cross-task.types';
@@ -117,10 +108,6 @@ export const standupDb = createDbExport(standupRepository);
 // directly without pulling this whole barrel into their module graph.
 export { sessionDb } from './composites/session.db';
 
-export const integrationDb = createDbExport(integrationRepository);
-export const integrationEventDb = createDbExport(integrationEventRepository);
-export const webhookDb = createDbExport(webhookRepository);
-export const questionDb = createDbExport(questionRepository);
 export const directionDb = createDbExport(directionRepository);
 export const hallOfFameDb = createDbExport(hallOfFameRepository);
 export const observabilityDb = createDbExport(observabilityRepository);
@@ -141,8 +128,6 @@ export { schemaIntelligenceDb } from './composites/schema-intelligence.db';
 export const scanProfileDb = createDbExport(scanProfileRepository);
 export const ideaDependencyDb = createDbExport(ideaDependencyRepository);
 
-export { annetteDb } from './composites/annette.db';
-
 export const workspaceDb = createDbExport(workspaceRepository);
 export const executiveAnalysisDb = createDbExport(executiveAnalysisRepository);
 export const crossProjectRelationshipDb = createDbExport(crossProjectRelationshipRepository);
@@ -157,7 +142,6 @@ export { agentDb } from './composites/agent.db';
 export const fileWriteQueueDb = createDbExport(fileWriteQueueRepository);
 export const scanResultDb = createDbExport(scanResultRepository);
 export const triageRuleDb = createDbExport(triageRuleRepository);
-export const savedViewDb = createDbExport(savedViewRepository);
 
 // Process shutdown handlers are registered in ./init.ts once initialization
 // completes (stop aggregation worker → close hot DB → close main DB).

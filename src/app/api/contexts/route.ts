@@ -6,6 +6,7 @@ import { withObservability } from '@/lib/observability/middleware';
 import { signalCollector } from '@/lib/brain/signalCollector';
 import { parseProjectIds } from '@/lib/api-helpers/projectFilter';
 import { validateFilePathArray } from '@/lib/pathSecurity';
+import { scheduleContextMapExport } from '@/lib/contexts/exportContextMap';
 
 // GET /api/contexts - Get all contexts (optionally filtered by project or group)
 async function handleGet(request: NextRequest) {
@@ -71,7 +72,8 @@ async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { projectId, groupId, name, description, testScenario,
-      entry_points, db_tables, keywords, api_surface, cross_refs, tech_stack } = body;
+      entry_points, db_tables, keywords, api_surface, cross_refs, tech_stack,
+      category, business_feature, api_routes } = body;
 
     // Accept both "filePaths" and "files" — CLI sometimes sends "files" instead
     const filePaths = body.filePaths || body.files || body.file_paths;
@@ -119,7 +121,12 @@ async function handlePost(request: NextRequest) {
       apiSurface: api_surface,
       crossRefs: cross_refs,
       techStack: tech_stack,
+      category,
+      businessFeature: business_feature,
+      apiRoutes: api_routes,
     });
+
+    scheduleContextMapExport(projectId);
 
     // Record brain signal: context created
     try {
@@ -173,6 +180,9 @@ async function handlePut(request: NextRequest) {
       apiSurface: updates.api_surface ?? updates.apiSurface,
       crossRefs: updates.cross_refs ?? updates.crossRefs,
       techStack: updates.tech_stack ?? updates.techStack,
+      category: updates.category,
+      businessFeature: updates.business_feature ?? updates.businessFeature,
+      apiRoutes: updates.api_routes ?? updates.apiRoutes,
     };
 
     // Validate file paths for directory traversal if provided
@@ -191,6 +201,8 @@ async function handlePut(request: NextRequest) {
     if (!context) {
       return notFoundResponse('Context');
     }
+
+    scheduleContextMapExport(context.projectId);
 
     // Record brain signal: context updated
     try {

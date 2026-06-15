@@ -712,7 +712,7 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
         (a, b) => b.createdAt - a.createdAt,
       );
     },
-  })),
+  }),
   createPersistConfig<ManualSessionState & ManualSessionActions>('manual-sessions', {
     category: 'session_work',
     version: 1,
@@ -726,4 +726,5 @@ export const useManualSessionStore = create<ManualSessionState & ManualSessionAc
       ),
     }) as Partial<ManualSessionState & ManualSessionActions>,
   }),
+  )
 );

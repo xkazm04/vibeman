@@ -192,22 +192,6 @@ export const useApplicationSessionStore = create<ApplicationSessionStore>()(
               );
             }
 
-            // Load brain dashboard for this project
-            if (finalConfig.loadBrainDashboard) {
-              cascades.push(
-                (async () => {
-                  try {
-                    const { useBrainStore } = await import('@/stores/brainStore');
-                    const brainStore = useBrainStore.getState();
-                    await brainStore.fetchDashboard(project.id, abortSignals.brain_dashboard.signal);
-                  } catch (e) {
-                    if (e instanceof DOMException && e.name === 'AbortError') return;
-                    console.error('[ApplicationSession] Failed to fetch brain dashboard:', e);
-                  }
-                })()
-              );
-            }
-
             // Load file structure for this project
             if (finalConfig.loadFileStructure) {
               cascades.push(

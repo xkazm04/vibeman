@@ -12,7 +12,7 @@ import { GripVertical } from 'lucide-react';
 import { useDraggableItem } from '@/hooks/dnd';
 import { getTheme } from '../lib/taskStatusUtils';
 import { statusToKanbanColumn } from '../lib/types';
-import type { ProjectRequirement } from '../lib/types';
+import type { ProjectRequirement, RequirementIdString } from '../lib/types';
 import { useLiveTaskActivity, getPhaseColor } from '../hooks/useLiveTaskActivity';
 import { DependencyBadge } from './DependencyBadge';
 import { TaskProgress } from './TaskProgress';
@@ -73,9 +73,9 @@ const KanbanTaskCard = React.memo(function KanbanTaskCard({
     if (e.metaKey || e.ctrlKey) {
       e.preventDefault();
       e.stopPropagation();
-      if (!linkingFrom) startLinking(requirementId);
+      if (!linkingFrom) startLinking(requirementId as RequirementIdString);
       else if (linkingFrom === requirementId) cancelLinking();
-      else completeLinking(requirementId);
+      else completeLinking(requirementId as RequirementIdString);
       return;
     }
     if (!isDisabled) onToggleSelect();

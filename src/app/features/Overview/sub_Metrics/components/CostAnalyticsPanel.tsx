@@ -191,8 +191,8 @@ export default function CostAnalyticsPanel({ data, isLoading }: CostAnalyticsPan
                   borderRadius: 8,
                   fontSize: 11,
                 }}
-                labelFormatter={formatDate}
-                formatter={(value: number) => [formatCost(value), 'Cost']}
+                labelFormatter={(label) => formatDate(String(label))}
+                formatter={(value) => [formatCost(Number(value)), 'Cost']}
               />
               <Area
                 type="monotone"

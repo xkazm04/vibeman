@@ -53,6 +53,13 @@ Bidirectional execution channel (use during implementation):
 - get_related_tasks: Check status of other tasks running in parallel. Call to coordinate file changes and avoid conflicts during batch execution.
 - get_knowledge: Query knowledge base for specific patterns. Use bootstrap_task at task start; use this for targeted mid-task lookups.
 
+Token-optimized I/O (keep your context lean — these cut tokens, originals are always recoverable):
+- vibeman_read: read LARGE files as a structural skeleton instead of every line. Prefer over native Read for big/generated files when you need structure, not every line.
+- vibeman_search: ripgrep with relevance-ranked, compressed results. Prefer over native Grep for broad searches likely to return many matches.
+- vibeman_logs: shrink a large build/test/command log to its errors + summaries before you reason over it.
+- vibeman_retrieve: pull back the FULL original for any hash shown in a compressed result when you need an elided detail.
+These are optional helpers; if one reports it is unavailable, just use the native tool.
+
 Use these tools instead of curl commands for better reliability and error handling.
 Configuration is provided via environment variables (VIBEMAN_PROJECT_ID, VIBEMAN_CONTEXT_ID, etc.).`,
   });

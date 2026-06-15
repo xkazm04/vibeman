@@ -24,6 +24,28 @@ All three pipelines use the same quality gates (TypeScript / lint / tests) and t
 - **The ONLY things you read from the Vibeman repo are its scanner/idea *registries*** — `src/lib/prompts/registry/agents/*.ts` (Pipeline B) and `src/app/features/Ideas/lib/agentRegistry.ts` (Pipeline C). These are Vibeman's own catalogs, read-only. Never edit or commit them (or anything else) into Vibeman as part of a pipeline run. The exception: deliberate edits to *this skill file* when the user asks you to improve the skill.
 - **Ignore the harness `gitStatus` shown at session start for commit purposes** — it describes the *Vibeman* repo, not your target. Re-derive the target's state with `git -C "PROJECT_PATH" status`.
 
+## Headless MCP toolkit (Vibeman MCP server)
+
+When the Vibeman MCP server is connected, prefer these tools over raw `curl` for the headless loop — they wrap the same APIs but handle errors and the approval gate. All operate on the configured project/context; pass `projectId`/`contextId`/`groupId` to override.
+
+**Context map — build & keep fresh:**
+- `create_context` / `update_context` — create or amend a context (files, description, test scenario, group).
+- `create_context_group` / `update_context_group` — organize contexts into groups.
+- `refresh_context` — re-read one context's files and regenerate its description with the LLM. **Call this in Phase 6/7 for every context whose files you changed**, so the context map stays accurate for the next run.
+- `refresh_context_group` — same, for a whole group after a batch of changes.
+
+**Idea scan & triage (Pipeline C):**
+- `scan_ideas` — run an Idea scanner over a context or group; reads files server-side and writes ideas to the DB (you don't ship file contents). Pass `scanType` (e.g. `bug_hunter`, `perf_optimizer`, `feature_scout`) or omit for the default set.
+- `get_backlog` — pull a ranked backlog (default: pending, ranked by value = high impact / low effort & risk).
+- `triage_idea` — set an idea's status (accepted/rejected) with feedback; one call per accept/reject decision.
+
+**Risk/effort approval gate (all pipelines, before waves):**
+- `save_plan` now scores each requirement and **holds high-effort or high-risk items** (effort or risk ≥ 7 by default; pass `effortThreshold`/`riskThreshold` to tune). Held items are saved as `pending`; safe items as `accepted` (ready for a wave). When `save_plan` reports flagged items, **STOP and present them to the user**.
+- `get_pending_approvals` — list items currently held for approval (e.g. after a resume).
+- `resolve_approval` — after the user decides, accept (`approved=true` → ready for wave) or reject (`approved=false` → dropped) a batch of flagged idea IDs.
+
+**Gate discipline:** never add a flagged (high risk/effort) item to an implementation wave until the user has explicitly approved it via `resolve_approval`. Use the Phase 4.1e escalation template to present the flagged items.
+
 ## Phase 0: Pipeline Selection
 
 If the user invocation makes the pipeline obvious (e.g. they explicitly say "run a bug hunter scan" or "implement this goal"), skip the prompt and proceed.

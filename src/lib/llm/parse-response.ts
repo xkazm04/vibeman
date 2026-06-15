@@ -1,4 +1,5 @@
 import { stripCodeFences } from '@/lib/stringUtils';
+import { isContextCategory } from '@/lib/contexts/taxonomy';
 
 /**
  * Extract the first JSON object or array from a string that may contain
@@ -94,6 +95,8 @@ export interface MetadataResult {
   description: string;
   groupId: string | null;
   groupName: string | null;
+  category: string | null;
+  businessFeature: string | null;
 }
 
 /**
@@ -109,6 +112,8 @@ export function parseMetadataResponse(
     description?: string;
     groupId?: string | null;
     groupName?: string | null;
+    category?: string | null;
+    businessFeature?: string | null;
   }>(response);
 
   if (!parsed) {
@@ -117,6 +122,8 @@ export function parseMetadataResponse(
       description: 'Context metadata generation failed',
       groupId: null,
       groupName: null,
+      category: null,
+      businessFeature: null,
     };
   }
 
@@ -125,6 +132,9 @@ export function parseMetadataResponse(
     description: parsed.description || 'No description available.',
     groupId: parsed.groupId || null,
     groupName: parsed.groupName || null,
+    // Only accept a category that matches the canonical taxonomy.
+    category: isContextCategory(parsed.category) ? parsed.category : null,
+    businessFeature: parsed.businessFeature || null,
   };
 
   // Validate groupId if a whitelist is provided

@@ -8,7 +8,7 @@ import { useGlobalModal } from '@/hooks/useGlobalModal';
 import { TaskProgress } from './components/TaskProgress';
 import { RequirementViewer } from '@/components/RequirementViewer';
 import { getTheme } from './lib/taskStatusUtils';
-import type { ProjectRequirement } from './lib/types';
+import type { ProjectRequirement, RequirementIdString } from './lib/types';
 import type { DbIdea } from '@/app/db/models/types';
 import { TruncateTooltip } from '@/components/ui/TruncateTooltip';
 import ContextMenu from '@/components/ContextMenu';
@@ -76,11 +76,11 @@ const TaskItem = React.memo(function TaskItem({
       e.preventDefault();
       e.stopPropagation();
       if (!linkingFrom) {
-        startLinking(reqId);
+        startLinking(reqId as RequirementIdString);
       } else if (linkingFrom === reqId) {
         cancelLinking();
       } else {
-        completeLinking(reqId);
+        completeLinking(reqId as RequirementIdString);
       }
       return;
     }

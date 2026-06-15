@@ -15,6 +15,9 @@ import { registerRelatedTasksTool } from './related-tasks.js';
 import { registerKnowledgeTool } from './knowledge.js';
 import { registerSavePlanTool } from './save-plan.js';
 import { registerBootstrapTaskTool } from './bootstrap-task.js';
+import { registerOptimizeTools } from './optimize.js';
+import { registerContextWriteTools } from './context-write.js';
+import { registerIdeaTools } from './ideas.js';
 
 /**
  * Register all Vibeman MCP tools
@@ -41,5 +44,14 @@ export function registerTools(server: McpServer, config: McpConfig) {
   // Compound tools
   registerBootstrapTaskTool(server, config, client);
 
-  console.error('[vibeman-mcp] Registered tools: log_implementation, check_test_scenario, capture_screenshot, get_context, list_contexts, get_config, get_memory, report_progress, get_related_tasks, get_knowledge, save_plan, bootstrap_task');
+  // Token-optimization tools (offered alongside native Read/Grep)
+  registerOptimizeTools(server, config, client);
+
+  // Headless context map maintenance (create/update/refresh contexts + groups)
+  registerContextWriteTools(server, config, client);
+
+  // Headless idea scan, ranked backlog, triage, and risk/effort approval gate
+  registerIdeaTools(server, config, client);
+
+  console.error('[vibeman-mcp] Registered tools: log_implementation, check_test_scenario, capture_screenshot, get_context, list_contexts, get_config, get_memory, report_progress, get_related_tasks, get_knowledge, save_plan, bootstrap_task, vibeman_read, vibeman_search, vibeman_logs, vibeman_retrieve, create_context, update_context, create_context_group, update_context_group, refresh_context, refresh_context_group, audit_contexts, sync_context_map, scan_ideas, get_backlog, triage_idea, get_pending_approvals, resolve_approval');
 }

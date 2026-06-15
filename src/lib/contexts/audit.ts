@@ -1,0 +1,143 @@
+/**
+ * Context Balance Audit — advisory grader (NOT a save-time gate).
+ *
+ * Scores a project's contexts/groups against the granularity policy and the
+ * categorization taxonomy, surfacing imbalances the hardened generation prompt
+ * is supposed to prevent. Pure + DB-only (no filesystem scan), so it's cheap to
+ * run on demand from an API route or MCP tool.
+ */
+
+import { getPolicy, type ProjectSizeTier } from './policy';
+import { isContextCategory, isGroupDomain } from './taxonomy';
+
+export interface AuditFinding {
+  severity: 'warn' | 'info';
+  code: string;
+  message: string;
+  contextId?: string;
+  groupId?: string;
+}
+
+export interface ContextAuditReport {
+  tier: ProjectSizeTier;
+  totals: {
+    groups: number;
+    contexts: number;
+    files: number;
+    uncategorizedContexts: number;
+    groupsMissingDomain: number;
+    overlappingFiles: number;
+  };
+  findings: AuditFinding[];
+  /** true when there are no warn-level findings. */
+  ok: boolean;
+}
+
+export interface AuditContextInput {
+  id: string;
+  name: string;
+  groupId: string | null;
+  filePaths: string[];
+  category?: string | null;
+}
+
+export interface AuditGroupInput {
+  id: string;
+  name: string;
+  domain?: string | null;
+}
+
+const MAX_OVERLAP_FINDINGS = 20;
+
+export function auditContexts(
+  contexts: AuditContextInput[],
+  groups: AuditGroupInput[],
+  opts?: { sourceFileCount?: number }
+): ContextAuditReport {
+  const totalFiles = contexts.reduce((n, c) => n + (c.filePaths?.length ?? 0), 0);
+  const sourceFileCount = opts?.sourceFileCount ?? totalFiles;
+  const { tier, policy } = getPolicy(sourceFileCount);
+  const findings: AuditFinding[] = [];
+
+  // ── Per-context: size, category, grouping ──────────────────────────────────
+  for (const c of contexts) {
+    const n = c.filePaths?.length ?? 0;
+    if (n > policy.filesPerContext.hardMax) {
+      findings.push({ severity: 'warn', code: 'context_too_large', contextId: c.id, message: `"${c.name}" has ${n} files (hard max ${policy.filesPerContext.hardMax}) — split it.` });
+    } else if (n > policy.filesPerContext.max) {
+      findings.push({ severity: 'info', code: 'context_oversized', contextId: c.id, message: `"${c.name}" has ${n} files (target ≤ ${policy.filesPerContext.max}) — consider splitting.` });
+    } else if (n > 0 && n < policy.filesPerContext.min) {
+      findings.push({ severity: 'info', code: 'context_undersized', contextId: c.id, message: `"${c.name}" has only ${n} files (target ≥ ${policy.filesPerContext.min}) — consider merging.` });
+    }
+
+    if (!c.category || !isContextCategory(c.category)) {
+      findings.push({ severity: 'warn', code: 'context_uncategorized', contextId: c.id, message: `"${c.name}" has no valid category (ui|api|lib|data|test|config).` });
+    }
+    if (!c.groupId) {
+      findings.push({ severity: 'warn', code: 'context_orphan', contextId: c.id, message: `"${c.name}" is not assigned to any group.` });
+    }
+  }
+
+  // ── Per-group: contexts-per-group, domain ───────────────────────────────────
+  const contextsPerGroup = new Map<string, number>();
+  for (const c of contexts) {
+    if (c.groupId) contextsPerGroup.set(c.groupId, (contextsPerGroup.get(c.groupId) ?? 0) + 1);
+  }
+  for (const g of groups) {
+    const count = contextsPerGroup.get(g.id) ?? 0;
+    if (count > policy.contextsPerGroup.max) {
+      findings.push({ severity: 'warn', code: 'group_too_many_contexts', groupId: g.id, message: `"${g.name}" has ${count} contexts (max ${policy.contextsPerGroup.max}) — split the group.` });
+    } else if (count === 0) {
+      findings.push({ severity: 'info', code: 'group_empty', groupId: g.id, message: `"${g.name}" has no contexts.` });
+    } else if (count < policy.contextsPerGroup.min) {
+      findings.push({ severity: 'info', code: 'group_too_few_contexts', groupId: g.id, message: `"${g.name}" has only ${count} contexts (target ≥ ${policy.contextsPerGroup.min}).` });
+    }
+
+    if (!g.domain || !isGroupDomain(g.domain)) {
+      findings.push({ severity: 'warn', code: 'group_missing_domain', groupId: g.id, message: `"${g.name}" has no valid domain (feature|infrastructure|shared|integration|data).` });
+    }
+  }
+
+  if (groups.length > policy.groupsPerProject.max) {
+    findings.push({ severity: 'info', code: 'too_many_groups', message: `${groups.length} groups (target ≤ ${policy.groupsPerProject.max} for a ${tier} project).` });
+  }
+
+  // ── File overlap: a file claimed by more than one context ───────────────────
+  const fileToContexts = new Map<string, string[]>();
+  for (const c of contexts) {
+    for (const f of c.filePaths ?? []) {
+      const arr = fileToContexts.get(f) ?? [];
+      arr.push(c.name);
+      fileToContexts.set(f, arr);
+    }
+  }
+  let overlappingFiles = 0;
+  for (const [file, names] of fileToContexts) {
+    if (names.length > 1) {
+      overlappingFiles++;
+      if (overlappingFiles <= MAX_OVERLAP_FINDINGS) {
+        findings.push({ severity: 'warn', code: 'file_overlap', message: `"${file}" appears in ${names.length} contexts: ${names.join(', ')}.` });
+      }
+    }
+  }
+  if (overlappingFiles > MAX_OVERLAP_FINDINGS) {
+    findings.push({ severity: 'warn', code: 'file_overlap_more', message: `…and ${overlappingFiles - MAX_OVERLAP_FINDINGS} more overlapping files.` });
+  }
+
+  const uncategorizedContexts = contexts.filter((c) => !c.category || !isContextCategory(c.category)).length;
+  const groupsMissingDomain = groups.filter((g) => !g.domain || !isGroupDomain(g.domain)).length;
+
+  return {
+    tier,
+    totals: {
+      groups: groups.length,
+      contexts: contexts.length,
+      files: totalFiles,
+      uncategorizedContexts,
+      groupsMissingDomain,
+      overlappingFiles,
+    },
+    findings,
+    ok: !findings.some((f) => f.severity === 'warn'),
+  };
+}

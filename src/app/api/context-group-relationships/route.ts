@@ -30,7 +30,7 @@ async function handleGet(request: NextRequest) {
 async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
-    const { projectId, sourceGroupId, targetGroupId } = body;
+    const { projectId, sourceGroupId, targetGroupId, relationshipType } = body;
 
     if (!projectId || !sourceGroupId || !targetGroupId) {
       return createErrorResponse('Project ID, source group ID, and target group ID are required', 400);
@@ -50,6 +50,7 @@ async function handlePost(request: NextRequest) {
       projectId,
       sourceGroupId,
       targetGroupId,
+      relationshipType,
     });
 
     if (!relationship) {

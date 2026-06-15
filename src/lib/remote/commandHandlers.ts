@@ -243,7 +243,6 @@ async function handleStartBatch(command: RemoteCommand): Promise<CommandHandlerR
   try {
     // Dynamic imports to avoid circular dependencies and server-side issues
     // Import directly from specific files to avoid loading React hooks
-    const { useZenNavigation, getModeFromPath } = await import('@/app/zen/lib/zenNavigationStore');
     const { useCLISessionStore } = await import('@/components/cli/store/cliSessionStore');
     const { executeNextTask } = await import('@/components/cli/store/cliExecutionManager');
     const { projectDb } = await import('@/lib/project_database');
@@ -253,14 +252,7 @@ async function handleStartBatch(command: RemoteCommand): Promise<CommandHandlerR
     // Type for session IDs
     type CLISessionId = 'cliSession1' | 'cliSession2' | 'cliSession3' | 'cliSession4';
 
-    // Check zen mode - must be 'online' to accept commands
-    const currentMode = getModeFromPath(useZenNavigation.getState().viewPath);
-    if (currentMode !== 'online') {
-      return {
-        success: false,
-        error: 'Vibeman is not in Zen mode. Cannot accept remote batch commands.',
-      };
-    }
+    // Headless: remote batch commands are always accepted (the former Zen-mode gate was removed).
 
     // Get project details
     const project = projectDb.getProject(payload.project_id);

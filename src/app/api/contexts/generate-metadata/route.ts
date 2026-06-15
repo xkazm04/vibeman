@@ -194,6 +194,8 @@ Generate metadata for this context in JSON format:
 2. **description**: A detailed 2-4 sentence description of what this context does, its purpose, and key components
 3. **groupId**: The ID of the most appropriate context group from the list above, or null if none fit well
 4. **groupName**: The name of the selected group, or null if none selected
+5. **category**: The context's primary technical layer — EXACTLY one of: ui | api | lib | data | test | config
+6. **businessFeature**: A short human-readable feature name (often similar to the title)
 
 **Response Format:**
 \`\`\`json
@@ -201,7 +203,9 @@ Generate metadata for this context in JSON format:
   "title": "...",
   "description": "...",
   "groupId": "..." or null,
-  "groupName": "..." or null
+  "groupName": "..." or null,
+  "category": "ui",
+  "businessFeature": "..."
 }
 \`\`\`
 

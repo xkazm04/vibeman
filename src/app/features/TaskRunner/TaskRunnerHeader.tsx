@@ -5,7 +5,6 @@ import { X, Wifi, WifiOff, Upload, Terminal } from 'lucide-react';
 import type { ProjectRequirement, TaskRunnerActions } from './lib/types';
 import { CLIBatchPanel } from '@/components/cli';
 import TaskMonitor from './components/TaskMonitor';
-import { ConductorQABanner } from './components/ConductorQABanner';
 import { useRemoteTaskRunner } from './hooks/useRemoteTaskRunner';
 
 interface TaskRunnerHeaderProps {
@@ -18,8 +17,6 @@ interface TaskRunnerHeaderProps {
   selectedRequirements: Set<string>;
   actions: TaskRunnerActions;
   getRequirementId: (req: ProjectRequirement) => string;
-  /** Number of pending Conductor Q&A items (0 = banner hidden) */
-  conductorQACount?: number;
   /** Manual session controls */
   manualSessionCount?: number;
   hasWaitingSession?: boolean;
@@ -37,7 +34,6 @@ export default function TaskRunnerHeader({
   selectedRequirements,
   actions,
   getRequirementId,
-  conductorQACount = 0,
   manualSessionCount = 0,
   hasWaitingSession = false,
   onToggleSidebar,
@@ -81,9 +77,6 @@ export default function TaskRunnerHeader({
 
   return (
     <div className="relative space-y-3">
-      {/* Conductor Q&A Banner — appears above Session Health when questions are pending */}
-      <ConductorQABanner qaCount={conductorQACount} />
-
       {/* Session Health Monitor - Shows task status and orphaned sessions */}
       <TaskMonitor showOrphanCleanup={true} />
 

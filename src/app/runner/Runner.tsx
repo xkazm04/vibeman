@@ -8,7 +8,6 @@ import CompactSystemLogs from './components/CompactSystemLogs';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
 
 import { RefreshCcw, Skull } from 'lucide-react';
-import VoicebotPillar from '@/app/voicebot/VoicebotPillar';
 import LogoSvg from "@/components/LogoSvg";
 import { motion } from "framer-motion";
 import { useChargingLevel } from "@/hooks/useChargingLevel";
@@ -219,8 +218,6 @@ export default function Runner() {
         onRefresh={handleEmergencyRefresh}
       />
 
-      {/* Voicebot Pillar */}
-      <VoicebotPillar disabled={disabled} />
     </>
   );
 } 

@@ -17,7 +17,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { goalRepository } from '@/app/db/repositories/goal.repository';
 import { processSignal } from '@/lib/goals/goalLifecycleEngine';
-import { verifyGitHubSignature } from '@/lib/integrations/webhookSignature';
+import { verifyGitHubSignature } from '@/lib/webhookSignature';
 import { attributeCommitsToGoals, attributePRToGoals } from '@/lib/goals/commitAttribution';
 import type { CommitInfo, PRInfo } from '@/lib/goals/commitAttribution';
 import { checkRateLimit } from '@/lib/api-helpers/rateLimiter';
