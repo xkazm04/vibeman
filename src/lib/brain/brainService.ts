@@ -35,6 +35,8 @@ import {
   COMPLETION_LOCK_TIMEOUT_MS,
   DECAY_START_FRACTION,
   DECAY_START_MIN_DAYS,
+  DEFAULT_DECAY_FACTOR,
+  DEFAULT_RETENTION_DAYS,
 } from '@/lib/brain/config';
 
 // ---------------------------------------------------------------------------
@@ -398,6 +400,49 @@ export async function completeReflection(input: CompleteReflectionInput): Promis
     console.warn('[Brain] Cross-project promotion failed:', err);
   }
 
+  // Decay + prune behavioral signals so context stays recency-weighted and the
+  // signals table stays bounded. Idempotent per ISO week (decay_applied_at guard),
+  // so it's safe on every reflection. (applySignalDecay previously had no caller.)
+  try {
+    const { decayed, deleted } = applySignalDecay(projectId, DEFAULT_DECAY_FACTOR, DEFAULT_RETENTION_DAYS);
+    if (decayed > 0 || deleted > 0) {
+      console.log(`[Brain] Signal decay: ${decayed} weighted down, ${deleted} pruned`);
+    }
+  } catch (err) {
+    console.warn('[Brain] Signal decay failed:', err);
+  }
+
+  // Revert-learning: mark previously-successful directions whose commit was later
+  // reverted, so revertedCount and the "avoid repeating" guidance become real.
+  // (outcomeTracker.scanForReverts previously had no caller and no checkRevert.)
+  try {
+    const { projectDb } = await import('@/lib/project_database');
+    const projectPath = projectDb.projects.getAll().find((p) => p.id === projectId)?.path;
+    if (projectPath) {
+      const { outcomeTracker } = await import('./outcomeTracker');
+      const reverts = await outcomeTracker.scanForReverts(projectId, (sha) => gitCheckRevert(projectPath, sha));
+      if (reverts > 0) console.log(`[Brain] Detected ${reverts} reverted implementation(s)`);
+    }
+  } catch (err) {
+    console.warn('[Brain] Revert scan failed:', err);
+  }
+
+  // Global reflections only: run cross-project synthesis (architecture-drift
+  // detection + high-confidence proactive-goal generation). Best-effort; goal
+  // creation is idempotent. (runCrossProjectSynthesis previously had no caller.)
+  if (scope === 'global') {
+    try {
+      const { projectDb } = await import('@/lib/project_database');
+      const projectIds = projectDb.projects.getAll().map((p) => p.id);
+      const synth = await runCrossProjectSynthesis(projectIds);
+      console.log(
+        `[Brain] Cross-project synthesis: ${synth.patternsPromoted} pattern(s), ${synth.goalsGenerated} goal(s), ${synth.driftReports.length} drift report(s)`
+      );
+    } catch (err) {
+      console.warn('[Brain] Cross-project synthesis failed:', err);
+    }
+  }
+
   const updatedReflection = brainReflectionRepository.getById(reflectionId);
 
   return {
@@ -468,6 +513,39 @@ export function applySignalDecay(
   return { decayed, deleted };
 }
 
+/**
+ * Best-effort git check: was the commit `sha` later reverted in `projectPath`?
+ * `git revert` records "This reverts commit <sha>." in the body, so a fixed-string
+ * search for the sha surfaces the reverting commit. The sha is sanitized to hex
+ * before use. Returns { reverted:false } on any error (read-only, never throws).
+ */
+async function gitCheckRevert(
+  projectPath: string,
+  sha: string
+): Promise<{ reverted: boolean; revertSha?: string }> {
+  const safeSha = sha.replace(/[^a-fA-F0-9]/g, '');
+  if (safeSha.length < 7) return { reverted: false };
+
+  try {
+    const { executeCommand } = await import('@/lib/command/executeCommand');
+    const result = await executeCommand(
+      'git',
+      ['log', '--fixed-strings', `--grep=${safeSha}`, '--format=%H', '-n', '50'],
+      { cwd: projectPath, timeout: 10000, acceptNonZero: true }
+    );
+    const matches = result.stdout
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      // exclude the original commit itself (a commit can't mention its own future sha,
+      // but guard against prefix overlap to avoid self-matches)
+      .filter((h) => !h.startsWith(safeSha) && !safeSha.startsWith(h));
+    return matches.length > 0 ? { reverted: true, revertSha: matches[0] } : { reverted: false };
+  } catch {
+    return { reverted: false };
+  }
+}
+
 // ============================================================================
 // Cross-Project Knowledge Synthesis
 // ============================================================================
@@ -521,11 +599,12 @@ export async function runCrossProjectSynthesis(
     for (const pid of projectIds) {
       try {
         const candidates = generateProactiveGoals(pid);
-        // Auto-create goals for high-confidence candidates only
+        // Auto-create goals for high-confidence candidates only (idempotent —
+        // createGoalFromCandidate skips titles that already have an open goal).
         for (const candidate of candidates) {
           if (candidate.confidence >= 0.8 && candidate.priority !== 'low') {
-            createGoalFromCandidate(candidate);
-            goalsGenerated++;
+            const res = createGoalFromCandidate(candidate);
+            if (res.created) goalsGenerated++;
           }
         }
       } catch (err) {
