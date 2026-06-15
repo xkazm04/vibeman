@@ -56,7 +56,11 @@ export default function LifecycleDashboard({
    */
   const fetchStatus = useCallback(async () => {
     try {
-      const response = await fetch('/api/lifecycle?includeEvents=true&eventLimit=50');
+      // Pass projectId so the server scopes the (single-instance) orchestrator's
+      // status to this project instead of returning whatever project is active.
+      const response = await fetch(
+        `/api/lifecycle?includeEvents=true&eventLimit=50&projectId=${encodeURIComponent(projectId)}`
+      );
       if (!response.ok) {
         throw new Error('Failed to fetch lifecycle status');
       }
@@ -77,7 +81,7 @@ export default function LifecycleDashboard({
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [projectId]);
 
   /**
    * Initialize the lifecycle orchestrator

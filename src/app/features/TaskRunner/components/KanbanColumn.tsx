@@ -8,9 +8,11 @@
 'use client';
 
 import React from 'react';
+import { Inbox } from 'lucide-react';
 import { useDroppableZone } from '@/hooks/dnd';
 import type { KanbanColumnConfig, ProjectRequirement } from '../lib/types';
 import KanbanTaskCard from './KanbanTaskCard';
+import TaskRunnerEmptyState from './TaskRunnerEmptyState';
 
 interface KanbanColumnProps {
   config: KanbanColumnConfig;
@@ -99,9 +101,11 @@ export default React.memo(function KanbanColumn({
       {/* Cards */}
       <div className="flex-1 overflow-y-auto p-2 space-y-1.5 max-h-[calc(100vh-320px)]">
         {requirements.length === 0 ? (
-          <div className="flex items-center justify-center py-8 text-xs text-gray-600">
-            No tasks
-          </div>
+          <TaskRunnerEmptyState
+            icon={Inbox}
+            title="No tasks"
+            subtitle={`Drag a card here or move tasks to ${config.label}`}
+          />
         ) : (
           requirements.map((req) => {
             const reqId = getRequirementId(req);

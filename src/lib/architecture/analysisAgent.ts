@@ -88,6 +88,11 @@ export const architectureAnalysisAgent = {
       scope: 'workspace',
       trigger_type: triggerType,
     });
+    // Flip the freshly-created 'pending' row to 'running' so the getRunning()
+    // dedup guard above actually matches an in-flight analysis. Without this the
+    // row stays 'pending' forever, getRunning() never returns it, and two
+    // concurrent POSTs (or a double-click) both pass the guard and run.
+    architectureAnalysisRepository.startAnalysis(analysisId);
 
     const existingRels = crossProjectRelationshipRepository.getByWorkspace(workspaceId);
     const existingRelationships = existingRels.map(r => ({
@@ -125,6 +130,8 @@ export const architectureAnalysisAgent = {
       scope: 'project',
       trigger_type: 'onboarding',
     });
+    // Mark running so concurrent project analyses are de-duplicated by getRunning().
+    architectureAnalysisRepository.startAnalysis(analysisId);
 
     const callbackUrl = `${baseUrl}/api/architecture/analyze/${analysisId}/complete`;
 

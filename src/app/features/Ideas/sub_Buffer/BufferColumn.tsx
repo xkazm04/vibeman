@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, AlertTriangle } from 'lucide-react';
+import { Trash2, AlertTriangle, Zap } from 'lucide-react';
 import type { DbIdea } from '@/app/db/models/types';
 import BufferItem from './BufferItem';
 import { createIdeaStagingBuffer } from '@/lib/staging-buffer';
@@ -25,6 +25,8 @@ interface BufferColumnProps {
   onContextDelete?: (contextId: string) => void;
   onIdeaConvert?: (ideaId: string) => void;
   onIdeaQueueForExecution?: (ideaId: string) => void;
+  /** Accept (queue) every pending idea in this column at once. */
+  onContextQueueAll?: (contextId: string) => Promise<void> | void;
 }
 
 const BufferColumn = React.memo(function BufferColumn({
@@ -38,11 +40,28 @@ const BufferColumn = React.memo(function BufferColumn({
   onContextDelete,
   onIdeaConvert,
   onIdeaQueueForExecution,
+  onContextQueueAll,
 }: BufferColumnProps) {
   const accent = getColorAccent(accentColor || 'gray');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isQueueingAll, setIsQueueingAll] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const pendingCount = React.useMemo(
+    () => ideas.filter((i) => i.status === 'pending').length,
+    [ideas],
+  );
+
+  const handleQueueAll = async () => {
+    if (!onContextQueueAll || isQueueingAll || pendingCount === 0) return;
+    setIsQueueingAll(true);
+    try {
+      await onContextQueueAll(contextId ?? 'no-context');
+    } finally {
+      setIsQueueingAll(false);
+    }
+  };
   const [scrolledTop, setScrolledTop] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
@@ -109,6 +128,21 @@ const BufferColumn = React.memo(function BufferColumn({
             <motion.span key={ideas.length} className="text-2xs text-gray-500 font-mono" initial={{ scale: 1.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
               {ideas.length}
             </motion.span>
+            {/* Queue all pending ideas in this column at once */}
+            {onContextQueueAll && pendingCount > 0 && !showConfirm && (
+              <motion.button
+                data-testid={`buffer-column-queue-all-${contextId || 'no-context'}`}
+                onClick={handleQueueAll}
+                disabled={isQueueingAll}
+                className="p-1 hover:bg-amber-500/20 rounded transition-all duration-200 disabled:opacity-50 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70 focus-visible:ring-offset-1 focus-visible:ring-offset-gray-900"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                title={`Queue all ${pendingCount} pending idea${pendingCount !== 1 ? 's' : ''} in ${contextName}`}
+                aria-label={`Queue all ${pendingCount} pending ideas in ${contextName}`}
+              >
+                <Zap className={`w-3 h-3 text-amber-400 ${isQueueingAll ? 'animate-pulse' : ''}`} />
+              </motion.button>
+            )}
             {/* Show delete button for any column with ideas (including General/no-context) */}
             {ideas.length > 0 && !showConfirm && (
               <motion.button

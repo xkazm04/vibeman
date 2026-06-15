@@ -7,7 +7,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { directionRepository } from '@/app/db/repositories/direction.repository';
-import { questionRepository } from '@/app/db/repositories/question.repository';
 import { logger } from '@/lib/logger';
 import { createParamsRouteHandler } from '@/lib/api-helpers/createRouteHandler';
 
@@ -25,15 +24,7 @@ async function handlePost(
     );
   }
 
-    // Gather context: related questions for this context map
-    const relatedQuestions = questionRepository
-      .getQuestionsByProject(direction.project_id)
-      .filter(q => q.context_map_id === direction.context_map_id && q.status === 'answered')
-      .slice(0, 5);
-
-    const questionsContext = relatedQuestions.length > 0
-      ? relatedQuestions.map(q => `Q: ${q.question}\nA: ${q.answer}`).join('\n\n')
-      : 'No answered questions available for this context.';
+    const questionsContext = 'No prior decision history available for this context.';
 
     // Check if this is a paired direction
     let pairContext = '';

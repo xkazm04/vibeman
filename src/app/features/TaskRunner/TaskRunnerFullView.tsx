@@ -1,20 +1,19 @@
 'use client';
 import React, { useCallback, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ListChecks } from 'lucide-react';
 import TaskRunnerHeader from '@/app/features/TaskRunner/TaskRunnerHeader';
 import TaskColumn from '@/app/features/TaskRunner/TaskColumn';
 import ExternalRequirementsColumn from '@/app/features/TaskRunner/components/ExternalRequirementsColumn';
-import { ConductorRow } from '@/app/features/TaskRunner/components/ConductorRow';
 import { SessionSidebar } from '@/app/features/TaskRunner/components/SessionSidebar';
 import { CLISessionModal } from '@/app/features/TaskRunner/components/CLISessionModal';
 import { AutomatedSessionModal } from '@/app/features/TaskRunner/components/AutomatedSessionModal';
 import { ViewToggle, type TaskRunnerView } from '@/app/features/TaskRunner/components/ViewToggle';
 import TaskKanbanBoard from '@/app/features/TaskRunner/components/TaskKanbanBoard';
 import type { CLISessionId } from '@/components/cli/store/cliSessionStore';
-import { useConductorSync } from '@/app/features/TaskRunner/hooks/useConductorSync';
 import { usePollingCleanupOnUnmount } from '@/app/features/TaskRunner/lib/pollingManager';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
+import TaskRunnerEmptyState from '@/app/features/TaskRunner/components/TaskRunnerEmptyState';
 import { useRequirements } from '@/app/features/TaskRunner/hooks/useRequirements';
 import { useTaskRunnerBatchData } from '@/app/features/TaskRunner/hooks/useTaskRunnerBatchData';
 import { useActiveProjectStore } from '@/stores/clientProjectStore';
@@ -83,9 +82,6 @@ const TaskRunnerFullView = () => {
 
   // Batch-fetch aggregation, ideas, and contexts for ALL columns (3 calls instead of 3N)
   const { aggregationByProject, ideasMap, contextsMap } = useTaskRunnerBatchData(groupedRequirements);
-
-  // Conductor pipeline sync — compact cards + Q&A detection
-  const { runs: conductorRuns, qaCount: conductorQACount, refresh: refreshConductor } = useConductorSync();
 
   // Auto-assign handler: distributes selected idle requirements to free CLI sessions
   const handleAutoAssign = useCallback(async (
@@ -192,17 +188,11 @@ const TaskRunnerFullView = () => {
               selectedRequirements={selectedRequirements}
               actions={actions}
               getRequirementId={getRequirementId}
-              conductorQACount={conductorQACount}
               manualSessionCount={manualSessionCount}
               hasWaitingSession={hasWaitingSession}
               onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
               sidebarOpen={sidebarOpen}
             />
-          </LazyContentSection>
-
-          {/* Conductor Compact Cards — always visible with empty state + quick-start */}
-          <LazyContentSection delay={0.18}>
-            <ConductorRow runs={conductorRuns} onRunStarted={refreshConductor} />
           </LazyContentSection>
 
           {/* View Toggle */}
@@ -230,10 +220,12 @@ const TaskRunnerFullView = () => {
                 />
 
                 {requirements.length === 0 ? (
-                  <div className="col-span-full text-center py-12">
-                    <p className="text-gray-500 text-sm">
-                      No local requirements. Create them in your projects&apos; .claude/commands directory.
-                    </p>
+                  <div className="col-span-full">
+                    <TaskRunnerEmptyState
+                      icon={ListChecks}
+                      title="No local requirements"
+                      subtitle="Create them in your project's .claude/commands directory"
+                    />
                   </div>
                 ) : (
                   <AnimatePresence>

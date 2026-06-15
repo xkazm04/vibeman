@@ -183,4 +183,29 @@ export const executiveAnalysisRepository = {
     const result = stmt.run(cutoff);
     return result.changes;
   },
+
+  /**
+   * Mark analyses stuck in 'running' past the threshold as failed (timed out).
+   * The completion callback may never arrive (CLI crash, closed tab, lost
+   * request), which otherwise leaves the row 'running' forever — permanently
+   * reporting isRunning, blocking canAnalyze, and spinning the client's 5s poll
+   * for the life of the tab. cleanupStale only reaps failed/pending, never
+   * running, so this is the recovery path for running zombies. Returns the count.
+   */
+  failStaleRunning(staleThresholdMinutes: number = 15): number {
+    const db = getDatabase();
+    const cutoff = new Date(Date.now() - staleThresholdMinutes * 60 * 1000).toISOString();
+
+    const stale = selectAll<{ id: string }>(
+      db,
+      `SELECT id FROM executive_analysis
+       WHERE status = 'running' AND COALESCE(started_at, created_at) < ?`,
+      cutoff
+    );
+
+    for (const row of stale) {
+      base.failAnalysis(row.id, 'Timed out: no completion callback received within threshold');
+    }
+    return stale.length;
+  },
 };

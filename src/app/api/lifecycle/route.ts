@@ -15,6 +15,21 @@ async function handleGet(request: NextRequest) {
     const includeHistory = searchParams.get('includeHistory') === 'true';
     const includeEvents = searchParams.get('includeEvents') === 'true';
     const eventLimit = parseInt(searchParams.get('eventLimit') || '50', 10);
+    const projectId = searchParams.get('projectId');
+
+    // The orchestrator is a single shared instance. If the caller is asking about a
+    // different project than the one it is currently serving, return an idle view
+    // rather than leaking the active project's running cycle (cross-project bleed).
+    const activeProjectId = lifecycleOrchestrator.getProjectId();
+    if (projectId && activeProjectId && projectId !== activeProjectId) {
+      return NextResponse.json({
+        status: { is_running: false, active_cycles: 0, config: {} },
+        currentCycle: null,
+        config: null,
+        scopedOut: true,
+        activeProjectId,
+      });
+    }
 
     const status = lifecycleOrchestrator.getStatus();
     const currentCycle = lifecycleOrchestrator.getCurrentCycle();
@@ -56,7 +71,15 @@ async function handlePost(request: NextRequest) {
             { status: 400 }
           );
         }
-        await lifecycleOrchestrator.initialize(projectId, config as Partial<LifecycleConfig>);
+        try {
+          await lifecycleOrchestrator.initialize(projectId, config as Partial<LifecycleConfig>);
+        } catch (e) {
+          // Busy with another project (single-instance orchestrator).
+          return NextResponse.json(
+            { error: e instanceof Error ? e.message : 'Initialize failed' },
+            { status: 409 }
+          );
+        }
         return NextResponse.json({
           success: true,
           message: 'Lifecycle orchestrator initialized',

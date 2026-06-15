@@ -83,8 +83,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Update via direct Supabase call (deviceRegistry only updates current device)
-    const success = await deviceRegistry.updateStatus(
+    // Update the device named in the URL. updateStatus() targets this server's own
+    // registered device (this.deviceId), so it would silently mutate the wrong
+    // device and return the target's unchanged row as a success.
+    const success = await deviceRegistry.updateStatusById(
+      id,
       status || existingDevice.status,
       active_sessions
     );

@@ -86,13 +86,16 @@ export const contextRepository = {
     api_surface?: string;
     cross_refs?: string;
     tech_stack?: string;
+    category?: string;
+    business_feature?: string;
+    api_routes?: string;
   }): DbContext => {
     const db = getDatabase();
     const now = getCurrentTimestamp();
 
     const stmt = db.prepare(`
-      INSERT INTO contexts (id, project_id, group_id, name, description, file_paths, has_context_file, context_file_path, preview, test_scenario, entry_points, db_tables, keywords, api_surface, cross_refs, tech_stack, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO contexts (id, project_id, group_id, name, description, file_paths, has_context_file, context_file_path, preview, test_scenario, entry_points, db_tables, keywords, api_surface, cross_refs, tech_stack, category, business_feature, api_routes, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -112,6 +115,9 @@ export const contextRepository = {
       context.api_surface || null,
       context.cross_refs || null,
       context.tech_stack || null,
+      context.category || null,
+      context.business_feature || null,
+      context.api_routes || null,
       now,
       now
     );
@@ -171,6 +177,9 @@ export const contextRepository = {
     api_surface?: string | null;
     cross_refs?: string | null;
     tech_stack?: string | null;
+    category?: string | null;
+    business_feature?: string | null;
+    api_routes?: string | null;
   }): DbContext | null => {
     // Transform fields that need special handling before delegating to base.update
     const dbUpdates: Record<string, unknown> = { ...updates };
@@ -260,10 +269,13 @@ export const contextRepository = {
 
     const placeholders = ids.map(() => '?').join(', ');
 
-    // Single UPDATE with CASE/WHEN
+    // Single UPDATE with CASE/WHEN. The ELSE is required: a CASE with no ELSE
+    // returns NULL for any WHERE-matched row that matches no WHEN, which would
+    // silently eject that context from its group. Keep the existing group_id for
+    // any such row (defends against the id lists drifting, e.g. a duplicate id).
     db.prepare(`
       UPDATE contexts
-      SET group_id = CASE ${caseParts.join(' ')} END,
+      SET group_id = CASE ${caseParts.join(' ')} ELSE group_id END,
           updated_at = ?
       WHERE id IN (${placeholders})
     `).run(...caseValues, now, ...ids);

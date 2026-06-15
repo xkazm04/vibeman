@@ -14,18 +14,17 @@
 
 import { Database } from 'better-sqlite3';
 
-export const migration = {
-  version: 139,
-  description: 'Add insight lineage tracking and canonical ID support',
-
-  up: (db: Database): void => {
+const up = (db: Database): void => {
     // ========================================================================
-    // 1. Add canonical_id column to brain_insights
+    // 1. Add canonical_id column to brain_insights (idempotent)
     // ========================================================================
-    db.exec(`
-      ALTER TABLE brain_insights
-      ADD COLUMN canonical_id TEXT;
-    `);
+    const cols = db.prepare(`PRAGMA table_info(brain_insights)`).all() as Array<{ name: string }>;
+    if (!cols.some((c) => c.name === 'canonical_id')) {
+      db.exec(`
+        ALTER TABLE brain_insights
+        ADD COLUMN canonical_id TEXT;
+      `);
+    }
 
     // Create index for fast canonical ID lookups
     db.exec(`
@@ -83,9 +82,9 @@ export const migration = {
     // For now, leave canonical_id NULL for existing rows - they'll be computed on read.
 
     console.log('[Migration 139] Schema upgraded - canonical IDs will be computed on first read');
-  },
+};
 
-  down: (db: Database): void => {
+const down = (db: Database): void => {
     // Reverse the migration
     db.exec(`
       DROP TABLE IF EXISTS insight_lineage;
@@ -102,5 +101,22 @@ export const migration = {
     `);
 
     console.log('[Migration 139] Reverted - lineage tracking removed');
-  },
+};
+
+/**
+ * Standard runner entry point — matches the migrate{N}(db, logger) convention
+ * the migration runner (index.ts `once(...)`) invokes. This is what wires the
+ * migration into the runner; previously the file only exported `migration`,
+ * which no registry line referenced, so the table/column were never created.
+ */
+export function migrate139InsightLineage(db: Database): void {
+  up(db);
+}
+
+// Retained for rollback tooling / direct callers.
+export const migration = {
+  version: 139,
+  description: 'Add insight lineage tracking and canonical ID support',
+  up,
+  down,
 };

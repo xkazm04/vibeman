@@ -319,20 +319,6 @@ export const env = {
   },
 
   // =========================================================================
-  // Social & Discovery
-  // =========================================================================
-
-  grokApiKey: () => {
-    serverOnly('GROK_API_KEY');
-    return read('GROK_API_KEY') ?? read('XAI_API_KEY');
-  },
-
-  socialEncryptionSecret: () => {
-    serverOnly('SOCIAL_ENCRYPTION_SECRET');
-    return readOr('SOCIAL_ENCRYPTION_SECRET', 'vibeman-social-config-2024');
-  },
-
-  // =========================================================================
   // Observability
   // =========================================================================
 

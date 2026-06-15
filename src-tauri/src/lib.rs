@@ -130,9 +130,7 @@ pub fn run() {
             commands::start_dev_server,
             commands::stop_dev_server,
             commands::scan_ports,
-            // Social & Integrations
-            commands::get_social_configs,
-            commands::get_social_discoveries,
+            // Integrations
             commands::get_integrations,
             commands::get_integration_events,
             commands::get_remote_devices,

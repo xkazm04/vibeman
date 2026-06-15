@@ -288,8 +288,12 @@ export async function executeRequirement(
               pid: spawnedPid,
             });
           } else {
-            // Check for session limit errors
-            const errorOutput = stderr.toLowerCase();
+            // Check for session limit errors. The CLI runs with
+            // `--output-format stream-json`, so limit/quota events are emitted on
+            // STDOUT (as JSON), not stderr — scan both streams or a rate-limited run
+            // is misclassified as a generic failure and gets an instant re-queue
+            // (retry storm) instead of the rate-limit backoff path.
+            const errorOutput = `${stdout}\n${stderr}`.toLowerCase();
             const isSessionLimit =
               errorOutput.includes('session limit') ||
               errorOutput.includes('rate limit') ||

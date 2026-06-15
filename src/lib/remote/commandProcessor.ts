@@ -132,8 +132,16 @@ class RemoteCommandProcessor extends SupabaseService {
       // 1. Have no target (null) - any device can process
       // 2. Are specifically targeted at this device
       if (this.localDeviceId) {
-        // Use OR filter: target_device_id is null OR equals localDeviceId
-        query = query.or(`target_device_id.is.null,target_device_id.eq.${this.localDeviceId}`);
+        // localDeviceId is interpolated into a PostgREST .or() filter grammar. Guard
+        // against filter injection by allowing only a safe id charset; if it ever
+        // contains operator characters, process broadcast (null-target) commands
+        // only rather than risk a malformed/injected predicate.
+        if (/^[A-Za-z0-9_-]+$/.test(this.localDeviceId)) {
+          query = query.or(`target_device_id.is.null,target_device_id.eq.${this.localDeviceId}`);
+        } else {
+          console.warn('[RemoteCommandProcessor] localDeviceId has unsafe characters; processing broadcast commands only');
+          query = query.is('target_device_id', null);
+        }
       }
 
       const { data: commands, error } = await query;

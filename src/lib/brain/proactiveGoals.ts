@@ -30,6 +30,8 @@ export interface ProactiveGoalResult {
   goalId: string;
   title: string;
   projectId: string;
+  /** false when an open goal with this title already existed (no insert performed) */
+  created: boolean;
 }
 
 // ============================================================================
@@ -78,6 +80,22 @@ export function generateProactiveGoals(
  */
 export function createGoalFromCandidate(candidate: ProactiveGoalCandidate): ProactiveGoalResult {
   const db = getDatabase();
+
+  // Idempotency guard: proactive synthesis can run on every global reflection,
+  // so skip candidates whose goal already exists (open/in_progress) for this
+  // project. Without this, the same auto-goals would be re-filed every run.
+  const existing = db
+    .prepare(
+      `SELECT id FROM goals
+       WHERE project_id = ? AND title = ? AND status IN ('open', 'in_progress')
+       LIMIT 1`
+    )
+    .get(candidate.projectId, candidate.title) as { id: string } | undefined;
+
+  if (existing) {
+    return { goalId: existing.id, title: candidate.title, projectId: candidate.projectId, created: false };
+  }
+
   const goalId = uuidv4();
   const now = new Date().toISOString();
 
@@ -100,6 +118,7 @@ export function createGoalFromCandidate(candidate: ProactiveGoalCandidate): Proa
     goalId,
     title: candidate.title,
     projectId: candidate.projectId,
+    created: true,
   };
 }
 

@@ -7,16 +7,18 @@ import {
   Terminal,
   X,
   ChevronRight,
-  Loader2,
   MessageCircle,
-  CheckCircle2,
-  XCircle,
   Bot,
+  StopCircle,
 } from 'lucide-react';
 import { useManualSessionStore } from '../store/manualSessionStore';
 import { useCLISessionStore } from '@/components/cli/store/cliSessionStore';
+import type { CLISessionId } from '@/components/cli/store/cliSessionStore';
+import { clearSessionStrategy } from '@/components/cli/store/cliExecutionManager';
+import { clearSessionTasks } from '@/components/cli/taskRegistry';
 import { useActiveProjectStore } from '@/stores/clientProjectStore';
 import type { ManualSessionStatus } from '../lib/manualSession.types';
+import { formatCost } from './CLISessionModal';
 
 // ============================================================================
 // Status badge config
@@ -41,25 +43,27 @@ const STATUS_CONFIG: Record<ManualSessionStatus, {
 // ============================================================================
 
 function SessionCard({
-  id,
   label,
   status,
   projectName,
   isActive,
   isManual,
   eventCount,
+  costUsd,
   onSelect,
   onClose,
+  onStop,
 }: {
-  id: string;
   label: string;
   status: ManualSessionStatus;
   projectName: string;
   isActive: boolean;
   isManual: boolean;
   eventCount: number;
+  costUsd?: number;
   onSelect: () => void;
   onClose?: () => void;
+  onStop?: () => void;
 }) {
   const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.idle;
 
@@ -105,6 +109,14 @@ function SessionCard({
                 <span className="text-2xs text-gray-500">{eventCount} msgs</span>
               </>
             )}
+            {costUsd !== undefined && costUsd > 0 && (
+              <>
+                <span className="text-2xs text-gray-600">·</span>
+                <span className="text-2xs text-emerald-400 tabular-nums" title="Total session cost">
+                  {formatCost(costUsd)}
+                </span>
+              </>
+            )}
           </div>
         </div>
 
@@ -112,6 +124,18 @@ function SessionCard({
         <div className="flex items-center gap-1 shrink-0">
           {status === 'waiting_input' && (
             <MessageCircle className="w-3.5 h-3.5 text-amber-400 animate-bounce" />
+          )}
+          {/* Stop / kill button for running sessions (finding #5) */}
+          {status === 'running' && onStop && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onStop(); }}
+              className="p-0.5 rounded hover:bg-red-500/20 transition-colors"
+              title="Stop session"
+              aria-label="Stop session"
+              data-testid="session-stop-btn"
+            >
+              <StopCircle className="w-3.5 h-3.5 text-red-400 hover:text-red-300" />
+            </button>
           )}
           <ChevronRight className="w-3.5 h-3.5 text-gray-500 group-hover:text-gray-300 transition-colors" />
         </div>
@@ -151,8 +175,11 @@ export function SessionSidebar({ isOpen, onClose, onSelectSession }: SessionSide
   const createSession = useManualSessionStore((s) => s.createSession);
   const closeSession = useManualSessionStore((s) => s.closeSession);
   const selectSession = useManualSessionStore((s) => s.selectSession);
+  const abortSession = useManualSessionStore((s) => s.abortSession);
 
   const cliSessions = useCLISessionStore((s) => s.sessions);
+  const clearSession = useCLISessionStore((s) => s.clearSession);
+  const setRunning = useCLISessionStore((s) => s.setRunning);
   const activeProject = useActiveProjectStore((s) => s.activeProject);
 
   // Map automated sessions to display format
@@ -183,6 +210,28 @@ export function SessionSidebar({ isOpen, onClose, onSelectSession }: SessionSide
 
   const handleSelectAutomated = (sessionId: string) => {
     onSelectSession(sessionId, false);
+  };
+
+  // Stop a running manual session — confirm since work is mid-flight (finding #5)
+  const handleStopManual = (sessionId: string) => {
+    if (!window.confirm('Stop this session? The running Claude process will be aborted.')) return;
+    void abortSession(sessionId);
+  };
+
+  // Stop a running automated session: abort the queue + clear server registry.
+  const handleStopAutomated = (sessionId: CLISessionId) => {
+    const session = cliSessions[sessionId];
+    const hasRunningTask = session?.queue.some((t) => t.status.type === 'running') ?? false;
+    if (
+      hasRunningTask &&
+      !window.confirm('Stop this automated session? In-flight tasks will be cancelled.')
+    ) {
+      return;
+    }
+    setRunning(sessionId, false);
+    clearSessionStrategy(sessionId);
+    clearSession(sessionId);
+    void clearSessionTasks(sessionId);
   };
 
   return (
@@ -246,15 +295,16 @@ export function SessionSidebar({ isOpen, onClose, onSelectSession }: SessionSide
                     {manualSessions.map((s) => (
                       <SessionCard
                         key={s.id}
-                        id={s.id}
                         label={s.label}
                         status={s.status}
                         projectName={s.projectName}
                         isActive={s.id === activeSessionId}
                         isManual
                         eventCount={s.events.filter(e => e.type === 'assistant' || e.type === 'user').length}
+                        costUsd={s.totalCostUsd}
                         onSelect={() => handleSelectManual(s.id)}
                         onClose={() => closeSession(s.id)}
+                        onStop={() => handleStopManual(s.id)}
                       />
                     ))}
                   </AnimatePresence>
@@ -270,7 +320,6 @@ export function SessionSidebar({ isOpen, onClose, onSelectSession }: SessionSide
                   {automatedEntries.map((entry) => (
                     <SessionCard
                       key={entry.id}
-                      id={entry.id}
                       label={entry.label}
                       status={entry.status}
                       projectName={entry.projectName}
@@ -278,6 +327,7 @@ export function SessionSidebar({ isOpen, onClose, onSelectSession }: SessionSide
                       isManual={false}
                       eventCount={entry.eventCount}
                       onSelect={() => handleSelectAutomated(entry.id)}
+                      onStop={() => handleStopAutomated(entry.id)}
                     />
                   ))}
                 </div>

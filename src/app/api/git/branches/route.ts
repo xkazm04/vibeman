@@ -4,10 +4,37 @@
  */
 
 import { NextResponse } from 'next/server';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 
-const execAsync = promisify(exec);
+// execFile (not exec) → no shell is spawned, and the path only ever flows into
+// `cwd`, never a command string.
+const execFileAsync = promisify(execFile);
+
+// Bound how many git child processes run at once, and how many projects a single
+// request may probe — otherwise a large workspace fans out 2 shell+git processes
+// per project in one tick (60-100+ for 30-50 projects), which can stall the dev
+// server (especially on Windows where process spawning is heavy).
+const GIT_CONCURRENCY = 8;
+const MAX_PROJECTS_PER_REQUEST = 500;
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const idx = next++;
+      if (idx >= items.length) break;
+      results[idx] = await fn(items[idx]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
 
 interface ProjectBranchInfo {
   projectId: string;
@@ -29,7 +56,7 @@ interface BranchRequest {
 async function getGitBranch(projectPath: string): Promise<{ branch: string | null; dirty: boolean }> {
   try {
     // Get current branch name
-    const { stdout: branchOut } = await execAsync('git rev-parse --abbrev-ref HEAD', {
+    const { stdout: branchOut } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
       cwd: projectPath,
       timeout: 5000,
     });
@@ -38,7 +65,7 @@ async function getGitBranch(projectPath: string): Promise<{ branch: string | nul
     // Check if there are uncommitted changes
     let dirty = false;
     try {
-      const { stdout: statusOut } = await execAsync('git status --porcelain', {
+      const { stdout: statusOut } = await execFileAsync('git', ['status', '--porcelain'], {
         cwd: projectPath,
         timeout: 5000,
       });
@@ -66,9 +93,18 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch branch info for all projects in parallel
-    const results: ProjectBranchInfo[] = await Promise.all(
-      projects.map(async (project) => {
+    if (projects.length > MAX_PROJECTS_PER_REQUEST) {
+      return NextResponse.json(
+        { error: `Too many projects in one request: ${projects.length} (max ${MAX_PROJECTS_PER_REQUEST})` },
+        { status: 400 }
+      );
+    }
+
+    // Fetch branch info with bounded concurrency (not all-at-once)
+    const results: ProjectBranchInfo[] = await mapWithConcurrency(
+      projects,
+      GIT_CONCURRENCY,
+      async (project) => {
         try {
           const { branch, dirty } = await getGitBranch(project.path);
           return {
@@ -84,7 +120,7 @@ export async function POST(request: Request) {
             error: error instanceof Error ? error.message : 'Unknown error',
           };
         }
-      })
+      }
     );
 
     return NextResponse.json({

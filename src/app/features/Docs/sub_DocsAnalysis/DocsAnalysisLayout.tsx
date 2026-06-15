@@ -16,7 +16,7 @@
 
 'use client';
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Compass } from 'lucide-react';
 
@@ -37,7 +37,8 @@ import { useArchitectureNavigation } from './lib/useArchitectureNavigation';
 import { useContextStore } from '@/stores/contextStore';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useXRayStore, useXRayIsConnected } from '@/stores/xrayStore';
-import { startXRaySimulation, stopXRaySimulation } from '@/lib/xrayInstrumentation';
+import { startXRaySimulation, stopXRaySimulation, subscribeToXRayEvents, getRecentXRayEvents } from '@/lib/xrayInstrumentation';
+import type { XRayTraceEvent } from './lib/xrayTypes';
 import {
   useProjectContextData,
   useRelationships,
@@ -69,11 +70,17 @@ export default function DocsAnalysisLayout() {
   const [isSimulationMode, setIsSimulationMode] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isXRayMode, setIsXRayMode] = useState(false);
+  // When true, X-Ray is fed by the synthetic generator instead of the real
+  // /api/xray/stream SSE feed. Defaults to false so users see their app's real traffic.
+  const [useDemoData, setUseDemoData] = useState(false);
   const [isHotPathsPanelExpanded, setIsHotPathsPanelExpanded] = useState(false);
 
   // X-Ray store
   const { events: xrayEvents } = useXRayStore();
   const isXRayConnected = useXRayIsConnected();
+  // Holds the active instrumentation->store subscription so X-Ray events actually
+  // reach the store (it was never wired: nothing called subscribe/addEvent).
+  const xrayUnsubRef = useRef<(() => void) | null>(null);
 
   const { activeProject } = useClientProjectStore();
   const projectId = activeProject?.id;
@@ -155,46 +162,106 @@ export default function DocsAnalysisLayout() {
     [moveContext]
   );
 
+  // Start the synthetic demo pipeline: bridge the in-memory instrumentation buffer
+  // into the store and run the generator. Used only when "Demo data" is selected.
+  const startXRayDemo = useCallback(() => {
+    const store = useXRayStore.getState();
+    store.clearEvents();
+    store.addEvents(getRecentXRayEvents(200) as unknown as XRayTraceEvent[]);
+    xrayUnsubRef.current = subscribeToXRayEvents(
+      (e) => useXRayStore.getState().addEvent(e as unknown as XRayTraceEvent)
+    );
+    store.setConnected(true);
+    startXRaySimulation('medium');
+  }, []);
+
+  // Tear down the synthetic demo pipeline (generator + buffer bridge).
+  const stopXRayDemo = useCallback(() => {
+    stopXRaySimulation();
+    xrayUnsubRef.current?.();
+    xrayUnsubRef.current = null;
+  }, []);
+
+  // Start the real pipeline: consume the live /api/xray/stream SSE feed backed by
+  // the persisted obs_xray_events table via the store's EventSource consumer.
+  const startXRayReal = useCallback(() => {
+    const store = useXRayStore.getState();
+    store.clearEvents();
+    store.connect();
+  }, []);
+
+  // Tear down whichever X-Ray pipeline is active and reset the store.
+  const teardownXRay = useCallback(() => {
+    stopXRayDemo();
+    const store = useXRayStore.getState();
+    store.disconnect();
+    store.setConnected(false);
+    store.clearEvents();
+  }, [stopXRayDemo]);
+
   // Toggle simulation mode
   const handleToggleSimulation = useCallback(() => {
     setIsSimulationMode(prev => !prev);
     // Disable X-Ray mode when enabling simulation
     if (!isSimulationMode) {
       setIsXRayMode(false);
-      stopXRaySimulation();
+      teardownXRay();
     }
     // When enabling simulation, go back to system level for best experience
     if (!isSimulationMode && !isAtSystemLevel) {
       navigateBackToSystem();
     }
-  }, [isSimulationMode, isAtSystemLevel, navigateBackToSystem]);
+  }, [isSimulationMode, isAtSystemLevel, navigateBackToSystem, teardownXRay]);
 
   // Toggle X-Ray mode
   const handleToggleXRay = useCallback(() => {
     const newXRayMode = !isXRayMode;
     setIsXRayMode(newXRayMode);
 
-    // Disable simulation mode when enabling X-Ray
     if (newXRayMode) {
+      // Disable simulation mode when enabling X-Ray
       setIsSimulationMode(false);
-      // Start demo simulation to show traffic
-      startXRaySimulation('medium');
+      // Default to the REAL SSE pipeline; only use the synthetic generator when
+      // the user has explicitly opted into "Demo data".
+      if (useDemoData) {
+        startXRayDemo();
+      } else {
+        startXRayReal();
+      }
     } else {
-      stopXRaySimulation();
+      teardownXRay();
     }
 
     // When enabling X-Ray, go back to system level for best experience
     if (newXRayMode && !isAtSystemLevel) {
       navigateBackToSystem();
     }
-  }, [isXRayMode, isAtSystemLevel, navigateBackToSystem]);
+  }, [isXRayMode, useDemoData, isAtSystemLevel, navigateBackToSystem, startXRayDemo, startXRayReal, teardownXRay]);
 
-  // Cleanup X-Ray simulation on unmount
+  // Switch the active X-Ray data source between the real SSE stream and the demo
+  // generator without leaving X-Ray mode.
+  const handleToggleDemoData = useCallback(() => {
+    setUseDemoData(prev => {
+      const next = !prev;
+      if (isXRayMode) {
+        // Tear down the current source, then start the newly selected one.
+        teardownXRay();
+        if (next) {
+          startXRayDemo();
+        } else {
+          startXRayReal();
+        }
+      }
+      return next;
+    });
+  }, [isXRayMode, teardownXRay, startXRayDemo, startXRayReal]);
+
+  // Cleanup X-Ray pipeline (generator + buffer bridge + SSE) on unmount
   useEffect(() => {
     return () => {
-      stopXRaySimulation();
+      teardownXRay();
     };
-  }, []);
+  }, [teardownXRay]);
 
   return (
     <div
@@ -221,6 +288,8 @@ export default function DocsAnalysisLayout() {
               onToggle={handleToggleXRay}
               isConnected={isXRayConnected}
               eventCount={xrayEvents.length}
+              useDemoData={useDemoData}
+              onToggleDemoData={handleToggleDemoData}
             />
           )}
 

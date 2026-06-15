@@ -60,8 +60,11 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete, onC
   // Get status-based styling using design tokens
   const statusClasses = getStatusClasses((idea.status || 'pending') as StatusType);
 
-  const effortCfg = idea.effort ? effortScale.entries[idea.effort] || null : null;
-  const impactCfg = idea.impact ? impactScale.entries[idea.impact] || null : null;
+  // Use a null check, not a truthiness check: `idea.effort ?` treats a real 0
+  // score the same as "no score". (The scale is keyed 1-10, so a 0 still has no
+  // entry — but the code no longer conflates 0 with null/undefined.)
+  const effortCfg = idea.effort != null ? effortScale.entries[idea.effort] ?? null : null;
+  const impactCfg = idea.impact != null ? impactScale.entries[idea.impact] ?? null : null;
 
   // Handle keyboard navigation for accessibility
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -99,17 +102,19 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete, onC
           {/* Category Emoji */}
           <span className="text-sm">{categoryConfig.emoji}</span>
 
-          {/* Impact Badge */}
-          {impactCfg && (
-            <div className="flex items-center gap-0.5" title={`Impact: ${impactCfg.label}`}>
+          {/* Impact Badge — icon + numeric score (mirrors dependency badge) */}
+          {impactCfg && idea.impact != null && (
+            <div className="flex items-center gap-0.5" title={`Impact: ${impactCfg.description}`}>
               <ImpactIcon className={`w-3 h-3 ${impactCfg.color}`} />
+              <span className={`text-2xs font-medium ${impactCfg.color}`}>{idea.impact}</span>
             </div>
           )}
 
-          {/* Effort Badge */}
-          {effortCfg && (
-            <div className="flex items-center gap-0.5" title={`Effort: ${effortCfg.label}`}>
+          {/* Effort Badge — icon + numeric score (mirrors dependency badge) */}
+          {effortCfg && idea.effort != null && (
+            <div className="flex items-center gap-0.5" title={`Effort: ${effortCfg.description}`}>
               <EffortIcon className={`w-3 h-3 ${effortCfg.color}`} />
+              <span className={`text-2xs font-medium ${effortCfg.color}`}>{idea.effort}</span>
             </div>
           )}
 

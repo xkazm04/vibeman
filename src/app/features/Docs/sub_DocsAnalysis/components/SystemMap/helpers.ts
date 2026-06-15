@@ -104,8 +104,11 @@ export function calculateRowPositions(
     ];
   }
 
-  // Calculate spacing - more nodes = tighter spacing
-  const maxSpread = 60; // Maximum spread from center to edge
+  // Calculate spacing. Widen the spread as node count grows so a crowded layer
+  // uses more of the row width and overlaps less (a w-24 node needs ~8% spacing on
+  // a ~1200px row); clamp so the row stays roughly on-screen. Very large layers
+  // (15+ nodes) still crowd — full wrapping/scroll is a follow-up.
+  const maxSpread = Math.min(96, 60 + Math.max(0, count - 4) * 4);
   const nodeSpacing = Math.min(18, maxSpread / (count - 1)); // Max 18% between nodes
   const totalWidth = nodeSpacing * (count - 1);
   const startX = centerX - totalWidth / 2;

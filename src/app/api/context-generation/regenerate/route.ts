@@ -20,6 +20,7 @@ import { withRateLimit } from '@/lib/api-helpers/rateLimiter';
 import { validatePathTraversal, validatePathWithinBase } from '@/lib/pathSecurity';
 import { logger } from '@/lib/logger';
 import { parseDescriptionResponse } from '@/lib/llm/parse-response';
+import { scheduleContextMapExport } from '@/lib/contexts/exportContextMap';
 
 interface RegenerateRequestBody {
   contextId: string;
@@ -123,6 +124,8 @@ async function handlePost(request: NextRequest) {
       filesRead: fileContents.length,
       totalFiles: context.filePaths.length,
     });
+
+    scheduleContextMapExport(context.projectId);
 
     return NextResponse.json({
       success: true,

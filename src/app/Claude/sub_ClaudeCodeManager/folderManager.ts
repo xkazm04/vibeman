@@ -171,6 +171,51 @@ Document your coding standards, naming conventions, and best practices.
   }
 }
 
+const CONTEXT_MAP_MARKER_START = '<!-- vibeman:context-map:start -->';
+const CONTEXT_MAP_MARKER_END = '<!-- vibeman:context-map:end -->';
+
+/**
+ * Ensure .claude/CLAUDE.md contains a managed "Context Map" section that points
+ * any Claude Code CLI to the committed context-map.json. Idempotent: replaces
+ * the managed block if present, appends it otherwise, and never clobbers the
+ * rest of the file. Creates a minimal CLAUDE.md if none exists.
+ */
+export function ensureContextMapSection(
+  projectPath: string
+): { success: boolean; error?: string } {
+  try {
+    const structure = getClaudeFolderStructure(projectPath);
+    const claudePath = getClaudeFolderPath(projectPath);
+    if (!fs.existsSync(claudePath)) {
+      fs.mkdirSync(claudePath, { recursive: true });
+    }
+
+    const block = `${CONTEXT_MAP_MARKER_START}
+## Context Map
+
+This project has a Vibeman-generated context map at \`context-map.json\` (repo root). It maps every file to a feature ("context"), grouped by business domain. **Before editing code, read \`context-map.json\` to find the relevant context and scope your changes to its \`filePaths\`.** The \`index\` field is a quick one-line-per-context overview. If you change which files a context owns, update \`context-map.json\` to match (or run Vibeman's refresh) so it stays accurate.
+${CONTEXT_MAP_MARKER_END}`;
+
+    let content = fs.existsSync(structure.claudeMdFile)
+      ? fs.readFileSync(structure.claudeMdFile, 'utf-8')
+      : `# CLAUDE.md\n\nThis file provides guidance to Claude Code when working with code in this repository.\n`;
+
+    const startIdx = content.indexOf(CONTEXT_MAP_MARKER_START);
+    const endIdx = content.indexOf(CONTEXT_MAP_MARKER_END);
+    if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+      content =
+        content.slice(0, startIdx) + block + content.slice(endIdx + CONTEXT_MAP_MARKER_END.length);
+    } else {
+      content = `${content.trimEnd()}\n\n${block}\n`;
+    }
+
+    fs.writeFileSync(structure.claudeMdFile, content, 'utf-8');
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
 /**
  * Create a new requirement file in .claude/commands directory
  * Requirements are markdown files that Claude Code can execute
@@ -495,6 +540,7 @@ export function createStructureRulesFile(
  */
 const DEFAULT_SKILLS_TO_COPY = [
   'context-map-generator.md',
+  'contexts.md',
   'brain-training.md',
   'mem.md',
 ];

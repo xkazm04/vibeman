@@ -56,6 +56,10 @@ import { migrate134ConductorPipeline } from './134_conductor_pipeline';
 import { migrate135BrainInsightEvidenceJunction } from './135_brain_insight_evidence_junction';
 import { migrate136EffectivenessCacheVersion } from './136_effectiveness_cache_version';
 import { migrate137CascadeDeleteEvidenceJunction } from './137_cascade_delete_evidence_junction';
+import { migrate138FileWatchConfigUniqueProject } from './138_file_watch_config_unique_project';
+import { migrate139InsightLineage } from './139_insight_lineage_table';
+import { migrate140FileWriteQueue } from './140_file_write_queue';
+import { migrate141TriageRules } from './141_triage_rules';
 import { migrate142ProviderModelTracking } from './142_provider_model_tracking';
 import { migrate143FixIdeasEffortConstraint } from './143_fix_ideas_effort_constraint';
 import { migrate144DetailedIdeas } from './144_detailed_ideas';
@@ -85,6 +89,10 @@ import { migrate225GoalCheckins } from './225_goal_checkins';
 import { migrate226GoalDependencies } from './226_goal_dependencies';
 import { migrate227GoalSignalSummaries } from './227_goal_signal_summaries';
 import { migrate228GithubPullRequests } from './228_github_pull_requests';
+import { migrate229CliTranscriptMirror } from './229_cli_transcript_mirror';
+import { migrate230CliTokenUsage } from './230_cli_token_usage';
+import { migrate231ContextCategorization } from './231_context_categorization';
+import { migrate232DropOrphanedSchema } from './232_drop_orphaned_schema';
 
 /**
  * Migration logger utility
@@ -274,6 +282,10 @@ export function runMigrations() {
     once('m135', () => migrate135BrainInsightEvidenceJunction(db as any, migrationLogger));
     once('m136', () => migrate136EffectivenessCacheVersion(migrationLogger));
     once('m137', () => migrate137CascadeDeleteEvidenceJunction(db as any, migrationLogger));
+    once('m138', () => migrate138FileWatchConfigUniqueProject(db as any, migrationLogger));
+    once('m139', () => migrate139InsightLineage(db as any));
+    once('m140', () => migrate140FileWriteQueue(db as any, migrationLogger));
+    once('m141', () => migrate141TriageRules(db as any, migrationLogger));
     once('m142', () => migrate142ProviderModelTracking(db as any, migrationLogger));
     once('m143', () => migrate143FixIdeasEffortConstraint(db as any, migrationLogger));  // DESTRUCTIVE: recreates ideas
     once('m144', () => migrate144DetailedIdeas(db as any, migrationLogger));
@@ -319,6 +331,10 @@ export function runMigrations() {
     once('m226', () => migrate226GoalDependencies(db as any, migrationLogger));
     once('m227', () => migrate227GoalSignalSummaries(db as any, migrationLogger));
     once('m228', () => migrate228GithubPullRequests(db as any, migrationLogger));
+    once('m229', () => migrate229CliTranscriptMirror(db as any, migrationLogger));
+    once('m230', () => migrate230CliTokenUsage(db as any, migrationLogger));
+    once('m231', () => migrate231ContextCategorization(db as any, migrationLogger));
+    once('m232', () => migrate232DropOrphanedSchema(db as any, migrationLogger));
 
     // Report any failed migrations that need attention
     const failed = getFailedMigrations(db);

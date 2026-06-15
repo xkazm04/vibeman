@@ -28,9 +28,12 @@ function getColumnInfo(db: ReturnType<typeof getConnection>, table: string, colu
  */
 function needsDirectionsStatusFix(db: ReturnType<typeof getConnection>): boolean {
   try {
-    // Try to check if 'processing' is allowed by examining a temp insert
-    // Use a transaction that we'll rollback
-    db.exec('BEGIN TRANSACTION');
+    // Probe whether 'processing' is allowed via a temp insert we roll back. Use a
+    // SAVEPOINT, not BEGIN TRANSACTION: this runs inside runOnce()'s migration
+    // transaction, and a nested raw BEGIN throws "cannot start a transaction
+    // within a transaction." Savepoints nest safely (and auto-wrap when there is
+    // no enclosing transaction).
+    db.exec('SAVEPOINT dir_status_probe');
     try {
       db.prepare(`
         INSERT INTO directions (id, project_id, context_map_id, context_map_title, direction, summary, status)
@@ -38,10 +41,11 @@ function needsDirectionsStatusFix(db: ReturnType<typeof getConnection>): boolean
       `).run();
       // If we get here, the constraint allows 'processing' - delete and return false
       db.prepare(`DELETE FROM directions WHERE id = '__test_constraint__'`).run();
-      db.exec('COMMIT');
+      db.exec('RELEASE dir_status_probe');
       return false;
     } catch (e: unknown) {
-      db.exec('ROLLBACK');
+      db.exec('ROLLBACK TO dir_status_probe');
+      db.exec('RELEASE dir_status_probe');
       const error = e as Error;
       // If we get a constraint error, we need to fix it
       if (error.message?.includes('CHECK constraint')) {
@@ -59,17 +63,20 @@ function needsDirectionsStatusFix(db: ReturnType<typeof getConnection>): boolean
  */
 function needsBehavioralSignalsFix(db: ReturnType<typeof getConnection>): boolean {
   try {
-    db.exec('BEGIN TRANSACTION');
+    // SAVEPOINT (not BEGIN TRANSACTION) so this probe nests safely inside
+    // runOnce()'s migration transaction. See needsDirectionsStatusFix.
+    db.exec('SAVEPOINT bsig_probe');
     try {
       db.prepare(`
         INSERT INTO behavioral_signals (id, project_id, signal_type, data, timestamp)
         VALUES ('__test_constraint__', '__test__', 'cli_memory', '{}', datetime('now'))
       `).run();
       db.prepare(`DELETE FROM behavioral_signals WHERE id = '__test_constraint__'`).run();
-      db.exec('COMMIT');
+      db.exec('RELEASE bsig_probe');
       return false;
     } catch (e: unknown) {
-      db.exec('ROLLBACK');
+      db.exec('ROLLBACK TO bsig_probe');
+      db.exec('RELEASE bsig_probe');
       const error = e as Error;
       if (error.message?.includes('CHECK constraint')) {
         return true;

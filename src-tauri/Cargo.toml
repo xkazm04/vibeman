@@ -9,6 +9,13 @@ edition = "2021"
 name = "vibeman_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
+# Standalone token-optimization helper: reads a JSON request on stdin, writes a
+# JSON response on stdout. Invoked per call by the /api/optimize/* routes. Kept
+# out of the Tauri app binary so it has no GUI/runtime dependencies.
+[[bin]]
+name = "vibeman-optimize"
+path = "src/bin/vibeman-optimize.rs"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -27,6 +34,10 @@ thiserror = "2"
 log = "0.4"
 env_logger = "0.11"
 regex-lite = "0.1"
+
+# Token-optimization binary (vibeman-optimize): content-addressed CCR keys.
+# BLAKE3 mirrors headroom's CCR hashing choice (Apache-2.0; see src/bin/vibeman-optimize.rs).
+blake3 = "1"
 
 # Wave 1: Core runtime
 dashmap = "6"

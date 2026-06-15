@@ -48,38 +48,6 @@ const LazyHallOfFameLayout = createLazyFeature(
   () => import('./features/HallOfFame/HallOfFameLayout'),
   LazyFeaturePresets.minimal('HallOfFame')
 );
-const LazySocialLayout = createLazyFeature(
-  () => import('./features/Social/SocialLayout'),
-  LazyFeaturePresets.minimal('Social')
-);
-const LazyZenLayout = createLazyFeature(
-  () => import('./zen/ZenLayout'),
-  LazyFeaturePresets.minimal('Zen')
-);
-const LazyQuestionsLayout = createLazyFeature(
-  () => import('./features/Questions/QuestionsLayout'),
-  LazyFeaturePresets.withTable('Questions')
-);
-const LazyIntegrationsLayout = createLazyFeature(
-  () => import('./features/Integrations/IntegrationsLayout'),
-  LazyFeaturePresets.withCards('Integrations')
-);
-const LazyBrainLayout = createLazyFeature(
-  () => import('./features/Brain/BrainLayout'),
-  LazyFeaturePresets.withSidebar('Brain')
-);
-const LazyCommanderLayout = createLazyFeature(
-  () => import('./features/Commander/CommanderLayout'),
-  LazyFeaturePresets.withSidebar('Commander')
-);
-const LazyConductorLayout = createLazyFeature(
-  () => import('./features/Conductor/ConductorLayout'),
-  LazyFeaturePresets.minimal('Conductor')
-);
-const LazyViewsLayout = createLazyFeature(
-  () => import('./features/Views/ViewsLayout'),
-  LazyFeaturePresets.minimal('Views')
-);
 const LazyExplorerLayout = createLazyFeature(
   () => import('./features/Explorer/ExplorerLayout'),
   LazyFeaturePresets.withSidebar('Explorer')
@@ -126,22 +94,6 @@ export default function Home() {
         return <LazyManagerLayout key="manager" projectId={projectId} />;
       case 'halloffame':
         return <LazyHallOfFameLayout key="halloffame" />;
-      case 'social':
-        return <LazySocialLayout key="social" />;
-      case 'zen':
-        return <LazyZenLayout key="zen" />;
-      case 'questions':
-        return <LazyQuestionsLayout key="questions" />;
-      case 'integrations':
-        return <LazyIntegrationsLayout key="integrations" projectId={projectId} />;
-      case 'brain':
-        return <LazyBrainLayout key="brain" />;
-      case 'commander':
-        return <LazyCommanderLayout key="commander" />;
-      case 'conductor':
-        return <LazyConductorLayout key="conductor" projectId={projectId} />;
-      case 'views':
-        return <LazyViewsLayout key="views" />;
       case 'explorer':
         return <LazyExplorerLayout key="explorer" />;
       default:

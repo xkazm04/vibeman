@@ -1,1 +1,0 @@
-export { useDiscovery } from './useDiscovery';

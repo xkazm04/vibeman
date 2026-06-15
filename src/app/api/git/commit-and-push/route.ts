@@ -371,6 +371,41 @@ async function handlePost(request: NextRequest): Promise<NextResponse<GitOperati
       }
     }
 
+    // Guard against the silent "committed but not pushed" state. If this request
+    // intended to push (its command set includes a push) but the local branch is
+    // still ahead of its upstream after running every command, the work was
+    // committed locally but never reached the remote — e.g. a retry where
+    // `git commit` reported "nothing to commit" (treated as a non-fatal success)
+    // while a prior run's commit was left unpushed. Report that distinctly instead
+    // of a blanket success that hides the lost work.
+    const intendedToPush = commands.some((c) => /(^|\s)push(\s|$)/.test(c));
+    if (intendedToPush) {
+      try {
+        const ahead = await executeCommand('git', ['rev-list', '--count', '@{u}..HEAD'], {
+          cwd: project.path,
+          timeout: 15000,
+          acceptNonZero: true,
+          argValidator: null,
+        });
+        const aheadCount = parseInt(ahead.stdout.trim(), 10);
+        // A non-zero exit means no upstream configured / detached HEAD — can't
+        // verify, so don't block.
+        if (ahead.exitCode === 0 && Number.isFinite(aheadCount) && aheadCount > 0) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: `Committed but not pushed: local branch is ${aheadCount} commit(s) ahead of its upstream. Re-run the push to send the work to the remote.`,
+              results,
+              error: 'committed_but_not_pushed'
+            },
+            { status: 500 }
+          );
+        }
+      } catch {
+        // Best-effort verification; never let it mask a genuine success.
+      }
+    }
+
     // All commands succeeded
     return NextResponse.json({
       success: true,

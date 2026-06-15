@@ -75,7 +75,11 @@ export default function KanbanBoard({ filterProject, onIdeaClick }: KanbanBoardP
         actions={[{
           label: 'Generate Ideas',
           onClick: () => {
-            const scanBtn = document.querySelector('[data-testid="ideas-scan-btn"]');
+            // Real scan-button testids (see ClaudeIdeasButton); the old
+            // 'ideas-scan-btn' selector matched nothing, so this CTA was dead.
+            const scanBtn =
+              document.querySelector('[data-testid="generated-ideas-btn"]') ||
+              document.querySelector('[data-testid="detailed-ideas-btn"]');
             if (scanBtn instanceof HTMLElement) {
               scanBtn.focus();
               scanBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });

@@ -18,6 +18,8 @@ export interface AnalysisStartResult {
   analysisId?: string;
   promptContent?: string;
   error?: string;
+  /** True when the failure is a benign "ran recently" throttle, not a hard error. */
+  cooldown?: boolean;
 }
 
 export interface BaseAnalysisAgentConfig<TRecord extends BaseAnalysisRecord> {

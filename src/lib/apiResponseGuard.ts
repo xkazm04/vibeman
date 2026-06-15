@@ -44,12 +44,6 @@ export {
   GoalMutationResponseSchema,
 } from './api/schemas/goals';
 
-// Questions API schemas
-export {
-  QuestionsResponseSchema,
-  QuestionMutationSchema,
-} from './api/schemas/questions';
-
 // Directions API schemas
 export {
   DirectionsResponseSchema,

@@ -32,14 +32,15 @@ export async function createRequirementFile(
  */
 export async function createRequirementFiles(
   projectPath: string,
-  errorGroups: ErrorGroup[]
+  errorGroups: ErrorGroup[],
+  buildCommand?: string
 ): Promise<{ success: boolean; requirementFiles: string[]; errors: string[] }> {
   const requirementFiles: string[] = [];
   const errors: string[] = [];
 
   for (const group of errorGroups) {
     const requirementName = generateRequirementName(group.file);
-    const content = formatErrorGroup(group);
+    const content = formatErrorGroup(group, buildCommand);
 
     const result = await createRequirementFile(projectPath, requirementName, content);
 

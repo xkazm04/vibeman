@@ -38,7 +38,7 @@ export function detectCycle(
     const children = childMap.get(node);
     if (children) {
       for (const child of children) {
-        stack.push(child);
+        stack.push(child as RequirementIdString);
       }
     }
   }

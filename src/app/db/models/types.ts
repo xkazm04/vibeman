@@ -117,6 +117,7 @@ export interface DbContextGroup {
   accent_color: string | null; // Optional accent color for gradient transitions
   position: number;
   type: 'pages' | 'client' | 'server' | 'external' | null; // Architecture layer type
+  domain: 'feature' | 'infrastructure' | 'shared' | 'integration' | 'data' | null; // Business/domain axis (see src/lib/contexts/taxonomy.ts)
   icon: string | null; // Icon name for visual representation
   created_at: string;
   updated_at: string;
@@ -128,6 +129,7 @@ export interface DbContextGroupRelationship {
   project_id: string;
   source_group_id: string;
   target_group_id: string;
+  relationship_type: string | null; // calls|uses|depends_on|triggers (see taxonomy.ts)
   created_at: string;
 }
 
@@ -149,7 +151,7 @@ export interface DbContext {
   target_rating: number | null; // Rating 1-5 for target progress visualization
   implemented_tasks: number; // Counter for implemented tasks in this context
   // NEW: Enhanced context fields (Phase 1)
-  category: 'ui' | 'lib' | 'api' | 'data' | null; // File category classification
+  category: 'ui' | 'lib' | 'api' | 'data' | 'test' | 'config' | null; // Technical category (see src/lib/contexts/taxonomy.ts)
   api_routes: string | null; // JSON array of API paths handled by this context
   business_feature: string | null; // Human-readable business feature name
   // AI Navigation Metadata (Phase 2)

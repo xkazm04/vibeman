@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Plus, ChevronRight, ChevronUp, X, ClipboardCheck, GitBranch, GitPullRequest, History, CalendarDays } from 'lucide-react';
+import { LayoutDashboard, Plus, ChevronRight, ChevronUp, X, ClipboardCheck, GitBranch, GitPullRequest, History, CalendarDays, Radar } from 'lucide-react';
 
 import ProjectsLayout from '@/app/projects/ProjectsLayout';
 import DashboardSectionHeader from './components/DashboardSectionHeader';
@@ -19,6 +19,7 @@ import ScreenCatalog from './sub_ScreenCatalog/ScreenCatalog';
 import EventsBarChart from './sub_EventsBarChart/EventsBarChart';
 import StandupHistoryTimeline from '@/app/features/DailyStandup/components/StandupHistoryTimeline';
 import SprintPlannerPanel from '@/app/features/DailyStandup/components/SprintPlannerPanel';
+import PredictiveStandup from '@/app/features/DailyStandup/components/PredictiveStandup';
 import { ContextTargetsList } from '@/components/ContextComponents';
 import GoalEmptyState from './components/GoalEmptyState';
 import GoalConstellation from './components/GoalConstellation';
@@ -137,8 +138,14 @@ const GoalListItem = React.memo(function GoalListItem({ goal, isSelected, isFocu
 });
 
 function AnalyticsPanels({ projectId }: { projectId: string | null }) {
-  // Toggle between backward-looking standup history and forward-looking sprint plan
-  const [standupView, setStandupView] = useState<'history' | 'sprint'>('history');
+  // Toggle between backward-looking standup history, forward-looking sprint plan,
+  // and the prescriptive Daily Mission Briefing.
+  const [standupView, setStandupView] = useState<'history' | 'sprint' | 'briefing'>('history');
+
+  const standupTitle =
+    standupView === 'history' ? 'Standup History' :
+    standupView === 'sprint' ? 'Sprint Plan' :
+    'Daily Mission Briefing';
 
   return (
     <>
@@ -168,7 +175,7 @@ function AnalyticsPanels({ projectId }: { projectId: string | null }) {
       <GlassCard variant="panel" className="lg:flex-1 overflow-hidden flex flex-col min-h-0">
         <div className="p-4 border-b border-white/5 bg-white/[0.03]">
           <DashboardSectionHeader
-            title={standupView === 'history' ? 'Standup History' : 'Sprint Plan'}
+            title={standupTitle}
             variant="secondary"
             action={projectId ? (
               <div className="flex items-center gap-1">
@@ -186,6 +193,13 @@ function AnalyticsPanels({ projectId }: { projectId: string | null }) {
                 >
                   <CalendarDays className="w-4 h-4" />
                 </button>
+                <button
+                  onClick={() => setStandupView('briefing')}
+                  className={`p-1.5 rounded-lg transition-colors ${standupView === 'briefing' ? 'bg-primary/20 text-primary' : 'hover:bg-white/10 text-white/60 hover:text-white'}`}
+                  title="Daily mission briefing"
+                >
+                  <Radar className="w-4 h-4" />
+                </button>
               </div>
             ) : null}
           />
@@ -196,8 +210,10 @@ function AnalyticsPanels({ projectId }: { projectId: string | null }) {
               <div className="p-4">
                 <StandupHistoryTimeline projectId={projectId} limit={30} />
               </div>
-            ) : (
+            ) : standupView === 'sprint' ? (
               <SprintPlannerPanel projectId={projectId} />
+            ) : (
+              <PredictiveStandup projectId={projectId} />
             )
           ) : (
             <div className="flex items-center justify-center h-full text-white/30 text-xs p-4">

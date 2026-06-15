@@ -72,6 +72,10 @@ export const executiveAnalysisAgent = {
    * Get current analysis status
    */
   getStatus(projectId: string | null): AnalysisStatus {
+    // Reap zombie 'running' analyses whose completion callback never arrived, so a
+    // stale run cannot permanently report isRunning, block canAnalyze, or spin the
+    // client's 5s poll forever. This is the polled path, so it self-heals.
+    executiveAnalysisRepository.failStaleRunning();
     const runningAnalysis = executiveAnalysisRepository.getRunning(projectId);
     const lastCompleted = executiveAnalysisRepository.getLatestCompleted(projectId);
     const canAnalyze = !runningAnalysis && executiveAnalysisRepository.canAnalyze(projectId, 1);
@@ -96,6 +100,9 @@ export const executiveAnalysisAgent = {
       timeWindow = 'all',
     } = options;
 
+    // Reap any zombie running analysis first so a stale one cannot block a new run.
+    executiveAnalysisRepository.failStaleRunning();
+
     // Check if analysis is already running
     const existing = executiveAnalysisRepository.getRunning(projectId);
     if (existing) {
@@ -110,6 +117,7 @@ export const executiveAnalysisAgent = {
     if (!executiveAnalysisRepository.canAnalyze(projectId, 1)) {
       return {
         success: false,
+        cooldown: true,
         error: 'Analysis was run recently. Please wait before running again.',
       };
     }

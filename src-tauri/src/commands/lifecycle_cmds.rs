@@ -194,13 +194,13 @@ pub async fn get_discovered_templates(
     let db = state.db()?;
     if let Some(pid) = project_id {
         db.query_map(
-            "SELECT * FROM discovered_templates WHERE source_project_path LIKE ?1 AND stale = 0 ORDER BY template_name",
+            "SELECT * FROM discovered_templates WHERE source_project_path LIKE ?1 AND status = 'active' ORDER BY template_name",
             params![format!("%{}%", pid)],
             row_to_json,
         )
     } else {
         db.query_map(
-            "SELECT * FROM discovered_templates WHERE stale = 0 ORDER BY template_name",
+            "SELECT * FROM discovered_templates WHERE status = 'active' ORDER BY template_name",
             &[],
             row_to_json,
         )

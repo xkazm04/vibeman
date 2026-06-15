@@ -25,14 +25,6 @@ const MODULE_STEPS: Record<AppModule, OnboardingStep | null> = {
   manager: 'review-impl',
   reflector: null,
   halloffame: null,
-  social: null,
-  zen: null,
-  questions: null,
-  integrations: null,
-  brain: null,
-  commander: null,
-  conductor: null,
-  views: null,
   explorer: null,
 };
 

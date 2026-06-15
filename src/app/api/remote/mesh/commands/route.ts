@@ -1,11 +1,16 @@
 /**
  * Mesh Commands API
- * Device-to-device command routing for the mesh network
- * Unlike the main commands API, this doesn't require API key authentication
+ * Device-to-device command routing for the mesh network.
+ *
+ * Read/status-class commands (ping, healthcheck, status_request, get_batch_status,
+ * fetch_*) require no auth. EXECUTION-class commands that run code or write files
+ * locally (start_remote_batch, triage_direction, batch_start, batch_stop) require a
+ * valid client api_key with write_commands/admin permission — without this gate the
+ * mesh was an unauthenticated remote-code-execution surface.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withRemoteSupabase } from '@/lib/remote/apiMiddleware';
+import { withRemoteSupabase, requireClient } from '@/lib/remote/apiMiddleware';
 
 // Mesh command types (different from Butler command types)
 type MeshCommandType =
@@ -29,7 +34,17 @@ interface MeshCommandRequest {
   target_device_id?: string | null; // null = any device, specific ID = targeted
   source_device_id?: string;
   source_device_name?: string;
+  api_key?: string; // required for EXECUTION_COMMANDS (see POST)
 }
+
+// Commands that cause a target device to RUN code or WRITE files. These must be
+// authenticated; benign read/status commands may be submitted without a key.
+const EXECUTION_COMMANDS: ReadonlySet<MeshCommandType> = new Set([
+  'start_remote_batch',
+  'triage_direction',
+  'batch_start',
+  'batch_stop',
+]);
 
 /**
  * GET: List mesh commands (optionally filtered by device)
@@ -72,6 +87,15 @@ export const GET = withRemoteSupabase('Mesh/Commands', async (supabase, request:
 
   // Filter by target device (include null targets for broadcast)
   if (targetDeviceId) {
+    // target_device_id is interpolated into a PostgREST .or() filter grammar, where
+    // commas/dots/parens are operators — a crafted value could inject extra
+    // predicates and widen the result set. Restrict to a safe id charset.
+    if (!/^[A-Za-z0-9_-]+$/.test(targetDeviceId)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid target_device_id' },
+        { status: 400 }
+      );
+    }
     query = query.or(`target_device_id.is.null,target_device_id.eq.${targetDeviceId}`);
   }
 
@@ -133,12 +157,22 @@ export const POST = withRemoteSupabase('Mesh/Commands', async (supabase, request
     );
   }
 
+  // EXECUTION-class commands run code / write files on the target device, so they
+  // require a valid, authorized client. Read/status commands stay open.
+  let clientId: string | null = null;
+  if (EXECUTION_COMMANDS.has(body.command_type)) {
+    const auth = await requireClient(supabase, body.api_key, ['write_commands']);
+    if (auth.error) return auth.error;
+    clientId = auth.client.id;
+  }
+
   // Insert command with target_device_id
   const { data: command, error: insertError } = await supabase
     .from('vibeman_commands')
     .insert({
       project_id: body.project_id || 'mesh',
       command_type: body.command_type,
+      client_id: clientId,
       payload: {
         ...body.payload,
         source_device_id: body.source_device_id,

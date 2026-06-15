@@ -47,4 +47,54 @@ export interface ManualSession {
   label: string;
   /** Tools pending user approval (non-empty when status is waiting_approval) */
   pendingApprovals: PendingToolApproval[];
+  /** Accumulated USD cost across all completed turns (from `result` events) */
+  totalCostUsd: number;
+  /** Accumulated execution time in ms across all completed turns */
+  totalDurationMs: number;
+  /** Accumulated input + output tokens across all completed turns */
+  totalTokens: number;
+  /** Number of completed turns (each `result` event = one turn) */
+  turnCount: number;
+}
+
+/**
+ * Token/cost/duration metrics extracted from a single Claude `result` event.
+ *
+ * The CLI emits raw snake_case fields (`cost_usd`, `duration_ms`) while the
+ * browser stream route remaps them to camelCase (`totalCostUsd`, `durationMs`)
+ * and nests usage under `usage`. This helper normalizes both shapes.
+ */
+export interface ResultMetrics {
+  costUsd: number;
+  durationMs: number;
+  tokens: number;
+}
+
+/** Extract cost/duration/token metrics from a `result` event's data payload. */
+export function extractResultMetrics(data: unknown): ResultMetrics {
+  const d = (data as Record<string, unknown>) || {};
+
+  const costUsd =
+    (typeof d.cost_usd === 'number' ? d.cost_usd : undefined) ??
+    (typeof d.total_cost_usd === 'number' ? d.total_cost_usd : undefined) ??
+    (typeof d.totalCostUsd === 'number' ? d.totalCostUsd : undefined) ??
+    0;
+
+  const durationMs =
+    (typeof d.duration_ms === 'number' ? d.duration_ms : undefined) ??
+    (typeof d.durationMs === 'number' ? d.durationMs : undefined) ??
+    0;
+
+  // Token usage follows the Anthropic API usage shape.
+  const usage = (d.usage as Record<string, unknown>) || {};
+  const inputTokens =
+    (typeof usage.input_tokens === 'number' ? usage.input_tokens : undefined) ??
+    (typeof usage.inputTokens === 'number' ? usage.inputTokens : undefined) ??
+    0;
+  const outputTokens =
+    (typeof usage.output_tokens === 'number' ? usage.output_tokens : undefined) ??
+    (typeof usage.outputTokens === 'number' ? usage.outputTokens : undefined) ??
+    0;
+
+  return { costUsd, durationMs, tokens: inputTokens + outputTokens };
 }

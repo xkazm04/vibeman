@@ -64,11 +64,26 @@ function HealthTooltip({
 
   useEffect(() => {
     if (!visible || !anchorRef.current) return;
-    const rect = anchorRef.current.getBoundingClientRect();
-    setPos({
-      top: rect.bottom + 6,
-      left: rect.left + rect.width / 2,
-    });
+    const updatePos = () => {
+      const el = anchorRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setPos({
+        top: rect.bottom + 6,
+        left: rect.left + rect.width / 2,
+      });
+    };
+    updatePos();
+    // The tooltip is position:fixed but the anchor lives in a scroll container, so
+    // reposition on scroll/resize — otherwise it detaches and floats over unrelated
+    // content when the user scrolls without moving the mouse. Capture phase catches
+    // scrolling in ancestor containers, not just the window.
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
   }, [visible, anchorRef]);
 
   if (!mounted || !visible) return null;

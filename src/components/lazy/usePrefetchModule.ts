@@ -17,14 +17,6 @@ const moduleImportMap: Partial<Record<AppModule, () => Promise<unknown>>> = {
   reflector: () => import('@/app/features/reflector/ReflectorLayout'),
   manager: () => import('@/app/features/Manager/ManagerLayout'),
   halloffame: () => import('@/app/features/HallOfFame/HallOfFameLayout'),
-  social: () => import('@/app/features/Social/SocialLayout'),
-  zen: () => import('@/app/zen/ZenLayout'),
-  questions: () => import('@/app/features/Questions/QuestionsLayout'),
-  integrations: () => import('@/app/features/Integrations/IntegrationsLayout'),
-  brain: () => import('@/app/features/Brain/BrainLayout'),
-  commander: () => import('@/app/features/Commander/CommanderLayout'),
-  conductor: () => import('@/app/features/Conductor/ConductorLayout'),
-  views: () => import('@/app/features/Views/ViewsLayout'),
 };
 
 /**
@@ -33,17 +25,13 @@ const moduleImportMap: Partial<Record<AppModule, () => Promise<unknown>>> = {
  */
 const adjacency: Partial<Record<AppModule, AppModule[]>> = {
   overview: ['coder', 'ideas'],
-  coder: ['overview', 'contexts', 'conductor'],
+  coder: ['overview', 'contexts'],
   ideas: ['tinder', 'overview'],
   tinder: ['ideas', 'tasker'],
-  tasker: ['coder', 'conductor'],
-  contexts: ['coder', 'questions'],
-  brain: ['commander', 'reflector'],
-  commander: ['brain'],
-  conductor: ['coder', 'tasker'],
-  manager: ['coder', 'integrations'],
-  reflector: ['brain', 'overview'],
-  views: ['overview'],
+  tasker: ['coder'],
+  contexts: ['coder'],
+  manager: ['coder'],
+  reflector: ['overview'],
 };
 
 /**

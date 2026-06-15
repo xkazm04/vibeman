@@ -9,40 +9,10 @@ use tauri::State;
 use crate::state::AppState;
 use super::brain_cmds::row_to_json;
 
-// ============================================================================
-// Social (replaces /api/social/*)
-// ============================================================================
-
-#[tauri::command]
-pub async fn get_social_configs(
-    state: State<'_, AppState>,
-) -> Result<Vec<serde_json::Value>, String> {
-    let db = state.db()?;
-    db.query_map("SELECT * FROM social_configs ORDER BY created_at DESC", &[], row_to_json)
-        .map_err(|e| format!("Failed to get social configs: {}", e))
-}
-
-#[tauri::command]
-pub async fn get_social_discoveries(
-    project_id: Option<String>,
-    state: State<'_, AppState>,
-) -> Result<Vec<serde_json::Value>, String> {
-    let db = state.db()?;
-    if let Some(pid) = project_id {
-        db.query_map(
-            "SELECT * FROM social_discoveries WHERE project_id = ?1 ORDER BY created_at DESC",
-            params![pid],
-            row_to_json,
-        )
-    } else {
-        db.query_map(
-            "SELECT * FROM social_discoveries ORDER BY created_at DESC LIMIT 100",
-            &[],
-            row_to_json,
-        )
-    }
-    .map_err(|e| format!("Failed to get discoveries: {}", e))
-}
+// NOTE: get_social_configs / get_social_discoveries were removed — the
+// social_configs / social_discoveries tables were dropped in the headless
+// slim-down (migrations m047-m049 are now empty stubs), so the commands threw
+// "no such table" at runtime and had no callers.
 
 // ============================================================================
 // Integrations (replaces /api/integrations/*)

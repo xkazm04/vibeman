@@ -16,16 +16,6 @@ const VALID_TABLE_NAMES = [
   'agent_steps',
   'anomaly_monitors',
   'anomaly_monitor_events',
-  'annette_audio_cache',
-  'annette_knowledge_edges',
-  'annette_knowledge_nodes',
-  'annette_memories',
-  'annette_memory_consolidations',
-  'annette_memory_topics',
-  'annette_messages',
-  'annette_rapport',
-  'annette_sessions',
-  'annette_user_preferences',
   'architecture_drifts',
   'architecture_edges',
   'architecture_ideals',
@@ -216,7 +206,15 @@ export function buildUpdateStatement(
     throw new Error(`Invalid table name: "${table}". Add it to VALID_TABLE_NAMES in repository.utils.ts.`);
   }
 
-  const { fields, values } = buildUpdateQuery(updates, excludeFields);
+  // Always exclude updated_at from the dynamic fields: this function stamps it
+  // once below. If a caller passes updated_at in `updates`, buildUpdateQuery would
+  // emit a first `updated_at = ?` and then line below appends a second, producing
+  // a duplicated SET assignment and silently overriding the caller's value.
+  const effectiveExclude = excludeFields.includes('updated_at')
+    ? excludeFields
+    : [...excludeFields, 'updated_at'];
+
+  const { fields, values } = buildUpdateQuery(updates, effectiveExclude);
 
   if (fields.length === 0) {
     return null;
@@ -249,6 +247,12 @@ export function generateId(prefix: string): string {
 export function escapeLikePattern(input: string): string {
   return input.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
 }
+
+// Expose the shared safe-parse path at the repository boundary so callers reading
+// JSON-as-TEXT columns have a non-throwing, object-shaped option (with logging on
+// malformed input) instead of a raw JSON.parse (crashes the read) or a silent
+// `{}` fallback (corruption-on-read).
+export { safeParseJson, safeParseJsonObject } from '@/lib/json-utils';
 
 /** @deprecated Use `parseJsonArray` from `@/lib/json-utils` directly. */
 export const safeParseJsonArray = parseJsonArray;

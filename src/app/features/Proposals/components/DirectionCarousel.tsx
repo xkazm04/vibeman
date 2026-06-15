@@ -9,7 +9,7 @@ import { getFocusRingStyles } from '@/lib/ui/focusRing';
 import { transitions } from '@/lib/design-tokens';
 import type { DbDirection } from '@/app/db/models/types';
 import { DirectionProposal, toDirectionProposal } from '../types';
-import { explainDirection } from '@/app/features/Questions/lib/directionsApi';
+import { explainDirection } from '@/lib/directions/directionsApi';
 import { useCarousel } from '../lib/useCarousel';
 import { SWIPE, CARD_EXIT } from '../lib/carouselConfig';
 import { ProgressBar, CarouselContainer, KeyboardHint } from './BaseCarousel';
@@ -17,6 +17,7 @@ import { ProgressBar, CarouselContainer, KeyboardHint } from './BaseCarousel';
 interface DirectionCarouselProps {
   directions: DbDirection[];
   onAccept: (directionId: string) => void;
+  onAcceptWithCode?: (directionId: string) => void;
   onReject: (directionId: string) => void;
   onGenerateMore?: () => void;
   isLoading?: boolean;
@@ -25,6 +26,7 @@ interface DirectionCarouselProps {
 export default function DirectionCarousel({
   directions,
   onAccept,
+  onAcceptWithCode,
   onReject,
   onGenerateMore,
   isLoading = false,
@@ -50,6 +52,7 @@ export default function DirectionCarousel({
   const [state, actions] = useCarousel({
     items: proposals,
     onAccept: (item) => { onAccept(item.id); resetCardState(); },
+    onAcceptWithCode: (item) => { (onAcceptWithCode ?? onAccept)(item.id); resetCardState(); },
     onDecline: (item) => { onReject(item.id); resetCardState(); },
   });
 
@@ -331,7 +334,7 @@ export default function DirectionCarousel({
                     {/* Right side: Accept with Code + Accept */}
                     <div className="flex gap-2">
                       <motion.button
-                        onClick={() => actions.accept()}
+                        onClick={() => actions.acceptWithCode()}
                         disabled={isProcessing}
                         className={`relative group p-3.5 bg-gradient-to-r from-purple-500/15 to-violet-500/15 hover:from-purple-500/25 hover:to-violet-500/25 rounded-lg border border-purple-500/25 ${transitions.normal} disabled:opacity-50 ${focusRing}`}
                         whileHover={{ scale: 1.05 }}

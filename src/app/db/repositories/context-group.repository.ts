@@ -62,13 +62,14 @@ export const contextGroupRepository = {
     position: number;
     icon?: string;
     type?: ContextGroupLayerType;
+    domain?: string;
   }): DbContextGroup => {
     const db = getDatabase();
     const now = new Date().toISOString();
 
     const stmt = db.prepare(`
-      INSERT INTO context_groups (id, project_id, name, color, position, icon, type, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO context_groups (id, project_id, name, color, position, icon, type, domain, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -79,6 +80,7 @@ export const contextGroupRepository = {
       group.position,
       group.icon || null,
       group.type || null,
+      group.domain || null,
       now,
       now
     );
@@ -95,6 +97,7 @@ export const contextGroupRepository = {
     position?: number;
     icon?: string | null;
     type?: ContextGroupLayerType | null;
+    domain?: string | null;
   }): DbContextGroup | null => base.update(id, updates as Record<string, unknown>),
 
   /**

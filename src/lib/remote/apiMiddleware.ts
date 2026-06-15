@@ -57,3 +57,64 @@ export function withRemoteSupabase(tag: string, handler: SupabaseRouteHandler) {
     }
   };
 }
+
+export interface RemoteClient {
+  id: string;
+  permissions: string[];
+  is_active: boolean;
+}
+
+export type RequireClientResult =
+  | { client: RemoteClient; error?: undefined }
+  | { client?: undefined; error: NextResponse };
+
+/**
+ * Validate a remote API key against vibeman_clients and (optionally) require at
+ * least one of `requiredPerms` (an `admin` permission always satisfies). Returns
+ * the active client, or an `error` NextResponse the caller should return as-is.
+ *
+ * This is the same gate the main /api/remote/commands POST applies inline; it is
+ * extracted here so the mesh and fleet command-dispatch routes can require auth
+ * before inserting EXECUTION-class commands (which run Claude Code locally and
+ * write requirement files). Without it those routes were an unauthenticated
+ * remote-code-execution / filesystem-write surface for any device on the mesh.
+ */
+export async function requireClient(
+  supabase: SupabaseClient,
+  apiKey: string | undefined | null,
+  requiredPerms: string[] = []
+): Promise<RequireClientResult> {
+  if (!apiKey) {
+    return { error: NextResponse.json({ success: false, error: 'Missing api_key' }, { status: 401 }) };
+  }
+
+  const { data: client, error } = await supabase
+    .from('vibeman_clients')
+    .select('id, permissions, is_active')
+    .eq('api_key', apiKey)
+    .single();
+
+  if (error || !client) {
+    return { error: NextResponse.json({ success: false, error: 'Invalid API key' }, { status: 401 }) };
+  }
+
+  if (!client.is_active) {
+    return { error: NextResponse.json({ success: false, error: 'API key is inactive' }, { status: 403 }) };
+  }
+
+  const permissions = (client.permissions as string[]) || [];
+  if (
+    requiredPerms.length > 0 &&
+    !permissions.includes('admin') &&
+    !requiredPerms.some((p) => permissions.includes(p))
+  ) {
+    return {
+      error: NextResponse.json(
+        { success: false, error: 'Insufficient permissions to dispatch this command' },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return { client: client as RemoteClient };
+}

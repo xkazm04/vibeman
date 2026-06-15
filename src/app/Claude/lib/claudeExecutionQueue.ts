@@ -16,9 +16,11 @@ import { emitTaskExecutionCompleted } from '@/lib/events/domainEmitters';
 import { performTaskCleanup } from '@/lib/execution/taskCleanup';
 import { env } from '@/lib/config/envConfig';
 import { emitTaskChange, type ClassifiedActivity } from './taskChangeEmitter';
-import { detectErrorType, getErrorDescription } from '@/app/features/Conductor/lib/selfHealing/errorClassifier';
-import { buildHealingContext } from '@/app/features/Conductor/lib/selfHealing/promptPatcher';
-import type { ErrorType, HealingPatch } from '@/app/features/Conductor/lib/types';
+import { detectErrorType, getErrorDescription } from '@/lib/selfHealing/errorClassifier';
+import { buildHealingContext } from '@/lib/selfHealing/promptPatcher';
+import type { ErrorType, HealingPatch } from '@/lib/selfHealing/types';
+import { execSync } from 'child_process';
+import { sessionRepository } from '@/app/db/repositories/session.repository';
 
 export interface GitExecutionConfig {
   enabled: boolean;
@@ -61,6 +63,7 @@ export interface ExecutionTask {
   healing?: TaskHealingInfo;         // Self-healing metadata from error classification
   provider?: string;                 // CLI provider used for execution
   model?: string;                    // Model used for execution
+  gitHeadBefore?: string;            // git HEAD SHA captured before execution (for accurate change attribution)
 }
 
 class ClaudeExecutionQueue {
@@ -131,13 +134,33 @@ class ClaudeExecutionQueue {
    * Publish task lifecycle event to persona event bus (fire-and-forget)
    */
   /**
-   * Get list of files changed by the most recent git commit
+   * Get the current git HEAD SHA for a project (captured before execution so we
+   * can attribute exactly the commits a task produced).
    */
-  private getChangedFiles(projectPath?: string): string[] {
+  private getCurrentHead(projectPath?: string): string | undefined {
+    if (!projectPath) return undefined;
+    try {
+      return execSync('git rev-parse HEAD', { cwd: projectPath, encoding: 'utf-8', timeout: 5000 }).trim() || undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Get the files a task changed. When the pre-task HEAD is known, diff
+   * `sinceSha..HEAD` so we attribute exactly the commits this task produced — and
+   * return [] when HEAD is unchanged (the task made no commit, e.g. on failure or
+   * with git disabled). Falling back to `HEAD~1` (the old behaviour) mis-attributed
+   * the user's last *manual* commit when git was off, and the wrong commit when a
+   * task made zero or more than one commit.
+   */
+  private getChangedFiles(projectPath?: string, sinceSha?: string): string[] {
     if (!projectPath) return [];
     try {
-      const { execSync } = require('child_process');
-      const output = execSync('git diff --name-only HEAD~1', {
+      const currentHead = execSync('git rev-parse HEAD', { cwd: projectPath, encoding: 'utf-8', timeout: 5000 }).trim();
+      if (sinceSha && sinceSha === currentHead) return []; // no commit made by this task
+      const range = sinceSha ? `${sinceSha}..HEAD` : 'HEAD~1';
+      const output = execSync(`git diff --name-only ${range}`, {
         cwd: projectPath, encoding: 'utf-8', timeout: 5000,
       });
       return output.trim().split('\n').filter(Boolean);
@@ -161,6 +184,20 @@ class ClaudeExecutionQueue {
     // Use requirement name as task ID for stable identification
     // This ensures the task ID matches what the frontend expects
     const taskId = requirementName;
+
+    // Don't clobber a task already queued/running under this id. A second submit of
+    // the same requirement (or a re-run while one is in flight) would Map.set over
+    // the live ExecutionTask — orphaning the running promise's progress/completion
+    // writes and risking two CLI processes against the same log file. Return the
+    // existing in-flight task instead.
+    const existingTask = this.tasks.get(taskId);
+    if (existingTask && (existingTask.status === 'pending' || existingTask.status === 'running')) {
+      logger.warn('Requirement already queued/running; returning existing task instead of overwriting', {
+        taskId,
+        status: existingTask.status,
+      });
+      return taskId;
+    }
 
     logger.info('Adding task to execution queue', {
       taskId,
@@ -246,11 +283,23 @@ class ClaudeExecutionQueue {
   /**
    * Helper: Update task status on completion
    */
+  /** Mark this task's tracking session terminal so it doesn't linger as active. */
+  private markSessionStatus(task: ExecutionTask, status: 'completed' | 'failed'): void {
+    const sessionId = task.sessionConfig?.sessionId;
+    if (!sessionId) return;
+    try {
+      sessionRepository.updateStatus(sessionId, status);
+    } catch {
+      // best-effort — getActive() also drops stale sessions via heartbeat liveness
+    }
+  }
+
   private handleTaskSuccess(task: ExecutionTask, output?: string, logFilePath?: string): void {
     task.status = 'completed';
     task.output = output;
     task.logFilePath = logFilePath;
     task.endTime = new Date();
+    this.markSessionStatus(task, 'completed');
     task.progress.push(this.createProgressEntry('✓ Execution completed successfully'));
     this.notifyTaskChange(task);
     logger.info('Task completed successfully', { taskId: task.id });
@@ -261,7 +310,7 @@ class ClaudeExecutionQueue {
       emitTaskCompleted(task.id, task.requirementName, task.projectId, undefined, duration);
 
       // Emit domain event — subscribers handle signal recording, cache invalidation, collective memory
-      const changedFiles = this.getChangedFiles(task.projectPath);
+      const changedFiles = this.getChangedFiles(task.projectPath, task.gitHeadBefore);
       emitTaskExecutionCompleted({
         projectId: task.projectId,
         taskId: task.id,
@@ -406,6 +455,7 @@ class ClaudeExecutionQueue {
     task.error = error;
     task.logFilePath = logFilePath;
     task.endTime = new Date();
+    this.markSessionStatus(task, 'failed');
     this.notifyTaskChange(task);
     task.progress.push(this.createProgressEntry('✗ Execution failed'));
     logger.error('Task failed', { taskId: task.id, error, errorType: task.healing?.errorType });
@@ -416,7 +466,7 @@ class ClaudeExecutionQueue {
       emitTaskFailed(task.id, task.requirementName, task.projectId, error, duration);
 
       // Emit domain event — subscribers handle signal recording, cache invalidation, collective memory
-      const changedFiles = this.getChangedFiles(task.projectPath);
+      const changedFiles = this.getChangedFiles(task.projectPath, task.gitHeadBefore);
       emitTaskExecutionCompleted({
         projectId: task.projectId,
         taskId: task.id,
@@ -565,6 +615,29 @@ class ClaudeExecutionQueue {
     // Update task to running
     task.status = 'running';
     task.startTime = new Date();
+    // Capture the pre-execution git HEAD so file-change attribution diffs exactly
+    // the commits this task produces (see getChangedFiles), not HEAD~1.
+    task.gitHeadBefore = this.getCurrentHead(task.projectPath);
+
+    // Ensure a tracking session id exists so executeRequirement records the spawned
+    // CLI PID — without it (the common /execute path passes no sessionConfig), an
+    // orphaned process after a server restart has no DB record to find and kill.
+    if (!task.sessionConfig?.sessionId && task.projectId) {
+      try {
+        const session = sessionRepository.create({
+          projectId: task.projectId,
+          name: task.requirementName,
+          taskId: task.id,
+          requirementName: task.requirementName,
+        });
+        task.sessionConfig = { ...task.sessionConfig, sessionId: session.id };
+      } catch (e) {
+        logger.warn('Failed to create tracking session for task', {
+          taskId: task.id,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
     this.notifyTaskChange(task);
     task.progress.push(this.createProgressEntry('Execution started'));
 

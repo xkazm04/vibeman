@@ -3,6 +3,7 @@ import { contextGroupQueries } from '../../../lib/queries/contextQueries';
 import { logger } from '@/lib/logger';
 import { createErrorResponse, notFoundResponse, validateRequiredFields } from '@/lib/api-helpers';
 import { withObservability } from '@/lib/observability/middleware';
+import { scheduleContextMapExport } from '@/lib/contexts/exportContextMap';
 
 // GET /api/context-groups - Get all context groups for a project
 async function handleGet(request: NextRequest) {
@@ -30,7 +31,7 @@ async function handleGet(request: NextRequest) {
 async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
-    const { projectId, name, color, icon } = body;
+    const { projectId, name, color, icon, domain } = body;
 
     const validationError = validateRequiredFields({ projectId, name }, ['projectId', 'name']);
     if (validationError) return validationError;
@@ -40,7 +41,10 @@ async function handlePost(request: NextRequest) {
       name,
       color,
       icon,
+      domain,
     });
+
+    scheduleContextMapExport(projectId);
 
     return NextResponse.json({
       success: true,
@@ -70,6 +74,8 @@ async function handlePut(request: NextRequest) {
     if (!group) {
       return notFoundResponse('Context group');
     }
+
+    scheduleContextMapExport(group.projectId);
 
     return NextResponse.json({
       success: true,

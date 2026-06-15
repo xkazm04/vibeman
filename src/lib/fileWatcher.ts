@@ -9,6 +9,7 @@ import { scanQueueRepository } from '@/app/db/repositories/scanQueue.repository'
 import { DbFileWatchConfig } from '@/app/db/models/types';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { generateId, generateNotificationId } from '@/lib/idGenerator';
+import { scanQueueWorker } from '@/lib/scanQueueWorker';
 
 interface WatcherInstance {
   watcher: FSWatcher;
@@ -145,8 +146,10 @@ class FileWatcherManager {
       console.log(`Triggering ${scanTypes.length} scans for project ${projectId} due to file ${changeType}`);
 
       // Create queue items for each scan type
+      const queueIds: string[] = [];
       for (const scanType of scanTypes) {
         const queueId = generateId('auto');
+        queueIds.push(queueId);
 
         scanQueueRepository.createQueueItem({
           id: queueId,
@@ -164,21 +167,35 @@ class FileWatcherManager {
         console.log(`Queued ${scanType} scan (ID: ${queueId}) for project ${projectId}`);
       }
 
-      // Create notification for user
-      const notificationId = generateNotificationId();
-      scanQueueRepository.createNotification({
-        id: notificationId,
-        queue_item_id: 'file-watch-trigger', // Generic ID for file watch notifications
-        project_id: projectId,
-        notification_type: 'scan_started',
-        title: 'Auto-scan triggered',
-        message: `File changes detected. ${scanTypes.length} scan(s) queued.`,
-        data: {
-          changeType,
-          filePath,
-          scanTypes
-        }
-      });
+      // Wake the queue worker so these auto-scans run immediately. Without this,
+      // file-change scans sit in 'queued' until something else starts the worker
+      // (it is only started by a POST /api/scan-queue/worker) or, if already
+      // running, until the next adaptive poll (up to 60s). start() is idempotent.
+      if (scanTypes.length > 0) {
+        scanQueueWorker.start();
+        scanQueueWorker.notifyNewItem();
+      }
+
+      // Create notification for user, tied to a real queue item. scan_notifications
+      // .queue_item_id is a NOT NULL FK to scan_queue(id), so the old literal
+      // 'file-watch-trigger' violated the constraint and the insert was silently
+      // swallowed — the user never saw the "N scan(s) queued" notification.
+      if (queueIds.length > 0) {
+        const notificationId = generateNotificationId();
+        scanQueueRepository.createNotification({
+          id: notificationId,
+          queue_item_id: queueIds[0],
+          project_id: projectId,
+          notification_type: 'scan_started',
+          title: 'Auto-scan triggered',
+          message: `File changes detected. ${scanTypes.length} scan(s) queued.`,
+          data: {
+            changeType,
+            filePath,
+            scanTypes
+          }
+        });
+      }
     } catch (error) {
       console.error(`Failed to trigger scans for project ${projectId}:`, error);
     }

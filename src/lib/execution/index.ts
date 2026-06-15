@@ -6,6 +6,5 @@
 
 export * from './types';
 export * from './executor';
-export { ConductorBackendProvider, createConductorBackend } from './backends/conductor';
 export { performTaskCleanup, deleteRequirementFile, updateIdeaImplementationStatus } from './taskCleanup';
 export type { TaskCleanupOptions } from './taskCleanup';

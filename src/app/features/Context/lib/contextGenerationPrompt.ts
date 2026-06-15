@@ -22,7 +22,8 @@ export interface ContextGenerationPromptParams {
  */
 async function loadSkillPrompt(): Promise<string> {
   try {
-    const skillPath = join(process.cwd(), 'src/lib/blueprint/prompts/templates/context-map-generator.md');
+    // Canonical, hardened ruleset — same file copyDefaultSkills ships into projects.
+    const skillPath = join(process.cwd(), '.claude/skills/context-map-generator.md');
     return await readFile(skillPath, 'utf-8');
   } catch (error) {
     console.error('[ContextGeneration] Failed to load skill prompt:', error);
@@ -42,14 +43,21 @@ Analyze this codebase and create context groups and contexts by business feature
 ## Key Principles
 - Group by BUSINESS DOMAIN, not architecture layer
 - Each context represents a USER CAPABILITY as a full-stack vertical slice (UI + API + DB + store)
-- Target 10-25 files per context (ideal ~20), 2-4 contexts per group
-- Merge sub-features that share the same DB table or API namespace into ONE context
+- Target 5-15 files per context (ideal ~10, never exceed 20), 3-6 contexts per group, 6-10 groups for a medium app
+- Merge contexts under 3 files that share the same DB table or API namespace; split any context over 15 files
+- COVERAGE: every meaningful source file belongs to exactly ONE context (no overlap, no gaps)
+
+## Required metadata (exact enum values)
+- Group \`domain\`: feature | infrastructure | shared | integration | data
+- Context \`category\`: ui | api | lib | data | test | config
+- Context \`business_feature\`: short feature name
+- Relationship \`relationship_type\`: calls | uses | depends_on | triggers
 
 ## API Endpoints
-- Create group: POST http://localhost:3000/api/context-groups
+- Create group: POST http://localhost:3000/api/context-groups  (include: name, color, domain)
 - Create context: POST http://localhost:3000/api/contexts
-  Include AI navigation fields: entry_points, db_tables, keywords, api_surface, cross_refs, tech_stack
-- Create relationship: POST http://localhost:3000/api/context-group-relationships
+  (include: name, description, filePaths, category, business_feature, and when applicable api_routes, entry_points, db_tables, keywords, tech_stack)
+- Create relationship: POST http://localhost:3000/api/context-group-relationships  (include relationshipType)
 `;
 }
 

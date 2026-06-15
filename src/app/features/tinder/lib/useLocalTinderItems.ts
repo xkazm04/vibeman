@@ -224,8 +224,14 @@ export function useLocalMode(
     } catch (error) {
       alert('Failed to accept: ' + (error instanceof Error ? error.message : 'Unknown error'));
       setItems(prev => {
+        // Re-insert the optimistically-removed item robustly: skip if a concurrent
+        // load already re-added it (avoid duplicates), and clamp the position to the
+        // current list length, since the list can shrink/grow while the action is in
+        // flight — making the captured currentIndex stale (out-of-order reinsertion).
+        if (prev.includes(currentItem)) return prev;
+        const insertAt = Math.min(currentIndex, prev.length);
         const newItems = [...prev];
-        newItems.splice(currentIndex, 0, currentItem);
+        newItems.splice(insertAt, 0, currentItem);
         return newItems;
       });
     } finally {
@@ -253,8 +259,14 @@ export function useLocalMode(
     } catch (error) {
       alert('Failed to reject');
       setItems(prev => {
+        // Re-insert the optimistically-removed item robustly: skip if a concurrent
+        // load already re-added it (avoid duplicates), and clamp the position to the
+        // current list length, since the list can shrink/grow while the action is in
+        // flight — making the captured currentIndex stale (out-of-order reinsertion).
+        if (prev.includes(currentItem)) return prev;
+        const insertAt = Math.min(currentIndex, prev.length);
         const newItems = [...prev];
-        newItems.splice(currentIndex, 0, currentItem);
+        newItems.splice(insertAt, 0, currentItem);
         return newItems;
       });
     } finally {
@@ -285,8 +297,14 @@ export function useLocalMode(
     } catch (error) {
       alert(`Failed to delete ${itemType}`);
       setItems(prev => {
+        // Re-insert the optimistically-removed item robustly: skip if a concurrent
+        // load already re-added it (avoid duplicates), and clamp the position to the
+        // current list length, since the list can shrink/grow while the action is in
+        // flight — making the captured currentIndex stale (out-of-order reinsertion).
+        if (prev.includes(currentItem)) return prev;
+        const insertAt = Math.min(currentIndex, prev.length);
         const newItems = [...prev];
-        newItems.splice(currentIndex, 0, currentItem);
+        newItems.splice(insertAt, 0, currentItem);
         return newItems;
       });
     } finally {
@@ -335,8 +353,14 @@ export function useLocalMode(
     } catch (error) {
       alert('Failed to accept variant: ' + (error instanceof Error ? error.message : 'Unknown error'));
       setItems(prev => {
+        // Re-insert the optimistically-removed item robustly: skip if a concurrent
+        // load already re-added it (avoid duplicates), and clamp the position to the
+        // current list length, since the list can shrink/grow while the action is in
+        // flight — making the captured currentIndex stale (out-of-order reinsertion).
+        if (prev.includes(currentItem)) return prev;
+        const insertAt = Math.min(currentIndex, prev.length);
         const newItems = [...prev];
-        newItems.splice(currentIndex, 0, currentItem);
+        newItems.splice(insertAt, 0, currentItem);
         return newItems;
       });
     } finally {
@@ -378,8 +402,14 @@ export function useLocalMode(
     } catch (error) {
       alert('Failed to accept direction variant: ' + (error instanceof Error ? error.message : 'Unknown error'));
       setItems(prev => {
+        // Re-insert the optimistically-removed item robustly: skip if a concurrent
+        // load already re-added it (avoid duplicates), and clamp the position to the
+        // current list length, since the list can shrink/grow while the action is in
+        // flight — making the captured currentIndex stale (out-of-order reinsertion).
+        if (prev.includes(currentItem)) return prev;
+        const insertAt = Math.min(currentIndex, prev.length);
         const newItems = [...prev];
-        newItems.splice(currentIndex, 0, currentItem);
+        newItems.splice(insertAt, 0, currentItem);
         return newItems;
       });
     } finally {
@@ -412,8 +442,14 @@ export function useLocalMode(
     } catch (error) {
       alert('Failed to reject direction pair');
       setItems(prev => {
+        // Re-insert the optimistically-removed item robustly: skip if a concurrent
+        // load already re-added it (avoid duplicates), and clamp the position to the
+        // current list length, since the list can shrink/grow while the action is in
+        // flight — making the captured currentIndex stale (out-of-order reinsertion).
+        if (prev.includes(currentItem)) return prev;
+        const insertAt = Math.min(currentIndex, prev.length);
         const newItems = [...prev];
-        newItems.splice(currentIndex, 0, currentItem);
+        newItems.splice(insertAt, 0, currentItem);
         return newItems;
       });
     } finally {
@@ -450,8 +486,14 @@ export function useLocalMode(
     } catch (error) {
       alert('Failed to delete direction pair');
       setItems(prev => {
+        // Re-insert the optimistically-removed item robustly: skip if a concurrent
+        // load already re-added it (avoid duplicates), and clamp the position to the
+        // current list length, since the list can shrink/grow while the action is in
+        // flight — making the captured currentIndex stale (out-of-order reinsertion).
+        if (prev.includes(currentItem)) return prev;
+        const insertAt = Math.min(currentIndex, prev.length);
         const newItems = [...prev];
-        newItems.splice(currentIndex, 0, currentItem);
+        newItems.splice(insertAt, 0, currentItem);
         return newItems;
       });
     } finally {

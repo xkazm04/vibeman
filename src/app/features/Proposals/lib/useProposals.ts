@@ -18,30 +18,13 @@ export const useProposals = (options?: {
 }) => {
   const [isVisible, setIsVisible] = useState(false);
 
-  // Mock proposal data for demonstration (fallback when no directions provided)
-  const mockProposals: (Proposal & { id: string })[] = useMemo(() => [
-    {
-      id: 'proposal-1',
-      title: 'Implement automated testing pipeline for critical user flows',
-      rationale: 'Based on recent analysis of the codebase, implementing comprehensive automated testing for user authentication, data processing, and API integrations would significantly reduce deployment risks and improve code quality. This proposal includes setting up Jest for unit tests, Cypress for end-to-end testing, and GitHub Actions for continuous integration.',
-      timestamp: new Date(),
-      status: 'pending' as const,
-    },
-    {
-      id: 'proposal-2',
-      title: 'Optimize database queries and implement caching strategy',
-      rationale: 'Performance analysis reveals several database bottlenecks that could be resolved through query optimization and strategic caching. Implementing Redis for session management and frequently accessed data, along with database indexing improvements, would reduce response times by an estimated 60% and improve user experience significantly.',
-      timestamp: new Date(),
-      status: 'pending' as const,
-    },
-    {
-      id: 'proposal-3',
-      title: 'Refactor component architecture for better maintainability',
-      rationale: 'The current component structure has grown organically and would benefit from systematic refactoring. Breaking down large components into smaller, reusable pieces, implementing proper prop drilling solutions, and establishing consistent naming conventions would improve developer productivity and reduce technical debt.',
-      timestamp: new Date(),
-      status: 'pending' as const,
-    }
-  ], []);
+  // No mock fallback. Previously this returned three hardcoded "proposals"
+  // (automated testing / DB caching / refactor) whenever no real directions were
+  // supplied — and ProposalPanel calls useProposals() with no args, so it always
+  // rendered those fabricated proposals whose accept/decline fired undefined
+  // callbacks (success theater). With an empty fallback the panel shows nothing
+  // until real directions are provided.
+  const mockProposals: (Proposal & { id: string })[] = useMemo(() => [], []);
 
   // Map real directions to DirectionProposals
   const directionProposals: DirectionProposal[] = useMemo(() => {

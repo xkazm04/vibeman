@@ -110,6 +110,15 @@ export const useReflectorStore = create<ReflectorStore>()(
               });
               return;
             }
+            // Benign "ran recently" cooldown (HTTP 429): surface the guidance and
+            // stop loading, but don't treat an expected throttle as a hard error.
+            if (response.status === 429) {
+              set({
+                isLoading: false,
+                error: data.error || 'Analysis was run recently. Please wait before running again.',
+              });
+              return;
+            }
             throw new Error(data.error || 'Failed to trigger analysis');
           }
 

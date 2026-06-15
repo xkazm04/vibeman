@@ -23,11 +23,11 @@ async function getClientState(): Promise<{
   zenMode: boolean;
   activeSessions: number;
 }> {
-  const { useZenNavigation, getModeFromPath } = await import('@/app/zen/lib/zenNavigationStore');
   // Import directly from specific file to avoid circular dependency
   const { useCLISessionStore } = await import('@/components/cli/store/cliSessionStore');
 
-  const zenMode = getModeFromPath(useZenNavigation.getState().viewPath) === 'online';
+  // Headless: always ready to accept remote batch commands (the former Zen-mode gate was removed).
+  const zenMode = true;
   const sessions = useCLISessionStore.getState().sessions;
 
   // Count active sessions (where isRunning === true)

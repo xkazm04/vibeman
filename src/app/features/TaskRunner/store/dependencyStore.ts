@@ -150,7 +150,7 @@ export const useDependencyStore = create<DependencyState & DependencyActions>()(
       },
 
       hasCycle: (from, to) => {
-        return detectCycle(get().edges, from, to);
+        return detectCycle(get().edges, from as RequirementIdString, to as RequirementIdString);
       },
     }),
     createPersistConfig<DependencyState & DependencyActions>('task-dependencies', {

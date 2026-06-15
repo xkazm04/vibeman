@@ -1,0 +1,962 @@
+[
+ {
+  "ctx": "Annette AI Assistant",
+  "file": "annette-assistant.md",
+  "title": "Orphaned `annette_*` tables (13 of them) are still created on every fresh DB — silent dead schema",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "maintenance",
+  "ref": "`src/app/db/migrations/116_annette_rapport.ts:14`, `src/app/db/migrations/index.ts:37,257`, `src/app/db/repositories/repository.utils.ts:19-28`",
+  "opp": "Make a deliberate keep-or-cut decision and document it. Either (a) gate these migrations + whitelist entries behind a feature flag / move them to an `archived/`"
+ },
+ {
+  "ctx": "Annette AI Assistant",
+  "file": "annette-assistant.md",
+  "title": "The realized \"create requirement / accept implementation\" tool layer is unwired after Annette's removal — reattach it to the headless flow",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "`src/lib/tools/index.ts:9-22`, `src/lib/tools/requirement-generator.ts:1-56`, `src/lib/tools/implementation-accept.ts`, `src/lib/tools/ANNETTE_INTEGRATION_EXAMPLE.md`",
+  "opp": "This is exactly the autonomous loop vibeman now wants headless: \"describe a task → generate a requirement file → Claude Code executes → accept/reject implementa"
+ },
+ {
+  "ctx": "Annette AI Assistant",
+  "file": "annette-assistant.md",
+  "title": "`ANNETTE_INTEGRATION_EXAMPLE.md` documents deleted files and will mislead the next contributor/agent",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "maintenance",
+  "ref": "`src/lib/tools/ANNETTE_INTEGRATION_EXAMPLE.md:8,155,157`",
+  "opp": "Rewrite (or delete) the doc so it reflects the headless reality: same `@/lib/tools` imports, but consumed by an MCP tool / API route, not an Annette action hand"
+ },
+ {
+  "ctx": "Annette AI Assistant",
+  "file": "annette-assistant.md",
+  "title": "Stale Annette E2E specs test UI that no longer exists — silent CI rot",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "maintenance",
+  "ref": "`e2e/annette/annette-chat.spec.ts:34-45,54-57`, `e2e/annette/annette-tools.spec.ts`",
+  "opp": "Delete the two `e2e/annette/*` specs (the feature is gone), or, if Annette is being resurrected, mark them `test.skip` with a tracking note so they aren't count"
+ },
+ {
+  "ctx": "Annette AI Assistant",
+  "file": "annette-assistant.md",
+  "title": "No empty/redirect state for the dead `/runner` Annette references and notification surface",
+  "pr": "critical",
+  "lens": "ui",
+  "cat": "functionality",
+  "ref": "`src/components/Navigation/NotificationBell.tsx`, `src/app/runner/components/RunnerRightPanel.tsx`, `src/app/runner/types.ts`",
+  "opp": "Audit these three files for any user-visible Annette entry point (nav item, notification category, runner panel section). Remove the control if the feature is d"
+ },
+ {
+  "ctx": "Blueprint & Onboarding",
+  "file": "blueprint-onboarding.md",
+  "title": "\"Run blueprint scan\" onboarding step is a dead end — no `blueprint` route exists",
+  "pr": "critical",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/app/page.tsx:78-101 (no `case 'blueprint'`); src/app/features/Onboarding/sub_GettingStarted/lib/config.ts:29 (`location: 'blueprint'`); src/components/QuickActionBar/index.tsx:43,89; src/components/onboarding/NextActionBanner.tsx:28 (`targetModule: 'blueprint'`)",
+  "opp": "Wire the `blueprint` module to a real destination. Simplest correct fix: re-point the task/buttons' `location`/`targetModule` to `'contexts'` and trigger the ex"
+ },
+ {
+  "ctx": "Blueprint & Onboarding",
+  "file": "blueprint-onboarding.md",
+  "title": "Structure-scan accept/reject workflow has full backend but zero UI surface",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/api/structure-scan/lib/scanOrchestrator.ts:118-263 (analyze/save/reject/preview); src/app/api/structure-scan/analyze/route.ts; src/app/api/structure-scan/save/route.ts; src/app/api/structure-scan/trigger/route.ts:11-17 (\"for decision queue\")",
+  "opp": "Surface the analyze → preview → accept/reject loop in the Getting Started drawer (or a Contexts panel): call `/analyze`, show the grouped `getRequirementPreview"
+ },
+ {
+  "ctx": "Blueprint & Onboarding",
+  "file": "blueprint-onboarding.md",
+  "title": "Onboarding step completion is poll-only — no auto-detection for `run-task`/`review-impl` correctness",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/app/features/Onboarding/lib/useOnboardingConditions.ts:91-129",
+  "opp": "Distinguish the two states using real signals already in the system: complete `run-task` when an implementation log / task exists (the implementation-log reposi"
+ },
+ {
+  "ctx": "Blueprint & Onboarding",
+  "file": "blueprint-onboarding.md",
+  "title": "`OnboardingPanel` is a dead duplicate of `StarterTasks` with a hardcoded second copy of the task list",
+  "pr": "medium",
+  "lens": "ui",
+  "cat": "maintenance",
+  "ref": "src/app/features/Onboarding/components/OnboardingPanel.tsx:26-69; src/app/features/Onboarding/components/GettingStartedItem.tsx; src/app/features/Onboarding/sub_GettingStarted/lib/config.ts:18-61",
+  "opp": "Delete `OnboardingPanel.tsx` + `GettingStartedItem.tsx` (and the index re-export), or, if a top-sliding variant is still wanted, refactor it to consume `buildTa"
+ },
+ {
+  "ctx": "Blueprint & Onboarding",
+  "file": "blueprint-onboarding.md",
+  "title": "Getting Started drawer has no empty/all-complete or loading state",
+  "pr": "high",
+  "lens": "ui",
+  "cat": "ui",
+  "ref": "src/app/features/Onboarding/sub_GettingStarted/components/StarterTasks.tsx:12-59; src/app/features/Onboarding/components/ControlPanel.tsx:27 (`activeProject?.id`)",
+  "opp": "Add three states to the drawer: (a) all-complete celebration block (\"You're set up — explore advanced features\") reusing the existing `NextActionBanner` all-com"
+ },
+ {
+  "ctx": "Brain & Behavioral Signals",
+  "file": "brain-signals.md",
+  "title": "Behavioral context & next-context predictions are computed but never reach the executing Claude Code agent (no MCP tool)",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/mcp-server/tools/index.ts:25-56, src/lib/brain/behavioralContext.ts:24-162, src/lib/brain/predictiveIntentEngine.ts:229-308, src/mcp-server/tools/memory.ts:36-48",
+  "opp": "Add a `get_brain_context` MCP tool (mirroring `memory.ts`) that calls `GET /api/brain/context?projectId=…` and formats `topInsights` + `patterns` + `currentFocu"
+ },
+ {
+  "ctx": "Brain & Behavioral Signals",
+  "file": "brain-signals.md",
+  "title": "Signal decay/pruning is \"designed as a weekly scheduled job\" but has zero callers — signals accumulate forever",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/app/api/brain/signals/decay/route.ts:1-8, src/lib/brain/brainService.ts:459-469, src/lib/brain/signalCollector.ts:477-487",
+  "opp": "Wire decay to an automatic trigger. Cheapest: piggyback on the existing reflection cascade — call `applySignalDecay(projectId, …)` inside `completeReflection()`"
+ },
+ {
+  "ctx": "Brain & Behavioral Signals",
+  "file": "brain-signals.md",
+  "title": "The revert-learning loop (`scanForReverts`) is dead code — reverted implementations are never auto-detected",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/lib/brain/outcomeTracker.ts:203-225, src/lib/brain/behavioralContext.ts:151-159 & 258-260",
+  "opp": "Wire `scanForReverts` into an existing periodic path with a real `checkRevert` implementation that inspects `git log --grep=\"Revert\"` / reverse-apply detection "
+ },
+ {
+  "ctx": "Brain & Behavioral Signals",
+  "file": "brain-signals.md",
+  "title": "\"Next context\" predictions have no surface — the Navigation indicator only shows reflection, ignoring the prediction engine",
+  "pr": "medium",
+  "lens": "ui",
+  "cat": "functionality",
+  "ref": "src/components/Navigation/indicators/useProjectIndicators.ts:35-54 & 64-81, src/app/api/brain/predictions/route.ts:15-40",
+  "opp": "Add a second evaluator + data fetch so a high-confidence prediction (e.g. `confidence >= 0.6`) surfaces as a distinct indicator dot/tooltip (\"Likely next: <cont"
+ },
+ {
+  "ctx": "Brain & Behavioral Signals",
+  "file": "brain-signals.md",
+  "title": "Reflection completion runs heavy cross-project synthesis inline, but `runCrossProjectSynthesis` (drift + proactive goals) is orphaned — no automatic drift/goal generation",
+  "pr": "critical",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/lib/brain/brainService.ts:489-538 & 390-399",
+  "opp": "Invoke `runCrossProjectSynthesis(projectIds)` after a **global** reflection completes (where cross-project signal is densest), passing the workspace's project I"
+ },
+ {
+  "ctx": "Context Management",
+  "file": "context-management.md",
+  "title": "Surface the Context Balance Audit in the Context UI",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/lib/contexts/audit.ts:52, src/app/api/contexts/audit/route.ts:16, src/app/features/Context/ContextLayout.tsx:266",
+  "opp": "Add an \"Audit\" affordance to `HorizontalContextBarHeader` (next to Export/Delete-All) that fetches `/api/contexts/audit?projectId=…` and opens a findings panel "
+ },
+ {
+  "ctx": "Context Management",
+  "file": "context-management.md",
+  "title": "Wire uncovered-file (coverage gap) detection into the audit",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/lib/contexts/audit.ts:55, src/app/api/contexts/audit/route.ts:29, src/app/features/Context/components/ContextEmptyState.tsx:28",
+  "opp": "Have the audit route obtain the project's real source-file list (the same scan used by context generation / `disk/glob`) and pass both `sourceFileCount` and the"
+ },
+ {
+  "ctx": "Context Management",
+  "file": "context-management.md",
+  "title": "Expose group health-scan history & issue breakdown (not just one number)",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "user_benefit",
+  "ref": "src/app/db/repositories/group-health.repository.ts:95, src/app/api/group-health-scan/route.ts:34, src/app/features/Context/sub_ContextGroups/components/GroupHealthBar.tsx:51",
+  "opp": "Add a small expandable \"scan history\" popover on the group card (triggered from `GroupHealthScanButton`'s area) listing the last N scans with timestamp, score d"
+ },
+ {
+  "ctx": "Context Management",
+  "file": "context-management.md",
+  "title": "Fix GroupHealthScanButton label/icon semantics",
+  "pr": "medium",
+  "lens": "ui",
+  "cat": "ui",
+  "ref": "src/app/features/Context/sub_ContextGroups/components/GroupHealthScanButton.tsx:66, src/app/features/Context/sub_ContextGroups/components/GroupHealthScanButton.tsx:74",
+  "opp": "Align the icon and copy with the action: use a health/heart-pulse icon (e.g. `Activity`/`HeartPulse` from lucide, already used elsewhere) and label it \"Health s"
+ },
+ {
+  "ctx": "Context Management",
+  "file": "context-management.md",
+  "title": "Wire up (or remove) the orphaned keyboard-navigation hook",
+  "pr": "high",
+  "lens": "ui",
+  "cat": "maintenance",
+  "ref": "src/app/features/Context/sub_ContextGroups/hooks/useKeyboardNavigation.ts:30, src/app/features/Context/ContextLayout.tsx:330",
+  "opp": "Wire the hook into the grid in `ContextLayout` — attach `containerRef`, ensure `ContextJailCard` renders `data-context-card`/`data-context-id` and is focusable,"
+ },
+ {
+  "ctx": "Database & Schema",
+  "file": "database-schema.md",
+  "title": "Five migrations exist on disk but were never wired into the runner — 4 live features are silently broken",
+  "pr": "critical",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/app/db/migrations/index.ts:88-89 (registry ends at m231; 138/139/140/141/229 absent), src/app/db/migrations/140_file_write_queue.ts:13, src/app/db/migrations/141_triage_rules.ts:10, src/app/db/migrations/139_insight_lineage_table.ts:17, src/app/db/migrations/229_cli_transcript_mirror.ts:20, src/app/db/migrations/138_file_watch_config_unique_project.ts:17",
+  "opp": "Wire the five orphaned migrations into the `once(...)` registry (m138–m141, m229), in order, after their dependencies (139 alters `brain_insights`; 140 FKs `ide"
+ },
+ {
+  "ctx": "Database & Schema",
+  "file": "database-schema.md",
+  "title": "Migrations never persist `affected_tables`, so the Migration Timeline UI and rollback both run on guesswork",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/db/migrations/migration.utils.ts:205-217 (`recordMigration` accepts `affectedTables?` but `runOnce:277` calls it with none), src/app/db/migrations/index.ts:157 (`once` → `runOnce` passes no tables), src/app/api/migrations/route.ts:33-66 (`inferAffectedTables`), src/app/api/migrations/route.ts:73-96 (`generateRollbackDDL`)",
+  "opp": "Have each migration declare the tables it touches and thread that through `once()` → `runOnce()` → `recordMigration()`, then delete the brittle `inferAffectedTa"
+ },
+ {
+  "ctx": "Database & Schema",
+  "file": "database-schema.md",
+  "title": "`index.ts` is a 4,504-line monolith with three competing migration conventions and triple manual registration",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "maintenance",
+  "ref": "src/app/db/migrations/index.ts:1-342 (registry + 4,500 lines of inline `migrateXxx()` bodies for m001–m089), src/app/db/migrations/index.ts:160-325 (manual `once(...)` calls), src/app/db/migrations/139_insight_lineage_table.ts:17 (`{ version, up, down }` outlier shape)",
+  "opp": "Add a single ordered auto-loader that globs `NNN_*.ts`, validates each exports a uniform `migrate(db, logger)` (+ optional `affectedTables`), and runs them thro"
+ },
+ {
+  "ctx": "Database & Schema",
+  "file": "database-schema.md",
+  "title": "Dual, uncoordinated persistence backends — dead \"multi-driver\" abstraction vs. live Supabase sync",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/db/drivers/types.ts:9 (`DbDriverType = 'sqlite'` only), src/app/db/drivers/index.ts:36-41 (`createDriver` throws unless `config.sqlite`), src/app/api/db-sync/sync/route.ts:2-3 (separate Supabase path), src/lib/supabase/sync.ts",
+  "opp": "Either (a) collapse the unused driver-polymorphism (drop the `DbConfig.driver` union, keep the thin `DbConnection` wrapper) to remove dead surface, or (b) if cl"
+ },
+ {
+  "ctx": "Database & Schema",
+  "file": "database-schema.md",
+  "title": "`MigrationTimeline` and `/api/migrations` have no failed-migration call-to-action, and the rollback control is a silent footgun",
+  "pr": "medium",
+  "lens": "ui",
+  "cat": "ui",
+  "ref": "src/app/features/System/MigrationTimeline.tsx, src/app/api/migrations/route.ts:119-125 (`failed` count returned), src/app/api/migrations/route.ts:135-198 (POST rollback defaults `dryRun=true`)",
+  "opp": "Add a dedicated failed-migrations banner with the `error_message` and a \"these retry automatically on restart\" hint, and make the rollback action a two-step con"
+ },
+ {
+  "ctx": "Debt Prediction & Refactoring",
+  "file": "debt-prediction.md",
+  "title": "Refactor store calls dead API endpoints — the entire wizard pipeline is wired to nothing",
+  "pr": "critical",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/stores/slices/refactor/packagesSlice.ts:127, src/stores/slices/refactor/dslSlice.ts:102, src/stores/slices/refactor/types.ts:146",
+  "opp": "Add the missing `src/app/api/refactor/analyze/route.ts` (documented in `src/lib/scan/README.md:158`) that calls `getScanStrategy(projectPath, projectType).scanP"
+ },
+ {
+  "ctx": "Debt Prediction & Refactoring",
+  "file": "debt-prediction.md",
+  "title": "Two divergent copies of the unused-code analyzer — route inlines what the lib already exports",
+  "pr": "high",
+  "lens": "ui",
+  "cat": "maintenance",
+  "ref": "src/app/api/unused-code/route.ts:37-571, src/lib/scan/unusedCodeDetector.ts:1-427",
+  "opp": "Delete the inlined logic from the route and `import { analyzeUnusedCode } from '@/lib/scan/unusedCodeDetector'`. Keep only the request parsing, validation, and "
+ },
+ {
+  "ctx": "Debt Prediction & Refactoring",
+  "file": "debt-prediction.md",
+  "title": "Unused-code scan is O(components × files) re-reading every file from disk per component",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/lib/scan/unusedCodeDetector.ts:263-319 (searchComponentUsage), :365-400, mirrored in src/app/api/unused-code/route.ts:363-430",
+  "opp": "Read each file's content once into an in-memory map before the usage loop, and build a single combined-usage set (or reverse import index) so each component is "
+ },
+ {
+  "ctx": "Debt Prediction & Refactoring",
+  "file": "debt-prediction.md",
+  "title": "Detection engine ignores the `lineNumbers` field — opportunities can't deep-link to the offending code",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/stores/slices/refactor/types.ts:18 (lineNumbers?: Record<string, number[]>), src/lib/scan/techniques/nextjs/large-file.ts:34-45, src/lib/scan/techniques/nextjs/duplication.ts:15-26, src/lib/scan/techniques/nextjs/unused-imports.ts:15-26",
+  "opp": "Have each detector return the line numbers it already computes and pass them into `lineNumbers`, so downstream UI/TaskRunner can jump straight to the line (and "
+ },
+ {
+  "ctx": "Debt Prediction & Refactoring",
+  "file": "debt-prediction.md",
+  "title": "Canonical `ScanStrategy.ts` still carries \"FIXED VERSION / TO APPLY: copy this file\" scaffolding header",
+  "pr": "high",
+  "lens": "ui",
+  "cat": "maintenance",
+  "ref": "src/lib/scan/ScanStrategy.ts:1-9",
+  "opp": "Replace the header with an accurate doc comment describing the `ScanStrategy` interface, `RefactorScanStrategy` base class, and the `detector()` helper."
+ },
+ {
+  "ctx": "Dependencies & Security",
+  "file": "dependencies-security.md",
+  "title": "⚠️ Context manifest drift (read first)",
+  "pr": "",
+  "lens": "?",
+  "cat": "",
+  "ref": "",
+  "opp": ""
+ },
+ {
+  "ctx": "Dependencies & Security",
+  "file": "dependencies-security.md",
+  "title": "`security_scan` quality gate silently passes on real vulnerabilities",
+  "pr": "critical",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/app/api/lifecycle/quality-gate/route.ts:215-256 (catch at 248-256)",
+  "opp": "Parse `stdout` from the *error* object (npm audit always writes JSON to stdout even on non-zero exit), then apply the severity threshold to that parsed result i"
+ },
+ {
+  "ctx": "Dependencies & Security",
+  "file": "dependencies-security.md",
+  "title": "Orphaned security_scans / security_patches / security_prs schema with no reader or writer",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/db/migrations/index.ts:863-959",
+  "opp": "Re-wire the surviving `runSecurityScan` gate to persist its `npm audit` results into `security_scans`/`security_patches`, giving Vibeman a historical vulnerabil"
+ },
+ {
+  "ctx": "Dependencies & Security",
+  "file": "dependencies-security.md",
+  "title": "No automated security-remediation PR — manual gap vs. the autonomous-dev direction",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/api/lifecycle/quality-gate/route.ts:215; src/lib/registry/versionFetcher.ts:67; src/app/db/migrations/index.ts:935-959 (security_prs table)",
+  "opp": "On a failing security gate, auto-create a remediation requirement/task: use `npm audit fix` (or `versionFetcher` to find the fixed version) on a branch, run the"
+ },
+ {
+  "ctx": "Dependencies & Security",
+  "file": "dependencies-security.md",
+  "title": "Security scan bypasses the hardened command sandbox (uses raw `exec`)",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "maintenance",
+  "ref": "src/app/api/lifecycle/quality-gate/route.ts:7-18,218,261; src/lib/command/executeCommand.ts:209-231",
+  "opp": "Migrate the gate runners to `executeCommand('npm', ['audit','--json'], { cwd, acceptNonZero: true })`. `acceptNonZero` directly fixes the non-zero-exit problem "
+ },
+ {
+  "ctx": "Dependencies & Security",
+  "file": "dependencies-security.md",
+  "title": "Lifecycle config exposes `security_scan`/`coverage` gates with no readiness or empty-state feedback",
+  "pr": "medium",
+  "lens": "ui",
+  "cat": "ui",
+  "ref": "src/app/features/Ideas/sub_Lifecycle/components/LifecycleConfigPanel.tsx:45 (option list); src/app/api/lifecycle/quality-gate/route.ts:197-204,259-291",
+  "opp": "Render per-gate readiness in the config panel: badge each selectable gate (Ready / Not configured) and, when a gate result carries `status: 'no_tests'`, show it"
+ },
+ {
+  "ctx": "Docs & Architecture Explorer",
+  "file": "docs-architecture.md",
+  "title": "X-Ray \"real-time data flow\" renders only synthetic demo traffic — the real SSE/SQLite pipeline is built but dead",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/features/Docs/sub_DocsAnalysis/DocsAnalysisLayout.tsx:191-199; src/lib/xrayInstrumentation.ts:180-218; src/stores/xrayStore.ts:257-298 (connect); src/app/api/xray/stream/route.ts:92-164",
+  "opp": "Wire `handleToggleXRay` to call `useXRayStore.getState().connect()` (consuming the real SSE stream) instead of `startXRaySimulation`. Keep the synthetic generat"
+ },
+ {
+  "ctx": "Docs & Architecture Explorer",
+  "file": "docs-architecture.md",
+  "title": "Impact Simulator computes a full refactor plan, then \"Apply Move\" throws it away (only moves the DB row)",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/features/Docs/sub_ImpactSimulator/SimulationSystemMap.tsx:278-289 (handleConfirmMove); src/app/features/Docs/sub_DocsAnalysis/DocsAnalysisLayout.tsx:150-160 (handleMoveContext → moveContext); src/app/features/Docs/sub_DocsAnalysis/lib/impactSimulator/staticAnalyzer.ts:455-494",
+  "opp": "When the user confirms a move, generate a Claude Code requirement/task from the analysis result (the move + its `importPathChanges` + \"run full test suite\" reco"
+ },
+ {
+  "ctx": "Docs & Architecture Explorer",
+  "file": "docs-architecture.md",
+  "title": "Level-3 ContextDocumentation \"No Description\" empty state is a dead end despite context-generation existing",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/app/features/Docs/sub_DocsAnalysis/components/ContextDocumentation/index.tsx:195-212",
+  "opp": "Make the empty state actionable: a \"Generate documentation\" button that triggers context-generation for this single context and streams the result into the `Mar"
+ },
+ {
+  "ctx": "Docs & Architecture Explorer",
+  "file": "docs-architecture.md",
+  "title": "X-Ray GET endpoint computes filtered events then discards them, returning unfiltered data",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/app/api/xray/route.ts:22-31",
+  "opp": "Return the filtered set: map `dbEvents` through `dbEventToXRayEvent` (or have `getFiltered` join context details like `getWithContextDetails`) so the `contextId"
+ },
+ {
+  "ctx": "Docs & Architecture Explorer",
+  "file": "docs-architecture.md",
+  "title": "Layer color/identity is re-hardcoded in every X-Ray/SystemMap component instead of using the canonical LAYER_CONFIG token",
+  "pr": "high",
+  "lens": "ui",
+  "cat": "maintenance",
+  "ref": "src/app/features/Docs/sub_DocsAnalysis/components/SystemMap/types.ts:48-73 (canonical `LAYER_CONFIG`); src/app/features/Docs/sub_XRay/XRayHotPathsPanel.tsx:208-227 (inline `colors` map); plus duplicate layer-color maps in XRaySystemMap.tsx, SystemMap/helpers.ts, SystemMap/index.tsx, ContextDocumentation/FilePathChip.tsx",
+  "opp": "Extend `LAYER_CONFIG` with `textClass`/`bgClass` (or a `getLayerStyle(layer)` helper) and have every Docs component consume it, removing the inline maps."
+ },
+ {
+  "ctx": "Goals & Daily Standup",
+  "file": "goals-standup.md",
+  "title": "Rich \"Daily Mission Briefing\" predictive standup is built but never rendered",
+  "pr": "critical",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/features/DailyStandup/components/PredictiveStandup.tsx:105; src/app/features/Goals/GoalsLayout.tsx:20-21 (only StandupHistoryTimeline + SprintPlannerPanel imported); src/app/api/standup/predict/route.ts",
+  "opp": "Add a third toggle state (`'briefing'`) to `AnalyticsPanels` (GoalsLayout.tsx:140-208) that renders `<PredictiveStandup projectId={projectId} />`, with a `Radar"
+ },
+ {
+  "ctx": "Goals & Daily Standup",
+  "file": "goals-standup.md",
+  "title": "No UI path to generate a standup — endpoint is unreachable from the app",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/api/standup/generate/route.ts:14 (POST handler); src/app/features/DailyStandup/components/StandupHistoryTimeline.tsx:404-405 (empty state literally says \"Generate a standup to see trends here\")",
+  "opp": "Add a \"Generate today's standup\" button to the Standup History panel header (and/or empty state) that POSTs `{ projectId, periodType: 'daily' }` to `/api/standu"
+ },
+ {
+  "ctx": "Goals & Daily Standup",
+  "file": "goals-standup.md",
+  "title": "AI Goal Suggestions (\"Generate Goals\") is unreachable from the main Goals dashboard",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/app/features/Goals/sub_GoalModal/components/GoalCandidatesModal.tsx:33; src/app/features/Goals/GoalsLayout.tsx:404-427 (header only has manual \"+\" add button); only other caller: src/app/features/Onboarding/sub_GoalDrawer/GoalReviewer.tsx:241",
+  "opp": "Add a `Sparkles` \"AI Suggestions\" button to the Active Goals header (next to `+` / check-in, GoalsLayout.tsx:404) that opens `GoalCandidatesModal`, refreshing t"
+ },
+ {
+  "ctx": "Goals & Daily Standup",
+  "file": "goals-standup.md",
+  "title": "Standup visual-language helpers are triplicated and already drifting (trend labels mismatch)",
+  "pr": "medium",
+  "lens": "ui",
+  "cat": "maintenance",
+  "ref": "src/app/features/DailyStandup/components/PredictiveStandup.tsx:40-59; src/app/features/DailyStandup/components/SprintPlannerPanel.tsx:30-58 (comment: \"mirrored from PredictiveStandup\"); src/app/features/DailyStandup/components/StandupHistoryTimeline.tsx:102-118",
+  "opp": "Extract a shared `standupVisuals.tsx` (or `lib/standup/visuals`) exporting `trendIcon`, `slotIcon`, `complexityBadge`, `burnoutColor/Bg`, `riskColor/Bg` with on"
+ },
+ {
+  "ctx": "Goals & Daily Standup",
+  "file": "goals-standup.md",
+  "title": "GoalEmptyState ignores the design-token palette used by the rest of the Goals dashboard",
+  "pr": "medium",
+  "lens": "ui",
+  "cat": "ui",
+  "ref": "src/app/features/Goals/components/GoalEmptyState.tsx:88-196 (`text-gray-200/300/400/500`, `bg-gray-800/50`, `border-gray-700/50`, hardcoded `from-gray-900/80`); contrast with GoalsLayout.tsx:95-99 & GoalEmptyState's sibling list using `text-muted-foreground`, `text-foreground`, `bg-white/[0.03]`, `border-white/5`, `primary`",
+  "opp": "Swap `gray-*` for the theme tokens (`muted-foreground`, `foreground`, `white/[0.0x]`, `primary`) and either remove the stray fade overlay or give its wrapper `r"
+ },
+ {
+  "ctx": "Ideas System",
+  "file": "ideas-system.md",
+  "title": "Scan loop runs blind — no per-task progress, count, or cancel",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/features/Ideas/sub_IdeasSetup/ScanInitiator.tsx:40-41,169-202; src/app/features/Ideas/sub_IdeasSetup/lib/ideaExecutor.ts:131-191",
+  "opp": "Stream progress as the loop advances. Have `executeClaudeCodeScan` accept an `onProgress(done, total, label, status)` callback (it already builds `result.itemCo"
+ },
+ {
+  "ctx": "Ideas System",
+  "file": "ideas-system.md",
+  "title": "Default Buffer view has no bulk triage — power triage lives only in Tinder",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/app/features/Ideas/sub_Buffer/BufferView.tsx:151-246; src/app/features/Ideas/sub_Buffer/BufferColumn.tsx:61-127; src/app/features/tinder/components/AutoTriageButton.tsx:26-58",
+  "opp": "Add a per-column \"Queue all pending\" / \"Accept all\" action mirroring the existing delete-all affordance, reusing the `/api/tinder/accept-all` or batching `/api/"
+ },
+ {
+  "ctx": "Ideas System",
+  "file": "ideas-system.md",
+  "title": "Lifecycle cycles/events are in-memory only — lost on restart",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "maintenance",
+  "ref": "src/app/features/Ideas/sub_Lifecycle/lib/lifecycleOrchestrator.ts:46-54,275,371-378; src/app/api/lifecycle/route.ts:34-52",
+  "opp": "Persist cycles and events to SQLite (tables alongside the existing `lifecycle_locks`) so status, history, and the timeline survive restarts and can be queried p"
+ },
+ {
+  "ctx": "Ideas System",
+  "file": "ideas-system.md",
+  "title": "Rich scan-type stats are computed server-side but never surfaced in the Ideas UI",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "user_benefit",
+  "ref": "src/app/api/ideas/stats/route.ts:59-127; src/app/features/Ideas/IdeasLayout.tsx:118-204",
+  "opp": "Add a collapsible \"Agent performance\" strip (acceptance ratio + accepted/total per scan type) above the view toggle, and let the scan-type chips in `ScanTypeSel"
+ },
+ {
+  "ctx": "Ideas System",
+  "file": "ideas-system.md",
+  "title": "Effort/Impact shown as bare icons with no value — triage scanability suffers",
+  "pr": "high",
+  "lens": "ui",
+  "cat": "ui",
+  "ref": "src/app/features/Ideas/sub_Buffer/BufferItem.tsx:105-117; src/app/features/Ideas/lib/ideaConfig.ts:235-259",
+  "opp": "Render the numeric score beside each icon (e.g. `⚡7`) matching the dependency badge's icon+number pattern, using the existing band color from `effortScale.color"
+ },
+ {
+  "ctx": "Integrations & Template Discovery",
+  "file": "integrations-templates.md",
+  "title": "Rust `get_discovered_templates` queries a nonexistent `stale` column — headless template listing is broken",
+  "pr": "critical",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src-tauri/src/commands/lifecycle_cmds.rs:197 and :203; schema in src/app/db/migrations/146_template_status.ts:15-18; model in src/app/db/models/types.ts:688",
+  "opp": "Change the predicate to `status != 'stale'` (and ideally `status = 'active'` to also exclude `'error'` rows). Add a thin integration test that runs the query ag"
+ },
+ {
+  "ctx": "Integrations & Template Discovery",
+  "file": "integrations-templates.md",
+  "title": "Rust `get_generation_history` filters on a nonexistent `project_id` column",
+  "pr": "critical",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src-tauri/src/commands/misc_cmds.rs:146 (registered at src-tauri/src/lib.rs:155); schema in src/app/db/migrations/069_fix_generation_history_fk.ts:33-39; repo in src/app/db/repositories/generation-history.repository.ts:21-31",
+  "opp": "Either drop the `project_id` predicate (table is global, mirroring the TS `getAll()` repo), or — better, matching the command's intent — join/filter through `di"
+ },
+ {
+  "ctx": "Integrations & Template Discovery",
+  "file": "integrations-templates.md",
+  "title": "`/api/template-discovery/generate` never records a generation_history entry — silent, untracked generations",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/api/template-discovery/generate/route.ts:74-90; src/app/db/repositories/generation-history.repository.ts:40-71; src/app/api/generation-history/route.ts:37-56",
+  "opp": "Record history server-side at the point of generation, inside the same request that writes the file, so tracking can't be skipped by callers."
+ },
+ {
+  "ctx": "Integrations & Template Discovery",
+  "file": "integrations-templates.md",
+  "title": "GET `/api/template-discovery` returns stale/error templates to consumers with no status filter",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/app/api/template-discovery/route.ts:185-206; repo `getAll`/`getBySourcePath` at src/app/db/repositories/discovered-template.repository.ts:26-70",
+  "opp": "Add an optional `?status=active|stale|error|all` query param (defaulting to `active`) to the GET handler and a `getByStatus(sourcePath?, status)` repo method, s"
+ },
+ {
+  "ctx": "Integrations & Template Discovery",
+  "file": "integrations-templates.md",
+  "title": "Template discovery scan path is hardcoded to `src/templates/**` — non-conforming projects yield zero templates",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/lib/template-discovery/scanner.ts:30-43 (`extractCategory`) and :49-65 (`discoverTemplateFiles` glob patterns)",
+  "opp": "Accept an optional `templateRoots: string[]` (or glob list) in the `ScanRequest`, defaulting to the current `src/templates` patterns, and derive `category` rela"
+ },
+ {
+  "ctx": "Manager & Directions",
+  "file": "manager-directions.md",
+  "title": "\"Implement with AI\" path is dead in the main review flow",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/app/features/Manager/ManagerLayout.tsx:261-270, src/app/features/Manager/components/ImplementationLogDetail.tsx:134, src/app/features/Manager/components/ImplementationProposalBridge.tsx:292-300",
+  "opp": "Wire a real `onTriggerClaudeCode` handler in `ManagerLayout` that creates the requirement file from proposal content and kicks off a Claude Code session (the co"
+ },
+ {
+  "ctx": "Manager & Directions",
+  "file": "manager-directions.md",
+  "title": "Improvement proposals are static templates, not AI-generated",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/features/Manager/lib/proposalAdapter.ts:23-40, 89-107, 120-143",
+  "opp": "Replace (or augment) the template generator with an LLM call that reads the log's overview/bullets/diff and proposes 2-4 *specific* follow-ups (\"add a debounce "
+ },
+ {
+  "ctx": "Manager & Directions",
+  "file": "manager-directions.md",
+  "title": "Direction hypothesis assertions are generated and validated server-side but never surfaced in UI",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "user_benefit",
+  "ref": "src/app/api/directions/[id]/validate/route.ts:23-56, src/app/api/directions/generate/route.ts:174-176, src/app/db/repositories/direction-outcome.repository.ts:118-159",
+  "opp": "Surface assertion pass/fail on accepted directions (a \"Hypothesis: 3/4 checks passed\" badge + expandable list) in the Manager/Proposals review surfaces, and opt"
+ },
+ {
+  "ctx": "Manager & Directions",
+  "file": "manager-directions.md",
+  "title": "Manager header stats use dynamic Tailwind color classes that get purged",
+  "pr": "medium",
+  "lens": "ui",
+  "cat": "maintenance",
+  "ref": "src/app/features/Manager/components/ManagerHeader.tsx:174-184",
+  "opp": "Map each stat to a complete, statically-analyzable class string so the colors reliably render and the hierarchy reads."
+ },
+ {
+  "ctx": "Manager & Directions",
+  "file": "manager-directions.md",
+  "title": "Implementation log cards/modal/grid have no loading or per-card busy states for accept actions",
+  "pr": "high",
+  "lens": "ui",
+  "cat": "ui",
+  "ref": "src/app/features/Manager/ManagerLayout.tsx:105-121, src/app/features/Manager/components/UserInputPanel.tsx:61-83, src/app/features/Manager/components/ManagerCardGrid.tsx:33-49",
+  "opp": "Add a local `isAccepting` state to `UserInputPanel`/`ImplementationLogDetail` that disables both buttons and shows a spinner on Accept (mirroring `DirectionCaro"
+ },
+ {
+  "ctx": "Reflector & Executive Analysis",
+  "file": "reflector-executive.md",
+  "title": "Actionable AI insights have nowhere to go — no \"Promote to Direction/Idea\" action",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/features/reflector/sub_Reflection/components/ExecutiveSummary.tsx:347-355 (AIInsightCard `suggestedAction`), src/app/features/reflector/sub_Reflection/components/analytics/AnalyticsStudio.tsx:420-426, src/app/db/repositories/executive-analysis.repository.ts:38-49",
+  "opp": "Add a \"Promote to Direction\" / \"Create Idea\" button on each `actionable` insight (and on AI recommendations) that POSTs to the existing `/api/directions` or `/a"
+ },
+ {
+  "ctx": "Reflector & Executive Analysis",
+  "file": "reflector-executive.md",
+  "title": "Cross-project architecture analysis is invisible in the Reflector — only lives in Overview",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/features/reflector/ReflectorLayout.tsx:11-15,66-67 (tabs), src/app/features/reflector/components/ReflectorViewTabs.tsx:20-25, src/app/features/reflector/sub_Dependencies/CrossContextDashboard.tsx:31 (uses idea-based `/api/ideas/cross-context-graph`), src/app/api/architecture/relationships/route.ts:38-61",
+  "opp": "Add a \"Cross-Project Architecture\" view to `ReflectorViewTabs` that renders the workspace relationship graph from `/api/architecture/relationships?workspaceId=…"
+ },
+ {
+  "ctx": "Reflector & Executive Analysis",
+  "file": "reflector-executive.md",
+  "title": "Analysis history is collected but never shown — no way to compare runs over time",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/db/repositories/executive-analysis.repository.ts:127-132 (`getHistory`), src/app/api/reflector/executive-analysis/route.ts:29-33 (`mode=history`), src/stores/reflectorStore.ts:139-183 (`fetchAnalysisStatus` only ever keeps `lastCompleted`)",
+  "opp": "Add a collapsible \"Analysis History\" list in the AI Analysis tab that fetches `mode=history`, lets the user click a past run to view its narrative/insights, and"
+ },
+ {
+  "ctx": "Reflector & Executive Analysis",
+  "file": "reflector-executive.md",
+  "title": "Analytics Studio temporal heatmap is fabricated data, not real activity",
+  "pr": "medium",
+  "lens": "ui",
+  "cat": "functionality",
+  "ref": "src/app/features/reflector/sub_Reflection/components/analytics/AnalyticsStudio.tsx:59-75 (`dailyCounts` synthesized via `Math.round((totalIdeas / 80) * dayWeight * recency)`), passed to `TemporalHeatmap` at 269-272",
+  "opp": "Drive the heatmap from real `idea.created_at` timestamps. The reflector already loads ideas elsewhere; add a real daily-count aggregation (server or client) and"
+ },
+ {
+  "ctx": "Reflector & Executive Analysis",
+  "file": "reflector-executive.md",
+  "title": "Three near-identical JSON download implementations should share one exporter",
+  "pr": "medium",
+  "lens": "ui",
+  "cat": "maintenance",
+  "ref": "src/app/features/reflector/components/ExportButton.tsx:56-66 (`downloadFile`) & 22-38 (`buildJsonExportData`), src/app/features/reflector/sub_Reflection/components/analytics/AnalyticsStudio.tsx:130-170 (hand-rolled Blob/anchor/`URL.revokeObjectURL` + filename stamp)",
+  "opp": "Extract a single `downloadJson(data, filenameBase)` util (and the `-YYYY-MM-DD` stamp) into a shared lib; have both call sites use it, and reuse `ExportButton`'"
+ },
+ {
+  "ctx": "Remote Device Control",
+  "file": "remote-device-control.md",
+  "title": "Unauthenticated mesh/fleet command dispatch executes local Claude Code & writes files",
+  "pr": "critical",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/app/api/remote/mesh/commands/route.ts:4-5,110-178; src/app/api/remote/fleet/route.ts:228-308; src/lib/remote/commandProcessor.ts:108-172; src/lib/remote/commandHandlers.ts:231-363,605-701",
+  "opp": "Require the same API-key + permission check on the mesh and fleet POST handlers that `/commands` already enforces, OR have the processor re-verify each command "
+ },
+ {
+  "ctx": "Remote Device Control",
+  "file": "remote-device-control.md",
+  "title": "No fleet/mesh dashboard — rich topology + health scoring is computed but never shown",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/api/remote/fleet/route.ts:40-223; src/app/api/remote/mesh/topology/route.ts:25-122; src/lib/remote/topologyBuilder.ts (buildTopologyFromDevices, suggestImprovements); src/lib/remote/batchDispatcher.ts (calculateHealthScore)",
+  "opp": "Build a \"Fleet\" dashboard feature (e.g. `src/app/features/Fleet/`) that renders the overview cards, a device list with health gauges (reuse `DebtPrediction/Heal"
+ },
+ {
+  "ctx": "Remote Device Control",
+  "file": "remote-device-control.md",
+  "title": "Batch-control and scan commands are accepted then silently no-op'd (\"integration pending\")",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/lib/remote/commandHandlers.ts:384-456",
+  "opp": "Wire these handlers to the real engines: pause/resume/stop should call the CLI session store controls already used by `handleStartBatch` (`useCLISessionStore` —"
+ },
+ {
+  "ctx": "Remote Device Control",
+  "file": "remote-device-control.md",
+  "title": "No command provenance/audit trail or result feedback surfaced to operators",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "user_benefit",
+  "ref": "src/lib/remote/commandProcessor.ts:177-240; src/app/api/remote/commands/route.ts:130-149; src/app/api/remote/mesh/commands/route.ts:145-160",
+  "opp": "Persist `issued_by` (client id or source device) on every inserted command and add a lightweight audit/history endpoint (or extend `/commands` GET with `target_"
+ },
+ {
+  "ctx": "Remote Device Control",
+  "file": "remote-device-control.md",
+  "title": "Command/event status relies on 5s polling — no realtime push despite an events stream existing",
+  "pr": "medium",
+  "lens": "ui",
+  "cat": "functionality",
+  "ref": "src/lib/remote/commandProcessor.ts:63-82; src/app/api/remote/commands/route.ts:166-196 (PATCH manual poke); src/lib/remote/eventPublisher.ts:24-87; src/app/api/remote/events/route.ts:10-67",
+  "opp": "Add a realtime push surface — either subscribe the processor + a UI hook to Supabase Realtime on `vibeman_commands`/`vibeman_events`, or add an SSE route (`/api"
+ },
+ {
+  "ctx": "Scan Queue & Build Fixer",
+  "file": "scan-queue-build-fixer.md",
+  "title": "Build Fixer is fully built but wired to nothing — no UI, no caller, no execution loop",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/api/build-fixer/route.ts:63-107, src/app/api/build-fixer/lib/requirementCreator.ts:33-63, src/app/api/build-fixer/lib/buildScanner.ts:428",
+  "opp": "Add a \"Fix build errors\" action (in the Onboarding/ControlPanel or a Scan Queue panel) that POSTs `/api/build-fixer`, shows the grouped error count, then on con"
+ },
+ {
+  "ctx": "Scan Queue & Build Fixer",
+  "file": "scan-queue-build-fixer.md",
+  "title": "No Scan Queue dashboard — worker, queue progress, and notifications are headless",
+  "pr": "high",
+  "lens": "ui",
+  "cat": "functionality",
+  "ref": "src/lib/scanQueueWorker.ts:543-569 (getStatus), src/app/api/scan-queue/route.ts:20-37 (GET), src/app/api/scan-queue/notifications/route.ts:12-34, src/app/db/repositories/scanQueue.core.repository.ts:209-237 (updateProgress)",
+  "opp": "A Scan Queue panel: a worker on/off toggle (POST/DELETE `/api/scan-queue/worker`), a live list of queue items with per-item progress bars (`progress` + `progres"
+ },
+ {
+  "ctx": "Scan Queue & Build Fixer",
+  "file": "scan-queue-build-fixer.md",
+  "title": "Failed and cancelled scans are terminal — no retry / re-enqueue",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/app/api/scan-queue/[id]/route.ts:73-143 (PATCH), src/app/db/repositories/scanQueue.core.repository.ts:169-204 (updateStatus), src/lib/scanQueueWorker.ts:443-460 (failure path)",
+  "opp": "Add a `retry` action that clones a terminal queue item's parameters into a fresh `queued` row (or resets the existing row when `status IN ('failed','cancelled')"
+ },
+ {
+  "ctx": "Scan Queue & Build Fixer",
+  "file": "scan-queue-build-fixer.md",
+  "title": "Auto-merge eligibility is hardcoded (impact===3 && effort===1) with no configurability or preview",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/lib/scanQueueWorker.ts:468-516 (handleAutoMerge, filter at :480), src/app/api/scan-queue/route.ts:48 (autoMergeEnabled flag only)",
+  "opp": "Make the auto-merge rule a stored, per-project policy (min impact / max effort, optional category allow-list) carried in `trigger_metadata` or a small config ta"
+ },
+ {
+  "ctx": "Scan Queue & Build Fixer",
+  "file": "scan-queue-build-fixer.md",
+  "title": "Build Fixer requirement files use repeated hand-built Markdown that should be a shared template",
+  "pr": "critical",
+  "lens": "ui",
+  "cat": "maintenance",
+  "ref": "src/app/api/build-fixer/lib/buildScanner.ts:330-411 (formatErrorGroup), and the divergent \"single file\" vs \"directory group\" intro/instruction blocks at :336-396",
+  "opp": "Extract a single `buildRequirementMarkdown({ scope, files, errors, buildCommand })` template helper that emits one consistent structure (header → grouped errors"
+ },
+ {
+  "ctx": "Social Feedback System",
+  "file": "social-feedback.md",
+  "title": "Orphaned Tauri commands query dropped SQLite tables (will fail at runtime)",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src-tauri/src/commands/social_cmds.rs:16-45, src-tauri/src/lib.rs:133-135, src-tauri/src/commands/mod.rs:12",
+  "opp": "Remove the two `social_*` commands from `social_cmds.rs`, drop their entries from `lib.rs:134-135` invoke_handler, and delete the now-stub migrations m047-m049 "
+ },
+ {
+  "ctx": "Social Feedback System",
+  "file": "social-feedback.md",
+  "title": "HallOfFame showcase advertises source paths to deleted Social files",
+  "pr": "high",
+  "lens": "ui",
+  "cat": "maintenance",
+  "ref": "src/app/features/HallOfFame/lib/showcaseRegistry.ts:1234-1240, 1262-1269; src/app/features/HallOfFame/components/PreviewModal.tsx:199",
+  "opp": "Either (a) re-point `sourcePath`/`codeSnippet` to where these reusable atoms should live now (they are good components — see finding #4), or (b) remove the two "
+ },
+ {
+  "ctx": "Social Feedback System",
+  "file": "social-feedback.md",
+  "title": "Dead Social env-config getters with hardcoded default secret",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "maintenance",
+  "ref": "src/lib/config/envConfig.ts:325-333",
+  "opp": "Remove the orphaned getters (and the \"Social & Discovery\" comment block) so the centralized env config reflects only live consumers; drop `SOCIAL_ENCRYPTION_SEC"
+ },
+ {
+  "ctx": "Social Feedback System",
+  "file": "social-feedback.md",
+  "title": "Salvage the orphaned Social UI atoms into the shared design system",
+  "pr": "medium",
+  "lens": "ui",
+  "cat": "ui",
+  "ref": "src/app/features/HallOfFame/components/previews/FeaturePreviews.tsx:755-840 (SLABadgePreview, AIProcessingPanelPreview)",
+  "opp": "Promote `SLABadge` (ok/warning/critical/overdue) and `AIProcessingPanel` (idle/processing/success/error) into `src/components/ui/` as canonical primitives, sour"
+ },
+ {
+  "ctx": "Social Feedback System",
+  "file": "social-feedback.md",
+  "title": "Self-validate context manifests against the filesystem to surface drift",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "docs/harness/feature-ui-scan-2026-06-15/_contexts.json:420-445 (this context); src/app/api/contexts/route.ts; src/app/features/Context/lib/contextUtils.ts",
+  "opp": "Add a lightweight \"context file integrity\" check — on context load or health scan, resolve each `files[]` entry against disk (glob for dir entries like `src/app"
+ },
+ {
+  "ctx": "TaskRunner & Claude Code",
+  "file": "taskrunner-claude-code.md",
+  "title": "Surface real session/batch cost & token totals (data already arrives, then is thrown away)",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/features/TaskRunner/components/CLISessionModal.tsx:78-85, src/app/features/TaskRunner/lib/manualSession.types.ts:33-50, src/app/Claude/components/CostEstimation.tsx:22-29",
+  "opp": "Accumulate `cost_usd`/`duration_ms`/token usage from each `result` event into the session record (`totalCostUsd`, `totalDurationMs`, `turnCount`), display a run"
+ },
+ {
+  "ctx": "TaskRunner & Claude Code",
+  "file": "taskrunner-claude-code.md",
+  "title": "One-click retry / re-run for failed and completed tasks",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/features/TaskRunner/TaskItem.tsx:118-161, src/app/features/TaskRunner/components/KanbanColumn.tsx:100-120, src/app/api/claude-code/execute/route.ts:59-68",
+  "opp": "Add a \"Retry\" action (and a \"Run again\" for completed tasks) to both the context menu and the Kanban failed-column card that re-queues that single requirement v"
+ },
+ {
+  "ctx": "TaskRunner & Claude Code",
+  "file": "taskrunner-claude-code.md",
+  "title": "Live batch progress bar + ETA in the TaskRunner header",
+  "pr": "high",
+  "lens": "ui",
+  "cat": "functionality",
+  "ref": "src/app/features/TaskRunner/TaskRunnerHeader.tsx:27-42, src/app/features/TaskRunner/TaskRunnerFullView.tsx:181-194",
+  "opp": "Render a slim animated progress bar + \"X of Y done · N running · ~Em left\" line in the header whenever `isRunning`, driven by the already-passed `processedCount"
+ },
+ {
+  "ctx": "TaskRunner & Claude Code",
+  "file": "taskrunner-claude-code.md",
+  "title": "Standardize empty states across grid + Kanban columns (icon + guidance, not bare text)",
+  "pr": "medium",
+  "lens": "ui",
+  "cat": "ui",
+  "ref": "src/app/features/TaskRunner/TaskRunnerFullView.tsx:221-226, src/app/features/TaskRunner/components/KanbanColumn.tsx:101-104, src/app/features/TaskRunner/components/SessionSidebar.tsx:287-295",
+  "opp": "Extract a small `TaskRunnerEmptyState` (icon, title, subtext, optional CTA) and apply it to the grid (with a \"Create requirement\" hint / link to `.claude/comman"
+ },
+ {
+  "ctx": "TaskRunner & Claude Code",
+  "file": "taskrunner-claude-code.md",
+  "title": "Stop/kill control for running sessions in the SessionSidebar",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/app/features/TaskRunner/components/SessionSidebar.tsx:120-129, src/app/features/TaskRunner/components/SessionSidebar.tsx:264-283, src/app/api/cli-task-registry/route.ts:159-183",
+  "opp": "Add a \"Stop\" button on running session cards (both manual and automated) that aborts the active execution (clear/cancel via the registry + cliSessionStore) and "
+ },
+ {
+  "ctx": "Testing & Scenarios",
+  "file": "testing-scenarios.md",
+  "title": "Test scenario has no editor — the field that drives screenshot capture is invisible in the UI",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/app/features/Context/sub_ContextPreview/ContextPreviewManager.tsx:73,146-256; src/app/api/contexts/preview/route.ts:36-44; src/app/api/tester/screenshot/route.ts:103-124",
+  "opp": "Add a \"Test Scenario\" textarea (JSON-steps or numbered natural-language, both already parsed by `contextScreenshotExecutor.parseScenario`) into `ContextPreviewM"
+ },
+ {
+  "ctx": "Testing & Scenarios",
+  "file": "testing-scenarios.md",
+  "title": "Screenshot capture results are written to localStorage, never shown — no pass/fail UI for the test run",
+  "pr": "high",
+  "lens": "ui",
+  "cat": "ui",
+  "ref": "src/app/features/TaskRunner/sub_Screenshot/screenshotApi.ts:224-263; src/app/api/tester/lib/contextScreenshotExecutor.ts:20-28,196-265; src/stores/testResultStore.ts:54-79",
+  "opp": "Surface the last capture result inline in the Context Preview / ContextCard: a small status chip (green \"Passed · 5/5 steps · 2.3s\" / red \"Selector failed at st"
+ },
+ {
+  "ctx": "Testing & Scenarios",
+  "file": "testing-scenarios.md",
+  "title": "No visual-regression diff despite the context promising \"screenshot comparison\"",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/api/tester/screenshot/route.ts:174-183; src/app/api/tester/lib/contextScreenshotExecutor.ts:207-265",
+  "opp": "Keep a baseline screenshot per context (e.g. `preview` = approved baseline, plus a `last_run` capture), pixel-diff new captures against the baseline (pixelmatch"
+ },
+ {
+  "ctx": "Testing & Scenarios",
+  "file": "testing-scenarios.md",
+  "title": "Diagnostic endpoint hardcodes localhost:3000, contradicting the per-project port logic in the capture route",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "functionality",
+  "ref": "src/app/api/tester/diagnostic/route.ts:28,131-143; src/app/api/tester/screenshot/route.ts:127-151",
+  "opp": "Accept `?contextId=` (or `?projectId=`) on the diagnostic GET, resolve the same `project.port` the capture route uses, probe that URL, and update the recommenda"
+ },
+ {
+  "ctx": "Testing & Scenarios",
+  "file": "testing-scenarios.md",
+  "title": "Standardize the four feature-area \"scan/action\" buttons — copy-pasted markup across ContextGroups",
+  "pr": "medium",
+  "lens": "ui",
+  "cat": "maintenance",
+  "ref": "src/app/features/Context/sub_ContextGroups/components/GroupHealthScanButton.tsx; .../ProductionScanButton.tsx; .../PerformanceScanButton.tsx; .../BeautifyScanButton.tsx; src/app/features/Context/sub_ContextPreview/components/ContextPreviewActions.tsx:79-98",
+  "opp": "Extract a single `<AsyncActionButton icon label loadingLabel isLoading disabled onClick variant />` that owns the spinner/label-swap, hover/tap motion, and disa"
+ },
+ {
+  "ctx": "Workspace & Project Management",
+  "file": "workspace-project-mgmt.md",
+  "title": "Destructive workspace delete has no confirmation in the modal path (and is inconsistent with the drawer path)",
+  "pr": "high",
+  "lens": "ui",
+  "cat": "ui",
+  "ref": "src/app/projects/sub_Workspaces/WorkspaceList.tsx:74, src/app/projects/sub_Workspaces/WorkspaceManager.tsx:47, src/components/Navigation/ShortcutsBar.tsx:117",
+  "opp": "Add a confirmation step to the modal delete (inline \"Confirm delete?\" two-step on the row, or reuse the same copy as the drawer), and disable the trash button w"
+ },
+ {
+  "ctx": "Workspace & Project Management",
+  "file": "workspace-project-mgmt.md",
+  "title": "Workspace-level git status rollup is computed but never surfaced in the workspace UI",
+  "pr": "high",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/features/Overview/sub_WorkspaceArchitecture/lib/useArchitectureData.ts:217, src/app/api/git/branches/route.ts:104, src/app/projects/sub_Workspaces/WorkspaceList.tsx:52",
+  "opp": "Surface an aggregate git-health badge per workspace (e.g. \"5 clean · 3 dirty\") in `WorkspaceList` rows and in the bottom-bar project badge, reusing the existing"
+ },
+ {
+  "ctx": "Workspace & Project Management",
+  "file": "workspace-project-mgmt.md",
+  "title": "No batch \"commit & push\" across a workspace despite a hardened single-project endpoint",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "feature",
+  "ref": "src/app/api/git/commit-and-push/route.ts:162, src/app/api/git/branches/route.ts:104, src/stores/workspaceStore.ts:203",
+  "opp": "Add a \"Commit & push workspace\" action that takes the active workspace's project IDs (`getActiveWorkspaceProjectIds`), filters to dirty repos via `/api/git/bran"
+ },
+ {
+  "ctx": "Workspace & Project Management",
+  "file": "workspace-project-mgmt.md",
+  "title": "\"Recently used\" / quick-switch is missing from the workspace switcher",
+  "pr": "medium",
+  "lens": "feature",
+  "cat": "user_benefit",
+  "ref": "src/components/Navigation/ShortcutsBar.tsx:163, src/stores/workspaceStore.ts:65, src/stores/workspaceStore.ts:209",
+  "opp": "Track `lastUsedAt` per workspace in the store (persisted), sort the drawer with the active + most-recent workspaces first, and add a keyboard shortcut to cycle/"
+ },
+ {
+  "ctx": "Workspace & Project Management",
+  "file": "workspace-project-mgmt.md",
+  "title": "HallOfFame star toggle and component rows lack pending/optimistic + accessible state",
+  "pr": "medium",
+  "lens": "ui",
+  "cat": "ui",
+  "ref": "src/app/features/HallOfFame/HallOfFameLayout.tsx:37, src/app/features/HallOfFame/components/ComponentTable.tsx:82",
+  "opp": "Make the star toggle optimistic (flip `starredIds` immediately, roll back on failure), disable the button while a request for that id is pending, add `aria-pres"
+ }
+]

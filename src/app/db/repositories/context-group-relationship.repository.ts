@@ -52,6 +52,7 @@ export const contextGroupRelationshipRepository = {
     project_id: string;
     source_group_id: string;
     target_group_id: string;
+    relationship_type?: string;
   }): DbContextGroupRelationship | null => {
     const db = getDatabase();
 
@@ -74,8 +75,8 @@ export const contextGroupRelationshipRepository = {
     // Use INSERT OR IGNORE to prevent TOCTOU race: if a concurrent request
     // already inserted the same pair, this silently succeeds with 0 changes.
     const stmt = db.prepare(`
-      INSERT OR IGNORE INTO context_group_relationships (id, project_id, source_group_id, target_group_id, created_at)
-      SELECT ?, ?, ?, ?, ?
+      INSERT OR IGNORE INTO context_group_relationships (id, project_id, source_group_id, target_group_id, relationship_type, created_at)
+      SELECT ?, ?, ?, ?, ?, ?
       WHERE NOT EXISTS (
         SELECT 1 FROM context_group_relationships
         WHERE (source_group_id = ? AND target_group_id = ?)
@@ -89,6 +90,7 @@ export const contextGroupRelationshipRepository = {
         relationship.project_id,
         normalizedSource,
         normalizedTarget,
+        relationship.relationship_type || 'uses',
         now,
         normalizedSource,
         normalizedTarget,

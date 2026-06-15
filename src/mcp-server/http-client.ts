@@ -103,4 +103,33 @@ export class VibemanHttpClient {
       };
     }
   }
+
+  /**
+   * Make a PATCH request to the API
+   */
+  async patch<T = unknown>(path: string, body: object): Promise<ApiResponse<T>> {
+    try {
+      const response = await fetch(`${this.baseUrl}${path}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json() as Record<string, unknown>;
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: (data.error as string) || (data.message as string) || `HTTP ${response.status}`,
+        };
+      }
+
+      return { success: true, data: data as T };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
 }
