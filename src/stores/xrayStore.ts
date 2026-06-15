@@ -54,6 +54,7 @@ interface XRayActions {
   // Connection management
   connect: () => void;
   disconnect: () => void;
+  setConnected: (connected: boolean) => void;
 
   // Animation helpers
   getEdgeAnimation: (edgeId: string) => XRayConnectionAnimation | null;
@@ -303,6 +304,10 @@ export const useXRayStore = create<XRayState & XRayActions>((set, get) => ({
     }
     set({ eventSource: null, isConnected: false });
   },
+
+  // Mark the store connected/disconnected for a non-EventSource data source
+  // (e.g. the local instrumentation buffer bridge used by X-Ray demo mode).
+  setConnected: (connected: boolean) => set({ isConnected: connected }),
 
   // Animation helpers
   getEdgeAnimation: (edgeId) => {

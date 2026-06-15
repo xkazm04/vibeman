@@ -16,7 +16,7 @@
 
 'use client';
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Compass } from 'lucide-react';
 
@@ -37,7 +37,8 @@ import { useArchitectureNavigation } from './lib/useArchitectureNavigation';
 import { useContextStore } from '@/stores/contextStore';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useXRayStore, useXRayIsConnected } from '@/stores/xrayStore';
-import { startXRaySimulation, stopXRaySimulation } from '@/lib/xrayInstrumentation';
+import { startXRaySimulation, stopXRaySimulation, subscribeToXRayEvents, getRecentXRayEvents } from '@/lib/xrayInstrumentation';
+import type { XRayTraceEvent } from './lib/xrayTypes';
 import {
   useProjectContextData,
   useRelationships,
@@ -74,6 +75,9 @@ export default function DocsAnalysisLayout() {
   // X-Ray store
   const { events: xrayEvents } = useXRayStore();
   const isXRayConnected = useXRayIsConnected();
+  // Holds the active instrumentation->store subscription so X-Ray events actually
+  // reach the store (it was never wired: nothing called subscribe/addEvent).
+  const xrayUnsubRef = useRef<(() => void) | null>(null);
 
   const { activeProject } = useClientProjectStore();
   const projectId = activeProject?.id;
@@ -162,6 +166,10 @@ export default function DocsAnalysisLayout() {
     if (!isSimulationMode) {
       setIsXRayMode(false);
       stopXRaySimulation();
+      // Tear down the X-Ray store bridge if it was active.
+      xrayUnsubRef.current?.();
+      xrayUnsubRef.current = null;
+      useXRayStore.getState().setConnected(false);
     }
     // When enabling simulation, go back to system level for best experience
     if (!isSimulationMode && !isAtSystemLevel) {
@@ -177,10 +185,25 @@ export default function DocsAnalysisLayout() {
     // Disable simulation mode when enabling X-Ray
     if (newXRayMode) {
       setIsSimulationMode(false);
+      // Bridge the instrumentation event buffer into the X-Ray store. Without this
+      // the store stays empty (nothing else calls addEvent/subscribe/connect), so
+      // the whole X-Ray view rendered permanently "Disconnected" with no traffic.
+      const store = useXRayStore.getState();
+      store.clearEvents();
+      store.addEvents(getRecentXRayEvents(200) as unknown as XRayTraceEvent[]);
+      xrayUnsubRef.current = subscribeToXRayEvents(
+        (e) => useXRayStore.getState().addEvent(e as unknown as XRayTraceEvent)
+      );
+      store.setConnected(true);
       // Start demo simulation to show traffic
       startXRaySimulation('medium');
     } else {
       stopXRaySimulation();
+      xrayUnsubRef.current?.();
+      xrayUnsubRef.current = null;
+      const store = useXRayStore.getState();
+      store.setConnected(false);
+      store.clearEvents();
     }
 
     // When enabling X-Ray, go back to system level for best experience
@@ -189,10 +212,12 @@ export default function DocsAnalysisLayout() {
     }
   }, [isXRayMode, isAtSystemLevel, navigateBackToSystem]);
 
-  // Cleanup X-Ray simulation on unmount
+  // Cleanup X-Ray simulation + store bridge on unmount
   useEffect(() => {
     return () => {
       stopXRaySimulation();
+      xrayUnsubRef.current?.();
+      xrayUnsubRef.current = null;
     };
   }, []);
 
