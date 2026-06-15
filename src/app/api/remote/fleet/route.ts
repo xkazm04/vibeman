@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withRemoteSupabase } from '@/lib/remote/apiMiddleware';
+import { withRemoteSupabase, requireClient } from '@/lib/remote/apiMiddleware';
 import type { RemoteDevice } from '@/lib/remote/deviceTypes';
 import {
   calculateHealthScore,
@@ -227,7 +227,7 @@ export const GET = withRemoteSupabase('Fleet', async (supabase, request: NextReq
  */
 export const POST = withRemoteSupabase('Fleet', async (supabase, request: NextRequest) => {
   const body = await request.json();
-  const { action, device_ids, command_type, payload, source_device_id, source_device_name } = body;
+  const { action, device_ids, command_type, payload, source_device_id, source_device_name, api_key } = body;
 
   if (!action) {
     return NextResponse.json(
@@ -273,10 +273,17 @@ export const POST = withRemoteSupabase('Fleet', async (supabase, request: NextRe
         );
       }
 
+      // batch_command dispatches state-mutating / execution commands to every
+      // target device, so it must be authenticated — previously any caller could
+      // fan a start_batch/stop_batch/trigger_scan out across the fleet unauthed.
+      const auth = await requireClient(supabase, api_key, ['write_commands']);
+      if (auth.error) return auth.error;
+
       // Insert commands for each device
       const commands = device_ids.map((deviceId: string) => ({
         project_id: 'fleet',
         command_type,
+        client_id: auth.client.id,
         target_device_id: deviceId,
         status: 'pending',
         payload: {
