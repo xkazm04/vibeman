@@ -204,7 +204,16 @@ export function isMigrationApplied(db: DbConnection, name: string): boolean {
  */
 export function recordMigration(db: DbConnection, name: string, affectedTables?: string[]): void {
   const tables = affectedTables?.join(',') ?? '';
-  db.prepare('INSERT OR IGNORE INTO _migrations_applied (name, affected_tables, status) VALUES (?, ?, ?)').run(name, tables, 'applied');
+  // Upsert to 'applied' rather than INSERT OR IGNORE: if a prior run left a
+  // status='failed' row for this name, OR IGNORE would no-op and leave it
+  // 'failed', so isMigrationApplied() returns false next boot and the migration
+  // re-runs — non-idempotent DDL (ADD COLUMN, table rebuild) then hard-fails.
+  // This runs inside runOnce()'s transaction, so the 'applied' status commits
+  // atomically with the schema change.
+  db.prepare(
+    `INSERT INTO _migrations_applied (name, affected_tables, status) VALUES (?, ?, 'applied')
+     ON CONFLICT(name) DO UPDATE SET status = 'applied', affected_tables = excluded.affected_tables, error_message = NULL`
+  ).run(name, tables);
 }
 
 /**
