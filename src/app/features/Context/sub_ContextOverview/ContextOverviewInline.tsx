@@ -40,15 +40,19 @@ const ContextOverviewInline = ({ context, groupColor, onClose }: ContextOverview
     if (!context?.id || !activeProjectId) return;
 
     try {
-      const response = await fetch(`/api/contexts/${context.id}`);
+      // No `/api/contexts/[id]` route exists — the only single-context lookup is
+      // `/api/contexts/detail?contextId=...`, which returns `{ success, data }`
+      // (not `{ context }`). The old URL 404'd and `response.ok` was false, so the
+      // refresh silently no-op'd and just-saved values were never re-synced.
+      const response = await fetch(`/api/contexts/detail?contextId=${encodeURIComponent(context.id)}`);
       if (response.ok) {
         const data = await response.json();
-        if (data.success && data.context) {
+        if (data.success && data.data) {
           // Update local state
-          setCurrentPreview(data.context.preview || null);
-          setCurrentTestScenario(data.context.testScenario || null);
-          setCurrentTarget(data.context.target || null);
-          setCurrentTargetFulfillment(data.context.target_fulfillment || null);
+          setCurrentPreview(data.data.preview || null);
+          setCurrentTestScenario(data.data.testScenario || null);
+          setCurrentTarget(data.data.target || null);
+          setCurrentTargetFulfillment(data.data.target_fulfillment || null);
         }
       }
     } catch (error) {
