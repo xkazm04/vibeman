@@ -32,8 +32,9 @@ import ManagerSystemMap from './components/ManagerSystemMap';
 import DevelopmentFlowMap from './components/DevelopmentFlowMap';
 import TabEmptyState from './components/TabEmptyStates';
 import { acceptImplementation } from '@/lib/tools';
+import { executeRequirementAsync } from '@/app/Claude/lib/requirementApi';
 import type { ContextGroupRelationship } from '@/lib/queries/contextQueries';
-import { fetchUntestedLogs, fetchContextGroupRelationships } from './lib/managerService';
+import { fetchUntestedLogs, fetchContextGroupRelationships, createRequirement } from './lib/managerService';
 import StaggeredReveal from '@/components/lazy/StaggeredReveal';
 
 interface ManagerLayoutProps {
@@ -125,9 +126,51 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
     setSelectedGroupId(null);
   };
 
-  const handleRequirementCreated = (_requirementName: string): void => {
-    // Requirement creation is handled by the detail modal;
-    // this callback is available for future UI feedback (e.g., toast).
+  const handleRequirementCreated = (requirementName: string): void => {
+    toast.success('Requirement created', requirementName);
+  };
+
+  /**
+   * Write a requirement file from proposal content and kick off a Claude Code
+   * session to implement it. Mirrors the established write-then-execute flow
+   * (managerService.createRequirement → executeRequirementAsync) used elsewhere.
+   */
+  const handleTriggerClaudeCode = async (
+    requirementName: string,
+    content: string,
+  ): Promise<void> => {
+    const projectPath = activeProject?.path;
+    if (!projectPath) {
+      toast.error('Cannot start implementation', 'No active project path');
+      return;
+    }
+
+    try {
+      const writeResult = await createRequirement(
+        projectPath,
+        requirementName,
+        content,
+        true,
+      );
+      if (!writeResult.success || !writeResult.fileName) {
+        toast.error('Failed to create requirement', writeResult.error);
+        return;
+      }
+
+      const execResult = await executeRequirementAsync(
+        projectPath,
+        writeResult.fileName,
+        activeProject?.id,
+      );
+      if (execResult.success) {
+        toast.success('Implementation started', writeResult.fileName);
+      } else {
+        toast.error('Failed to start implementation', writeResult.fileName);
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      toast.error('Failed to start implementation', msg);
+    }
   };
 
   const handleGroupClick = (groupId: string): void => {
@@ -265,6 +308,7 @@ export default function ManagerLayout({ projectId }: ManagerLayoutProps) {
             onClose={() => setSelectedLog(null)}
             onAccept={handleAccept}
             onRequirementCreated={handleRequirementCreated}
+            onTriggerClaudeCode={handleTriggerClaudeCode}
             projectPath={activeProject?.path}
           />
         )}

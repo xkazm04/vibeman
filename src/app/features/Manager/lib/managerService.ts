@@ -118,14 +118,18 @@ export async function createRequirement(
   projectPath: string,
   requirementName: string,
   content: string,
-): Promise<{ success: boolean; error?: string }> {
+  overwrite = false,
+): Promise<{ success: boolean; error?: string; fileName?: string }> {
   try {
-    await fetchApi<{ success: boolean }>('/api/claude-code/requirement', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ projectPath, requirementName, content }),
-    });
-    return { success: true };
+    const data = await fetchApi<{ success: boolean; fileName?: string }>(
+      '/api/claude-code/requirement',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectPath, requirementName, content, overwrite }),
+      },
+    );
+    return { success: true, fileName: data.fileName };
   } catch (err) {
     return {
       success: false,
