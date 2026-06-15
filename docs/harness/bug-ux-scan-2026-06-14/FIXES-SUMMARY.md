@@ -4,17 +4,18 @@
 > 50 findings (9C / 24H / 13M / 4L). All fixes on branch `vibeman/bug-ux-fixes` (off HEAD), each `git add`
 > scoped so the in-progress 708-file refactor stayed uncommitted and separate.
 
-## Outcome (accurate ledger — after Wave 8)
+## Outcome (accurate ledger — final, after WIP-cleared)
 
 | Status | Count | Severity |
 |---|---:|---|
-| **Fixed** | **43** | 7C · 19H · 13M · 4L |
-| Remaining — WIP-blocked (in `headless-slim` files) | 5 | 5H |
+| **Fixed** | **48** | 7C · 24H · 13M · 4L |
 | Remaining — deferred by user decision (remote auth) | 2 | 2C |
 | **Total** | **50** | 9C · 24H · 13M · 4L |
 
-**Every clean (non-WIP-blocked) finding is now closed.** The only remaining work is gated on the user's
-in-progress `headless-slim` refactor (5 findings) or is the deferred remote auth/ownership design (2 Criticals).
+**48 of 50 findings fixed.** The user committed the `headless-slim` refactor (`3f81b889`), which unblocked
+the 5 previously WIP-blocked findings (context #3, manager #1, taskrunner #2/#3/#4) — all now fixed
+(see `FIXES-WIP-CLEARED.md`). The only remaining work is the deferred remote auth/ownership design
+(remote #1/#2, 2 Criticals) — needs an auth design, not a quick fix.
 
 **Note on Criticals:** **7 of 9 fixed.** The 2 open Criticals are remote #1 (no auth) and remote #2
 (no ownership), *deferred by the "remote cheap-subset" decision* — not closed. (An earlier draft of the
@@ -44,12 +45,10 @@ Per-wave detail + verification in `FIXES-WAVE-1.md` … `FIXES-WAVE-7.md`.
 
 ideas #1, workspace #2/#3, context #4, reflector #4/#5, scan-queue #5 — all fixed. See `FIXES-WAVE-8.md`.
 
-## Remaining — WIP-blocked
+## ~~Remaining — WIP-blocked~~ → ALL CLOSED (after refactor committed)
 
-In `headless-slim` files (uncommitted); clearable in one pass once that work is committed/stashed:
-- context #3 (H) — `batchMoveContexts` CASE-without-ELSE NULLs `group_id` (`context.repository.ts`)
-- manager #1 (H) — "Accept with Code" === plain Accept (`DirectionCarousel.tsx`)
-- taskrunner #2/#3/#4 (H) — taskId collisions, `git diff HEAD~1` mis-attribution, PID orphan-reaping (`claudeExecutionQueue.ts` + `executionManager.ts`)
+context #3, manager #1, taskrunner #2/#3/#4 — all fixed once the `headless-slim` refactor was committed
+(`3f81b889`). See `FIXES-WIP-CLEARED.md`.
 
 ## Remaining — deferred by decision
 
