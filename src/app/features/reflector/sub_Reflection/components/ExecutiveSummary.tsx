@@ -20,7 +20,9 @@ import {
   CheckCircle2,
   XCircle,
   LayoutDashboard,
+  Send,
 } from 'lucide-react';
+import { createDirection } from '@/lib/directions/directionsApi';
 import { useTabNavigation } from '@/hooks/useTabNavigation';
 import { duration } from '@/lib/motion';
 import { ComparisonFilterState } from '../lib/types';
@@ -300,8 +302,69 @@ const aiInsightTypeColors: Record<string, { bg: string; border: string; text: st
   recommendation: { bg: 'bg-purple-500/10', border: 'border-purple-500/40', text: 'text-purple-400', icon: 'text-purple-500' },
 };
 
-function AIInsightCard({ insight, index }: { insight: ExecutiveAIInsight; index: number }) {
+interface AIInsightCardProps {
+  insight: ExecutiveAIInsight;
+  index: number;
+  /** Project the analysis belongs to. Null for a global analysis (cannot promote). */
+  projectId: string | null;
+  /** Source analysis id, used to tag the promoted direction back to its origin. */
+  analysisId: string | null;
+}
+
+type PromoteState = 'idle' | 'promoting' | 'promoted' | 'error';
+
+/**
+ * Build the /api/directions POST payload from an actionable AI insight.
+ * The directions table has no FK on context_map_id, so we use a synthetic id
+ * that encodes the source analysis for traceability.
+ */
+function buildDirectionPayload(
+  insight: ExecutiveAIInsight,
+  projectId: string,
+  analysisId: string | null
+): {
+  project_id: string;
+  context_map_id: string;
+  context_map_title: string;
+  direction: string;
+  summary: string;
+} {
+  const summaryParts: string[] = [];
+  if (insight.suggestedAction) summaryParts.push(insight.suggestedAction);
+  if (insight.description) summaryParts.push(insight.description);
+  if (insight.evidence.length > 0) {
+    summaryParts.push(`Evidence:\n${insight.evidence.map((ev) => `- ${ev}`).join('\n')}`);
+  }
+  if (analysisId) summaryParts.push(`Source: executive analysis ${analysisId}`);
+
+  return {
+    project_id: projectId,
+    context_map_id: analysisId ? `exec-insight:${analysisId}` : 'exec-insight',
+    context_map_title: `Executive Insight (${insight.type})`,
+    direction: insight.title,
+    summary: summaryParts.join('\n\n') || insight.title,
+  };
+}
+
+function AIInsightCard({ insight, index, projectId, analysisId }: AIInsightCardProps) {
   const colors = aiInsightTypeColors[insight.type] || aiInsightTypeColors.pattern;
+  const [promoteState, setPromoteState] = useState<PromoteState>('idle');
+  const [promoteError, setPromoteError] = useState<string | null>(null);
+
+  const canPromote = insight.actionable && !!projectId;
+
+  const handlePromote = useCallback(async () => {
+    if (!projectId || promoteState === 'promoting' || promoteState === 'promoted') return;
+    setPromoteState('promoting');
+    setPromoteError(null);
+    try {
+      await createDirection(buildDirectionPayload(insight, projectId, analysisId));
+      setPromoteState('promoted');
+    } catch (err) {
+      setPromoteState('error');
+      setPromoteError(err instanceof Error ? err.message : 'Failed to promote');
+    }
+  }, [insight, projectId, analysisId, promoteState]);
 
   return (
     <motion.div
@@ -352,6 +415,50 @@ function AIInsightCard({ insight, index }: { insight: ExecutiveAIInsight; index:
               </p>
             </div>
           )}
+
+          {insight.actionable && (
+            <div className="mt-3 pt-2 border-t border-gray-700/50">
+              {promoteState === 'promoted' ? (
+                <span
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-400"
+                  data-testid="ai-insight-promoted"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Promoted to Direction
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handlePromote}
+                  disabled={!canPromote || promoteState === 'promoting'}
+                  title={
+                    !projectId
+                      ? 'Select a single project to promote this insight'
+                      : 'Create a pending Direction from this insight'
+                  }
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="ai-insight-promote-btn"
+                >
+                  {promoteState === 'promoting' ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Promoting…
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5" />
+                      Promote to Direction
+                    </>
+                  )}
+                </button>
+              )}
+              {promoteState === 'error' && promoteError && (
+                <p className="mt-1.5 text-xs text-red-400" data-testid="ai-insight-promote-error">
+                  {promoteError}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </motion.div>
@@ -363,9 +470,13 @@ interface AIAnalysisContentProps {
   aiNarrative: string | null;
   aiRecommendations: string[];
   lastAnalysisDate: string | null;
+  /** Project the analysis belongs to (null = global analysis, promote disabled). */
+  projectId: string | null;
+  /** Source analysis id used to tag promoted directions. */
+  analysisId: string | null;
 }
 
-function AIAnalysisContent({ aiInsights, aiNarrative, aiRecommendations, lastAnalysisDate }: AIAnalysisContentProps) {
+function AIAnalysisContent({ aiInsights, aiNarrative, aiRecommendations, lastAnalysisDate, projectId, analysisId }: AIAnalysisContentProps) {
   const hasContent = aiInsights.length > 0 || aiNarrative || aiRecommendations.length > 0;
 
   if (!hasContent) {
@@ -405,7 +516,13 @@ function AIAnalysisContent({ aiInsights, aiNarrative, aiRecommendations, lastAna
           </h4>
           <div className="space-y-3">
             {aiInsights.map((insight, idx) => (
-              <AIInsightCard key={`${insight.type}-${idx}`} insight={insight} index={idx} />
+              <AIInsightCard
+                key={`${insight.type}-${idx}`}
+                insight={insight}
+                index={idx}
+                projectId={projectId}
+                analysisId={analysisId}
+              />
             ))}
           </div>
         </div>
@@ -558,6 +675,8 @@ export default function ExecutiveSummary({ filters }: ExecutiveSummaryProps) {
             aiNarrative={aiNarrative}
             aiRecommendations={aiRecommendations}
             lastAnalysisDate={lastAnalysis?.completed_at || null}
+            projectId={lastAnalysis?.project_id ?? filters.projectId ?? null}
+            analysisId={lastAnalysis?.id ?? null}
           />
         );
       case 'studio':
