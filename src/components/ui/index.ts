@@ -85,3 +85,11 @@ export { default as BacklinksPanel } from './BacklinksPanel';
 
 // Scan findings severity summary
 export { default as FindingsSeveritySummary } from './FindingsSeveritySummary';
+
+// Status severity badge (salvaged from the deleted Social SLABadge atom)
+export { default as StatusBadge, StatusBadge as StatusBadgeComponent } from './StatusBadge';
+export type { StatusBadgeProps, StatusBadgeStatus } from './StatusBadge';
+
+// AI processing affordance (salvaged from the deleted Social module)
+export { default as AIProcessingPanel, AIProcessingPanel as AIProcessingPanelComponent } from './AIProcessingPanel';
+export type { AIProcessingPanelProps, AIProcessingStatus } from './AIProcessingPanel';

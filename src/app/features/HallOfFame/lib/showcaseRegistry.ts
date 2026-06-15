@@ -1231,13 +1231,14 @@ import { Sparkles } from 'lucide-react';
         defaultValue: false,
       },
     ],
-    codeSnippet: `import { SLABadge } from '@/app/features/Social/components/sla/SLABadge';
+    codeSnippet: `import { StatusBadge } from '@/components/ui/StatusBadge';
 
-<SLABadge
-  item={{ priority: 'high', createdAt: '2024-01-01' }}
+<StatusBadge
+  status="critical"
+  meta="2h left"
   compact={false}
 />`,
-    sourcePath: 'src/app/features/Social/components/sla/SLABadge.tsx',
+    sourcePath: 'src/components/ui/StatusBadge.tsx',
   },
   {
     id: 'ai-processing-panel',
@@ -1259,14 +1260,13 @@ import { Sparkles } from 'lucide-react';
         defaultValue: 'idle',
       },
     ],
-    codeSnippet: `import { AIProcessingPanel } from '@/app/features/Social/components/AIProcessingPanel';
+    codeSnippet: `import { AIProcessingPanel } from '@/components/ui/AIProcessingPanel';
 
 <AIProcessingPanel
-  selectedCount={5}
-  processingStatus="idle"
+  status="idle"
   onProcess={() => {}}
 />`,
-    sourcePath: 'src/app/features/Social/components/AIProcessingPanel.tsx',
+    sourcePath: 'src/components/ui/AIProcessingPanel.tsx',
   },
 
   // --- BlueprintComposer Components ---
