@@ -16,6 +16,7 @@ import type { ContextGroup } from '@/stores/contextStore';
 import type { ContextGroupRelationship } from '@/lib/queries/contextQueries';
 import { useXRayStore, useXRayEdges, useXRayLayers, useXRayAnimations } from '@/stores/xrayStore';
 import { createEdgeId } from '../sub_DocsAnalysis/lib/xrayTypes';
+import { LAYER_CONFIG as BASE_LAYER_CONFIG } from '../sub_DocsAnalysis/components/SystemMap/types';
 
 // Extended module type for internal use
 interface SystemModule {
@@ -84,7 +85,16 @@ function contextGroupsToModules(
   });
 }
 
-// Layer configuration with X-Ray colors
+// X-Ray-specific accent colors layered on top of the canonical LAYER_CONFIG.
+// Only `xrayColor` is defined here; label/color/gradient/rowY are sourced from
+// the single canonical config so the layer palette cannot drift between views.
+const XRAY_ACCENT: Record<ModuleLayer, string> = {
+  pages: '#ec4899',
+  client: '#22d3ee',
+  server: '#fbbf24',
+  external: '#a78bfa',
+};
+
 const LAYER_CONFIG: Record<ModuleLayer, {
   label: string;
   color: string;
@@ -92,34 +102,10 @@ const LAYER_CONFIG: Record<ModuleLayer, {
   gradient: string;
   rowY: number;
 }> = {
-  pages: {
-    label: 'Pages',
-    color: '#f472b6',
-    xrayColor: '#ec4899',
-    gradient: 'from-pink-500/20 via-pink-500/5 to-transparent',
-    rowY: 15,
-  },
-  client: {
-    label: 'Client',
-    color: '#06b6d4',
-    xrayColor: '#22d3ee',
-    gradient: 'from-cyan-500/20 via-cyan-500/5 to-transparent',
-    rowY: 38,
-  },
-  server: {
-    label: 'Server',
-    color: '#f59e0b',
-    xrayColor: '#fbbf24',
-    gradient: 'from-amber-500/20 via-amber-500/5 to-transparent',
-    rowY: 61,
-  },
-  external: {
-    label: 'External',
-    color: '#8b5cf6',
-    xrayColor: '#a78bfa',
-    gradient: 'from-violet-500/20 via-violet-500/5 to-transparent',
-    rowY: 84,
-  },
+  pages: { ...BASE_LAYER_CONFIG.pages, xrayColor: XRAY_ACCENT.pages },
+  client: { ...BASE_LAYER_CONFIG.client, xrayColor: XRAY_ACCENT.client },
+  server: { ...BASE_LAYER_CONFIG.server, xrayColor: XRAY_ACCENT.server },
+  external: { ...BASE_LAYER_CONFIG.external, xrayColor: XRAY_ACCENT.external },
 };
 
 // Group modules by layer

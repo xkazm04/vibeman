@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { duration, transition } from '@/lib/motion';
 import { Flame, Clock, AlertCircle, TrendingUp, Zap } from 'lucide-react';
 import { useXRayHotPaths, useXRayLayers, useXRayIsConnected } from '@/stores/xrayStore';
+import { getLayerStyle } from '../sub_DocsAnalysis/components/SystemMap/types';
 
 interface XRayHotPathsPanelProps {
   isExpanded: boolean;
@@ -207,18 +208,13 @@ export default function XRayHotPathsPanel({ isExpanded, onToggle }: XRayHotPaths
               <div className="grid grid-cols-4 gap-2">
                 {(['pages', 'client', 'server', 'external'] as const).map((layer) => {
                   const stats = layers[layer];
-                  const colors = {
-                    pages: { text: 'text-pink-400', bg: 'bg-pink-500/20' },
-                    client: { text: 'text-cyan-400', bg: 'bg-cyan-500/20' },
-                    server: { text: 'text-amber-400', bg: 'bg-amber-500/20' },
-                    external: { text: 'text-violet-400', bg: 'bg-violet-500/20' },
-                  };
+                  const { textClass, bgClass } = getLayerStyle(layer);
                   return (
                     <div
                       key={layer}
-                      className={`px-2 py-1.5 rounded-lg text-center ${colors[layer].bg}`}
+                      className={`px-2 py-1.5 rounded-lg text-center ${bgClass}`}
                     >
-                      <div className={`text-sm font-bold ${colors[layer].text}`}>
+                      <div className={`text-sm font-bold ${textClass}`}>
                         {stats?.totalRequests || 0}
                       </div>
                       <div className="text-micro text-gray-500 capitalize">{layer}</div>
