@@ -24,11 +24,23 @@ async function handleGet(request: NextRequest) {
   }
 
   try {
-    const result = predictiveIntentEngine.predict(projectId);
+    // Return persisted active predictions (they carry IDs, which the UI needs to
+    // accept/dismiss via PATCH). Auto-generate on first load when a transition
+    // model exists but nothing has been stored yet (e.g. before the first reflection).
+    let predictions = predictiveIntentRepository.getActivePredictions(projectId, 5);
+    if (predictions.length === 0 && predictiveIntentRepository.getTransitionCount(projectId) > 0) {
+      predictiveIntentEngine.refresh(projectId);
+      predictions = predictiveIntentRepository.getActivePredictions(projectId, 5);
+    }
+
+    const accuracy = predictiveIntentRepository.getAccuracyStats(projectId, 30);
+    const modelSize = predictiveIntentRepository.getTransitionCount(projectId);
 
     return NextResponse.json({
       success: true,
-      ...result,
+      predictions,
+      accuracy,
+      modelSize,
     });
   } catch (error) {
     console.error('[API] Failed to get predictions:', error);

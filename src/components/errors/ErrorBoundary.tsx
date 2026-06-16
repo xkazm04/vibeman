@@ -4,6 +4,7 @@ import React, { Component, ReactNode } from 'react';
 import { ErrorClassifier, ClassifiedError, RecoveryAction } from '@/lib/errorClassifier';
 import { AlertTriangle, RefreshCw, Home, LucideIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { toast } from '@/stores/messageStore';
 
 interface ErrorActionButtonProps {
   onClick: () => void;
@@ -160,8 +161,7 @@ function DefaultErrorFallback({ error, onReset }: DefaultErrorFallbackProps) {
         window.location.href = '/login';
         break;
       case RecoveryAction.CONTACT_SUPPORT:
-        // Could open support dialog or navigate to support page
-        alert('Please contact support for assistance.');
+        toast.info('Contact support', 'Please reach out to support for assistance.');
         break;
       default:
         break;

@@ -6,6 +6,7 @@ import { X, Plus, Save, Trash2, FileCode, AlertCircle } from 'lucide-react';
 import { SimpleSpinner } from '@/components/ui';
 import { StructureRule } from '@/app/api/structure-scan/structureTemplates';
 import RuleEditorRow from './RuleEditorRow';
+import { useGlobalModal } from '@/hooks/useGlobalModal';
 
 interface StructureTemplateEditorProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export default function StructureTemplateEditor({
   const [rules, setRules] = useState<StructureRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { confirm } = useGlobalModal();
   const [error, setError] = useState<string | null>(null);
 
   // Load template on open
@@ -101,7 +103,7 @@ export default function StructureTemplateEditor({
   };
 
   const handleResetToDefault = async () => {
-    if (confirm('Are you sure you want to reset to default template? This cannot be undone.')) {
+    if (await confirm('Reset template', 'Reset to default template? This cannot be undone.')) {
       try {
         const response = await fetch(`/api/structure-scan/templates?type=${projectType}&reset=true`, {
           method: 'DELETE',

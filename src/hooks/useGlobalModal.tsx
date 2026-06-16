@@ -60,6 +60,21 @@ export const useGlobalModal = () => {
     }, content);
   };
 
+  /**
+   * Promise-based confirm — a styled, themed replacement for window.confirm().
+   * Resolves true on Confirm, false on Cancel. Usage:
+   *   if (await confirm('Delete project', 'This cannot be undone.')) { ... }
+   */
+  const confirm = (title: string, message: string): Promise<boolean> =>
+    new Promise((resolve) => {
+      showConfirmModal(
+        title,
+        message,
+        () => resolve(true),
+        () => resolve(false),
+      );
+    });
+
   const showInfoModal = (title: string, content: ReactNode, options?: Partial<GlobalModalOptions>) => {
     showModal({
       title,
@@ -132,6 +147,7 @@ export const useGlobalModal = () => {
     hideModal,
     isModalOpen,
     showConfirmModal,
+    confirm,
     showInfoModal,
     showFullScreenModal,
     showMarkdownModal,

@@ -214,7 +214,15 @@ export async function startCLIExecution(
         handleTaskComplete(sessionId, task, true);
         cleanupTaskExecution(sessionId, task.id);
       } else if (event.type === 'error') {
-        handleTaskComplete(sessionId, task, false);
+        // Preserve the real failure reason from the stream event instead of
+        // collapsing it to a generic message. Error events carry { error } or
+        // { message } (see TerminalStrategy polling fallback + SSE payloads).
+        const errData = event.data as Record<string, unknown> | undefined;
+        const errorDetail =
+          (typeof errData?.error === 'string' && errData.error) ||
+          (typeof errData?.message === 'string' && errData.message) ||
+          undefined;
+        handleTaskComplete(sessionId, task, false, errorDetail);
         cleanupTaskExecution(sessionId, task.id);
       }
     });
@@ -274,19 +282,27 @@ function cleanupSessionExecution(sessionId: CLISessionId): void {
 async function handleTaskComplete(
   sessionId: CLISessionId,
   task: QueuedTask,
-  success: boolean
+  success: boolean,
+  errorDetail?: string
 ): Promise<void> {
   const store = useCLISessionStore.getState();
+
+  const failureMessage = errorDetail || 'Task execution failed';
 
   // Update task status
   store.updateTaskStatus(
     sessionId,
     task.id,
-    success ? createCompletedStatus() : createFailedStatus('Task execution failed')
+    success ? createCompletedStatus() : createFailedStatus(failureMessage)
   );
 
   // Mark task as complete in server registry (prevents 409 when next task starts)
-  registerTaskComplete(task.id, sessionId, success).catch(() => {});
+  registerTaskComplete(task.id, sessionId, success).catch((err) => {
+    console.warn(
+      `[CLI] Failed to register task completion for ${task.id}; next task may hit a 409:`,
+      err
+    );
+  });
 
   // Publish completion/failure event to Supabase for Butler
   if (task.projectId) {
@@ -301,7 +317,7 @@ async function handleTaskComplete(
         taskId: task.id,
         title: task.requirementName,
         batchId: sessionId,
-        error: 'Task execution failed',
+        error: failureMessage,
       });
     }
   }

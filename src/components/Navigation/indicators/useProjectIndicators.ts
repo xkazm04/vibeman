@@ -58,26 +58,37 @@ const EVALUATORS: IndicatorEvaluator[] = [
 // ============================================================================
 
 /**
- * Fetch indicator data for a single project.
- * Extend this function when adding new data sources.
+ * Fetch indicator data for ALL projects in a single batched request.
+ * Returns a map of projectId -> reflection trigger state.
+ *
+ * Extend the `scope=indicators` route branch when adding new data sources.
  */
-async function fetchProjectData(projectId: string): Promise<ProjectIndicatorData> {
-  const data: ProjectIndicatorData = {};
+async function fetchIndicatorData(
+  projectIds: string[]
+): Promise<Map<string, { shouldTrigger: boolean; reason: string }>> {
+  const map = new Map<string, { shouldTrigger: boolean; reason: string }>();
 
   try {
-    const response = await fetch(`/api/brain/reflection?projectId=${projectId}`);
+    const qs = encodeURIComponent(projectIds.join(','));
+    const response = await fetch(`/api/brain/reflection?scope=indicators&projectIds=${qs}`);
     if (response.ok) {
       const json = await response.json();
-      data.reflection = {
-        shouldTrigger: json.shouldTrigger || false,
-        reason: json.triggerReason || '',
-      };
+      const indicators = (json?.indicators ?? {}) as Record<
+        string,
+        { shouldTrigger?: boolean; reason?: string }
+      >;
+      for (const [id, value] of Object.entries(indicators)) {
+        map.set(id, {
+          shouldTrigger: value.shouldTrigger || false,
+          reason: value.reason || '',
+        });
+      }
     }
   } catch {
-    // Non-critical - indicator just won't show
+    // Non-critical - indicators just won't show
   }
 
-  return data;
+  return map;
 }
 
 // ============================================================================
@@ -98,16 +109,17 @@ export function useProjectIndicators(
     try {
       const results = new Map<string, ProjectIndicator[]>();
 
-      // Fetch data for all projects in parallel
-      const dataEntries = await Promise.all(
-        ids.map(async (id) => {
-          const data = await fetchProjectData(id);
-          return { id, data };
-        })
-      );
+      // Single batched request for all projects (was one request per project)
+      const triggerByProject = await fetchIndicatorData(ids);
 
       // Run evaluators against fetched data
-      for (const { id, data } of dataEntries) {
+      for (const id of ids) {
+        const data: ProjectIndicatorData = {};
+        const trigger = triggerByProject.get(id);
+        if (trigger) {
+          data.reflection = { shouldTrigger: trigger.shouldTrigger, reason: trigger.reason };
+        }
+
         const indicators: ProjectIndicator[] = [];
         for (const evaluator of EVALUATORS) {
           const indicator = evaluator(id, data);

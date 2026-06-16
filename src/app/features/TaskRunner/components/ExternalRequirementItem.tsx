@@ -118,8 +118,8 @@ const ExternalRequirementItem = React.memo(function ExternalRequirementItem({
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Actions — `hover-reveal` keeps these reachable on touch (see globals.css) */}
+        <div className="hover-reveal flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           {isFailed && (
             <button
               onClick={() => onRetry(requirement.id)}

@@ -64,12 +64,9 @@ export class InternalClient extends BaseLLMClient {
       progress?.onStart?.(taskId);
       progress?.onProgress?.(10, 'Connecting to internal API...');
 
-      // Check availability
-      const isAvailable = await this.checkAvailability();
-      if (!isAvailable) {
-        throw new Error('Unable to connect to internal API');
-      }
-
+      // Note: we intentionally do NOT pre-flight checkAvailability() here.
+      // A GET /health probe adds a round-trip of latency; the actual request
+      // below surfaces real errors via handleError if the API is down.
       progress?.onProgress?.(20, 'Sending request to internal API...');
 
       // Prepare request body
@@ -192,7 +189,8 @@ export class InternalClient extends BaseLLMClient {
           method: 'GET',
           headers: this.createHeaders()
         },
-        5000 // 5 second timeout for health check
+        5000, // 5 second timeout for health check
+        0 // probe: fail fast, no retries
       );
 
       return response.ok;
@@ -209,7 +207,9 @@ export class InternalClient extends BaseLLMClient {
         {
           method: 'GET',
           headers: this.createHeaders()
-        }
+        },
+        undefined, // keep default timeout
+        0 // probe: fail fast, no retries
       );
 
       if (!response.ok) {

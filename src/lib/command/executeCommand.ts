@@ -63,6 +63,31 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
+ * Decide whether a failed execution attempt is worth retrying.
+ *
+ * A clean non-zero exit code is deterministic — re-running the command wastes
+ * time and repeats any side effects (a failing test suite, a rejected
+ * `git push`, a lint error). Only genuinely transient failures (timeouts,
+ * resource-temporarily-unavailable, reset connections) are retried. Spawn
+ * errors like ENOENT (command not found) are also deterministic and not retried.
+ */
+function isRetryableFailure(error: Error): boolean {
+  // Non-zero exit code (and argument-validation, exitCode -1) → deterministic.
+  if (error instanceof CommandExecutionError) {
+    return false;
+  }
+  const code = (error as NodeJS.ErrnoException).code;
+  if (code && ['EAGAIN', 'ECONNRESET', 'ETIMEDOUT', 'EPIPE', 'EBUSY'].includes(code)) {
+    return true;
+  }
+  // Timeouts are thrown as plain Errors with this message shape (see executeOnce*).
+  if (error.message.includes('timed out')) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Execute a single command attempt using execFile (safer, no shell by default)
  */
 function executeOnceSecure(
@@ -252,6 +277,12 @@ export async function executeCommand(
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
 
+      // Stop immediately on deterministic failures — retrying a clean non-zero
+      // exit or a "command not found" only repeats side effects and wastes time.
+      if (!isRetryableFailure(lastError)) {
+        break;
+      }
+
       // If this was the last attempt, don't sleep
       if (attempt < maxAttempts) {
         await sleep(retryDelay);
@@ -259,7 +290,13 @@ export async function executeCommand(
     }
   }
 
-  // All attempts failed
+  // All attempts exhausted, or we stopped early on a deterministic failure.
+  // Prefer the original CommandExecutionError — it carries the exit code and
+  // captured output, which is more useful than a generic "failed after N" message.
+  if (lastError instanceof CommandExecutionError) {
+    throw lastError;
+  }
+
   if (lastResult) {
     throw new CommandExecutionError(
       `Command '${command} ${args.join(' ')}' failed after ${maxAttempts} attempts`,

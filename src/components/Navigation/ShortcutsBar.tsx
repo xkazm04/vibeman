@@ -13,6 +13,7 @@ import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { useGlobalIdeaStats } from '@/hooks/useGlobalIdeaStats';
 import { useProjectUpdatesStore } from '@/stores/projectUpdatesStore';
 import { useWorkspaceFilteredProjects } from '@/hooks/useWorkspaceFilteredProjects';
+import { useGlobalModal } from '@/hooks/useGlobalModal';
 import { useThemeStore, THEME_CONFIGS } from '@/stores/themeStore';
 
 const WorkspaceManager = dynamic(
@@ -37,6 +38,7 @@ export default memo(function ShortcutsBar() {
   const syncWorkspaces = useWorkspaceStore(s => s.syncWithServer);
   const createWorkspace = useWorkspaceStore(s => s.createWorkspace);
   const deleteWorkspace = useWorkspaceStore(s => s.deleteWorkspace);
+  const { confirm } = useGlobalModal();
 
   // Server project: action only
   const syncWithServer = useServerProjectStore(s => s.syncWithServer);
@@ -114,7 +116,8 @@ export default memo(function ShortcutsBar() {
     wsName: string,
   ) => {
     e.stopPropagation();
-    const confirmed = window.confirm(
+    const confirmed = await confirm(
+      'Delete workspace',
       `Delete workspace "${wsName}"? Projects inside will become unassigned (not deleted).`
     );
     if (!confirmed) return;

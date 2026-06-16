@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle2, Loader2, LayoutGrid, Network, GitBranch, Filter } from 'lucide-react';
 import { useThemeStore } from '@/stores/themeStore';
-import { toast } from 'sonner';
+import { toast } from '@/stores/messageStore';
 import { batchAcceptImplementations } from '@/lib/tools';
 import type { EnrichedImplementationLog } from '../lib/types';
 

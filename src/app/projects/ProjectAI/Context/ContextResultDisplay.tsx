@@ -7,6 +7,7 @@ import ContextCard from './ContextCard';
 import LoadingState from './ContextLoadingState';
 import ErrorState from './ContextErrorState';
 import TransferModeBar from './ContextTransferModeBar';
+import { toast } from '@/stores/messageStore';
 
 export default function ContextResultDisplay({
   contexts,
@@ -158,7 +159,7 @@ export default function ContextResultDisplay({
     const selectedContexts = contextItems.filter(item => item.selected);
 
     if (selectedContexts.length === 0) {
-      alert('Please select at least one context to save.');
+      toast.warning('Select at least one context to save.');
       return;
     }
 
@@ -194,13 +195,18 @@ export default function ContextResultDisplay({
       
       if (result.failureCount > 0) {
         console.warn(`${result.failureCount} contexts failed to save:`, result.results.filter((r: { success: boolean }) => !r.success));
-        alert(`Saved ${result.successCount} contexts successfully, but ${result.failureCount} failed. Check console for details.`);
+        toast.warning(
+          `Saved ${result.successCount}, ${result.failureCount} failed`,
+          `${result.failureCount} context${result.failureCount === 1 ? '' : 's'} could not be saved.`,
+        );
+      } else {
+        toast.success(`Saved ${result.successCount} context${result.successCount === 1 ? '' : 's'}`);
       }
-      
+
       onBack();
     } catch (error) {
       console.error('Failed to save contexts:', error);
-      alert(`Failed to save contexts: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error('Failed to save contexts', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setSaving(false);
     }

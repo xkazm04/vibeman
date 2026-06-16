@@ -80,12 +80,10 @@ export class GroqClient extends BaseLLMClient {
       progress?.onStart?.(taskId);
       progress?.onProgress?.(10, 'Connecting to Groq...');
 
-      // Check availability
-      const isAvailable = await this.checkAvailability();
-      if (!isAvailable) {
-        throw new Error('Unable to connect to Groq API');
-      }
-
+      // Note: we intentionally do NOT pre-flight checkAvailability() here.
+      // A GET /models probe is a different scope/operation than chat
+      // completions — it adds a round-trip of latency and can falsely reject
+      // valid keys. The actual request below surfaces real errors via handleError.
       progress?.onProgress?.(20, 'Sending request to Groq...');
 
       // Prepare messages
@@ -225,7 +223,8 @@ export class GroqClient extends BaseLLMClient {
           method: 'GET',
           headers: this.createHeaders()
         },
-        5000 // 5 second timeout for health check
+        5000, // 5 second timeout for health check
+        0 // probe: fail fast, no retries
       );
 
       return response.ok;
@@ -244,7 +243,9 @@ export class GroqClient extends BaseLLMClient {
         {
           method: 'GET',
           headers: this.createHeaders()
-        }
+        },
+        undefined, // keep default timeout
+        0 // probe: fail fast, no retries
       );
 
       if (!response.ok) {

@@ -4,6 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCheck, Loader2, Check } from 'lucide-react';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
+import { useGlobalModal } from '@/hooks/useGlobalModal';
 
 interface AcceptAllButtonProps {
   selectedProjectId: string | null;
@@ -22,13 +23,15 @@ export default function AcceptAllButton({
   const [result, setResult] = useState<{ accepted: number; failed: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { projects } = useServerProjectStore();
+  const { confirm } = useGlobalModal();
 
   const isDisabled = disabled || loading || remainingCount === 0;
 
   const handleAcceptAll = useCallback(async () => {
     if (isDisabled) return;
 
-    const confirmed = window.confirm(
+    const confirmed = await confirm(
+      'Accept all ideas',
       `Accept all ${remainingCount} remaining ideas? This will create requirement files for each one.`
     );
     if (!confirmed) return;

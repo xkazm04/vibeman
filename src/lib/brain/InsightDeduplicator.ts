@@ -8,7 +8,7 @@
  */
 
 import { generateInsightHash } from './insightId';
-import { tokenOverlap, DEDUP_THRESHOLD } from './insightSimilarity';
+import { isDuplicateTitle } from './insightSimilarity';
 import type { LearningInsight, DbBrainInsight } from '@/app/db/models/brain.types';
 
 const INSIGHT_TYPES = ['preference_learned', 'pattern_detected', 'warning', 'recommendation', 'best_practice'] as const;
@@ -28,6 +28,12 @@ export class InsightDeduplicator {
   constructor(
     private readonly projectId: string,
     private readonly existingInsights: InsightRecord[],
+    /**
+     * Optional map of (trimmed) title → embedding vector, precomputed before the
+     * (synchronous) DB transaction. Enables semantic dedup of paraphrased titles;
+     * when absent, fuzzy matching falls back to lexical Jaccard.
+     */
+    private readonly titleEmbeddings?: Map<string, number[]>,
   ) {
     for (const insight of existingInsights) {
       const hash = generateInsightHash(insight.type, insight.title, projectId);
@@ -50,12 +56,13 @@ export class InsightDeduplicator {
   }
 
   /**
-   * Find existing insight by fuzzy token overlap (O(n), same type required).
+   * Find existing insight by fuzzy match (O(n), same type required).
+   * Hybrid: lexical Jaccard OR semantic cosine (when embeddings were provided).
    */
   findByFuzzy(type: string, title: string): InsightRecord | undefined {
     return this.existingInsights.find(existing => {
       if (existing.type !== type) return false;
-      return tokenOverlap(title, existing.title) >= DEDUP_THRESHOLD;
+      return isDuplicateTitle(title, existing.title, this.titleEmbeddings);
     });
   }
 

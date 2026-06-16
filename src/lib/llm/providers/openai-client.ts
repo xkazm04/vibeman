@@ -17,6 +17,14 @@ interface OpenAIRequest {
   max_tokens?: number;
   temperature?: number;
   stream?: boolean;
+  response_format?: {
+    type: 'json_schema';
+    json_schema: {
+      name: string;
+      schema: Record<string, unknown>;
+      strict?: boolean;
+    };
+  };
 }
 
 interface OpenAIResponse {
@@ -79,12 +87,10 @@ export class OpenAIClient extends BaseLLMClient {
       progress?.onStart?.(taskId);
       progress?.onProgress?.(10, 'Connecting to OpenAI...');
 
-      // Check availability
-      const isAvailable = await this.checkAvailability();
-      if (!isAvailable) {
-        throw new Error('Unable to connect to OpenAI API');
-      }
-
+      // Note: we intentionally do NOT pre-flight checkAvailability() here.
+      // A GET /models probe is a different scope/operation than chat
+      // completions — it adds a round-trip of latency and can falsely reject
+      // valid keys. The actual request below surfaces real errors via handleError.
       progress?.onProgress?.(20, 'Sending request to OpenAI...');
 
       // Prepare messages
@@ -115,6 +121,18 @@ export class OpenAIClient extends BaseLLMClient {
 
       if (request.temperature !== undefined) {
         requestBody.temperature = request.temperature;
+      }
+
+      // Structured output: ask the API to guarantee schema-conforming JSON instead
+      // of relying on aiJsonParser to scrape it from prose.
+      if (request.responseSchema) {
+        requestBody.response_format = {
+          type: 'json_schema',
+          json_schema: {
+            name: request.responseSchemaName || 'structured_output',
+            schema: request.responseSchema,
+          },
+        };
       }
 
       progress?.onProgress?.(40, 'Processing request...');
@@ -223,7 +241,8 @@ export class OpenAIClient extends BaseLLMClient {
           method: 'GET',
           headers: this.createHeaders()
         },
-        5000 // 5 second timeout for health check
+        5000, // 5 second timeout for health check
+        0 // probe: fail fast, no retries
       );
 
       return response.ok;
@@ -242,7 +261,9 @@ export class OpenAIClient extends BaseLLMClient {
         {
           method: 'GET',
           headers: this.createHeaders()
-        }
+        },
+        undefined, // keep default timeout
+        0 // probe: fail fast, no retries
       );
 
       if (!response.ok) {

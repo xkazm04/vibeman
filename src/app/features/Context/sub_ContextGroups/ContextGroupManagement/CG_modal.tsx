@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { ContextGroup, useContextStore } from '@/stores/contextStore';
+import { useGlobalModal } from '@/hooks/useGlobalModal';
 import { CONTEXT_GROUP_COLORS } from '@/lib/constants/contextColors';
 import { buttonVariants } from '@/lib/design-tokens';
 import ModalHeader from './CG_modalHeader';
@@ -18,6 +19,7 @@ interface GroupManagementModalProps {
 
 export default function GroupManagementModal({ isOpen, onClose, projectId, groups }: GroupManagementModalProps) {
   const loading = useContextStore(s => s.loading);
+  const { confirm } = useGlobalModal();
   const addGroup = useContextStore(s => s.addGroup);
   const removeGroup = useContextStore(s => s.removeGroup);
   const updateGroup = useContextStore(s => s.updateGroup);
@@ -66,7 +68,7 @@ export default function GroupManagementModal({ isOpen, onClose, projectId, group
   };
 
   const handleDeleteGroup = async (groupId: string) => {
-    if (!confirm('Are you sure? This will delete all contexts in this group.')) {
+    if (!(await confirm('Delete group', 'This will delete all contexts in this group.'))) {
       return;
     }
 

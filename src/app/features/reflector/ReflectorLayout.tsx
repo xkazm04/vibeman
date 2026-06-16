@@ -14,6 +14,8 @@ import ReflectionDashboard from '@/app/features/reflector/sub_Reflection/compone
 import { WeeklyDashboard } from '@/app/features/reflector/sub_Weekly/components';
 import ObservatoryDashboard from '@/app/features/reflector/sub_Observability/ObservatoryDashboard';
 import StaggeredReveal from '@/components/lazy/StaggeredReveal';
+import NextUpPredictions from '@/app/features/reflector/components/NextUpPredictions';
+import PreferenceInsights from '@/app/features/reflector/components/PreferenceInsights';
 
 const ReflectorLayout = () => {
   const [ideas, setIdeas] = useState<DbIdea[]>([]);
@@ -57,6 +59,10 @@ const ReflectorLayout = () => {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-8" role="tabpanel" aria-label={`${viewMode} view`}>
+        {/* Per-project intelligence surfaced from the Brain backend */}
+        <NextUpPredictions />
+        <PreferenceInsights />
+
         {loading && viewMode === 'weekly' ? (
           <div className="flex items-center justify-center py-24">
             <div className="text-gray-400 animate-pulse">Loading...</div>

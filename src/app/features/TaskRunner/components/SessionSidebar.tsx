@@ -17,6 +17,7 @@ import type { CLISessionId } from '@/components/cli/store/cliSessionStore';
 import { clearSessionStrategy } from '@/components/cli/store/cliExecutionManager';
 import { clearSessionTasks } from '@/components/cli/taskRegistry';
 import { useActiveProjectStore } from '@/stores/clientProjectStore';
+import { useGlobalModal } from '@/hooks/useGlobalModal';
 import type { ManualSessionStatus } from '../lib/manualSession.types';
 import { formatCost } from './CLISessionModal';
 
@@ -181,6 +182,7 @@ export function SessionSidebar({ isOpen, onClose, onSelectSession }: SessionSide
   const clearSession = useCLISessionStore((s) => s.clearSession);
   const setRunning = useCLISessionStore((s) => s.setRunning);
   const activeProject = useActiveProjectStore((s) => s.activeProject);
+  const { confirm } = useGlobalModal();
 
   // Map automated sessions to display format
   const automatedEntries = Object.values(cliSessions)
@@ -213,18 +215,18 @@ export function SessionSidebar({ isOpen, onClose, onSelectSession }: SessionSide
   };
 
   // Stop a running manual session — confirm since work is mid-flight (finding #5)
-  const handleStopManual = (sessionId: string) => {
-    if (!window.confirm('Stop this session? The running Claude process will be aborted.')) return;
+  const handleStopManual = async (sessionId: string) => {
+    if (!(await confirm('Stop session', 'The running Claude process will be aborted.'))) return;
     void abortSession(sessionId);
   };
 
   // Stop a running automated session: abort the queue + clear server registry.
-  const handleStopAutomated = (sessionId: CLISessionId) => {
+  const handleStopAutomated = async (sessionId: CLISessionId) => {
     const session = cliSessions[sessionId];
     const hasRunningTask = session?.queue.some((t) => t.status.type === 'running') ?? false;
     if (
       hasRunningTask &&
-      !window.confirm('Stop this automated session? In-flight tasks will be cancelled.')
+      !(await confirm('Stop automated session', 'In-flight tasks will be cancelled.'))
     ) {
       return;
     }

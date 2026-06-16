@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Project } from '@/types';
 import { StatusLever } from './StatusLever';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
+import { toast } from '@/stores/messageStore';
 
 interface ProjectCardProps {
   project: Project;
@@ -46,7 +47,8 @@ export default function RunnerSwitch({ project, index, disabled }: ProjectCardPr
         await startServer(project.id);
       }
     } catch (error) {
-      alert(error instanceof Error ? error.message : `Failed to ${isRunning ? 'stop' : hasError ? 'clear error' : 'start'} project`);
+      const action = isRunning ? 'stop' : hasError ? 'clear error' : 'start';
+      toast.error(`Failed to ${action} project`, error instanceof Error ? error.message : undefined);
     } finally {
       setLoading(false);
     }

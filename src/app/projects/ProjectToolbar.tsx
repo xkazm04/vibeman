@@ -8,6 +8,7 @@ import { useServerProjectStore } from '@/stores/serverProjectStore';
 import { useProjectsToolbarStore } from '@/stores/projectsToolbarStore';
 import { useProjectUpdatesStore } from '@/stores/projectUpdatesStore';
 import { useGlobalModal } from '@/hooks/useGlobalModal';
+import { toast } from '@/stores/messageStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { useApplicationSession, useSessionActions } from '@/lib/session/hooks';
 import { deleteProject } from './sub_ProjectSetting/lib/projectApi';
@@ -45,7 +46,7 @@ export default function ProjectToolbar() {
     setShowStructure,
     setShowWorkspaceManager,
   } = useProjectsToolbarStore();
-  const { showFullScreenModal, hideModal } = useGlobalModal();
+  const { showFullScreenModal, hideModal, confirm } = useGlobalModal();
   const { getThemeColors, theme } = useThemeStore();
   const colors = getThemeColors();
   const focusRingClasses = getFocusRingStyles(theme);
@@ -133,8 +134,9 @@ export default function ProjectToolbar() {
   const handleDeleteProject = async () => {
     if (!activeProject) return;
 
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete project "${activeProject.name}"? This action cannot be undone.`
+    const confirmDelete = await confirm(
+      'Delete project',
+      `Delete project "${activeProject.name}"? This action cannot be undone.`
     );
 
     if (confirmDelete) {
@@ -157,7 +159,7 @@ export default function ProjectToolbar() {
           }
         }
       } else {
-        alert('Failed to delete project. Please try again.');
+        toast.error('Failed to delete project', 'Please try again.');
       }
     }
   };

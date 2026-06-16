@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, Layers } from 'lucide-react';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useGlobalModal } from '@/hooks/useGlobalModal';
 import WorkspaceList from './WorkspaceList';
 import WorkspaceForm from './WorkspaceForm';
 import WorkspaceProjectAssigner from './WorkspaceProjectAssigner';
@@ -18,6 +19,7 @@ type ManagerView = 'list' | 'create' | 'edit' | 'assign';
 
 export default function WorkspaceManager({ isOpen, onClose }: WorkspaceManagerProps) {
   const { workspaces, syncWithServer, createWorkspace, updateWorkspace, deleteWorkspace } = useWorkspaceStore();
+  const { confirm } = useGlobalModal();
   const [view, setView] = useState<ManagerView>('list');
   const [editingWorkspace, setEditingWorkspace] = useState<DbWorkspace | null>(null);
   const [assigningWorkspaceId, setAssigningWorkspaceId] = useState<string | null>(null);
@@ -49,7 +51,8 @@ export default function WorkspaceManager({ isOpen, onClose }: WorkspaceManagerPr
     const wsName = ws?.name ?? 'this workspace';
     // Mirror the drawer (ShortcutsBar) confirm copy/behavior so the same
     // destructive action stays consistent across both deletion surfaces.
-    const confirmed = window.confirm(
+    const confirmed = await confirm(
+      'Delete workspace',
       `Delete workspace "${wsName}"? Projects inside will become unassigned (not deleted).`
     );
     if (!confirmed) return;

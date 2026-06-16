@@ -18,6 +18,7 @@ import { getBehavioralContext } from '@/lib/brain/behavioralContext';
 import { detectConflicts, markConflictsOnInsights } from '@/lib/brain/insightConflictDetector';
 import { autoPruneInsights, type AutoPruneResult } from '@/lib/brain/insightAutoPruner';
 import { InsightDeduplicator } from '@/lib/brain/InsightDeduplicator';
+import { embedTexts } from '@/lib/brain/embeddings';
 import { predictiveIntentEngine } from '@/lib/brain/predictiveIntentEngine';
 import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-signal.repository';
 import { brainInsightRepository } from '@/app/db/repositories/brain-insight.repository';
@@ -317,10 +318,23 @@ export async function completeReflection(input: CompleteReflectionInput): Promis
 
   try {
     const db = getDatabase();
+
+    // Precompute semantic embeddings BEFORE the (synchronous) transaction —
+    // better-sqlite3 transactions cannot await, so vectors must be ready first.
+    // Vectors are keyed by title text, so the authoritative existing-insight read
+    // still happens inside the transaction (below); any title without a vector
+    // simply falls back to lexical Jaccard. The map is empty when no embedding
+    // provider is reachable, preserving today's behavior exactly.
+    const titleEmbeddings = await embedTexts([
+      ...brainInsightRepository.getByProject(projectId).map(i => i.title),
+      ...validatedInsights.map(i => i.title),
+    ]);
+
     const runCompletion = db.transaction(() => {
-      // Deduplicate insights against previously stored ones (canonical_id based)
+      // Deduplicate insights against previously stored ones (canonical hash +
+      // semantic cosine, falling back to lexical Jaccard).
       const existingDbInsights = brainInsightRepository.getByProject(projectId);
-      const deduplicator = new InsightDeduplicator(projectId, existingDbInsights);
+      const deduplicator = new InsightDeduplicator(projectId, existingDbInsights, titleEmbeddings);
       dedupedInsights = deduplicator.deduplicate(validatedInsights);
 
       // Convert to LearningInsight[] for conflict detection

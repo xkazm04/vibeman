@@ -198,46 +198,149 @@ export abstract class BaseLLMClient implements LLMProvider {
   }
 
   /**
-   * Make HTTP request with timeout and error handling
+   * HTTP status codes worth retrying — transient throughput/server failures.
+   * 408 Request Timeout, 429 Too Many Requests, 500/502/503/504 server-side.
+   * Other 4xx are deterministic (bad key, bad request) and must NOT be retried.
+   */
+  private static readonly RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
+
+  /** Cap on how long we'll honor a Retry-After header before giving up. */
+  private static readonly MAX_RETRY_AFTER_MS = 60_000;
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Decide whether a thrown fetch error is worth retrying.
+   * Our own request timeout (AbortError) is excluded: retrying burns another
+   * full timeout window, which is expensive for long-running LLM requests.
+   */
+  private isRetryableNetworkError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    if (error.name === 'AbortError') return false;
+    const msg = error.message;
+    return (
+      msg.includes('ECONNRESET') ||
+      msg.includes('ECONNREFUSED') ||
+      msg.includes('ETIMEDOUT') ||
+      msg.includes('EAI_AGAIN') ||
+      msg.includes('socket hang up') ||
+      msg.includes('fetch failed')
+    );
+  }
+
+  /**
+   * Parse a Retry-After header (delta-seconds or HTTP-date) into milliseconds.
+   * Returns null when absent or unparseable; result is capped at MAX_RETRY_AFTER_MS.
+   */
+  private parseRetryAfter(response: Response): number | null {
+    const header = response.headers.get('retry-after');
+    if (!header) return null;
+
+    const seconds = Number(header);
+    let ms: number;
+    if (Number.isFinite(seconds)) {
+      ms = seconds * 1000;
+    } else {
+      const date = Date.parse(header);
+      if (!Number.isFinite(date)) return null;
+      ms = date - Date.now();
+    }
+
+    if (ms <= 0) return null;
+    return Math.min(ms, BaseLLMClient.MAX_RETRY_AFTER_MS);
+  }
+
+  /**
+   * Enhance low-level network errors into actionable messages.
+   */
+  private enhanceNetworkError(error: unknown, url: string, timeoutMs: number): Error {
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        return new Error(`Request timed out after ${timeoutMs / 1000} seconds. The API took too long to respond.`);
+      } else if (error.message.includes('fetch failed') || error.message.includes('ENOTFOUND')) {
+        return new Error(`Network error: Unable to reach ${url}. Check your internet connection and verify the API endpoint is accessible.`);
+      } else if (error.message.includes('ECONNREFUSED')) {
+        return new Error(`Connection refused: The API server at ${url} is not accepting connections. It may be down or blocked by a firewall.`);
+      } else if (error.message.includes('ETIMEDOUT')) {
+        return new Error(`Connection timed out while trying to reach ${url}. Check your network connection and firewall settings.`);
+      } else if (error.message.includes('ECONNRESET')) {
+        return new Error(`Connection was reset by the API server. This is usually a temporary network issue.`);
+      } else if (error.message.includes('certificate') || error.message.includes('SSL') || error.message.includes('TLS')) {
+        return new Error(`SSL/TLS certificate error: ${error.message}. This could be a security or proxy configuration issue.`);
+      }
+    }
+    // Re-use the original error if we didn't enhance it
+    return error instanceof Error ? error : new Error(String(error));
+  }
+
+  /**
+   * Make an HTTP request with timeout, automatic retry on transient failures,
+   * and enhanced error handling.
+   *
+   * Retries (exponential backoff, honoring a Retry-After header when present)
+   * are applied to transient HTTP statuses (429/5xx) and transient network
+   * errors. Deterministic failures (4xx other than 408/429) and our own request
+   * timeout are NOT retried. Pass `retries: 0` for health/probe calls that
+   * should fail fast.
+   *
+   * @param timeoutMs Per-attempt timeout in milliseconds (default 5 minutes)
+   * @param retries   Number of retry attempts after the first (default 2 → 3 total)
    */
   protected async makeRequest(
     url: string,
     options: RequestInit,
-    timeoutMs: number = 300000
+    timeoutMs: number = 300000,
+    retries: number = 2
   ): Promise<Response> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const baseDelayMs = 1000;
+    let lastError: unknown;
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal
-      });
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-      clearTimeout(timeoutId);
-      return response;
-    } catch (error) {
-      clearTimeout(timeoutId);
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal
+        });
 
-      // Enhance error messages for common network issues
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          throw new Error(`Request timed out after ${timeoutMs / 1000} seconds. The API took too long to respond.`);
-        } else if (error.message.includes('fetch failed') || error.message.includes('ENOTFOUND')) {
-          throw new Error(`Network error: Unable to reach ${url}. Check your internet connection and verify the API endpoint is accessible.`);
-        } else if (error.message.includes('ECONNREFUSED')) {
-          throw new Error(`Connection refused: The API server at ${url} is not accepting connections. It may be down or blocked by a firewall.`);
-        } else if (error.message.includes('ETIMEDOUT')) {
-          throw new Error(`Connection timed out while trying to reach ${url}. Check your network connection and firewall settings.`);
-        } else if (error.message.includes('ECONNRESET')) {
-          throw new Error(`Connection was reset by the API server. This is usually a temporary network issue.`);
-        } else if (error.message.includes('certificate') || error.message.includes('SSL') || error.message.includes('TLS')) {
-          throw new Error(`SSL/TLS certificate error: ${error.message}. This could be a security or proxy configuration issue.`);
+        clearTimeout(timeoutId);
+
+        // Retry transient server/throughput failures before handing the
+        // response back to the caller. On the final attempt we fall through
+        // and return the failing response so the caller's existing
+        // !response.ok handling produces the error as before.
+        if (attempt < retries && BaseLLMClient.RETRYABLE_STATUS.has(response.status)) {
+          const retryAfter = this.parseRetryAfter(response);
+          const delay = retryAfter ?? baseDelayMs * Math.pow(2, attempt);
+          // Free the socket — we're discarding this response body.
+          try { await response.body?.cancel(); } catch { /* ignore */ }
+          console.warn(`[${this.name}] Transient HTTP ${response.status} from ${url}; retrying in ${delay}ms (attempt ${attempt + 1}/${retries})`);
+          await this.sleep(delay);
+          continue;
         }
-      }
 
-      // Re-throw the original error if we didn't enhance it
-      throw error;
+        return response;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        lastError = error;
+
+        if (attempt < retries && this.isRetryableNetworkError(error)) {
+          const delay = baseDelayMs * Math.pow(2, attempt);
+          console.warn(`[${this.name}] Transient network error from ${url}; retrying in ${delay}ms (attempt ${attempt + 1}/${retries})`);
+          await this.sleep(delay);
+          continue;
+        }
+
+        throw this.enhanceNetworkError(error, url, timeoutMs);
+      }
     }
+
+    // Unreachable in practice: the loop always returns or throws on its final
+    // iteration. Kept for type-safety / defensive completeness.
+    throw this.enhanceNetworkError(lastError, url, timeoutMs);
   }
 }

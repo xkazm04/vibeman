@@ -99,6 +99,19 @@ async function handleGet(request: NextRequest) {
       });
     }
 
+    // Indicators mode: batched shouldTrigger for many projects in one request.
+    // The nav indicator dots previously issued one HTTP request (and a round of
+    // DB work) per project; this collapses that fan-out into a single call.
+    if (scope === 'indicators') {
+      const idsParam = searchParams.get('projectIds') || '';
+      const projectIds = idsParam.split(',').map(s => s.trim()).filter(Boolean);
+      const indicators: Record<string, { shouldTrigger: boolean; reason: string }> = {};
+      for (const id of projectIds) {
+        indicators[id] = reflectionAgent.shouldTrigger(id);
+      }
+      return NextResponse.json({ success: true, scope: 'indicators', indicators });
+    }
+
     // Global reflection status
     if (scope === 'global') {
       const globalStatus = reflectionAgent.getGlobalStatus();

@@ -56,6 +56,27 @@
   --motion-ease-morph: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ===== TOUCH-FRIENDLY HOVER AFFORDANCES =====
+   On touch devices `:hover` never fires (or sticks unreliably), so controls
+   gated behind `opacity-0 group-hover:opacity-100` are invisible and
+   unreachable — e.g. card remove/retry/delete buttons. Where the primary
+   pointer can't hover, reveal them.
+
+   1. Auto-fix interactive controls (buttons/links) that use the Tailwind
+      hover-reveal pattern — no per-component change required.
+   2. `.hover-reveal` is an opt-in for non-button action *containers*
+      (e.g. a <div> wrapping several action buttons), which the selectors
+      above can't target. Decorative glow/overlay <div>s are intentionally
+      left hidden so they don't sit permanently lit on touch screens. */
+@media (hover: none) {
+  button.group-hover\:opacity-100,
+  a.group-hover\:opacity-100,
+  [role="button"].group-hover\:opacity-100,
+  .hover-reveal {
+    opacity: 1 !important;
+  }
+}
+
 body {
   background: var(--gradient-secondary);
   color: var(--color-foreground);

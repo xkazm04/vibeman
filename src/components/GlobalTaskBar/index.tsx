@@ -14,7 +14,7 @@ import {
   isTaskCompleted,
   isTaskFailed,
 } from '@/app/features/TaskRunner/lib/types';
-import { toast } from 'sonner';
+import { toast } from '@/stores/messageStore';
 
 interface GlobalTaskBarProps {
   className?: string;
@@ -141,48 +141,7 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
       if (task.id && !notifiedTasksRef.current.has(task.id)) {
         notifiedTasksRef.current.add(task.id);
         const { requirementName } = parseTaskId(task.id);
-
-        toast.custom(
-          () => (
-            <motion.div
-              initial={{ opacity: 0, y: -20, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="relative bg-gradient-to-r from-slate-900/95 via-slate-900/98 to-slate-900/95 backdrop-blur-xl border border-green-500/30 rounded-xl overflow-hidden shadow-[0_0_30px_rgba(34,197,94,0.15)]"
-            >
-              {/* Ambient glow */}
-              <div className="absolute inset-0 bg-gradient-to-r from-green-500/5 via-emerald-500/5 to-green-500/5 opacity-50" />
-
-              {/* Grid pattern */}
-              <div
-                className="absolute inset-0 opacity-[0.03]"
-                style={{
-                  backgroundImage: 'linear-gradient(#22c55e 1px, transparent 1px), linear-gradient(90deg, #22c55e 1px, transparent 1px)',
-                  backgroundSize: '20px 20px'
-                }}
-              />
-
-              {/* Content */}
-              <div className="relative z-10 p-4 flex items-start gap-3">
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-green-500/10 border border-green-500/30 flex items-center justify-center">
-                  <CheckCircle className="w-5 h-5 text-green-400" />
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-green-400 mb-1">
-                    Task Completed
-                  </div>
-                  <div className="text-xs text-gray-300 font-mono truncate">
-                    {requirementName}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          ),
-          {
-            duration: 5000,
-          }
-        );
+        toast.success('Task Completed', requirementName);
       }
     });
 
@@ -190,53 +149,10 @@ export default function GlobalTaskBar({ className = '' }: GlobalTaskBarProps) {
       if (task.id && !notifiedTasksRef.current.has(task.id)) {
         notifiedTasksRef.current.add(task.id);
         const { requirementName } = parseTaskId(task.id);
-
-        toast.custom(
-          () => (
-            <motion.div
-              initial={{ opacity: 0, y: -20, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="relative bg-gradient-to-r from-slate-900/95 via-slate-900/98 to-slate-900/95 backdrop-blur-xl border border-red-500/30 rounded-xl overflow-hidden shadow-[0_0_30px_rgba(239,68,68,0.15)]"
-            >
-              {/* Ambient glow */}
-              <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 via-rose-500/5 to-red-500/5 opacity-50" />
-
-              {/* Grid pattern */}
-              <div
-                className="absolute inset-0 opacity-[0.03]"
-                style={{
-                  backgroundImage: 'linear-gradient(#ef4444 1px, transparent 1px), linear-gradient(90deg, #ef4444 1px, transparent 1px)',
-                  backgroundSize: '20px 20px'
-                }}
-              />
-
-              {/* Content */}
-              <div className="relative z-10 p-4 flex items-start gap-3">
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center justify-center">
-                  <XCircle className="w-5 h-5 text-red-400" />
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-red-400 mb-1">
-                    Task Failed
-                  </div>
-                  <div className="text-xs text-gray-300 font-mono">
-                    {requirementName}
-                  </div>
-                  {isTaskFailed(task.status) && task.status.error && (
-                    <div className="text-xs text-gray-500 mt-1 line-clamp-2">
-                      {task.status.error}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          ),
-          {
-            duration: 7000,
-          }
-        );
+        const detail = isTaskFailed(task.status) && task.status.error
+          ? `${requirementName} — ${task.status.error}`
+          : requirementName;
+        toast.error('Task Failed', detail);
       }
     });
   }, [recentlyCompletedTasks, recentlyFailedTasks]);

@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from '@/stores/messageStore';
 import {
   Filter,
   Plus,
@@ -155,7 +156,7 @@ export default function TriageRulesPanel({ projectId }: TriageRulesPanelProps) {
       const data = await res.json();
       if (data.success) {
         const count = data.totalWouldAffect ?? 0;
-        alert(`Preview: ${count} idea${count !== 1 ? 's' : ''} would be affected by enabled rules.`);
+        toast.info('Triage preview', `${count} idea${count !== 1 ? 's' : ''} would be affected by enabled rules.`);
       }
     } catch (error) {
       console.error('[TriageRulesPanel] Failed to preview rules:', error);

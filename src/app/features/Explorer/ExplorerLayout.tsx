@@ -18,10 +18,12 @@ import {
   GitBranch,
   Activity,
   MousePointerClick,
+  BookOpen,
 } from 'lucide-react';
 import MigrationTimeline from '../System/MigrationTimeline';
 import SystemHealthDashboard from '../System/SystemHealthDashboard';
 import SchemaBrowserView from './SchemaBrowserView';
+import KnowledgeBasePanel from './KnowledgeBasePanel';
 
 // ── Types ────────────────────────────────────────────────────────────
 interface ColumnInfo {
@@ -202,7 +204,7 @@ function ResultsTable({ columns, rows }: { columns: string[]; rows: Record<strin
 }
 
 // ── Sidebar Tab Type ────────────────────────────────────────────────
-type SidebarTab = 'schema' | 'migrations' | 'health';
+type SidebarTab = 'schema' | 'migrations' | 'health' | 'knowledge';
 
 // ── Main Layout ──────────────────────────────────────────────────────
 export default function ExplorerLayout() {
@@ -300,6 +302,18 @@ export default function ExplorerLayout() {
             <Activity className="w-3.5 h-3.5" />
             Health
           </button>
+          <button
+            onClick={() => setSidebarTab('knowledge')}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-medium transition-colors ${
+              sidebarTab === 'knowledge'
+                ? 'text-cyan-400 border-b-2 border-cyan-500'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+            title="Knowledge base"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            Knowledge
+          </button>
         </div>
 
         {/* Tab Content */}
@@ -309,6 +323,8 @@ export default function ExplorerLayout() {
           <div className="flex-1 overflow-y-auto p-3">
             <MigrationTimeline />
           </div>
+        ) : sidebarTab === 'knowledge' ? (
+          <KnowledgeBasePanel />
         ) : (
           <div className="flex-1 overflow-y-auto p-3">
             <SystemHealthDashboard />

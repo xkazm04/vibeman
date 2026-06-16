@@ -57,19 +57,55 @@ export class AnthropicClient extends BaseLLMClient {
       progress?.onProgress?.(10, 'Preparing request...');
       progress?.onProgress?.(40, 'Sending request to Claude...');
 
+      // Prompt caching: send the system prompt as a cacheable content block so
+      // repeated large prefixes (reflection / scan / assembled context) hit the
+      // prompt cache and bill input tokens at ~10%. Anthropic no-ops cache_control
+      // below the minimum cacheable size, so it is always safe; opt out per-request
+      // with cacheSystemPrompt: false.
+      const system = request.systemPrompt
+        ? (request.cacheSystemPrompt === false
+            ? request.systemPrompt
+            : [{
+                type: 'text' as const,
+                text: request.systemPrompt,
+                cache_control: { type: 'ephemeral' as const },
+              }])
+        : undefined;
+
+      // Structured output: force a single tool whose input_schema is the target
+      // shape, so the model returns schema-valid JSON instead of prose we scrape.
+      const useTool = !!request.responseSchema;
+      const toolName = request.responseSchemaName || 'emit_structured_output';
+      const tools: Anthropic.Tool[] | undefined = useTool
+        ? [{
+            name: toolName,
+            description: request.responseSchemaDescription || 'Return the result strictly matching the provided JSON schema.',
+            input_schema: request.responseSchema as Anthropic.Tool['input_schema'],
+          }]
+        : undefined;
+
       const result = await this.client.messages.create({
         model: request.model || this.defaultModel || DEFAULT_MODEL,
         max_tokens: request.maxTokens || 40096,
         messages: [{ role: 'user', content: request.prompt }],
-        ...(request.systemPrompt ? { system: request.systemPrompt } : {}),
+        ...(system ? { system } : {}),
         ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
+        ...(tools ? { tools, tool_choice: { type: 'tool' as const, name: toolName } } : {}),
       });
 
       progress?.onProgress?.(80, 'Processing response...');
 
       const duration = Date.now() - startTime;
-      const textBlock = result.content.find((b) => b.type === 'text');
-      const content = textBlock && textBlock.type === 'text' ? textBlock.text : '';
+      let content = '';
+      if (useTool) {
+        // The forced tool guarantees a tool_use block; serialize its validated
+        // input so downstream JSON parsing trivially succeeds.
+        const toolBlock = result.content.find((b) => b.type === 'tool_use');
+        content = toolBlock && toolBlock.type === 'tool_use' ? JSON.stringify(toolBlock.input) : '';
+      } else {
+        const textBlock = result.content.find((b) => b.type === 'text');
+        content = textBlock && textBlock.type === 'text' ? textBlock.text : '';
+      }
 
       const llmResponse: LLMResponse = {
         success: true,

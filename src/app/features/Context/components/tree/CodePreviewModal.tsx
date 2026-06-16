@@ -7,6 +7,7 @@ import { buttonVariants, zIndex } from '@/lib/design-tokens';
 import FileErrorDisplay from './FileErrorDisplay';
 import { classifyFileError } from './fileOperationErrors';
 import { FilePath } from '../../../../../utils/pathUtils';
+import { useGlobalModal } from '@/hooks/useGlobalModal';
 
 interface FileOperationState {
   errorMessage: string | null;
@@ -31,6 +32,7 @@ export default function CodePreviewModal({
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
+  const { confirm } = useGlobalModal();
   const [fileError, setFileError] = useState<FileOperationState | null>(null);
 
   // Load file content
@@ -147,9 +149,9 @@ export default function CodePreviewModal({
     setHasChanges(newContent !== originalContent);
   };
 
-  const handleClose = () => {
+  const handleClose = async () => {
     if (hasChanges) {
-      if (confirm('You have unsaved changes. Are you sure you want to close?')) {
+      if (await confirm('Unsaved changes', 'You have unsaved changes. Close without saving?')) {
         onClose();
       }
     } else {

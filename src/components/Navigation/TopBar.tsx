@@ -108,7 +108,7 @@ function NavItem({ item, index, isActive, onClick }: NavItemProps) {
     >
       <button
         onClick={onClick}
-        className="group relative px-4 py-2 text-sm font-light tracking-wide transition-all duration-300"
+        className="group relative px-3 sm:px-4 py-2 text-sm font-light tracking-wide transition-all duration-300 whitespace-nowrap"
         title={`${item.label} (Ctrl+${index + 1})`}
         data-testid={`nav-item-${item.module}`}
       >
@@ -295,10 +295,12 @@ export default function TopBar() {
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
       className="fixed top-7 left-0 right-0 z-50 bg-black/20 backdrop-blur-xl border-b border-white/10"
     >
-      <div className="max-w-7xl mx-auto px-6 py-4">
-        <nav className="flex items-center justify-center">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4">
+        {/* On narrow screens the row can't fit centered, so left-align and allow
+            horizontal scroll instead of clipping items off both edges. */}
+        <nav className="flex items-center justify-start md:justify-center overflow-x-auto">
           {/* Module Navigation */}
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-2 sm:space-x-6 min-w-max">
             {visibleMainItems.map((item, index) => (
               <NavItem
                 key={item.module}

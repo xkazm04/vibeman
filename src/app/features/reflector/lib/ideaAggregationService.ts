@@ -94,11 +94,13 @@ function createContextMap(contexts: Context[]): Map<string, Context> {
  * Fetch all ideas and enrich with project and context metadata
  */
 export function getAllIdeasWithMetadata(
-  contexts: Context[]
+  contexts: Context[],
+  ideasInput?: DbIdea[]
 ): IdeaWithMetadata[] {
   try {
-    // Get all ideas from database
-    const ideas = ideaRepository.getAllIdeas();
+    // Reuse a pre-fetched idea list when the caller has one, instead of
+    // issuing another full-table SELECT.
+    const ideas = ideasInput ?? ideaRepository.getAllIdeas();
 
     // Get project store for project names
     const projectStore = useServerProjectStore.getState();
@@ -148,9 +150,22 @@ function calculateDateRange(ideas: DbIdea[]) {
     .map(idea => new Date(idea.created_at).getTime())
     .filter(time => !isNaN(time));
 
+  if (dates.length === 0) {
+    return { earliest: null, latest: null };
+  }
+
+  // Single pass instead of Math.min(...dates) — spreading a large array as
+  // function args can overflow the call stack on big idea sets.
+  let min = dates[0];
+  let max = dates[0];
+  for (const t of dates) {
+    if (t < min) min = t;
+    if (t > max) max = t;
+  }
+
   return {
-    earliest: dates.length > 0 ? new Date(Math.min(...dates)).toISOString() : null,
-    latest: dates.length > 0 ? new Date(Math.max(...dates)).toISOString() : null,
+    earliest: new Date(min).toISOString(),
+    latest: new Date(max).toISOString(),
   };
 }
 
@@ -179,10 +194,10 @@ function calculateAverageMetrics(ideas: DbIdea[]) {
 /**
  * Calculate statistics per project
  */
-export function getProjectStats(): ProjectStats[] {
+export function getProjectStats(ideasInput?: DbIdea[]): ProjectStats[] {
   try {
-    // Get all ideas
-    const ideas = ideaRepository.getAllIdeas();
+    // Reuse a pre-fetched idea list when provided (avoids a redundant full scan)
+    const ideas = ideasInput ?? ideaRepository.getAllIdeas();
 
     // Get project store
     const projectStore = useServerProjectStore.getState();
@@ -232,10 +247,10 @@ function groupIdeasByContext(ideas: DbIdea[]): Map<string, DbIdea[]> {
 /**
  * Calculate context statistics across all projects
  */
-export function getContextStats(contexts: Context[]): ContextStats[] {
+export function getContextStats(contexts: Context[], ideasInput?: DbIdea[]): ContextStats[] {
   try {
-    // Get all ideas
-    const ideas = ideaRepository.getAllIdeas();
+    // Reuse a pre-fetched idea list when provided (avoids a redundant full scan)
+    const ideas = ideasInput ?? ideaRepository.getAllIdeas();
 
     // Get project store
     const projectStore = useServerProjectStore.getState();
@@ -383,9 +398,11 @@ export interface OverallStats {
 
 export function getOverallStats(contexts: Context[]): OverallStats {
   try {
+    // Fetch the ideas table once and share it with every aggregator below,
+    // instead of each helper issuing its own full-table SELECT (was 3 scans).
     const ideas = ideaRepository.getAllIdeas();
-    const projectStats = getProjectStats();
-    const contextStats = getContextStats(contexts);
+    const projectStats = getProjectStats(ideas);
+    const contextStats = getContextStats(contexts, ideas);
 
     // Top 3 projects
     const topProjects = projectStats

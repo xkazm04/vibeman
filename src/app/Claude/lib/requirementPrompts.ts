@@ -275,7 +275,15 @@ export function loadHighLevelDocs(projectPath: string): string | undefined {
       // Limit to 10000 characters to avoid token limits
       return content.substring(0, 10000);
     }
-  } catch (error) {  }
+  } catch (error) {
+    // The file exists (existsSync passed) but couldn't be read — e.g. a
+    // permission error. Warn so the requirement isn't silently generated
+    // without the high-level docs the caller expected.
+    console.warn(
+      `[requirementPrompts] Failed to read high-level docs for ${projectPath}:`,
+      error instanceof Error ? error.message : error
+    );
+  }
   return undefined;
 }
 

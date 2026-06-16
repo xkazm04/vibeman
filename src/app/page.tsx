@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
@@ -8,7 +8,7 @@ import { useSessionInitialize } from '@/lib/session/hooks';
 import FrozenComponent from '../components/FrozenComponent';
 import LazyContentSection from '../components/Navigation/LazyContentSection';
 import GlobalTaskBar from '@/components/GlobalTaskBar';
-import { Toaster } from 'sonner';
+import { ModuleUrlSync } from '@/components/Navigation/useModuleUrlSync';
 import { createLazyFeature, LazyFeaturePresets } from '@/components/lazy';
 import { usePrefetchModules } from '@/components/lazy/usePrefetchModule';
 
@@ -103,6 +103,11 @@ export default function Home() {
 
   return (
     <main className="relative min-h-full pt-10">
+      {/* Keep the active module in sync with the URL (Back/Forward, bookmarks, deep links) */}
+      <Suspense fallback={null}>
+        <ModuleUrlSync />
+      </Suspense>
+
       {/* Module Content with Smooth Transitions */}
       <LazyContentSection delay={0.1}>
         <FrozenComponent shouldFreeze={shouldFreezeComponents}>
@@ -123,9 +128,6 @@ export default function Home() {
 
       {/* Global Task Bar - visible across all modules */}
       <GlobalTaskBar />
-
-      {/* Toast notifications */}
-      <Toaster position="top-right" richColors />
     </main>
   );
 }
