@@ -26,7 +26,8 @@ export type ScanType =
   | 'dev_experience_engineer'
   | 'data_flow_optimizer'
   | 'pragmatic_integrator'
-  | 'accessibility_advocate';
+  | 'accessibility_advocate'
+  | 'test_mastery';
 
 /**
  * Prompt category for organization

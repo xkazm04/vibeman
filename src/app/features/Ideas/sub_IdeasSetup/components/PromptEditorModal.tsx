@@ -237,7 +237,8 @@ function getPromptFileName(scanType: ScanType): string {
     data_flow_optimizer: 'dataFlowOptimizerPrompt.ts',
     observability_scout: 'observabilityScoutPrompt.ts',
     brand_artist: 'brandArtistPrompt.ts',
-    youtube_scout: 'youtubeScoutPrompt.ts'
+    youtube_scout: 'youtubeScoutPrompt.ts',
+    test_mastery: 'testMasteryPrompt.ts'
   };
 
   return fileMap[scanType] || 'zenArchitectPrompt.ts';

@@ -33,7 +33,9 @@ export type ScanType =
   | 'observability_scout'
   | 'brand_artist'
   // External Intelligence
-  | 'youtube_scout';
+  | 'youtube_scout'
+  // Quality Assurance
+  | 'test_mastery';
 
 export type ScanState = 'idle' | 'scanning' | 'success' | 'error';
 
@@ -444,6 +446,23 @@ export const AGENT_REGISTRY: Record<ScanType, AgentDefinition> = {
       'Add feature demonstrated in competitor tutorial',
       'Fix UX pain point highlighted in user feedback video',
       'Implement workflow shown in productivity channel',
+    ],
+  },
+
+  // Quality Assurance
+  test_mastery: {
+    id: 'test_mastery',
+    label: 'Test Mastery',
+    abbr: 'tm',
+    emoji: '🧪',
+    color: 'bg-gradient-to-r from-teal-500/20 to-cyan-600/20 border-teal-500/40 text-teal-300',
+    description: 'Test coverage, automated suite & business-gated test quality',
+    category: 'technical',
+    agentFile: 'test_mastery.md',
+    examples: [
+      'Add failure-path tests for the untested checkout flow',
+      'Generate LLM test batch asserting invoice-total never goes negative',
+      'Add a coverage gate that blocks regressions on changed payment code',
     ],
   },
 };

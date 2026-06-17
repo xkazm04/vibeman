@@ -25,6 +25,7 @@ export * from './dev-experience-engineer';
 export * from './data-flow-optimizer';
 export * from './code-refactor';
 export * from './pragmatic-integrator';
+export * from './test-mastery';
 
 // Re-export all agent prompts as an array
 import { BUG_HUNTER_PROMPT } from './bug-hunter';
@@ -46,6 +47,7 @@ import { DEV_EXPERIENCE_ENGINEER_PROMPT } from './dev-experience-engineer';
 import { DATA_FLOW_OPTIMIZER_PROMPT } from './data-flow-optimizer';
 import { CODE_REFACTOR_PROMPT } from './code-refactor';
 import { PRAGMATIC_INTEGRATOR_PROMPT } from './pragmatic-integrator';
+import { TEST_MASTERY_PROMPT } from './test-mastery';
 
 import { PromptDefinition } from '../types';
 
@@ -72,4 +74,5 @@ export const ALL_AGENT_PROMPTS: PromptDefinition[] = [
   DATA_FLOW_OPTIMIZER_PROMPT,
   CODE_REFACTOR_PROMPT,
   PRAGMATIC_INTEGRATOR_PROMPT,
+  TEST_MASTERY_PROMPT,
 ];

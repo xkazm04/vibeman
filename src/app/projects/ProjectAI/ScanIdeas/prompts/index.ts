@@ -34,6 +34,8 @@ import { buildObservabilityScoutPrompt } from './observabilityScoutPrompt';
 import { buildBrandArtistPrompt } from './brandArtistPrompt';
 // External Intelligence
 import { buildYoutubeScoutPrompt } from './youtubeScoutPrompt';
+// Quality Assurance
+import { buildTestMasteryPrompt } from './testMasteryPrompt';
 
 import { ScanType, registerPromptBuilders, getAgent } from '@/app/features/Ideas/lib/scanTypes';
 
@@ -86,6 +88,8 @@ export const PROMPT_BUILDERS: Partial<Record<ScanType, PromptBuilder>> = {
   brand_artist: buildBrandArtistPrompt,
   // External Intelligence
   youtube_scout: buildYoutubeScoutPrompt,
+  // Quality Assurance
+  test_mastery: buildTestMasteryPrompt,
 };
 
 // Register all prompt builders into the unified AGENT_REGISTRY
@@ -141,4 +145,6 @@ export {
   buildBrandArtistPrompt,
   // External Intelligence
   buildYoutubeScoutPrompt,
+  // Quality Assurance
+  buildTestMasteryPrompt,
 };

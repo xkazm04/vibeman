@@ -16,6 +16,7 @@ import {
   Wrench,
   Link2,
   Target,
+  FlaskConical,
   type LucideIcon
 } from 'lucide-react';
 import { Youtube } from '@/components/icons/brand-icons';
@@ -213,6 +214,14 @@ export const SCAN_TYPE_CONFIG: Record<ScanType, ScanTypeConfig> = {
     borderColor: 'border-red-600/40',
     bgGradient: 'from-red-600/5 to-red-800/2',
     description: 'Extract backlog ideas from YouTube videos'
+  },
+  test_mastery: {
+    label: 'Test Mastery',
+    icon: FlaskConical,
+    color: 'text-teal-400',
+    borderColor: 'border-teal-500/40',
+    bgGradient: 'from-teal-500/5 to-cyan-600/2',
+    description: 'Test coverage, automated suite & business-gated test quality'
   }
 };
 
