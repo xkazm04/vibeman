@@ -330,22 +330,24 @@ export async function executeRequirement(
           // Check if it's a "command not found" error
           if (err.message.includes('ENOENT') || err.message.includes('spawn claude')) {
             logMessage('');
-            logMessage('WARNING: Claude CLI not found, using simulation mode');
-            logMessage('To enable real execution:');
+            logMessage('ERROR: Claude CLI not found — the task was NOT executed.');
+            logMessage('To enable execution:');
             logMessage('1. Install Claude Code CLI from https://docs.claude.com/claude-code');
             logMessage('2. Run: claude auth login');
             logMessage('3. Restart the server');
             logMessage('');
-            logMessage('✓ Simulated execution completed');
             closeLogStream();
 
-            // In simulation mode, generate a fake session ID for testing
-            const simulatedSessionId = `simulated-${Date.now()}`;
+            // Fail honestly. Previously this resolved success:true in "simulation
+            // mode" with a fake session id, so the queue marked the task completed,
+            // fired success events, resolved collective memory as success, and ran
+            // performTaskCleanup (deleting the requirement file + flipping idea
+            // status) for a run that wrote zero code — pure success theater.
             resolve({
-              success: true,
-              output: `[SIMULATION MODE - Claude CLI not installed]\n\nRequirement: ${requirementName}\n\n✓ Simulated execution completed\n\nLog file: ${logFilePath}`,
+              success: false,
+              error:
+                'Claude CLI not found (ENOENT). Install Claude Code and run `claude auth login`, then restart the server. The task was NOT executed.',
               logFilePath,
-              capturedClaudeSessionId: simulatedSessionId,
               memoryApplicationIds,
             });
           } else {
