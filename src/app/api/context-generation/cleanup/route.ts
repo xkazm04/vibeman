@@ -45,6 +45,33 @@ async function handlePost(request: NextRequest) {
 
     const { contextIds = [], groupIds = [], relationshipIds = [] } = previousDataIds;
 
+    // Verify new data actually landed in the DB before deleting the old map. The
+    // caller gates this call on counts parsed from CLI stdout, which can be
+    // hallucinated or refer to INSERTs that partially failed / rolled back / wrote
+    // to a different project. Deleting previousDataIds without a real replacement
+    // would wipe the project's entire context map with no undo. Require at least one
+    // context for the project whose id is NOT in previousDataIds (i.e. newly created).
+    if (contextIds.length > 0) {
+      const currentContexts = contextRepository.getContextsByProject(projectId);
+      const prevContextIds = new Set(contextIds);
+      const hasNewContexts = currentContexts.some((c) => !prevContextIds.has(c.id));
+      if (!hasNewContexts) {
+        logger.warn('[API] Cleanup refused — no newly-generated contexts replaced the previous map', {
+          projectId,
+          currentCount: currentContexts.length,
+          previousCount: contextIds.length,
+        });
+        return NextResponse.json(
+          {
+            success: false,
+            skipped: true,
+            reason: 'No newly-generated contexts found for this project; refusing to delete the existing context map.',
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     logger.info('[API] Cleaning up previous context generation data:', {
       projectId,
       relationships: relationshipIds.length,
