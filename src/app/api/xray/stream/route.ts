@@ -34,7 +34,7 @@ const subscribers = new Set<(event: XRayEvent) => void>();
 /**
  * Convert database event to SSE event format
  */
-function dbEventToXRayEvent(dbEvent: DbXRayEvent & {
+export function dbEventToXRayEvent(dbEvent: DbXRayEvent & {
   context_name?: string | null;
   context_group_name?: string | null;
 }): XRayEvent {

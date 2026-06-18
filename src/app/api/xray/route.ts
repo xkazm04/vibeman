@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { xrayRepository } from '@/app/db/repositories/xray.repository';
-import { addXRayEvent, getRecentEventsFromDb, type XRayEvent } from './stream/route';
+import { addXRayEvent, dbEventToXRayEvent, type XRayEvent } from './stream/route';
 import { getLayerFromPath } from '@/app/features/Docs/sub_DocsAnalysis/lib/xrayTypes';
 import { withObservability } from '@/lib/observability/middleware';
 
@@ -19,20 +19,23 @@ async function handleGet(request: NextRequest) {
     const contextId = searchParams.get('contextId') || undefined;
     const contextGroupId = searchParams.get('contextGroupId') || undefined;
 
-    // Fetch events from database with filters
-    const dbEvents = xrayRepository.getFiltered({
+    const eventFilters = {
       context_id: contextId,
       context_group_id: contextGroupId,
       since: since > 0 ? since : undefined,
-      limit,
-    });
+    };
 
-    // Convert to XRayEvent format with context details
-    const events = getRecentEventsFromDb(limit);
+    // Convert to XRayEvent format with context details — honoring the
+    // contextId/contextGroupId/since filters (previously these were computed and
+    // then discarded: the response always returned the unfiltered recent events).
+    const events = xrayRepository
+      .getWithContextDetails(limit, eventFilters)
+      .map(dbEventToXRayEvent);
 
-    // Get statistics from database
-    const dbStats = xrayRepository.getStats(since > 0 ? since : undefined);
-    const layerTraffic = xrayRepository.getLayerTraffic(since > 0 ? since : undefined);
+    // Statistics, scoped to the same filters so per-context views report
+    // per-context numbers rather than whole-table aggregates.
+    const dbStats = xrayRepository.getStats(eventFilters);
+    const layerTraffic = xrayRepository.getLayerTraffic(eventFilters);
 
     // Build layer stats from database
     const layers: Record<string, number> = {
