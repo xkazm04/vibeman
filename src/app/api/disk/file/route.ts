@@ -13,10 +13,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
-import { dirname, normalize } from 'path';
+import { dirname } from 'path';
 import { withObservability } from '@/lib/observability/middleware';
 import { withAccessControl } from '@/lib/api-helpers/accessControl';
-import { validateFilePath, validatePathTraversal } from '@/lib/pathSecurity';
+import { validateFilePath, validatePathTraversal, validatePathWithinAllowedRoots } from '@/lib/pathSecurity';
+import { projectDb } from '@/lib/project_database';
 import { handleApiError } from '@/lib/api-errors';
 
 type FileAction = 'read' | 'write' | 'check';
@@ -26,6 +27,23 @@ interface FileRequestBody {
   filePath: string;
   content?: string;
   contextName?: string;
+}
+
+/**
+ * The set of directories this API is allowed to touch: every registered project
+ * root plus the app's own root. Confining here turns an arbitrary-disk read/write
+ * into a project-scoped one (closes /etc/passwd, ~/.ssh, C:\Windows access).
+ */
+function getAllowedRoots(): string[] {
+  const roots = [process.cwd()];
+  try {
+    for (const project of projectDb.projects.getAll()) {
+      if (project?.path) roots.push(project.path);
+    }
+  } catch {
+    // If the project store is unavailable, fall back to app-root confinement only.
+  }
+  return roots;
 }
 
 // ── Read ──
@@ -40,6 +58,11 @@ async function handleRead(filePath: string) {
   }
 
   const fullPath = validation.resolvedPath;
+
+  const confineError = validatePathWithinAllowedRoots(fullPath, getAllowedRoots());
+  if (confineError) {
+    return NextResponse.json({ success: false, error: confineError }, { status: 403 });
+  }
 
   try {
     const content = await readFile(fullPath, 'utf-8');
@@ -79,6 +102,11 @@ async function handleWrite(filePath: string, content: string) {
 
   const fullPath = validation.resolvedPath;
 
+  const confineError = validatePathWithinAllowedRoots(fullPath, getAllowedRoots());
+  if (confineError) {
+    return NextResponse.json({ success: false, error: confineError }, { status: 403 });
+  }
+
   try {
     const dirPath = dirname(fullPath);
     if (!existsSync(dirPath)) {
@@ -112,7 +140,18 @@ function handleCheck(filePath: string) {
     );
   }
 
-  const normalizedPath = normalize(filePath);
+  const validation = validateFilePath(filePath);
+  if (!validation.valid) {
+    return NextResponse.json({ error: validation.error }, { status: 403 });
+  }
+
+  const normalizedPath = validation.resolvedPath;
+
+  const confineError = validatePathWithinAllowedRoots(normalizedPath, getAllowedRoots());
+  if (confineError) {
+    return NextResponse.json({ error: confineError }, { status: 403 });
+  }
+
   const exists = existsSync(normalizedPath);
   return NextResponse.json({ exists, path: normalizedPath });
 }

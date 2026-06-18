@@ -18,7 +18,7 @@ import { glob } from 'glob';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
 import { withAccessControl } from '@/lib/api-helpers/accessControl';
-import { validateProjectPath, validatePathTraversal } from '@/lib/pathSecurity';
+import { validateProjectPath, validateSafeBasePath } from '@/lib/pathSecurity';
 import { handleApiError } from '@/lib/api-errors';
 
 type SearchType = 'glob' | 'directories';
@@ -108,9 +108,11 @@ async function handleDirectories(targetPath: string) {
     return NextResponse.json({ success: false, error: 'Path is required' }, { status: 400 });
   }
 
-  const traversalError = validatePathTraversal(targetPath);
-  if (traversalError) {
-    return NextResponse.json({ success: false, error: traversalError }, { status: 403 });
+  // Use the deny-list aware validator: callers may browse user dirs but not
+  // enumerate OS internals (C:\Windows, /etc, /root, ...).
+  const baseError = validateSafeBasePath(targetPath);
+  if (baseError) {
+    return NextResponse.json({ success: false, error: baseError }, { status: 403 });
   }
 
   let entries;

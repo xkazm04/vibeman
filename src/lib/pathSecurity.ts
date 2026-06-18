@@ -58,6 +58,40 @@ export function validatePathWithinBase(filePath: string, baseDir: string): strin
 }
 
 /**
+ * Validates that an already-resolved absolute path falls within at least one of
+ * the allowed base directories. Used to confine the disk read/write/list APIs to
+ * registered project roots (plus the app's own root) so a crafted absolute path
+ * cannot reach arbitrary locations such as /etc/passwd, ~/.ssh, or C:\Windows.
+ *
+ * @param targetPath - An absolute path (e.g. the resolvedPath from validateFilePath)
+ * @param allowedRoots - Allowed base directories (project paths + app root)
+ * @returns null if the path is inside an allowed root, else an error message
+ */
+export function validatePathWithinAllowedRoots(
+  targetPath: string,
+  allowedRoots: string[]
+): string | null {
+  if (!targetPath || typeof targetPath !== 'string') {
+    return 'File path is required';
+  }
+
+  const resolvedTarget = path.resolve(targetPath);
+
+  for (const root of allowedRoots) {
+    if (!root || typeof root !== 'string') continue;
+    const resolvedRoot = path.resolve(root);
+    if (
+      resolvedTarget === resolvedRoot ||
+      resolvedTarget.startsWith(resolvedRoot + path.sep)
+    ) {
+      return null;
+    }
+  }
+
+  return 'Invalid file path: outside all registered project directories';
+}
+
+/**
  * Validates a filename component (not a full path) for safety.
  * Rejects names containing path separators or traversal patterns.
  */
