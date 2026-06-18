@@ -98,7 +98,13 @@ class DeviceRegistry extends SupabaseService {
    * Send a heartbeat to update device status
    */
   async sendHeartbeat(heartbeat?: Partial<DeviceHeartbeat>): Promise<boolean> {
-    if (!this.supabase || !this.deviceId) {
+    // Target the device named in the heartbeat if the caller supplied one;
+    // otherwise fall back to this process's own registered device. Without the
+    // explicit id, every heartbeat updated the LAST-registered device's row
+    // (this.deviceId is a single mutable field), so a heartbeat for device B
+    // could silently refresh device A under multi-device/concurrent use.
+    const targetDeviceId = heartbeat?.device_id ?? this.deviceId;
+    if (!this.supabase || !targetDeviceId) {
       return false;
     }
 
@@ -110,7 +116,7 @@ class DeviceRegistry extends SupabaseService {
           active_sessions: heartbeat?.active_sessions ?? 0,
           last_heartbeat_at: new Date().toISOString(),
         })
-        .eq('device_id', this.deviceId);
+        .eq('device_id', targetDeviceId);
 
       if (error) {
         console.error('[DeviceRegistry] Heartbeat failed:', error);

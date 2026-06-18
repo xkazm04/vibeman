@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as Partial<DeviceHeartbeat>;
 
     const success = await deviceRegistry.sendHeartbeat({
+      device_id: body.device_id,
       status: body.status,
       active_sessions: body.active_sessions,
     });
