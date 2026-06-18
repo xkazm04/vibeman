@@ -169,6 +169,20 @@ export const architectureAnalysisAgent = {
       };
     }
 
+    // Only a running analysis may be completed. The completion callback can be
+    // duplicated/retried by Claude Code; without this guard a second callback
+    // re-ran upsertMany (re-writing cross-project relationships) and re-completed
+    // an already-terminal analysis. The route's status check is a TOCTOU on its
+    // own; this re-check at the write boundary rejects the late/duplicate call.
+    if (analysis.status !== 'running') {
+      return {
+        success: false,
+        analysis,
+        relationshipsCreated: 0,
+        error: `Analysis is not running (status: ${analysis.status})`,
+      };
+    }
+
     const result = parseAnalysisResult(rawResult);
     if (!result) {
       lifecycle.failAnalysis(analysisId, 'Failed to parse analysis result');
