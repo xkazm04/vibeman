@@ -164,9 +164,20 @@ export const scanQueueCoreRepository = {
   },
 
   /**
-   * Update queue item status
+   * Update queue item status.
+   *
+   * When `expectedCurrentStatus` is provided the write is a compare-and-set
+   * (WHERE id=? AND status=?) and returns null if the precondition no longer holds.
+   * The worker uses this for its terminal writes so a user's mid-run `cancelled`
+   * (set by DELETE while the worker was still finishing) is NOT clobbered back to
+   * `completed`/`failed`.
    */
-  updateStatus: (id: string, status: DbScanQueueItem['status'], error_message?: string): DbScanQueueItem | null => {
+  updateStatus: (
+    id: string,
+    status: DbScanQueueItem['status'],
+    error_message?: string,
+    expectedCurrentStatus?: DbScanQueueItem['status']
+  ): DbScanQueueItem | null => {
     const db = getDatabase();
     const now = new Date().toISOString();
 
@@ -186,12 +197,17 @@ export const scanQueueCoreRepository = {
       params.push(error_message);
     }
 
+    let whereClause = 'WHERE id = ?';
     params.push(id);
+    if (expectedCurrentStatus !== undefined) {
+      whereClause += ' AND status = ?';
+      params.push(expectedCurrentStatus);
+    }
 
     const stmt = db.prepare(`
       UPDATE scan_queue
       SET ${updateFields}
-      WHERE id = ?
+      ${whereClause}
     `);
 
     const result = stmt.run(...params);

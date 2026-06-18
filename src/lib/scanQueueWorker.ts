@@ -420,11 +420,18 @@ class ScanQueueWorker {
         scanQueueRepository.linkScan(queueItem.id, latestScanId, `Generated ${ideaCount} ideas`);
       }
 
+      // Update status to completed — but only if the item is STILL running. If the
+      // user cancelled it mid-scan (DELETE set status='cancelled'), this CAS returns
+      // null and we must NOT clobber the cancel, notify completion, or auto-merge
+      // ideas for a job the user cancelled.
+      const completed = scanQueueRepository.updateStatus(queueItem.id, 'completed', undefined, 'running');
+      if (!completed) {
+        console.log(`[ScanQueueWorker] Item ${queueItem.id} is no longer running (likely cancelled); skipping completion + auto-merge.`);
+        return;
+      }
+
       // Update progress: finalizing
       scanQueueRepository.updateProgress(queueItem.id, 100, 'Scan completed successfully', 'complete', 4);
-
-      // Update status to completed
-      scanQueueRepository.updateStatus(queueItem.id, 'completed');
 
       // Create completion notification
       this.createNotification(
@@ -449,9 +456,14 @@ class ScanQueueWorker {
         }
       }
     } catch (error) {
-      // Update status to failed
+      // Update status to failed — CAS on 'running' so a user's mid-run cancel is not
+      // clobbered to 'failed'. If the CAS misses, the item was already cancelled/terminal.
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      scanQueueRepository.updateStatus(queueItem.id, 'failed', errorMessage);
+      const failed = scanQueueRepository.updateStatus(queueItem.id, 'failed', errorMessage, 'running');
+      if (!failed) {
+        console.log(`[ScanQueueWorker] Item ${queueItem.id} is no longer running (likely cancelled); not marking failed.`);
+        return;
+      }
       scanQueueRepository.updateProgress(queueItem.id, 0, `Failed: ${errorMessage}`, 'error', 4);
 
       // Create failure notification
