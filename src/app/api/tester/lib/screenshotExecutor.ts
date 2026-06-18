@@ -33,6 +33,17 @@ export interface ScreenshotResult {
     scenarioName: string;
     timestamp: string;
     duration: number;
+    /**
+     * Visual-regression comparison outcome.
+     * - baseline_established: first run, baseline saved (nothing to compare yet)
+     * - matched: current capture is identical to the baseline
+     * - changed: current capture differs from the baseline (regression)
+     */
+    comparison?: {
+      status: 'baseline_established' | 'matched' | 'changed';
+      baselinePath?: string;
+      note?: string;
+    };
   };
 }
 
@@ -141,18 +152,50 @@ export async function executeScenario(
     // Ensure screenshot directory exists
     const screenshotDir = await ensureScreenshotDirectory(scenario.id);
 
-    // Generate consistent filename (no timestamp - will replace existing file)
+    // Stable filenames: a frozen baseline plus the latest capture.
     const screenshotName = scenario.screenshotName || scenario.id;
     const filename = `${screenshotName}.png`;
+    const baselineFilename = `${screenshotName}.baseline.png`;
     const screenshotPath = path.join(screenshotDir, filename);
+    const baselinePath = path.join(screenshotDir, baselineFilename);
 
-    // Capture screenshot (will overwrite if file exists)
-    await page.screenshot({
-      path: screenshotPath,
-      fullPage: true,
-    });
-
+    // Capture as a buffer so we can persist AND compare it.
+    const currentBuffer = await page.screenshot({ fullPage: true });
+    await fs.writeFile(screenshotPath, currentBuffer);
     logger.info(`[Executor] Screenshot saved: ${screenshotPath}`);
+
+    // Visual-regression comparison. Previously this only captured a screenshot,
+    // overwrote the prior file, and returned success:true on any page load — no
+    // baseline, no diff, no threshold — so it could never detect a regression
+    // (success theater). Now: establish a baseline on first run, and on later runs
+    // compare against it and fail on a visual change. (Byte-level equality of
+    // Playwright's deterministic PNGs; a pixel-tolerance diff is a follow-up.)
+    let comparison: ScreenshotResult['metadata']['comparison'];
+    let comparisonPassed = true;
+    let comparisonError: string | undefined;
+
+    const baselineExists = await fs.access(baselinePath).then(() => true).catch(() => false);
+    if (!baselineExists) {
+      await fs.writeFile(baselinePath, currentBuffer);
+      comparison = {
+        status: 'baseline_established',
+        baselinePath: `/screenshots/${scenario.id}/${baselineFilename}`,
+      };
+    } else {
+      const baselineBuffer = await fs.readFile(baselinePath);
+      const matched = baselineBuffer.equals(currentBuffer);
+      comparison = {
+        status: matched ? 'matched' : 'changed',
+        baselinePath: `/screenshots/${scenario.id}/${baselineFilename}`,
+        note: matched
+          ? undefined
+          : 'Capture differs from baseline. If the change is intended, delete the baseline file to re-establish it.',
+      };
+      if (!matched) {
+        comparisonPassed = false;
+        comparisonError = 'Visual regression: screenshot differs from baseline';
+      }
+    }
 
     // Close page and context
     await context.close();
@@ -160,13 +203,15 @@ export async function executeScenario(
     const duration = Date.now() - startTime;
 
     return {
-      success: true,
+      success: comparisonPassed,
       screenshotPath: `/screenshots/${scenario.id}/${filename}`,
+      error: comparisonError,
       metadata: {
         scenarioId: scenario.id,
         scenarioName: scenario.name,
         timestamp: new Date().toISOString(),
         duration,
+        comparison,
       },
     };
   } catch (error) {
