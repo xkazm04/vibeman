@@ -161,14 +161,32 @@ export function acceptIdea(opts: AcceptIdeaOptions): AcceptIdeaOutcome {
     return { success: false, code: 'WRAP_FAILED', message: 'Failed to wrap requirement content' };
   }
 
-  // 6. Update DB status FIRST (rollback-safe: DB first, file second)
+  // 6. Atomically claim the acceptance FIRST (rollback-safe: DB first, file second).
+  // This single-statement CAS (status fromStatus -> 'accepted') is the only thing
+  // preventing two concurrent or retried accepts — a remote device + a local tab, a
+  // CLI call, a client retry — from BOTH writing the requirement file and BOTH
+  // firing brain signals. The state machine allows accepted->accepted as a no-op, so
+  // the earlier authorize() check cannot guard this; the loser of the race bails here.
   const previousStatus = idea.status;
   const previousRequirementId = idea.requirement_id;
+  // accepted->accepted is a state-machine no-op, so a retry of an already-accepted
+  // idea would otherwise re-write the file and re-fire signals. Treat it as done.
+  if (previousStatus === 'accepted') {
+    return { success: false, code: 'INVALID_TRANSITION', message: 'Idea is already accepted' };
+  }
+  let claimed: boolean;
   try {
-    ideaRepository.updateIdea(ideaId, { status: 'accepted', requirement_id: requirementName });
+    claimed = ideaRepository.claimIdeaForAcceptance(ideaId, previousStatus, requirementName);
   } catch (error) {
     logger.error('[IdeaAcceptance] Failed to update idea status:', { error });
     return { success: false, code: 'DB_UPDATE_FAILED', message: 'Failed to update idea status' };
+  }
+  if (!claimed) {
+    return {
+      success: false,
+      code: 'INVALID_TRANSITION',
+      message: 'Idea was already accepted or changed status concurrently',
+    };
   }
 
   // 7. Write requirement file to disk

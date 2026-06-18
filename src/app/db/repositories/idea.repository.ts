@@ -261,6 +261,23 @@ export const ideaRepository = {
     return base.update(id, dbUpdates);
   },
 
+  /**
+   * Atomically claim an idea for acceptance: transition fromStatus -> 'accepted'
+   * and set requirement_id, only if the row is STILL at fromStatus. Returns true
+   * if this call won the claim, false if a concurrent/retried accept already moved
+   * it. The state machine treats accepted->accepted as an allowed no-op, so it
+   * cannot prevent a double-accept on its own — this single-statement CAS does.
+   */
+  claimIdeaForAcceptance: (id: string, fromStatus: string, requirementId: string): boolean => {
+    const db = getDatabase();
+    const stmt = db.prepare(
+      `UPDATE ideas SET status = 'accepted', requirement_id = ?, updated_at = ?
+       WHERE id = ? AND status = ?`
+    );
+    const result = stmt.run(requirementId, getCurrentTimestamp(), id, fromStatus);
+    return result.changes > 0;
+  },
+
   // ─── Delete operations ────────────────────────────────────────────────
 
   deleteIdea: (id: string): boolean => base.deleteById(id),
