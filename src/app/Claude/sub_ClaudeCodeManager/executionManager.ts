@@ -21,6 +21,47 @@ export interface SessionConfig {
   claudeSessionId?: string;  // Claude CLI session ID (for --resume)
 }
 
+/** Phrases indicating an API rate limit / subscription quota / session cap. */
+const SESSION_LIMIT_KEYWORDS = [
+  'session limit',
+  'rate limit',
+  'usage limit',
+  'quota exceeded',
+  'too many requests',
+  'subscription plan',
+];
+
+function containsSessionLimit(text: string): boolean {
+  const t = text.toLowerCase();
+  return SESSION_LIMIT_KEYWORDS.some((k) => t.includes(k));
+}
+
+/**
+ * A 0 exit code can still carry a rate-limit/overage in the FINAL stream-json
+ * `result` message (is_error:true). Inspect only that structured message — not the
+ * whole transcript — so a task that merely mentions "rate limit" in its own output
+ * is not misread as a quota hit (which would re-queue a successful run).
+ */
+function detectSessionLimitFromResult(stdout: string): boolean {
+  const lines = stdout.split('\n');
+  for (let i = lines.length - 1; i >= 0 && i >= lines.length - 40; i--) {
+    const line = lines[i].trim();
+    if (!line.startsWith('{')) continue;
+    try {
+      const msg = JSON.parse(line) as {
+        type?: string; is_error?: boolean; subtype?: string; result?: string; error?: string;
+      };
+      if (msg?.type === 'result' && msg.is_error) {
+        const text = `${msg.result ?? ''} ${msg.error ?? ''} ${msg.subtype ?? ''}`;
+        if (containsSessionLimit(text)) return true;
+      }
+    } catch {
+      // not a JSON line — skip
+    }
+  }
+  return false;
+}
+
 /**
  * Execute a requirement using Claude Code CLI
  * Uses headless mode with proper slash command syntax
@@ -278,7 +319,21 @@ export async function executeRequirement(
             recordFailure(command, args, `Exit code ${code}`);
           }
 
-          if (code === 0) {
+          if (code === 0 && detectSessionLimitFromResult(stdout)) {
+            // Exit 0 but the structured result reported a rate-limit/overage. Surface
+            // it as a session limit so the queue takes the backoff path instead of
+            // masking it as a successful run (and the self-healing engine re-running
+            // immediately against the rate-limited endpoint).
+            resolve({
+              success: false,
+              error: `Session limit reached (reported in result, exit 0). Check log file: ${logFilePath}`,
+              sessionLimitReached: true,
+              logFilePath,
+              capturedClaudeSessionId,
+              memoryApplicationIds,
+              pid: spawnedPid,
+            });
+          } else if (code === 0) {
             resolve({
               success: true,
               output: stdout || 'Requirement executed successfully',
@@ -293,14 +348,7 @@ export async function executeRequirement(
             // STDOUT (as JSON), not stderr — scan both streams or a rate-limited run
             // is misclassified as a generic failure and gets an instant re-queue
             // (retry storm) instead of the rate-limit backoff path.
-            const errorOutput = `${stdout}\n${stderr}`.toLowerCase();
-            const isSessionLimit =
-              errorOutput.includes('session limit') ||
-              errorOutput.includes('rate limit') ||
-              errorOutput.includes('usage limit') ||
-              errorOutput.includes('quota exceeded') ||
-              errorOutput.includes('too many requests') ||
-              errorOutput.includes('subscription plan');
+            const isSessionLimit = containsSessionLimit(`${stdout}\n${stderr}`);
 
             if (isSessionLimit) {
               resolve({
