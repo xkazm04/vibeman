@@ -61,7 +61,7 @@ async function handlePost(request: NextRequest) {
     }
 
     // Execute the scan — pass the request signal so the fetch is cancelled if the client disconnects
-    const ideaCount = await executeContextScan({
+    const { count: ideaCount, scanId } = await executeContextScan({
       projectId,
       projectName: projectInfo.name,
       projectPath: projectInfo.path,
@@ -75,6 +75,7 @@ async function handlePost(request: NextRequest) {
     return NextResponse.json({
       success: true,
       ideaCount,
+      scanId,
       scanType,
       projectId,
   });

@@ -379,8 +379,9 @@ class ScanQueueWorker {
       const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
 
       let ideaCount: number;
+      let producedScanId: string | null = null;
       try {
-        ideaCount = await executeContextScan({
+        const scanResult = await executeContextScan({
           projectId: queueItem.project_id,
           projectName: projectInfo.name,
           projectPath: projectInfo.path,
@@ -390,6 +391,8 @@ class ScanQueueWorker {
           contextFilePaths,
           signal: abortController.signal
         });
+        ideaCount = scanResult.count;
+        producedScanId = scanResult.scanId || null;
       } catch (error) {
         clearTimeout(timeoutId);
         if (abortController.signal.aborted) {
@@ -404,8 +407,13 @@ class ScanQueueWorker {
       // Update progress: processing results
       scanQueueRepository.updateProgress(queueItem.id, 75, 'Processing scan results...', 'process_results', 4);
 
-      // Get the latest scan ID for this project and scan type (efficient single-row query)
-      const latestScanId = ideaRepository.getLatestScanId(queueItem.project_id, queueItem.scan_type);
+      // Link the EXACT scan this run produced. Falling back to the global
+      // getLatestScanId(project, type) only when the executor returned no id would
+      // otherwise let a concurrent same-type scan (manual /api/scans, file-watch,
+      // the next queue item) win the "latest" race and auto-merge the wrong scan's
+      // ideas into this queue item.
+      const latestScanId = producedScanId
+        ?? ideaRepository.getLatestScanId(queueItem.project_id, queueItem.scan_type);
 
       // Link the scan to the queue item
       if (latestScanId) {
