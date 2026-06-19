@@ -28,7 +28,8 @@ export default function ControlPanelProvider({ children }: { children: ReactNode
     isBlueprintOpen,
     toggleControlPanel,
     openBlueprint,
-    closeBlueprint
+    closeBlueprint,
+    closeControlPanel
   } = useOnboardingStore();
 
   useOnboardingAutoComplete();
@@ -64,10 +65,12 @@ export default function ControlPanelProvider({ children }: { children: ReactNode
       {/* Unified Shortcuts Bar */}
       <ShortcutsBar />
 
-      {/* Control Panel Drawer */}
+      {/* Control Panel Drawer — onClose must close the CONTROL PANEL, not the
+          blueprint. Binding it to closeBlueprint left isControlPanelOpen=true on a
+          backdrop/escape close; only ControlPanel's inner Drawer override masked it. */}
       <ControlPanel
         isOpen={isControlPanelOpen}
-        onClose={closeBlueprint}
+        onClose={closeControlPanel}
         onOpenBlueprint={openBlueprint}
       />
 
