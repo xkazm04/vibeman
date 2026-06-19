@@ -40,6 +40,41 @@ export const groupHealthRepository = {
   },
 
   /**
+   * Atomically create a scan only if no ACTIVE (pending|running) scan already exists
+   * for the group. Returns the new scan, or null if one is already in flight.
+   *
+   * create() + a prior getRunningByGroup() check is a TOCTOU: the check looks for
+   * 'running' but create() inserts 'pending', so two concurrent POSTs both passed and
+   * created duplicate pending scans (double CLI/token cost, conflicting health writes,
+   * orphan pending rows). BEGIN IMMEDIATE takes the write lock up front so the second
+   * caller serializes behind the first and sees its just-inserted pending row.
+   */
+  createIfNoActiveScan: (input: CreateHealthScanInput): DbGroupHealthScan | null => {
+    const db = getDatabase();
+    const tx = db.transaction((): DbGroupHealthScan | null => {
+      const active = selectOne<{ id: string }>(
+        db,
+        `SELECT id FROM group_health_scans
+         WHERE group_id = ? AND status IN ('pending', 'running')
+         LIMIT 1`,
+        input.group_id
+      );
+      if (active) return null;
+
+      const now = getCurrentTimestamp();
+      const id = crypto.randomUUID();
+      db.prepare(`
+        INSERT INTO group_health_scans (
+          id, group_id, project_id, status, execution_id, created_at, updated_at
+        )
+        VALUES (?, ?, ?, 'pending', ?, ?, ?)
+      `).run(id, input.group_id, input.project_id, input.execution_id || null, now, now);
+      return base.getById(id)!;
+    });
+    return tx.immediate();
+  },
+
+  /**
    * Get scan by ID
    */
   getById: (id: string): DbGroupHealthScan | null => base.getById(id),
