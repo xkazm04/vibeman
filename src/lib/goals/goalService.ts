@@ -163,7 +163,18 @@ export function acceptCandidate(
   if (!candidate) return null;
 
   const db = getDatabase();
-  const runAccept = db.transaction(() => {
+  const runAccept = db.transaction((): CandidateAcceptResult | null => {
+    // Re-read inside the transaction and bail if this candidate was already accepted —
+    // a double-click / retry / two-tab accept must not create a SECOND goal from one
+    // candidate (which also orphaned the first by overwriting goal_id). Return the
+    // existing goal so the call is idempotent.
+    const current = goalCandidateRepository.getCandidateById(candidateId);
+    if (!current) return null;
+    if (current.user_action === 'accepted' && current.goal_id) {
+      const existingGoal = goalRepository.getGoalById(current.goal_id);
+      if (existingGoal) return { goal: existingGoal, updatedCandidate: current };
+    }
+
     const maxOrderIndex = goalRepository.getMaxOrderIndex(candidate.project_id);
 
     const goal = goalRepository.createGoal({
@@ -186,7 +197,9 @@ export function acceptCandidate(
     return { goal, updatedCandidate };
   });
 
-  return runAccept();
+  // IMMEDIATE so two concurrent accepts serialize — the second sees the first's
+  // committed user_action='accepted' and returns the existing goal.
+  return runAccept.immediate();
 }
 
 /**
