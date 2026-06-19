@@ -72,11 +72,16 @@ export const useServerProjectStore = create<ServerProjectStore>()(
               set({ projects });
               return projects;
             }
+            // Non-OK (5xx/4xx): the server is reachable but errored. Do NOT clobber
+            // the cached list — fall through to returning current state below.
           } catch {
-            // Error syncing with server - silent fail
+            // Network blip / dev server restarting / abort. Same: keep cached state.
           }
-          set({ projects: [] });
-          return [];
+          // A transient failure is NOT "the server has zero projects". Overwriting
+          // the persisted list with [] here used to blank the multi-workspace view
+          // and cascade into clientProjectStore deleting the saved active project.
+          // Leave projects unchanged and return what we currently have.
+          return get().projects;
         },
 
         initializeProjects: async () => {
