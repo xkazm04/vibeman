@@ -37,18 +37,29 @@ async function handlePost(request: NextRequest) {
 
     const updatedIds: string[] = [];
     const notFound: string[] = [];
+    const failed: Array<{ id: string; error: string }> = [];
     const projectIds = new Set<string>();
 
     for (const rawId of ideaIds) {
       const id = String(rawId);
       const updates: Record<string, unknown> = { status };
       if (cleanFeedback) updates.user_feedback = cleanFeedback;
-      const updated = ideaRepository.updateIdea(id, updates);
-      if (updated) {
-        updatedIds.push(id);
-        projectIds.add(updated.project_id);
-      } else {
-        notFound.push(id);
+      try {
+        const updated = ideaRepository.updateIdea(id, updates);
+        if (updated) {
+          updatedIds.push(id);
+          projectIds.add(updated.project_id);
+        } else {
+          notFound.push(id);
+        }
+      } catch (e) {
+        // updateIdea throws on an illegal state transition (e.g. an already-
+        // 'implemented' idea cannot go to accepted/rejected). Previously this threw
+        // out of the loop -> 500, while every idea processed BEFORE it had already
+        // committed (no transaction) with no report of which — so a blind re-submit
+        // double-processed the first half. Record and continue: the batch stays
+        // partial-safe and the client learns exactly what succeeded/failed.
+        failed.push({ id, error: e instanceof Error ? e.message : 'update failed' });
       }
     }
 
@@ -57,11 +68,12 @@ async function handlePost(request: NextRequest) {
     }
 
     return NextResponse.json({
-      success: true,
+      success: failed.length === 0,
       status,
       updatedCount: updatedIds.length,
       updatedIds,
       notFound,
+      failed,
     });
   } catch (error) {
     return NextResponse.json(
