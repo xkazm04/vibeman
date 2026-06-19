@@ -6,6 +6,7 @@
  */
 
 import { spawn, ChildProcess } from 'child_process';
+import { killProcessTree } from '@/lib/process/killProcessTree';
 import { randomUUID } from 'crypto';
 import { EventEmitter } from 'events';
 import * as fs from 'fs';
@@ -850,7 +851,7 @@ export function startExecution(
     const timeoutHandle = setTimeout(() => {
       if (!childProcess.killed) {
         logMessage('[TIMEOUT] Execution exceeded 100 minutes, killing process...');
-        childProcess.kill();
+        killProcessTree(childProcess); // tree-kill: the shell wrapper AND the node CLI grandchild on Windows
         execution.status = 'error';
         emitEvent({
           type: 'error',
@@ -1162,7 +1163,7 @@ export function abortExecution(executionId: string): boolean {
     return false;
   }
 
-  execution.process.kill();
+  killProcessTree(execution.process); // tree-kill so the node CLI grandchild dies, not just the shell wrapper
   execution.status = 'aborted';
   execution.endTime = Date.now();
 

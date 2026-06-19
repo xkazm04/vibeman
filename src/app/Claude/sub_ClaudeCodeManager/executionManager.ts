@@ -5,6 +5,7 @@ import { readRequirement } from './folderManager';
 import { getLogFilePath, getLogsDirectory } from './logManager';
 import { buildExecutionPrompt } from './executionPrompt';
 import { validateProjectPath, validateRequirementName, secureTempPath, validateCommand, recordExecution, recordFailure } from '@/lib/command/commandSandbox';
+import { killProcessTree } from '@/lib/process/killProcessTree';
 /**
  * Execution manager for Claude Code requirements
  * Handles spawning and managing Claude Code CLI processes
@@ -416,7 +417,7 @@ export async function executeRequirement(
         const timeoutHandle = setTimeout(() => {
           if (!childProcess.killed) {
             logMessage('[TIMEOUT] Execution exceeded 100 minutes, killing process...');
-            childProcess.kill();
+            killProcessTree(childProcess); // kill the cmd.exe wrapper AND the node CLI grandchild on Windows
             closeLogStream();
           }
         }, 6000000); // 100 minute timeout
