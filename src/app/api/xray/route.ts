@@ -95,7 +95,10 @@ async function handlePost(request: NextRequest) {
       context_id: contextId || null,
       context_group_id: contextGroupId || null,
       source_layer: (sourceLayer as 'pages' | 'client' | 'server') || 'pages',
-      target_layer: targetLayer === 'external' ? 'external' : 'server',
+      // Persist the REAL classified layer. This was collapsed to 'server' for any
+      // non-external target, permanently undercounting client/pages buckets and
+      // inflating 'server' in getStats.by_layer / getLayerTraffic.
+      target_layer: targetLayer,
       method: method || 'GET',
       path,
       status: status || 200,

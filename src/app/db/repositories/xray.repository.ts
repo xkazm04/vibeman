@@ -10,7 +10,7 @@ export interface CreateXRayEvent {
   context_id?: string | null;
   context_group_id?: string | null;
   source_layer?: 'pages' | 'client' | 'server' | null;
-  target_layer?: 'server' | 'external' | null;
+  target_layer?: 'pages' | 'client' | 'server' | 'external' | null;
   method: string;
   path: string;
   status: number;
@@ -25,7 +25,7 @@ export interface XRayEventFilters {
   context_id?: string;
   context_group_id?: string;
   source_layer?: 'pages' | 'client' | 'server';
-  target_layer?: 'server' | 'external';
+  target_layer?: 'pages' | 'client' | 'server' | 'external';
   status_min?: number;
   status_max?: number;
   since?: number;
