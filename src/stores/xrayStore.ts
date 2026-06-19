@@ -209,14 +209,24 @@ export const useXRayStore = create<XRayState & XRayActions>((set, get) => ({
         ? stats.latency.reduce((a, b) => a + b, 0) / stats.latency.length
         : 0;
 
-      // Find hot paths for this layer
       const layerEdges = Object.values(edges).filter(
         (e) => e.edgeId.endsWith(`->${layer}`)
       );
-      const hotPaths = layerEdges
-        .sort((a, b) => b.requestCount - a.requestCount)
+
+      // Hot paths for this layer = the most-REQUESTED paths whose traffic targets this
+      // layer. The old code took the top edges by count then grabbed each edge's NEWEST
+      // event path (recentEvents[0]) — an edge aggregates many paths, so it reported
+      // whatever arrived last (flapping) instead of the busiest route, and disagreed with
+      // the global hotPaths block. Reuse the same per-path count aggregation here.
+      const layerPathCounts: Record<string, number> = {};
+      for (const event of recentEvents) {
+        if (event.targetLayer !== layer) continue;
+        layerPathCounts[event.path] = (layerPathCounts[event.path] || 0) + 1;
+      }
+      const hotPaths = Object.entries(layerPathCounts)
+        .sort((a, b) => b[1] - a[1])
         .slice(0, 3)
-        .map((e) => e.recentEvents[0]?.path || '')
+        .map(([path]) => path)
         .filter(Boolean);
 
       layers[layer] = {

@@ -289,44 +289,47 @@ class ScanQueueWorker {
    * @returns true if items were found and processed, false if queue was empty
    */
   private async processQueue(): Promise<boolean> {
-    // Check if we can process more items
-    if (this.currentlyProcessing.size >= this.config.maxConcurrent) {
-      // Already at max capacity - consider this as "active" to maintain responsiveness
-      return true;
+    let claimedAny = false;
+
+    // Claim and DISPATCH up to the remaining concurrency budget, firing each item as a
+    // tracked but UN-awaited promise. Previously this claimed exactly one item and
+    // awaited it to completion before returning, so the worker ran strictly one scan at
+    // a time and maxConcurrent>1 had no runtime effect (a slow LLM scan head-of-line
+    // blocked every other queued scan). With maxConcurrent=1 (the default) behavior is
+    // unchanged — the loop claims one, the set fills, and it stops.
+    while (this.currentlyProcessing.size < this.config.maxConcurrent) {
+      // Atomic claim (pending -> running) — safe to call repeatedly; each returns a
+      // distinct item, so concurrent dispatch can't double-claim.
+      const queueItem = scanQueueRepository.claimNextPending();
+      if (!queueItem) break; // queue empty
+
+      claimedAny = true;
+      this.currentlyProcessing.add(queueItem.id);
+
+      void this.processQueueItem(queueItem)
+        .catch((error) => {
+          // Safety net for an error that escaped processQueueItem's own handling: mark
+          // the item failed only if it's still running (CAS), so a user cancel isn't
+          // clobbered.
+          try {
+            const currentItem = scanQueueRepository.getQueueItemById(queueItem.id);
+            if (currentItem && currentItem.status === 'running') {
+              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+              scanQueueRepository.updateStatus(queueItem.id, 'failed', `Worker error: ${errorMessage}`, 'running');
+            }
+          } catch {
+            // Best effort - database might be unavailable
+          }
+        })
+        .finally(() => {
+          // Always free the slot so the poll loop can claim the next item.
+          this.currentlyProcessing.delete(queueItem.id);
+        });
     }
 
-    // Atomically claim the next pending item
-    // This prevents race conditions where multiple poll cycles claim the same item
-    const queueItem = scanQueueRepository.claimNextPending();
-
-    if (!queueItem) {
-      return false; // No pending items - queue is empty
-    }
-
-    // Track that we're processing this item
-    this.currentlyProcessing.add(queueItem.id);
-
-    try {
-      // Process the item (status already set to 'running' by claimNextPending)
-      await this.processQueueItem(queueItem);
-    } catch (error) {
-      // Errors are handled in processQueueItem, but ensure we don't leave items stuck
-      // If processQueueItem failed to update status, mark as failed
-      try {
-        const currentItem = scanQueueRepository.getQueueItemById(queueItem.id);
-        if (currentItem && currentItem.status === 'running') {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          scanQueueRepository.updateStatus(queueItem.id, 'failed', `Worker error: ${errorMessage}`);
-        }
-      } catch {
-        // Best effort - database might be unavailable
-      }
-    } finally {
-      // Always clean up the processing set to prevent items getting stuck
-      this.currentlyProcessing.delete(queueItem.id);
-    }
-
-    return true; // Item was found and processed
+    // "Active" if we claimed work this cycle OR items are still in flight — keeps the
+    // poll loop at its base interval instead of backing off while scans run.
+    return claimedAny || this.currentlyProcessing.size > 0;
   }
 
   /**
@@ -379,8 +382,9 @@ class ScanQueueWorker {
       const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
 
       let ideaCount: number;
+      let producedScanId: string | null = null;
       try {
-        ideaCount = await executeContextScan({
+        const scanResult = await executeContextScan({
           projectId: queueItem.project_id,
           projectName: projectInfo.name,
           projectPath: projectInfo.path,
@@ -390,6 +394,8 @@ class ScanQueueWorker {
           contextFilePaths,
           signal: abortController.signal
         });
+        ideaCount = scanResult.count;
+        producedScanId = scanResult.scanId || null;
       } catch (error) {
         clearTimeout(timeoutId);
         if (abortController.signal.aborted) {
@@ -404,19 +410,31 @@ class ScanQueueWorker {
       // Update progress: processing results
       scanQueueRepository.updateProgress(queueItem.id, 75, 'Processing scan results...', 'process_results', 4);
 
-      // Get the latest scan ID for this project and scan type (efficient single-row query)
-      const latestScanId = ideaRepository.getLatestScanId(queueItem.project_id, queueItem.scan_type);
+      // Link the EXACT scan this run produced. Falling back to the global
+      // getLatestScanId(project, type) only when the executor returned no id would
+      // otherwise let a concurrent same-type scan (manual /api/scans, file-watch,
+      // the next queue item) win the "latest" race and auto-merge the wrong scan's
+      // ideas into this queue item.
+      const latestScanId = producedScanId
+        ?? ideaRepository.getLatestScanId(queueItem.project_id, queueItem.scan_type);
 
       // Link the scan to the queue item
       if (latestScanId) {
         scanQueueRepository.linkScan(queueItem.id, latestScanId, `Generated ${ideaCount} ideas`);
       }
 
+      // Update status to completed — but only if the item is STILL running. If the
+      // user cancelled it mid-scan (DELETE set status='cancelled'), this CAS returns
+      // null and we must NOT clobber the cancel, notify completion, or auto-merge
+      // ideas for a job the user cancelled.
+      const completed = scanQueueRepository.updateStatus(queueItem.id, 'completed', undefined, 'running');
+      if (!completed) {
+        console.log(`[ScanQueueWorker] Item ${queueItem.id} is no longer running (likely cancelled); skipping completion + auto-merge.`);
+        return;
+      }
+
       // Update progress: finalizing
       scanQueueRepository.updateProgress(queueItem.id, 100, 'Scan completed successfully', 'complete', 4);
-
-      // Update status to completed
-      scanQueueRepository.updateStatus(queueItem.id, 'completed');
 
       // Create completion notification
       this.createNotification(
@@ -441,9 +459,14 @@ class ScanQueueWorker {
         }
       }
     } catch (error) {
-      // Update status to failed
+      // Update status to failed — CAS on 'running' so a user's mid-run cancel is not
+      // clobbered to 'failed'. If the CAS misses, the item was already cancelled/terminal.
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      scanQueueRepository.updateStatus(queueItem.id, 'failed', errorMessage);
+      const failed = scanQueueRepository.updateStatus(queueItem.id, 'failed', errorMessage, 'running');
+      if (!failed) {
+        console.log(`[ScanQueueWorker] Item ${queueItem.id} is no longer running (likely cancelled); not marking failed.`);
+        return;
+      }
       scanQueueRepository.updateProgress(queueItem.id, 0, `Failed: ${errorMessage}`, 'error', 4);
 
       // Create failure notification

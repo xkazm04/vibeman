@@ -745,31 +745,43 @@ export const directionRepository = {
     requirementPath: string,
     decisionRecord?: string | null
   ): { accepted: DbDirection | null; rejected: DbDirection | null } => {
-    const acceptedDirection = directionRepository.acceptDirection(acceptedId, requirementId, requirementPath, decisionRecord);
-
-    if (!acceptedDirection || !acceptedDirection.pair_id) {
-      return { accepted: acceptedDirection, rejected: null };
-    }
-
-    // Reject the other direction in the pair
     const db = getDatabase();
     const now = getCurrentTimestamp();
 
-    const stmt = db.prepare(`
-      UPDATE directions
-      SET status = 'rejected', updated_at = ?
-      WHERE pair_id = ? AND id != ? AND status = 'pending'
-    `);
-    stmt.run(now, acceptedDirection.pair_id, acceptedId);
+    // Accept-self + reject-partner as ONE immediate transaction. Two concurrent
+    // accepts of OPPOSITE pair variants each claim their own row (pending->processing,
+    // different ids, both succeed) and previously each rejected the partner only
+    // WHERE status='pending' — but the partner had already been claimed to
+    // 'processing', so the reject matched 0 rows and BOTH ended up accepted (two
+    // requirement files + two Claude sessions on mutually-exclusive alternatives).
+    // BEGIN IMMEDIATE serializes the two: the first accept rejects the partner
+    // (now also matching 'processing'); the second's acceptDirection then hits a
+    // rejected->accepted transition and throws (its saga compensates), so the pair
+    // invariant "exactly one accepted, one rejected" holds.
+    const tx = db.transaction((): { accepted: DbDirection | null; rejected: DbDirection | null } => {
+      const acceptedDirection = directionRepository.acceptDirection(acceptedId, requirementId, requirementPath, decisionRecord);
 
-    const rejected = selectOne<DbDirection>(
-      db,
-      'SELECT * FROM directions WHERE pair_id = ? AND id != ?',
-      acceptedDirection.pair_id,
-      acceptedId
-    );
+      if (!acceptedDirection || !acceptedDirection.pair_id) {
+        return { accepted: acceptedDirection, rejected: null };
+      }
 
-    return { accepted: acceptedDirection, rejected };
+      db.prepare(`
+        UPDATE directions
+        SET status = 'rejected', updated_at = ?
+        WHERE pair_id = ? AND id != ? AND status IN ('pending', 'processing')
+      `).run(now, acceptedDirection.pair_id, acceptedId);
+
+      const rejected = selectOne<DbDirection>(
+        db,
+        'SELECT * FROM directions WHERE pair_id = ? AND id != ?',
+        acceptedDirection.pair_id,
+        acceptedId
+      );
+
+      return { accepted: acceptedDirection, rejected };
+    });
+
+    return tx.immediate();
   },
 
   /**

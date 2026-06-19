@@ -318,6 +318,48 @@ async function searchComponentUsage(
   return false;
 }
 
+/**
+ * Check whether any file imports the given module by PATH (regardless of the local
+ * binding name). A default export imported under an alias — `import Box from './Card'`
+ * — references the module by its path, so the filename-derived NAME search in
+ * searchComponentUsage misses it and would flag a live component as unused (→ data
+ * loss when auto-removed). This path-based check closes that false positive. It also
+ * catches re-exports (`export { default } from './Card'`), dynamic import, and require.
+ *
+ * Note: if two files share a basename, this may treat one as used when the import
+ * actually targets the other — a deliberate false NEGATIVE (keeps the file), which is
+ * the safe direction for a detector that drives deletion.
+ */
+async function searchModuleImport(
+  componentFile: string,
+  files: string[],
+  excludeFile: string
+): Promise<boolean> {
+  const base = path.basename(componentFile).replace(/\.[jt]sx?$/, '');
+  const escaped = base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const ext = `(\\.[jt]sx?)?`;
+  const specifierPatterns = [
+    new RegExp(`from\\s*['"\`][^'"\`]*[\\\\/]${escaped}${ext}['"\`]`),
+    new RegExp(`import\\(\\s*['"\`][^'"\`]*[\\\\/]${escaped}${ext}['"\`]`),
+    new RegExp(`require\\(\\s*['"\`][^'"\`]*[\\\\/]${escaped}${ext}['"\`]`),
+  ];
+
+  for (const file of files) {
+    if (file === excludeFile) continue;
+    try {
+      const content = await fs.readFile(file, 'utf-8');
+      if (!content.includes(base)) continue;
+      if (specifierPatterns.some((p) => p.test(content))) {
+        return true;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return false;
+}
+
 // --- Main analysis ---
 
 export async function analyzeUnusedCode(
@@ -384,6 +426,17 @@ export async function analyzeUnusedCode(
         if (isUsed) {
           anyExportUsed = true;
           break;
+        }
+      }
+
+      // A default export imported under an alias is referenced by module PATH, not
+      // by the filename-derived name, so the name search above misses it. Before
+      // declaring the file unused (which can drive an auto-remove), confirm no file
+      // imports this module by path.
+      if (!anyExportUsed && component.exports.includes('default')) {
+        const importedByPath = await searchModuleImport(component.file, allFiles, component.file);
+        if (importedByPath) {
+          anyExportUsed = true;
         }
       }
 

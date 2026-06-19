@@ -124,7 +124,25 @@ export function createTableIfNotExists(
 }
 
 /**
- * Safe migration wrapper that catches and logs errors
+ * True while a runOnce() body is executing. Migrations run synchronously
+ * (better-sqlite3 transactions are synchronous), so a module-level flag safely
+ * distinguishes "safeMigration called inside a tracked runOnce" from a bare/boot
+ * call.
+ */
+let insideRunOnce = false;
+
+/**
+ * Safe migration wrapper that catches and logs errors.
+ *
+ * When called OUTSIDE runOnce (bare/boot migrations) it swallows the error so a
+ * single failing step does not abort startup — the historical behavior.
+ *
+ * When called INSIDE a runOnce() body it RE-THROWS after logging. Otherwise the
+ * swallow would let runOnce commit recordMigration(name) with status='applied'
+ * for a migration whose DDL actually threw — recording it as permanently applied
+ * so it never retries (silent schema corruption). Re-throwing lets runOnce roll
+ * back the transaction and record status='failed' so it retries on next startup.
+ *
  * @deprecated Use runOnce() for tracked, transactional migrations instead.
  */
 export function safeMigration(
@@ -136,6 +154,9 @@ export function safeMigration(
     migrationFn();
   } catch (error) {
     logger?.error(`Error in migration ${name}:`, error);
+    if (insideRunOnce) {
+      throw error;
+    }
   }
 }
 
@@ -273,8 +294,14 @@ export function runOnce(
   const start = performance.now();
   try {
     db.transaction(() => {
-      migrationFn();
-      recordMigration(db, name);
+      const prev = insideRunOnce;
+      insideRunOnce = true;
+      try {
+        migrationFn();
+        recordMigration(db, name);
+      } finally {
+        insideRunOnce = prev;
+      }
     });
     const durationMs = Math.round(performance.now() - start);
     // Update with duration after successful commit

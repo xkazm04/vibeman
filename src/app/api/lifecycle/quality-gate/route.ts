@@ -7,6 +7,7 @@ import { NextRequest } from 'next/server';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { QualityGateType } from '@/app/features/Ideas/sub_Lifecycle/lib/lifecycleTypes';
+import { projectDb } from '@/lib/project_database';
 import {
   createApiSuccessResponse,
   createApiErrorResponse,
@@ -49,7 +50,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await runGate(gate as QualityGateType, timeout);
+    // Run the gate in the TARGET project's directory. Without this, every gate
+    // (npm audit, tsc, build, tests, coverage) ran in vibeman's own CWD, so the
+    // PASS/FAIL described vibeman regardless of which project the caller asked about.
+    let cwd: string | undefined;
+    if (projectId) {
+      const project = projectDb.getProject(projectId);
+      if (!project) {
+        return createApiErrorResponse(
+          ApiErrorCode.INVALID_FIELD_VALUE,
+          `Project not found: ${projectId}`,
+          { fieldErrors: { projectId: 'Unknown project' }, logError: false }
+        );
+      }
+      cwd = project.path;
+    }
+
+    const result = await runGate(gate as QualityGateType, timeout, cwd);
 
     return createApiSuccessResponse(result);
   } catch (error) {
@@ -57,31 +74,31 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function runGate(gate: QualityGateType, timeout: number): Promise<GateResult> {
+async function runGate(gate: QualityGateType, timeout: number, cwd?: string): Promise<GateResult> {
   const startTime = Date.now();
 
   try {
     switch (gate) {
       case 'type_check':
-        return await runTypeCheck(timeout);
+        return await runTypeCheck(timeout, cwd);
 
       case 'lint':
-        return await runLint(timeout);
+        return await runLint(timeout, cwd);
 
       case 'build':
-        return await runBuild(timeout);
+        return await runBuild(timeout, cwd);
 
       case 'unit_test':
-        return await runTests('unit', timeout);
+        return await runTests('unit', timeout, cwd);
 
       case 'integration_test':
-        return await runTests('integration', timeout);
+        return await runTests('integration', timeout, cwd);
 
       case 'security_scan':
-        return await runSecurityScan(timeout);
+        return await runSecurityScan(timeout, cwd);
 
       case 'coverage':
-        return await runCoverage(timeout);
+        return await runCoverage(timeout, cwd);
 
       default:
         return {
@@ -94,6 +111,10 @@ async function runGate(gate: QualityGateType, timeout: number): Promise<GateResu
       passed: false,
       message: `Gate ${gate} failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
       details: {
+        // 'error' = the gate could not be evaluated (distinct from 'no_tests' =
+        // unrunnable-by-config, and from a plain passed:false = ran and found a problem).
+        // Without this the UI can't tell a real-CVE fail from a couldn't-run fail.
+        status: 'error',
         duration_ms: Date.now() - startTime,
         error: error instanceof Error ? error.message : 'Unknown',
       },
@@ -101,9 +122,9 @@ async function runGate(gate: QualityGateType, timeout: number): Promise<GateResu
   }
 }
 
-async function runTypeCheck(timeout: number): Promise<GateResult> {
+async function runTypeCheck(timeout: number, cwd?: string): Promise<GateResult> {
   try {
-    const { stdout, stderr } = await execAsync('npx tsc --noEmit', { timeout });
+    const { stdout, stderr } = await execAsync('npx tsc --noEmit', { timeout, cwd });
 
     return {
       passed: true,
@@ -126,9 +147,9 @@ async function runTypeCheck(timeout: number): Promise<GateResult> {
   }
 }
 
-async function runLint(timeout: number): Promise<GateResult> {
+async function runLint(timeout: number, cwd?: string): Promise<GateResult> {
   try {
-    const { stdout, stderr } = await execAsync('npm run lint', { timeout });
+    const { stdout, stderr } = await execAsync('npm run lint', { timeout, cwd });
 
     return {
       passed: true,
@@ -148,9 +169,9 @@ async function runLint(timeout: number): Promise<GateResult> {
   }
 }
 
-async function runBuild(timeout: number): Promise<GateResult> {
+async function runBuild(timeout: number, cwd?: string): Promise<GateResult> {
   try {
-    const { stdout, stderr } = await execAsync('npm run build', { timeout });
+    const { stdout, stderr } = await execAsync('npm run build', { timeout, cwd });
 
     return {
       passed: true,
@@ -170,7 +191,7 @@ async function runBuild(timeout: number): Promise<GateResult> {
   }
 }
 
-async function runTests(type: 'unit' | 'integration', timeout: number): Promise<GateResult> {
+async function runTests(type: 'unit' | 'integration', timeout: number, cwd?: string): Promise<GateResult> {
   try {
     // Try common test commands
     const testCommands = type === 'unit'
@@ -181,7 +202,7 @@ async function runTests(type: 'unit' | 'integration', timeout: number): Promise<
 
     for (const cmd of testCommands) {
       try {
-        const { stdout } = await execAsync(cmd, { timeout });
+        const { stdout } = await execAsync(cmd, { timeout, cwd });
         return {
           passed: true,
           message: `${type} tests passed`,
@@ -235,9 +256,9 @@ function evaluateAuditResult(auditResult: { metadata?: { vulnerabilities?: Recor
   };
 }
 
-async function runSecurityScan(timeout: number): Promise<GateResult> {
+async function runSecurityScan(timeout: number, cwd?: string): Promise<GateResult> {
   try {
-    const { stdout } = await execAsync('npm audit --json', { timeout });
+    const { stdout } = await execAsync('npm audit --json', { timeout, cwd });
     try {
       return evaluateAuditResult(JSON.parse(stdout));
     } catch {
@@ -272,9 +293,9 @@ async function runSecurityScan(timeout: number): Promise<GateResult> {
   }
 }
 
-async function runCoverage(timeout: number): Promise<GateResult> {
+async function runCoverage(timeout: number, cwd?: string): Promise<GateResult> {
   try {
-    const { stdout } = await execAsync('npm run test:coverage -- --watchAll=false', { timeout });
+    const { stdout } = await execAsync('npm run test:coverage -- --watchAll=false', { timeout, cwd });
 
     // Try to parse coverage percentage from output
     const coverageMatch = stdout.match(/All files[^\n]*\|\s*(\d+\.?\d*)/);

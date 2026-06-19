@@ -101,7 +101,7 @@ export async function executeScan(params: {
   detailed?: boolean;
   codebaseFiles: CodebaseFile[];
   signal?: AbortSignal;
-}): Promise<number> {
+}): Promise<{ count: number; scanId: string }> {
   const { signal, ...body } = params;
   const response = await fetch('/api/ideas/generate', {
     method: 'POST',
@@ -116,5 +116,7 @@ export async function executeScan(params: {
   }
 
   const data = await response.json();
-  return data.count || 0;
+  // Return the scanId of the scan THIS call produced so callers can link to it
+  // precisely, instead of a global "latest scan of this type" lookup.
+  return { count: data.count || 0, scanId: data.scanId || '' };
 }

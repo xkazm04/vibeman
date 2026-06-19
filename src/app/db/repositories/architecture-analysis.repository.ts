@@ -4,6 +4,8 @@
  */
 
 import { createBaseAnalysisRepository } from '@/lib/analysis/BaseAnalysisRepository';
+import { getDatabase } from '../connection';
+import { selectAll } from './repository.utils';
 import type {
   DbArchitectureAnalysisSession,
   CreateArchitectureAnalysisInput,
@@ -107,5 +109,28 @@ export const architectureAnalysisRepository = {
       return base.getHistoryWhere("scope = 'workspace' AND workspace_id IS ?", [scopeId], limit);
     }
     return base.getHistoryWhere("scope = 'project' AND project_id = ?", [scopeId], limit);
+  },
+
+  /**
+   * Fail analyses stuck in 'running' past a threshold (the CLI crashed / tab closed /
+   * completion callback was lost). Without this a zombie 'running' row makes
+   * getRunning() return it forever, permanently blocking re-analysis of that scope.
+   * Mirrors executiveAnalysisRepository.failStaleRunning.
+   */
+  failStaleRunning(staleThresholdMinutes: number = 15): number {
+    const db = getDatabase();
+    const cutoff = new Date(Date.now() - staleThresholdMinutes * 60 * 1000).toISOString();
+
+    const stale = selectAll<{ id: string }>(
+      db,
+      `SELECT id FROM architecture_analysis_sessions
+       WHERE status = 'running' AND COALESCE(started_at, created_at) < ?`,
+      cutoff
+    );
+
+    for (const row of stale) {
+      base.failAnalysis(row.id, 'Timed out: no completion callback received within threshold');
+    }
+    return stale.length;
   },
 };

@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { brainInsightRepository } from '@/app/db/repositories/brain-insight.repository';
 import { directionRepository } from '@/app/db/repositories/direction.repository';
 import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import { IdeaStateMachine } from '@/lib/ideas/ideaStateMachine';
 import { insightEffectivenessCacheRepository } from '@/app/db/repositories/insight-effectiveness-cache.repository';
 import { insightInfluenceRepository } from '@/app/db/repositories/insight-influence.repository';
 import { deleteRequirement } from '@/app/Claude/lib/claudeCodeManager';
@@ -96,16 +97,36 @@ function rejectIdea(ideaId: string, projectPath?: string, rejectionReason?: stri
   const idea = ideaRepository.getIdeaById(ideaId);
   if (!idea) return createIdeasErrorResponse(IdeasErrorCode.IDEA_NOT_FOUND);
 
+  // Reject is illegal from a terminal state (e.g. an already-'implemented' idea that
+  // re-surfaced in a stale list). updateIdea would throw -> a generic 500, and the
+  // tinder client only treats 409 as success, so the card re-inserts and the user can
+  // never dismiss it. Treat "can't reject a finalized idea" as already-done (409).
+  const transition = IdeaStateMachine.authorize(idea.status, 'rejected');
+  if (!transition.allowed) {
+    return NextResponse.json(
+      { error: `Idea is already finalized (${idea.status})`, status: idea.status },
+      { status: 409 }
+    );
+  }
+
   // Delete requirement file if it exists
   if (idea.requirement_id && projectPath) {
     try { deleteRequirement(projectPath, idea.requirement_id); } catch { /* non-critical */ }
   }
 
-  ideaRepository.updateIdea(ideaId, {
-    status: 'rejected',
-    requirement_id: null,
-    ...(rejectionReason ? { user_feedback: rejectionReason } : {}),
-  });
+  try {
+    ideaRepository.updateIdea(ideaId, {
+      status: 'rejected',
+      requirement_id: null,
+      ...(rejectionReason ? { user_feedback: rejectionReason } : {}),
+    });
+  } catch (e) {
+    // Belt-and-suspenders: a transition we didn't pre-screen still degrades to 409.
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : 'Cannot reject idea', status: idea.status },
+      { status: 409 }
+    );
+  }
 
   try {
     if (idea.project_id) {

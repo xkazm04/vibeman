@@ -182,7 +182,10 @@ export interface DbXRayEvent {
   context_id: string | null;    // References contexts.id
   context_group_id: string | null; // References context_groups.id
   source_layer: 'pages' | 'client' | 'server' | null;
-  target_layer: 'server' | 'external' | null;
+  // Full 4-layer domain. Previously narrowed to 'server'|'external', which forced the
+  // POST writer to collapse client/pages traffic to 'server' — corrupting layer
+  // aggregates. The column is plain TEXT, so widening needs no migration.
+  target_layer: 'pages' | 'client' | 'server' | 'external' | null;
   method: string;               // HTTP method
   path: string;                 // API path
   status: number;               // HTTP status code

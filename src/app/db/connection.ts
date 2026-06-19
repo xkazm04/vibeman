@@ -120,6 +120,19 @@ export function getDatabase(): Database.Database {
 }
 
 /**
+ * TEST-ONLY: override the database that getDatabase() returns with an in-memory
+ * better-sqlite3 instance so repository methods (which call getDatabase() internally)
+ * can be unit-tested against a throwaway schema. Pass null to restore the normal lazy
+ * driver-backed initialization. Clears the prepared-statement cache so statements bound
+ * to a previous database are never reused against another. No production caller invokes
+ * this — it exists solely for vitest repository/CAS suites.
+ */
+export function __setTestDatabase(db: Database.Database | null): void {
+  statementCache.clear();
+  instrumentedDb = db;
+}
+
+/**
  * Close database connection
  * Should be called on app shutdown
  */

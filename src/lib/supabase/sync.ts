@@ -113,48 +113,55 @@ function fetchRecordsFromSQLite(tableName: string): TableRecord[] {
 }
 
 /**
- * Clear all existing records in Supabase table
+ * Upsert records in batches to Supabase (conflict target = primary key `id`).
+ * Upsert never empties the table, so a mid-stream batch failure cannot wipe the
+ * remote mirror — at worst the mirror is partially refreshed and the next sync
+ * completes it.
  */
-async function clearSupabaseTable(
-  supabase: SupabaseClient,
-  tableName: string
-): Promise<void> {
-  const { error: deleteError } = await supabase
-    .from(tableName)
-    .delete()
-    .neq('id', ''); // Delete all records
-
-  if (deleteError) {
-    throw new Error(`Failed to clear existing data: ${deleteError.message}`);
-  }
-}
-
-/**
- * Insert records in batches to Supabase
- */
-async function insertRecordsInBatches(
+async function upsertRecordsInBatches(
   supabase: SupabaseClient,
   tableName: string,
   records: TableRecord[]
 ): Promise<number> {
-  let totalInserted = 0;
+  let totalUpserted = 0;
 
   for (let i = 0; i < records.length; i += BATCH_SIZE) {
     const batch = records.slice(i, i + BATCH_SIZE);
 
-    const { error: insertError } = await supabase
+    const { error: upsertError } = await supabase
       .from(tableName)
-      .insert(batch);
+      .upsert(batch);
 
-    if (insertError) {
-      throw new Error(`Failed to insert batch: ${insertError.message}`);
+    if (upsertError) {
+      throw new Error(`Failed to upsert batch: ${upsertError.message}`);
     }
 
-    totalInserted += batch.length;
-    logger.info(`Inserted ${totalInserted}/${records.length} records for ${tableName}`);
+    totalUpserted += batch.length;
+    logger.info(`Upserted ${totalUpserted}/${records.length} records for ${tableName}`);
   }
 
-  return totalInserted;
+  return totalUpserted;
+}
+
+/**
+ * Remove remote rows that no longer exist locally. Runs ONLY after every current
+ * row has been safely upserted, and is non-fatal: a prune failure leaves stale
+ * rows behind but never deletes current data.
+ */
+async function pruneStaleRows(
+  supabase: SupabaseClient,
+  tableName: string,
+  currentIds: string[]
+): Promise<void> {
+  if (currentIds.length === 0) return; // empty-table case handled by handleEmptyTable
+  const idList = `(${currentIds.map((id) => `"${String(id).replace(/"/g, '')}"`).join(',')})`;
+  const { error } = await supabase
+    .from(tableName)
+    .delete()
+    .not('id', 'in', idList);
+  if (error) {
+    logger.warn(`Failed to prune stale rows for ${tableName} (current data is intact): ${error.message}`);
+  }
 }
 
 /**
@@ -198,8 +205,16 @@ async function syncTableData(
   tableName: string,
   records: TableRecord[]
 ): Promise<number> {
-  await clearSupabaseTable(supabase, tableName);
-  return await insertRecordsInBatches(supabase, tableName, records);
+  // Upsert FIRST (no truncate), THEN prune rows that no longer exist locally.
+  // The previous clear-then-insert deleted every remote row up front, so any failed
+  // insert batch left the mirror empty/partial with no rollback (data loss).
+  const upserted = await upsertRecordsInBatches(supabase, tableName, records);
+  await pruneStaleRows(
+    supabase,
+    tableName,
+    records.map((r) => String(r.id)).filter((id) => id && id !== 'undefined')
+  );
+  return upserted;
 }
 
 /**

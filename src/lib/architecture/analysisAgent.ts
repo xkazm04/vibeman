@@ -71,6 +71,10 @@ export const architectureAnalysisAgent = {
   analyzeWorkspace: async (config: AnalyzeWorkspaceConfig): Promise<AnalysisStartResult> => {
     const { workspaceId, projects, triggerType, baseUrl } = config;
 
+    // Reap zombie 'running' rows (CLI crashed / callback lost) before the dedup
+    // check, so a stuck analysis can't block this scope forever.
+    architectureAnalysisRepository.failStaleRunning();
+
     const running = architectureAnalysisRepository.getRunning('workspace', workspaceId);
     if (running) {
       return {
@@ -122,6 +126,21 @@ export const architectureAnalysisAgent = {
   analyzeNewProject: async (config: AnalyzeProjectConfig): Promise<AnalysisStartResult> => {
     const { newProject, existingProjects, workspaceId, baseUrl } = config;
 
+    // Reap zombie 'running' rows, then enforce the same one-running-per-scope dedup
+    // that analyzeWorkspace has. Without this guard a retried/double-clicked
+    // onboarding POST started N concurrent project analyses, each racing to write
+    // relationships via upsertMany.
+    architectureAnalysisRepository.failStaleRunning();
+    const running = architectureAnalysisRepository.getRunning('project', newProject.id);
+    if (running) {
+      return {
+        success: false,
+        analysisId: running.id,
+        promptContent: '',
+        error: 'Analysis already in progress',
+      };
+    }
+
     const analysisId = generateId('arch-analysis');
     architectureAnalysisRepository.create({
       id: analysisId,
@@ -166,6 +185,20 @@ export const architectureAnalysisAgent = {
         analysis: null,
         relationshipsCreated: 0,
         error: 'Analysis session not found',
+      };
+    }
+
+    // Only a running analysis may be completed. The completion callback can be
+    // duplicated/retried by Claude Code; without this guard a second callback
+    // re-ran upsertMany (re-writing cross-project relationships) and re-completed
+    // an already-terminal analysis. The route's status check is a TOCTOU on its
+    // own; this re-check at the write boundary rejects the late/duplicate call.
+    if (analysis.status !== 'running') {
+      return {
+        success: false,
+        analysis,
+        relationshipsCreated: 0,
+        error: `Analysis is not running (status: ${analysis.status})`,
       };
     }
 

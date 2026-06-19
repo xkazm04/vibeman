@@ -10,7 +10,7 @@ export interface CreateXRayEvent {
   context_id?: string | null;
   context_group_id?: string | null;
   source_layer?: 'pages' | 'client' | 'server' | null;
-  target_layer?: 'server' | 'external' | null;
+  target_layer?: 'pages' | 'client' | 'server' | 'external' | null;
   method: string;
   path: string;
   status: number;
@@ -25,7 +25,7 @@ export interface XRayEventFilters {
   context_id?: string;
   context_group_id?: string;
   source_layer?: 'pages' | 'client' | 'server';
-  target_layer?: 'server' | 'external';
+  target_layer?: 'pages' | 'client' | 'server' | 'external';
   status_min?: number;
   status_max?: number;
   since?: number;
@@ -196,11 +196,31 @@ export const xrayRepository = {
   /**
    * Get X-Ray events with context and group details
    */
-  getWithContextDetails: (limit: number = 100): Array<DbXRayEvent & {
+  getWithContextDetails: (
+    limit: number = 100,
+    filters?: { context_id?: string; context_group_id?: string; since?: number }
+  ): Array<DbXRayEvent & {
     context_name: string | null;
     context_group_name: string | null;
   }> => {
     const db = getDatabase();
+
+    let where = 'WHERE 1=1';
+    const params: (string | number)[] = [];
+    if (filters?.context_id) {
+      where += ' AND xe.context_id = ?';
+      params.push(filters.context_id);
+    }
+    if (filters?.context_group_id) {
+      where += ' AND xe.context_group_id = ?';
+      params.push(filters.context_group_id);
+    }
+    if (filters?.since) {
+      where += ' AND xe.timestamp > ?';
+      params.push(filters.since);
+    }
+    params.push(limit);
+
     const stmt = db.prepare(`
       SELECT
         xe.*,
@@ -209,10 +229,11 @@ export const xrayRepository = {
       FROM obs_xray_events xe
       LEFT JOIN contexts c ON xe.context_id = c.id
       LEFT JOIN context_groups cg ON xe.context_group_id = cg.id
+      ${where}
       ORDER BY xe.timestamp DESC
       LIMIT ?
     `);
-    return stmt.all(limit) as Array<DbXRayEvent & {
+    return stmt.all(...params) as Array<DbXRayEvent & {
       context_name: string | null;
       context_group_name: string | null;
     }>;
@@ -221,15 +242,24 @@ export const xrayRepository = {
   /**
    * Get X-Ray statistics
    */
-  getStats: (since?: number): XRayStats => {
+  getStats: (filters?: { since?: number; context_id?: string; context_group_id?: string }): XRayStats => {
     const db = getDatabase();
 
-    let whereClause = '';
-    const params: number[] = [];
-    if (since) {
-      whereClause = 'WHERE timestamp > ?';
-      params.push(since);
+    const conditions: string[] = [];
+    const params: (string | number)[] = [];
+    if (filters?.since) {
+      conditions.push('timestamp > ?');
+      params.push(filters.since);
     }
+    if (filters?.context_id) {
+      conditions.push('context_id = ?');
+      params.push(filters.context_id);
+    }
+    if (filters?.context_group_id) {
+      conditions.push('context_group_id = ?');
+      params.push(filters.context_group_id);
+    }
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     // Total events and averages
     const statsStmt = db.prepare(`
@@ -330,7 +360,7 @@ export const xrayRepository = {
   /**
    * Get traffic between layers (for X-Ray visualization)
    */
-  getLayerTraffic: (since?: number): Array<{
+  getLayerTraffic: (filters?: { since?: number; context_id?: string; context_group_id?: string }): Array<{
     source_layer: string | null;
     target_layer: string | null;
     count: number;
@@ -339,12 +369,21 @@ export const xrayRepository = {
   }> => {
     const db = getDatabase();
 
-    let whereClause = '';
-    const params: number[] = [];
-    if (since) {
-      whereClause = 'WHERE timestamp > ?';
-      params.push(since);
+    const conditions: string[] = [];
+    const params: (string | number)[] = [];
+    if (filters?.since) {
+      conditions.push('timestamp > ?');
+      params.push(filters.since);
     }
+    if (filters?.context_id) {
+      conditions.push('context_id = ?');
+      params.push(filters.context_id);
+    }
+    if (filters?.context_group_id) {
+      conditions.push('context_group_id = ?');
+      params.push(filters.context_group_id);
+    }
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const stmt = db.prepare(`
       SELECT

@@ -8,6 +8,22 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createRequirement } from '@/app/Claude/lib/claudeCodeManager';
+import { projectDb } from '@/lib/project_database';
+import { validatePathWithinAllowedRoots, validateFilename } from '@/lib/pathSecurity';
+
+/**
+ * The set of directories a requirement file may be written into: every
+ * registered project root. Without this, the endpoint writes caller-supplied
+ * markdown into any directory's .claude/commands (a file-write → CLI-instruction
+ * injection pivot, since those files drive autonomous Claude Code runs).
+ */
+function getRegisteredProjectRoots(): string[] {
+  try {
+    return projectDb.projects.getAll().map((p) => p.path).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
 
 interface GenerateRequestBody {
   targetProjectPath: string;
@@ -66,9 +82,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Confine the write to a registered project root — never an arbitrary path.
+    const allowedRoots = getRegisteredProjectRoots();
+    const confineError = validatePathWithinAllowedRoots(targetProjectPath.trim(), allowedRoots);
+    if (allowedRoots.length === 0 || confineError) {
+      return NextResponse.json(
+        { success: false, error: confineError ?? 'No registered project matches the target path' },
+        { status: 403 }
+      );
+    }
+
+    // templateId is interpolated into the filename — reject path separators/traversal.
+    const filenameError = validateFilename(templateId.trim());
+    if (filenameError) {
+      return NextResponse.json({ success: false, error: filenameError }, { status: 400 });
+    }
+
     // Build filename: {templateId}-{slug}.md
     const slug = createSlug(query);
-    const filename = `${templateId}-${slug}`;
+    const filename = `${templateId.trim()}-${slug}`;
 
     // Use createRequirement from claudeCodeManager
     const result = createRequirement(targetProjectPath.trim(), filename, content, overwrite);

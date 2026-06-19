@@ -263,7 +263,9 @@ async function handleStartBatch(command: RemoteCommand): Promise<CommandHandlerR
       };
     }
 
-    const projectPath = payload.project_path || project.path;
+    // Use the locally-registered project path; a caller-supplied payload.project_path
+    // would let a remote command run Claude Code at an arbitrary path on this device.
+    const projectPath = project.path;
     const projectName = project.name;
 
     // Find available session slot
@@ -625,7 +627,8 @@ async function handleTriageIdea(command: RemoteCommand): Promise<CommandHandlerR
         return { success: false, error: `Project not found: ${idea.project_id}` };
       }
 
-      const projectPath = payload.project_path || project.path;
+      // Registered path only — never a caller-supplied path (arbitrary FS write).
+      const projectPath = project.path;
       const { v4: uuidv4 } = await import('uuid');
       const path = await import('path');
       const fs = await import('fs');
@@ -733,7 +736,23 @@ async function handleTriageDirection(command: RemoteCommand): Promise<CommandHan
         return { success: false, error: `Project not found: ${direction.project_id}` };
       }
 
-      const projectPath = payload.project_path || project.path;
+      // Claim the direction (pending -> processing) atomically BEFORE writing any
+      // file. This (a) restores the valid transition path — acceptDirection does
+      // processing -> accepted, whereas the old pending -> accepted threw
+      // InvalidTransitionError *after* the requirement file was already written,
+      // orphaning it and leaving the direction stuck pending; and (b) guards against
+      // a concurrent/retried remote accept, which now loses the claim and returns
+      // gracefully instead of double-writing + double-accepting.
+      const claimed = directionDb.claimDirectionForProcessing(payload.direction_id);
+      if (!claimed) {
+        const latest = directionDb.getDirectionById(payload.direction_id);
+        return { success: false, error: `Direction already processed: ${latest?.status ?? 'unknown'}` };
+      }
+
+      // Always execute against the locally-registered project path. Honoring a
+      // caller-supplied payload.project_path would let a remote command run Claude
+      // Code / write requirement files at an arbitrary path on this device.
+      const projectPath = project.path;
       const timestamp = Date.now();
       const titleSlug = direction.summary
         .toLowerCase()
@@ -747,7 +766,7 @@ async function handleTriageDirection(command: RemoteCommand): Promise<CommandHan
       // Create requirement file
       createRequirement(projectPath, requirementId, content, true);
 
-      // Update direction status
+      // Update direction status (processing -> accepted is a valid transition)
       directionDb.acceptDirection(payload.direction_id, requirementId, `${projectPath}/.claude/requirements/${requirementId}.md`);
 
       return {
@@ -854,9 +873,10 @@ async function handleFetchRequirements(command: RemoteCommand): Promise<CommandH
         return { success: false, error: `Project not found: ${payload.project_id}` };
       }
 
+      // Registered path only — never read requirements from a caller-supplied path.
       const projectWithPath = {
         ...project,
-        path: payload.project_path || project.path,
+        path: project.path,
       };
       readProjectRequirements(projectWithPath);
 

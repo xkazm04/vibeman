@@ -130,11 +130,20 @@ async function handlePost(request: NextRequest) {
       );
     }
 
-    // Create the scan record
-    const scan = groupHealthRepository.create({
+    // Create the scan record atomically — only if no active (pending|running) scan is
+    // already in flight for this group. The stale-cleanup above already failed any
+    // expired scans, so a non-null active row here means a genuine concurrent sibling
+    // (double-click / UI + retry); return 409 instead of creating a duplicate.
+    const scan = groupHealthRepository.createIfNoActiveScan({
       group_id: groupId,
       project_id: projectId,
     });
+    if (!scan) {
+      return NextResponse.json(
+        { error: 'A scan is already running for this group' },
+        { status: 409 }
+      );
+    }
 
     logger.info('[API] Group health scan created:', {
       scanId: scan.id,

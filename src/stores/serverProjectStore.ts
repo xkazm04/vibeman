@@ -72,11 +72,16 @@ export const useServerProjectStore = create<ServerProjectStore>()(
               set({ projects });
               return projects;
             }
+            // Non-OK (5xx/4xx): the server is reachable but errored. Do NOT clobber
+            // the cached list — fall through to returning current state below.
           } catch {
-            // Error syncing with server - silent fail
+            // Network blip / dev server restarting / abort. Same: keep cached state.
           }
-          set({ projects: [] });
-          return [];
+          // A transient failure is NOT "the server has zero projects". Overwriting
+          // the persisted list with [] here used to blank the multi-workspace view
+          // and cascade into clientProjectStore deleting the saved active project.
+          // Leave projects unchanged and return what we currently have.
+          return get().projects;
         },
 
         initializeProjects: async () => {
@@ -101,8 +106,14 @@ export const useServerProjectStore = create<ServerProjectStore>()(
             });
 
             if (response.ok) {
+              // Store the SERVER's canonical row (auto-detected type, normalized
+              // port/basePort, restructured git, workspaceId) — not the caller's
+              // un-transformed input, which would diverge from the DB until the next
+              // full sync and let git/server-start run against stale fields.
+              const data = await response.json();
+              const canonical = data.project ?? project;
               set((state) => ({
-                projects: [...state.projects, project],
+                projects: [...state.projects, canonical],
               }));
             } else {
               const error = await response.json();
@@ -122,9 +133,15 @@ export const useServerProjectStore = create<ServerProjectStore>()(
             });
 
             if (response.ok) {
+              // Prefer the server's canonical updated row over an optimistic merge,
+              // which would miss server-side transforms (type/git/port normalization).
+              const data = await response.json();
+              const canonical = data.project;
               set((state) => ({
                 projects: state.projects.map((project) =>
-                  project.id === projectId ? { ...project, ...updates } : project
+                  project.id === projectId
+                    ? (canonical?.id ? canonical : { ...project, ...updates })
+                    : project
                 ),
               }));
             } else {

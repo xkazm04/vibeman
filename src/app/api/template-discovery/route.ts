@@ -5,12 +5,14 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { stat } from 'fs/promises';
+import { stat, realpath } from 'fs/promises';
 import { Project } from 'ts-morph';
 import { discoverTemplateFiles, parseTemplateConfig } from '@/lib/template-discovery';
 import { discoveredTemplateRepository } from '@/app/db/repositories/discovered-template.repository';
 import { isTableMissingError } from '@/app/db/repositories/repository.utils';
 import { normalizePath } from '@/utils/pathUtils';
+import { projectDb } from '@/lib/project_database';
+import { validatePathWithinAllowedRoots } from '@/lib/pathSecurity';
 
 export interface ScanRequest {
   projectPath: string;
@@ -68,11 +70,33 @@ export async function POST(request: NextRequest): Promise<NextResponse<ScanRespo
       );
     }
 
-    // Normalize path
-    const normalizedPath = normalizePath(projectPath);
+    // Resolve symlinks, then confine the scan to a registered project root. Without
+    // this, any path/symlink became glob's cwd and every */*/*.ts under it — outside any
+    // registered project — was read and persisted into discovered_templates (arbitrary
+    // on-disk source disclosure; a symlink farm walked attacker-chosen trees).
+    let realProjectPath: string;
+    try {
+      realProjectPath = await realpath(projectPath);
+    } catch {
+      return NextResponse.json({ error: 'projectPath does not exist' }, { status: 400 });
+    }
+    const allowedRoots = (() => {
+      try { return projectDb.projects.getAll().map((p) => p.path).filter(Boolean); }
+      catch { return []; }
+    })();
+    const confineError = validatePathWithinAllowedRoots(realProjectPath, allowedRoots);
+    if (allowedRoots.length === 0 || confineError) {
+      return NextResponse.json(
+        { error: confineError ?? 'No registered project matches the scan path' },
+        { status: 403 }
+      );
+    }
 
-    // Step 1: Discover template files
-    const scanResult = await discoverTemplateFiles(projectPath);
+    // Normalize path
+    const normalizedPath = normalizePath(realProjectPath);
+
+    // Step 1: Discover template files (scoped to the confined, symlink-resolved root)
+    const scanResult = await discoverTemplateFiles(realProjectPath);
 
     if (scanResult.files.length === 0) {
       return NextResponse.json({
@@ -189,9 +213,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const countOnly = searchParams.get('countOnly');
     const projectPath = searchParams.get('projectPath');
 
-    // Lightweight file count endpoint for scan progress display
+    // Lightweight file count endpoint for scan progress display — same confinement as
+    // POST: resolve symlinks and require a registered project root before scanning.
     if (countOnly && projectPath) {
-      const scanResult = await discoverTemplateFiles(projectPath);
+      let realPath: string;
+      try { realPath = await realpath(projectPath); }
+      catch { return NextResponse.json({ error: 'projectPath does not exist' }, { status: 400 }); }
+      let allowedRoots: string[] = [];
+      try { allowedRoots = projectDb.projects.getAll().map((p) => p.path).filter(Boolean); } catch { /* none registered */ }
+      if (allowedRoots.length === 0 || validatePathWithinAllowedRoots(realPath, allowedRoots)) {
+        return NextResponse.json({ error: 'Scan path is not within a registered project' }, { status: 403 });
+      }
+      const scanResult = await discoverTemplateFiles(realPath);
       return NextResponse.json({ fileCount: scanResult.files.length });
     }
 

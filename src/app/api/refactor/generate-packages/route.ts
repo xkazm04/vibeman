@@ -69,12 +69,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return validationResponse;
     }
 
-    const response: GeneratePackagesResponse = {
-      packages: [],
-      context: null,
-      dependencyGraph: null,
-    };
-    return NextResponse.json(response);
+    // The package-generation engine does not exist (the RefactorWizard libs are
+    // type-only stubs). Previously this returned an empty 200 payload, so the store
+    // set packageGenerationStatus:'completed' with 0 packages — indistinguishable from
+    // "no debt found", presenting a dead marquee feature as healthy. Signal it honestly:
+    // 501 makes the store's !response.ok path set status:'error' + a message.
+    return NextResponse.json(
+      {
+        error: 'Refactoring package generation is not available — the package generator was removed with the RefactorWizard and has not been reintroduced.',
+        notImplemented: true,
+      },
+      { status: 501 }
+    );
   } catch (error) {
     return handleApiError(error, 'refactor generate-packages POST', undefined, requestContext);
   }

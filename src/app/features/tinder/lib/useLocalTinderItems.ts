@@ -331,7 +331,12 @@ export function useLocalMode(
     setItems(prev => prev.filter(item => item !== currentItem));
 
     try {
-      await fetch('/api/ideas', {
+      // Persist the chosen variant's edits BEFORE accepting. Previously the PATCH
+      // result was ignored, so on a 4xx/5xx the variant edits were silently dropped
+      // and the ORIGINAL idea was accepted + written to a requirement file — the user
+      // believes they accepted the picked scope but got the default. Gate the accept
+      // on a successful save (the catch below reverts the optimistic removal).
+      const res = await fetch('/api/ideas', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -343,6 +348,9 @@ export function useLocalMode(
           risk: variant.risk,
         }),
       });
+      if (!res.ok) {
+        throw new Error(`Failed to save variant (${res.status})`);
+      }
 
       await acceptTinderItem(currentItem, selectedProject.path);
 

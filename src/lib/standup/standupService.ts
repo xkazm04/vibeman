@@ -22,7 +22,7 @@ import {
 } from '@/app/db/models/standup.types';
 import { StandupBlockerSchema, StandupHighlightSchema, StandupFocusAreaSchema, parseStandupJsonArray } from '@/lib/api/schemas/standup';
 import { generatePredictiveStandup } from '@/lib/standup/predictiveStandupEngine';
-import { generateStandupSummary } from '@/lib/standup/standupGenerator';
+import { generateStandupSummary, formatPeriodKey } from '@/lib/standup/standupGenerator';
 import { collectStandupData } from '@/lib/standup/standupDataCollector';
 import { feedStandupInsightsToGoals } from '@/lib/standup/standupFeedback';
 
@@ -225,7 +225,7 @@ export async function generateUnifiedStandup(
   periodEnd: Date,
   forceRegenerate: boolean
 ): Promise<UnifiedStandupResult> {
-  const periodStartStr = periodStart.toISOString().split('T')[0];
+  const periodStartStr = formatPeriodKey(periodStart);
 
   // Check for existing summary (fast path — no lock needed)
   const existing = getExistingSummary(projectId, periodType, periodStartStr);

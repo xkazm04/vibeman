@@ -34,7 +34,7 @@ const subscribers = new Set<(event: XRayEvent) => void>();
 /**
  * Convert database event to SSE event format
  */
-function dbEventToXRayEvent(dbEvent: DbXRayEvent & {
+export function dbEventToXRayEvent(dbEvent: DbXRayEvent & {
   context_name?: string | null;
   context_group_name?: string | null;
 }): XRayEvent {
@@ -64,7 +64,17 @@ export function addXRayEvent(event: XRayEvent) {
   if (recentEventBuffer.length > MAX_BUFFER_SIZE) {
     recentEventBuffer.shift();
   }
-  subscribers.forEach((callback) => callback(event));
+  // Iterate a snapshot (a callback may self-remove from `subscribers` mid-broadcast),
+  // and prune any subscriber whose enqueue throws — e.g. its ReadableStream controller
+  // was torn down by the runtime before its own abort handler ran. Without this, dead
+  // subscribers accumulate under reconnect churn and pay a throw/catch on every event.
+  for (const callback of [...subscribers]) {
+    try {
+      callback(event);
+    } catch {
+      subscribers.delete(callback);
+    }
+  }
 }
 
 /**

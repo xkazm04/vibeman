@@ -1,0 +1,25 @@
+    152|       const { COLORS } = await import('@/app/features/Brain/sub_Memory…
+       |                          ^
+    153|       const visualizable = getVisualizableSignalTypes();
+    154|       visualizable.forEach((type) => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/unit/signal-types.test.ts > Canonical Signal Types > Consistency across layers > should have label for every visualizable type
+Error: Cannot find package '@/app/features/Brain/sub_MemoryCanvas/lib/constants' imported from C:/Users/kazda/kiro/vibeman/tests/unit/signal-types.test.ts
+ ❯ tests/unit/signal-types.test.ts:161:26
+    159|
+    160|     it('should have label for every visualizable type', async () => {
+    161|       const { LABELS } = await import('@/app/features/Brain/sub_Memory…
+       |                          ^
+    162|       const visualizable = getVisualizableSignalTypes();
+    163|       visualizable.forEach((type) => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed | 45 passed (46)
+      Tests  3 failed | 547 passed (550)
+   Start at  00:09:04
+   Duration  31.86s (transform 1.06s, setup 802ms, import 7.83s, tests 3.60s, environment 13.73s)
+

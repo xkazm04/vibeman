@@ -1,0 +1,318 @@
+﻿[
+    {
+        "id":  "ctx_1770495697973_3moa11n",
+        "projectId":  "c32769af-72ed-4764-bd27-550d46f14bc5",
+        "groupId":  "group_1770495623968_airazgp",
+        "name":  "Annette AI Assistant",
+        "description":  "Voice-enabled AI assistant with conversation memory, knowledge graph, semantic indexing, and tool execution. Includes Commander UI with chat panels, voice recording, and decision queue.",
+        "filePaths":  [
+                          "src/app/features/Commander/CommanderLayout.tsx",
+                          "src/app/features/Commander/components/ChatPanel.tsx",
+                          "src/app/features/Commander/components/MiniChatPanel.tsx",
+                          "src/app/features/Commander/components/MiniChatInput.tsx",
+                          "src/app/features/Commander/components/VoiceButton.tsx",
+                          "src/app/features/Commander/components/ToolCallDisplay.tsx",
+                          "src/app/features/Commander/components/ToolExecutionInline.tsx",
+                          "src/app/features/Commander/components/DecisionPanel.tsx",
+                          "src/app/features/Commander/components/AnnetteTopBarWidget.tsx",
+                          "src/app/features/Annette/lib/knowledgeGraph.ts",
+                          "src/app/features/Annette/lib/memoryStore.ts",
+                          "src/app/features/Annette/lib/semanticIndexer.ts",
+                          "src/app/features/Annette/lib/contextualRecaller.ts",
+                          "src/app/features/Annette/hooks/useAnnetteSession.ts",
+                          "src/app/features/Annette/components/KnowledgeGraphView.tsx",
+                          "src/app/features/Annette/components/MemoryBrowser.tsx",
+                          "src/app/api/annette/chat/route.ts",
+                          "src/app/api/annette/stream/route.ts",
+                          "src/app/api/annette/knowledge/route.ts",
+                          "src/app/api/annette/memory/route.ts",
+                          "src/app/api/voicebot/realtime/route.ts",
+                          "src/app/api/voicebot/speech-to-text/route.ts",
+                          "src/app/api/voicebot/text-to-speech/route.ts",
+                          "src/app/db/repositories/annette.repository.ts",
+                          "src/app/db/repositories/annette-memory.repository.ts",
+                          "src/stores/annetteStore.ts"
+                      ],
+        "hasContextFile":  false,
+        "entryPoints":  [
+                            {
+                                "path":  "src/app/features/Commander/CommanderLayout.tsx",
+                                "type":  "component"
+                            },
+                            {
+                                "path":  "src/lib/annette/toolRegistry.ts",
+                                "type":  "config"
+                            },
+                            {
+                                "path":  "src/app/api/annette/chat/route.ts",
+                                "type":  "api"
+                            }
+                        ],
+        "dbTables":  [
+                         "annette_conversations",
+                         "annette_messages",
+                         "annette_memories",
+                         "annette_knowledge_nodes",
+                         "annette_knowledge_edges",
+                         "annette_memory_topics"
+                     ],
+        "keywords":  [
+                         "annette",
+                         "assistant",
+                         "chat",
+                         "voice",
+                         "commander",
+                         "tools",
+                         "memory",
+                         "knowledge-graph",
+                         "semantic",
+                         "conversation",
+                         "voicebot"
+                     ],
+        "apiSurface":  [
+                           {
+                               "path":  "/api/annette/chat",
+                               "methods":  "POST",
+                               "description":  "Send chat message to Annette"
+                           },
+                           {
+                               "path":  "/api/annette/stream",
+                               "methods":  "POST",
+                               "description":  "Stream Annette responses"
+                           },
+                           {
+                               "path":  "/api/annette/memory",
+                               "methods":  "GET,POST",
+                               "description":  "Annette memory management"
+                           },
+                           {
+                               "path":  "/api/annette/knowledge",
+                               "methods":  "GET,POST",
+                               "description":  "Knowledge graph operations"
+                           },
+                           {
+                               "path":  "/api/voicebot/speech-to-text",
+                               "methods":  "POST",
+                               "description":  "Voice input"
+                           },
+                           {
+                               "path":  "/api/voicebot/text-to-speech",
+                               "methods":  "POST",
+                               "description":  "Voice output"
+                           }
+                       ],
+        "crossRefs":  [
+                          {
+                              "contextId":  "ctx_1770495710438_4u5q9sm",
+                              "relationship":  "depends_on"
+                          },
+                          {
+                              "contextId":  "ctx_1770495658584_9799x3j",
+                              "relationship":  "depends_on"
+                          }
+                      ],
+        "techStack":  [
+                          "zustand",
+                          "react",
+                          "framer-motion"
+                      ],
+        "createdAt":  "2026-02-07T20:21:37.973Z",
+        "updatedAt":  "2026-02-07T21:21:43.725Z",
+        "groupName":  "Intelligence Layer",
+        "groupColor":  "#EC4899"
+    },
+    {
+        "id":  "ctx_1770495720939_r50fwcd",
+        "projectId":  "c32769af-72ed-4764-bd27-550d46f14bc5",
+        "groupId":  "group_1770495624934_otqgcdt",
+        "name":  "Dependencies \u0026 Security",
+        "description":  "Dependency version tracking, upgrade automation, security vulnerability scanning with PR generation, and pipeline integration for continuous security monitoring.",
+        "filePaths":  [
+                          "src/app/features/Depndencies/components/DependencyColumnView.tsx",
+                          "src/app/features/Depndencies/components/SecurityPipelineButton.tsx",
+                          "src/app/features/Depndencies/lib/api.ts",
+                          "src/app/features/Depndencies/lib/directUpgrade.ts",
+                          "src/app/features/Depndencies/lib/patchGenerator.ts",
+                          "src/app/features/Depndencies/lib/prAutomation.ts",
+                          "src/app/features/Depndencies/lib/securityScanner.ts",
+                          "src/app/features/Depndencies/lib/ScanContext.tsx",
+                          "src/app/features/Depndencies/lib/types.ts",
+                          "src/app/features/Depndencies/lib/utils.ts",
+                          "src/app/api/dependencies/registry-versions/route.ts",
+                          "src/app/api/dependencies/upgrade/route.ts",
+                          "src/app/api/dependencies/utils.ts",
+                          "src/app/api/security/scan/route.ts",
+                          "src/app/api/security/pr/route.ts",
+                          "src/app/api/security/[scanId]/route.ts",
+                          "src/app/db/repositories/security-patch.repository.ts"
+                      ],
+        "hasContextFile":  false,
+        "entryPoints":  [
+                            {
+                                "path":  "src/app/features/Depndencies/components/DependencyColumnView.tsx",
+                                "type":  "component"
+                            },
+                            {
+                                "path":  "src/app/api/dependencies/upgrade/route.ts",
+                                "type":  "api"
+                            },
+                            {
+                                "path":  "src/app/features/Depndencies/lib/securityScanner.ts",
+                                "type":  "config"
+                            }
+                        ],
+        "dbTables":  [
+                         "security_patches"
+                     ],
+        "keywords":  [
+                         "dependencies",
+                         "security",
+                         "upgrade",
+                         "npm",
+                         "vulnerabilities",
+                         "patches",
+                         "pipeline",
+                         "registry",
+                         "semver"
+                     ],
+        "apiSurface":  [
+                           {
+                               "path":  "/api/dependencies/upgrade",
+                               "methods":  "POST",
+                               "description":  "Upgrade dependencies"
+                           },
+                           {
+                               "path":  "/api/dependencies/registry-versions",
+                               "methods":  "GET",
+                               "description":  "Check registry versions"
+                           },
+                           {
+                               "path":  "/api/security/scan",
+                               "methods":  "POST",
+                               "description":  "Run security scan"
+                           },
+                           {
+                               "path":  "/api/security/pr",
+                               "methods":  "POST",
+                               "description":  "Create security PR"
+                           }
+                       ],
+        "crossRefs":  [
+
+                      ],
+        "techStack":  [
+                          "zustand",
+                          "react"
+                      ],
+        "createdAt":  "2026-02-07T20:22:00.939Z",
+        "updatedAt":  "2026-02-07T21:22:07.247Z",
+        "groupName":  "Analysis \u0026 Quality",
+        "groupColor":  "#10B981"
+    },
+    {
+        "id":  "ctx_1770495741633_y8a1sl9",
+        "projectId":  "c32769af-72ed-4764-bd27-550d46f14bc5",
+        "groupId":  "group_1770495626031_cbg8c9a",
+        "name":  "Social Feedback System",
+        "description":  "Multi-channel social feedback collection with sentiment analysis, clustering, theme extraction, customer routing rules, and GitHub project integration for community-driven development.",
+        "filePaths":  [
+                          "src/app/features/Social/",
+                          "src/app/api/social/fetch/route.ts",
+                          "src/app/api/social/analyze/route.ts",
+                          "src/app/api/social/classify/route.ts",
+                          "src/app/api/social/sentiment/route.ts",
+                          "src/app/api/social/clusters/route.ts",
+                          "src/app/api/social/themes/route.ts",
+                          "src/app/api/social/customers/route.ts",
+                          "src/app/api/social/config/route.ts",
+                          "src/app/api/social/config/test/route.ts",
+                          "src/app/api/social/routing-rules/route.ts",
+                          "src/app/api/social/discovery/route.ts",
+                          "src/app/api/social/discovery/search/route.ts",
+                          "src/app/api/social/discovery/save/route.ts",
+                          "src/app/api/social/github/route.ts",
+                          "src/app/api/social/github/projects/route.ts",
+                          "src/app/db/repositories/social-config.repository.ts",
+                          "src/app/db/repositories/social-discovery.repository.ts"
+                      ],
+        "hasContextFile":  false,
+        "entryPoints":  [
+                            {
+                                "path":  "src/app/api/social/fetch/route.ts",
+                                "type":  "api"
+                            },
+                            {
+                                "path":  "src/app/api/social/config/route.ts",
+                                "type":  "api"
+                            },
+                            {
+                                "path":  "src/app/api/social/analyze/route.ts",
+                                "type":  "api"
+                            }
+                        ],
+        "dbTables":  [
+                         "social_channel_configs",
+                         "social_feedback_items",
+                         "social_discovery_configs"
+                     ],
+        "keywords":  [
+                         "social",
+                         "feedback",
+                         "customers",
+                         "sentiment",
+                         "themes",
+                         "clusters",
+                         "github",
+                         "routing",
+                         "discovery",
+                         "classify"
+                     ],
+        "apiSurface":  [
+                           {
+                               "path":  "/api/social/fetch",
+                               "methods":  "POST",
+                               "description":  "Fetch social feedback"
+                           },
+                           {
+                               "path":  "/api/social/config",
+                               "methods":  "GET,POST",
+                               "description":  "Channel configuration"
+                           },
+                           {
+                               "path":  "/api/social/analyze",
+                               "methods":  "POST",
+                               "description":  "Analyze feedback"
+                           },
+                           {
+                               "path":  "/api/social/sentiment",
+                               "methods":  "POST",
+                               "description":  "Sentiment analysis"
+                           },
+                           {
+                               "path":  "/api/social/themes",
+                               "methods":  "GET",
+                               "description":  "Theme extraction"
+                           },
+                           {
+                               "path":  "/api/social/customers",
+                               "methods":  "GET",
+                               "description":  "Customer tracking"
+                           },
+                           {
+                               "path":  "/api/social/discovery/search",
+                               "methods":  "POST",
+                               "description":  "Discover feedback sources"
+                           }
+                       ],
+        "crossRefs":  [
+
+                      ],
+        "techStack":  [
+                          "react"
+                      ],
+        "createdAt":  "2026-02-07T20:22:21.633Z",
+        "updatedAt":  "2026-02-07T21:23:17.768Z",
+        "groupName":  "Social \u0026 Integrations",
+        "groupColor":  "#06B6D4"
+    }
+]

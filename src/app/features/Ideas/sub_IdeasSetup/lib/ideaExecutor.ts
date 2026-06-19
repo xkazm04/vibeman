@@ -83,7 +83,7 @@ export async function executeLlmScan(params: {
   contextId?: string;
   contextFilePaths?: string[];
   signal?: AbortSignal;
-}): Promise<number> {
+}): Promise<{ count: number; scanId: string }> {
   const { projectPath, contextFilePaths, signal, ...restParams } = params;
 
   const codebaseFiles = await gatherCodebaseFiles(projectPath, contextFilePaths, signal);

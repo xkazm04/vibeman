@@ -5,6 +5,7 @@ import { readRequirement } from './folderManager';
 import { getLogFilePath, getLogsDirectory } from './logManager';
 import { buildExecutionPrompt } from './executionPrompt';
 import { validateProjectPath, validateRequirementName, secureTempPath, validateCommand, recordExecution, recordFailure } from '@/lib/command/commandSandbox';
+import { killProcessTree } from '@/lib/process/killProcessTree';
 /**
  * Execution manager for Claude Code requirements
  * Handles spawning and managing Claude Code CLI processes
@@ -19,6 +20,47 @@ export interface GitExecutionConfig {
 export interface SessionConfig {
   sessionId?: string;        // Internal session ID (for tracking)
   claudeSessionId?: string;  // Claude CLI session ID (for --resume)
+}
+
+/** Phrases indicating an API rate limit / subscription quota / session cap. */
+const SESSION_LIMIT_KEYWORDS = [
+  'session limit',
+  'rate limit',
+  'usage limit',
+  'quota exceeded',
+  'too many requests',
+  'subscription plan',
+];
+
+function containsSessionLimit(text: string): boolean {
+  const t = text.toLowerCase();
+  return SESSION_LIMIT_KEYWORDS.some((k) => t.includes(k));
+}
+
+/**
+ * A 0 exit code can still carry a rate-limit/overage in the FINAL stream-json
+ * `result` message (is_error:true). Inspect only that structured message — not the
+ * whole transcript — so a task that merely mentions "rate limit" in its own output
+ * is not misread as a quota hit (which would re-queue a successful run).
+ */
+function detectSessionLimitFromResult(stdout: string): boolean {
+  const lines = stdout.split('\n');
+  for (let i = lines.length - 1; i >= 0 && i >= lines.length - 40; i--) {
+    const line = lines[i].trim();
+    if (!line.startsWith('{')) continue;
+    try {
+      const msg = JSON.parse(line) as {
+        type?: string; is_error?: boolean; subtype?: string; result?: string; error?: string;
+      };
+      if (msg?.type === 'result' && msg.is_error) {
+        const text = `${msg.result ?? ''} ${msg.error ?? ''} ${msg.subtype ?? ''}`;
+        if (containsSessionLimit(text)) return true;
+      }
+    } catch {
+      // not a JSON line — skip
+    }
+  }
+  return false;
 }
 
 /**
@@ -278,7 +320,21 @@ export async function executeRequirement(
             recordFailure(command, args, `Exit code ${code}`);
           }
 
-          if (code === 0) {
+          if (code === 0 && detectSessionLimitFromResult(stdout)) {
+            // Exit 0 but the structured result reported a rate-limit/overage. Surface
+            // it as a session limit so the queue takes the backoff path instead of
+            // masking it as a successful run (and the self-healing engine re-running
+            // immediately against the rate-limited endpoint).
+            resolve({
+              success: false,
+              error: `Session limit reached (reported in result, exit 0). Check log file: ${logFilePath}`,
+              sessionLimitReached: true,
+              logFilePath,
+              capturedClaudeSessionId,
+              memoryApplicationIds,
+              pid: spawnedPid,
+            });
+          } else if (code === 0) {
             resolve({
               success: true,
               output: stdout || 'Requirement executed successfully',
@@ -293,14 +349,7 @@ export async function executeRequirement(
             // STDOUT (as JSON), not stderr — scan both streams or a rate-limited run
             // is misclassified as a generic failure and gets an instant re-queue
             // (retry storm) instead of the rate-limit backoff path.
-            const errorOutput = `${stdout}\n${stderr}`.toLowerCase();
-            const isSessionLimit =
-              errorOutput.includes('session limit') ||
-              errorOutput.includes('rate limit') ||
-              errorOutput.includes('usage limit') ||
-              errorOutput.includes('quota exceeded') ||
-              errorOutput.includes('too many requests') ||
-              errorOutput.includes('subscription plan');
+            const isSessionLimit = containsSessionLimit(`${stdout}\n${stderr}`);
 
             if (isSessionLimit) {
               resolve({
@@ -330,22 +379,24 @@ export async function executeRequirement(
           // Check if it's a "command not found" error
           if (err.message.includes('ENOENT') || err.message.includes('spawn claude')) {
             logMessage('');
-            logMessage('WARNING: Claude CLI not found, using simulation mode');
-            logMessage('To enable real execution:');
+            logMessage('ERROR: Claude CLI not found — the task was NOT executed.');
+            logMessage('To enable execution:');
             logMessage('1. Install Claude Code CLI from https://docs.claude.com/claude-code');
             logMessage('2. Run: claude auth login');
             logMessage('3. Restart the server');
             logMessage('');
-            logMessage('✓ Simulated execution completed');
             closeLogStream();
 
-            // In simulation mode, generate a fake session ID for testing
-            const simulatedSessionId = `simulated-${Date.now()}`;
+            // Fail honestly. Previously this resolved success:true in "simulation
+            // mode" with a fake session id, so the queue marked the task completed,
+            // fired success events, resolved collective memory as success, and ran
+            // performTaskCleanup (deleting the requirement file + flipping idea
+            // status) for a run that wrote zero code — pure success theater.
             resolve({
-              success: true,
-              output: `[SIMULATION MODE - Claude CLI not installed]\n\nRequirement: ${requirementName}\n\n✓ Simulated execution completed\n\nLog file: ${logFilePath}`,
+              success: false,
+              error:
+                'Claude CLI not found (ENOENT). Install Claude Code and run `claude auth login`, then restart the server. The task was NOT executed.',
               logFilePath,
-              capturedClaudeSessionId: simulatedSessionId,
               memoryApplicationIds,
             });
           } else {
@@ -366,7 +417,7 @@ export async function executeRequirement(
         const timeoutHandle = setTimeout(() => {
           if (!childProcess.killed) {
             logMessage('[TIMEOUT] Execution exceeded 100 minutes, killing process...');
-            childProcess.kill();
+            killProcessTree(childProcess); // kill the cmd.exe wrapper AND the node CLI grandchild on Windows
             closeLogStream();
           }
         }, 6000000); // 100 minute timeout

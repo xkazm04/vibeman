@@ -543,6 +543,13 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
   // Optimistically updates local state immediately for responsive UI
   queueMove: (contextId: string, newGroupId: string | null) => {
     set(state => {
+      // A drag-end can still reference a context that was just removed, replaced with a
+      // real id, or dropped by a concurrent loadProjectData refresh. The old code spread
+      // `find(...)!` and threw "Cannot read properties of undefined" inside the set
+      // updater, aborting the move mid-state. Bail out cleanly instead.
+      const ctx = state.contexts.find(c => c.id === contextId);
+      if (!ctx) return state;
+
       // Check if there's already a pending move for this context
       const existingIndex = state.pendingMoves.findIndex(m => m.contextId === contextId);
       const newPendingMoves = [...state.pendingMoves];
@@ -559,7 +566,7 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
       const updatedContexts = updateArrayItem(
         state.contexts,
         contextId,
-        { ...state.contexts.find(c => c.id === contextId)!, groupId: newGroupId }
+        { ...ctx, groupId: newGroupId }
       );
 
       return {
@@ -579,12 +586,16 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
     if (_isFlushInProgress) return;
     _isFlushInProgress = true;
 
-    // Store snapshot for potential rollback (queueMove already optimistically updated)
+    // Snapshot EXACTLY the moves we send. queueMove dedupes by contextId, replacing a
+    // re-queued context's move with a NEW object, so identity-based membership cleanly
+    // distinguishes "already flushed" from "queued during this flight".
     const previousContexts = contexts;
-    const moveCount = pendingMoves.length;
+    const flushedMoves = pendingMoves;
+    const flushedSet = new Set(flushedMoves);
+    const moveCount = flushedMoves.length;
 
     try {
-      const updatedContexts = await contextAPI.batchMoveContexts(pendingMoves);
+      const updatedContexts = await contextAPI.batchMoveContexts(flushedMoves);
 
       set(state => ({
         // Sync contexts with server response
@@ -592,18 +603,26 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
           const updated = updatedContexts.find(u => u.id === ctx.id);
           return updated || ctx;
         }),
-        pendingMoves: [],
+        // Remove ONLY the moves we flushed. Previously this cleared the entire queue,
+        // silently dropping moves the user made DURING the in-flight batch (they looked
+        // moved in the UI but were never sent, so a reload snapped them back).
+        pendingMoves: state.pendingMoves.filter(m => !flushedSet.has(m)),
       }));
     } catch (error) {
-      // Rollback optimistic updates on failure
-      set({
+      // Roll back the flushed optimistic updates, but keep moves queued during flight.
+      set(state => ({
         contexts: previousContexts,
-        pendingMoves: [],
-      });
+        pendingMoves: state.pendingMoves.filter(m => !flushedSet.has(m)),
+      }));
       toast.error('Failed to move contexts', `${moveCount} context${moveCount > 1 ? 's' : ''} could not be moved`);
       throw error;
     } finally {
       _isFlushInProgress = false;
+    }
+
+    // Moves queued during the flight were blocked by the re-entry guard — flush them now.
+    if (get().pendingMoves.length > 0) {
+      await get().flushPendingMoves();
     }
   },
 

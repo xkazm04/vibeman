@@ -114,12 +114,14 @@ export async function POST(request: NextRequest) {
         }
 
         if (existingRunning && existingRunning.taskId !== taskId) {
-          // Another task is registered as running for this session.
-          // The client is authoritative — if it's starting a new task, the previous
-          // one must have completed (possibly without the registry being updated due
-          // to race conditions, disconnects, or the completion path not calling back).
-          // Auto-complete the stale entry so the new task can proceed.
-          existingRunning.status = 'completed';
+          // Another task is still registered 'running' for this session while a new
+          // one starts. We have NO evidence it completed successfully — a successful
+          // run POSTs action:'complete'. Its absence means the run was aborted,
+          // crashed, disconnected, or orphaned. Previously this was auto-marked
+          // 'completed', masking a failed/aborted run as success. Mark it 'failed'
+          // (orphaned/superseded) instead so the registry reflects reality; the new
+          // task still proceeds below.
+          existingRunning.status = 'failed';
           existingRunning.completedAt = Date.now();
         }
 
