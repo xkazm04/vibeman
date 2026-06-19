@@ -289,44 +289,47 @@ class ScanQueueWorker {
    * @returns true if items were found and processed, false if queue was empty
    */
   private async processQueue(): Promise<boolean> {
-    // Check if we can process more items
-    if (this.currentlyProcessing.size >= this.config.maxConcurrent) {
-      // Already at max capacity - consider this as "active" to maintain responsiveness
-      return true;
+    let claimedAny = false;
+
+    // Claim and DISPATCH up to the remaining concurrency budget, firing each item as a
+    // tracked but UN-awaited promise. Previously this claimed exactly one item and
+    // awaited it to completion before returning, so the worker ran strictly one scan at
+    // a time and maxConcurrent>1 had no runtime effect (a slow LLM scan head-of-line
+    // blocked every other queued scan). With maxConcurrent=1 (the default) behavior is
+    // unchanged — the loop claims one, the set fills, and it stops.
+    while (this.currentlyProcessing.size < this.config.maxConcurrent) {
+      // Atomic claim (pending -> running) — safe to call repeatedly; each returns a
+      // distinct item, so concurrent dispatch can't double-claim.
+      const queueItem = scanQueueRepository.claimNextPending();
+      if (!queueItem) break; // queue empty
+
+      claimedAny = true;
+      this.currentlyProcessing.add(queueItem.id);
+
+      void this.processQueueItem(queueItem)
+        .catch((error) => {
+          // Safety net for an error that escaped processQueueItem's own handling: mark
+          // the item failed only if it's still running (CAS), so a user cancel isn't
+          // clobbered.
+          try {
+            const currentItem = scanQueueRepository.getQueueItemById(queueItem.id);
+            if (currentItem && currentItem.status === 'running') {
+              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+              scanQueueRepository.updateStatus(queueItem.id, 'failed', `Worker error: ${errorMessage}`, 'running');
+            }
+          } catch {
+            // Best effort - database might be unavailable
+          }
+        })
+        .finally(() => {
+          // Always free the slot so the poll loop can claim the next item.
+          this.currentlyProcessing.delete(queueItem.id);
+        });
     }
 
-    // Atomically claim the next pending item
-    // This prevents race conditions where multiple poll cycles claim the same item
-    const queueItem = scanQueueRepository.claimNextPending();
-
-    if (!queueItem) {
-      return false; // No pending items - queue is empty
-    }
-
-    // Track that we're processing this item
-    this.currentlyProcessing.add(queueItem.id);
-
-    try {
-      // Process the item (status already set to 'running' by claimNextPending)
-      await this.processQueueItem(queueItem);
-    } catch (error) {
-      // Errors are handled in processQueueItem, but ensure we don't leave items stuck
-      // If processQueueItem failed to update status, mark as failed
-      try {
-        const currentItem = scanQueueRepository.getQueueItemById(queueItem.id);
-        if (currentItem && currentItem.status === 'running') {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          scanQueueRepository.updateStatus(queueItem.id, 'failed', `Worker error: ${errorMessage}`);
-        }
-      } catch {
-        // Best effort - database might be unavailable
-      }
-    } finally {
-      // Always clean up the processing set to prevent items getting stuck
-      this.currentlyProcessing.delete(queueItem.id);
-    }
-
-    return true; // Item was found and processed
+    // "Active" if we claimed work this cycle OR items are still in flight — keeps the
+    // poll loop at its base interval instead of backing off while scans run.
+    return claimedAny || this.currentlyProcessing.size > 0;
   }
 
   /**
