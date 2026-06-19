@@ -543,6 +543,13 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
   // Optimistically updates local state immediately for responsive UI
   queueMove: (contextId: string, newGroupId: string | null) => {
     set(state => {
+      // A drag-end can still reference a context that was just removed, replaced with a
+      // real id, or dropped by a concurrent loadProjectData refresh. The old code spread
+      // `find(...)!` and threw "Cannot read properties of undefined" inside the set
+      // updater, aborting the move mid-state. Bail out cleanly instead.
+      const ctx = state.contexts.find(c => c.id === contextId);
+      if (!ctx) return state;
+
       // Check if there's already a pending move for this context
       const existingIndex = state.pendingMoves.findIndex(m => m.contextId === contextId);
       const newPendingMoves = [...state.pendingMoves];
@@ -559,7 +566,7 @@ const useContextStoreBase = create<ContextStoreState>()((set, get) => ({
       const updatedContexts = updateArrayItem(
         state.contexts,
         contextId,
-        { ...state.contexts.find(c => c.id === contextId)!, groupId: newGroupId }
+        { ...ctx, groupId: newGroupId }
       );
 
       return {
