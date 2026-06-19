@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPeriodDateRange } from '@/lib/standup';
+import { formatPeriodKey } from '@/lib/standup/standupGenerator';
 import { generateUnifiedStandup } from '@/lib/standup/standupService';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
@@ -51,7 +52,7 @@ async function handlePost(request: NextRequest) {
       logger.info('Standup summary generated', {
         projectId,
         periodType,
-        periodStart: start.toISOString().split('T')[0],
+        periodStart: formatPeriodKey(start),
       });
     }
 

@@ -64,6 +64,25 @@ export function getPeriodDateRange(
 }
 
 /**
+ * Canonical period key: the LOCAL calendar date (YYYY-MM-DD) of an instant.
+ *
+ * This is the natural key for a standup period and MUST be derived from local
+ * calendar components — not `toISOString().split('T')[0]`, which converts to UTC and
+ * can yield the previous/next day for a local-midnight Date on a TZ-shifted server
+ * (goals #2). Every site — save, existence check, generation lock, and the GET
+ * param — must use this same form so the `UNIQUE(project_id, period_type,
+ * period_start)` index and the cache fast-path actually agree (goals #1: writers
+ * previously stored full-ISO while the lookup used date-only, so the cache was dead
+ * and GET 404'd on rows that existed).
+ */
+export function formatPeriodKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/**
  * Build the prompt for LLM standup generation
  */
 function buildStandupPrompt(
@@ -262,7 +281,7 @@ function generateFallbackSummary(
     id: randomUUID(),
     project_id: '', // Will be set by caller
     period_type: periodType,
-    period_start: periodStart.toISOString(),
+    period_start: formatPeriodKey(periodStart),
     period_end: periodEnd.toISOString(),
     title,
     summary: summary.trim(),
@@ -374,7 +393,7 @@ IMPORTANT: Incorporate these predictions into your summary. Mention at-risk goal
       id: randomUUID(),
       project_id: projectId,
       period_type: periodType,
-      period_start: periodStart.toISOString(),
+      period_start: formatPeriodKey(periodStart),
       period_end: periodEnd.toISOString(),
       title: parsed.title,
       summary: parsed.summary,
