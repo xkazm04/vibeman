@@ -3,7 +3,7 @@
  * Scans project for build errors and generates requirement files
  */
 
-import { spawn } from 'child_process';
+import { spawn, execFile } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { deduplicateBuildErrors } from '@/lib/deduplication';
@@ -181,29 +181,48 @@ export async function executeBuildCommand(command: string, projectPath: string):
     const buildProcess = spawn(shell, shellArgs, {
       cwd: projectPath,
       stdio: ['pipe', 'pipe', 'pipe'],
-      windowsHide: true
+      windowsHide: true,
+      // POSIX: own process group so we can signal the whole tree (the shell's tsc/next
+      // grandchild is in this group). Windows uses taskkill /T instead.
+      detached: !isWindows,
     });
 
     let stdout = '';
     let stderr = '';
 
+    // Kill the shell AND its grandchild (tsc/next/eslint). buildProcess.kill() reaped
+    // only the shell, orphaning the heavy compiler (pins CPU/RAM, holds file locks).
+    const treeKill = (signal: NodeJS.Signals) => {
+      const pid = buildProcess.pid;
+      if (!pid) return;
+      if (isWindows) {
+        try { execFile('taskkill', ['/pid', String(pid), '/T', '/F'], () => { /* best-effort */ }); }
+        catch { try { buildProcess.kill(signal); } catch { /* already gone */ } }
+      } else {
+        try { process.kill(-pid, signal); } // negative pid => the process group
+        catch { try { buildProcess.kill(signal); } catch { /* already gone */ } }
+      }
+    };
+
     buildProcess.stdout?.on('data', (data) => { stdout += data.toString(); });
     buildProcess.stderr?.on('data', (data) => { stderr += data.toString(); });
 
     buildProcess.on('close', (code) => {
+      clearTimeout(timeoutHandle); // stop the timeout firing against a finished process
       resolve({ output: stdout + stderr, exitCode: code || 0 });
     });
 
     buildProcess.on('error', (error) => {
+      clearTimeout(timeoutHandle);
       resolve({ output: error.message, exitCode: 1 });
     });
 
     // 5 minute timeout
-    setTimeout(() => {
+    const timeoutHandle = setTimeout(() => {
       if (!buildProcess.killed) {
-        buildProcess.kill('SIGTERM');
+        treeKill('SIGTERM');
         setTimeout(() => {
-          if (!buildProcess.killed) buildProcess.kill('SIGKILL');
+          if (!buildProcess.killed) treeKill('SIGKILL');
         }, 5000);
       }
     }, 300000);
