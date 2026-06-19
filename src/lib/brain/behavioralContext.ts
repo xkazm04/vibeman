@@ -343,9 +343,13 @@ function getTopEffectiveInsights(
 
       const preRate = before.accepted / before.total;
       const postRate = after.accepted / after.total;
-      const score = ((postRate - preRate) / Math.max(preRate, 0.01)) * 100;
+      // Absolute change in acceptance rate (percentage points, -100..100). The old
+      // relative form amplified near-zero-baseline insights into huge scores that
+      // dominated getTopEffectiveInsights → the reflection/LLM prompt. See
+      // insightAutoPruner.computeInsightScore.
+      const score = (postRate - preRate) * 100;
 
-      // Only include helpful insights (score > 10%)
+      // Only include helpful insights (score > 10 percentage points)
       if (score <= 10) continue;
 
       if (row.confidence >= minConfidence) {

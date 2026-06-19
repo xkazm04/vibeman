@@ -53,8 +53,13 @@ function computeInsightScore(
 
   const reliable = before.length >= minDirections && after.length >= minDirections;
 
+  // Absolute change in acceptance rate, in percentage POINTS (range -100..100).
+  // The old relative form ((post-pre)/max(pre,0.01)) used a 0.01 denominator floor
+  // that, for a near-zero pre-period rate (a rough patch with ~0 accepts), acted as
+  // a 100x amplifier — any insight learned during a slump scored thousands of % and
+  // dominated the "top insights" feed. An absolute delta is bounded and honest.
   const score = before.length > 0 && after.length > 0
-    ? ((postRate - preRate) / Math.max(preRate, 0.01)) * 100
+    ? (postRate - preRate) * 100
     : 0;
 
   let verdict: 'helpful' | 'neutral' | 'misleading';
