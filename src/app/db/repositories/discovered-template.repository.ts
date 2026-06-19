@@ -151,7 +151,11 @@ export const discoveredTemplateRepository = {
       return { template: updated, action: 'updated' };
     }
 
-    // Template doesn't exist - create
+    // Template doesn't exist - create. ON CONFLICT DO NOTHING makes the INSERT
+    // tolerant of a concurrent scan that inserted the same
+    // (source_project_path, template_id) between our SELECT-miss above and this
+    // INSERT — previously that raised a UNIQUE-constraint error which withTableCheck
+    // rethrew (it only re-maps missing-table errors), 500ing the whole scan.
     const id = generateId('dtmpl');
     const insertStmt = db.prepare(`
       INSERT INTO discovered_templates (
@@ -160,9 +164,10 @@ export const discoveredTemplateRepository = {
         source, discovered_at, updated_at, status, parse_error
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NULL)
+      ON CONFLICT(source_project_path, template_id) DO NOTHING
     `);
 
-    insertStmt.run(
+    const insertResult = insertStmt.run(
       id,
       template.source_project_path,
       template.file_path,
@@ -176,6 +181,16 @@ export const discoveredTemplateRepository = {
       now,
       now
     );
+
+    if (insertResult.changes === 0) {
+      // Lost the insert race: another scan created this row first. Return it instead
+      // of failing the scan.
+      const raced = existingStmt.get(
+        template.source_project_path,
+        template.template_id
+      ) as DbDiscoveredTemplate | undefined;
+      if (raced) return { template: raced, action: 'unchanged' };
+    }
 
     const created = discoveredTemplateRepository.getById(id)!;
     return { template: created, action: 'created' };
