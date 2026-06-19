@@ -224,9 +224,14 @@ export const crossTaskPlanRepository = {
           plan_option_3_title = ?,
           completed_at = ?,
           updated_at = ?
-      WHERE id = ?
+      WHERE id = ? AND status = 'running'
     `);
 
+    // CAS on status='running'. The /complete callback is an unauthenticated external
+    // retry surface; a duplicate/late callback (retry after a timeout where the first
+    // actually landed) would otherwise unconditionally overwrite the first result and
+    // reset completed_at. With the guard the second call changes 0 rows and the
+    // original result stands.
     stmt.run(
       results.requirement_summary || null,
       results.current_flow_analysis || null,
@@ -270,10 +275,14 @@ export const crossTaskPlanRepository = {
     const db = getDatabase();
     const now = getCurrentTimestamp();
 
+    // A plan option can only be selected on a completed plan — guard the UPDATE so a
+    // stale/racing select on a running/pending/failed plan changes nothing instead of
+    // silently writing a selection the route's read-then-write status check (TOCTOU)
+    // would otherwise allow.
     const stmt = db.prepare(`
       UPDATE cross_task_plans
       SET selected_plan = ?, user_notes = ?, updated_at = ?
-      WHERE id = ?
+      WHERE id = ? AND status = 'completed'
     `);
     stmt.run(planNumber, notes || null, now, id);
 
