@@ -141,29 +141,10 @@ describe('Canonical Signal Types', () => {
     });
   });
 
-  describe('Consistency across layers', () => {
-    it('should have matching types in canvas constants', async () => {
-      const { LANE_TYPES } = await import('@/app/features/Brain/sub_MemoryCanvas/lib/constants');
-      const visualizable = getVisualizableSignalTypes();
-      expect(LANE_TYPES).toEqual(visualizable);
-    });
-
-    it('should have color for every visualizable type', async () => {
-      const { COLORS } = await import('@/app/features/Brain/sub_MemoryCanvas/lib/constants');
-      const visualizable = getVisualizableSignalTypes();
-      visualizable.forEach((type) => {
-        expect(COLORS[type]).toBeTruthy();
-        expect(COLORS[type]).toBe(SIGNAL_METADATA[type].color);
-      });
-    });
-
-    it('should have label for every visualizable type', async () => {
-      const { LABELS } = await import('@/app/features/Brain/sub_MemoryCanvas/lib/constants');
-      const visualizable = getVisualizableSignalTypes();
-      visualizable.forEach((type) => {
-        expect(LABELS[type]).toBeTruthy();
-        expect(LABELS[type]).toBe(SIGNAL_METADATA[type].shortLabel);
-      });
-    });
-  });
+  // NOTE: a "Consistency across layers" block was removed here. It dynamically
+  // imported `@/app/features/Brain/sub_MemoryCanvas/lib/constants` (LANE_TYPES /
+  // COLORS / LABELS) to assert the canvas color/label maps matched SIGNAL_METADATA.
+  // That whole canvas module was deleted in the headless slim-down, so the imports
+  // threw "Cannot find module" and failed the suite (masking the 6 valid enum tests
+  // above). If a canvas is reintroduced, recreate the assertion against its module.
 });
