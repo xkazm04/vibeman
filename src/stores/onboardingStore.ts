@@ -69,6 +69,12 @@ export const useOnboardingStore = create<OnboardingState>()(
 
       setActiveProjectId: (projectId: string | null) => {
         set({ activeProjectId: projectId });
+        // Recompute the active step for the NEW project. currentStep is a single global
+        // field while completedSteps is keyed by project, so without this a switch from
+        // a finished project A to a fresh project B leaves A's currentStep — making
+        // isStepActive highlight the wrong (or a completed) step for B's first run.
+        const nextStep = projectId ? get().getNextIncompleteStep(projectId) : null;
+        set({ currentStep: nextStep });
       },
 
       getCompletedStepsForProject: (projectId: string) => {
