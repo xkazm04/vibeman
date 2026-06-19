@@ -111,6 +111,10 @@ async function runGate(gate: QualityGateType, timeout: number, cwd?: string): Pr
       passed: false,
       message: `Gate ${gate} failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
       details: {
+        // 'error' = the gate could not be evaluated (distinct from 'no_tests' =
+        // unrunnable-by-config, and from a plain passed:false = ran and found a problem).
+        // Without this the UI can't tell a real-CVE fail from a couldn't-run fail.
+        status: 'error',
         duration_ms: Date.now() - startTime,
         error: error instanceof Error ? error.message : 'Unknown',
       },
