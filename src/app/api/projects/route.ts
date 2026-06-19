@@ -96,6 +96,9 @@ async function handlePost(request: NextRequest) {
       message: 'Project added successfully',
       projectId: projectData.id,
       workspaceId: projectData.workspaceId,
+      // Return the canonical row (auto-detected type, normalized port, restructured
+      // git) so the client stores the server's version, not its un-transformed input.
+      project: projectData,
     });
   } catch (error) {
     logger.error('Projects API POST error:', { error: error });
@@ -155,7 +158,10 @@ async function handlePut(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Project updated successfully'
+      message: 'Project updated successfully',
+      // Return the canonical updated row so the client reflects server-side
+      // transforms instead of an optimistic {...project, ...updates} merge.
+      project: projectDb.getProject(projectId),
     });
   } catch (error) {
     logger.error('Projects API PUT error:', { error: error });

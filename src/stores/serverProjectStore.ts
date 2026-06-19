@@ -106,8 +106,14 @@ export const useServerProjectStore = create<ServerProjectStore>()(
             });
 
             if (response.ok) {
+              // Store the SERVER's canonical row (auto-detected type, normalized
+              // port/basePort, restructured git, workspaceId) — not the caller's
+              // un-transformed input, which would diverge from the DB until the next
+              // full sync and let git/server-start run against stale fields.
+              const data = await response.json();
+              const canonical = data.project ?? project;
               set((state) => ({
-                projects: [...state.projects, project],
+                projects: [...state.projects, canonical],
               }));
             } else {
               const error = await response.json();
@@ -127,9 +133,15 @@ export const useServerProjectStore = create<ServerProjectStore>()(
             });
 
             if (response.ok) {
+              // Prefer the server's canonical updated row over an optimistic merge,
+              // which would miss server-side transforms (type/git/port normalization).
+              const data = await response.json();
+              const canonical = data.project;
               set((state) => ({
                 projects: state.projects.map((project) =>
-                  project.id === projectId ? { ...project, ...updates } : project
+                  project.id === projectId
+                    ? (canonical?.id ? canonical : { ...project, ...updates })
+                    : project
                 ),
               }));
             } else {
