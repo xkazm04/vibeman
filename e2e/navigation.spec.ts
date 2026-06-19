@@ -16,18 +16,17 @@ const MAIN_NAV = [
   { testId: 'nav-item-tasker', label: 'Tasker' },
 ];
 
-// Items in "Other" dropdown — uses data-testid="nav-other-{module}"
+// Items in "Other" dropdown — uses data-testid="nav-other-{module}".
+// Must mirror `otherNavigationItems` in src/components/Navigation/TopBar.tsx. The
+// previous list hard-coded 10 entries including commander/brain/conductor/
+// integrations/questions/social/zen — modules removed in the headless slim-down — so
+// the "dropdown shows all items" test failed on the first missing one and the whole
+// navigation / visual-smoke audit got ignored.
 const OTHER_NAV = [
-  { testId: 'nav-other-commander', label: 'Annette' },
-  { testId: 'nav-other-brain', label: 'Brain' },
-  { testId: 'nav-other-conductor', label: 'Conductor' },
   { testId: 'nav-other-manager', label: 'Manager' },
   { testId: 'nav-other-halloffame', label: 'Hall of Fame' },
-  { testId: 'nav-other-integrations', label: 'Integrations' },
-  { testId: 'nav-other-questions', label: 'Questions' },
   { testId: 'nav-other-reflector', label: 'Reflector' },
-  { testId: 'nav-other-social', label: 'Social' },
-  { testId: 'nav-other-zen', label: 'Zen Mode' },
+  { testId: 'nav-other-explorer', label: 'Explorer' },
 ];
 
 function collectPageErrors(page: Page): string[] {
