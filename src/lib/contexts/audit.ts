@@ -33,6 +33,8 @@ export interface ContextAuditReport {
     staleContexts: number;
     /** crossRefs entries pointing at a contextId that no longer exists. */
     unresolvedCrossRefs: number;
+    /** Contexts whose mapped files changed on disk since the metadata was written. */
+    contentStaleContexts: number;
   };
   findings: AuditFinding[];
   /** true when there are no warn-level findings. */
@@ -69,6 +71,13 @@ export interface AuditOptions {
    * disk checks are skipped (keeping the audit DB-only / pure).
    */
   fileExists?: (filePath: string) => boolean;
+  /**
+   * Optional content-drift resolver: given a context's stored (project-relative)
+   * file path, returns true if the file's CONTENT changed since the context's
+   * metadata baseline was captured. When provided, the audit emits
+   * `content_stale` findings. When omitted, content-freshness is skipped.
+   */
+  isStale?: (filePath: string) => boolean;
 }
 
 export function auditContexts(
@@ -81,9 +90,11 @@ export function auditContexts(
   const { tier, policy } = getPolicy(sourceFileCount);
   const findings: AuditFinding[] = [];
   const fileExists = opts?.fileExists;
+  const isStale = opts?.isStale;
   let missingFiles = 0;
   let staleContexts = 0;
   let unresolvedCrossRefs = 0;
+  let contentStaleContexts = 0;
 
   // Referential integrity: a crossRefs edge must point at a context that exists.
   const contextIds = new Set(contexts.map((c) => c.id));
@@ -144,6 +155,22 @@ export function auditContexts(
             message: `"${c.name}" references ${missing.length} of ${n} files that are missing from disk: ${exampleText}.`,
           });
         }
+      }
+    }
+
+    // ── Content drift: mapped files changed since the metadata baseline ───────
+    if (isStale && n > 0) {
+      const changed = (c.filePaths ?? []).filter((f) => isStale(f));
+      if (changed.length > 0) {
+        contentStaleContexts++;
+        const examples = changed.slice(0, MAX_MISSING_EXAMPLES);
+        const more = changed.length - examples.length;
+        findings.push({
+          severity: 'info',
+          code: 'content_stale',
+          contextId: c.id,
+          message: `"${c.name}" — ${changed.length} file(s) changed since its metadata was written: ${examples.join(', ')}${more > 0 ? `, +${more} more` : ''}. Consider regenerating.`,
+        });
       }
     }
   }
@@ -209,6 +236,7 @@ export function auditContexts(
       missingFiles,
       staleContexts,
       unresolvedCrossRefs,
+      contentStaleContexts,
     },
     findings,
     ok: !findings.some((f) => f.severity === 'warn'),

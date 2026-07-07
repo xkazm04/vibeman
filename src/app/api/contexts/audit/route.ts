@@ -13,6 +13,7 @@ import { existsSync } from 'fs';
 import path from 'path';
 import { contextQueries, contextGroupQueries } from '@/lib/queries/contextQueries';
 import { auditContexts } from '@/lib/contexts/audit';
+import { bootstrapMissingBaselines, buildStaleResolver } from '@/lib/contexts/fileHashes';
 import { projectDb } from '@/lib/project_database';
 import { validatePathWithinBase } from '@/lib/pathSecurity';
 import { withObservability } from '@/lib/observability/middleware';
@@ -41,6 +42,15 @@ async function handleGet(request: NextRequest) {
         }
       : undefined;
 
+    // Content-drift: baseline any files without a hash yet (bootstrap for
+    // pre-existing contexts), then flag files whose content changed since.
+    let isStale: ((filePath: string) => boolean) | undefined;
+    if (projectPath) {
+      const allPaths = Array.from(new Set(contexts.flatMap((c) => c.filePaths ?? [])));
+      const baseline = bootstrapMissingBaselines(projectId, projectPath, allPaths);
+      isStale = buildStaleResolver(projectPath, baseline);
+    }
+
     const report = auditContexts(
       contexts.map((c) => ({
         id: c.id,
@@ -51,7 +61,7 @@ async function handleGet(request: NextRequest) {
         crossRefs: c.crossRefs,
       })),
       groups.map((g) => ({ id: g.id, name: g.name, domain: g.domain })),
-      { fileExists },
+      { fileExists, isStale },
     );
 
     return NextResponse.json({ success: true, projectId, ...report });

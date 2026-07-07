@@ -6,6 +6,7 @@ import type { ContextGroupLayerType } from '@/app/db/repositories/context-group.
 import { DbContextGroupRelationship } from '@/app/db/models/types'
 import { CONTEXT_GROUP_COLORS } from '@/lib/constants/contextColors'
 import { generateContextGroupId, generateContextRelationId, generateContextId } from '@/lib/idGenerator'
+import { captureContextFileHashes } from '@/lib/contexts/fileHashes'
 
 // Context Group Types
 export interface ContextGroup {
@@ -434,7 +435,10 @@ export const contextQueries = {
         };
 
         const dbContext = contextRepository.createContext(contextData);
-        return dbContextToContext(dbContext);
+        const ctx = dbContextToContext(dbContext);
+        // Baseline the files this context now reflects (content-freshness).
+        captureContextFileHashes(data.projectId, ctx.filePaths);
+        return ctx;
       },
       'Failed to create context'
     );
@@ -483,7 +487,11 @@ export const contextQueries = {
         };
 
         const dbContext = contextRepository.updateContext(contextId, updateData);
-        return dbContext ? dbContextToContext(dbContext) : null;
+        const ctx = dbContext ? dbContextToContext(dbContext) : null;
+        // Re-baseline when the file set changed — the context now reflects the
+        // current code for its (possibly new) files.
+        if (ctx && updates.filePaths) captureContextFileHashes(ctx.projectId, ctx.filePaths);
+        return ctx;
       },
       'Failed to update context'
     );

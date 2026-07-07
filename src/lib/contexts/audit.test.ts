@@ -35,4 +35,22 @@ describe('auditContexts referential integrity', () => {
     expect(r.findings.some((f) => f.code === 'missing_files')).toBe(true);
     expect(r.totals.missingFiles).toBe(1);
   });
+
+  it('flags content drift via the isStale resolver', () => {
+    const a = ctx({ id: 'a', name: 'Alpha', filePaths: ['x.ts', 'y.ts'] });
+    const r = auditContexts([a], [{ id: 'g1', name: 'G', domain: 'feature' }], {
+      isStale: (f) => f === 'y.ts',
+    });
+    expect(r.findings.some((f) => f.code === 'content_stale')).toBe(true);
+    expect(r.totals.contentStaleContexts).toBe(1);
+  });
+
+  it('does not flag content drift when nothing changed', () => {
+    const a = ctx({ id: 'a', name: 'Alpha' });
+    const r = auditContexts([a], [{ id: 'g1', name: 'G', domain: 'feature' }], {
+      isStale: () => false,
+    });
+    expect(r.findings.some((f) => f.code === 'content_stale')).toBe(false);
+    expect(r.totals.contentStaleContexts).toBe(0);
+  });
 });
