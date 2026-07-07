@@ -110,8 +110,20 @@ export async function buildContextMap(projectId: string): Promise<ContextMapExpo
   const domains: Record<string, number> = {};
   let totalFiles = 0;
 
+  // Disk resolver so the exported map reflects reality (dangling files pruned;
+  // audit reflects drift). Project-relative paths → absolute stat.
+  const fileExists = project.path
+    ? (filePath: string) => existsSync(path.join(project.path, filePath))
+    : undefined;
+  let prunedPaths = 0;
+
   const toExported = (c: (typeof contexts)[number]): ExportedContext => {
-    const filePaths = c.filePaths || [];
+    const raw = c.filePaths || [];
+    // Self-heal: a published map must not route a CLI to a file that isn't on
+    // disk. Prune dangling paths from the exported contexts (the DB keeps the raw
+    // paths; the audit below still reports the drift). Mirrors the Personas prune.
+    const filePaths = fileExists ? raw.filter((f) => fileExists(f)) : raw;
+    prunedPaths += raw.length - filePaths.length;
     totalFiles += filePaths.length;
     const cat = c.category || null;
     categories[cat || 'uncategorized'] = (categories[cat || 'uncategorized'] || 0) + 1;
@@ -160,12 +172,6 @@ export async function buildContextMap(projectId: string): Promise<ContextMapExpo
     type: r.relationshipType || null,
   }));
 
-  // Disk resolver so the exported audit reflects real drift (dangling files),
-  // not just structural granularity. Project-relative paths → absolute stat.
-  const fileExists = project.path
-    ? (filePath: string) => existsSync(path.join(project.path, filePath))
-    : undefined;
-
   const audit = auditContexts(
     contexts.map((c) => ({
       id: c.id,
@@ -209,6 +215,10 @@ export async function buildContextMap(projectId: string): Promise<ContextMapExpo
       `with its files (filePaths) + a technical category. Read this to learn which files belong to which feature ` +
       `BEFORE editing. When you change a context's files, update them here (or run Vibeman's refresh) to keep this fresh.`,
   };
+
+  if (prunedPaths > 0) {
+    logger.info?.(`[contextMap] pruned ${prunedPaths} dangling file path(s) from ${project.name}'s exported map`);
+  }
 
   // Revision = stable hash of the meaningful content (excludes generatedAt).
   const revision = createHash('sha1').update(JSON.stringify(body)).digest('hex').slice(0, 12);
