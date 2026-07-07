@@ -183,6 +183,7 @@ async function handlePut(request: NextRequest) {
       category: updates.category,
       businessFeature: updates.business_feature ?? updates.businessFeature,
       apiRoutes: updates.api_routes ?? updates.apiRoutes,
+      pinned: updates.pinned,
     };
 
     // Validate file paths for directory traversal if provided

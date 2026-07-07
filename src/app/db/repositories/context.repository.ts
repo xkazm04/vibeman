@@ -180,6 +180,7 @@ export const contextRepository = {
     category?: string | null;
     business_feature?: string | null;
     api_routes?: string | null;
+    pinned?: number;
   }): DbContext | null => {
     // Transform fields that need special handling before delegating to base.update
     const dbUpdates: Record<string, unknown> = { ...updates };
@@ -244,9 +245,15 @@ export const contextRepository = {
   },
 
   /**
-   * Delete all contexts for a project
+   * Delete all contexts for a project — EXCEPT canonical-pinned ones, which are
+   * human-curated and survive a full rebuild (migration 233). Mirrors the
+   * Personas clear-map-preserving-pins behavior.
    */
-  deleteAllContextsByProject: (projectId: string): number => base.deleteByProject(projectId),
+  deleteAllContextsByProject: (projectId: string): number => {
+    const db = getDatabase();
+    const stmt = db.prepare('DELETE FROM contexts WHERE project_id = ? AND COALESCE(pinned, 0) = 0');
+    return stmt.run(projectId).changes;
+  },
 
   /**
    * Batch move contexts to new groups in 2 queries (1 UPDATE + 1 SELECT)

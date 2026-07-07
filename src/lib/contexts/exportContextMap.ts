@@ -28,6 +28,8 @@ export interface ExportedContext {
   filePaths: string[];
   target: string | null;
   apiRoutes: string[];
+  /** Canonical pin: human-curated, preserved across a full rebuild. */
+  pinned: boolean;
   /** Per-context lineage: when this context was last (re)written. */
   lastWrittenAt: string | null;
 }
@@ -162,6 +164,7 @@ export async function buildContextMap(projectId: string): Promise<ContextMapExpo
       filePaths,
       target: c.target || null,
       apiRoutes: asArray(c.apiRoutes),
+      pinned: Boolean(c.pinned),
       lastWrittenAt: c.updatedAt ? new Date(c.updatedAt).toISOString() : null,
     };
   };

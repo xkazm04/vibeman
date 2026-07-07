@@ -154,6 +154,7 @@ export interface DbContext {
   category: 'ui' | 'lib' | 'api' | 'data' | 'test' | 'config' | null; // Technical category (see src/lib/contexts/taxonomy.ts)
   api_routes: string | null; // JSON array of API paths handled by this context
   business_feature: string | null; // Human-readable business feature name
+  pinned: number | null; // 1 = human-curated, survives a full rebuild (migration 233)
   // AI Navigation Metadata (Phase 2)
   entry_points: string | null; // JSON: Array<{path: string, type: 'page'|'api'|'component'|'config'}>
   db_tables: string | null; // JSON: string[] - DB table names this context reads/writes

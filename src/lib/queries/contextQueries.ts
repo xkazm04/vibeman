@@ -63,6 +63,8 @@ export interface Context {
   category?: string | null;
   businessFeature?: string | null;
   apiRoutes?: string[];
+  /** Canonical pin: when true, a full rebuild preserves this context (migration 233). */
+  pinned?: boolean;
   // Additional fields from JOIN queries
   groupName?: string;
   groupColor?: string;
@@ -152,6 +154,7 @@ function dbContextToContext(dbContext: DbContext & { group_name?: string; group_
     category: dbContext.category || undefined,
     businessFeature: dbContext.business_feature || undefined,
     apiRoutes: safeJsonParse(dbContext.api_routes),
+    pinned: Boolean(dbContext.pinned),
     createdAt: new Date(dbContext.created_at),
     updatedAt: new Date(dbContext.updated_at),
     groupName: dbContext.group_name,
@@ -455,6 +458,7 @@ export const contextQueries = {
     category?: string | null;
     businessFeature?: string | null;
     apiRoutes?: string[];
+    pinned?: boolean;
   }): Promise<Context | null> => {
     return handleAsyncOperation(
       async () => {
@@ -475,6 +479,7 @@ export const contextQueries = {
           category: updates.category,
           business_feature: updates.businessFeature,
           api_routes: updates.apiRoutes ? JSON.stringify(updates.apiRoutes) : undefined,
+          pinned: updates.pinned === undefined ? undefined : updates.pinned ? 1 : 0,
         };
 
         const dbContext = contextRepository.updateContext(contextId, updateData);
