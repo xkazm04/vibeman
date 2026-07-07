@@ -10,6 +10,7 @@
 import { promises as fs, existsSync } from 'fs';
 import path from 'path';
 import { createHash } from 'crypto';
+import { execSync } from 'child_process';
 import {
   contextQueries,
   contextGroupQueries,
@@ -27,6 +28,8 @@ export interface ExportedContext {
   filePaths: string[];
   target: string | null;
   apiRoutes: string[];
+  /** Per-context lineage: when this context was last (re)written. */
+  lastWrittenAt: string | null;
 }
 
 export interface ExportedGroup {
@@ -52,6 +55,9 @@ export interface ContextMapExport {
   generatedAt: string;
   /** Short content hash — a consumer can detect staleness without diffing. */
   revision: string;
+  /** Lineage: the commit the map was derived at, so a reader can judge staleness
+   * against current HEAD instead of guessing from a timestamp. */
+  provenance: { gitCommit: string | null; gitCommitCount: number | null };
   version: string;
   groups: ExportedGroup[];
   ungrouped: ExportedContext[];
@@ -78,6 +84,27 @@ export interface ContextMapExport {
     unresolvedCrossRefs: number;
   };
   instructions: string;
+}
+
+/**
+ * Best-effort git provenance for a project root: HEAD commit sha + commit count.
+ * Returns nulls when the path isn't a git checkout. Bounded to two short calls.
+ */
+function gitProvenance(projectPath: string): { gitCommit: string | null; gitCommitCount: number | null } {
+  const run = (args: string): string | null => {
+    try {
+      const out = execSync(`git ${args}`, { cwd: projectPath, stdio: ['ignore', 'pipe', 'ignore'] })
+        .toString()
+        .trim();
+      return out || null;
+    } catch {
+      return null;
+    }
+  };
+  const gitCommit = run('rev-parse HEAD');
+  const countRaw = run('rev-list --count HEAD');
+  const gitCommitCount = countRaw ? Number(countRaw) || null : null;
+  return { gitCommit, gitCommitCount };
 }
 
 function asArray(v: unknown): string[] {
@@ -135,6 +162,7 @@ export async function buildContextMap(projectId: string): Promise<ContextMapExpo
       filePaths,
       target: c.target || null,
       apiRoutes: asArray(c.apiRoutes),
+      lastWrittenAt: c.updatedAt ? new Date(c.updatedAt).toISOString() : null,
     };
   };
 
@@ -190,6 +218,7 @@ export async function buildContextMap(projectId: string): Promise<ContextMapExpo
     projectId,
     projectName: project.name,
     projectPath: project.path,
+    provenance: project.path ? gitProvenance(project.path) : { gitCommit: null, gitCommitCount: null },
     version: '2.0.0',
     groups: exportedGroups,
     ungrouped,
@@ -220,8 +249,12 @@ export async function buildContextMap(projectId: string): Promise<ContextMapExpo
     logger.info?.(`[contextMap] pruned ${prunedPaths} dangling file path(s) from ${project.name}'s exported map`);
   }
 
-  // Revision = stable hash of the meaningful content (excludes generatedAt).
-  const revision = createHash('sha1').update(JSON.stringify(body)).digest('hex').slice(0, 12);
+  // Revision = stable hash of the meaningful content (excludes generatedAt and
+  // provenance — the commit sha changes every commit and would churn the hash;
+  // per-context lastWrittenAt only moves when a context actually changed, so it
+  // stays in the hash).
+  const { provenance: _prov, ...hashable } = body;
+  const revision = createHash('sha1').update(JSON.stringify(hashable)).digest('hex').slice(0, 12);
 
   return { ...body, generatedAt: new Date().toISOString(), revision };
 }
