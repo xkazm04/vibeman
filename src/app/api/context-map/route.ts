@@ -2,7 +2,9 @@
  * API Route: Context Map
  *
  * GET /api/context-map?projectPath=/path/to/project
- * Reads and returns the context_map.json from a project directory
+ * Returns a project's context map, preferring the authoritative DB-derived
+ * `context-map.json` (hyphen) and falling back to the deprecated legacy
+ * `context_map.json` (underscore, v1 schema) flagged with `deprecated: true`.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -50,40 +52,54 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Construct path to context_map.json
-    const contextMapPath = path.join(projectPath, 'context_map.json');
+    // Single source of truth: the authoritative, DB-derived export is
+    // `context-map.json` (hyphen), auto-written by Vibeman on every mutation.
+    // The legacy `context_map.json` (underscore, v1 schema) is deprecated and
+    // only served as a fallback so old projects don't 404.
+    const v2Path = path.join(projectPath, 'context-map.json');
+    if (fs.existsSync(v2Path)) {
+      const parsed = JSON.parse(fs.readFileSync(v2Path, 'utf-8'));
+      return NextResponse.json({
+        success: true,
+        exists: true,
+        format: 'v2',
+        contextMap: parsed,
+        contextMapPath: v2Path,
+        entryCount: parsed?.summary?.totalContexts ?? undefined,
+      });
+    }
 
-    // Check if file exists
-    if (!fs.existsSync(contextMapPath)) {
+    // Fallback: deprecated legacy underscore artifact.
+    const legacyPath = path.join(projectPath, 'context_map.json');
+    if (!fs.existsSync(legacyPath)) {
       return NextResponse.json({
         success: false,
         exists: false,
-        error: 'context_map.json not found in project directory',
-        contextMapPath,
-        message: 'Use the /context-map-generator skill to create one'
+        error: 'No context map found (looked for context-map.json and legacy context_map.json)',
+        contextMapPath: v2Path,
+        message: 'Scan the project in Vibeman to generate context-map.json',
       }, { status: 404 });
     }
 
-    // Read and parse the file
-    const fileContent = fs.readFileSync(contextMapPath, 'utf-8');
-    const contextMap: ContextMap = JSON.parse(fileContent);
-
-    // Validate structure
+    const contextMap: ContextMap = JSON.parse(fs.readFileSync(legacyPath, 'utf-8'));
     if (!contextMap.contexts || !Array.isArray(contextMap.contexts)) {
       return NextResponse.json({
         success: false,
         exists: true,
-        error: 'Invalid context_map.json structure: missing contexts array',
-        contextMapPath
+        error: 'Invalid legacy context_map.json structure: missing contexts array',
+        contextMapPath: legacyPath,
       }, { status: 400 });
     }
 
     return NextResponse.json({
       success: true,
       exists: true,
+      format: 'legacy',
+      deprecated: true,
+      message: 'context_map.json (underscore) uses the deprecated v1 schema. Re-scan in Vibeman to produce the authoritative context-map.json.',
       contextMap,
-      contextMapPath,
-      entryCount: contextMap.contexts.length
+      contextMapPath: legacyPath,
+      entryCount: contextMap.contexts.length,
     });
 
   } catch (error) {

@@ -588,7 +588,7 @@ export interface LearningInsightData {
 export interface DbQuestion {
   id: string;
   project_id: string;
-  context_map_id: string;      // References context_map.json entry id
+  context_map_id: string;      // References a context id (context-map.json / contexts table)
   context_map_title: string;   // Denormalized for display
   goal_id: string | null;      // Set when answer is saved (auto-creates goal)
   question: string;
