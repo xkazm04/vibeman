@@ -48,6 +48,7 @@ async function handleGet(request: NextRequest) {
         groupId: c.groupId,
         filePaths: c.filePaths,
         category: c.category,
+        crossRefs: c.crossRefs,
       })),
       groups.map((g) => ({ id: g.id, name: g.name, domain: g.domain })),
       { fileExists },

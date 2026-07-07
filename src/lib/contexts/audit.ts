@@ -31,6 +31,8 @@ export interface ContextAuditReport {
     missingFiles: number;
     /** Contexts whose every file is missing from disk (deleted feature still tracked). */
     staleContexts: number;
+    /** crossRefs entries pointing at a contextId that no longer exists. */
+    unresolvedCrossRefs: number;
   };
   findings: AuditFinding[];
   /** true when there are no warn-level findings. */
@@ -43,6 +45,8 @@ export interface AuditContextInput {
   groupId: string | null;
   filePaths: string[];
   category?: string | null;
+  /** Typed dependency edges to other contexts; each must resolve to a real context. */
+  crossRefs?: Array<{ contextId: string; relationship?: string }> | null;
 }
 
 export interface AuditGroupInput {
@@ -79,6 +83,10 @@ export function auditContexts(
   const fileExists = opts?.fileExists;
   let missingFiles = 0;
   let staleContexts = 0;
+  let unresolvedCrossRefs = 0;
+
+  // Referential integrity: a crossRefs edge must point at a context that exists.
+  const contextIds = new Set(contexts.map((c) => c.id));
 
   // ── Per-context: size, category, grouping ──────────────────────────────────
   for (const c of contexts) {
@@ -96,6 +104,19 @@ export function auditContexts(
     }
     if (!c.groupId) {
       findings.push({ severity: 'warn', code: 'context_orphan', contextId: c.id, message: `"${c.name}" is not assigned to any group.` });
+    }
+
+    // Referential integrity: crossRefs must resolve to a real context.
+    for (const ref of c.crossRefs ?? []) {
+      if (ref?.contextId && !contextIds.has(ref.contextId)) {
+        unresolvedCrossRefs++;
+        findings.push({
+          severity: 'warn',
+          code: 'unresolved_cross_ref',
+          contextId: c.id,
+          message: `"${c.name}" has a crossRef to a context that no longer exists (${ref.contextId}).`,
+        });
+      }
     }
 
     // ── Disk drift: files[] that no longer exist on disk ──────────────────────
@@ -187,6 +208,7 @@ export function auditContexts(
       overlappingFiles,
       missingFiles,
       staleContexts,
+      unresolvedCrossRefs,
     },
     findings,
     ok: !findings.some((f) => f.severity === 'warn'),

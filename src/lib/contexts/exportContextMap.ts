@@ -7,7 +7,7 @@
  * fresh by auto-exporting (debounced) on every context/group mutation.
  */
 
-import { promises as fs } from 'fs';
+import { promises as fs, existsSync } from 'fs';
 import path from 'path';
 import { createHash } from 'crypto';
 import {
@@ -65,8 +65,18 @@ export interface ContextMapExport {
     categories: Record<string, number>;
     domains: Record<string, number>;
   };
-  /** Advisory balance snapshot (see src/lib/contexts/audit.ts). */
-  audit: { ok: boolean; tier: ContextAuditReport['tier']; warnings: number };
+  /** Advisory balance + referential-integrity snapshot (see src/lib/contexts/audit.ts). */
+  audit: {
+    ok: boolean;
+    tier: ContextAuditReport['tier'];
+    warnings: number;
+    /** Contexts whose every file is missing from disk. */
+    staleContexts: number;
+    /** Contexts with at least one missing file. */
+    missingFiles: number;
+    /** crossRefs pointing at a context that no longer exists. */
+    unresolvedCrossRefs: number;
+  };
   instructions: string;
 }
 
@@ -150,9 +160,23 @@ export async function buildContextMap(projectId: string): Promise<ContextMapExpo
     type: r.relationshipType || null,
   }));
 
+  // Disk resolver so the exported audit reflects real drift (dangling files),
+  // not just structural granularity. Project-relative paths → absolute stat.
+  const fileExists = project.path
+    ? (filePath: string) => existsSync(path.join(project.path, filePath))
+    : undefined;
+
   const audit = auditContexts(
-    contexts.map((c) => ({ id: c.id, name: c.name, groupId: c.groupId, filePaths: c.filePaths, category: c.category })),
+    contexts.map((c) => ({
+      id: c.id,
+      name: c.name,
+      groupId: c.groupId,
+      filePaths: c.filePaths,
+      category: c.category,
+      crossRefs: c.crossRefs,
+    })),
     groups.map((g) => ({ id: g.id, name: g.name, domain: g.domain })),
+    { fileExists },
   );
 
   const body = {
@@ -172,7 +196,14 @@ export async function buildContextMap(projectId: string): Promise<ContextMapExpo
       categories,
       domains,
     },
-    audit: { ok: audit.ok, tier: audit.tier, warnings: audit.findings.filter((f) => f.severity === 'warn').length },
+    audit: {
+      ok: audit.ok,
+      tier: audit.tier,
+      warnings: audit.findings.filter((f) => f.severity === 'warn').length,
+      staleContexts: audit.totals.staleContexts,
+      missingFiles: audit.totals.missingFiles,
+      unresolvedCrossRefs: audit.totals.unresolvedCrossRefs,
+    },
     instructions:
       `Context map for ${project.name}. Each group is a business domain (domain field); each context is a feature ` +
       `with its files (filePaths) + a technical category. Read this to learn which files belong to which feature ` +
