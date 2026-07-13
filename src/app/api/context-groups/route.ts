@@ -100,6 +100,8 @@ async function handleDelete(request: NextRequest) {
     // Bulk delete all groups for a project
     if (projectId) {
       const deletedCount = await contextGroupQueries.deleteAllByProject(projectId);
+      // Group deletion re-homes/removes contexts in the map — keep it fresh.
+      scheduleContextMapExport(projectId);
       return NextResponse.json({
         success: true,
         deletedCount,
@@ -112,11 +114,16 @@ async function handleDelete(request: NextRequest) {
       return createErrorResponse('Group ID or Project ID is required', 400);
     }
 
+    // Resolve the owning project BEFORE deleting so we can re-export the map.
+    const owningGroup = await contextGroupQueries.getGroupById(groupId);
+
     const success = await contextGroupQueries.deleteGroup(groupId);
 
     if (!success) {
       return notFoundResponse('Context group');
     }
+
+    if (owningGroup?.projectId) scheduleContextMapExport(owningGroup.projectId);
 
     return NextResponse.json({
       success: true,

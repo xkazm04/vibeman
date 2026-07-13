@@ -12,6 +12,7 @@ import { contextGroupRepository } from '@/app/db/repositories/context-group.repo
 import { contextGroupRelationshipRepository } from '@/app/db/repositories/context-group-relationship.repository';
 import { logger } from '@/lib/logger';
 import { withObservability } from '@/lib/observability/middleware';
+import { cancelContextMapExport, scheduleContextMapExport } from '@/lib/contexts/exportContextMap';
 
 interface PreviousDataIds {
   contextIds: string[];
@@ -79,6 +80,12 @@ async function handlePost(request: NextRequest) {
       groups: groupIds.length,
     });
 
+    // Drop any pending post-generation debounced export BEFORE deleting the old
+    // rows. Generation creates the new contexts (each schedules a 1500ms export);
+    // if that timer fires mid-cleanup it writes a mixed old+new map to disk. We
+    // cancel it here and re-schedule a single clean export once deletes complete.
+    cancelContextMapExport(projectId);
+
     let deletedRelationships = 0;
     let deletedContexts = 0;
     let deletedGroups = 0;
@@ -120,6 +127,10 @@ async function handlePost(request: NextRequest) {
       deletedContexts,
       deletedGroups,
     });
+
+    // Now that the old map is gone and only the freshly-generated rows remain,
+    // schedule a single export reflecting the final clean state.
+    scheduleContextMapExport(projectId);
 
     return NextResponse.json({
       success: true,

@@ -18,6 +18,13 @@ export const contextGroupRelationshipRepository = {
   getByProject: (projectId: string): DbContextGroupRelationship[] => base.getByProject(projectId),
 
   /**
+   * Get a single relationship by id (null when not found). Read-through used to
+   * resolve a relationship's projectId before deletion so the context-map export
+   * can be re-scheduled for the right project.
+   */
+  getById: (id: string): DbContextGroupRelationship | null => base.getById(id),
+
+  /**
    * Get relationships for a specific context group (as source or target)
    */
   getByGroupId: (groupId: string): DbContextGroupRelationship[] => {

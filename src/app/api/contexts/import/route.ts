@@ -17,6 +17,7 @@ import { projectDb } from '@/lib/project_database';
 import { contextQueries, contextGroupQueries } from '@/lib/queries/contextQueries';
 import { withObservability } from '@/lib/observability/middleware';
 import { logger } from '@/lib/logger';
+import { scheduleContextMapExport } from '@/lib/contexts/exportContextMap';
 
 interface ImportStats {
   groupsCreated: number;
@@ -94,6 +95,9 @@ async function handlePost(request: NextRequest) {
     }
 
     logger.info(`[contexts/import] Reconciled map for ${projectId}: ${JSON.stringify(stats)}`);
+    // The header contract promises the debounced export re-writes the file with
+    // Vibeman's enrichment after an import — actually schedule it.
+    scheduleContextMapExport(projectId);
     return NextResponse.json({ success: true, projectId, stats });
   } catch (error) {
     logger.error('[contexts/import] Error:', { error });

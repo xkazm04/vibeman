@@ -3,6 +3,7 @@ import { contextQueries } from '../../../../lib/queries/contextQueries';
 import { logger } from '@/lib/logger';
 import { createErrorResponse } from '@/lib/api-helpers';
 import { withObservability } from '@/lib/observability/middleware';
+import { scheduleContextMapExport } from '@/lib/contexts/exportContextMap';
 
 interface BatchMoveRequest {
   moves: Array<{
@@ -29,6 +30,11 @@ async function handlePost(request: NextRequest) {
     }
 
     const results = await contextQueries.batchMoveContexts(moves);
+
+    // Drag-to-regroup is the primary gesture that reshapes the map; keep the
+    // committed context-map.json in sync. Derive the project from a moved row.
+    const movedProjectId = results.find((c) => c.projectId)?.projectId;
+    if (movedProjectId) scheduleContextMapExport(movedProjectId);
 
     return NextResponse.json({
       success: true,

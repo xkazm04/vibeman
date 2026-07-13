@@ -244,6 +244,17 @@ export const contextGroupQueries = {
     );
   },
 
+  // Get a single context group by id (null when not found)
+  getGroupById: async (groupId: string): Promise<ContextGroup | null> => {
+    return handleAsyncOperation(
+      async () => {
+        const dbGroup = contextGroupRepository.getGroupById(groupId);
+        return dbGroup ? dbContextGroupToContextGroup(dbGroup) : null;
+      },
+      'Failed to fetch context group'
+    );
+  },
+
   // Delete a context group
   deleteGroup: async (groupId: string): Promise<boolean> => {
     return handleAsyncOperation(
@@ -327,6 +338,17 @@ export const contextGroupRelationshipQueries = {
         return dbRel ? dbRelationshipToRelationship(dbRel) : null;
       },
       'Failed to create context group relationship'
+    );
+  },
+
+  // Get a single relationship by id (null when not found)
+  getById: async (id: string): Promise<ContextGroupRelationship | null> => {
+    return handleAsyncOperation(
+      async () => {
+        const dbRel = contextGroupRelationshipRepository.getById(id);
+        return dbRel ? dbRelationshipToRelationship(dbRel) : null;
+      },
+      'Failed to fetch context group relationship'
     );
   },
 

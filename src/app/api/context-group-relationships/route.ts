@@ -3,6 +3,7 @@ import { contextGroupRelationshipQueries } from '@/lib/queries/contextQueries';
 import { logger } from '@/lib/logger';
 import { createErrorResponse, notFoundResponse } from '@/lib/api-helpers';
 import { withObservability } from '@/lib/observability/middleware';
+import { scheduleContextMapExport } from '@/lib/contexts/exportContextMap';
 
 // GET /api/context-group-relationships - Get all relationships for a project
 async function handleGet(request: NextRequest) {
@@ -57,6 +58,9 @@ async function handlePost(request: NextRequest) {
       return createErrorResponse('Failed to create relationship', 500);
     }
 
+    // Relationships are exported in the map — keep it fresh on create.
+    scheduleContextMapExport(projectId);
+
     return NextResponse.json({
       success: true,
       data: relationship
@@ -80,11 +84,16 @@ async function handleDelete(request: NextRequest) {
       return createErrorResponse('Relationship ID is required', 400);
     }
 
+    // Resolve the owning project BEFORE deleting so we can re-export the map.
+    const owning = await contextGroupRelationshipQueries.getById(relationshipId);
+
     const success = await contextGroupRelationshipQueries.delete(relationshipId);
 
     if (!success) {
       return notFoundResponse('Relationship');
     }
+
+    if (owning?.projectId) scheduleContextMapExport(owning.projectId);
 
     return NextResponse.json({
       success: true,

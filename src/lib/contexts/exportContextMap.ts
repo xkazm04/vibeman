@@ -350,3 +350,19 @@ export function scheduleContextMapExport(projectId: string, delayMs = 1500): voi
   if (typeof t.unref === 'function') t.unref();
   timers.set(projectId, t);
 }
+
+/**
+ * Cancel a pending debounced export for a project (if any). Used by the
+ * generation cleanup route to drop the post-generation timer BEFORE it deletes
+ * the old contexts — otherwise the debounce can fire mid-cleanup and write a
+ * mixed old+new map to disk. Cleanup re-schedules a fresh export after its
+ * deletes complete, so the only write reflects the final, clean state.
+ */
+export function cancelContextMapExport(projectId: string): void {
+  if (!projectId) return;
+  const existing = timers.get(projectId);
+  if (existing) {
+    clearTimeout(existing);
+    timers.delete(projectId);
+  }
+}

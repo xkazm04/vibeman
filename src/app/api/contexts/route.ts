@@ -242,6 +242,8 @@ async function handleDelete(request: NextRequest) {
     // Delete all contexts for a project
     if (projectId) {
       const deletedCount = await contextQueries.deleteAllContextsByProject(projectId);
+      // Keep the committed context-map.json honest after a bulk delete.
+      scheduleContextMapExport(projectId);
       return NextResponse.json({
         success: true,
         message: `Deleted ${deletedCount} contexts`,
@@ -254,11 +256,16 @@ async function handleDelete(request: NextRequest) {
       return createErrorResponse('Context ID or Project ID is required', 400);
     }
 
+    // Resolve the owning project BEFORE deleting so we can re-export the map.
+    const owning = await contextQueries.getContextById(contextId);
+
     const success = await contextQueries.deleteContext(contextId);
 
     if (!success) {
       return notFoundResponse('Context');
     }
+
+    if (owning?.projectId) scheduleContextMapExport(owning.projectId);
 
     return NextResponse.json({
       success: true,
