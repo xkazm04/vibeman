@@ -19,6 +19,7 @@ import {
 import { projectDb } from '@/lib/project_database';
 import { logger } from '@/lib/logger';
 import { auditContexts, type ContextAuditReport } from './audit';
+import { getBaselineHashes, buildStaleResolver } from './fileHashes';
 
 export interface ExportedContext {
   name: string;
@@ -32,6 +33,15 @@ export interface ExportedContext {
   pinned: boolean;
   /** Per-context lineage: when this context was last (re)written. */
   lastWrittenAt: string | null;
+  /**
+   * Content drift: at least one mapped file's content changed on disk since this
+   * context's metadata baseline was captured. Advisory — a consumer can flag the
+   * context as needing a regenerate. Omitted (absent) when the context is fresh.
+   * Deliberately NOT part of `revision` (see buildContextMap): drift is a property
+   * of the outside world, not of the map's own structural content, so it must not
+   * churn the revision every time a tracked source file is edited.
+   */
+  contentStale?: boolean;
 }
 
 export interface ExportedGroup {
@@ -84,6 +94,8 @@ export interface ContextMapExport {
     missingFiles: number;
     /** crossRefs pointing at a context that no longer exists. */
     unresolvedCrossRefs: number;
+    /** Contexts whose mapped files changed on disk since their metadata baseline. */
+    contentStaleContexts: number;
   };
   instructions: string;
 }
@@ -146,6 +158,18 @@ export async function buildContextMap(projectId: string): Promise<ContextMapExpo
     : undefined;
   let prunedPaths = 0;
 
+  // Content-drift resolver: flags a mapped file whose CONTENT changed since the
+  // context's metadata baseline was captured. Read-only (getBaselineHashes, no
+  // bootstrap write) so an export never mutates the baseline — a file with no
+  // baseline is treated as "unknown / not stale".
+  const isStale = project.path
+    ? buildStaleResolver(project.path, getBaselineHashes(projectId))
+    : undefined;
+  // Per-context staleness collected during the build, applied to the exported
+  // objects only AFTER the revision hash is computed (see below) so drift never
+  // participates in the revision.
+  const staleDecorations: Array<[ExportedContext, boolean]> = [];
+
   const toExported = (c: (typeof contexts)[number]): ExportedContext => {
     const raw = c.filePaths || [];
     // Self-heal: a published map must not route a CLI to a file that isn't on
@@ -156,7 +180,7 @@ export async function buildContextMap(projectId: string): Promise<ContextMapExpo
     totalFiles += filePaths.length;
     const cat = c.category || null;
     categories[cat || 'uncategorized'] = (categories[cat || 'uncategorized'] || 0) + 1;
-    return {
+    const exported: ExportedContext = {
       name: c.name,
       description: c.description || null,
       businessFeature: c.businessFeature || null,
@@ -167,6 +191,11 @@ export async function buildContextMap(projectId: string): Promise<ContextMapExpo
       pinned: Boolean(c.pinned),
       lastWrittenAt: c.updatedAt ? new Date(c.updatedAt).toISOString() : null,
     };
+    // Compute drift now (files already pruned to those on disk), but defer
+    // attaching it to `exported` until after the revision is hashed.
+    const contentStale = isStale ? filePaths.some((f) => isStale(f)) : false;
+    staleDecorations.push([exported, contentStale]);
+    return exported;
   };
 
   const grouped = new Map<string, ExportedContext[]>();
@@ -213,7 +242,7 @@ export async function buildContextMap(projectId: string): Promise<ContextMapExpo
       crossRefs: c.crossRefs,
     })),
     groups.map((g) => ({ id: g.id, name: g.name, domain: g.domain })),
-    { fileExists },
+    { fileExists, isStale },
   );
 
   const body = {
@@ -255,11 +284,25 @@ export async function buildContextMap(projectId: string): Promise<ContextMapExpo
   // Revision = stable hash of the meaningful content (excludes generatedAt and
   // provenance — the commit sha changes every commit and would churn the hash;
   // per-context lastWrittenAt only moves when a context actually changed, so it
-  // stays in the hash).
+  // stays in the hash). Content-drift is deliberately NOT hashed: it's decorated
+  // onto the exported objects AFTER this stringify snapshot (and the audit
+  // contentStaleContexts count is added below), so editing a tracked source file
+  // never changes the revision of an otherwise-identical structural map.
   const { provenance: _prov, ...hashable } = body;
   const revision = createHash('sha1').update(JSON.stringify(hashable)).digest('hex').slice(0, 12);
 
-  return { ...body, generatedAt: new Date().toISOString(), revision };
+  // Decorate drift onto the (already-hashed) exported context objects. These are
+  // the same references held in `body.groups[].contexts` / `body.ungrouped`.
+  for (const [exported, stale] of staleDecorations) {
+    if (stale) exported.contentStale = true;
+  }
+
+  return {
+    ...body,
+    audit: { ...body.audit, contentStaleContexts: audit.totals.contentStaleContexts },
+    generatedAt: new Date().toISOString(),
+    revision,
+  };
 }
 
 /**

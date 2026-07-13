@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FolderOpen, Copy, MousePointer, CheckSquare, Square, FileText, Edit, Trash2 } from 'lucide-react';
+import { FolderOpen, Copy, MousePointer, CheckSquare, Square, FileText, Edit, Trash2, AlertTriangle } from 'lucide-react';
 import ContextJailCard from '@/components/ContextComponents/ContextJailCard';
+import { useContextContentStale } from './hooks/useContextFreshness';
 import ContextMenu, { type ContextMenuItem } from '@/components/ContextMenu/ContextMenu';
 import { useTooltipStore } from '../../../../stores/tooltipStore';
 import { useContextStore } from '../../../../stores/contextStore';
@@ -60,6 +61,10 @@ const ContextJailCardWrapper = React.memo<ContextJailCardWrapperProps>(({
   const isSelectedForBacklog = useContextStore(s => s.selectedContextIds.has(context.id));
   const { clearSelection } = useStore();
   const { showFullScreenModal } = useGlobalModal();
+
+  // Advisory content-drift signal (a mapped file changed since this context was
+  // last generated). Fed by the deduped audit fetch — no prop drilling required.
+  const isContentStale = useContextContentStale(context.projectId, context.id);
 
   // DnD Draggable - using reusable hook
   const {
@@ -380,6 +385,19 @@ const ContextJailCardWrapper = React.memo<ContextJailCardWrapperProps>(({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Content-drift badge — a mapped file changed since this context was last
+          generated. Advisory; does not block interaction. */}
+      {isContentStale && (
+        <div
+          className="absolute top-1 right-1 z-30 flex items-center justify-center rounded-full border border-amber-500/40 bg-amber-500/15 p-1 pointer-events-none shadow-sm shadow-amber-500/20"
+          title="Content drift — a mapped file changed since this context was last generated. Consider regenerating."
+          aria-label="Content drift: a mapped file changed since this context was last generated"
+          data-testid={`context-card-drift-${context.id}`}
+        >
+          <AlertTriangle className="w-3 h-3 text-amber-400" />
+        </div>
+      )}
 
       {/* Screen reader help text */}
       <span id={`context-card-help-${context.id}`} className="sr-only">

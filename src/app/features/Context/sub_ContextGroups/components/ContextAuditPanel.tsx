@@ -131,6 +131,12 @@ export default function ContextAuditPanel({ projectId, onSelectGroup }: ContextA
           <span className={totals.missingFiles > 0 ? 'text-amber-400' : ''}>
             {totals.missingFiles} with missing files
           </span>
+          <span className={totals.contentStaleContexts > 0 ? 'text-amber-400' : ''}>
+            {totals.contentStaleContexts} content-drifted
+          </span>
+          <span className={totals.unresolvedCrossRefs > 0 ? 'text-amber-400' : ''}>
+            {totals.unresolvedCrossRefs} broken refs
+          </span>
         </div>
       </div>
 
