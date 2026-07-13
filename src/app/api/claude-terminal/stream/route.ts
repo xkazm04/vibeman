@@ -9,6 +9,7 @@ import {
   getExecution,
   waitForExecution,
   startExecution,
+  subscribeToExecution,
   type CLIExecutionEvent,
 } from '@/lib/claude-terminal/cli-service';
 import { type CLIEvent, encodeEvent } from '@/components/cli/protocol';
@@ -58,9 +59,10 @@ export async function GET(request: NextRequest) {
   let isStreamClosed = false;
   let lastEventIndex = 0;
 
-  // Hoist interval refs so cancel() can clear them
-  let pollInterval: ReturnType<typeof setInterval> | undefined;
+  // Hoist refs so cancel() can clear them
+  let safetyNetInterval: ReturnType<typeof setInterval> | undefined;
   let heartbeatInterval: ReturnType<typeof setInterval> | undefined;
+  let unsubscribe: (() => void) | undefined;
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -191,61 +193,68 @@ export async function GET(request: NextRequest) {
         return;
       }
 
-      // Execution confirmed — start polling for events
+      // Execution confirmed — stream events.
       void resolvedExecution; // used only to confirm existence
 
-      // Poll for new events
-      pollInterval = setInterval(() => {
-        if (isStreamClosed) {
-          clearInterval(pollInterval);
-          return;
+      const closeStream = () => {
+        if (isStreamClosed) return;
+        isStreamClosed = true;
+        if (unsubscribe) { unsubscribe(); unsubscribe = undefined; }
+        if (safetyNetInterval) { clearInterval(safetyNetInterval); safetyNetInterval = undefined; }
+        if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = undefined; }
+        try { controller.close(); } catch { /* already closed */ }
+      };
+
+      // Forward a single CLI event to the client, closing on terminal events.
+      const forwardEvent = (event: CLIExecutionEvent): void => {
+        if (isStreamClosed) return;
+        const converted = convertEvent(event);
+        if (converted) sendEvent(converted);
+        if (event.type === 'result' || event.type === 'error') {
+          closeStream();
         }
+      };
+
+      // ── Event-driven: subscribe to the execution's bus channel ──
+      // Register the subscription BEFORE flushing buffered events so no event
+      // emitted in the gap between flush and subscribe is lost.
+      unsubscribe = subscribeToExecution(activeExecutionId!, forwardEvent);
+
+      // Flush events already buffered before we subscribed (covers the race
+      // where the process emitted before the SSE client connected).
+      const buffered = getExecution(activeExecutionId!)?.events ?? [];
+      for (let i = lastEventIndex; i < buffered.length; i++) {
+        forwardEvent(buffered[i]);
+        if (isStreamClosed) return;
+      }
+      lastEventIndex = buffered.length;
+
+      // ── Coarse safety net (2s) ──
+      // A backstop for two cases the bus cannot cover: the execution being
+      // cleaned up entirely, and a terminal status set without a final event
+      // (e.g. synthetic completion). Far cheaper than the old 100ms loop.
+      safetyNetInterval = setInterval(() => {
+        if (isStreamClosed) { clearInterval(safetyNetInterval); return; }
 
         const execution = getExecution(activeExecutionId!);
         if (!execution) {
-          // Execution disappeared (cleanup ran) — close stream
-          clearInterval(pollInterval);
           sendEvent({
             type: 'error',
             data: { error: 'Execution was cleaned up' },
             timestamp: Date.now(),
           });
-          controller.close();
+          closeStream();
           return;
         }
 
-        // Send new events
-        const newEvents = execution.events.slice(lastEventIndex);
-        for (const event of newEvents) {
-          const converted = convertEvent(event);
-          if (!converted) continue; // Skip unknown event types (stdout, etc.)
-
-          sendEvent(converted);
-
-          // Close stream on terminal events
-          if (event.type === 'result' || event.type === 'error') {
-            isStreamClosed = true;
-            clearInterval(pollInterval);
-            controller.close();
-            return;
-          }
-        }
-        lastEventIndex = execution.events.length;
-
-        // Check if execution is complete
         if (execution.status !== 'running') {
-          // Send final event if not already sent
-          if (!isStreamClosed) {
-            const finalEvent: CLIEvent = execution.status === 'completed'
-              ? { type: 'result', data: { sessionId: execution.sessionId }, timestamp: Date.now() }
-              : { type: 'error', data: { error: `Execution ${execution.status}` }, timestamp: Date.now() };
-            sendEvent(finalEvent);
-          }
-          isStreamClosed = true;
-          clearInterval(pollInterval);
-          controller.close();
+          const finalEvent: CLIEvent = execution.status === 'completed'
+            ? { type: 'result', data: { sessionId: execution.sessionId }, timestamp: Date.now() }
+            : { type: 'error', data: { error: `Execution ${execution.status}` }, timestamp: Date.now() };
+          sendEvent(finalEvent);
+          closeStream();
         }
-      }, 100); // Poll every 100ms
+      }, 2000);
 
       // Send heartbeat to keep connection alive (raw write — not a protocol event)
       heartbeatInterval = setInterval(() => {
@@ -266,9 +275,10 @@ export async function GET(request: NextRequest) {
 
     cancel() {
       isStreamClosed = true;
-      if (pollInterval) clearInterval(pollInterval);
+      if (unsubscribe) { unsubscribe(); unsubscribe = undefined; }
+      if (safetyNetInterval) clearInterval(safetyNetInterval);
       if (heartbeatInterval) clearInterval(heartbeatInterval);
-      pollInterval = undefined;
+      safetyNetInterval = undefined;
       heartbeatInterval = undefined;
     },
   });

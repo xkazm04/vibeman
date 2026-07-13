@@ -28,6 +28,7 @@ import {
 import '@/app/features/TaskRunner/lib/strategies/terminalStrategy';
 import { registerTaskComplete } from '../taskRegistry';
 import { DAGScheduler, type DAGTask, type DAGTaskStatus } from '@/lib/dag/dagScheduler';
+import { MAX_CONCURRENT_EXECUTIONS } from '@/lib/claude-terminal/types';
 
 // ============ Shared Task Completion Utilities ============
 // Client-safe implementations using fetch instead of direct DB imports.
@@ -78,8 +79,13 @@ const sessionUnsubscribers = new Map<CLISessionId, Map<string, () => void>>();
 // Track executionIds per session (multiple for parallel DAG execution)
 const sessionExecutionIds = new Map<CLISessionId, Map<string, string>>();
 
-/** Default max parallel tasks per CLI session */
-const DEFAULT_MAX_PARALLEL = 10;
+/**
+ * Default max parallel tasks per CLI session. Bounded by the global CLI
+ * concurrency ceiling (shared with the server-side spawn gate) so the DAG
+ * scheduler never dispatches more work than the engine will actually run at
+ * once — excess stays 'pending' in the DAG and launches as slots free.
+ */
+const DEFAULT_MAX_PARALLEL = MAX_CONCURRENT_EXECUTIONS;
 
 /** Per-session DAG scheduler instances */
 const sessionSchedulers = new Map<CLISessionId, DAGScheduler>();

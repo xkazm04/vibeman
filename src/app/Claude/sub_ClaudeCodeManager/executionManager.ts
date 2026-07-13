@@ -251,13 +251,42 @@ export async function executeRequirement(
         childProcess.stdin.write(fullPrompt);
         childProcess.stdin.end();
 
+        // Bound the in-memory transcript buffers. A long run can emit many MB of
+        // stream-json; we only ever need the tail (the final `result` message +
+        // recent context) for session-limit detection and the returned output.
+        // Keeping the last N chars caps memory without losing the meaningful end.
+        const MAX_STDOUT_CHARS = 256 * 1024; // 256 KB tail
+        const MAX_STDERR_CHARS = 64 * 1024;  // 64 KB tail
         let stdout = '';
         let stderr = '';
+        let stdoutTruncated = false;
+        let stderrTruncated = false;
+
+        const appendStdout = (text: string) => {
+          stdout += text;
+          if (stdout.length > MAX_STDOUT_CHARS) {
+            stdout = stdout.slice(stdout.length - MAX_STDOUT_CHARS);
+            if (!stdoutTruncated) {
+              stdoutTruncated = true;
+              logMessage(`[TRUNCATE] stdout exceeded ${MAX_STDOUT_CHARS} chars — keeping tail only (full transcript is in this log)`);
+            }
+          }
+        };
+        const appendStderr = (text: string) => {
+          stderr += text;
+          if (stderr.length > MAX_STDERR_CHARS) {
+            stderr = stderr.slice(stderr.length - MAX_STDERR_CHARS);
+            if (!stderrTruncated) {
+              stderrTruncated = true;
+              logMessage(`[TRUNCATE] stderr exceeded ${MAX_STDERR_CHARS} chars — keeping tail only`);
+            }
+          }
+        };
 
         // Capture stdout and parse for session ID
         childProcess.stdout.on('data', (data: Buffer) => {
           const text = data.toString();
-          stdout += text;
+          appendStdout(text);
           logMessage(`[STDOUT] ${text.trim()}`);
 
           // Try to parse session ID from stream-json output
@@ -291,7 +320,7 @@ export async function executeRequirement(
         // Capture stderr
         childProcess.stderr.on('data', (data: Buffer) => {
           const text = data.toString();
-          stderr += text;
+          appendStderr(text);
           logMessage(`[STDERR] ${text.trim()}`);
         });
 

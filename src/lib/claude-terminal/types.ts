@@ -3,6 +3,17 @@
  * Types for the CLI-like UI component using Claude Agent SDK
  */
 
+/**
+ * Global ceiling on concurrent CLI processes — the single source of truth for
+ * both the server-side spawn gate (cli-service) and the client-side DAG
+ * scheduler (cliExecutionManager). Each claude.cmd process consumes
+ * ~200-500MB RAM + CPU for streaming; exceeding this exhausts local resources.
+ *
+ * Lives here (a dependency-free module) so the server engine and the client
+ * scheduler agree on one number without the client bundling child_process.
+ */
+export const MAX_CONCURRENT_EXECUTIONS = 4;
+
 // Session status
 export type SessionStatus = 'idle' | 'running' | 'waiting_approval' | 'completed' | 'error';
 

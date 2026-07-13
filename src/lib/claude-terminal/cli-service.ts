@@ -13,6 +13,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { env as envConfig } from '@/lib/config/envConfig';
 import type { CLIProvider, CLIProviderConfig } from './types';
+import { MAX_CONCURRENT_EXECUTIONS } from './types';
 
 // Stream-json message types from Claude CLI
 export interface CLISystemMessage {
@@ -128,9 +129,8 @@ function getSessionRepo(): typeof import('@/app/db/repositories/session.reposito
 }
 
 // ── Resource protection ──
-// Max concurrent CLI processes to prevent resource exhaustion.
-// Each claude.cmd process consumes ~200-500MB RAM + CPU for streaming.
-const MAX_CONCURRENT_EXECUTIONS = 4;
+// The global concurrency ceiling lives in ./types (MAX_CONCURRENT_EXECUTIONS)
+// so the client-side DAG scheduler shares the exact same number.
 // Auto-cleanup completed executions after this many ms (5 minutes)
 const EXECUTION_CLEANUP_DELAY_MS = 5 * 60 * 1000;
 
@@ -140,11 +140,17 @@ const globalForExecutions = globalThis as unknown as {
   cliExecutionBus: EventEmitter | undefined;
   /** Maps Claude session_id → execution ID for HTTP hook lookups */
   cliSessionToExecution: Map<string, string> | undefined;
+  /** FIFO of execution IDs deferred because the global cap was reached */
+  cliPendingQueue: string[] | undefined;
+  /** executionId → the deferred spawn starter to invoke when a slot frees */
+  cliDeferredStarters: Map<string, () => void> | undefined;
 };
 
 const activeExecutions = globalForExecutions.cliActiveExecutions ?? new Map<string, CLIExecution>();
 const executionBus = globalForExecutions.cliExecutionBus ?? new EventEmitter();
 const sessionToExecution = globalForExecutions.cliSessionToExecution ?? new Map<string, string>();
+const pendingQueue = globalForExecutions.cliPendingQueue ?? [];
+const deferredStarters = globalForExecutions.cliDeferredStarters ?? new Map<string, () => void>();
 executionBus.setMaxListeners(50); // Allow many concurrent stream consumers
 
 if (!globalForExecutions.cliActiveExecutions) {
@@ -155,6 +161,68 @@ if (!globalForExecutions.cliExecutionBus) {
 }
 if (!globalForExecutions.cliSessionToExecution) {
   globalForExecutions.cliSessionToExecution = sessionToExecution;
+}
+if (!globalForExecutions.cliPendingQueue) {
+  globalForExecutions.cliPendingQueue = pendingQueue;
+}
+if (!globalForExecutions.cliDeferredStarters) {
+  globalForExecutions.cliDeferredStarters = deferredStarters;
+}
+
+/**
+ * Count execution slots currently occupied by a live OS process. A deferred
+ * (queued) execution has status 'running' but process === null, so it does NOT
+ * occupy a slot — this is what lets the gate defer instead of throw.
+ */
+function occupiedSlots(): number {
+  let n = 0;
+  for (const e of activeExecutions.values()) {
+    if (e.status === 'running' && e.process !== null) n++;
+  }
+  return n;
+}
+
+/**
+ * Promote deferred executions into real spawns while slots are free. Called
+ * whenever a running execution reaches a terminal state (or is aborted).
+ */
+function promoteNextPending(): void {
+  while (occupiedSlots() < MAX_CONCURRENT_EXECUTIONS && pendingQueue.length > 0) {
+    const nextId = pendingQueue.shift()!;
+    const starter = deferredStarters.get(nextId);
+    deferredStarters.delete(nextId);
+    const nextExec = activeExecutions.get(nextId);
+    // Skip executions that were aborted/cleaned up while queued.
+    if (starter && nextExec && nextExec.status === 'running' && nextExec.process === null) {
+      starter();
+    }
+  }
+}
+
+/** Number of executions currently deferred (waiting for a free slot). */
+export function getPendingExecutionCount(): number {
+  return pendingQueue.length;
+}
+
+/** Per-execution event-bus channel name. */
+function executionEventChannel(executionId: string): string {
+  return `event:${executionId}`;
+}
+
+/**
+ * Subscribe to an execution's events on the shared bus. The listener fires for
+ * every event emitted after subscription; call the returned function to detach.
+ * Enables event-driven SSE streaming (no busy-poll).
+ */
+export function subscribeToExecution(
+  executionId: string,
+  listener: (event: CLIExecutionEvent) => void
+): () => void {
+  const channel = executionEventChannel(executionId);
+  executionBus.on(channel, listener);
+  return () => {
+    executionBus.removeListener(channel, listener);
+  };
 }
 
 /**
@@ -508,15 +576,6 @@ export function startExecution(
   extraEnv?: Record<string, string>,
   toolFilter?: ToolFilterOptions
 ): string {
-  // Resource protection: enforce global concurrency limit
-  const runningCount = Array.from(activeExecutions.values()).filter(e => e.status === 'running').length;
-  if (runningCount >= MAX_CONCURRENT_EXECUTIONS) {
-    throw new Error(
-      `CLI execution limit reached (${MAX_CONCURRENT_EXECUTIONS} concurrent). ` +
-      `Wait for a running task to complete or abort one before starting new executions.`
-    );
-  }
-
   // Cleanup stale completed executions to prevent memory leak
   const now = Date.now();
   for (const [id, exec] of activeExecutions) {
@@ -629,6 +688,9 @@ export function startExecution(
     if (onEvent) {
       onEvent(event);
     }
+    // Push to the shared bus so SSE consumers stream events immediately instead
+    // of busy-polling. Channel is namespaced per execution.
+    executionBus.emit(executionEventChannel(executionId), event);
   };
 
   logMessage(`=== CLI Terminal Execution Started (${provider}) ===`);
@@ -656,6 +718,9 @@ export function startExecution(
     spawnConfig.env.VIBEMAN_HOOK_SECRET = hookSecret;
   }
 
+  // The actual process spawn + stream wiring. Deferred behind a closure so it
+  // can run immediately (slot free) or later (promoted from the pending queue).
+  const beginSpawn = () => {
   try {
     const childProcess = spawn(spawnConfig.command, spawnConfig.args, {
       cwd: projectPath,
@@ -858,6 +923,8 @@ export function startExecution(
       execution.endTime = Date.now();
       execution.status = code === 0 ? 'completed' : 'error';
       finalizeDbSession();
+      // A slot just freed — launch any execution waiting in the pending queue.
+      promoteNextPending();
 
       if (code !== 0) {
         const stderrHint = stderrBuffer.trim().split('\n')[0]?.slice(0, 200) || '';
@@ -916,6 +983,7 @@ export function startExecution(
       execution.endTime = Date.now();
       execution.status = 'error';
       finalizeDbSession();
+      promoteNextPending();
 
       // Provide helpful error messages for common spawn failures
       let errorMessage = err.message;
@@ -938,6 +1006,7 @@ export function startExecution(
         killProcessTree(childProcess); // tree-kill: the shell wrapper AND the node CLI grandchild on Windows
         execution.status = 'error';
         finalizeDbSession();
+        promoteNextPending();
         emitEvent({
           type: 'error',
           data: { message: 'Execution timed out after 100 minutes' },
@@ -957,12 +1026,30 @@ export function startExecution(
     execution.status = 'error';
     execution.endTime = Date.now();
     finalizeDbSession();
+    promoteNextPending();
 
     emitEvent({
       type: 'error',
       data: { message: error instanceof Error ? error.message : 'Unknown error' },
       timestamp: Date.now(),
     });
+  }
+  }; // end beginSpawn
+
+  // ── Concurrency gate ──
+  // If a slot is free, spawn immediately. Otherwise defer: the execution stays
+  // registered with status 'running' but process === null (so it occupies no
+  // slot and the SSE stream stays open) until promoteNextPending() launches it
+  // when a running execution finishes. This replaces the old hard throw.
+  if (occupiedSlots() < MAX_CONCURRENT_EXECUTIONS) {
+    beginSpawn();
+  } else {
+    deferredStarters.set(executionId, beginSpawn);
+    pendingQueue.push(executionId);
+    logMessage(
+      `[QUEUE] Deferred execution ${executionId}: ${occupiedSlots()} slot(s) busy ` +
+      `(cap ${MAX_CONCURRENT_EXECUTIONS}), ${pendingQueue.length} waiting.`
+    );
   }
 
   return executionId;
@@ -1245,8 +1332,23 @@ export function waitForExecution(executionId: string, timeoutMs = 5000): Promise
  */
 export function abortExecution(executionId: string): boolean {
   const execution = activeExecutions.get(executionId);
-  if (!execution || !execution.process) {
+  if (!execution) {
     return false;
+  }
+
+  // Deferred execution aborted while still queued (never spawned): drop it from
+  // the pending queue and mark it aborted without touching any process.
+  if (!execution.process) {
+    const idx = pendingQueue.indexOf(executionId);
+    if (idx === -1) return false; // not queued and no process → nothing to abort
+    pendingQueue.splice(idx, 1);
+    deferredStarters.delete(executionId);
+    execution.status = 'aborted';
+    execution.endTime = Date.now();
+    if (execution.dbSessionId) {
+      try { getSessionRepo()?.delete(execution.dbSessionId); } catch { /* best-effort */ }
+    }
+    return true;
   }
 
   killProcessTree(execution.process); // tree-kill so the node CLI grandchild dies, not just the shell wrapper
@@ -1261,6 +1363,9 @@ export function abortExecution(executionId: string): boolean {
       // best-effort
     }
   }
+
+  // A slot just freed — launch the next queued execution if any.
+  promoteNextPending();
 
   return true;
 }
