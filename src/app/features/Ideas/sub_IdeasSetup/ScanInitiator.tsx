@@ -2,12 +2,17 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Target, ChevronDown, Zap, X, AlertTriangle } from 'lucide-react';
+import { Target, ChevronDown, Zap, X, AlertTriangle, Loader2, Search } from 'lucide-react';
 import { Youtube } from '@/components/icons/brand-icons';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { toast } from '@/stores/messageStore';
 import { ScanType } from '../lib/scanTypes';
 import { executeClaudeCodeScan } from './lib/ideaExecutor';
+import {
+  buildScanQueueRequests,
+  enqueueDbScans,
+  pollScanQueueUntilDone,
+} from './lib/dbScanQueue';
 
 // Component imports
 import ClaudeIdeasButton, { DetailedIdeasButton } from './components/ClaudeIdeasButton';
@@ -39,6 +44,8 @@ export default function ScanInitiator({
   // Generated Ideas state
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [isDetailedProcessing, setIsDetailedProcessing] = React.useState(false);
+  // Primary DB-idea scan state (queue → worker → visible cards)
+  const [isDbScanning, setIsDbScanning] = React.useState(false);
 
   // Scan progress state — drives the progress bar + "agent × context" ticker
   interface ScanProgress {
@@ -170,6 +177,65 @@ export default function ScanInitiator({
       toast.error('Goal scan failed', errorMessage);
     } finally {
       setIsGoalScanning(false);
+    }
+  };
+
+  // Primary scan: enqueue DB-idea scans so results appear as cards on-screen.
+  // Routes through the scan QUEUE (worker → generateIdeas → ideas rows), unlike
+  // the requirement-file path below which produces no cards.
+  const handleDbScanClick = async () => {
+    if (!activeProject) {
+      toast.error('No active project', 'Please select a project first');
+      return;
+    }
+
+    // The DB-idea path analyzes code; youtube_scout belongs to the
+    // requirement-file path, so exclude it here.
+    const dbScanTypes = selectedScanTypes.filter(t => t !== 'youtube_scout');
+    if (dbScanTypes.length === 0) {
+      toast.warning('No scannable types', 'Select at least one code scan type. YouTube Scout runs via "Requirement files".');
+      return;
+    }
+
+    const requests = buildScanQueueRequests(dbScanTypes, currentSelectedContextIds);
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    setIsDbScanning(true);
+    setScanProgress({ done: 0, total: requests.length, currentLabel: '', errors: 0 });
+    toast.info('Scanning', `Queued ${requests.length} scan${requests.length === 1 ? '' : 's'} — ideas will appear as they complete.`);
+
+    try {
+      const enqueuedIds = await enqueueDbScans({
+        projectId: activeProject.id,
+        requests,
+        signal: controller.signal,
+      });
+
+      const { errors, completed } = await pollScanQueueUntilDone({
+        projectId: activeProject.id,
+        enqueuedIds,
+        signal: controller.signal,
+        onProgress: (p) => setScanProgress(p),
+      });
+
+      // New idea rows exist regardless of per-scan errors — refresh the cards.
+      onScanComplete();
+
+      if (!completed || controller.signal.aborted) {
+        toast.warning('Scan stopped', 'Scan monitoring stopped — any completed ideas are shown below.');
+      } else if (errors > 0) {
+        toast.warning('Scan finished with errors', `${enqueuedIds.length - errors}/${enqueuedIds.length} scans succeeded. New ideas are shown below.`);
+      } else {
+        toast.success('Scan complete', `${enqueuedIds.length} scan${enqueuedIds.length === 1 ? '' : 's'} finished — new ideas are shown below.`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error('Scan failed', errorMessage);
+    } finally {
+      setIsDbScanning(false);
+      setScanProgress(null);
+      abortControllerRef.current = null;
     }
   };
 
@@ -329,27 +395,52 @@ export default function ScanInitiator({
         )}
 
         {/* Action Buttons Row */}
-        <div className="flex items-center gap-3 pt-2 border-t border-gray-700/20">
-          {/* Generated Ideas Button */}
+        <div className="flex items-center gap-3 pt-2 border-t border-gray-700/20 flex-wrap">
+          {/* Primary: DB-idea scan — produces cards on-screen */}
           {activeProject && (
-            <ClaudeIdeasButton
-              onClick={handleGeneratedIdeasClick}
-              disabled={isProcessing || isDetailedProcessing || !activeProject || !isYoutubeValid}
-              isProcessing={isProcessing}
-              scanTypesCount={selectedScanTypes.length}
-              contextsCount={currentSelectedContextIds.length}
-            />
+            <motion.button
+              onClick={handleDbScanClick}
+              disabled={isDbScanning || isProcessing || isDetailedProcessing || !activeProject || selectedScanTypes.length === 0}
+              className={`flex items-center space-x-2 px-5 py-2 rounded-lg border transition-all duration-300 font-semibold text-sm ${
+                isDbScanning
+                  ? 'bg-emerald-500/30 border-emerald-500/50'
+                  : 'bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/40 hover:border-emerald-500/60'
+              } ${(isDbScanning || isProcessing || isDetailedProcessing || selectedScanTypes.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              whileHover={!isDbScanning && selectedScanTypes.length > 0 ? { scale: 1.05 } : {}}
+              whileTap={!isDbScanning && selectedScanTypes.length > 0 ? { scale: 0.95 } : {}}
+              title="Scan the codebase and add ideas directly to the board below"
+              data-testid="db-scan-btn"
+            >
+              {isDbScanning ? (
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-300" />
+              ) : (
+                <Search className="w-4 h-4 text-emerald-300" />
+              )}
+              <span className="text-white">
+                {isDbScanning ? 'Scanning...' : 'Scan ideas'}
+              </span>
+            </motion.button>
           )}
 
-          {/* Detailed Ideas Button */}
+          {/* Secondary: requirement-file generation (no cards; run via TaskRunner) */}
           {activeProject && (
-            <DetailedIdeasButton
-              onClick={handleDetailedScanClick}
-              disabled={isDetailedProcessing || isProcessing || !activeProject || !isYoutubeValid}
-              isProcessing={isDetailedProcessing}
-              scanTypesCount={selectedScanTypes.length}
-              contextsCount={currentSelectedContextIds.length}
-            />
+            <div className="flex items-center gap-2 pl-3 ml-1 border-l border-gray-700/30">
+              <span className="text-2xs uppercase tracking-wide text-gray-500 select-none">Requirement files</span>
+              <ClaudeIdeasButton
+                onClick={handleGeneratedIdeasClick}
+                disabled={isProcessing || isDetailedProcessing || isDbScanning || !activeProject || !isYoutubeValid}
+                isProcessing={isProcessing}
+                scanTypesCount={selectedScanTypes.length}
+                contextsCount={currentSelectedContextIds.length}
+              />
+              <DetailedIdeasButton
+                onClick={handleDetailedScanClick}
+                disabled={isDetailedProcessing || isProcessing || isDbScanning || !activeProject || !isYoutubeValid}
+                isProcessing={isDetailedProcessing}
+                scanTypesCount={selectedScanTypes.length}
+                contextsCount={currentSelectedContextIds.length}
+              />
+            </div>
           )}
 
           {/* Goal-Driven Scan */}
