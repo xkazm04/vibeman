@@ -1,0 +1,552 @@
+{
+  "$schema": "https://vibeman.dev/schemas/context-map.json",
+  "projectId": "c32769af-72ed-4764-bd27-550d46f14bc5",
+  "projectName": "vibeman",
+  "projectPath": "C:\\Users\\kazda\\kiro\\vibeman",
+  "provenance": {
+    "gitCommit": "f3fc8cbd5a7c4a4e6d32c3de79a23a98347e2b56",
+    "gitCommitCount": 836
+  },
+  "version": "2.0.0",
+  "groups": [
+    {
+      "name": "Core Development Engine",
+      "domain": null,
+      "type": null,
+      "color": "#3B82F6",
+      "icon": null,
+      "contexts": [
+        {
+          "name": "Manager & Directions",
+          "description": "Project management hub with implementation log review, proposal adaptation, and strategic direction generation. Manages task input, user advisory, and cross-project coordination.",
+          "businessFeature": null,
+          "category": null,
+          "filePaths": [
+            "src/app/features/Manager/ManagerLayout.tsx",
+            "src/app/features/Manager/components/ManagerCardGrid.tsx",
+            "src/app/features/Manager/components/ImplementationLogCard.tsx",
+            "src/app/features/Manager/components/ImplementationLogDetail.tsx",
+            "src/app/features/Manager/components/ImplementationProposalBridge.tsx",
+            "src/app/features/Manager/components/NewTaskModal.tsx",
+            "src/app/features/Manager/components/UserInputPanel.tsx",
+            "src/app/features/Manager/lib/proposalAdapter.ts",
+            "src/app/features/Manager/lib/promptTemplates.ts",
+            "src/app/features/Manager/lib/types.ts",
+            "src/app/features/Proposals/",
+            "src/app/api/directions/route.ts",
+            "src/app/api/directions/generate/route.ts",
+            "src/app/api/directions/pair/[pairId]/route.ts",
+            "src/app/api/implementation-logs/route.ts",
+            "src/app/api/implementation-logs/untested/route.ts",
+            "src/app/api/cross-task/route.ts",
+            "src/app/db/repositories/direction.repository.ts",
+            "src/app/db/repositories/direction-outcome.repository.ts",
+            "src/app/db/repositories/implementation-log.repository.ts",
+            "src/app/db/repositories/cross-task.repository.ts"
+          ],
+          "target": null,
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-02-07T21:20:28.206Z"
+        },
+        {
+          "name": "Context Management",
+          "description": "Visual organization of code into business-domain contexts with groups, health scanning, file tree browsing, preview screenshots, and test scenario editing. Core organizational primitive of Vibeman.",
+          "businessFeature": null,
+          "category": null,
+          "filePaths": [
+            "src/app/features/Context/ContextLayout.tsx",
+            "src/app/features/Context/components/ContextEmptyState.tsx",
+            "src/app/features/Context/components/ContextGenerationScanButton.tsx",
+            "src/app/features/Context/components/ContextHealthIndicator.tsx",
+            "src/app/features/Context/components/tree/TreeView.tsx",
+            "src/app/features/Context/hooks/useContextGenerationStream.ts",
+            "src/app/features/Context/lib/contextGenerationPrompt.ts",
+            "src/app/features/Context/lib/contextUtils.ts",
+            "src/app/features/Context/sub_ContextGroups/HorizontalContextBarHeader.tsx",
+            "src/app/features/Context/sub_ContextGroups/components/GroupHealthScanButton.tsx",
+            "src/app/features/Context/sub_ContextGroups/hooks/useKeyboardNavigation.ts",
+            "src/app/features/Context/sub_ContextOverview/ContextOverviewInline.tsx",
+            "src/app/features/Context/sub_ContextPreview/ContextPreviewManager.tsx",
+            "src/app/api/contexts/route.ts",
+            "src/app/api/context-groups/route.ts",
+            "src/app/api/context-group-relationships/route.ts",
+            "src/app/api/context-generation/execute/route.ts",
+            "src/app/api/context-files/batch/route.ts",
+            "src/app/api/group-health-scan/route.ts",
+            "src/app/db/repositories/context.repository.ts",
+            "src/app/db/repositories/context-group.repository.ts",
+            "src/app/db/repositories/group-health.repository.ts",
+            "src/stores/contextStore.ts",
+            "src/stores/contextGenerationStore.ts"
+          ],
+          "target": null,
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-02-12T21:52:51.346Z"
+        },
+        {
+          "name": "Goals & Daily Standup",
+          "description": "Goal lifecycle management with timeline visualization, daily standup wizard for progress reviews, and automated candidate generation. Integrates GitHub sync and automation sessions.",
+          "businessFeature": null,
+          "category": null,
+          "filePaths": [
+            "src/app/features/Goals/sub_GoalModal/GoalModal.tsx",
+            "src/app/features/Goals/sub_GoalModal/components/GoalForm.tsx",
+            "src/app/features/Goals/sub_GoalModal/components/GoalCandidatesModal.tsx",
+            "src/app/features/Goals/components/GoalsTimeline.tsx",
+            "src/app/features/Goals/components/GoalProgressRing.tsx",
+            "src/app/features/Goals/sub_EventsBarChart/EventsBarChart.tsx",
+            "src/app/features/DailyStandup/lib/standupGenerator.ts",
+            "src/app/api/goals/route.ts",
+            "src/app/api/goals/generate-candidates/route.ts",
+            "src/app/api/standup/route.ts",
+            "src/app/db/repositories/standup.repository.ts"
+          ],
+          "target": null,
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-02-07T21:20:10.378Z"
+        },
+        {
+          "name": "Ideas System",
+          "description": "Continuous AI-powered suggestion engine. Scans codebase with 12 specialized agents, evaluates ideas via LLM, and lets users triage suggestions through swipe-based acceptance and buffer views.",
+          "businessFeature": null,
+          "category": null,
+          "filePaths": [
+            "src/app/features/Ideas/IdeasLayout.tsx",
+            "src/app/features/Ideas/components/IdeasHeaderWithFilter.tsx",
+            "src/app/features/Ideas/components/ScanTypePreview.tsx",
+            "src/app/features/Ideas/components/ContextGroupSelector.tsx",
+            "src/app/features/Ideas/components/ContextRowSelection.tsx",
+            "src/app/features/Ideas/lib/scanApi.ts",
+            "src/app/features/Ideas/lib/scanTypes.ts",
+            "src/app/features/Ideas/lib/ideaConfig.ts",
+            "src/app/features/Ideas/lib/selectionTypes.ts",
+            "src/app/features/Ideas/sub_Buffer/BufferView.tsx",
+            "src/app/features/Ideas/sub_Buffer/BufferColumn.tsx",
+            "src/app/features/Ideas/sub_Buffer/BufferItem.tsx",
+            "src/app/features/Ideas/sub_IdeasSetup/components/ClaudeIdeasButton.tsx",
+            "src/app/features/Ideas/sub_Lifecycle/LifecycleDashboard.tsx",
+            "src/app/features/Ideas/sub_Lifecycle/lib/lifecycleOrchestrator.ts",
+            "src/app/features/Ideas/sub_Lifecycle/lib/lifecycleTypes.ts",
+            "src/app/features/tinder/",
+            "src/app/api/ideas/stats/route.ts",
+            "src/app/api/ideas/categories/route.ts",
+            "src/app/api/idea-aggregator/route.ts",
+            "src/app/api/lifecycle/route.ts",
+            "src/app/db/repositories/idea.repository.ts"
+          ],
+          "target": null,
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-02-07T21:20:00.967Z"
+        }
+      ]
+    },
+    {
+      "name": "Code Execution & Automation",
+      "domain": null,
+      "type": null,
+      "color": "#8B5CF6",
+      "icon": null,
+      "contexts": [
+        {
+          "name": "Scan Queue & Build Fixer",
+          "description": "Background job queue with progress tracking, worker management, auto-merge capability, and build error detection with automated fix suggestions. Drives all async scanning operations.",
+          "businessFeature": null,
+          "category": null,
+          "filePaths": [
+            "src/app/api/scan-queue/route.ts",
+            "src/app/api/scan-queue/[id]/route.ts",
+            "src/app/api/scan-queue/worker/route.ts",
+            "src/app/api/scan-queue/notifications/route.ts",
+            "src/app/api/scans/route.ts",
+            "src/app/api/build-fixer/route.ts",
+            "src/app/api/build-fixer/helpers.ts",
+            "src/app/api/build-fixer/lib/buildScanner.ts",
+            "src/app/api/build-fixer/lib/requirementCreator.ts",
+            "src/app/api/file-watch/route.ts",
+            "src/app/db/repositories/scanQueue.repository.ts",
+            "src/app/db/repositories/scan.repository.ts"
+          ],
+          "target": null,
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-02-07T21:20:53.024Z"
+        },
+        {
+          "name": "Blueprint & Onboarding",
+          "description": "Comprehensive project analysis wizard with framework-specific scan strategies, state machine workflow, scan scheduling, and getting-started experience. First-run setup for new projects.",
+          "businessFeature": null,
+          "category": null,
+          "filePaths": [
+            "src/app/features/Onboarding/ControlPanelProvider.tsx",
+            "src/app/features/Onboarding/components/ControlPanel.tsx",
+            "src/app/features/Onboarding/components/OnboardingPanel.tsx",
+            "src/app/features/Onboarding/components/BlueprintModal.tsx",
+            "src/app/features/Onboarding/lib/useOnboardingConditions.ts",
+            "src/app/api/structure-scan/route.ts",
+            "src/app/api/structure-scan/analyze/route.ts",
+            "src/stores/onboardingStore.ts"
+          ],
+          "target": null,
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-02-07T21:20:44.786Z"
+        },
+        {
+          "name": "TaskRunner & Claude Code",
+          "description": "Batch execution of Claude Code requirements with dual-panel UI, task status tracking, session management, and CLI terminal integration. The primary execution engine for automated code changes.",
+          "businessFeature": null,
+          "category": null,
+          "filePaths": [
+            "src/app/features/TaskRunner/",
+            "src/app/api/claude-code/execute/route.ts",
+            "src/app/api/claude-code/requirement/route.ts",
+            "src/app/api/claude-code/tasks/route.ts",
+            "src/app/api/claude-code/tasks/[id]/route.ts",
+            "src/app/api/claude-code/sessions/route.ts",
+            "src/app/api/claude-code/sessions/heartbeat/route.ts",
+            "src/app/api/claude-code/executionHandlers.ts",
+            "src/app/api/claude-code/taskStatusHandler.ts",
+            "src/app/api/claude-code/batch-requirements/route.ts",
+            "src/app/api/claude-terminal/query/route.ts",
+            "src/app/api/claude-terminal/stream/route.ts",
+            "src/app/api/cli-task-registry/route.ts",
+            "src/app/db/repositories/session.repository.ts",
+            "src/app/Claude/",
+            "src/stores/orchestratorStore.ts",
+            "src/stores/workflowStore.ts"
+          ],
+          "target": null,
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-02-12T22:04:57.724Z"
+        }
+      ]
+    },
+    {
+      "name": "Intelligence Layer",
+      "domain": null,
+      "type": null,
+      "color": "#EC4899",
+      "icon": null,
+      "contexts": [
+        {
+          "name": "Reflector & Executive Analysis",
+          "description": "Executive-level project analysis with implementation review, cross-project architecture mapping, and strategic reflection. Produces high-level reports and improvement recommendations.",
+          "businessFeature": null,
+          "category": null,
+          "filePaths": [
+            "src/app/features/reflector/",
+            "src/app/api/reflector/executive-analysis/route.ts",
+            "src/app/api/reflector/executive-analysis/[analysisId]/complete/route.ts",
+            "src/app/api/reflector/project-implementations/route.ts",
+            "src/app/api/architecture/analyze/route.ts",
+            "src/app/api/architecture/analyze/[analysisId]/complete/route.ts",
+            "src/app/api/architecture/relationships/route.ts",
+            "src/app/db/repositories/executive-analysis.repository.ts",
+            "src/stores/reflectorStore.ts"
+          ],
+          "target": null,
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-02-07T21:21:58.611Z"
+        },
+        {
+          "name": "Brain & Behavioral Signals",
+          "description": "AI learning system that captures behavioral signals, runs reflection cycles, tracks insight effectiveness, and provides pattern-based recommendations via memory canvas visualization.",
+          "businessFeature": null,
+          "category": null,
+          "filePaths": [
+            "src/app/api/brain/signals/route.ts",
+            "src/app/api/brain/signals/decay/route.ts",
+            "src/app/api/brain/reflection/route.ts",
+            "src/app/api/brain/context/route.ts",
+            "src/app/db/repositories/brain-reflection.repository.ts",
+            "src/app/db/repositories/behavioral-signal.repository.ts"
+          ],
+          "target": null,
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-02-15T15:51:52.902Z"
+        }
+      ]
+    },
+    {
+      "name": "Analysis & Quality",
+      "domain": null,
+      "type": null,
+      "color": "#10B981",
+      "icon": null,
+      "contexts": [
+        {
+          "name": "Testing & Scenarios",
+          "description": "Automated test scenario generation and execution with screenshot comparison, selector scanning, and Browserbase integration for visual regression testing.",
+          "businessFeature": null,
+          "category": null,
+          "filePaths": [
+            "src/app/api/tester/screenshot/route.ts",
+            "src/app/api/tester/lib/browserbase.ts",
+            "src/app/api/tester/lib/screenshotExecutor.ts",
+            "src/app/api/tester/lib/contextScreenshotExecutor.ts"
+          ],
+          "target": null,
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-02-07T21:22:23.570Z"
+        },
+        {
+          "name": "Debt Prediction & Refactoring",
+          "description": "Technical debt prediction engine with health score gauges, opportunity cards, and refactoring wizard with package-based Map-Reduce AI pattern for strategic code improvements.",
+          "businessFeature": null,
+          "category": null,
+          "filePaths": [
+            "src/app/features/RefactorWizard/",
+            "src/app/api/unused-code/route.ts",
+            "src/stores/refactorStore.ts"
+          ],
+          "target": null,
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-02-07T21:22:14.926Z"
+        }
+      ]
+    },
+    {
+      "name": "Social & Integrations",
+      "domain": null,
+      "type": null,
+      "color": "#06B6D4",
+      "icon": null,
+      "contexts": [
+        {
+          "name": "Remote Device Control",
+          "description": "Remote device fleet management with mesh topology, heartbeat monitoring, command execution, and cross-device synchronization for distributed development environments.",
+          "businessFeature": null,
+          "category": null,
+          "filePaths": [
+            "src/app/api/remote/devices/route.ts",
+            "src/app/api/remote/devices/[id]/route.ts",
+            "src/app/api/remote/devices/heartbeat/route.ts",
+            "src/app/api/remote/commands/route.ts",
+            "src/app/api/remote/commands/[id]/route.ts",
+            "src/app/api/remote/clients/route.ts",
+            "src/app/api/remote/fleet/route.ts",
+            "src/app/api/remote/mesh/topology/route.ts",
+            "src/app/api/remote/mesh/commands/route.ts",
+            "src/app/api/remote/sync/route.ts",
+            "src/app/api/remote/events/route.ts",
+            "src/app/api/remote/setup/route.ts"
+          ],
+          "target": null,
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-02-12T21:41:09.070Z"
+        },
+        {
+          "name": "Integrations & Template Discovery",
+          "description": "External integration framework with event logging, webhook management, prompt template discovery and AI-powered generation. Extends Vibeman with third-party tool connections.",
+          "businessFeature": null,
+          "category": null,
+          "filePaths": [
+            "src/app/api/template-discovery/route.ts",
+            "src/app/api/template-discovery/generate/route.ts",
+            "src/app/db/repositories/discovered-template.repository.ts"
+          ],
+          "target": null,
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-02-07T21:23:24.206Z"
+        }
+      ]
+    },
+    {
+      "name": "Data & Infrastructure",
+      "domain": null,
+      "type": null,
+      "color": "#6366F1",
+      "icon": null,
+      "contexts": [
+        {
+          "name": "Workspace & Project Management",
+          "description": "Multi-workspace project organization with active project selection, file structure loading, observability dashboard, HallOfFame component showcase, and API monitoring.",
+          "businessFeature": null,
+          "category": null,
+          "filePaths": [
+            "src/app/features/Overview/",
+            "src/app/features/HallOfFame/HallOfFameLayout.tsx",
+            "src/app/features/HallOfFame/components/PreviewModal.tsx",
+            "src/app/features/HallOfFame/lib/showcaseRegistry.ts",
+            "src/app/api/workspaces/route.ts",
+            "src/app/api/workspaces/projects/route.ts",
+            "src/app/api/observability/config/route.ts",
+            "src/app/api/observability/stats/route.ts",
+            "src/app/api/observability/register/route.ts",
+            "src/app/api/hall-of-fame/star/route.ts",
+            "src/app/api/git/branches/route.ts",
+            "src/app/api/git/commit-and-push/route.ts",
+            "src/app/db/repositories/workspace.repository.ts",
+            "src/app/db/repositories/observability.repository.ts",
+            "src/app/db/repositories/hall-of-fame.repository.ts",
+            "src/stores/workspaceStore.ts",
+            "src/stores/clientProjectStore.ts",
+            "src/stores/serverProjectStore.ts"
+          ],
+          "target": null,
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-02-07T21:23:57.475Z"
+        },
+        {
+          "name": "Docs & Architecture Explorer",
+          "description": "Interactive architecture visualization with system maps, module explorer, impact simulation, X-Ray hot paths, and context documentation. Provides deep codebase understanding.",
+          "businessFeature": null,
+          "category": null,
+          "filePaths": [
+            "src/app/features/Docs/sub_DocsAnalysis/DocsAnalysisLayout.tsx",
+            "src/app/features/Docs/sub_DocsAnalysis/components/SystemMap/index.tsx",
+            "src/app/features/Docs/sub_DocsAnalysis/components/SystemMap/ModuleNode.tsx",
+            "src/app/features/Docs/sub_DocsAnalysis/components/SystemMap/ConnectionLine.tsx",
+            "src/app/features/Docs/sub_DocsAnalysis/components/ModuleExplorer/index.tsx",
+            "src/app/features/Docs/sub_DocsAnalysis/components/ContextDocumentation/index.tsx",
+            "src/app/features/Docs/sub_DocsAnalysis/lib/queries/useDataQueries.ts",
+            "src/app/features/Docs/sub_DocsAnalysis/lib/queries/apiClient.ts",
+            "src/app/features/Docs/sub_DocsAnalysis/lib/impactSimulator/index.ts",
+            "src/app/features/Docs/sub_DocsAnalysis/lib/impactSimulator/staticAnalyzer.ts",
+            "src/app/features/Docs/sub_ImpactSimulator/ImpactAnalysisPanel.tsx",
+            "src/app/features/Docs/sub_ImpactSimulator/SimulationSystemMap.tsx",
+            "src/app/features/Docs/sub_XRay/XRaySystemMap.tsx",
+            "src/app/features/Docs/sub_XRay/XRayHotPathsPanel.tsx",
+            "src/app/api/xray/route.ts",
+            "src/app/api/xray/stream/route.ts",
+            "src/app/db/repositories/xray.repository.ts",
+            "src/stores/xrayStore.ts"
+          ],
+          "target": null,
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-02-07T21:23:48.932Z"
+        },
+        {
+          "name": "Database & Schema",
+          "description": "Multi-database driver abstraction with SQLite/PostgreSQL support, migration system, repository utilities, and type definitions. Foundation layer for all data persistence.",
+          "businessFeature": null,
+          "category": null,
+          "filePaths": [
+            "src/app/db/drivers/index.ts",
+            "src/app/db/drivers/sqlite.driver.ts",
+            "src/app/db/drivers/types.ts",
+            "src/app/db/schema.ts",
+            "src/app/db/repositories/repository.utils.ts",
+            "src/app/db/models/types.ts",
+            "src/app/db/models/brain.types.ts",
+            "src/app/db/models/standup.types.ts",
+            "src/app/db/models/observability.types.ts",
+            "src/app/db/migrations/migration.utils.ts",
+            "src/app/api/db-sync/sync/route.ts",
+            "src/app/api/db-sync/status/route.ts",
+            "src/app/api/cache/route.ts",
+            "src/app/api/health/route.ts"
+          ],
+          "target": null,
+          "apiRoutes": [],
+          "pinned": false,
+          "lastWrittenAt": "2026-02-07T21:23:40.279Z"
+        }
+      ]
+    }
+  ],
+  "ungrouped": [],
+  "relationships": [
+    {
+      "source": "Core Development Engine",
+      "target": "Code Execution & Automation",
+      "type": "uses"
+    },
+    {
+      "source": "Core Development Engine",
+      "target": "Data & Infrastructure",
+      "type": "uses"
+    },
+    {
+      "source": "Code Execution & Automation",
+      "target": "Data & Infrastructure",
+      "type": "uses"
+    },
+    {
+      "source": "Intelligence Layer",
+      "target": "Core Development Engine",
+      "type": "uses"
+    },
+    {
+      "source": "Intelligence Layer",
+      "target": "Code Execution & Automation",
+      "type": "uses"
+    },
+    {
+      "source": "Analysis & Quality",
+      "target": "Core Development Engine",
+      "type": "uses"
+    },
+    {
+      "source": "Analysis & Quality",
+      "target": "Code Execution & Automation",
+      "type": "uses"
+    },
+    {
+      "source": "Social & Integrations",
+      "target": "Core Development Engine",
+      "type": "uses"
+    },
+    {
+      "source": "Social & Integrations",
+      "target": "Data & Infrastructure",
+      "type": "uses"
+    },
+    {
+      "source": "Intelligence Layer",
+      "target": "Data & Infrastructure",
+      "type": "uses"
+    }
+  ],
+  "index": [
+    "Core Development Engine › Manager & Directions [?] — 21 files",
+    "Core Development Engine › Context Management [?] — 24 files",
+    "Core Development Engine › Goals & Daily Standup [?] — 11 files",
+    "Core Development Engine › Ideas System [?] — 22 files",
+    "Code Execution & Automation › Scan Queue & Build Fixer [?] — 12 files",
+    "Code Execution & Automation › Blueprint & Onboarding [?] — 8 files",
+    "Code Execution & Automation › TaskRunner & Claude Code [?] — 17 files",
+    "Intelligence Layer › Reflector & Executive Analysis [?] — 9 files",
+    "Intelligence Layer › Brain & Behavioral Signals [?] — 6 files",
+    "Analysis & Quality › Testing & Scenarios [?] — 4 files",
+    "Analysis & Quality › Debt Prediction & Refactoring [?] — 3 files",
+    "Social & Integrations › Remote Device Control [?] — 12 files",
+    "Social & Integrations › Integrations & Template Discovery [?] — 3 files",
+    "Data & Infrastructure › Workspace & Project Management [?] — 18 files",
+    "Data & Infrastructure › Docs & Architecture Explorer [?] — 18 files",
+    "Data & Infrastructure › Database & Schema [?] — 14 files"
+  ],
+  "summary": {
+    "totalGroups": 6,
+    "totalContexts": 16,
+    "totalFiles": 202,
+    "categories": {
+      "uncategorized": 16
+    },
+    "domains": {}
+  },
+  "audit": {
+    "ok": false,
+    "tier": "large",
+    "warnings": 47,
+    "staleContexts": 0,
+    "missingFiles": 15,
+    "unresolvedCrossRefs": 2
+  },
+  "instructions": "Context map for vibeman. Each group is a business domain (domain field); each context is a feature with its files (filePaths) + a technical category. Read this to learn which files belong to which feature BEFORE editing. When you change a context's files, update them here (or run Vibeman's refresh) to keep this fresh.",
+  "generatedAt": "2026-07-13T11:17:42.063Z",
+  "revision": "869e5abb2ac3"
+}
