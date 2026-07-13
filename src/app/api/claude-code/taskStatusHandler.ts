@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { processProgress, finalizeProgress, type ProgressState } from '@/app/features/TaskRunner/lib/progressTracker';
 import type { ActivityEvent } from '@/app/features/TaskRunner/lib/activityClassifier.types';
+import type { TaskOutcome } from '@/app/db/repositories/task-outcome.repository';
 
 interface Task {
   id: string;
@@ -25,6 +26,29 @@ interface TaskWithActivity extends Task {
     phase: ProgressState['activity']['phase'];
   };
   progressState?: ProgressState;
+  outcome?: TaskOutcome | null;
+}
+
+/**
+ * Rebuild a Task from a persisted outcome (migration 237). Preferred over the
+ * lossy log-reconstruction fallback below: it carries the real terminal status
+ * and a summary rather than a synthetic "Execution completed" placeholder.
+ */
+function taskFromOutcome(taskId: string, outcome: TaskOutcome): Task {
+  const status: Task['status'] =
+    outcome.status === 'completed' ? 'completed'
+    : outcome.status === 'session-limit' ? 'session-limit'
+    : 'failed';
+  return {
+    id: taskId,
+    projectPath: outcome.projectPath ?? '',
+    requirementName: outcome.requirementName,
+    projectId: outcome.projectId ?? undefined,
+    status,
+    progress: [],
+    error: status !== 'completed' ? (outcome.summary ?? 'Execution failed') : undefined,
+    output: status === 'completed' ? (outcome.summary ?? 'Execution completed') : undefined,
+  };
 }
 
 interface DbProject {
@@ -135,7 +159,23 @@ export async function getTaskStatus(taskId: string): Promise<NextResponse> {
   const { executionQueue } = await import('@/app/Claude/lib/claudeExecutionQueue');
   let task: Task | null | undefined = executionQueue.getTask(taskId);
 
-  // If task not found in memory, check log files
+  // Load the persisted outcome (migration 237) so the response can carry
+  // files-touched / duration / summary regardless of which path found the task.
+  let outcome: TaskOutcome | null = null;
+  try {
+    const { taskOutcomeRepository } = await import('@/app/db/repositories/task-outcome.repository');
+    outcome = taskOutcomeRepository.getByTaskId(taskId);
+  } catch {
+    outcome = null;
+  }
+
+  // If task not found in memory, prefer the persisted outcome over the lossy
+  // log-reconstruction fallback (which only ever yields a synthetic status).
+  if (!task && outcome) {
+    task = taskFromOutcome(taskId, outcome);
+  }
+
+  // If still not found, check log files as a last resort.
   if (!task) {
     try {
       task = await findLogFileAcrossProjects(taskId);
@@ -196,6 +236,7 @@ export async function getTaskStatus(taskId: string): Promise<NextResponse> {
     ...task,
     activity: activityData,
     progressState,
+    outcome,
   };
 
   return NextResponse.json({ task: taskWithActivity });

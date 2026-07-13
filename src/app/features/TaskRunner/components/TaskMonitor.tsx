@@ -22,6 +22,7 @@ import { useSessionCleanup } from '../hooks/useSessionCleanup';
 import { OrphanedSessionItem } from './OrphanSessionShared';
 import { LiveActivityPanel } from './LiveActivityPanel';
 import { getTheme } from '../lib/taskStatusUtils';
+import { TaskOutcomePanel, type TaskOutcomeData } from './TaskOutcomePanel';
 
 interface TaskHealingInfo {
   errorType: string;
@@ -42,6 +43,8 @@ interface ExecutionTask {
   endTime?: string;
   error?: string;
   healing?: TaskHealingInfo;
+  /** Persisted post-completion outcome (migration 237), attached by the tasks API. */
+  outcome?: TaskOutcomeData | null;
 }
 
 interface TaskMonitorProps {
@@ -204,6 +207,18 @@ const TaskItem = memo(function TaskItem({ task }: { task: ExecutionTask }) {
             transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.2 }}
             className="overflow-hidden"
           >
+            {/* Post-completion outcome: files touched, status, duration, summary + retry */}
+            {task.outcome && (
+              <div className="px-2 pt-2">
+                <TaskOutcomePanel
+                  outcome={task.outcome}
+                  projectPath={task.projectPath}
+                  requirementName={task.requirementName}
+                  projectId={task.projectId}
+                  reqId={task.id}
+                />
+              </div>
+            )}
             <div className="px-2 pb-2 text-2xs font-mono text-gray-500 max-h-40 overflow-y-auto bg-gray-900/50">
               {/* Self-healing classification panel */}
               {task.healing && (

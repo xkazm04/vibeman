@@ -21,6 +21,7 @@ import { buildHealingContext } from '@/lib/selfHealing/promptPatcher';
 import type { ErrorType, HealingPatch } from '@/lib/selfHealing/types';
 import { execSync } from 'child_process';
 import { sessionRepository } from '@/app/db/repositories/session.repository';
+import { taskOutcomeRepository, type TaskOutcomeStatus } from '@/app/db/repositories/task-outcome.repository';
 
 export interface GitExecutionConfig {
   enabled: boolean;
@@ -294,6 +295,40 @@ class ClaudeExecutionQueue {
     }
   }
 
+  /**
+   * Persist a durable outcome row for a finished task (migration 237). The
+   * in-memory task and the terminal run events are garbage-collected minutes
+   * after completion, so without this the post-completion panel — files touched,
+   * status, duration, summary — could not survive a page reload or server
+   * restart. Best-effort: a DB failure must never break the execution flow.
+   */
+  private persistOutcome(
+    task: ExecutionTask,
+    status: TaskOutcomeStatus,
+    changedFiles: string[],
+    summary?: string,
+  ): void {
+    try {
+      const durationMs = task.startTime && task.endTime
+        ? task.endTime.getTime() - task.startTime.getTime()
+        : undefined;
+      taskOutcomeRepository.record({
+        taskId: task.id,
+        projectId: task.projectId ?? null,
+        projectPath: task.projectPath ?? null,
+        requirementName: task.requirementName,
+        status,
+        durationMs,
+        changedFiles,
+        summary,
+        provider: task.provider ?? null,
+        model: task.model ?? null,
+      });
+    } catch {
+      // Persisting the outcome must never break the main flow.
+    }
+  }
+
   private handleTaskSuccess(task: ExecutionTask, output?: string, logFilePath?: string): void {
     task.status = 'completed';
     task.output = output;
@@ -304,13 +339,17 @@ class ClaudeExecutionQueue {
     this.notifyTaskChange(task);
     logger.info('Task completed successfully', { taskId: task.id });
 
+    // Attribute exactly the files this task touched (empty when git is off / no commit).
+    const changedFiles = this.getChangedFiles(task.projectPath, task.gitHeadBefore);
+    // Persist a durable outcome so the post-completion panel survives reload/GC.
+    this.persistOutcome(task, 'completed', changedFiles, output);
+
     // Emit task completed notification
     if (task.projectId) {
       const duration = task.startTime ? Date.now() - task.startTime.getTime() : undefined;
       emitTaskCompleted(task.id, task.requirementName, task.projectId, undefined, duration);
 
       // Emit domain event — subscribers handle signal recording, cache invalidation, collective memory
-      const changedFiles = this.getChangedFiles(task.projectPath, task.gitHeadBefore);
       emitTaskExecutionCompleted({
         projectId: task.projectId,
         taskId: task.id,
@@ -358,6 +397,10 @@ class ClaudeExecutionQueue {
     this.notifyTaskChange(task);
     task.progress.push(this.createProgressEntry('✗ Session limit reached'));
     logger.warn('Task hit session limit', { taskId: task.id });
+
+    // Persist a durable outcome so a partial session-limited run is visible after reload/GC.
+    const changedFiles = this.getChangedFiles(task.projectPath, task.gitHeadBefore);
+    this.persistOutcome(task, 'session-limit', changedFiles, error);
 
     // Emit session limit notification
     if (task.projectId) {
@@ -460,13 +503,17 @@ class ClaudeExecutionQueue {
     task.progress.push(this.createProgressEntry('✗ Execution failed'));
     logger.error('Task failed', { taskId: task.id, error, errorType: task.healing?.errorType });
 
+    // Attribute any files touched before the failure (usually none).
+    const changedFiles = this.getChangedFiles(task.projectPath, task.gitHeadBefore);
+    // Persist a durable outcome so the panel can show the failure + summary after reload/GC.
+    this.persistOutcome(task, 'failed', changedFiles, error);
+
     // Emit task failed notification
     if (task.projectId) {
       const duration = task.startTime ? Date.now() - task.startTime.getTime() : undefined;
       emitTaskFailed(task.id, task.requirementName, task.projectId, error, duration);
 
       // Emit domain event — subscribers handle signal recording, cache invalidation, collective memory
-      const changedFiles = this.getChangedFiles(task.projectPath, task.gitHeadBefore);
       emitTaskExecutionCompleted({
         projectId: task.projectId,
         taskId: task.id,
