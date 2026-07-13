@@ -111,7 +111,7 @@ function onImplementationLogged(event: ImplementationLoggedEvent): void {
 function onTaskExecutionCompleted(event: TaskExecutionCompletedEvent): void {
   const {
     projectId, taskId, requirementName, success, durationMs,
-    filesModified, error, provider, model,
+    filesModified, error, provider, model, contextId,
   } = event;
   if (!projectId) return;
 
@@ -133,6 +133,27 @@ function onTaskExecutionCompleted(event: TaskExecutionCompletedEvent): void {
     });
   } catch (err) {
     logger.error('[DomainEvent] Signal recording failed for task_execution_completed', {
+      taskId,
+      projectId,
+      error: err,
+    });
+  }
+
+  // 1b. Record a bounded cli_memory signal so the next run in this context is
+  // reminded of this outcome ("last run failed on X"). The fleet learns across runs.
+  try {
+    const { recordTaskOutcomeMemory } = require('@/lib/brain/taskOutcomeMemory');
+    recordTaskOutcomeMemory({
+      projectId,
+      requirementName,
+      success,
+      durationMs,
+      filesModified: filesModified || [],
+      error: success ? null : error,
+      contextId: contextId || null,
+    });
+  } catch (err) {
+    logger.error('[DomainEvent] CLI memory recording failed for task_execution_completed', {
       taskId,
       projectId,
       error: err,

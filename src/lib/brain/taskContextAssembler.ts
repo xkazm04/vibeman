@@ -7,9 +7,16 @@
 import { brainInsightRepository } from '@/app/db/repositories/brain-insight.repository';
 import { contextRepository } from '@/app/db/repositories/context.repository';
 import { implementationLogRepository } from '@/app/db/repositories/implementation-log.repository';
+import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-signal.repository';
 import type { DbContext } from '@/app/db/models/types';
 import type { ImplementationLogMetadata } from '@/app/db/models/types';
+import type { CliMemorySignalData } from '@/app/db/models/brain.types';
 import { safeParseJson } from '@/lib/json-utils';
+import { SignalType } from '@/types/signals';
+import {
+  CLI_MEMORY_ASSEMBLER_MAX_ENTRIES,
+  CLI_MEMORY_ASSEMBLER_MAX_CHARS,
+} from '@/lib/brain/config';
 
 // ── Signal extraction regexes ────────────────────────────────────────
 
@@ -49,21 +56,91 @@ export function assembleTaskContext(config: {
   try {
     // 1. Extract signals from requirement content
     const signals = extractTaskSignals(requirementContent);
-    if (signals.allTerms.length === 0) return '';
 
-    // 2. Match to contexts
-    const matchedContexts = matchContexts(projectId, signals);
+    // 2. Gather recent cli_memory for this context — the fleet's cross-run memory
+    //    ("last run here failed on X"). Always gathered, even when the requirement
+    //    yields no extractable terms, so prior outcomes still surface.
+    const cliMemory = gatherRecentCliMemory(projectId, contextId);
 
-    // 3. Gather best practices for detected categories
-    const practices = gatherBestPractices(projectId, signals.categories);
+    // Nothing to say if we have neither matchable terms nor prior run memory.
+    if (signals.allTerms.length === 0 && cliMemory.length === 0) return '';
 
-    // 4. Gather past implementation patterns
+    // 3-4. Term-based enrichment (context match + best practices). Isolated in its
+    //      own try so a failure here never discards the cli_memory we already have.
+    let matchedContexts: MatchedContext[] = [];
+    let practices: Array<{ title: string; description: string }> = [];
+    if (signals.allTerms.length > 0) {
+      try {
+        matchedContexts = matchContexts(projectId, signals);
+        practices = gatherBestPractices(projectId, signals.categories);
+      } catch {
+        // Term enrichment is best-effort; cli_memory still surfaces below.
+      }
+    }
+
+    // 5. Gather past implementation patterns
     const pastPatterns = gatherPastPatterns(contextId || matchedContexts[0]?.context.id);
 
-    // 5. Format output
-    return formatTaskContext(signals, matchedContexts, practices, pastPatterns);
+    // 6. Format output
+    return formatTaskContext(signals, matchedContexts, practices, pastPatterns, cliMemory);
   } catch {
     return ''; // Assembly must never break execution
+  }
+}
+
+// ── CLI run memory ───────────────────────────────────────────────────
+// Reads recent cli_memory signals (produced at task completion/failure) so the
+// execution prompt carries lessons from prior runs. Hard-bounded on both entry
+// count and per-entry chars to keep the injected section token-cheap.
+
+/**
+ * Fetch recent cli_memory messages for a project, preferring the task's own
+ * context but falling back to project-wide memory. Returns bounded, de-duped
+ * message lines newest-first.
+ */
+function gatherRecentCliMemory(projectId: string, contextId?: string): string[] {
+  try {
+    const limit = CLI_MEMORY_ASSEMBLER_MAX_ENTRIES;
+    // Context-scoped first (most relevant), then top up with project-wide memory.
+    const scoped = contextId
+      ? behavioralSignalRepository.getByProject(projectId, {
+          signalType: SignalType.CLI_MEMORY,
+          contextId,
+          limit,
+        })
+      : [];
+    const needed = limit - scoped.length;
+    const projectWide = needed > 0
+      ? behavioralSignalRepository.getByProject(projectId, {
+          signalType: SignalType.CLI_MEMORY,
+          limit: limit + scoped.length,
+        })
+      : [];
+
+    const seen = new Set(scoped.map(s => s.id));
+    const rows = [...scoped, ...projectWide.filter(s => !seen.has(s.id))].slice(0, limit);
+
+    const messages: string[] = [];
+    const seenMsgs = new Set<string>();
+    for (const row of rows) {
+      let msg = '';
+      try {
+        const parsed = JSON.parse(row.data || '{}') as Partial<CliMemorySignalData>;
+        msg = (parsed.message || '').trim();
+      } catch {
+        continue;
+      }
+      if (!msg) continue;
+      const bounded = msg.length > CLI_MEMORY_ASSEMBLER_MAX_CHARS
+        ? `${msg.slice(0, CLI_MEMORY_ASSEMBLER_MAX_CHARS - 1)}…`
+        : msg;
+      if (seenMsgs.has(bounded)) continue;
+      seenMsgs.add(bounded);
+      messages.push(bounded);
+    }
+    return messages;
+  } catch {
+    return [];
   }
 }
 
@@ -201,12 +278,19 @@ function formatTaskContext(
   signals: TaskSignals,
   matchedContexts: MatchedContext[],
   practices: Array<{ title: string; description: string }>,
-  pastPatterns: Array<{ title: string; patterns: string[]; decisions: string[] }>
+  pastPatterns: Array<{ title: string; patterns: string[]; decisions: string[] }>,
+  cliMemory: string[] = []
 ): string {
   const sections: string[] = [];
   const categoryLabel = signals.categories.length > 0
     ? signals.categories.slice(0, 3).join(', ')
     : 'general';
+
+  // Recent CLI run history — cross-run memory from prior task outcomes.
+  if (cliMemory.length > 0) {
+    const memLines = cliMemory.map(m => `- ${m}`).join('\n');
+    sections.push(`### Recent CLI Run History\n${memLines}`);
+  }
 
   // Best practices section
   if (practices.length > 0) {

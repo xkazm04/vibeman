@@ -8,6 +8,7 @@
 
 import { wrapRequirementForExecution, ExecutionWrapperConfig } from '@/lib/prompts/requirement_file';
 import { getTaskKnowledge } from '@/lib/collective-memory/taskCompletionHook';
+import { assembleTaskContext } from '@/lib/brain/taskContextAssembler';
 
 export interface ExecutionPromptConfig {
   requirementContent: string;
@@ -75,7 +76,6 @@ export function buildExecutionPrompt(config: ExecutionPromptConfig): ExecutionPr
   // Inject task-aware context from Brain knowledge system
   if (config.projectId) {
     try {
-      const { assembleTaskContext } = require('@/lib/brain/taskContextAssembler');
       const taskContext = assembleTaskContext({
         projectId: config.projectId,
         requirementContent: config.requirementContent,

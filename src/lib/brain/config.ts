@@ -280,6 +280,26 @@ export const WEIGHT_CLI_CONTEXT = 1.2;
 export const WEIGHT_CLI_DEFAULT = 1.5;
 
 // ---------------------------------------------------------------------------
+// CLI Memory — task-outcome producer + assembler reader bounds
+// ---------------------------------------------------------------------------
+// Every finished CLI task emits ONE bounded cli_memory signal (produced from the
+// durable task_outcome, migration 237). The assembler reads recent cli_memory
+// back into the next execution prompt so the fleet learns across runs. All
+// bounds here are hard caps that keep both the stored signal and the injected
+// prompt section token-bounded — never let outcome data grow unboundedly.
+
+/** Hard cap on the persisted cli_memory `message` length (chars). */
+export const CLI_MEMORY_MAX_MESSAGE_CHARS = 280;
+/** Hard cap on the error snippet folded into a failed-run cli_memory (chars). */
+export const CLI_MEMORY_MAX_ERROR_CHARS = 140;
+/** Max changed-file names attached to a cli_memory signal. */
+export const CLI_MEMORY_MAX_FILES = 5;
+/** Max recent cli_memory entries the assembler injects into one prompt. */
+export const CLI_MEMORY_ASSEMBLER_MAX_ENTRIES = 5;
+/** Per-entry char cap when the assembler renders a cli_memory line. */
+export const CLI_MEMORY_ASSEMBLER_MAX_CHARS = 160;
+
+// ---------------------------------------------------------------------------
 // Effectiveness Scoring
 // ---------------------------------------------------------------------------
 
