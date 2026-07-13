@@ -1,4 +1,4 @@
-import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import { ideaRepository, STALE_ARCHIVE_FEEDBACK } from '@/app/db/repositories/idea.repository';
 import { scanRepository } from '@/app/db/repositories/scan.repository';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/lib/logger';
@@ -111,14 +111,19 @@ function saveIdeasToDB(params: SaveIdeasBaseParams & { scanId: string }): {
     detailed,
   } = params;
 
-  // Seed the dedup set with the titles of existing active ideas for this scope
+  // Seed the dedup set with the titles of existing ideas for this scope
   // (context if scoped, else the whole project). Grows as we accept ideas from
   // this batch so intra-batch duplicates are also caught.
+  //
+  // Every status seeds the set EXCEPT auto-archived (stale) rejections: a
+  // user-rejected idea must not be re-pitched and an implemented one must not
+  // be re-suggested, but an idea archived merely for sitting untouched may
+  // legitimately resurface once its context actually changes.
   const existingActive = contextId
     ? ideaRepository.getIdeasByContext(contextId)
     : ideaRepository.getIdeasByProject(projectId);
   const seenTitles: string[] = existingActive
-    .filter(i => i.status === 'pending' || i.status === 'accepted')
+    .filter(i => !(i.status === 'rejected' && i.user_feedback === STALE_ARCHIVE_FEEDBACK))
     .map(i => i.title);
 
   let skippedDuplicates = 0;
