@@ -16,6 +16,16 @@ import type { GoalResponse, GoalsListResponse, GoalMutationResponse, GoalDeleteR
 import type { GoalStatus } from '@/types/goalStatus';
 import { GoalCreateBodySchema, GoalUpdateBodySchema } from '@/lib/api/schemas/goals';
 
+/** Coarse progress signal (0–100) derived from a goal's lifecycle status. */
+function goalProgressForStatus(status: GoalStatus | string | undefined): number {
+  switch (status) {
+    case 'done': return 100;
+    case 'in_progress': return 50;
+    case 'undecided': return 25;
+    default: return 0; // open, rejected
+  }
+}
+
 // GET /api/goals?projectId=xxx or /api/goals?id=xxx
 async function handleGet(request: NextRequest) {
   try {
@@ -99,13 +109,15 @@ async function handlePost(request: NextRequest) {
       order_index: finalOrderIndex
     });
 
-    // Record brain signal: goal created
+    // Record brain signal: goal created (goal lifecycle → WEIGHT_GOAL_NO_TRANSITION)
     try {
-      signalCollector.recordContextFocus(projectId, {
-        contextId: contextId || projectId,
+      signalCollector.recordGoalLifecycleSignal(projectId, {
+        goalId: goal.id,
+        goalTitle: goal.title,
+        signalType: 'goal_created',
+        progress: goalProgressForStatus(goal.status),
+        contextId: contextId || null,
         contextName: title,
-        duration: 0,
-        actions: ['create_goal'],
       });
     } catch {
       // Signal recording must never break the main flow
@@ -223,6 +235,25 @@ async function handlePut(request: NextRequest) {
       return notFoundResponse('Goal');
     }
 
+    // Record brain signal: goal state change (WEIGHT_GOAL_TRANSITION when the
+    // status actually moved, giving the goal-transition weight real data).
+    if (status !== undefined && status !== existingGoal.status) {
+      try {
+        const isComplete = status === 'done';
+        signalCollector.recordGoalLifecycleSignal(goal.project_id, {
+          goalId: goal.id,
+          goalTitle: goal.title,
+          signalType: isComplete ? 'goal_completed' : 'goal_state_change',
+          transition: { from: existingGoal.status, to: status },
+          progress: goalProgressForStatus(status),
+          contextId: goal.context_id || null,
+          contextName: goal.title,
+        });
+      } catch {
+        // Signal recording must never break the main flow
+      }
+    }
+
     // Fire-and-forget sync to Supabase
     fireAndForgetSync(
       () => syncGoalToSupabase(goal),
@@ -267,6 +298,20 @@ async function handleDelete(request: NextRequest) {
 
     if (!success) {
       return notFoundResponse('Goal');
+    }
+
+    // Record brain signal: goal deleted (lifecycle, no transition)
+    try {
+      signalCollector.recordGoalLifecycleSignal(goal.project_id, {
+        goalId: goal.id,
+        goalTitle: goal.title,
+        signalType: 'goal_deleted',
+        progress: goalProgressForStatus(goal.status),
+        contextId: goal.context_id || null,
+        contextName: goal.title,
+      });
+    } catch {
+      // Signal recording must never break the main flow
     }
 
     // Fire-and-forget sync to Supabase

@@ -20,6 +20,7 @@ import { autoPruneInsights, type AutoPruneResult } from '@/lib/brain/insightAuto
 import { InsightDeduplicator } from '@/lib/brain/InsightDeduplicator';
 import { embedTexts } from '@/lib/brain/embeddings';
 import { predictiveIntentEngine } from '@/lib/brain/predictiveIntentEngine';
+import { coerceEvidence } from '@/lib/brain/coerceEvidence';
 import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-signal.repository';
 import { brainInsightRepository } from '@/app/db/repositories/brain-insight.repository';
 import { brainReflectionRepository } from '@/app/db/repositories/brain-reflection.repository';
@@ -41,22 +42,8 @@ import {
   DEFAULT_RETENTION_DAYS,
 } from '@/lib/brain/config';
 
-// ---------------------------------------------------------------------------
-// Evidence coercion (LLM returns plain string IDs → classify by prefix)
-// ---------------------------------------------------------------------------
-
-function coerceEvidence(raw: unknown): EvidenceRef[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.map((item): EvidenceRef => {
-    if (typeof item === 'object' && item !== null && 'type' in item && 'id' in item) {
-      return item as EvidenceRef;
-    }
-    const id = String(item);
-    if (id.startsWith('sig_')) return { type: 'signal', id };
-    if (id.startsWith('ref_') || id.startsWith('br_')) return { type: 'reflection', id };
-    return { type: 'direction', id };
-  });
-}
+// Evidence coercion (LLM returns plain string IDs → classify by prefix) is the
+// single shared implementation in '@/lib/brain/coerceEvidence'.
 
 // ---------------------------------------------------------------------------
 // Context cache (moved from api/brain/context/route.ts)

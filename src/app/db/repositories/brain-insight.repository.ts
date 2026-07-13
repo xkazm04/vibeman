@@ -10,30 +10,23 @@ import { getCurrentTimestamp, selectOne, selectAll } from './repository.utils';
 import { createGenericRepository } from './generic.repository';
 import { generateInsightHash } from '@/lib/brain/insightId';
 import { InsightDeduplicator } from '@/lib/brain/InsightDeduplicator';
+import { coerceEvidence } from '@/lib/brain/coerceEvidence';
 
 /**
  * Parse evidence JSON, handling both legacy string[] and typed EvidenceRef[] formats.
- * Legacy strings are classified by prefix: sig_ → signal, ref_/br_ → reflection, else direction.
+ * JSON-decodes then delegates classification to the single shared coerceEvidence
+ * implementation (legacy strings → prefix-classified: sig_ → signal, ref_/br_ →
+ * reflection, else direction).
  */
 function parseEvidence(raw: string): EvidenceRef[] {
-  let parsed: unknown[];
+  let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch (error) {
     console.error('[brain-insight] Failed to parse evidence JSON:', error);
     return [];
   }
-  if (!Array.isArray(parsed)) return [];
-  return parsed.map((item) => {
-    if (typeof item === 'object' && item !== null && 'type' in item && 'id' in item) {
-      return item as EvidenceRef;
-    }
-    // Legacy plain string → classify by prefix
-    const id = String(item);
-    if (id.startsWith('sig_')) return { type: 'signal' as const, id };
-    if (id.startsWith('ref_') || id.startsWith('br_')) return { type: 'reflection' as const, id };
-    return { type: 'direction' as const, id };
-  });
+  return coerceEvidence(parsed);
 }
 
 /**

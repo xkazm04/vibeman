@@ -7,7 +7,6 @@ import { behavioralSignalRepository } from '@/app/db/repositories/behavioral-sig
 import { contextRepository } from '@/app/db/repositories/context.repository';
 import { predictiveIntentRepository } from '@/app/db/repositories/predictive-intent.repository';
 import type {
-  BehavioralSignalType,
   GitActivitySignalData,
   ApiFocusSignalData,
   ContextFocusSignalData,
@@ -29,8 +28,6 @@ import {
   GIT_HEAVY_FILES_THRESHOLD, GIT_HEAVY_LINES_THRESHOLD, GIT_MODERATE_FILES_THRESHOLD, GIT_MODERATE_LINES_THRESHOLD,
   WEIGHT_API_HIGH_ERROR, WEIGHT_API_HEAVY_USAGE, WEIGHT_API_MODERATE_USAGE, WEIGHT_API_LIGHT,
   API_ERROR_RATE_THRESHOLD, API_HEAVY_CALL_THRESHOLD, API_MODERATE_CALL_THRESHOLD,
-  API_BATCH_HEAVY_THRESHOLD, API_BATCH_MODERATE_THRESHOLD,
-  WEIGHT_API_BATCH_HEAVY, WEIGHT_API_BATCH_MODERATE, WEIGHT_API_BATCH_LIGHT,
   WEIGHT_CONTEXT_HEAVY, WEIGHT_CONTEXT_MODERATE, WEIGHT_CONTEXT_LIGHT,
   CONTEXT_HEAVY_DURATION_MINUTES, CONTEXT_MODERATE_DURATION_MINUTES,
   WEIGHT_IMPL_MANY_FILES, WEIGHT_IMPL_MODERATE_FILES, WEIGHT_IMPL_SUCCESS, WEIGHT_IMPL_FAILURE,
@@ -312,6 +309,11 @@ export const signalCollector = {
 
   /**
    * Record a cross-task analysis signal (cross-project requirement analysis completed)
+   *
+   * Reader: surfaced via the generic signals surface — behavioralSignalRepository
+   * .getByProject / getCountByType (the /api/brain/signals list + type breakdown /
+   * Memory Canvas). Not consumed by the focused behavioralContext path, which only
+   * reads git_activity + implementation. Producers live in /api/cross-task routes.
    */
   recordCrossTaskAnalysis: (
     projectId: string,
@@ -337,6 +339,9 @@ export const signalCollector = {
 
   /**
    * Record a cross-task selection signal (user selected an implementation plan)
+   *
+   * Reader: same generic signals surface as recordCrossTaskAnalysis (getByProject /
+   * getCountByType); not read by behavioralContext. Producer: /api/cross-task select.
    */
   recordCrossTaskSelection: (
     projectId: string,
@@ -385,88 +390,6 @@ export const signalCollector = {
     } catch (error) {
       console.error('[SignalCollector] Failed to record CLI memory:', error);
     }
-  },
-
-  /**
-   * Batch record API focus signals from observability data
-   * Called periodically to aggregate API usage patterns
-   */
-  recordApiFocusBatch: (
-    projectId: string,
-    endpoints: Array<{
-      endpoint: string;
-      method: string;
-      callCount: number;
-      avgResponseTime: number;
-      errorRate: number;
-      contextId?: string;
-      contextName?: string;
-    }>
-  ): number => {
-    let recorded = 0;
-    for (const ep of endpoints) {
-      try {
-        behavioralSignalRepository.create({
-          id: generateSignalId(),
-          project_id: projectId,
-          signal_type: SignalType.API_FOCUS,
-          context_id: ep.contextId || null,
-          context_name: ep.contextName || null,
-          data: JSON.stringify({
-            endpoint: ep.endpoint,
-            method: ep.method,
-            callCount: ep.callCount,
-            avgResponseTime: ep.avgResponseTime,
-            errorRate: ep.errorRate,
-          }),
-          weight: ep.callCount > API_BATCH_HEAVY_THRESHOLD ? WEIGHT_API_BATCH_HEAVY : ep.callCount > API_BATCH_MODERATE_THRESHOLD ? WEIGHT_API_BATCH_MODERATE : WEIGHT_API_BATCH_LIGHT,
-          timestamp: new Date().toISOString(),
-        });
-        recorded++;
-      } catch (error) {
-        console.error('[SignalCollector] Failed to record API focus batch item:', error);
-      }
-    }
-    return recorded;
-  },
-
-  /**
-   * Batch record multiple signals of any type.
-   * Useful for bulk-ingesting signals from automated hooks.
-   * Returns the number of signals successfully recorded.
-   */
-  recordBatch: (
-    projectId: string,
-    signals: Array<{
-      type: BehavioralSignalType;
-      data: GitActivitySignalData | ApiFocusSignalData | ContextFocusSignalData | ImplementationSignalData;
-      contextId?: string;
-      contextName?: string;
-    }>
-  ): number => {
-    let recorded = 0;
-    for (const signal of signals) {
-      try {
-        switch (signal.type) {
-          case SignalType.GIT_ACTIVITY:
-            signalCollector.recordGitActivity(projectId, signal.data as GitActivitySignalData, signal.contextId, signal.contextName);
-            break;
-          case SignalType.API_FOCUS:
-            signalCollector.recordApiFocus(projectId, signal.data as ApiFocusSignalData, signal.contextId, signal.contextName);
-            break;
-          case SignalType.CONTEXT_FOCUS:
-            signalCollector.recordContextFocus(projectId, signal.data as ContextFocusSignalData);
-            break;
-          case SignalType.IMPLEMENTATION:
-            signalCollector.recordImplementation(projectId, signal.data as ImplementationSignalData);
-            break;
-        }
-        recorded++;
-      } catch (error) {
-        console.error('[SignalCollector] Failed to record batch signal:', error);
-      }
-    }
-    return recorded;
   },
 
   /**
