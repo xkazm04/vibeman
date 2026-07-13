@@ -14,6 +14,7 @@ import KPISummaryCards, { KPIFilterType } from './KPISummaryCards';
 import ComparisonView from './ComparisonView';
 import ProviderBreakdown from './ProviderBreakdown';
 import ExecutiveSummary from './ExecutiveSummary';
+import LearnedInsightsHint from './LearnedInsightsHint';
 import { ComparisonFilterState, ReflectionStats, ComparisonStats } from '../lib/types';
 import { fetchReflectionStats, fetchComparisonStats } from '../lib/statsApi';
 import { useServerProjectStore } from '@/stores/serverProjectStore';
@@ -423,6 +424,10 @@ export default function ReflectionDashboard() {
             <>
               {/* KPI Summary Cards */}
               <KPISummaryCards stats={stats} onFilterClick={handleKPIFilterClick} />
+
+              {/* Inline, honest note on the Brain's learned-insight gate (gated/empty/error).
+                  Renders nothing when insights are available or there's nothing to say. */}
+              <LearnedInsightsHint projectId={filters.projectId} />
 
               {/* Charts Row */}
               <div className="grid grid-cols-1">

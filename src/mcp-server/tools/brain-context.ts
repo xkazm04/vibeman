@@ -16,6 +16,14 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { VibemanHttpClient } from '../http-client.js';
 import { McpConfig } from '../config.js';
 
+interface InsightGates {
+  state?: 'ok' | 'gated' | 'empty' | 'error';
+  resolvedDirections?: number;
+  requiredDirections?: number;
+  insightsConsidered?: number;
+  insightsSurfaced?: number;
+}
+
 interface BehavioralContext {
   hasData: boolean;
   currentFocus?: {
@@ -30,6 +38,31 @@ interface BehavioralContext {
     preferredContexts?: Array<{ name?: string } | string>;
   };
   topInsights?: Array<{ title?: string; description?: string; confidence?: number } | string>;
+  gates?: InsightGates;
+}
+
+/**
+ * Turn the learned-insight gate into one honest line so the agent can tell
+ * "still gathering data" apart from "nothing learned" apart from "lookup failed".
+ */
+function describeInsightGate(gates?: InsightGates): string | null {
+  if (!gates) return null;
+  switch (gates.state) {
+    case 'gated': {
+      const have = gates.resolvedDirections ?? 0;
+      const need = gates.requiredDirections ?? 6;
+      const remaining = Math.max(0, need - have);
+      return `Learned insights are still gathering data: ${have}/${need} resolved directions (${remaining} more needed before effectiveness can be scored).`;
+    }
+    case 'empty':
+      return (gates.insightsConsidered ?? 0) > 0
+        ? 'No learned insight has yet proven effective (none lifted direction-acceptance rate).'
+        : 'No insights have been learned for this project yet.';
+    case 'error':
+      return 'Learned-insight effectiveness could not be computed (transient error).';
+    default:
+      return null;
+  }
 }
 
 // The route wraps the payload as { success, data: { context }, meta }.
@@ -77,8 +110,12 @@ export function registerBrainContextTool(
 
       const ctx = result.data.data?.context;
       if (!ctx || !ctx.hasData) {
+        // Even with no behavioral signals, learned-insight gates are meaningful —
+        // surface why they're empty (gathering data vs nothing learned vs error).
+        const gateLine = describeInsightGate(ctx?.gates);
+        const base = 'No behavioral data has accumulated for this project yet.';
         return {
-          content: [{ type: 'text' as const, text: 'No behavioral data has accumulated for this project yet.' }],
+          content: [{ type: 'text' as const, text: gateLine ? `${base}\n\n${gateLine}` : base }],
         };
       }
 
@@ -116,6 +153,10 @@ export function registerBrainContextTool(
           })
           .join('\n');
         sections.push(`**Top proven insights:**\n${items}`);
+      } else {
+        // No surfaced insights — say why, honestly.
+        const gateLine = describeInsightGate(ctx.gates);
+        if (gateLine) sections.push(`**Learned insights:** ${gateLine}`);
       }
 
       if (sections.length === 0) {
