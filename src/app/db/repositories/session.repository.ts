@@ -198,6 +198,46 @@ export const sessionRepository = {
   },
 
   /**
+   * Create a minimal session row for a Terminal-engine execution.
+   *
+   * Unlike create(), this does NOT insert a session_task — the terminal path
+   * (cli-service.startExecution) has no session/task junction concept. The row
+   * exists primarily as a liveness token: it records the OS pid so orphaned
+   * processes can be reaped after a server crash (see orphanReaper), and the
+   * claude_session_id once the CLI reports it. The terminal engine deletes this
+   * row when the execution finishes cleanly, so completed rows do not accumulate;
+   * only crashed ('running' + pid) rows survive to the next startup for reaping.
+   */
+  createTerminalSession(data: {
+    projectId: string;
+    name: string;
+    pid?: number | null;
+  }): DbClaudeCodeSession {
+    const db = getDatabase();
+    const now = new Date().toISOString();
+    const sessionId = uuidv4();
+
+    const stmt = db.prepare(`
+      INSERT INTO claude_code_sessions (
+        id, project_id, name, status, context_tokens, pid, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(sessionId, data.projectId, data.name, 'running', 0, data.pid ?? null, now, now);
+
+    return {
+      id: sessionId,
+      project_id: data.projectId,
+      name: data.name,
+      claude_session_id: null,
+      status: 'running' as const,
+      context_tokens: 0,
+      pid: data.pid ?? null,
+      created_at: now,
+      updated_at: now,
+    };
+  },
+
+  /**
    * Update Claude session ID (after first task execution)
    */
   updateClaudeSessionId(id: string, claudeSessionId: string): DbClaudeCodeSession | null {

@@ -105,6 +105,26 @@ export interface CLIExecution {
   logFilePath?: string;
   /** Per-execution secret for validating HTTP hook callbacks */
   hookSecret?: string;
+  /**
+   * ID of the claude_code_sessions row that mirrors this terminal execution.
+   * Used to persist the OS pid + claude_session_id so a crashed process can be
+   * reaped on the next server start (see orphanReaper). Deleted on clean finish.
+   */
+  dbSessionId?: string;
+}
+
+/**
+ * Lazily resolve the session repository. Kept behind require() so the DB layer
+ * (better-sqlite3, fs) never enters this module's static graph when it is pulled
+ * in by client-adjacent tooling, matching the pattern in executionManager.ts.
+ * Returns null if the repository cannot be loaded (must never break execution).
+ */
+function getSessionRepo(): typeof import('@/app/db/repositories/session.repository').sessionRepository | null {
+  try {
+    return require('@/app/db/repositories/session.repository').sessionRepository;
+  } catch {
+    return null;
+  }
 }
 
 // ── Resource protection ──
@@ -532,6 +552,50 @@ export function startExecution(
   executionBus.emit('registered', executionId);
   console.log(`[CLI:${provider}] Registered execution: ${executionId}. Total active: ${activeExecutions.size}`);
 
+  // ── DB liveness token ──
+  // Mirror this execution as a minimal claude_code_sessions row so a process
+  // orphaned by a server crash can be reaped on the next startup. project_id
+  // comes from the MCP env channel when present, else falls back to the path.
+  const sessionRepo = getSessionRepo();
+  const dbProjectId = extraEnv?.VIBEMAN_PROJECT_ID || projectPath;
+  try {
+    if (sessionRepo) {
+      const row = sessionRepo.createTerminalSession({ projectId: dbProjectId, name: `terminal:${provider}` });
+      execution.dbSessionId = row.id;
+    }
+  } catch {
+    // DB unavailable must never block a CLI execution
+  }
+
+  // Delete the liveness token exactly once when the execution reaches a terminal
+  // state. A clean finish removes the row; a crash leaves it 'running' for the reaper.
+  let dbSessionFinalized = false;
+  const finalizeDbSession = () => {
+    if (dbSessionFinalized || !execution.dbSessionId || !sessionRepo) return;
+    dbSessionFinalized = true;
+    try {
+      sessionRepo.delete(execution.dbSessionId);
+    } catch {
+      // best-effort cleanup
+    }
+  };
+
+  // Throttled heartbeat: keep the row's updated_at fresh while the process is
+  // alive so the periodic stale-session sweeper does not treat a long-running
+  // (but healthy) execution as dead.
+  let lastDbHeartbeat = Date.now();
+  const touchDbHeartbeat = () => {
+    if (!execution.dbSessionId || !sessionRepo) return;
+    const now = Date.now();
+    if (now - lastDbHeartbeat < 30_000) return;
+    lastDbHeartbeat = now;
+    try {
+      sessionRepo.updateHeartbeat(execution.dbSessionId);
+    } catch {
+      // best-effort
+    }
+  };
+
   // Create log file stream
   const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
   let streamClosed = false;
@@ -603,6 +667,15 @@ export function startExecution(
     execution.process = childProcess;
     execution.pid = childProcess.pid;
 
+    // Persist the OS pid so a crash-orphaned process can be reaped on restart.
+    if (execution.dbSessionId && sessionRepo) {
+      try {
+        sessionRepo.updatePid(execution.dbSessionId, childProcess.pid ?? null);
+      } catch {
+        // best-effort
+      }
+    }
+
     // Write prompt to stdin only for providers that use it (Claude)
     if (spawnConfig.stdinPrompt) {
       childProcess.stdin.write(prompt);
@@ -638,6 +711,14 @@ export function startExecution(
         // Map session_id → executionId for HTTP hook lookups
         if (parsed.session_id) {
           sessionToExecution.set(parsed.session_id, execution.id);
+          // Persist the Claude session id onto the liveness token row.
+          if (execution.dbSessionId && sessionRepo) {
+            try {
+              sessionRepo.updateClaudeSessionId(execution.dbSessionId, parsed.session_id);
+            } catch {
+              // best-effort
+            }
+          }
         }
         emitEvent({
           type: 'init',
@@ -729,6 +810,7 @@ export function startExecution(
     childProcess.stdout.on('data', (data: Buffer) => {
       const text = data.toString();
       logMessage(`[STDOUT] ${text.trim()}`);
+      touchDbHeartbeat();
 
       // Emit raw stdout event
       emitEvent({
@@ -775,6 +857,7 @@ export function startExecution(
 
       execution.endTime = Date.now();
       execution.status = code === 0 ? 'completed' : 'error';
+      finalizeDbSession();
 
       if (code !== 0) {
         const stderrHint = stderrBuffer.trim().split('\n')[0]?.slice(0, 200) || '';
@@ -832,6 +915,7 @@ export function startExecution(
 
       execution.endTime = Date.now();
       execution.status = 'error';
+      finalizeDbSession();
 
       // Provide helpful error messages for common spawn failures
       let errorMessage = err.message;
@@ -853,6 +937,7 @@ export function startExecution(
         logMessage('[TIMEOUT] Execution exceeded 100 minutes, killing process...');
         killProcessTree(childProcess); // tree-kill: the shell wrapper AND the node CLI grandchild on Windows
         execution.status = 'error';
+        finalizeDbSession();
         emitEvent({
           type: 'error',
           data: { message: 'Execution timed out after 100 minutes' },
@@ -871,6 +956,7 @@ export function startExecution(
 
     execution.status = 'error';
     execution.endTime = Date.now();
+    finalizeDbSession();
 
     emitEvent({
       type: 'error',
@@ -1166,6 +1252,15 @@ export function abortExecution(executionId: string): boolean {
   killProcessTree(execution.process); // tree-kill so the node CLI grandchild dies, not just the shell wrapper
   execution.status = 'aborted';
   execution.endTime = Date.now();
+
+  // Remove the liveness token — the process is being killed intentionally.
+  if (execution.dbSessionId) {
+    try {
+      getSessionRepo()?.delete(execution.dbSessionId);
+    } catch {
+      // best-effort
+    }
+  }
 
   return true;
 }
