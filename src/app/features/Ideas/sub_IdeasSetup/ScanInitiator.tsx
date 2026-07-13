@@ -46,6 +46,9 @@ export default function ScanInitiator({
   const [isDetailedProcessing, setIsDetailedProcessing] = React.useState(false);
   // Primary DB-idea scan state (queue → worker → visible cards)
   const [isDbScanning, setIsDbScanning] = React.useState(false);
+  // Per-run auto-merge toggle — default OFF. When on, the worker auto-accepts
+  // ideas in the honest high-impact/low-effort band (impact ≥ 8 and effort ≤ 3).
+  const [autoMergeEnabled, setAutoMergeEnabled] = React.useState(false);
 
   // Scan progress state — drives the progress bar + "agent × context" ticker
   interface ScanProgress {
@@ -209,6 +212,7 @@ export default function ScanInitiator({
       const enqueuedIds = await enqueueDbScans({
         projectId: activeProject.id,
         requests,
+        autoMergeEnabled,
         signal: controller.signal,
       });
 
@@ -420,6 +424,38 @@ export default function ScanInitiator({
                 {isDbScanning ? 'Scanning...' : 'Scan ideas'}
               </span>
             </motion.button>
+          )}
+
+          {/* Per-run auto-merge toggle — default OFF. Honest label: the band is
+              a real "high impact, low effort" range, not a vague promise. */}
+          {activeProject && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={autoMergeEnabled}
+              onClick={() => setAutoMergeEnabled(v => !v)}
+              disabled={isDbScanning}
+              title="Auto-accept ideas with impact ≥ 8 and effort ≤ 3 as soon as this scan finishes"
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${
+                autoMergeEnabled
+                  ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-200'
+                  : 'border-gray-700/40 bg-gray-800/40 text-gray-400 hover:text-gray-200'
+              } ${isDbScanning ? 'opacity-50 cursor-not-allowed' : ''}`}
+              data-testid="auto-merge-toggle"
+            >
+              <span
+                className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors ${
+                  autoMergeEnabled ? 'bg-emerald-500/70' : 'bg-gray-600/60'
+                }`}
+              >
+                <span
+                  className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                    autoMergeEnabled ? 'translate-x-3.5' : 'translate-x-0.5'
+                  }`}
+                />
+              </span>
+              <span className="whitespace-nowrap">Auto-merge (impact ≥ 8, effort ≤ 3)</span>
+            </button>
           )}
 
           {/* Secondary: requirement-file generation (no cards; run via TaskRunner) */}

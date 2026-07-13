@@ -91,6 +91,33 @@ describe('enqueueDbScans', () => {
     expect(firstBody).toMatchObject({ projectId: 'proj_1', scanType: 'bug_hunter', triggerType: 'manual' });
   });
 
+  it('forwards the per-run auto-merge flag into the enqueue body (default false)', async () => {
+    fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/scan-queue/worker') {
+        return Promise.resolve({ ok: true, json: async () => ({}) } as unknown as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ queueItem: { id: `q_${fetchMock.mock.calls.length}` } }),
+      } as unknown as Response);
+    });
+
+    // Toggle ON → autoMergeEnabled:true reaches the queue item.
+    await enqueueDbScans({
+      projectId: 'proj_1',
+      requests: [{ scanType: 'bug_hunter' as never }],
+      autoMergeEnabled: true,
+    });
+    let body = JSON.parse(fetchMock.mock.calls.find(c => c[0] === '/api/scan-queue')![1].body);
+    expect(body.autoMergeEnabled).toBe(true);
+
+    // Default (omitted) → false, so auto-merge stays opt-in per run.
+    fetchMock.mockClear();
+    await enqueueDbScans({ projectId: 'proj_1', requests: [{ scanType: 'bug_hunter' as never }] });
+    body = JSON.parse(fetchMock.mock.calls.find(c => c[0] === '/api/scan-queue')![1].body);
+    expect(body.autoMergeEnabled).toBe(false);
+  });
+
   it('throws when the enqueue endpoint rejects', async () => {
     fetchMock.mockImplementation((url: string) => {
       if (url === '/api/scan-queue/worker') {
