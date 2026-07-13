@@ -4,6 +4,7 @@
  */
 
 import { PhaseExecutor, PhaseContext, DetectionResult } from '../lifecycleTypes';
+import { lifecycleUrl } from './lifecycleApi';
 
 export class DetectionExecutor implements PhaseExecutor {
   readonly phase = 'detecting' as const;
@@ -12,7 +13,7 @@ export class DetectionExecutor implements PhaseExecutor {
     ctx.updatePhase('detecting', 'Analyzing code changes', 5);
 
     try {
-      const response = await fetch('/api/lifecycle/detect', {
+      const response = await fetch(lifecycleUrl('/api/lifecycle/detect'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -17,6 +17,29 @@ import { projectDb } from '@/lib/project_database';
 /** Default scan timeout: 5 minutes */
 const DEFAULT_SCAN_TIMEOUT_MS = 5 * 60 * 1000;
 
+/**
+ * Auto-merge eligibility band — genuinely "high impact, low effort".
+ *
+ * Impact/effort are on a 1–10 scale (see schemaTemplate.ts + the ideas table
+ * CHECK constraints). The previous predicate `impact === 3 && effort === 1` was
+ * a stale 1–3-scale leftover that could never match 1–10 scores, so auto-merge
+ * was inert AND its "high-impact, low-effort" label was a lie. This is a RANGE:
+ * impact in the top tier (>= 8) and effort in the bottom tier (<= 3), and both
+ * scores must actually be present.
+ */
+export const AUTO_MERGE_MIN_IMPACT = 8;
+export const AUTO_MERGE_MAX_EFFORT = 3;
+
+/** True when an idea is genuinely high-impact and low-effort (see band consts). */
+export function isAutoMergeEligible(idea: { impact: number | null; effort: number | null }): boolean {
+  return (
+    idea.impact !== null &&
+    idea.effort !== null &&
+    idea.impact >= AUTO_MERGE_MIN_IMPACT &&
+    idea.effort <= AUTO_MERGE_MAX_EFFORT
+  );
+}
+
 interface WorkerConfig {
   pollIntervalMs: number;
   maxConcurrent: number;
@@ -33,7 +56,7 @@ const ADAPTIVE_POLL_INTERVALS = {
   MAX_MS: 60000,      // 60 seconds - maximum backoff
 } as const;
 
-type NotificationType = 'scan_started' | 'scan_completed' | 'scan_failed' | 'auto_merge_completed';
+type NotificationType = 'scan_started' | 'scan_completed' | 'scan_failed' | 'auto_merge_completed' | 'auto_merge_failed';
 
 interface NotificationData {
   [key: string]: unknown;
@@ -499,8 +522,8 @@ class ScanQueueWorker {
 
       const ideas = ideaRepository.getIdeasByScanId(queueItem.scan_id);
 
-      // Filter ideas that qualify for auto-accept (high-impact, low-effort)
-      const eligibleIdeas = ideas.filter(idea => idea.impact === 3 && idea.effort === 1);
+      // Filter ideas that qualify for auto-accept (genuinely high-impact, low-effort)
+      const eligibleIdeas = ideas.filter(isAutoMergeEligible);
 
       if (eligibleIdeas.length === 0) {
         scanQueueRepository.updateAutoMergeStatus(queueItem.id, 'completed: no eligible ideas');
@@ -526,7 +549,7 @@ class ScanQueueWorker {
         queueItem,
         'auto_merge_completed',
         'Auto-merge completed',
-        `Auto-accepted ${eligibleIdeas.length} high-impact, low-effort ideas`,
+        `Auto-accepted ${eligibleIdeas.length} idea(s) with impact ≥ ${AUTO_MERGE_MIN_IMPACT} and effort ≤ ${AUTO_MERGE_MAX_EFFORT}`,
         {
           autoAcceptedCount: eligibleIdeas.length,
           scanId: queueItem.scan_id
@@ -535,6 +558,19 @@ class ScanQueueWorker {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       scanQueueRepository.updateAutoMergeStatus(queueItem.id, `failed: ${errorMessage}`);
+
+      // Surface the failure as a real notification, not just an opaque status
+      // string nothing in the UI reads.
+      this.createNotification(
+        queueItem,
+        'auto_merge_failed',
+        'Auto-merge failed',
+        `Auto-merge could not accept ideas: ${errorMessage}`,
+        {
+          scanId: queueItem.scan_id,
+          error: errorMessage
+        }
+      );
     }
   }
 

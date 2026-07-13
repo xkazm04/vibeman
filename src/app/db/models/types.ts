@@ -329,7 +329,7 @@ export interface DbScanNotification {
   id: string;
   queue_item_id: string;
   project_id: string;
-  notification_type: 'scan_started' | 'scan_completed' | 'scan_failed' | 'auto_merge_completed';
+  notification_type: 'scan_started' | 'scan_completed' | 'scan_failed' | 'auto_merge_completed' | 'auto_merge_failed';
   title: string;
   message: string;
   data: string | null; // JSON string

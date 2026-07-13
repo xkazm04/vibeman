@@ -215,7 +215,7 @@ export function createCoreTables(db: DbConnection) {
       id TEXT PRIMARY KEY,
       queue_item_id TEXT NOT NULL,
       project_id TEXT NOT NULL,
-      notification_type TEXT NOT NULL CHECK (notification_type IN ('scan_started', 'scan_completed', 'scan_failed', 'auto_merge_completed')),
+      notification_type TEXT NOT NULL CHECK (notification_type IN ('scan_started', 'scan_completed', 'scan_failed', 'auto_merge_completed', 'auto_merge_failed')),
       title TEXT NOT NULL,
       message TEXT NOT NULL,
       data TEXT, -- JSON payload with additional notification data

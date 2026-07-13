@@ -4,6 +4,7 @@
  */
 
 import { PhaseExecutor, PhaseContext, QualityGateResult, QualityGateType } from '../lifecycleTypes';
+import { lifecycleUrl } from './lifecycleApi';
 
 export class ValidationExecutor implements PhaseExecutor {
   readonly phase = 'validating' as const;
@@ -58,7 +59,7 @@ export class ValidationExecutor implements PhaseExecutor {
     const startTime = Date.now();
 
     try {
-      const response = await fetch('/api/lifecycle/quality-gate', {
+      const response = await fetch(lifecycleUrl('/api/lifecycle/quality-gate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gate, projectId, timeout: timeoutMs }),

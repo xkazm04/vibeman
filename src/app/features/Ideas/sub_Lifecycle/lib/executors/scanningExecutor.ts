@@ -5,6 +5,7 @@
 
 import { PhaseExecutor, PhaseContext } from '../lifecycleTypes';
 import { ScanType } from '../../../lib/scanTypes';
+import { lifecycleUrl } from './lifecycleApi';
 
 export class ScanningExecutor implements PhaseExecutor {
   readonly phase = 'scanning' as const;
@@ -53,7 +54,7 @@ export class ScanningExecutor implements PhaseExecutor {
     provider: string,
   ): Promise<{ ideaCount: number }> {
     try {
-      const response = await fetch('/api/lifecycle/scan', {
+      const response = await fetch(lifecycleUrl('/api/lifecycle/scan'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, scanType, provider }),

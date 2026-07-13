@@ -11,6 +11,7 @@ import {
   DetectionResult,
   SimulationPreview,
 } from '../lifecycleTypes';
+import { lifecycleUrl } from './lifecycleApi';
 
 export class DeploymentExecutor implements PhaseExecutor {
   readonly phase = 'deploying' as const;
@@ -191,7 +192,7 @@ export class DeploymentExecutor implements PhaseExecutor {
 
   private async getResolvedIdeasInfo(projectId: string): Promise<Array<{ id: string; title: string; category: string }>> {
     try {
-      const response = await fetch(`/api/ideas?projectId=${projectId}&status=implemented&limit=10`);
+      const response = await fetch(lifecycleUrl(`/api/ideas?projectId=${projectId}&status=implemented&limit=10`));
       if (!response.ok) return [];
       const data = await response.json();
       return (data.ideas || []).map((i: { id: string; title: string; category: string }) => ({
@@ -208,7 +209,7 @@ export class DeploymentExecutor implements PhaseExecutor {
     try {
       const ideas = await this.getResolvedIdeasInfo(cycle.project_id);
 
-      const response = await fetch('/api/lifecycle/deploy', {
+      const response = await fetch(lifecycleUrl('/api/lifecycle/deploy'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

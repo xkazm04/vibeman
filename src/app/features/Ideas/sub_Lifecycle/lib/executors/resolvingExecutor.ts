@@ -4,6 +4,7 @@
  */
 
 import { PhaseExecutor, PhaseContext } from '../lifecycleTypes';
+import { lifecycleUrl } from './lifecycleApi';
 
 export class ResolvingExecutor implements PhaseExecutor {
   readonly phase = 'resolving' as const;
@@ -38,7 +39,15 @@ export class ResolvingExecutor implements PhaseExecutor {
           `Resolved ${resolved}/${ideasToResolve.length} ideas`,
         );
       } catch (error) {
-        ctx.logEvent('error', 'resolving', `Failed to resolve idea: ${(error as Error).message}`);
+        // Surface the failure — never silently pass. When fail_fast is set, a
+        // failed resolution aborts the whole cycle (mirrors ScanningExecutor),
+        // so the cycle is honestly reported as failed instead of "completed".
+        ctx.logEvent('error', 'resolving', `Failed to resolve idea "${idea.title}": ${(error as Error).message}`, {
+          ideaId: idea.id,
+        });
+        if (ctx.config.fail_fast) {
+          throw new Error(`Failed to resolve idea "${idea.title}": ${(error as Error).message}`);
+        }
       }
     }
 
@@ -47,7 +56,7 @@ export class ResolvingExecutor implements PhaseExecutor {
 
   private async getIdeasToResolve(projectId: string): Promise<Array<{ id: string; title: string }>> {
     try {
-      const response = await fetch(`/api/ideas?projectId=${projectId}&status=accepted`);
+      const response = await fetch(lifecycleUrl(`/api/ideas?projectId=${projectId}&status=accepted`));
       if (!response.ok) return [];
       const data = await response.json();
       return data.ideas || [];
@@ -57,14 +66,24 @@ export class ResolvingExecutor implements PhaseExecutor {
   }
 
   private async resolveIdea(ideaId: string, projectId: string): Promise<void> {
-    try {
-      await fetch('/api/lifecycle/resolve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ideaId, projectId }),
-      });
-    } catch {
-      // Silently fail resolution attempts
+    // Throw on transport OR non-2xx so the caller can surface the failure.
+    // Previously this swallowed every error, so `resolved++` ran even when the
+    // resolve call never happened — the cycle reported phantom resolutions.
+    const response = await fetch(lifecycleUrl('/api/lifecycle/resolve'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ideaId, projectId }),
+    });
+
+    if (!response.ok) {
+      let detail = `HTTP ${response.status}`;
+      try {
+        const body = await response.json();
+        if (body?.error) detail = body.error;
+      } catch {
+        // Non-JSON error body — keep the HTTP status detail.
+      }
+      throw new Error(detail);
     }
   }
 }
