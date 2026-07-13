@@ -13,6 +13,7 @@ import { SupportedProvider } from '@/lib/llm/types';
 import { contextRepository } from '@/app/db/repositories/context.repository';
 import { generateNotificationId } from '@/lib/idGenerator';
 import { projectDb } from '@/lib/project_database';
+import { env } from '@/lib/config/envConfig';
 
 /** Default scan timeout: 5 minutes */
 const DEFAULT_SCAN_TIMEOUT_MS = 5 * 60 * 1000;
@@ -68,9 +69,10 @@ interface NotificationData {
   autoAcceptedCount?: number;
 }
 
-class ScanQueueWorker {
+export class ScanQueueWorker {
   private isRunning = false;
   private pollTimer: NodeJS.Timeout | null = null;
+  private cleanupTimer: NodeJS.Timeout | null = null;
   private isPolling = false;
   private currentlyProcessing: Set<string> = new Set();
   private config: WorkerConfig = {
@@ -109,24 +111,37 @@ class ScanQueueWorker {
   }
 
   /**
-   * Start the worker
+   * Start the worker.
+   *
+   * `recoverAllRunning` (boot only): reset EVERY 'running' row unconditionally,
+   * not just stale ones. Safe only at a fresh process boot, where the singleton
+   * that owned those rows is provably dead. A live UI-triggered start() must
+   * leave it false so a detached in-flight scan isn't requeued and double-run.
    */
-  start(config?: Partial<WorkerConfig>): void {
+  start(config?: Partial<WorkerConfig> & { recoverAllRunning?: boolean }): void {
     if (this.isRunning) {
       return;
     }
 
-    // Update config
-    if (config) {
-      this.config = { ...this.config, ...config };
-    }
+    const { recoverAllRunning = false, ...cfg } = config ?? {};
+
+    // Apply config; maxConcurrent defaults to the env-configured value unless a
+    // caller explicitly overrode it. Proven >1: processQueue dispatches up to
+    // maxConcurrent claimed items without awaiting each to completion.
+    this.config = {
+      ...this.config,
+      ...cfg,
+      maxConcurrent: Math.max(1, cfg.maxConcurrent ?? env.scanQueueMaxConcurrent()),
+    };
 
     // Clear phantom IDs from a previous crash — prevents permanent blocking
     this.currentlyProcessing.clear();
 
-    // Reset orphaned DB items stuck in 'running' from a previous crash back to 'queued'
+    // Recover DB items stuck in 'running' from a previous crash.
     try {
-      const recovered = scanQueueRepository.resetOrphanedRunning();
+      const recovered = recoverAllRunning
+        ? scanQueueRepository.resetAllRunning()
+        : scanQueueRepository.resetOrphanedRunning();
       if (recovered > 0) {
         console.log(`[ScanQueueWorker] Recovered ${recovered} orphaned running item(s) on startup`);
       }
@@ -139,8 +154,39 @@ class ScanQueueWorker {
     // Reset adaptive polling state on start
     this.consecutiveEmptyPolls = 0;
 
+    // Begin the periodic retention sweep of old terminal rows
+    this.startCleanupTimer();
+
     // Start polling
     this.poll();
+  }
+
+  /**
+   * Periodic retention sweep: prune old terminal queue rows (and cascade their
+   * read notifications). Runs once immediately, then on an interval. Unref'd so
+   * it never keeps the process alive on its own.
+   */
+  private startCleanupTimer(): void {
+    if (this.cleanupTimer) {
+      return;
+    }
+
+    const sweep = () => {
+      try {
+        const pruned = scanQueueRepository.cleanupOldItemsAllProjects(env.scanQueueRetentionDays());
+        if (pruned > 0) {
+          console.log(`[ScanQueueWorker] Pruned ${pruned} old terminal queue item(s)`);
+        }
+      } catch {
+        // Best effort — never let retention interfere with scanning.
+      }
+    };
+
+    sweep();
+    this.cleanupTimer = setInterval(sweep, env.scanQueueCleanupIntervalMs());
+    if (typeof this.cleanupTimer.unref === 'function') {
+      this.cleanupTimer.unref();
+    }
   }
 
   /**
@@ -156,6 +202,11 @@ class ScanQueueWorker {
     if (this.pollTimer) {
       clearTimeout(this.pollTimer);
       this.pollTimer = null;
+    }
+
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
     }
 
     // Wake any waiting resolvers so they can exit
@@ -443,16 +494,18 @@ class ScanQueueWorker {
       const latestScanId = producedScanId
         ?? ideaRepository.getLatestScanId(queueItem.project_id, queueItem.scan_type);
 
-      // Link the scan to the queue item
-      if (latestScanId) {
-        scanQueueRepository.linkScan(queueItem.id, latestScanId, `Generated ${ideaCount} ideas`);
-      }
-
-      // Update status to completed — but only if the item is STILL running. If the
-      // user cancelled it mid-scan (DELETE set status='cancelled'), this CAS returns
-      // null and we must NOT clobber the cancel, notify completion, or auto-merge
-      // ideas for a job the user cancelled.
-      const completed = scanQueueRepository.updateStatus(queueItem.id, 'completed', undefined, 'running');
+      // Link the scan AND mark completed in ONE compare-and-set write. Doing
+      // both under a single `WHERE status='running'` guard closes the old
+      // linkScan→updateStatus race: a user cancel landing mid-scan now makes the
+      // whole thing a no-op (returns null) instead of stamping this run's
+      // scan_id onto a row the completion CAS then refused. If the CAS misses,
+      // the item was cancelled/terminal — do NOT notify completion or auto-merge.
+      const completed = scanQueueRepository.completeWithScan(
+        queueItem.id,
+        latestScanId,
+        latestScanId ? `Generated ${ideaCount} ideas` : undefined,
+        'running'
+      );
       if (!completed) {
         console.log(`[ScanQueueWorker] Item ${queueItem.id} is no longer running (likely cancelled); skipping completion + auto-merge.`);
         return;
@@ -482,13 +535,10 @@ class ScanQueueWorker {
       // Handle auto-merge if enabled — but never on an unchanged (skipped) scan:
       // there are no new ideas, and re-running it against the prior scan's ideas
       // would spuriously auto-accept old rows.
-      // Re-fetch the queue item from DB so scan_id (set by linkScan above) is current.
-      // The in-memory queueItem still has scan_id=null from before linkScan ran.
-      if (queueItem.auto_merge_enabled && !unchanged) {
-        const freshItem = scanQueueRepository.getQueueItemById(queueItem.id);
-        if (freshItem) {
-          await this.handleAutoMerge(freshItem);
-        }
+      // `completed` is the post-CAS row, so its scan_id is already current — no
+      // re-fetch needed (the in-memory queueItem still has scan_id=null).
+      if (completed.auto_merge_enabled && !unchanged) {
+        await this.handleAutoMerge(completed);
       }
     } catch (error) {
       // Update status to failed — CAS on 'running' so a user's mid-run cancel is not
@@ -637,11 +687,23 @@ class ScanQueueWorker {
   }
 }
 
-// Singleton instance
-export const scanQueueWorker = new ScanQueueWorker();
+// Singleton instance — stashed on globalThis so it SURVIVES Next.js HMR module
+// reloads (a plain module-level `new` would mint a fresh worker on every reload,
+// orphaning the previous instance's timers and losing isRunning state).
+const globalForWorker = globalThis as unknown as {
+  __scanQueueWorker?: ScanQueueWorker;
+  __scanQueueWorkerHandlers?: boolean;
+};
 
-// Cleanup on process exit
-if (typeof process !== 'undefined') {
+export const scanQueueWorker: ScanQueueWorker =
+  globalForWorker.__scanQueueWorker ??
+  (globalForWorker.__scanQueueWorker = new ScanQueueWorker());
+
+// Cleanup on process exit — registered exactly once per process even across HMR
+// reloads (duplicate listeners would otherwise stack up and warn).
+if (typeof process !== 'undefined' && !globalForWorker.__scanQueueWorkerHandlers) {
+  globalForWorker.__scanQueueWorkerHandlers = true;
+
   process.on('exit', () => {
     scanQueueWorker.stop();
   });

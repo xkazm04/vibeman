@@ -15,4 +15,19 @@ export function runPostInitHooks() {
   } catch (err) {
     console.warn('[schema] Orphan reaping failed (non-fatal):', err instanceof Error ? err.message : err);
   }
+
+  // Boot-start the scan-queue worker so queued scans process WITHOUT anyone
+  // opening the Ideas UI (previously the worker only ever started from the
+  // Ideas screen or a file-watch event, so a queued item on a fresh boot sat
+  // forever). `recoverAllRunning: true` is safe here: this is a fresh process,
+  // so any DB row still marked 'running' is a crashed previous instance's
+  // corpse and must be requeued regardless of age. require() keeps the worker's
+  // LLM-heavy module subtree out of every route's static graph, matching the
+  // dynamic-load contract of the schema module.
+  try {
+    const { scanQueueWorker } = require('@/lib/scanQueueWorker');
+    scanQueueWorker.start({ recoverAllRunning: true });
+  } catch (err) {
+    console.warn('[schema] Scan-queue worker boot-start failed (non-fatal):', err instanceof Error ? err.message : err);
+  }
 }

@@ -324,6 +324,31 @@ export const env = {
 
   observabilityEnabled: () => readBool('OBSERVABILITY_ENABLED', true),
 
+  // =========================================================================
+  // Scan Queue Worker
+  // =========================================================================
+
+  /**
+   * Max scans the queue worker runs concurrently. Default 1 (strictly
+   * sequential). Raising this lets a slow LLM scan stop head-of-line blocking
+   * the rest of the queue. Floored at 1.
+   */
+  scanQueueMaxConcurrent: () => Math.max(1, readInt('SCAN_QUEUE_MAX_CONCURRENT') ?? 1),
+
+  /**
+   * Days to retain terminal (completed/failed/cancelled) queue rows before the
+   * worker prunes them. Floored at 1. Pruning cascades a row's notifications,
+   * so rows still carrying an UNREAD notification are always spared.
+   */
+  scanQueueRetentionDays: () => Math.max(1, readInt('SCAN_QUEUE_RETENTION_DAYS') ?? 30),
+
+  /**
+   * Interval (ms) between periodic prunes of old terminal queue rows. Default
+   * 6h. Floored at 1 minute so a misconfiguration can't spin the timer.
+   */
+  scanQueueCleanupIntervalMs: () =>
+    Math.max(60_000, readInt('SCAN_QUEUE_CLEANUP_INTERVAL_MS') ?? 6 * 60 * 60 * 1000),
+
   // Schema Intelligence query-pattern collection: wraps every prepared
   // statement with timing instrumentation and runs a 60s flush timer.
   // Off by default — opt in when actively using the Schema Intelligence

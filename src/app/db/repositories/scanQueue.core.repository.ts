@@ -275,6 +275,55 @@ export const scanQueueCoreRepository = {
   },
 
   /**
+   * Atomically link a produced scan AND mark the item completed in a single
+   * compare-and-set write.
+   *
+   * This closes the linkScan → updateStatus race: previously the worker wrote
+   * scan_id (unconditional linkScan) and THEN CAS'd status to 'completed'. A
+   * user cancel landing between the two left a 'cancelled' row that had already
+   * been stamped with this run's scan_id/result_summary. Here both columns move
+   * under one `WHERE id=? AND status=?` guard, so a mid-run cancel makes the
+   * whole thing a no-op (returns null) and nothing is clobbered.
+   *
+   * `scanId`/`resultSummary` are COALESCE'd so passing null preserves any
+   * existing value rather than nulling it out.
+   */
+  completeWithScan: (
+    id: string,
+    scanId: string | null,
+    resultSummary?: string,
+    expectedCurrentStatus: DbScanQueueItem['status'] = 'running'
+  ): DbScanQueueItem | null => {
+    const db = getDatabase();
+    const now = new Date().toISOString();
+
+    const stmt = db.prepare(`
+      UPDATE scan_queue
+      SET status = 'completed',
+          completed_at = ?,
+          updated_at = ?,
+          scan_id = COALESCE(?, scan_id),
+          result_summary = COALESCE(?, result_summary)
+      WHERE id = ? AND status = ?
+    `);
+
+    const result = stmt.run(
+      now,
+      now,
+      scanId ?? null,
+      resultSummary ?? null,
+      id,
+      expectedCurrentStatus
+    );
+
+    if (result.changes === 0) {
+      return null;
+    }
+
+    return base.getById(id)!;
+  },
+
+  /**
    * Update auto-merge status
    */
   updateAutoMergeStatus: (id: string, status: string): DbScanQueueItem | null => {
@@ -322,9 +371,62 @@ export const scanQueueCoreRepository = {
   },
 
   /**
+   * Reset ALL 'running' items back to 'queued', regardless of age.
+   *
+   * The worker is a true in-process singleton that dies with the Node process,
+   * so at a FRESH BOOT no scan can legitimately still be running — any
+   * 'running' row is the corpse of a crashed previous process. Age-based
+   * recovery (resetOrphanedRunning) can't help here: a process that crashed 30s
+   * ago leaves a row younger than the stale threshold that would otherwise sit
+   * 'running' forever. Boot recovery calls this unconditionally.
+   *
+   * Do NOT call this from a live process's UI-triggered start(): a detached
+   * scan from a prior stop()/start() cycle may genuinely still be in flight.
+   * Returns the number of items reset.
+   */
+  resetAllRunning: (): number => {
+    const db = getDatabase();
+    const now = new Date().toISOString();
+
+    const stmt = db.prepare(`
+      UPDATE scan_queue
+      SET status = 'queued', started_at = NULL, updated_at = ?,
+          progress = 0, progress_message = 'Requeued after worker restart', current_step = NULL
+      WHERE status = 'running'
+    `);
+
+    return stmt.run(now).changes;
+  },
+
+  /**
    * Delete a queue item
    */
   deleteQueueItem: (id: string): boolean => base.deleteById(id),
+
+  /**
+   * Prune old terminal queue rows across ALL projects (worker retention sweep).
+   *
+   * Deleting a parent scan_queue row cascades its scan_notifications (FK ON
+   * DELETE CASCADE), so a row that still carries an UNREAD notification is
+   * spared — otherwise the retention sweep would silently swallow a failure the
+   * user has not seen yet. Rows whose notifications are all read (or that have
+   * none) prune freely once older than the retention window.
+   * Returns the number of queue rows deleted.
+   */
+  cleanupOldItemsAllProjects: (daysOld: number = 30): number => {
+    const db = getDatabase();
+    const cutoff = new Date(Date.now() - daysOld * 86_400_000).toISOString();
+
+    const stmt = db.prepare(`
+      DELETE FROM scan_queue
+      WHERE status IN ('completed', 'failed', 'cancelled')
+        AND completed_at IS NOT NULL
+        AND completed_at < ?
+        AND id NOT IN (SELECT queue_item_id FROM scan_notifications WHERE read = 0)
+    `);
+
+    return stmt.run(cutoff).changes;
+  },
 
   /**
    * Delete old completed/failed queue items
