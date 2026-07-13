@@ -10,15 +10,50 @@ import { DbFileWatchConfig } from '@/app/db/models/types';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
 import { generateId, generateNotificationId } from '@/lib/idGenerator';
 import { scanQueueWorker } from '@/lib/scanQueueWorker';
+import { projectDb } from '@/lib/project_database';
+
+type FileChangeType = 'add' | 'change' | 'delete';
 
 interface WatcherInstance {
   watcher: FSWatcher;
   config: DbFileWatchConfig;
 }
 
-class FileWatcherManager {
+export class FileWatcherManager {
   private watchers: Map<string, WatcherInstance> = new Map();
   private debounceTimers: Map<string, NodeJS.Timeout> = new Map();
+  // Per-project accumulator of every file touched during the current debounce
+  // burst (filePath → latest change type). Aggregating the WHOLE burst — not
+  // just the last event — lets a single queue item carry all changed files.
+  private pendingChanges: Map<string, Map<string, FileChangeType>> = new Map();
+
+  /**
+   * Rehydrate watchers for every ENABLED file_watch_config at server boot.
+   *
+   * The manager is an in-process singleton that dies with the Node process, so
+   * without this a configured watcher silently stays dead after a restart. Called
+   * from schema.postinit (via require) alongside the scan-queue worker boot-start.
+   * Returns the number of watchers actually started.
+   */
+  rehydrateWatchers(): number {
+    let started = 0;
+    try {
+      const configs = scanQueueRepository.getAllEnabledFileWatchConfigs();
+      for (const config of configs) {
+        const project = projectDb.projects.get(config.project_id);
+        if (!project?.path) {
+          console.warn(`[fileWatcher] Skipping rehydrate for ${config.project_id}: no project path`);
+          continue;
+        }
+        if (this.startWatching(config.project_id, project.path)) {
+          started++;
+        }
+      }
+    } catch (error) {
+      console.warn('[fileWatcher] Rehydrate failed (non-fatal):', error instanceof Error ? error.message : error);
+    }
+    return started;
+  }
 
   /**
    * Start watching a project based on its file watch config
@@ -94,56 +129,80 @@ class FileWatcherManager {
       await instance.watcher.close();
       this.watchers.delete(projectId);
 
-      // Clear any pending debounce timer
+      // Clear any pending debounce timer and dropped-on-the-floor burst state
       const timer = this.debounceTimers.get(projectId);
       if (timer) {
         clearTimeout(timer);
         this.debounceTimers.delete(projectId);
       }
+      this.pendingChanges.delete(projectId);
 
       console.log(`File watcher stopped for project ${projectId}`);
     }
   }
 
   /**
-   * Handle file change event with debouncing
+   * Handle file change event with debouncing.
+   *
+   * Every event in the burst is accumulated into `pendingChanges` (keyed by file
+   * path, last change type wins) rather than overwriting a single captured path.
+   * When the debounce window elapses the WHOLE set is handed to triggerScans, so
+   * one queue item carries every file the burst touched — previously only the
+   * last event's file survived and the rest were lost.
    */
   private handleFileChange(
     projectId: string,
-    changeType: 'add' | 'change' | 'delete',
+    changeType: FileChangeType,
     filePath: string,
     config: DbFileWatchConfig
   ): void {
     console.log(`File ${changeType}: ${filePath} in project ${projectId}`);
 
-    // Clear existing debounce timer
+    // Accumulate this file into the current burst.
+    let pending = this.pendingChanges.get(projectId);
+    if (!pending) {
+      pending = new Map();
+      this.pendingChanges.set(projectId, pending);
+    }
+    pending.set(filePath, changeType);
+
+    // Reset the debounce timer — the burst extends until edits stop.
     const existingTimer = this.debounceTimers.get(projectId);
     if (existingTimer) {
       clearTimeout(existingTimer);
     }
 
-    // Set new debounce timer
     const timer = setTimeout(() => {
-      this.triggerScans(projectId, changeType, filePath, config);
       this.debounceTimers.delete(projectId);
+      const changes = this.pendingChanges.get(projectId);
+      this.pendingChanges.delete(projectId);
+      if (changes && changes.size > 0) {
+        this.triggerScans(projectId, changes, config);
+      }
     }, config.debounce_ms);
 
     this.debounceTimers.set(projectId, timer);
   }
 
   /**
-   * Trigger scans based on file watch config
+   * Trigger scans for one debounced burst of file changes.
+   *
+   * `changes` is the aggregated set of every file touched during the burst. Each
+   * configured scan type becomes ONE queue item whose trigger_metadata lists ALL
+   * of those files, so the downstream scan can (later) narrow to the changed set.
    */
   private triggerScans(
     projectId: string,
-    changeType: string,
-    filePath: string,
+    changes: Map<string, FileChangeType>,
     config: DbFileWatchConfig
   ): void {
     try {
       const scanTypes = JSON.parse(config.scan_types) as ScanType[];
 
-      console.log(`Triggering ${scanTypes.length} scans for project ${projectId} due to file ${changeType}`);
+      const files = Array.from(changes.keys());
+      const changeTypes = Array.from(new Set(changes.values()));
+
+      console.log(`Triggering ${scanTypes.length} scans for project ${projectId} due to ${files.length} changed file(s)`);
 
       // Create queue items for each scan type
       const queueIds: string[] = [];
@@ -157,11 +216,17 @@ class FileWatcherManager {
           scan_type: scanType,
           trigger_type: 'file_change',
           trigger_metadata: {
-            changeType,
-            files: [filePath],
+            changeTypes,
+            files,                 // ALL files touched in the burst, not just the last
+            fileCount: files.length,
             timestamp: new Date().toISOString()
           },
           priority: 1 // Auto-triggered scans have default priority
+          // auto_merge_enabled is intentionally omitted → defaults to 0. A file
+          // watcher must NEVER auto-accept ideas; only an explicit per-run UI
+          // toggle may enable auto-merge. Cost control for unchanged contexts is
+          // the round-1 content-hash drift gate (the worker runs force=false), NOT
+          // auto-merge.
         });
 
         console.log(`Queued ${scanType} scan (ID: ${queueId}) for project ${projectId}`);
@@ -188,10 +253,10 @@ class FileWatcherManager {
           project_id: projectId,
           notification_type: 'scan_started',
           title: 'Auto-scan triggered',
-          message: `File changes detected. ${scanTypes.length} scan(s) queued.`,
+          message: `${files.length} file change(s) detected. ${scanTypes.length} scan(s) queued.`,
           data: {
-            changeType,
-            filePath,
+            changeTypes,
+            files,
             scanTypes
           }
         });

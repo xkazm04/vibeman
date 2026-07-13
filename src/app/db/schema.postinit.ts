@@ -41,4 +41,19 @@ export function runPostInitHooks() {
   } catch (err) {
     console.warn('[schema] Brain maintenance start failed (non-fatal):', err instanceof Error ? err.message : err);
   }
+
+  // Rehydrate any ENABLED file watchers. The FileWatcherManager singleton dies
+  // with the previous process, so a configured chokidar watcher would otherwise
+  // stay silently dead after a restart until the config was re-saved from the UI.
+  // require() keeps chokidar + the worker subtree out of every route's static
+  // graph, matching the dynamic-load contract of the schema module.
+  try {
+    const { fileWatcherManager } = require('@/lib/fileWatcher');
+    const started = fileWatcherManager.rehydrateWatchers();
+    if (started > 0) {
+      console.log(`[schema] Rehydrated ${started} file watcher(s) on boot`);
+    }
+  } catch (err) {
+    console.warn('[schema] File-watch rehydrate failed (non-fatal):', err instanceof Error ? err.message : err);
+  }
 }

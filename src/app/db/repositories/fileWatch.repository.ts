@@ -17,6 +17,20 @@ export const fileWatchRepository = {
   },
 
   /**
+   * Get every ENABLED file watch config across all projects.
+   *
+   * Used to rehydrate the in-memory chokidar watchers at server boot: the
+   * FileWatcherManager singleton dies with the Node process, so a configured
+   * watcher would otherwise silently stay dead after a restart until someone
+   * re-saved the config from the UI.
+   */
+  getAllEnabledFileWatchConfigs: (): DbFileWatchConfig[] => {
+    const db = getDatabase();
+    const stmt = db.prepare('SELECT * FROM file_watch_config WHERE enabled = 1');
+    return stmt.all() as DbFileWatchConfig[];
+  },
+
+  /**
    * Create or update file watch config
    */
   upsertFileWatchConfig: (config: {

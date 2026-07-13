@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Target, ChevronDown, Zap, X, AlertTriangle, Loader2, Search } from 'lucide-react';
+import { Target, ChevronDown, Zap, X, AlertTriangle, Loader2, Search, Eye } from 'lucide-react';
 import { Youtube } from '@/components/icons/brand-icons';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import { toast } from '@/stores/messageStore';
@@ -49,6 +49,11 @@ export default function ScanInitiator({
   // Per-run auto-merge toggle — default OFF. When on, the worker auto-accepts
   // ideas in the honest high-impact/low-effort band (impact ≥ 8 and effort ≤ 3).
   const [autoMergeEnabled, setAutoMergeEnabled] = React.useState(false);
+  // Opt-in file-watch toggle — default OFF. When on, a chokidar watcher on the
+  // project auto-enqueues a scan whenever files change; the round-1 content-hash
+  // drift gate skips unchanged contexts near-free, so this never runs auto-merge.
+  const [fileWatchEnabled, setFileWatchEnabled] = React.useState(false);
+  const [fileWatchBusy, setFileWatchBusy] = React.useState(false);
 
   // Scan progress state — drives the progress bar + "agent × context" ticker
   interface ScanProgress {
@@ -98,6 +103,67 @@ export default function ScanInitiator({
       })
       .catch((error) => { console.error('[ScanInitiator] Failed to load goals:', error); });
   }, [activeProject?.id]);
+
+  // Reflect the persisted file-watch config for the active project.
+  React.useEffect(() => {
+    if (!activeProject?.id) {
+      setFileWatchEnabled(false);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/file-watch?projectId=${activeProject.id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (!cancelled) setFileWatchEnabled(data?.config?.enabled === 1);
+      })
+      .catch((error) => { console.error('[ScanInitiator] Failed to load file-watch config:', error); });
+    return () => { cancelled = true; };
+  }, [activeProject?.id]);
+
+  // Opt-in file-watch toggle: upsert file_watch_config with sensible defaults.
+  // The watcher enqueues normal scans (force=false) — cost control is the drift
+  // gate — and NEVER enables auto-merge.
+  const handleToggleFileWatch = async () => {
+    if (!activeProject) {
+      toast.error('No active project', 'Please select a project first');
+      return;
+    }
+    const next = !fileWatchEnabled;
+    const dbScanTypes = selectedScanTypes.filter(t => t !== 'youtube_scout');
+    const watchScanTypes = dbScanTypes.length > 0 ? dbScanTypes : ['bug_hunter'];
+
+    setFileWatchBusy(true);
+    try {
+      const res = await fetch('/api/file-watch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: activeProject.id,
+          projectPath: activeProject.path,
+          enabled: next,
+          watchPatterns: ['src/**/*.ts', 'src/**/*.tsx', 'src/**/*.js', 'src/**/*.jsx'],
+          scanTypes: watchScanTypes,
+          debounceMs: 5000,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(err.error || `Request failed (${res.status})`);
+      }
+      setFileWatchEnabled(next);
+      toast.success(
+        next ? 'File watch on' : 'File watch off',
+        next
+          ? 'Scans will auto-run when source files change (unchanged contexts are skipped).'
+          : 'File-change scans disabled for this project.',
+      );
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error('File watch failed', errorMessage);
+    } finally {
+      setFileWatchBusy(false);
+    }
+  };
 
   // Close goal dropdown on click-outside or Escape
   React.useEffect(() => {
@@ -455,6 +521,32 @@ export default function ScanInitiator({
                 />
               </span>
               <span className="whitespace-nowrap">Auto-merge (impact ≥ 8, effort ≤ 3)</span>
+            </button>
+          )}
+
+          {/* Opt-in file-watch toggle — default OFF. Persists file_watch_config;
+              the boot hook rehydrates it after a restart. Never enables auto-merge. */}
+          {activeProject && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={fileWatchEnabled}
+              onClick={handleToggleFileWatch}
+              disabled={fileWatchBusy}
+              title="Auto-run scans when source files change. Unchanged contexts are skipped by the content-hash drift gate."
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 ${
+                fileWatchEnabled
+                  ? 'border-cyan-500/50 bg-cyan-500/15 text-cyan-200'
+                  : 'border-gray-700/40 bg-gray-800/40 text-gray-400 hover:text-gray-200'
+              } ${fileWatchBusy ? 'opacity-50 cursor-not-allowed' : ''}`}
+              data-testid="file-watch-toggle"
+            >
+              {fileWatchBusy ? (
+                <Loader2 className="w-4 h-4 animate-spin text-cyan-300" />
+              ) : (
+                <Eye className="w-4 h-4 shrink-0" />
+              )}
+              <span className="whitespace-nowrap">Watch files</span>
             </button>
           )}
 
