@@ -5,6 +5,7 @@ import { GripVertical } from 'lucide-react';
 import type { DbIdea } from '@/app/db/models/types';
 import { getCategoryConfig, effortScale, impactScale, EffortIcon, ImpactIcon } from '../lib/ideaConfig';
 import { getAgent, type ScanType } from '../lib/scanTypes';
+import IdeaDownstreamStage from '../components/IdeaDownstreamStage';
 
 interface KanbanCardProps {
   idea: DbIdea;
@@ -85,6 +86,12 @@ const KanbanCard = React.memo(function KanbanCard({ idea, onClick, draggable = t
             <span className={`text-2xs font-mono ${effortCfg.color}`}>{idea.effort}</span>
           </div>
         )}
+      </div>
+
+      {/* Downstream stage (accepted/implemented): requirement → task → done.
+          Renders nothing for pending ideas. */}
+      <div className="mt-1.5 empty:hidden">
+        <IdeaDownstreamStage idea={idea} />
       </div>
     </div>
   );

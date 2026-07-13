@@ -6,6 +6,7 @@ import { Trash2, Edit2, Zap, Play, Link2 } from 'lucide-react';
 import { duration, easing } from '@/lib/motion';
 import type { DbIdea } from '@/app/db/models/types';
 import ContextMenu from '@/components/ContextMenu';
+import IdeaDownstreamStage from '../components/IdeaDownstreamStage';
 import { getCategoryConfig, EffortIcon, ImpactIcon, effortScale, impactScale } from '../lib/ideaConfig';
 import { getStatusClasses, type StatusType } from '@/lib/design-tokens/useEntityStyling';
 
@@ -151,6 +152,11 @@ const BufferItem = React.memo(function BufferItem({ idea, onClick, onDelete, onC
         <span className="flex-1 min-w-0 text-xs text-gray-200 truncate font-medium leading-snug">
           {idea.title}
         </span>
+
+        {/* Downstream stage (accepted/implemented): requirement → task → done */}
+        <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+          <IdeaDownstreamStage idea={idea} compact />
+        </div>
 
         {/* Action buttons for pending ideas */}
         {idea.status === 'pending' && (
