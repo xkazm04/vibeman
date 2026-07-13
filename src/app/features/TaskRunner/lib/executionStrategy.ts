@@ -59,7 +59,7 @@ export interface ExecutionStatus {
  * Execution event emitted during streaming.
  */
 export interface ExecutionEvent {
-  type: 'status' | 'message' | 'tool_use' | 'tool_result' | 'result' | 'error' | 'heartbeat';
+  type: 'status' | 'message' | 'tool_use' | 'tool_result' | 'result' | 'error' | 'heartbeat' | 'rate_limit';
   data?: unknown;
   timestamp: number;
 }

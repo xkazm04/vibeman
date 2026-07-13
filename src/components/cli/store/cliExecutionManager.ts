@@ -9,6 +9,7 @@
  */
 
 import { useCLISessionStore, type CLISessionId } from './cliSessionStore';
+import { useFleetAutopilotStore } from './fleetAutopilotStore';
 import type { QueuedTask } from '../types';
 // Import directly to avoid circular dependency through barrel exports
 import { remoteEvents } from '@/lib/remote/eventPublisher';
@@ -219,6 +220,21 @@ export async function startCLIExecution(
 
         handleTaskComplete(sessionId, task, true);
         cleanupTaskExecution(sessionId, task.id);
+      } else if (event.type === 'rate_limit') {
+        // Structured rate-limit signal (never substring matching). Pause the
+        // whole fleet and re-queue THIS task as waiting (not failed) so it is
+        // relaunched when the window clears.
+        const retryAfterMs = extractRetryAfterMs(event);
+        pauseFleetForRateLimit({
+          retryAfterMs,
+          reason: extractRateLimitReason(event),
+          taskId: task.id,
+        });
+        // Stop the rate-limited execution and mark the task waiting.
+        cleanupTaskExecution(sessionId, task.id);
+        strategy.cancel(executionId).catch(() => {/* best-effort */});
+        store.updateTaskStatus(sessionId, task.id, createQueuedStatus());
+        useFleetAutopilotStore.getState().addWaitingTask(task.id);
       } else if (event.type === 'error') {
         // Preserve the real failure reason from the stream event instead of
         // collapsing it to a generic message. Error events carry { error } or
@@ -358,6 +374,13 @@ export function executeReadyTasks(sessionId: CLISessionId): void {
     return;
   }
 
+  // ── Fleet autopilot: hold all launches while rate-limited ──
+  // Do NOT flip isRunning off — the session is intentionally paused, not idle;
+  // resumeFleet() re-invokes this once the quota window clears.
+  if (useFleetAutopilotStore.getState().paused) {
+    return;
+  }
+
   const scheduler = getSessionScheduler(sessionId);
   const dagTasks = queueToDAGTasks(session.queue);
   const readyIds = scheduler.getNextBatch(dagTasks);
@@ -388,6 +411,109 @@ export function executeReadyTasks(sessionId: CLISessionId): void {
  */
 export function executeNextTask(sessionId: CLISessionId): void {
   executeReadyTasks(sessionId);
+}
+
+// ============================================================================
+// Rate-limit-aware fleet autopilot
+// ============================================================================
+
+/** Base backoff when a rate_limit event carries no explicit ETA. */
+const RATE_LIMIT_BASE_BACKOFF_MS = 60_000;
+/** Cap the ETA-less exponential backoff so it never runs away. */
+const RATE_LIMIT_MAX_BACKOFF_MS = 30 * 60_000; // 30 min
+
+/** Single fleet-resume timer (module-level so repeated events don't stack). */
+let fleetResumeTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Pull retryAfterMs out of a stream rate_limit event across its shapes. */
+function extractRetryAfterMs(event: ExecutionEvent): number | undefined {
+  const top = event.data as Record<string, unknown> | undefined;
+  const nested = top?.data as Record<string, unknown> | undefined;
+  const raw = (nested?.retryAfterMs ?? top?.retryAfterMs) as unknown;
+  return typeof raw === 'number' && raw > 0 ? raw : undefined;
+}
+
+/** Pull a human-readable reason out of a stream rate_limit event. */
+function extractRateLimitReason(event: ExecutionEvent): string {
+  const top = event.data as Record<string, unknown> | undefined;
+  const nested = top?.data as Record<string, unknown> | undefined;
+  const msg = (nested?.message ?? top?.message) as unknown;
+  return typeof msg === 'string' && msg ? msg : 'Rate limit reached';
+}
+
+/**
+ * Pause the whole fleet in response to a structured rate-limit event. Computes
+ * the resume time from the event's ETA when present, else an exponential
+ * backoff starting at 60s, and schedules a single auto-resume.
+ *
+ * Idempotent while already paused: repeated events keep the earliest window
+ * (they only add the offending task to the waiting set) rather than pushing the
+ * resume time out indefinitely.
+ */
+export function pauseFleetForRateLimit(opts: {
+  retryAfterMs?: number;
+  reason?: string;
+  taskId?: string;
+}): void {
+  const fleet = useFleetAutopilotStore.getState();
+
+  if (fleet.paused) {
+    if (opts.taskId) fleet.addWaitingTask(opts.taskId);
+    return;
+  }
+
+  const now = Date.now();
+  let nextBackoffLevel: number;
+  let resumeAt: number;
+
+  if (opts.retryAfterMs && opts.retryAfterMs > 0) {
+    // Honor the server-provided window; reset the ETA-less backoff.
+    resumeAt = now + opts.retryAfterMs;
+    nextBackoffLevel = 0;
+  } else {
+    const delay = Math.min(
+      RATE_LIMIT_BASE_BACKOFF_MS * Math.pow(2, fleet.backoffLevel),
+      RATE_LIMIT_MAX_BACKOFF_MS
+    );
+    resumeAt = now + delay;
+    nextBackoffLevel = fleet.backoffLevel + 1;
+  }
+
+  fleet.setPaused({
+    resumeAt,
+    reason: opts.reason || 'Rate limit reached',
+    backoffLevel: nextBackoffLevel,
+  });
+  if (opts.taskId) fleet.addWaitingTask(opts.taskId);
+
+  if (fleetResumeTimer) clearTimeout(fleetResumeTimer);
+  fleetResumeTimer = setTimeout(resumeFleet, Math.max(0, resumeAt - now));
+  // Never let the maintenance timer keep a Node process alive (no-op in browser).
+  if (typeof (fleetResumeTimer as { unref?: () => void }).unref === 'function') {
+    (fleetResumeTimer as unknown as { unref: () => void }).unref();
+  }
+}
+
+/**
+ * Clear the fleet pause and relaunch queued work across all sessions. Called
+ * automatically when the rate-limit window elapses, or manually to resume early.
+ */
+export function resumeFleet(): void {
+  if (fleetResumeTimer) {
+    clearTimeout(fleetResumeTimer);
+    fleetResumeTimer = null;
+  }
+  useFleetAutopilotStore.getState().clearPause();
+
+  // Kick every session that still has queued work under autoStart.
+  const store = useCLISessionStore.getState();
+  for (const session of Object.values(store.sessions)) {
+    const hasQueued = session.queue.some((t) => t.status.type === 'queued');
+    if (session.autoStart && hasQueued) {
+      store.setRunning(session.id, true);
+      executeReadyTasks(session.id);
+    }
+  }
 }
 
 /** Max auto-retries for tasks that fail due to server restart / transient errors */

@@ -14,6 +14,7 @@ import type { CLISessionId } from '@/components/cli/store/cliSessionStore';
 import { usePollingCleanupOnUnmount } from '@/app/features/TaskRunner/lib/pollingManager';
 import LazyContentSection from '@/components/Navigation/LazyContentSection';
 import TaskRunnerEmptyState from '@/app/features/TaskRunner/components/TaskRunnerEmptyState';
+import FleetAutopilotBanner from '@/app/features/TaskRunner/components/FleetAutopilotBanner';
 import { useRequirements } from '@/app/features/TaskRunner/hooks/useRequirements';
 import { useTaskRunnerBatchData } from '@/app/features/TaskRunner/hooks/useTaskRunnerBatchData';
 import { useActiveProjectStore } from '@/stores/clientProjectStore';
@@ -194,6 +195,9 @@ const TaskRunnerFullView = () => {
               sidebarOpen={sidebarOpen}
             />
           </LazyContentSection>
+
+          {/* Fleet autopilot pause banner (rate-limit hold) */}
+          <FleetAutopilotBanner />
 
           {/* View Toggle */}
           <div className="flex justify-end">
