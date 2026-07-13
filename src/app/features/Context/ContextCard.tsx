@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { X, FolderOpen, Copy, MousePointer, FileText, Edit, Trash2, CheckSquare, Square, RefreshCw } from 'lucide-react';
+import { X, FolderOpen, Copy, MousePointer, FileText, Edit, Trash2, CheckSquare, Square, RefreshCw, Pin, PinOff } from 'lucide-react';
 import { Context, ContextGroup, useContextStore } from '../../../stores/contextStore';
 import { ContextHealthDot } from './components/ContextHealthIndicator';
 import { FileTypeSummary } from './components/MiniFileTree';
@@ -29,6 +29,7 @@ interface ContextCardProps {
 const ContextCard = React.memo(function ContextCard({ context, groupColor, availableGroups, selectedFilePaths, compact }: ContextCardProps) {
   // Atomic selectors: actions are stable refs, isSelected is scoped to this card's ID
   const removeContext = useContextStore(s => s.removeContext);
+  const updateContext = useContextStore(s => s.updateContext);
   const toggleContextSelection = useContextStore(s => s.toggleContextSelection);
   const setSelectedContext = useContextStore(s => s.setSelectedContext);
   const isSelectedForBacklog = useContextStore(s => s.selectedContextIds.has(context.id));
@@ -164,6 +165,25 @@ const ContextCard = React.memo(function ContextCard({ context, groupColor, avail
     await saveFileContent(filePath, content);
   }, []);
 
+  const handleTogglePin = useCallback(async () => {
+    setShowContextMenu(false);
+    const next = !context.pinned;
+    try {
+      await updateContext(context.id, { pinned: next });
+      toast.success(
+        next ? 'Context pinned' : 'Context unpinned',
+        next
+          ? `${context.name} will survive a full context rebuild`
+          : `${context.name} will be regenerated on the next full rebuild`
+      );
+    } catch (err) {
+      toast.error(
+        'Failed to update pin',
+        err instanceof Error ? err.message : 'Unknown error'
+      );
+    }
+  }, [context.id, context.name, context.pinned, updateContext]);
+
   const handleRegenerate = useCallback(async () => {
     setShowContextMenu(false);
     if (isRegenerating) return;
@@ -216,6 +236,12 @@ const ContextCard = React.memo(function ContextCard({ context, groupColor, avail
       action: handleToggleForBacklog,
     },
     {
+      id: 'toggle-pin',
+      label: context.pinned ? 'Unpin (allow rebuild)' : 'Pin (survive rebuild)',
+      icon: context.pinned ? PinOff : Pin,
+      action: handleTogglePin,
+    },
+    {
       id: 'context-matrix',
       label: 'Context Matrix',
       icon: FileText,
@@ -240,7 +266,7 @@ const ContextCard = React.memo(function ContextCard({ context, groupColor, avail
       action: handleRemove,
       isDanger: true,
     },
-  ], [handleOpenFiles, handleCopy, handleSelect, isSelectedForBacklog, handleToggleForBacklog, handleContextFile, isRegenerating, handleRegenerate, handleEdit, handleRemove]);
+  ], [handleOpenFiles, handleCopy, handleSelect, isSelectedForBacklog, handleToggleForBacklog, context.pinned, handleTogglePin, handleContextFile, isRegenerating, handleRegenerate, handleEdit, handleRemove]);
 
   return (
     <>
@@ -296,6 +322,22 @@ const ContextCard = React.memo(function ContextCard({ context, groupColor, avail
                 {context.name}
               </h5>
             </div>
+            {/* Pin toggle: solid amber when pinned (survives a full rebuild), a
+                subtle hover affordance otherwise. */}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); void handleTogglePin(); }}
+              aria-label={context.pinned ? `Unpin ${context.name}` : `Pin ${context.name} to survive rebuild`}
+              aria-pressed={Boolean(context.pinned)}
+              title={context.pinned ? 'Pinned — survives a full rebuild. Click to unpin.' : 'Pin to survive a full rebuild'}
+              className={`shrink-0 p-1 rounded-md transition-all ${focusRingClasses} ${
+                context.pinned
+                  ? 'text-amber-400 bg-amber-400/15 hover:bg-amber-400/25'
+                  : 'text-gray-500 opacity-0 group-hover:opacity-100 hover:text-gray-300 hover:bg-gray-700/50'
+              }`}
+            >
+              <Pin className={`w-3.5 h-3.5 ${context.pinned ? 'fill-current' : ''}`} />
+            </button>
             {/* File Count Badge */}
             <div
               className={`${compact ? 'px-1.5 py-0.5 text-2xs' : 'px-2 py-0.5 text-xs'} rounded-md font-bold font-mono`}

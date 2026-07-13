@@ -75,6 +75,7 @@ export const contextAPI = {
     description?: string;
     filePaths?: string[];
     groupId?: string | null;
+    pinned?: boolean;
   }): Promise<Context> => {
     const response = await fetch('/api/contexts', {
       method: 'PUT',

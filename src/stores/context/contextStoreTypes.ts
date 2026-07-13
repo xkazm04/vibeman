@@ -42,6 +42,8 @@ export interface Context {
   // Target / Goal
   target?: string | null;
   target_fulfillment?: string | null;
+  /** Canonical pin: when true, a full rebuild preserves this context (migration 233). */
+  pinned?: boolean;
 }
 
 // Store State
@@ -74,6 +76,7 @@ export interface ContextStore extends ContextState {
     groupId?: string | null;
     target?: string | null;
     target_fulfillment?: string | null;
+    pinned?: boolean;
   }) => Promise<void>;
   moveContext: (contextId: string, newGroupId: string | null) => Promise<void>;
 

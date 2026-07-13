@@ -61,9 +61,17 @@ async function handlePost(request: NextRequest) {
       const existingContexts = contextRepository.getContextsByProject(projectId);
       const existingGroups = contextGroupRepository.getGroupsByProject(projectId);
       const existingRelationships = contextGroupRelationshipRepository.getByProject(projectId);
+      // Canonical pins (migration 233) are human-curated and must survive a full
+      // rebuild — the promise stamped into CLAUDE.md's managed block. Exclude them
+      // (and any group that still holds one) from the deferred-cleanup snapshot so
+      // they are never scheduled for deletion. Cleanup re-checks pin state as the
+      // authoritative guard; this just keeps previousDataIds honest.
+      const pinnedGroupIds = new Set(
+        existingContexts.filter(c => c.pinned && c.group_id).map(c => c.group_id as string)
+      );
       previousDataIds = {
-        contextIds: existingContexts.map(c => c.id),
-        groupIds: existingGroups.map(g => g.id),
+        contextIds: existingContexts.filter(c => !c.pinned).map(c => c.id),
+        groupIds: existingGroups.filter(g => !pinnedGroupIds.has(g.id)).map(g => g.id),
         relationshipIds: existingRelationships.map(r => r.id),
       };
       logger.info('[API] Snapshot of existing data for deferred cleanup:', {
@@ -71,6 +79,7 @@ async function handlePost(request: NextRequest) {
         contexts: previousDataIds.contextIds.length,
         groups: previousDataIds.groupIds.length,
         relationships: previousDataIds.relationshipIds.length,
+        pinnedPreserved: existingContexts.filter(c => c.pinned).length,
       });
     } catch (snapshotError) {
       logger.warn('[API] Failed to snapshot existing data (continuing anyway):', { snapshotError });

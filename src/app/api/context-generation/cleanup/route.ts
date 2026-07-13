@@ -46,16 +46,32 @@ async function handlePost(request: NextRequest) {
 
     const { contextIds = [], groupIds = [], relationshipIds = [] } = previousDataIds;
 
+    // Fetch the project's current contexts once: used BOTH to verify new data
+    // landed AND to protect canonical-pinned contexts (migration 233) from
+    // deletion. Pinning is the promise stamped into CLAUDE.md — "a context can be
+    // pinned to survive a full rebuild" — and cleanup is the authoritative guard:
+    // even if a stale previousDataIds (captured before a pin) lists a now-pinned
+    // context, it is preserved here.
+    const currentContexts = contextRepository.getContextsByProject(projectId);
+    const pinnedContextIds = new Set(currentContexts.filter((c) => c.pinned).map((c) => c.id));
+    // Groups that still hold a pinned context survive too, so the pinned context
+    // keeps its group membership instead of being silently ungrouped (group_id →
+    // NULL) by deleteGroup. Prevents a pinned context's group reference dangling.
+    const pinnedGroupIds = new Set(
+      currentContexts.filter((c) => c.pinned && c.group_id).map((c) => c.group_id as string)
+    );
+
     // Verify new data actually landed in the DB before deleting the old map. The
     // caller gates this call on counts parsed from CLI stdout, which can be
     // hallucinated or refer to INSERTs that partially failed / rolled back / wrote
     // to a different project. Deleting previousDataIds without a real replacement
     // would wipe the project's entire context map with no undo. Require at least one
-    // context for the project whose id is NOT in previousDataIds (i.e. newly created).
+    // context for the project whose id is NOT in previousDataIds (i.e. newly
+    // created) AND not pinned — a pinned context is pre-existing, not a sign that
+    // regeneration produced anything.
     if (contextIds.length > 0) {
-      const currentContexts = contextRepository.getContextsByProject(projectId);
       const prevContextIds = new Set(contextIds);
-      const hasNewContexts = currentContexts.some((c) => !prevContextIds.has(c.id));
+      const hasNewContexts = currentContexts.some((c) => !prevContextIds.has(c.id) && !c.pinned);
       if (!hasNewContexts) {
         logger.warn('[API] Cleanup refused — no newly-generated contexts replaced the previous map', {
           projectId,
@@ -89,6 +105,8 @@ async function handlePost(request: NextRequest) {
     let deletedRelationships = 0;
     let deletedContexts = 0;
     let deletedGroups = 0;
+    let preservedPinnedContexts = 0;
+    let preservedPinnedGroups = 0;
 
     // Delete in dependency order: relationships first, then contexts, then groups
     for (const relId of relationshipIds) {
@@ -102,6 +120,11 @@ async function handlePost(request: NextRequest) {
     }
 
     for (const ctxId of contextIds) {
+      // Canonical pin survives a full rebuild.
+      if (pinnedContextIds.has(ctxId)) {
+        preservedPinnedContexts++;
+        continue;
+      }
       try {
         if (contextRepository.deleteContext(ctxId)) {
           deletedContexts++;
@@ -112,6 +135,12 @@ async function handlePost(request: NextRequest) {
     }
 
     for (const grpId of groupIds) {
+      // Preserve any group that still holds a pinned context so the pin keeps its
+      // group membership (deleteGroup would ungroup it to NULL otherwise).
+      if (pinnedGroupIds.has(grpId)) {
+        preservedPinnedGroups++;
+        continue;
+      }
       try {
         if (contextGroupRepository.deleteGroup(grpId)) {
           deletedGroups++;
@@ -126,6 +155,8 @@ async function handlePost(request: NextRequest) {
       deletedRelationships,
       deletedContexts,
       deletedGroups,
+      preservedPinnedContexts,
+      preservedPinnedGroups,
     });
 
     // Now that the old map is gone and only the freshly-generated rows remain,
