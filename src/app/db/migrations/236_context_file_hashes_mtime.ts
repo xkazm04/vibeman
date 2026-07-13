@@ -1,5 +1,5 @@
 /**
- * Migration 235: mtime baseline for the context file-hash cache
+ * Migration 236: mtime baseline for the context file-hash cache
  *
  * Adds `mtime_ms` alongside the existing `sha256` + `size` in
  * context_file_hashes. The stale resolver uses (size, mtime_ms) as a cheap
@@ -11,17 +11,17 @@
 
 import type { MigrationLogger } from './migration.utils';
 
-export function migrate235ContextFileHashesMtime(
+export function migrate236ContextFileHashesMtime(
   db: { prepare: (sql: string) => { run: (...args: unknown[]) => unknown }; exec: (sql: string) => void },
   logger: MigrationLogger
 ) {
   try {
     db.exec('ALTER TABLE context_file_hashes ADD COLUMN mtime_ms INTEGER');
-    logger.info('[Migration 235] Added mtime_ms to context_file_hashes');
+    logger.info('[Migration 236] Added mtime_ms to context_file_hashes');
   } catch {
     // Column already exists (re-run) or table absent — both are safe no-ops.
-    logger.info('[Migration 235] mtime_ms column already present or table missing');
+    logger.info('[Migration 236] mtime_ms column already present or table missing');
   }
 
-  logger.info('[Migration 235] context file-hash mtime migration complete');
+  logger.info('[Migration 236] context file-hash mtime migration complete');
 }
