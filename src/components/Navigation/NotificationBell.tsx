@@ -6,6 +6,10 @@ import { Bell } from 'lucide-react';
 import { useMessageStore, type StoredNotification } from '@/stores/messageStore';
 import { useClientProjectStore } from '@/stores/clientProjectStore';
 import NotificationFeed from './NotificationFeed';
+import { mapScanNotification, type ScanNotificationRow } from './scanNotifications';
+
+/** How often the bell polls the scan-queue for new notifications. */
+const SCAN_NOTIFICATION_POLL_MS = 15_000;
 
 /**
  * NotificationBell - Bell icon with unread badge + dropdown feed.
@@ -20,9 +24,83 @@ export default function NotificationBell() {
   const [sseConnected, setSseConnected] = useState(false);
   const [mounted, setMounted] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
+  // Ids of notifications sourced from the scan-queue (so mark-read can PATCH the
+  // server), and the subset whose read-state we've already persisted.
+  const scanIdsRef = useRef<Set<string>>(new Set());
+  const persistedReadRef = useRef<Set<string>>(new Set());
 
   // Defer store-derived UI to avoid hydration mismatch (server renders 0, client may differ)
   useEffect(() => { setMounted(true); }, []);
+
+  // Poll the existing scan-queue notifications endpoint and feed unread rows
+  // into the SAME bell/messageStore (no new notification UI). The store dedups
+  // by id, so re-polling the same unread row is a no-op. This runs from the
+  // global nav, so scan started/completed/failed + auto_merge_* reach the bell
+  // even when the Ideas screen is not mounted.
+  useEffect(() => {
+    const projectId = activeProject?.id;
+    if (!projectId) return;
+
+    const persistRead = (id: string) => {
+      if (persistedReadRef.current.has(id)) return;
+      persistedReadRef.current.add(id);
+      // Mark-read persists via the EXISTING PATCH endpoint.
+      fetch('/api/scan-queue/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationId: id }),
+      }).catch(() => {
+        // Let a later change/poll retry.
+        persistedReadRef.current.delete(id);
+      });
+    };
+
+    const poll = async () => {
+      try {
+        const res = await fetch(
+          `/api/scan-queue/notifications?projectId=${encodeURIComponent(projectId)}&unreadOnly=true`
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const rows = (data.notifications ?? []) as ScanNotificationRow[];
+        const storeNotifs = useMessageStore.getState().notifications;
+        for (const row of rows) {
+          scanIdsRef.current.add(row.id);
+          addNotification(mapScanNotification(row));
+          // Reconcile a row the user already read locally in a prior session
+          // (store is persisted) whose read-state never reached the server.
+          const local = storeNotifs.find((n) => n.id === row.id);
+          if (local?.read) persistRead(row.id);
+        }
+      } catch {
+        // Transient fetch error — the next tick retries.
+      }
+    };
+
+    poll();
+    const interval = setInterval(poll, SCAN_NOTIFICATION_POLL_MS);
+    return () => clearInterval(interval);
+  }, [activeProject?.id, addNotification]);
+
+  // Persist mark-read the moment a scan-sourced notification is read in the
+  // store (single click OR mark-all), by PATCHing the existing endpoint.
+  useEffect(() => {
+    const unsub = useMessageStore.subscribe((state) => {
+      for (const n of state.notifications) {
+        if (n.read && scanIdsRef.current.has(n.id) && !persistedReadRef.current.has(n.id)) {
+          persistedReadRef.current.add(n.id);
+          fetch('/api/scan-queue/notifications', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notificationId: n.id }),
+          }).catch(() => {
+            persistedReadRef.current.delete(n.id);
+          });
+        }
+      }
+    });
+    return unsub;
+  }, []);
 
   // SSE connection management
   useEffect(() => {
