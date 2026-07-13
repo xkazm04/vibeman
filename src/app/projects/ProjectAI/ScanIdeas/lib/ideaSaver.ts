@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/lib/logger';
 import { validateScore } from '@/app/db/repositories/repository.utils';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
+import { isNearDuplicateTitle } from '@/lib/ideas/ideaDedup';
 import type { GeneratedIdea } from '../generateIdeas';
 
 interface SaveIdeasBaseParams {
@@ -29,7 +30,7 @@ interface SaveIdeasParams extends SaveIdeasBaseParams {
 export function createScanAndSaveIdeas(params: SaveIdeasParams & {
   inputTokens?: number;
   outputTokens?: number;
-}): { savedIdeas: ReturnType<typeof ideaRepository.createIdea>[]; scanId: string } {
+}): { savedIdeas: ReturnType<typeof ideaRepository.createIdea>[]; scanId: string; skippedDuplicates: number } {
   const {
     parsedIdeas,
     projectId,
@@ -63,7 +64,7 @@ export function createScanAndSaveIdeas(params: SaveIdeasParams & {
 
   // Save ideas to database
   logger.info('Saving ideas to database');
-  const savedIdeas = saveIdeasToDB({
+  const { savedIdeas, skippedDuplicates } = saveIdeasToDB({
     parsedIdeas,
     scanId,
     projectId,
@@ -76,15 +77,23 @@ export function createScanAndSaveIdeas(params: SaveIdeasParams & {
     detailed,
   });
 
-  logger.info('Successfully saved ideas', { count: savedIdeas.length });
+  logger.info('Successfully saved ideas', { count: savedIdeas.length, skippedDuplicates });
 
-  return { savedIdeas, scanId };
+  return { savedIdeas, scanId, skippedDuplicates };
 }
 
 /**
  * Save individual ideas to the database with field validation and normalization.
+ *
+ * Performs save-time near-duplicate detection: a candidate whose title closely
+ * matches an already-active (pending/accepted) idea in the same context — or an
+ * idea already accepted earlier in THIS batch — is skipped rather than inserted,
+ * so re-scanning a context does not accrete near-identical rows.
  */
-function saveIdeasToDB(params: SaveIdeasBaseParams & { scanId: string }): ReturnType<typeof ideaRepository.createIdea>[] {
+function saveIdeasToDB(params: SaveIdeasBaseParams & { scanId: string }): {
+  savedIdeas: ReturnType<typeof ideaRepository.createIdea>[];
+  skippedDuplicates: number;
+} {
   const {
     parsedIdeas,
     scanId,
@@ -98,13 +107,33 @@ function saveIdeasToDB(params: SaveIdeasBaseParams & { scanId: string }): Return
     detailed,
   } = params;
 
-  return parsedIdeas
+  // Seed the dedup set with the titles of existing active ideas for this scope
+  // (context if scoped, else the whole project). Grows as we accept ideas from
+  // this batch so intra-batch duplicates are also caught.
+  const existingActive = contextId
+    ? ideaRepository.getIdeasByContext(contextId)
+    : ideaRepository.getIdeasByProject(projectId);
+  const seenTitles: string[] = existingActive
+    .filter(i => i.status === 'pending' || i.status === 'accepted')
+    .map(i => i.title);
+
+  let skippedDuplicates = 0;
+
+  const savedIdeas = parsedIdeas
     .filter(idea => {
       // Skip ideas without required fields
       if (!idea.title || typeof idea.title !== 'string' || idea.title.trim() === '') {
         logger.warn('Skipping idea without valid title', { idea });
         return false;
       }
+      // Skip near-duplicates of already-known ideas (programmatic dedup).
+      if (isNearDuplicateTitle(idea.title, seenTitles)) {
+        skippedDuplicates++;
+        logger.info('Skipping near-duplicate idea', { title: idea.title });
+        return false;
+      }
+      // Track the accepted title so later ideas in this batch dedup against it.
+      seenTitles.push(idea.title);
       return true;
     })
     .map(idea => {
@@ -172,4 +201,6 @@ function saveIdeasToDB(params: SaveIdeasBaseParams & { scanId: string }): Return
         detailed,
       });
     });
+
+  return { savedIdeas, skippedDuplicates };
 }

@@ -1,4 +1,4 @@
-import { ideaRepository } from '@/app/db/repositories/idea.repository';
+import { ideaRepository, DEFAULT_STALE_ARCHIVE_DAYS } from '@/app/db/repositories/idea.repository';
 import { generateWithLLM, DefaultProviderStorage } from '@/lib/llm';
 import { buildIdeaGenerationPrompt } from './lib/promptBuilder';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
@@ -66,6 +66,22 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
     // Get context information if provided
     const { context } = fetchContextData(contextId);
 
+    // Age-based archival: reversibly retire pending ideas untouched for too long
+    // BEFORE reading existing ideas, so stale rows neither bloat the prompt nor
+    // count against dedup. Best-effort — never block generation on this.
+    try {
+      const archived = ideaRepository.archiveStalePendingIdeas(
+        projectId,
+        DEFAULT_STALE_ARCHIVE_DAYS,
+        contextId
+      );
+      if (archived > 0) {
+        logger.info('Auto-archived stale pending ideas', { archived, projectId, contextId });
+      }
+    } catch (e) {
+      logger.warn('Stale-idea archival failed (continuing)', { error: e });
+    }
+
     // 3. Get existing ideas to prevent duplicates
     logger.info('Fetching existing ideas');
     const existingIdeas = contextId
@@ -115,8 +131,8 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
     const actualProvider = result.provider || selectedProvider;
     const actualModel = result.model || undefined;
 
-    // 8. Create scan record and save ideas to database
-    const { scanId } = createScanAndSaveIdeas({
+    // 8. Create scan record and save ideas to database (with save-time dedup)
+    const { savedIdeas, scanId, skippedDuplicates } = createScanAndSaveIdeas({
       parsedIdeas,
       projectId,
       projectName,
@@ -131,12 +147,29 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
       outputTokens: result.usage?.completion_tokens,
     });
 
+    if (skippedDuplicates > 0) {
+      logger.info('Dropped near-duplicate ideas at save time', { skippedDuplicates });
+    }
+
     // Record Brain signal for idea generation activity
     recordIdeaGenerationSignal(projectId, contextId, context?.name || undefined);
 
+    // Return the ideas that were actually persisted (post-dedup) so downstream
+    // counts reflect reality, not the raw LLM output.
+    const persistedIdeas: GeneratedIdea[] = savedIdeas.map((i) => ({
+      category: i.category,
+      title: i.title,
+      description: i.description ?? undefined,
+      reasoning: i.reasoning ?? undefined,
+      effort: i.effort ?? undefined,
+      impact: i.impact ?? undefined,
+      risk: i.risk ?? undefined,
+      goal_id: i.goal_id ?? undefined,
+    }));
+
     return {
       success: true,
-      ideas: parsedIdeas,
+      ideas: persistedIdeas,
       scanId
     };
 

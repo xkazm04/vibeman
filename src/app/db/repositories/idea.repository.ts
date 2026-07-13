@@ -10,6 +10,16 @@ const base = createGenericRepository<DbIdea>({
 });
 
 /**
+ * Sentinel written to `user_feedback` when a pending idea is auto-archived for
+ * staleness. Lets the archival be identified (and undone) later, and keeps it
+ * distinct from a user's explicit rejection.
+ */
+export const STALE_ARCHIVE_FEEDBACK = '[auto-archived: stale — no activity]';
+
+/** Default age (days) after which an untouched pending idea is auto-archived. */
+export const DEFAULT_STALE_ARCHIVE_DAYS = 30;
+
+/**
  * Idea Repository
  * Handles all database operations for LLM-generated ideas.
  *
@@ -299,6 +309,56 @@ export const ideaRepository = {
 
   deletePendingIdeasByProject: (projectId: string): number =>
     queryIdeas().project(projectId).status('pending').delete(),
+
+  /**
+   * Age-based archival for untouched pending ideas.
+   *
+   * Reversibly retires pending ideas whose `updated_at` is older than
+   * `olderThanDays` by transitioning them to 'rejected' (the state machine
+   * allows rejected → pending, so this is undoable) and stamping a sentinel
+   * into `user_feedback`. This is a status change, NOT a deletion — the rows,
+   * their scores and links survive. Optionally scoped to a single context.
+   *
+   * Returns the number of ideas archived.
+   */
+  archiveStalePendingIdeas: (
+    projectId: string,
+    olderThanDays: number = DEFAULT_STALE_ARCHIVE_DAYS,
+    contextId?: string | null
+  ): number => {
+    // Guard the age: a non-positive/NaN value would archive everything. Fall
+    // back to the default rather than nuking the backlog.
+    const days = Number.isFinite(olderThanDays) && olderThanDays > 0
+      ? Math.floor(olderThanDays)
+      : DEFAULT_STALE_ARCHIVE_DAYS;
+
+    const db = getDatabase();
+    const now = getCurrentTimestamp();
+    // Compute the cutoff as an ISO string in JS so it compares like-for-like with
+    // updated_at (also stored via toISOString()). Mixing ISO with SQLite's
+    // datetime('now', …) format ("YYYY-MM-DD HH:MM:SS", no 'T'/'Z') would make
+    // the string comparison unreliable.
+    const cutoffIso = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+    const conditions = [
+      'project_id = ?',
+      "status = 'pending'",
+      'updated_at < ?',
+    ];
+    const params: unknown[] = [STALE_ARCHIVE_FEEDBACK, now, projectId, cutoffIso];
+
+    if (contextId !== undefined && contextId !== null) {
+      conditions.push('context_id = ?');
+      params.push(contextId);
+    }
+
+    const stmt = db.prepare(
+      `UPDATE ideas
+         SET status = 'rejected', user_feedback = ?, requirement_id = NULL, updated_at = ?
+       WHERE ${conditions.join(' AND ')}`
+    );
+    return stmt.run(...params).changes;
+  },
 
   deleteAllPendingIdeas: (): number =>
     queryIdeas().status('pending').delete(),

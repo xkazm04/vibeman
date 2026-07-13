@@ -51,9 +51,22 @@ export function buildContextSection(context: DbContext | null): string {
 }
 
 /**
+ * Prompt-budget caps for the existing-ideas section. Without these, every prior
+ * idea is serialized into the prompt, so token cost grows linearly with the
+ * backlog forever. We list only the most-recent N of each status (callers pass
+ * ideas newest-first) and summarize the remainder as a count, so the section is
+ * bounded regardless of backlog size while still steering the model away from
+ * the freshest duplicates.
+ */
+export const MAX_PENDING_IDEAS_SHOWN = 30;
+export const MAX_ACCEPTED_IDEAS_SHOWN = 15;
+
+/**
  * Build the existing ideas section for duplicate prevention
  * OPTIMIZED: Only show pending and accepted ideas to reduce token usage
- * Rejected and implemented ideas are excluded to keep the focus on active work
+ * Rejected and implemented ideas are excluded to keep the focus on active work.
+ * BOUNDED: the listing is capped (see MAX_*_IDEAS_SHOWN) so the prompt cannot
+ * grow without limit as the backlog accumulates.
  */
 export function buildExistingIdeasSection(existingIdeas: DbIdea[]): string {
   // Filter to only pending and accepted ideas (remove rejected and implemented)
@@ -72,25 +85,28 @@ export function buildExistingIdeasSection(existingIdeas: DbIdea[]): string {
   const pending = relevantIdeas.filter(i => i.status === 'pending');
   const accepted = relevantIdeas.filter(i => i.status === 'accepted');
 
-  if (pending.length > 0) {
-    section += `### Pending Ideas (${pending.length})\n`;
-    pending.forEach((idea, index) => {
+  const renderIdeaList = (ideas: DbIdea[], cap: number): void => {
+    ideas.slice(0, cap).forEach((idea, index) => {
       section += `${index + 1}. **${idea.title}** (${idea.category})\n`;
       if (idea.description) {
         section += `   - ${truncateDescription(idea.description)}\n`;
       }
     });
+    const omitted = ideas.length - cap;
+    if (omitted > 0) {
+      section += `_…and ${omitted} more (omitted to bound prompt size)_\n`;
+    }
+  };
+
+  if (pending.length > 0) {
+    section += `### Pending Ideas (${pending.length})\n`;
+    renderIdeaList(pending, MAX_PENDING_IDEAS_SHOWN);
     section += '\n';
   }
 
   if (accepted.length > 0) {
     section += `### Accepted Ideas (${accepted.length})\n`;
-    accepted.forEach((idea, index) => {
-      section += `${index + 1}. **${idea.title}** (${idea.category})\n`;
-      if (idea.description) {
-        section += `   - ${truncateDescription(idea.description)}\n`;
-      }
-    });
+    renderIdeaList(accepted, MAX_ACCEPTED_IDEAS_SHOWN);
     section += '\n';
   }
 
