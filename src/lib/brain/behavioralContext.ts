@@ -9,13 +9,27 @@ import { brainInsightRepository } from '@/app/db/repositories/brain-insight.repo
 import { contextRepository } from '@/app/db/repositories/context.repository';
 import { directionOutcomeRepository } from '@/app/db/repositories/direction-outcome.repository';
 import { observabilityRepository } from '@/app/db/repositories/observability.repository';
+import { insightEffectivenessCacheRepository } from '@/app/db/repositories/insight-effectiveness-cache.repository';
+import { computeTechFingerprint, computeSimilarity } from '@/lib/brain/projectSimilarity';
+import { EFFECTIVENESS_WINDOW_DAYS } from '@/lib/brain/config';
+import { logger } from '@/lib/logger';
 import { safeParseJson } from '@/lib/json-utils';
 import type {
   BehavioralContext,
+  InsightGates,
   GitActivitySignalData,
   ImplementationSignalData,
   LearningInsight,
 } from '@/app/db/models/brain.types';
+
+/** Resolved (accepted/rejected) directions needed before effectiveness can be scored. */
+const REQUIRED_RESOLVED_DIRECTIONS = 6;
+/** Minimum sample size in each of the pre/post periods for a valid effectiveness delta. */
+const MIN_PERIOD_SAMPLES = 3;
+/** Effectiveness score (percentage-point acceptance lift) above which an insight is "helpful". */
+const HELPFUL_SCORE_THRESHOLD = 10;
+
+type TopInsights = BehavioralContext['topInsights'];
 
 /**
  * Get behavioral context for a project
@@ -28,6 +42,10 @@ export function getBehavioralContext(
   const hasSignals = behavioralSignalRepository.hasSignals(projectId);
 
   if (!hasSignals) {
+    // No behavioral signals yet, but learned-insight gates depend on directions
+    // + insights (not signals), so still surface them so a fresh project shows
+    // honest gating progress rather than a bare empty list.
+    const { gates } = getEffectiveInsightsCached(projectId);
     return {
       hasData: false,
       currentFocus: {
@@ -48,6 +66,7 @@ export function getBehavioralContext(
         averageTaskDuration: 0,
         preferredContexts: [],
       },
+      gates,
       topInsights: [],
     };
   }
@@ -106,19 +125,31 @@ export function getBehavioralContext(
   // Get preferred contexts (contexts with most successful implementations)
   const preferredContexts = extractPreferredContexts(implementationSignals);
 
-  // Get top insights (high-confidence, proven helpful)
-  const topInsights = getTopEffectiveInsights(projectId);
+  // Get top insights (high-confidence, proven helpful) + why-empty gate metadata.
+  // Cache-backed: reads insight_effectiveness_cache, computing + populating on miss.
+  const { insights: topInsights, gates } = getEffectiveInsightsCached(projectId);
 
   // Supplement with cross-project best practices (similarity-weighted transfer)
   try {
-    const { computeTechFingerprint, computeSimilarity } = require('@/lib/brain/projectSimilarity');
     const currentFP = computeTechFingerprint(projectId);
+    // Memoize source fingerprints within this call — the global-practice list
+    // frequently repeats the same source project, and each fingerprint is a
+    // multi-repo aggregation. (computeTechFingerprint also has a 5-min TTL cache.)
+    const fpMemo = new Map<string, Set<string>>();
+    const fingerprintFor = (pid: string): Set<string> => {
+      let fp = fpMemo.get(pid);
+      if (!fp) {
+        fp = computeTechFingerprint(pid);
+        fpMemo.set(pid, fp);
+      }
+      return fp;
+    };
 
     const globalPractices = brainInsightRepository.getAllInsightsGlobal(50)
       .filter(i => i.type === 'best_practice' && i.confidence >= 50)
       .filter(gp => !topInsights.some(ti => ti.title === gp.title))
       .map(i => {
-        const sourceFP = computeTechFingerprint(i.project_id);
+        const sourceFP = fingerprintFor(i.project_id);
         const sim = computeSimilarity(currentFP, sourceFP);
         return {
           title: i.title,
@@ -157,6 +188,7 @@ export function getBehavioralContext(
       averageTaskDuration: avgDuration,
       preferredContexts,
     },
+    gates,
     topInsights,
   };
 }
@@ -284,22 +316,34 @@ ${sections.join('\n\n')}
 }
 
 /**
- * Get top effective insights for a project
- * Filters for high-confidence insights with 'helpful' verdict from effectiveness scoring.
- * Uses the same algorithm as the effectiveness API to compute verdicts inline.
+ * Compute top effective insights for a project + a structured gate explaining
+ * the result. Filters for high-confidence insights whose presence coincided with
+ * a lift in direction-acceptance rate (pre/post the reflection that produced them).
+ *
+ * This is the single source of effectiveness truth. It is O(insights × directions)
+ * and therefore NOT called per request — {@link getEffectiveInsightsCached} caches
+ * its output in insight_effectiveness_cache. Errors are logged (not swallowed to a
+ * silent empty list) and surfaced via a `gate.state === 'error'`.
  */
-function getTopEffectiveInsights(
+export function computeEffectiveInsights(
   projectId: string,
   minConfidence: number = 80,
   limit: number = 5
-): BehavioralContext['topInsights'] {
+): { insights: TopInsights; gates: InsightGates } {
+  const gates: InsightGates = {
+    state: 'empty',
+    resolvedDirections: 0,
+    requiredDirections: REQUIRED_RESOLVED_DIRECTIONS,
+    insightsConsidered: 0,
+    insightsSurfaced: 0,
+  };
+
   try {
     const db = getDatabase();
 
     // Get all insights from brain_insights table with reflection timestamps
     const insightRows = brainInsightRepository.getForEffectiveness(projectId);
-
-    if (insightRows.length === 0) return [];
+    gates.insightsConsidered = insightRows.length;
 
     // Get all resolved directions for effectiveness scoring
     const directions = db.prepare(`
@@ -308,9 +352,19 @@ function getTopEffectiveInsights(
       WHERE project_id = ? AND status IN ('accepted', 'rejected')
       ORDER BY created_at ASC
     `).all(projectId) as Array<{ status: string; created_at: string }>;
+    gates.resolvedDirections = directions.length;
 
-    // Need enough directions to compute effectiveness
-    if (directions.length < 6) return []; // Need at least 3 before and 3 after
+    if (insightRows.length === 0) {
+      // Nothing has been learned yet — genuinely empty, not gated.
+      gates.state = 'empty';
+      return { insights: [], gates };
+    }
+
+    // Need enough directions to compute effectiveness (≥3 before and ≥3 after).
+    if (directions.length < REQUIRED_RESOLVED_DIRECTIONS) {
+      gates.state = 'gated';
+      return { insights: [], gates };
+    }
 
     const results: Array<{
       title: string;
@@ -339,18 +393,17 @@ function getTopEffectiveInsights(
       }
 
       // Need sufficient sample size in both periods
-      if (before.total < 3 || after.total < 3) continue;
+      if (before.total < MIN_PERIOD_SAMPLES || after.total < MIN_PERIOD_SAMPLES) continue;
 
       const preRate = before.accepted / before.total;
       const postRate = after.accepted / after.total;
       // Absolute change in acceptance rate (percentage points, -100..100). The old
       // relative form amplified near-zero-baseline insights into huge scores that
-      // dominated getTopEffectiveInsights → the reflection/LLM prompt. See
-      // insightAutoPruner.computeInsightScore.
+      // dominated the reflection/LLM prompt. See insightAutoPruner.computeInsightScore.
       const score = (postRate - preRate) * 100;
 
       // Only include helpful insights (score > 10 percentage points)
-      if (score <= 10) continue;
+      if (score <= HELPFUL_SCORE_THRESHOLD) continue;
 
       if (row.confidence >= minConfidence) {
         results.push({
@@ -374,15 +427,103 @@ function getTopEffectiveInsights(
       return true;
     });
 
-    return deduped.slice(0, limit).map(({ title, type, description, confidence }) => ({
+    const insights = deduped.slice(0, limit).map(({ title, type, description, confidence }) => ({
       title,
       type,
       description,
       confidence,
     }));
-  } catch {
-    return [];
+
+    gates.insightsSurfaced = insights.length;
+    // Thresholds met: 'ok' if at least one insight scored helpful, else 'empty'.
+    gates.state = insights.length > 0 ? 'ok' : 'empty';
+    return { insights, gates };
+  } catch (err) {
+    logger.warn('[Brain] Effectiveness computation failed', {
+      projectId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { insights: [], gates: { ...gates, state: 'error' } };
   }
+}
+
+/**
+ * Cache-backed read of {@link computeEffectiveInsights}. Reads
+ * insight_effectiveness_cache (single source of effectiveness truth); on a cache
+ * miss it computes inline and populates the cache. Direction status changes
+ * invalidate the cache elsewhere (see insightEffectivenessCacheRepository.invalidate).
+ */
+export function getEffectiveInsightsCached(
+  projectId: string,
+  minConfidence: number = 80,
+  limit: number = 5
+): { insights: TopInsights; gates: InsightGates } {
+  try {
+    const cached = insightEffectivenessCacheRepository.get(
+      projectId,
+      REQUIRED_RESOLVED_DIRECTIONS,
+      EFFECTIVENESS_WINDOW_DAYS
+    );
+    if (cached) {
+      const insights = safeParseJson<TopInsights>(cached.insightsJson, []);
+      const gates = safeParseJson<InsightGates | null>(cached.summaryJson, null);
+      if (gates) return { insights, gates };
+    }
+  } catch (err) {
+    // Cache read failure is non-fatal — fall through to inline compute.
+    logger.warn('[Brain] Effectiveness cache read failed', {
+      projectId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  const computed = computeEffectiveInsights(projectId, minConfidence, limit);
+
+  // Populate the cache (best-effort). Never cache an 'error' result — a transient
+  // failure must not be pinned for the 24h TTL.
+  if (computed.gates.state !== 'error') {
+    try {
+      insightEffectivenessCacheRepository.set(
+        projectId,
+        REQUIRED_RESOLVED_DIRECTIONS,
+        EFFECTIVENESS_WINDOW_DAYS,
+        JSON.stringify(computed.insights),
+        JSON.stringify(computed.gates)
+      );
+    } catch (err) {
+      logger.warn('[Brain] Effectiveness cache populate failed', {
+        projectId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  return computed;
+}
+
+/**
+ * Recompute effectiveness and overwrite the cache for a project. Called at
+ * reflection completion (fresh insights) and by the background maintenance
+ * sweeper (bounded staleness) so the hot path serves a warm cache.
+ */
+export function refreshEffectivenessCache(projectId: string): void {
+  const computed = computeEffectiveInsights(projectId);
+  if (computed.gates.state === 'error') return; // don't pin a transient failure
+  insightEffectivenessCacheRepository.set(
+    projectId,
+    REQUIRED_RESOLVED_DIRECTIONS,
+    EFFECTIVENESS_WINDOW_DAYS,
+    JSON.stringify(computed.insights),
+    JSON.stringify(computed.gates)
+  );
+}
+
+/**
+ * Get just the learned-insight gate for a project (cache-backed).
+ * Distinguishes gated / empty / ok / error for honest UI + API responses.
+ */
+export function getInsightGates(projectId: string): InsightGates {
+  return getEffectiveInsightsCached(projectId).gates;
 }
 
 /**

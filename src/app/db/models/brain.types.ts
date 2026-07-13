@@ -284,6 +284,32 @@ export interface BehavioralContext {
     description: string;
     confidence: number;
   }>;
+
+  // Why the learned-insights list is what it is. Lets consumers distinguish
+  // "still gathering data" (gated) from "genuinely nothing learned" (empty)
+  // from "computation failed" (error) — instead of a silent empty array.
+  gates?: InsightGates;
+}
+
+/**
+ * Structured explanation of the learned-insight effectiveness gate.
+ *
+ * - `ok`     — insights passed the effectiveness gate and are surfaced.
+ * - `gated`  — not enough resolved (accepted/rejected) directions yet to score
+ *              effectiveness, so no insight can be proven helpful.
+ * - `empty`  — thresholds met (or no insights exist) but none scored helpful.
+ * - `error`  — effectiveness computation threw; treat surfaced list as unknown.
+ */
+export interface InsightGates {
+  state: 'ok' | 'gated' | 'empty' | 'error';
+  /** Resolved (accepted + rejected) directions available for scoring. */
+  resolvedDirections: number;
+  /** Minimum resolved directions required before effectiveness can be computed. */
+  requiredDirections: number;
+  /** Stored insights that were candidates for effectiveness scoring. */
+  insightsConsidered: number;
+  /** Candidates that passed the effectiveness gate and are surfaced. */
+  insightsSurfaced: number;
 }
 
 /**

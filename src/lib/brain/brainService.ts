@@ -30,6 +30,7 @@ import type { LearningInsight, BehavioralSignalType, ReflectionTriggerType, Evid
 import { SignalType } from '@/types/signals';
 import { LRUCache } from '@/lib/brain/lruCache';
 import { tryClusterSignals } from '@/lib/brain/signalClusterer';
+import { logger } from '@/lib/logger';
 import {
   CONTEXT_CACHE_MAX_ENTRIES,
   CONTEXT_CACHE_TTL_MS,
@@ -393,6 +394,16 @@ export async function completeReflection(input: CompleteReflectionInput): Promis
     predictiveIntentEngine.refresh(projectId);
   } catch {
     // Don't block reflection completion
+  }
+
+  // Recompute the effectiveness cache now that fresh insights exist, so the hot
+  // path (behavioralContext.getEffectiveInsightsCached) serves a warm, correct
+  // cache instead of recomputing O(insights × directions) on the next request.
+  try {
+    const { refreshEffectivenessCache } = await import('@/lib/brain/behavioralContext');
+    refreshEffectivenessCache(projectId);
+  } catch (err) {
+    logger.warn('[Brain] Effectiveness cache refresh failed (non-critical):', { error: err });
   }
 
   // Auto-graduate qualifying insights to Knowledge Base (best-effort)
