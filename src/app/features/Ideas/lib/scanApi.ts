@@ -99,9 +99,10 @@ export async function executeScan(params: {
   provider: SupportedProvider;
   scanType: ScanType;
   detailed?: boolean;
+  force?: boolean;
   codebaseFiles: CodebaseFile[];
   signal?: AbortSignal;
-}): Promise<{ count: number; scanId: string }> {
+}): Promise<{ count: number; scanId: string; unchanged: boolean }> {
   const { signal, ...body } = params;
   const response = await fetch('/api/ideas/generate', {
     method: 'POST',
@@ -118,5 +119,6 @@ export async function executeScan(params: {
   const data = await response.json();
   // Return the scanId of the scan THIS call produced so callers can link to it
   // precisely, instead of a global "latest scan of this type" lookup.
-  return { count: data.count || 0, scanId: data.scanId || '' };
+  // `unchanged` surfaces a freshness-skip (content hash didn't move) explicitly.
+  return { count: data.count || 0, scanId: data.scanId || '', unchanged: data.unchanged === true };
 }

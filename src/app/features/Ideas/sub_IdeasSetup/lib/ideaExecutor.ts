@@ -82,8 +82,10 @@ export async function executeLlmScan(params: {
   provider: SupportedProvider;
   contextId?: string;
   contextFilePaths?: string[];
+  /** Bypass content-hash freshness — always run a full scan even if unchanged. */
+  force?: boolean;
   signal?: AbortSignal;
-}): Promise<{ count: number; scanId: string }> {
+}): Promise<{ count: number; scanId: string; unchanged: boolean }> {
   const { projectPath, contextFilePaths, signal, ...restParams } = params;
 
   const codebaseFiles = await gatherCodebaseFiles(projectPath, contextFilePaths, signal);

@@ -30,6 +30,7 @@ interface SaveIdeasParams extends SaveIdeasBaseParams {
 export function createScanAndSaveIdeas(params: SaveIdeasParams & {
   inputTokens?: number;
   outputTokens?: number;
+  contentHash?: string | null;
 }): { savedIdeas: ReturnType<typeof ideaRepository.createIdea>[]; scanId: string; skippedDuplicates: number } {
   const {
     parsedIdeas,
@@ -44,6 +45,7 @@ export function createScanAndSaveIdeas(params: SaveIdeasParams & {
     detailed,
     inputTokens,
     outputTokens,
+    contentHash,
   } = params;
 
   // Create scan record with token tracking
@@ -60,6 +62,8 @@ export function createScanAndSaveIdeas(params: SaveIdeasParams & {
     output_tokens: outputTokens,
     provider: actualProvider,
     model: actualModel,
+    context_id: contextId ?? null,
+    content_hash: contentHash ?? null,
   });
 
   // Save ideas to database

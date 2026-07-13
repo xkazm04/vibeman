@@ -217,6 +217,8 @@ export interface DbScan {
   summary: string | null;
   input_tokens: number | null; // LLM input tokens used
   output_tokens: number | null; // LLM output tokens used
+  context_id?: string | null; // Context this scan targeted (null for project-wide scans)
+  content_hash?: string | null; // Hash of the code this scan analyzed (freshness / drift detection)
   created_at: string;
 }
 

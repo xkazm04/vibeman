@@ -56,13 +56,14 @@ async function readFileContents(
 async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
-    const { projectId, contextId, groupId, scanType, detailed, provider } = body as {
+    const { projectId, contextId, groupId, scanType, detailed, provider, force } = body as {
       projectId?: string;
       contextId?: string;
       groupId?: string;
       scanType?: ScanType;
       detailed?: boolean;
       provider?: string;
+      force?: boolean;
     };
 
     if (!projectId) {
@@ -86,7 +87,7 @@ async function handlePost(request: NextRequest) {
       return NextResponse.json({ error: 'No contexts found to scan' }, { status: 404 });
     }
 
-    const perContext: Array<{ contextId: string; contextName: string; scanId: string; ideaCount: number; error?: string }> = [];
+    const perContext: Array<{ contextId: string; contextName: string; scanId: string; ideaCount: number; unchanged?: boolean; error?: string }> = [];
     let totalIdeas = 0;
 
     for (const ctx of contexts) {
@@ -110,6 +111,7 @@ async function handlePost(request: NextRequest) {
         provider,
         scanType,
         detailed,
+        force,
         codebaseFiles,
       });
 
@@ -120,6 +122,8 @@ async function handlePost(request: NextRequest) {
         contextName: ctx.name,
         scanId: result.scanId || '',
         ideaCount,
+        // Surface a freshness-skip explicitly rather than as a silent 0-idea scan.
+        ...(result.unchanged ? { unchanged: true } : {}),
         ...(result.success ? {} : { error: result.error || 'scan failed' }),
       });
     }

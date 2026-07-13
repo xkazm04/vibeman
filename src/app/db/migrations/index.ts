@@ -98,6 +98,7 @@ import { migrate234ContextFileHashes } from './234_context_file_hashes';
 import { migrate235ScanNotificationAutoMergeFailed } from './235_scan_notification_auto_merge_failed';
 import { migrate236ContextFileHashesMtime } from './236_context_file_hashes_mtime';
 import { migrate237TaskOutcomes } from './237_task_outcomes';
+import { migrate238ScanContentHash } from './238_scan_content_hash';
 
 /**
  * Migration logger utility
@@ -345,6 +346,7 @@ export function runMigrations() {
     once('m235', () => migrate235ScanNotificationAutoMergeFailed(db as any, migrationLogger));
     once('m236', () => migrate236ContextFileHashesMtime(db as any, migrationLogger));
     once('m237', () => migrate237TaskOutcomes(db as any, migrationLogger));
+    once('m238', () => migrate238ScanContentHash(db as any, migrationLogger));
 
     // Report any failed migrations that need attention
     const failed = getFailedMigrations(db);

@@ -1,4 +1,6 @@
 import { ideaRepository, DEFAULT_STALE_ARCHIVE_DAYS } from '@/app/db/repositories/idea.repository';
+import { scanRepository } from '@/app/db/repositories/scan.repository';
+import { computeContextContentHash, decideScanFreshness } from '@/lib/ideas/contextContentHash';
 import { generateWithLLM, DefaultProviderStorage } from '@/lib/llm';
 import { buildIdeaGenerationPrompt } from './lib/promptBuilder';
 import { ScanType } from '@/app/features/Ideas/lib/scanTypes';
@@ -19,6 +21,8 @@ export interface IdeaGenerationOptions {
   scanType?: ScanType;
   detailed?: boolean;
   codebaseFiles?: Array<{ path: string; content: string; type: string }>;
+  /** Bypass content-hash freshness — always run a full scan even if unchanged. */
+  force?: boolean;
 }
 
 export interface GeneratedIdea {
@@ -42,6 +46,8 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
   ideas?: GeneratedIdea[];
   scanId?: string;
   error?: string;
+  /** True when the scan was skipped because the context's content hash was unchanged. */
+  unchanged?: boolean;
 }> {
   try {
     const {
@@ -52,10 +58,37 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
       provider,
       scanType,
       detailed = false,
-      codebaseFiles = []
+      codebaseFiles = [],
+      force = false,
     } = options;
 
     logger.info('Starting idea generation', { projectName });
+
+    const effectiveScanType: ScanType = scanType ?? 'zen_architect';
+
+    // ── Content-hash freshness gate ("scan only what drifted") ─────────────
+    // Hash the exact files we would feed the model. If a prior scan of this
+    // (context, scanType) recorded the same hash and the caller did not force,
+    // skip the LLM call entirely and surface an explicit 'unchanged' result —
+    // never a silent skip. The hash is recorded on the scan row below so the
+    // next scan can prove freshness in turn.
+    const contentHash = computeContextContentHash(codebaseFiles);
+    const previousHash = scanRepository.getLatestContentHash(projectId, effectiveScanType, contextId ?? null);
+    const freshness = decideScanFreshness({ currentHash: contentHash, previousHash, force });
+    if (freshness === 'unchanged') {
+      const lastScanId = ideaRepository.getLatestScanId(projectId, effectiveScanType);
+      logger.info('Skipping scan — context content unchanged since last scan', {
+        projectName,
+        scanType: effectiveScanType,
+        contextId,
+      });
+      return {
+        success: true,
+        unchanged: true,
+        ideas: [],
+        scanId: lastScanId ?? undefined,
+      };
+    }
 
     // Fetch valid goal IDs for validation later
     const validGoalIds = fetchValidGoalIds(projectId);
@@ -89,7 +122,6 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
       : ideaRepository.getIdeasByProject(projectId);
 
     // 4. Build prompt using specialized prompt builder
-    const effectiveScanType: ScanType = scanType ?? 'zen_architect';
     logger.info('Building prompt', { scanType: effectiveScanType });
     const promptResult = buildIdeaGenerationPrompt(effectiveScanType, {
       projectId,
@@ -145,6 +177,7 @@ export async function generateIdeas(options: IdeaGenerationOptions): Promise<{
       detailed,
       inputTokens: result.usage?.prompt_tokens,
       outputTokens: result.usage?.completion_tokens,
+      contentHash,
     });
 
     if (skippedDuplicates > 0) {

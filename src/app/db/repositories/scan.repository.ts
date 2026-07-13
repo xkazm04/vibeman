@@ -71,7 +71,8 @@ export const scanRepository = {
   getScanById: (scanId: string): DbScan | null => base.getById(scanId),
 
   /**
-   * Create a new scan with optional token tracking
+   * Create a new scan with optional token tracking.
+   * `context_id` + `content_hash` power scan freshness ("scan only what drifted").
    */
   createScan: (scan: {
     id: string;
@@ -82,13 +83,15 @@ export const scanRepository = {
     output_tokens?: number;
     provider?: string;
     model?: string;
+    context_id?: string | null;
+    content_hash?: string | null;
   }): DbScan => {
     const db = getDatabase();
     const now = new Date().toISOString();
 
     const stmt = db.prepare(`
-      INSERT INTO scans (id, project_id, scan_type, timestamp, summary, input_tokens, output_tokens, provider, model, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO scans (id, project_id, scan_type, timestamp, summary, input_tokens, output_tokens, provider, model, context_id, content_hash, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -101,6 +104,8 @@ export const scanRepository = {
       scan.output_tokens || null,
       scan.provider || null,
       scan.model || null,
+      scan.context_id ?? null,
+      scan.content_hash ?? null,
       now
     );
 
@@ -112,8 +117,36 @@ export const scanRepository = {
       summary: scan.summary || null,
       input_tokens: scan.input_tokens || null,
       output_tokens: scan.output_tokens || null,
+      context_id: scan.context_id ?? null,
+      content_hash: scan.content_hash ?? null,
       created_at: now,
     };
+  },
+
+  /**
+   * Return the content hash of the most recent scan matching (project, scanType,
+   * context) that recorded one — the freshness baseline for the next scan.
+   * A NULL scope matches project-wide scans (context_id IS NULL). Returns null
+   * when there is no prior hashed scan (→ the next scan runs normally).
+   */
+  getLatestContentHash: (
+    projectId: string,
+    scanType: string,
+    contextId?: string | null
+  ): string | null => {
+    const db = getDatabase();
+    const contextClause = contextId ? 'context_id = ?' : 'context_id IS NULL';
+    const params: unknown[] = contextId ? [projectId, scanType, contextId] : [projectId, scanType];
+    const row = db
+      .prepare(
+        `SELECT content_hash FROM scans
+         WHERE project_id = ? AND scan_type = ? AND ${contextClause}
+           AND content_hash IS NOT NULL
+         ORDER BY timestamp DESC
+         LIMIT 1`
+      )
+      .get(...params) as { content_hash: string | null } | undefined;
+    return row?.content_hash ?? null;
   },
 
   /**

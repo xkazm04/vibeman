@@ -20,6 +20,7 @@ interface GenerateIdeasRequest {
   provider?: string;
   scanType?: ScanType;
   detailed?: boolean;
+  force?: boolean;
   codebaseFiles: Array<{ path: string; content: string; type: string }>;
 }
 
@@ -76,6 +77,7 @@ async function handlePost(request: NextRequest) {
       provider,
       scanType,
       detailed,
+      force,
       codebaseFiles
     } = body;
 
@@ -87,6 +89,7 @@ async function handlePost(request: NextRequest) {
       provider,
       scanType,
       detailed,
+      force,
       codebaseFiles
     });
 
@@ -98,6 +101,9 @@ async function handlePost(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      // Explicit freshness signal so callers/UI can distinguish a real
+      // zero-idea scan from a skipped (unchanged-content) one.
+      unchanged: result.unchanged === true,
       ideas: result.ideas || [],
       scanId: result.scanId || '',
       count: (result.ideas || []).length,

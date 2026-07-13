@@ -406,6 +406,7 @@ class ScanQueueWorker {
 
       let ideaCount: number;
       let producedScanId: string | null = null;
+      let unchanged = false;
       try {
         const scanResult = await executeContextScan({
           projectId: queueItem.project_id,
@@ -419,6 +420,7 @@ class ScanQueueWorker {
         });
         ideaCount = scanResult.count;
         producedScanId = scanResult.scanId || null;
+        unchanged = scanResult.unchanged === true;
       } catch (error) {
         clearTimeout(timeoutId);
         if (abortController.signal.aborted) {
@@ -459,23 +461,30 @@ class ScanQueueWorker {
       // Update progress: finalizing
       scanQueueRepository.updateProgress(queueItem.id, 100, 'Scan completed successfully', 'complete', 4);
 
-      // Create completion notification
+      // Create completion notification. When the scan was skipped because the
+      // context's content hash had not moved, say so explicitly instead of
+      // reporting a misleading "generated 0 ideas".
       this.createNotification(
         queueItem,
         'scan_completed',
-        'Scan completed',
-        `${this.getScanTypeName(queueItem.scan_type)} scan generated ${ideaCount} ideas`,
+        unchanged ? 'Scan skipped (unchanged)' : 'Scan completed',
+        unchanged
+          ? `${this.getScanTypeName(queueItem.scan_type)} scan skipped — context content unchanged since last scan`
+          : `${this.getScanTypeName(queueItem.scan_type)} scan generated ${ideaCount} ideas`,
         {
           scanType: queueItem.scan_type,
           ideaCount,
-          scanId: latestScanId
+          scanId: latestScanId,
+          unchanged
         }
       );
 
-      // Handle auto-merge if enabled
+      // Handle auto-merge if enabled — but never on an unchanged (skipped) scan:
+      // there are no new ideas, and re-running it against the prior scan's ideas
+      // would spuriously auto-accept old rows.
       // Re-fetch the queue item from DB so scan_id (set by linkScan above) is current.
       // The in-memory queueItem still has scan_id=null from before linkScan ran.
-      if (queueItem.auto_merge_enabled) {
+      if (queueItem.auto_merge_enabled && !unchanged) {
         const freshItem = scanQueueRepository.getQueueItemById(queueItem.id);
         if (freshItem) {
           await this.handleAutoMerge(freshItem);
