@@ -19,7 +19,7 @@ import {
 import { projectDb } from '@/lib/project_database';
 import { logger } from '@/lib/logger';
 import { auditContexts, type ContextAuditReport } from './audit';
-import { getBaselineHashes, buildStaleResolver } from './fileHashes';
+import { getBaselineEntries, buildStaleResolver } from './fileHashes';
 
 export interface ExportedContext {
   name: string;
@@ -100,11 +100,39 @@ export interface ContextMapExport {
   instructions: string;
 }
 
+interface GitProvenance {
+  gitCommit: string | null;
+  gitCommitCount: number | null;
+}
+
+/**
+ * Memoized git-provenance cache, keyed by project path. Survives Next.js HMR via
+ * globalThis (like the export debounce). A burst of debounced exports for one
+ * repo would otherwise fork `git` twice each; here we serve them from cache.
+ */
+const gitCache = ((globalThis as Record<string, unknown>).__contextMapGitProvenance ??= new Map<
+  string,
+  { value: GitProvenance; ts: number }
+>()) as Map<string, { value: GitProvenance; ts: number }>;
+
+/** How long a cached provenance is served without touching git at all. */
+const GIT_PROVENANCE_TTL_MS = 5000;
+
 /**
  * Best-effort git provenance for a project root: HEAD commit sha + commit count.
- * Returns nulls when the path isn't a git checkout. Bounded to two short calls.
+ * Returns nulls when the path isn't a git checkout.
+ *
+ * Memoized per HEAD with a short TTL:
+ *  - Within the TTL window: served from cache, ZERO git calls (collapses a burst
+ *    of debounced exports into no work).
+ *  - After the TTL but HEAD unchanged: one `rev-parse HEAD` confirms the sha and
+ *    we reuse the cached commit count — the second (`rev-list --count`) call is
+ *    skipped.
+ *  - After the TTL with a new HEAD: both calls run and the cache is refreshed.
+ * Tradeoff: the count/sha may lag reality by up to the TTL during rapid commits —
+ * negligible for an advisory provenance stamp.
  */
-function gitProvenance(projectPath: string): { gitCommit: string | null; gitCommitCount: number | null } {
+function gitProvenance(projectPath: string): GitProvenance {
   const run = (args: string): string | null => {
     try {
       const out = execSync(`git ${args}`, { cwd: projectPath, stdio: ['ignore', 'pipe', 'ignore'] })
@@ -115,10 +143,26 @@ function gitProvenance(projectPath: string): { gitCommit: string | null; gitComm
       return null;
     }
   };
+
+  const now = Date.now();
+  const cached = gitCache.get(projectPath);
+  if (cached && now - cached.ts < GIT_PROVENANCE_TTL_MS) {
+    return cached.value;
+  }
+
   const gitCommit = run('rev-parse HEAD');
+  // Same HEAD as the cached entry → the commit count can't have changed; reuse it
+  // and skip the second git invocation.
+  if (cached && cached.value.gitCommit === gitCommit) {
+    gitCache.set(projectPath, { value: cached.value, ts: now });
+    return cached.value;
+  }
+
   const countRaw = run('rev-list --count HEAD');
   const gitCommitCount = countRaw ? Number(countRaw) || null : null;
-  return { gitCommit, gitCommitCount };
+  const value: GitProvenance = { gitCommit, gitCommitCount };
+  gitCache.set(projectPath, { value, ts: now });
+  return value;
 }
 
 function asArray(v: unknown): string[] {
@@ -153,17 +197,28 @@ export async function buildContextMap(projectId: string): Promise<ContextMapExpo
 
   // Disk resolver so the exported map reflects reality (dangling files pruned;
   // audit reflects drift). Project-relative paths → absolute stat.
+  // Single shared disk pass: memoize existence per project-relative path so the
+  // prune loop below AND the audit's fileExists check hit disk once per unique
+  // path, not twice.
+  const existsCache = new Map<string, boolean>();
   const fileExists = project.path
-    ? (filePath: string) => existsSync(path.join(project.path, filePath))
+    ? (filePath: string): boolean => {
+        const cached = existsCache.get(filePath);
+        if (cached !== undefined) return cached;
+        const v = existsSync(path.join(project.path, filePath));
+        existsCache.set(filePath, v);
+        return v;
+      }
     : undefined;
   let prunedPaths = 0;
 
   // Content-drift resolver: flags a mapped file whose CONTENT changed since the
-  // context's metadata baseline was captured. Read-only (getBaselineHashes, no
+  // context's metadata baseline was captured. Read-only (getBaselineEntries, no
   // bootstrap write) so an export never mutates the baseline — a file with no
-  // baseline is treated as "unknown / not stale".
+  // baseline is treated as "unknown / not stale". The resolver short-circuits on
+  // matching (size, mtime) so unchanged files skip the sha256 re-hash.
   const isStale = project.path
-    ? buildStaleResolver(project.path, getBaselineHashes(projectId))
+    ? buildStaleResolver(project.path, getBaselineEntries(projectId))
     : undefined;
   // Per-context staleness collected during the build, applied to the exported
   // objects only AFTER the revision hash is computed (see below) so drift never

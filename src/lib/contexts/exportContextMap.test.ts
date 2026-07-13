@@ -54,7 +54,7 @@ vi.mock('@/lib/queries/contextQueries', () => ({
 
 const staleResolver = { fn: (_f: string) => false };
 vi.mock('./fileHashes', () => ({
-  getBaselineHashes: vi.fn(() => new Map<string, string>()),
+  getBaselineEntries: vi.fn(() => new Map()),
   buildStaleResolver: vi.fn(() => (f: string) => staleResolver.fn(f)),
 }));
 

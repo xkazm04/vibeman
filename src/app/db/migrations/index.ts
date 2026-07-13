@@ -96,6 +96,7 @@ import { migrate232DropOrphanedSchema } from './232_drop_orphaned_schema';
 import { migrate233ContextPinned } from './233_context_pinned';
 import { migrate234ContextFileHashes } from './234_context_file_hashes';
 import { migrate235ScanNotificationAutoMergeFailed } from './235_scan_notification_auto_merge_failed';
+import { migrate236ContextFileHashesMtime } from './236_context_file_hashes_mtime';
 
 /**
  * Migration logger utility
@@ -341,6 +342,7 @@ export function runMigrations() {
     once('m233', () => migrate233ContextPinned(db as any, migrationLogger));
     once('m234', () => migrate234ContextFileHashes(db as any, migrationLogger));
     once('m235', () => migrate235ScanNotificationAutoMergeFailed(db as any, migrationLogger));
+    once('m236', () => migrate236ContextFileHashesMtime(db as any, migrationLogger));
 
     // Report any failed migrations that need attention
     const failed = getFailedMigrations(db);
