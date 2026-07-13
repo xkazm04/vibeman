@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { buildContextMap, writeContextMap } from '@/lib/contexts/exportContextMap';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
           message: `Context map exported to ${exportPath}`,
         });
       } catch (writeError) {
-        console.error('[API] Failed to write context map file:', writeError);
+        logger.error('[API] Failed to write context map file', { error: writeError });
         return NextResponse.json(
           {
             success: false,
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: contextMap });
   } catch (error) {
-    console.error('[API] Context Export error:', error);
+    logger.error('[API] Context Export error', { error });
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

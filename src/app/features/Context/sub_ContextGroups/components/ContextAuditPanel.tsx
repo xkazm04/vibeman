@@ -1,8 +1,8 @@
 'use client';
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Info, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
-import { auditProject, type ContextAuditResponse } from '../../lib';
+import { AlertTriangle, Info, CheckCircle2, Loader2, AlertCircle, FileDown } from 'lucide-react';
+import { auditProject, exportContextMapToFile, type ContextAuditResponse } from '../../lib';
 import type { AuditFinding } from '@/lib/contexts/audit';
 
 interface ContextAuditPanelProps {
@@ -41,6 +41,20 @@ export default function ContextAuditPanel({ projectId, onSelectGroup }: ContextA
   const [report, setReport] = useState<ContextAuditResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  // Force a fresh context-map.json write. The helper surfaces every outcome —
+  // success AND a silent disk-write failure (HTTP 207) — through the shared
+  // toast channel, so a failed write is no longer invisible to the user.
+  const handleReexport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportContextMapToFile(projectId);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -138,6 +152,20 @@ export default function ContextAuditPanel({ projectId, onSelectGroup }: ContextA
             {totals.unresolvedCrossRefs} broken refs
           </span>
         </div>
+        <button
+          type="button"
+          onClick={handleReexport}
+          disabled={exporting}
+          title="Rewrite context-map.json to disk now"
+          className="ml-auto flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1.5 text-xs font-medium text-cyan-300 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/70"
+        >
+          {exporting ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <FileDown className="w-3.5 h-3.5" />
+          )}
+          {exporting ? 'Exporting…' : 'Re-export map'}
+        </button>
       </div>
 
       {/* No findings */}
