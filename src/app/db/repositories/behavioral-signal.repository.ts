@@ -52,6 +52,58 @@ function cleanupSignalEvidence(signalIds: string[]): void {
 }
 
 /**
+ * Sweep orphaned signal-evidence junction rows from the main DB.
+ *
+ * Signals live in hot-writes.db while brain_insight_evidence lives in the main
+ * DB, so no cross-DB FK/trigger can keep them consistent. Any code path that
+ * removes a signal without calling cleanupSignalEvidence (or a signal lost to an
+ * unclean shutdown) leaves a dangling evidence row that points at a signal id
+ * that no longer exists. This compares the distinct signal-evidence ids against
+ * the live signal ids and deletes the difference, batched under SQLite's param
+ * limit. Returns the number of orphaned rows removed.
+ */
+function cleanupOrphanedSignalEvidenceImpl(): number {
+  const mainDb = getDatabase();
+  const hotDb = getHotWritesDatabase();
+
+  const distinctIds = selectAll<{ evidence_id: string }>(
+    mainDb,
+    `SELECT DISTINCT evidence_id FROM brain_insight_evidence WHERE evidence_type = 'signal'`
+  ).map(r => r.evidence_id);
+  if (distinctIds.length === 0) return 0;
+
+  // Identify which of those signal ids no longer exist in hot-writes.
+  const orphaned: string[] = [];
+  for (let i = 0; i < distinctIds.length; i += CLEANUP_BATCH_SIZE) {
+    const chunk = distinctIds.slice(i, i + CLEANUP_BATCH_SIZE);
+    const placeholders = chunk.map(() => '?').join(',');
+    const live = new Set(
+      selectAll<{ id: string }>(
+        hotDb,
+        `SELECT id FROM behavioral_signals WHERE id IN (${placeholders})`,
+        ...chunk
+      ).map(r => r.id)
+    );
+    for (const id of chunk) {
+      if (!live.has(id)) orphaned.push(id);
+    }
+  }
+  if (orphaned.length === 0) return 0;
+
+  let removed = 0;
+  for (let i = 0; i < orphaned.length; i += CLEANUP_BATCH_SIZE) {
+    const chunk = orphaned.slice(i, i + CLEANUP_BATCH_SIZE);
+    const placeholders = chunk.map(() => '?').join(',');
+    const result = mainDb.prepare(
+      `DELETE FROM brain_insight_evidence
+       WHERE evidence_type = 'signal' AND evidence_id IN (${placeholders})`
+    ).run(...chunk);
+    removed += result.changes;
+  }
+  return removed;
+}
+
+/**
  * Get the start of the current week (Monday 00:00 UTC) as ISO string.
  * Used to identify decay cycles so signals are only decayed once per week.
  */
@@ -323,6 +375,19 @@ export const behavioralSignalRepository = {
     }
 
     return totalChanges;
+  },
+
+  /**
+   * Sweep orphaned signal-evidence junction rows (main DB) whose signal no
+   * longer exists in hot-writes.db. See cleanupOrphanedSignalEvidenceImpl.
+   * Best-effort — returns 0 if either DB is unavailable.
+   */
+  cleanupOrphanedSignalEvidence: (): number => {
+    try {
+      return cleanupOrphanedSignalEvidenceImpl();
+    } catch {
+      return 0;
+    }
   },
 
   /**

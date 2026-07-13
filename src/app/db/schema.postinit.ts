@@ -30,4 +30,15 @@ export function runPostInitHooks() {
   } catch (err) {
     console.warn('[schema] Scan-queue worker boot-start failed (non-fatal):', err instanceof Error ? err.message : err);
   }
+
+  try {
+    // Ongoing (+ a deferred initial pass): keep the brain healthy without a
+    // manual reflection — signal decay, retention prune, orphaned-evidence
+    // cleanup, effectiveness-cache refresh, and idempotent auto-creation of due
+    // reflection requirements (never executed). HMR-safe + unref'd internally.
+    const { startBrainMaintenanceSweeper } = require('@/lib/brain/brainMaintenance');
+    startBrainMaintenanceSweeper();
+  } catch (err) {
+    console.warn('[schema] Brain maintenance start failed (non-fatal):', err instanceof Error ? err.message : err);
+  }
 }
