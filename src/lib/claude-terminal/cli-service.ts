@@ -632,6 +632,10 @@ export function startExecution(
   const finalizeDbSession = () => {
     if (dbSessionFinalized || !execution.dbSessionId || !sessionRepo) return;
     dbSessionFinalized = true;
+    if (dbHeartbeatTimer) {
+      clearInterval(dbHeartbeatTimer);
+      dbHeartbeatTimer = undefined;
+    }
     try {
       sessionRepo.delete(execution.dbSessionId);
     } catch {
@@ -655,8 +659,23 @@ export function startExecution(
     }
   };
 
+  // Timer-based heartbeat backstop: stdout-driven touches stop when the CLI is
+  // silent (e.g. one long tool call), and a >30-min-silent healthy run would be
+  // reaped — and its process KILLED — by the stale sweeper. Beat on a timer
+  // while the execution is live; cleared in finalizeDbSession. unref'd so the
+  // maintenance timer never keeps the Node process alive.
+  let dbHeartbeatTimer: ReturnType<typeof setInterval> | undefined = setInterval(() => {
+    if (dbSessionFinalized) return;
+    lastDbHeartbeat = 0; // bypass the throttle — this IS the 60s cadence
+    touchDbHeartbeat();
+  }, 60_000);
+  if (typeof dbHeartbeatTimer.unref === 'function') dbHeartbeatTimer.unref();
+
   // Create log file stream
   const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+  // An async write failure (e.g. project dir removed mid-run) emits 'error';
+  // unhandled it would crash the process. Logging is best-effort — swallow it.
+  logStream.on('error', () => { /* best-effort logging */ });
   let streamClosed = false;
 
   const logMessage = (msg: string) => {
@@ -1100,6 +1119,8 @@ export function startInteractiveExecution(
   executionBus.emit('registered', executionId);
 
   const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+  // Swallow async write failures — logging is best-effort (see above).
+  logStream.on('error', () => { /* best-effort logging */ });
   let streamClosed = false;
 
   const logMessage = (msg: string) => {
