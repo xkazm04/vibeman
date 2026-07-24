@@ -1,8 +1,8 @@
 ---
 name: vibeman
-description: Run a Vibeman pipeline on a project. Three modes — (A) goal-based development (PLAN > IMPLEMENT > VERIFY > REPORT), (B) audit-driven scan + triage + wave-based fix implementation, or (C) scan-and-decide (pick one context group; the skill auto-selects Idea scanners, generates a capped backlog, you accept/reject each, then it implements the approved scope). All run with quality gates, brain-signal recording, and structured per-wave/per-phase reporting.
+description: Run a Vibeman pipeline on a project. Three modes — (A) goal-based development (PLAN > IMPLEMENT > VERIFY > REPORT), (B) audit-driven scan + triage + wave-based fix implementation, or (C) scan-and-decide (pick one context group; the skill auto-selects Idea scanners, generates a capped backlog, you accept/reject each, then it implements the approved scope). Scans are memory-backed — a per-project Obsidian vault records which contexts were scanned with which lens at which commit, what was fixed, and what the user rejected, so repeat runs target new ground instead of restarting from scratch. Read-only modes — status, coverage, reflect. All run with quality gates, brain-signal recording, and structured per-wave/per-phase reporting.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(node *), Bash(npx *), Bash(curl *), Bash(git *)
-argument-hint: [project-name-or-goal?]
+argument-hint: [project-name-or-goal? | status | coverage | reflect]
 ---
 
 # Vibeman Pipeline — Autonomous Development Cycle
@@ -46,9 +46,54 @@ When the Vibeman MCP server is connected, prefer these tools over raw `curl` for
 
 **Gate discipline:** never add a flagged (high risk/effort) item to an implementation wave until the user has explicitly approved it via `resolve_approval`. Use the Phase 4.1e escalation template to present the flagged items.
 
+---
+
+## Scan memory (CRITICAL for Pipelines B and C)
+
+Scans used to cold-start every time. `ascent/docs/harness/` accumulated **17 scan directories** —
+`bug-ui-scan` alone ran five times over the same 44 contexts — and each run re-derived the same
+ground, re-reported findings that had already been fixed, and re-proposed ideas the user had
+already rejected. One run died at 31/44 contexts and the next one began again at context 1.
+
+Every scan is now backed by a per-project **Obsidian vault** that records, per context: which
+lenses have scanned it, at which commit, what was fixed (with SHA), **what the user rejected and
+why**, what is still open, and which paths were traced and found clean. That memory is compiled
+into a **prior-coverage digest** injected into each scanner subagent's prompt, and into a
+**staleness ranking** that decides which contexts are worth scanning at all.
+
+- **Schema, note templates, digest format, staleness formula:** `SCAN-MEMORY.md` in this directory.
+  Read it at Phase 1.5 and at Phase B8 / C6. Do not read it while implementing fixes.
+- **Computation:** `tools/coverage.mjs` (`init` · `plan` · `digest` · `status` · `verify`). Run it;
+  do not recompute staleness or rebuild the digest by hand. The skill ships inside the Vibeman
+  repo, so from the default cwd the path is `.claude/skills/vibeman/tools/coverage.mjs`; if that
+  does not resolve, `Glob **/skills/vibeman/tools/coverage.mjs`. Never hardcode a home directory.
+  Record it once as `$COV` and reuse. The script only ever *reads* the target repo (`git diff`,
+  `git log`) — it never writes to it.
+- **The vault is machine-local** (`Documents/Obsidian/<project>/Scan/`), never inside the Vibeman
+  repo and never inside the target repo. `docs/harness/harness-learnings.md` stays where it is —
+  it is the file that travels with the repo; the vault links to it rather than replacing it.
+
+The three rules that matter most, if you read nothing else:
+
+1. **Never dispatch a scanner without its context's digest.** A subagent told "prior audits exist"
+   with no data will re-report fixed findings — that instruction was in ascent's hand-written
+   scan brief and was unactionable by construction.
+2. **Never re-propose a rejected finding.** The digest never truncates the rejected list.
+3. **Write the vault incrementally** — after each wave, after each fix commit. A killed session
+   must lose at most the work in flight.
+
 ## Phase 0: Pipeline Selection
 
-If the user invocation makes the pipeline obvious (e.g. they explicitly say "run a bug hunter scan" or "implement this goal"), skip the prompt and proceed.
+**Read-only modes first.** If `$ARGUMENTS` starts with one of these, run it and stop — no
+subagents, no code changes, no gates:
+
+| Invocation | Does |
+|---|---|
+| `/vibeman status [project]` | Phase 1 → Phase 1.5 recall → print the vault headline: contexts with a ledger, open / fixed / rejected counts, last run, and the `next:` pointer. `node tools/coverage.mjs status --vault "$VAULT"`. |
+| `/vibeman coverage [project]` | Phase 1 → print the full staleness-ranked plan for the default lens: `node tools/coverage.mjs plan --vault "$VAULT" --project "$PROJECT_PATH" --contexts <map> --lens <lens>`. Answers "what is worth scanning next, and what is provably not". |
+| `/vibeman reflect [project]` | Read `$VAULT/Scan/config.md → ## Skill improvement log` plus the last 3 run notes, and propose concrete edits to this skill file. Changes go to `ITERATION-LOG.md` as a new dated entry. |
+
+Otherwise pick a pipeline. If the invocation makes it obvious (e.g. they explicitly say "run a bug hunter scan" or "implement this goal"), skip the prompt and proceed.
 
 Otherwise, ask:
 
@@ -63,7 +108,7 @@ What pipeline?
      each idea, then I implement only the approved scope. (Lowest-input mode.)
 ```
 
-All three pipelines start with the same Phase 1 (project selection). Pipeline A continues to Phase 2 (goal definition); Pipeline B jumps to Phase B1 (scan configuration); Pipeline C jumps to Phase C1 (context-group selection).
+All three pipelines start with the same Phase 1 (project selection), then Phase 1.5 (recall). Pipeline A continues to Phase 2 (goal definition); Pipeline B jumps to Phase B1 (scan configuration); Pipeline C jumps to Phase C1 (context-group selection).
 
 Throughout execution, track these counters for the final report:
 - `FILES_CREATED` — number of new files written
@@ -116,6 +161,72 @@ Available Vibeman projects:
    - `PROJECT_NAME` — the display name
 
 Increment `API_CALLS` by 1.
+
+---
+
+## Phase 1.5: Recall (all pipelines)
+
+Load what previous runs already know before doing anything else. Cheap — a few file reads and
+one script call. Skipping it is what produced five cold-start scans of the same 44 contexts.
+
+**1. Resolve the vault.** Per `SCAN-MEMORY.md § Vault resolution`:
+
+```bash
+for base in "C:/Users/kazda/Documents/Obsidian" "C:/Users/mkdol/Documents/Obsidian"; do
+  [ -d "$base" ] && VAULT_BASE="$base" && break
+done
+VAULT="$VAULT_BASE/$(echo "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]')"
+```
+
+If `$VAULT_BASE` exists but `$VAULT` does not, create it. If no Obsidian base exists at all, fall
+back to `$PROJECT_PATH/.vibeman/` and say so once. **Never** put the vault in the Vibeman repo.
+
+**2. Materialize the context map as `$CTX_JSON`** — every later `coverage.mjs` call needs it.
+Prefer `$PROJECT_PATH/context-map.json` (hyphen; the underscore file is deprecated). If it is
+absent or stale, dump the API instead — **to an OS temp dir or under `$PROJECT_PATH`, never into
+the Vibeman repo**:
+
+```bash
+CTX_JSON="$PROJECT_PATH/context-map.json"
+[ -f "$CTX_JSON" ] || { CTX_JSON="${TMPDIR:-/tmp}/vibeman-ctx-$PROJECT_ID.json"; \
+  curl -s "http://localhost:3000/api/contexts?projectId=$PROJECT_ID" > "$CTX_JSON"; }
+```
+
+`coverage.mjs` accepts either shape (`groups[].contexts[]` or `{data:[…]}`). Delete a temp dump at
+session end.
+
+**3. Bootstrap if this is the first run in this project:**
+
+```bash
+node "$COV" init \
+  --vault "$VAULT" --project "$PROJECT_PATH" --name "$PROJECT_NAME" --contexts "$CTX_JSON"
+```
+
+`init` is idempotent — it seeds only what is missing and reports `kept` for what already exists.
+It also lists any pre-vault `docs/harness/*` directories in `Scan.md` as **pointers only**; those
+are archive, not memory. Nothing parses them.
+
+**4. Read, in this order** (stop at 4 for Pipeline A — it uses `harness-learnings.md` as its
+primary memory and only needs the do-not-suggest list from the vault):
+
+1. `$VAULT/Scan/Scan.md` — the headline and the last run's `next:` pointer.
+2. `$VAULT/Scan/config.md` — gates, baselines, **`## User taste`**, **`## Do-not-suggest`**.
+3. `$VAULT/Scan/patterns.md` — the project's known defect shapes.
+4. `$PROJECT_PATH/docs/harness/harness-learnings.md` — structural facts (unchanged role).
+5. The most recent `$VAULT/Scan/runs/*.md` — if its `next:` says work was left in flight,
+   **announce the resumption point in one sentence and resume there** rather than starting over.
+   This is the failure the vault exists to prevent; ascent's 2026-07-16 run left 13 contexts
+   undispatched and the next run rescanned all 44.
+6. Per-context ledgers are **not** read here — they are read per context at dispatch time by
+   `coverage.mjs digest`, which keeps orchestrator context flat regardless of project size.
+
+**5. Open the run note.** Create `$VAULT/Scan/runs/<YYYY-MM-DD>.md` (suffix `-2`, `-3` if the date
+is taken) with the pipeline, scope, and `next: <what a session resuming right now should do>`.
+Update its `next:` at every phase boundary, not at the end.
+
+**6. Announce.** One sentence: what the vault knows and where this run is starting. For example:
+> Vault: 12/16 contexts have ledgers · 4 open findings · 7 rejected (suppressed) · last run
+> 2026-07-09 left `next: wave 3 — silent-failure theme`. Resuming there.
 
 ---
 
@@ -848,22 +959,48 @@ Available scan types:
 
 If `` was given (e.g. `/vibeman bug-hunter`), match it against agent slugs and skip the prompt.
 
-### Context scope
+### Context scope — coverage-driven (B1.5)
 
-Fetch contexts via `GET /api/contexts?projectId=PROJECT_ID`. Increment `API_CALLS`. Group by `groupName`. Present:
+`$CTX_JSON` was resolved in Phase 1.5. Rank the contexts by staleness rather than asking the user
+to pick blind:
+
+```bash
+node "$COV" plan \
+  --vault "$VAULT" --project "$PROJECT_PATH" --contexts "$CTX_JSON" \
+  --lens "<scan-slug>" --budget "<session context budget from config.md>"
+```
+
+The ranking is `lens gap + age + churn-since-last-same-lens-scan + open-finding pressure +
+reach − yield decay` (formula and rationale: `SCAN-MEMORY.md`). The dominant term is churn: **a
+context whose files have not changed since a scan with this same lens is near-zero value to
+re-scan**, and the script says so in the `Why` column.
+
+Present the ranked table and the selection, then ask:
 
 ```
-This project has N contexts in M groups:
-  Group: Agents & Personas (4 contexts)
-  Group: Credential Vault (3 contexts)
-  ...
+Coverage plan — <scan-slug> over N contexts (budget: B)
+
+  <the plan table: Context | Files | Chg | Last (this lens) | Open | Yield | Score | Why>
+
+Selected (B): <names>
+Skipped  (S): <names + why — mostly "unchanged since last scan">
 
 Scope?
-  a. All contexts (recommended — full coverage)
-  b. Specific group(s)
-  c. Specific context(s)
+  a. Take the plan (recommended)
+  b. All contexts — ignore coverage (full re-audit; say why, it is usually not what you want)
+  c. Specific group(s) or context(s)
   d. Custom file globs (advanced)
 ```
+
+Rules:
+- **Default to (a).** "All contexts" is the old behaviour and is what produced five cold-start
+  scans of ascent; keep it available but never silently.
+- **Never truncate silently.** If the budget cuts the list, name the skipped contexts in the
+  message and in the run note. A silent cap reads to the user as full coverage.
+- If the user picks (b) with a large project, warn about the session-limit failure mode — that is
+  exactly how ascent's 2026-07-16 run died at 31/44 — and offer to split across two runs, with the
+  vault carrying the boundary.
+- Store the selected contexts as `SCAN_CONTEXTS` and set `CONTEXTS_SCANNED` = its length.
 
 For each context, ALSO ask scope-within-context:
 
@@ -899,22 +1036,52 @@ Same as Phase 3 of Pipeline A: capture `tsc --noEmit` error count, `vitest run` 
 
 The core of the pipeline.
 
+**Write the shared brief once.** Everything identical across contexts — the role prompt, the
+weighting rules, the output format, the READ-ONLY rules — goes into `<output-dir>/_SCAN-BRIEF.md`,
+and each subagent is told to read it. Only the per-context parts go in the prompt. (Earlier runs
+invented this file mid-flight because pasting a 3 KB role prompt 44 times is untenable; it is now
+part of the procedure.)
+
+**Build the prior-coverage digest per context — this is the step that stops rescanning.**
+
+```bash
+node "$COV" digest \
+  --vault "$VAULT" --project "$PROJECT_PATH" --contexts "$CTX_JSON" \
+  --slug "<context-slug>" --lens "<scan-slug>"
+```
+
+Paste the output **verbatim, above the role prompt** in that context's subagent prompt. It carries
+already-fixed findings (so they are not re-reported), the user's rejections **in the user's own
+words** (so they are not re-proposed), open findings with a confirm-or-retire contract, known-clean
+paths, the project's pattern catalogue, and the list of files that changed since the last same-lens
+scan. Never paraphrase it and never drop the rejected block.
+
 For each context in scope, spawn a `general-purpose` subagent with:
 
-- **Role prompt**: the chosen agent's role/expertiseAreas/focusAreas/dontInstructions (read from the `.ts` registry file)
+- **Prior-coverage digest**: the `coverage.mjs digest` output, verbatim, first in the prompt
+- **Role prompt**: via `_SCAN-BRIEF.md` — the chosen agent's role/expertiseAreas/focusAreas/dontInstructions (read from the `.ts` registry file)
 - **Project context**: project name, tech stack, working directory
 - **Context name + description**: from the Vibeman API response
 - **Scope filter**: the `filePaths` from the context, run through `SCAN_SCOPE_FILTER` so src-tauri/ is dropped if user picked client-side-only
-- **Findings target**: `FINDINGS_TARGET_LO`–`FINDINGS_TARGET_HI`
+- **Findings target**: `FINDINGS_TARGET_LO`–`FINDINGS_TARGET_HI` — **for NEW ground only.** Confirming an open finding does not count toward it, and a context with no churn since its last scan is expected to come back under target. Say so explicitly, or the agent pads.
 - **Output path**: `<output-dir>/<context-slug>.md`
 - **Output format**: structured markdown with `## N. <title>`, `- **Severity**:`, `- **Category**:`, `- **File**:`, `- **Scenario**:`, `- **Root cause**:`, `- **Impact**:`, `- **Fix sketch**:`
-- **Reply format**: under 150 words, must include the file slug used, total findings, severity breakdown, 1-line summary of most critical, approx files read
+- **Reply format**: under 150 words — file slug used, total findings, severity breakdown, 1-line summary of the most critical, approx files read, **plus two mandatory lines**:
+  ```
+  Confirmed open: #11, #14      (or "none")
+  Retired: #09                  (or "none")
+  ```
+  These let the orchestrator update the ledger without reading the report.
 
 **Wave size**: max 8 parallel subagents. Group contexts into waves of ≤8. After each wave completes, dispatch the next.
 
 **Why this shape works**: each subagent runs in isolation, writes one file, replies with terse stats. The orchestrator (this skill) doesn't read the per-context reports during scanning — only the reply summaries — keeping orchestrator context manageable across 17+ scans.
 
-After every wave returns, accumulate `FILES_READ_SCAN` and findings-count stats from the replies.
+**Track dispatch state in the run note after every wave** — `dispatched / returned / failed / pending`, by context slug, plus a refreshed `next:`. A session that dies mid-scan must be resumable to the context, not to the run. Do not defer this to the end; the deferral is the bug.
+
+After every wave returns, accumulate `FILES_READ_SCAN` and findings-count stats from the replies,
+and apply the `Confirmed open` / `Retired` lines to the ledgers: confirmed rows get their date
+bumped, retired rows move to Fixed with the note `retired — no longer present` (no SHA).
 
 ## Phase B4: Triage Compilation (INDEX.md)
 
@@ -926,6 +1093,24 @@ Once all subagents have completed, produce the triage `INDEX.md`.
 2. Grep `^- \*\*Severity\*\*:` bullets across all `*.md` files. Count.
 
 Both numbers must match. If they don't, surface the discrepancy and ask the user before continuing — likely indicates a malformed report.
+
+### Reconcile against the ledger (new vs known)
+
+Before building the INDEX, classify every finding against its context ledger:
+
+- **New** — no ledger row describes this defect. Allocate the next `#NN` from the ledger's
+  `next_id` and append it under `## Open / deferred` with status `open`.
+- **Known-open** — matches an existing open row. Bump its date; do **not** count it as new.
+- **Regression** — matches a `Fixed` row. This is a high-signal event: something shipped and came
+  back, or the fix was incomplete. Flag it prominently in the INDEX with the original commit SHA;
+  regressions outrank same-severity new findings in wave planning.
+- **Should-have-been-suppressed** — matches a `Rejected` row. The digest failed. Drop the finding,
+  do not show it to the user, and note the leak in the run note — it means the digest needs the
+  rejected item's root cause, not just its title.
+
+Match on meaning, not string equality: ascent's `global-error` defect was phrased three different
+ways across three months and would have escaped any exact-match rule. Report the tallies:
+`N findings — X new, Y confirming known-open, Z regressions, W suppressed`.
 
 ### Build INDEX.md
 
@@ -992,12 +1177,18 @@ The themes are detected by clustering on the `Category:` field across reports pl
 
 ## Phase B5: Approval Gate
 
-Display the INDEX summary to the user:
+Display the INDEX summary to the user, **led by the memory delta** — it is the fastest way for
+them to see the scan was not a repeat:
 
 ```
 Scan complete. <N> findings across <M> contexts.
+  <X> new · <Y> confirming known-open · <Z> REGRESSIONS · <W> suppressed as previously-rejected
+  Contexts skipped as unchanged since their last <lens> scan: <S>
 
   Critical: <C>    High: <H>    Medium: <Med>    Low: <L>
+
+Regressions (previously fixed, back again):
+  1. <one-liner> — originally fixed in <sha>
 
 Top criticals:
   1. <one-liner>
@@ -1012,7 +1203,15 @@ Themes (suggested fix-wave split):
 Proceed with Wave 1 now? Or pause for review?
 ```
 
-If user pauses, write the INDEX and stop. Future sessions can resume by reading the INDEX and picking up at Phase B6.
+**Capture rejection reasons here.** If the user declines findings at this gate, ask **once, in one
+batched question**, why — per-item or one overall reason, with `skip` allowed. Write each declined
+finding to its ledger's `## Rejected` section with the user's own words as the `>` annotation.
+These reasons are the highest-value bytes in the vault: they are what stops the next scan
+re-proposing the same thing, and a rejection recorded without a reason is nearly worthless
+(`coverage.mjs verify` flags reasonless rejections).
+
+If user pauses, write the INDEX, flush the ledgers and the run note's `next:`, and stop. A future
+session resumes from Phase 1.5's recall, not from a re-scan.
 
 ## Phase B6: Wave-Based Implementation Loop
 
@@ -1051,7 +1250,12 @@ Refs: docs/harness/<scan-slug>-<date>/<context-slug>.md finding #N
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 ```
 
-6. **Mark the TaskUpdate completed** and move to the next.
+6. **Move the ledger row to `## Fixed` with the commit SHA, in the same turn as the commit.**
+   One line in `$VAULT/Scan/contexts/<slug>.md`; the `#NN` id never changes. Doing this per-fix
+   rather than per-wave is deliberate — a session killed mid-wave otherwise loses the record of
+   fixes that are already on disk, and the next scan re-reports them.
+
+7. **Mark the TaskUpdate completed** and move to the next.
 
 ### B6.3 — Wave verification
 
@@ -1100,7 +1304,16 @@ Commit the summary doc as a separate `docs(harness): wave-N fix summary` commit.
 
 ### B6.5 — Pattern catalogue accumulation
 
-Each wave should extract 2-5 durable patterns and append them to a running catalogue. The catalogue is the most valuable artefact across multiple waves — it lets future audits grep proactively for known shapes instead of re-scanning. Catalogue entries are concise: `<N>. **<Pattern name>** — <when it bites> <how to fix>.`
+Each wave should extract 2-5 durable patterns. The catalogue is the most valuable artefact across
+multiple waves — it lets future audits grep proactively for known shapes instead of re-deriving
+them. Append to the wave summary doc **and** to `$VAULT/Scan/patterns.md`, which is the copy that
+survives the run and gets injected into future scanner prompts by `coverage.mjs digest`. A
+catalogue that lives only in the run directory dies with it — that is what happened to every
+catalogue built before this vault existed.
+
+Vault row: `| P<N> | <pattern name> | <when it bites> | <fix shape> | <contexts seen in> |`.
+Promote a pattern to the digest only after it has been observed in **2+ contexts** — a
+single-sighting "pattern" is a finding wearing a hat, and it dilutes the prompt.
 
 ### B6.6 — Continue or pause
 
@@ -1124,11 +1337,57 @@ Cumulative status (waves 1-N):
 
 Recommend the next wave or note clean handoff points for future sessions.
 
+## Phase B8: Persist to the vault
+
+Runs at session end — including interrupted sessions. Most of the writing already happened
+incrementally (ledger rows per fix, dispatch state per wave); this phase closes the books.
+
+1. **Per-context ledger frontmatter** — append this run's scan entry to every context scanned:
+   `- { date: <today>, lens: "<scan-slug>", sha: <HEAD sha at scan time>, surfaced: N, actioned: M }`.
+   The SHA is what makes the *next* run's churn calculation work; a scan recorded without one is
+   invisible to `coverage.mjs` and the context will look never-scanned. Capture it at dispatch
+   time (`git -C "$PROJECT_PATH" rev-parse --short HEAD`), not after the fixes land.
+   Also add any path a scanner traced and found healthy to `## Known clean`, and update `next_id`.
+
+2. **`coverage.md`** — one row per touched context: lenses scanned, last scan + SHA, open / fixed /
+   rejected counts, and yield (`actioned / surfaced` across the last 3 scans).
+
+3. **`patterns.md`** — promote patterns seen in 2+ contexts (B6.5).
+
+4. **`lenses/<scan-slug>.md`** — what this lens learned here: which categories produced findings
+   the user actioned, which produced noise, and any prompt adjustment worth carrying forward. A
+   category that has surfaced findings across two runs with zero actioned belongs in
+   *Categories with zero yield* so the next run's role prompt deprioritizes it.
+
+5. **`config.md → ## Skill improvement log`** — 2-4 bullets: what dragged, what the user
+   overrode, what the next round should change. This is the input to `/vibeman reflect`.
+
+6. **`Scan.md`** — refresh the headline (contexts with ledgers, open / rejected / fixed totals,
+   last run) and the `next:` pointer.
+
+7. **`runs/<date>.md`** — close the run note: contexts scanned vs skipped (with reasons), findings
+   new/known/regression/suppressed, waves completed, commits, gate results, and a final
+   `next: <the exact instruction for the session that picks this up>`.
+
+8. **Verify** — `node tools/coverage.mjs verify --vault "$VAULT" --contexts "$CTX_JSON"`. It
+   catches duplicate ids, a `next_id` that would collide, fixed rows with no SHA, scans with no
+   SHA, and **rejected rows with no reason**. Fix what it reports before ending the session; a
+   corrupt ledger is worse than no ledger because it is trusted.
+
+9. `harness-learnings.md` keeps its Pipeline A role for structural facts — the vault does not
+   replace it. Cross-link rather than duplicating.
+
 ---
 
 ## Pipeline B — Anti-patterns
 
-Discovered during the 2026-04-27 personas run; codify here so future runs don't relearn:
+Discovered during the 2026-04-27 personas run and the 2026-07 ascent rescan audit; codify here so future runs don't relearn:
+
+- **Don't dispatch a scanner without its prior-coverage digest.** Telling a subagent "this codebase has been audited before" without the data is not an instruction, it's a wish — ascent's hand-written brief did exactly that and the same defects came back in new words across three scans.
+- **Don't scan a context whose files haven't changed since its last same-lens scan.** It is the clearest waste in the whole pipeline and `coverage.mjs plan` labels it explicitly.
+- **Don't defer vault writes to session end.** Ledger rows are written per fix, dispatch state per wave. The one run that batched its state into a hand-written file at the end lost 13 contexts' worth of dispatch information when the session hit its limit.
+- **Don't record a rejection without the reason.** The reason is the entire value of the row; the title alone won't stop a differently-phrased re-proposal.
+- **Don't let a finding's id change.** Ids are permanent across status transitions — renumbering breaks every cross-reference in the run notes and commit trailers.
 
 - **Don't read the per-context reports during scanning.** The orchestrator should only read terse subagent replies. Reading reports inflates context and prevents 17+ scans from fitting in one session.
 - **Don't commit a single mega-commit at end of wave.** Every fix is its own atomic commit with a finding reference. This makes `git revert` per-bug-fix work and lets future readers `git log` to recover the why.
@@ -1214,6 +1473,15 @@ Idea-scanner registry (these are the `scan_type` values `/api/ideas/claude` acce
 - Match scanner category to the group's nature: a server/data group → technical scanners (`bug_hunter` + `security_protector`, maybe `perf_optimizer`); a UI group → user scanners (`ui_perfectionist` + `user_empathy_champion`); an architecture/shared group → `zen_architect` + `code_refactor`.
 - Default to the **single best-fit scanner.** Add a second/third only when the group clearly spans two concerns (e.g. an API group with both security and performance surface).
 - Never exceed 3 scanners in one Pipeline C run.
+- **Consult memory before choosing** (`$VAULT/Scan/lenses/*.md`, `config.md → ## Do-not-suggest`
+  and `## User taste`, and the group's context ledgers). A scanner whose last run on this group
+  produced ideas the user rejected wholesale is the wrong pick — choose a different lens or say
+  out loud why this one deserves another turn. Prefer a lens with a **coverage gap** in this group
+  over one that ran recently with low yield.
+- Run `coverage.mjs plan --lens <scan_type>` over the group's contexts to see which are stale and
+  which have not changed since that lens last looked. If every context in the group is unchanged
+  since the last run of the best-fit scanner, **say so and offer a different lens or a different
+  group** rather than generating a backlog of near-duplicates.
 
 Show the decision — it's autonomous, but the user should see the reasoning and get a cheap override (this is NOT a second blocking prompt; proceed on "ok" or no objection):
 
@@ -1244,6 +1512,13 @@ Increment `API_CALLS`. The response includes `requirementContent` — a full ana
 2. **Execute the requirement.** Spawn one `general-purpose` subagent per scanner (run them in parallel when there are 2–3), handing it the `requirementContent` as its instructions plus this hard cap:
 
    > Generate **at most 5 ideas** — only the highest-value findings. Follow the requirement's two-step save flow exactly: first `POST /api/scans` to create a scan record, then `POST /api/ideas` for each idea using the returned `scan.id`. Every idea must include `effort`, `impact`, `risk` (1–10) and the most relevant `context_id` from the group. Reply with the `scan.id` you created and the count + titles of the ideas you saved. Do NOT modify the target project's code.
+
+   **Prepend the prior-coverage digest for each context in the group** (`coverage.mjs digest`,
+   one per context, concatenated) above the requirement content, plus `config.md → ## Do-not-suggest`.
+   Auto-generated ideas are *more* prone than hand-written goals to re-propose something already
+   built, already shipped, or already declined — this is the same failure the digest solves for
+   Pipeline B, and it is why C4's rejections were worthless until now: they were written to the DB
+   and never read back.
 
    Running scans as subagents keeps the orchestrator's context clean (it sees only the terse reply, not the per-file analysis) — same discipline as Pipeline B's dispatch.
 
@@ -1282,7 +1557,22 @@ curl -s -X PATCH http://localhost:3000/api/ideas -H 'Content-Type: application/j
 curl -s -X PATCH http://localhost:3000/api/ideas -H 'Content-Type: application/json' \
   -d '{"id":"IDEA_ID","status":"rejected","user_feedback":"<reason if given>"}'
 ```
-Increment `API_CALLS` per call. Tally `IDEAS_ACCEPTED` / `IDEAS_REJECTED`. The accepted set is the **handshaked scope** for C5. If nothing was accepted, stop here with a short summary — there's nothing to implement.
+Increment `API_CALLS` per call. Tally `IDEAS_ACCEPTED` / `IDEAS_REJECTED`.
+
+**Mirror every decision into the vault in the same turn** — the DB row is the app's state, the
+ledger row is the skill's memory, and only the ledger is read at the next dispatch:
+
+- Rejected → `$VAULT/Scan/contexts/<slug>.md → ## Rejected` with the user's reason as the `>`
+  annotation. If the user rejected without saying why, ask once, batched across all rejections,
+  `skip` allowed. A rejection with no reason will not reliably suppress a re-proposal.
+- If a rejection is about the *whole category* rather than this instance ("we're never doing
+  design-system work until the Tauri shell lands"), promote it to `config.md → ## Do-not-suggest`
+  so it suppresses across every context, not just this one.
+- Accepted → append under `## Open / deferred` so an interrupted C5 doesn't lose the scope.
+
+The accepted set is the **handshaked scope** for C5. If nothing was accepted, still write the
+rejections and the run note before stopping — a run that generates 5 ideas and gets all 5 rejected
+is one of the most informative runs there is, and it used to leave no trace.
 
 ## Phase C5: Execute the handshaked scope
 
@@ -1305,6 +1595,18 @@ Increment `IDEAS_IMPLEMENTED`.
 5. After all ideas, run the **Phase 6 verification** (`tsc` + `next build` for Next.js + tests + lint + regression vs. the C5 baseline) and compute the quality score. Record a brain signal per **Phase 6.9** (pass `requirementId` = the goal id the ideas were tied to, or the originating idea id).
 6. Produce a compact report reusing the Phase 7 template, led by a one-line funnel headline: **"Scan-and-decide: N generated → A accepted → I implemented (group: GROUP_NAME, scanners: …)."**
 
+## Phase C6: Persist to the vault
+
+Run **Phase B8** — it is pipeline-agnostic. The Pipeline C specifics:
+
+- Ledger rows for implemented ideas move to `## Fixed` with their commit SHA, per idea, at commit
+  time (same rule as B6.2 step 6).
+- The scan entry's `lens` is the `scan_type` (e.g. `bug_hunter`), so future `coverage.mjs plan
+  --lens bug_hunter` sees this run. Record the HEAD SHA from *before* the fixes landed.
+- `lenses/<scan_type>.md` gets the acceptance rate for this group. A scanner whose ideas are
+  consistently rejected on a given group should not be auto-selected there again — record that
+  explicitly rather than leaving C2 to rediscover it.
+
 ## Pipeline C — When to use this vs A / B
 
 - **Pipeline A** — the user knows the goal. Plan → implement.
@@ -1325,123 +1627,15 @@ Increment `IDEAS_IMPLEMENTED`.
 
 ## Skill Iteration Log
 
-This section records *why* each non-obvious rule exists. When a rule looks redundant on a future read, check here before removing — the reason may still apply.
+Moved to [`ITERATION-LOG.md`](./ITERATION-LOG.md) — the record of *why* each non-obvious rule
+here exists. **Before deleting a rule that looks redundant, check that file**; the reason may
+still apply. Append a new entry there at the end of every run that changes this skill.
 
-### 2026-04-08 — initial transfer from `/research` skill iteration (runs 1-6)
+Companion files in this directory:
 
-**Context:** The `/research` skill at `personas/.claude/skills/research/skill.md` went through a 6-run iteration cycle on the personas codebase. Several of its rules proved high-leverage across every run and are directly applicable to vibeman's Phase 4 (Plan) and Phase 5 (Implement). They were ported here. Vibeman's execution-heavy counters, quality score, and baseline comparison are kept unchanged — those are vibeman's own strengths that `/research` doesn't have.
-
-**Rules added:**
-
-- **Phase 4.1b — Host-infrastructure-first grep.** Before planning any task, grep for the category of host infrastructure the goal would attach to (HTTP server, DB migration, background job, middleware, config loader). Added because every `/research` run that applied this rule found existing surface area the naive plan would have duplicated — typically 2-4 planned tasks per discovery. Across 6 runs of `/research`, the rule caught ~25 candidate findings as "already existed" that would otherwise have become wasted implementation work. The single highest-leverage change made to any skill in that iteration.
-
-- **Phase 4.1c — Prefix-namespace grep.** When the host-first grep finds one entity, immediately grep for all entities with the same prefix. Added after `/research` run 4 discovered `team_memories` and missed `persona_teams` + `persona_team_members` + `persona_team_connections` on the first pass. The fix: always expand the grep to the prefix namespace so the full related structure surfaces in one pass.
-
-- **Phase 4.1d — Already-existed check.** Explicit scan for whether the planned feature is already partially implemented. Added because half the findings in `/research` runs 4 and 5 turned out to be implementations of things the skill was about to propose building from scratch. For an execution skill like vibeman, this is even more critical: the cost of implementing a duplicate is higher than the cost of just proposing one.
-
-- **Phase 4.1 reordering — load `harness-learnings.md` FIRST.** Was step 6; now step 1. Accumulated learnings should be in hand before the other context steps so the host-first grep knows what to look for. Same reason `/research` loads `codebase-stack.md` at the start of Phase 1.
-
-- **Phase 5 non-goals list.** Added explicit "do NOT" items (CI/CD, deps, tests, auth, public APIs, files outside target). `/research` handoff plans always include a "non-goals" section because every run discovered scope-creep traps; the same pattern applies to vibeman execution.
-
-- **Phase 5 security check on privileged surfaces.** When touching HTTP/IPC/spawn sites, grep for auth/sandbox patterns first. Added after `/research` runs 1 and 3 both surfaced security findings (personas' management API had no auth; `--dangerously-skip-permissions` with no OS sandbox). The pattern: privileged surface + missing standard defense = critical. Vibeman could silently introduce such gaps by implementing a feature without this check.
-
-- **Phase 5 stuck-escape-hatch.** After 3 failed fix attempts, write a breadcrumb to `docs/harness/followups-{date}.md`. `/research` handoff plans always include a "what to do if you get stuck" section for exactly this reason — stuck sessions should leave notes for the next session instead of burning context retrying.
-
-- **Phase 6.8 — write-back to `harness-learnings.md`.** Before the brain signal step, append any structural facts discovered during the run. Added because `/research` runs 2, 3, 4, 6 all discovered structural facts about the codebase that future runs needed — but until a Phase 10e rule was added, those facts were lost. The analog here: every Phase 6 run should contribute back to the learnings file so the next Phase 4.1 starts with richer context.
-
-- **Phase 7 — `Already-existed catches` section in the report.** Track what the host-first rule caught. `/research` added this as `already_existed: [...]` in run 4's frontmatter; run 6 made it a standard counter. High catch rates are a signal that the goal was underspecified or context has drifted.
-
-**Rules NOT transferred (and why):**
-
-- **Cluster detection in presentation.** `/research` Phase 7 bundles related findings before showing them to the user. Vibeman implements one goal at a time with dependencies already explicit in the task graph — clustering doesn't add value for a single-goal execution.
-- **Handoff plan as output option.** Vibeman IS the executor; it produces code + a report, not plans to be executed elsewhere.
-- **Discovery briefs.** Vibeman is an execution skill, not a research skill.
-- **Obsidian memory loop.** `/research` writes to `~/Documents/Obsidian/personas`. Vibeman uses `harness-learnings.md` + brain signals instead — same idea, simpler and more in-repo.
-- **Catalog-vs-runtime rule (verbatim).** This was personas-specific ("87 connectors in catalog, 0-3 bound per persona"). The *general principle* — "config count ≠ runtime count" — is worth remembering but doesn't warrant a dedicated rule in vibeman until a concrete case justifies it.
-- **Framework-vs-plugin routing (verbatim).** Personas-specific boundary between core and `dev-tools` plugin. Vibeman targets different codebases; it should discover their boundaries organically via the host-first rule rather than bake in assumptions about plugin structure.
-
-**Open questions for future vibeman iterations:**
-
-- Does the host-first rule pay off the same way in vibeman's execution context as it did in `/research`'s extraction context? The payoff mechanism is identical (avoiding duplicate work), but vibeman writes code — if the rule catches something mid-Phase 5, it may be too late to avoid the cost entirely. Worth measuring the catch rate across early runs.
-- Should `docs/harness/harness-learnings.md` have a formal structure (sections, frontmatter) the way `codebase-stack.md` does in personas? The `/research` skill got more value out of a structured reference file than a flat list. Consider formalizing once 3-5 runs have contributed learnings.
-- The security check rule (Phase 5) fires on grep heuristics. It may produce false positives on internal dev-only endpoints. Track the false-positive rate over early runs — if it's noisy, add a way for the user to mark a target file as "known-safe" via a frontmatter or comment.
-
----
-
-### 2026-04-09 — Run #1 on `auto-invoicer` (PDF export goal)
-
-**Context:** First real run of vibeman after the initial /research transfer. Goal: PDF export of InvoiceForm. Auto-invoicer is a near-greenfield Next.js 16 + React 19 + Tailwind 4 project (~600 LOC of source). Quality score: 85/100. 4 tasks planned, 4 completed, 0 failed. The full meta-observations are in the Run #1 conversation; this entry distills only the *durable* skill changes that came out of it.
-
-**Validations (rules that paid off, so leave them alone):**
-
-- **Phase 4.1d already-existed check fires on the very first run of every project.** The naive plan was "task 1: add a Download PDF button" — three tasks. The host-first / already-existed pass discovered that `InvoiceForm.tsx` was *fully uncontrolled* (every input used `defaultValue`, line items were a hardcoded inline array, totals were baked-in literal strings). Without that check, vibeman would have written a button that downloads a PDF of nothing meaningful. Reframed scope from 1 layer to 2 layers: data model + controlled state, *then* PDF generation. **The rule has now been validated in execution context the same way it was validated in research context — confirming the open question from the initial transfer.**
-- **Per-task tsc + commit rhythm catches errors when they're cheap to fix.** During Task 4, `tsc` caught a `ReactElement<DocumentProps>` type variance issue in `download.ts`. Because the failure happened inside a single small task with a hot mental model, the fix was a 4-line type cast with an inline comment. If this had been batched into a 4-task megacommit verified only at Phase 6, the same error would have required a much larger debug session to isolate. Keep the rhythm.
-- **Phase 5 non-goals list earned its keep twice in one run.** Once during planning (forced explicit "no API route, no theme parity in PDF, no toast lib") and once during implementation (caught the urge to wire the dormant Save Draft button as a "free extra"). The discipline of *naming* what you won't do dramatically beats just "intending to be focused".
-
-**Rules added in this iteration (Run #1 → SKILL v2):**
-
-- **Phase 2 step 1 — lightweight project snapshot (always run).** Read package.json + README + top-level src/ + 1–2 entry points before asking the user for a goal. Added because Phase 2 is impossible to do well without context: I had to scout the codebase anyway just to ask an *intelligent* goal question. Now formalized as ~5 file reads at the start of Phase 2, explicitly cheap, explicitly lightweight. Phase 4.1 still does the deep context-gather; this is just enough to avoid asking blindly.
-- **Phase 2 step 3 — propose grounded goal options when no goals exist.** Previously the skill jumped to "describe a NEW goal" with no scaffolding. Now: when no open goals exist, the assistant uses the Phase 2 snapshot to propose 3–4 concrete options with title / one-line description / scope estimate / visible risks. The user can pick one or describe their own. Caught the risk that the "ask blindly" path leaves the user with no anchor on what's possible.
-- **Phase 2 step 6 — sanity-check goal size.** Explicit pushback if the goal would obviously exceed 8 tasks / 5 directories. The plan-approval gate already catches oversized goals indirectly, but adding it here means scope conversations happen *before* Phase 4.1 burns context on a doomed plan.
-- **Phase 4.1e — Escalation report mini-template.** Formalizes the structure I had to improvise mid-Run-#1 when the host-first finding required user input. Standard template: what I expected, what's actually there, why it changes the plan, options table, recommendation, decision needed. Distinguishes "silently adapt" (small finding) from "escalate" (changes task count or feasibility). The bar: if you'd write "actually, the goal needs to be rescoped" in Phase 4.4, you should have escalated in 4.1e instead.
-- **Phase 6.1 — also run `next build` (or equivalent) for Next.js projects.** `tsc --noEmit` only checks types. `next build` validates `"use client"` boundaries, SSR/client integration, prerender behavior, and turbopack module resolution. These are real failure modes for libraries like `@react-pdf/renderer`. Adding `next build` to Phase 6.1 caught nothing on Run #1 (it passed), but the *positive* signal was much stronger than tsc alone — and on a future run with subtler use-client mistakes, this is exactly the gate that will catch them. Generalized as "run the project's actual build, not just the type checker".
-- **Phase 6.8 — formalized harness-learnings.md schema with `Open follow-ups` section.** Was previously a flat "Structural facts" list. Now has four named sections: Structural facts / Conventions enforced / Anti-patterns to avoid / Open follow-ups (from Run #N). The Open follow-ups section is the new addition: it captures what *this* run deliberately chose not to do, so the next run doesn't either re-flag it as a finding or accidentally re-implement it differently. Run #1's seeded learnings file already uses this shape.
-- **Phase 6.9 — fix `requirementName` → `requirementId`.** Pre-Run-#1 the skill template used `requirementName: GOAL_TITLE`, but the live brain API rejects with `Invalid signal data: implementation.data requires requirementId (string)`. Worked around by passing the goal ID. **Bug in skill template, fixed.** Every future run was guaranteed to waste one API call on this until corrected.
-
-**Open questions for Run #2 and beyond:**
-
-- **Quality score rubric is gameable.** Run #1 scored 85/100 partly because "no test runner = +15 free points" applies regardless of whether tests *should* exist. A project that genuinely has no test suite gets the same neutral treatment as a project that has tests but they were skipped, which feels wrong. Considered changes (any of these would be a real shift): (a) split the 30-point test slot into 15 "test runner present" + 15 "tests passed", so absent tests cap at 15; (b) treat absent tests as -0 / +0 instead of +15, with a Phase-7 nudge to add tests as a follow-up goal; (c) detect "should have tests" by language/framework conventions and weight accordingly. **Decision needed from user before Run #2** — see end of message.
-- **`FILES_READ` is a noisy metric.** Run #1 read 8 files; only ~2 actually shaped the plan. On a 1000-file repo this would explode without measuring anything useful. Probably not actionable until we see it on a larger project — flagging for Run #2 or #3.
-- **Should `harness-learnings.md` get frontmatter (run count, last updated, project version)?** The new four-section shape is structured enough for now. Revisit after 3–5 runs of contributions to see if the file is starting to drift.
-- **The host-first rule is now validated for execution-context (not just research-context).** Open question from the initial transfer: closed. The rule pays off the same way — in fact more, because catching a missing host saves *implementation* cost, not just *recommendation* cost.
-
-**Rules considered and NOT added (with reasoning):**
-
-- **Phase 6.2 — split test score into "runner present" (15) + "tests passed" (15).** Previously "no test runner = +15 free points", which rewarded absence of tests indistinguishably from neutral state. Now: runner present = 15, tests pass = 15. No runner = 0/30. User chose Option B (split) over Option A (keep as-is) and Option C (stack-detection). Rationale: simplest honest rubric; doesn't encode stack-specific conventions; forces future runs to honestly reflect the test gap; a 70-score for shipped+built+linted code is still grade B and still passes the ≥70 gate. Counter-argument acknowledged: early prototypes genuinely may not need tests, and this rubric can't distinguish "intentionally untested" from "negligently untested" — but the cost of that ambiguity is lower than the cost of silently inflating scores.
-
-- **Auto-snapshot the rendered PDF on Phase 6 for visual diffing.** Tempting, but adds dependency on a headless renderer and only validates one of many possible feature outputs. Run #1's smoke test (pdf renderToFile + magic-byte check) was project-specific; baking it into the skill adds boilerplate for non-PDF projects. Skip until visual smoke testing is the bottleneck on multiple goals.
-- **Force the assistant to commit `harness-learnings.md` separately from feature code.** Considered for cleanliness, but the cost of a tiny extra commit is real and the benefit is purely cosmetic. Run #1 did this organically without a rule. Skip.
-- **Make `next build` mandatory for all stacks, not just Next.js.** The "Next.js or equivalent" wording captures the principle without forcing a specific command. Different stacks have different equivalents (`cargo build`, `vite build`, etc.). Phrasing the rule as a principle is better than a list.
-
----
-
-### 2026-06-02 — Pipeline C "Scan and decide" added (+ Mini panel removed from the app)
-
-**Context:** User asked for a third Phase-0 mode that minimizes input — pick one context group, let the skill choose the in-app Idea scanner(s), generate a capped backlog, handshake on each idea, then implement the approved scope. Added alongside A/B rather than folded into B because it uses a different engine: Vibeman's in-app Idea scanners (`/api/ideas/claude` → `/api/scans` → `/api/ideas`, the `AGENT_REGISTRY` scan types) that persist structured ideas, vs. Pipeline B's subagent role-prompts that write markdown findings reports.
-
-**Design decisions (and why):**
-- **One context group chosen by the user; scanners chosen by the skill.** The user's only required input is the group — that's the whole point of "decide-for-me." Scanner selection is autonomous (the "decide" in "scan and decide") but displayed with a one-line rationale and a cheap override, so it's transparent without being a second blocking prompt.
-- **Cap 1–3 scanners and ≤5 ideas per scanner.** A backlog reviewable in one sitting is the point; uncapped scans produce noise nobody triages. The 5-idea cap is enforced in the C3 subagent instruction — `/api/ideas/claude`'s own prompt does not cap.
-- **`/api/ideas/claude` returns a prompt, not results (verified against the route).** It builds `requirementContent` for an agent to execute (analyze → `POST /api/scans` → `POST /api/ideas`). C3 must *execute* that prompt via a per-scanner subagent, not just call the endpoint. This same misunderstanding is why the deleted "Mini" dashboard always showed "0 ideas" — `MiniScanPanel` read a non-existent `ideasGenerated` field off this endpoint, so it never reflected real work. That panel was removed from the app in the same change (it duplicated Ideas/Tinder/Tasker and never functioned).
-- **Filter the C4 review to this run's `scan_id`s.** `GET /api/ideas?status=pending` returns ALL pending ideas; without filtering by the C3 scan ids the review mixes in stale backlog.
-- **C5 reuses Phase 4.1b–d + Phase 5 + Phase 6, not a new flow.** Accepted ideas are just tasks. The already-existed grep matters *more* here because auto-generated ideas are likelier than a hand-written goal to propose something already implemented.
-
-**API contracts used (verified 2026-06-02):** `GET /api/context-groups?projectId=` → `{data:[{id,name}]}`; `GET /api/contexts?groupId=` → `{data:[{id,name,description,file_paths}]}`; `POST /api/ideas/claude {projectId,projectName,projectPath,scanType,groupId}` → `{requirementContent}`; `POST /api/scans` → `{scan:{id}}`; `POST /api/ideas {scan_id,project_id,category,title,…}`; `GET /api/ideas?projectId=&status=pending` → `{ideas}`; `PATCH /api/ideas {id,status}`.
-
-**Also fixed this session — Phase B1 hardcoded path.** The scan-type registry step pointed at `C:/Users/kazda/kiro/vibeman/src/lib/prompts/registry/agents/*.ts` — a stale home-directory absolute path from a different machine that returned nothing here (the repo is `C:/Users/mkdol/dolla/vibeman`). Replaced with a cwd-independent Glob on the repo-relative path `src/lib/prompts/registry/agents/*.ts` plus a `**/`-glob fallback, since the skill ships inside the Vibeman repo. Pipeline C was deliberately authored the same way (inline scanner table + API-sourced groups) so it never acquires a machine-specific path.
-
-**Open questions for the first Pipeline C run:**
-- Is per-scanner subagent dispatch (C3) worth it for only 1–3 scanners, or is inline execution simpler? Measure context cost on the first real run.
-- Should rejected-idea `user_feedback` feed back into C2 scanner selection on a re-run of the same group? Potentially a learning loop like Phase 2a's goal-judgment log.
-
----
-
-### 2026-06-02 — Working-directory discipline (first Pipeline C run on `pof` surfaced a leak)
-
-**Context:** First real Pipeline C run (group "Character & Combat Authoring" on the `pof` project, 13 ideas generated → all accepted → all implemented). The run went well, but it exposed a structural hazard: the skill ships *inside* the Vibeman repo and is invoked with cwd = the Vibeman repo, while the work targets a *different* repo (`PROJECT_PATH`). Two things nearly went wrong, and one did:
-
-1. **Temp leak (did happen).** I staged the three ~30 KB scanner `requirementContent` prompts to `C:\…\vibeman\.tmp_pof_scan\*.txt` — i.e. *inside the Vibeman working tree* — to hand them to the C3 subagents. Cleaned up at the end, but it should never have been written there.
-2. **Commit hazard (avoided by luck/care).** The skill's Phase 5 and C5 commit snippets were bare `git add` / `git commit`. Run from the Vibeman cwd, those commit to **Vibeman**, not the target. I happened to use `git -C "$PROJECT_PATH"` by hand, but the skill *as written* would have committed 14 commits into the Vibeman repo.
-3. **Build/test hazard (avoided).** Bare `npx tsc` / `npx vitest` / `npx next build` likewise inspect/build the Vibeman repo when run from cwd. I used `npm --prefix "$PROJECT_PATH"` by hand.
-
-**Fixes applied to the skill:**
-- **Added a top-of-file "Working directory discipline (CRITICAL)" block** (right after the Prerequisite). States plainly: the skill ships in the Vibeman repo, cwd = Vibeman, `PROJECT_PATH` is a *different* directory, and every target operation (read/edit/grep/build/test/lint/`git`/temp files) must be scoped to `PROJECT_PATH` via `git -C`, `npm --prefix`, or absolute paths. Calls out that the ONLY things read from the Vibeman repo are the scanner/idea registries, and that the session-start `gitStatus` describes Vibeman, not the target.
-- **Phase 5 commit snippet** → `git -C "$PROJECT_PATH" add/commit`, plus a "branch off the project's default branch first" instruction so the target's `master`/`main` stays clean (this run created `vibeman/char-combat-ideas` in `pof` by hand — now codified).
-- **Phase C5 commit + typecheck snippet** → `git -C "$PROJECT_PATH"` and `npm --prefix "$PROJECT_PATH" run typecheck`.
-- **Phase C3 dispatch** → explicit note: pass `requirementContent` inline to the subagent, or stage under `PROJECT_PATH`/OS-temp and delete — **never** into the Vibeman repo/cwd (named the `.tmp_*`-in-Vibeman leak as the classic mistake).
-
-**Why this matters:** every prior entry assumed cwd = the project, which was true when vibeman was dog-fooded on its own repo, but is false for A/B/C runs against *other* projects — the common case. Bare git/build commands are silent footguns: they "succeed" against the wrong repo. The guard block + `-C`/`--prefix` scoping makes the target explicit at every mutation site.
-
-**Open questions:**
-- Should the skill assert the target up front — e.g. `git -C "$PROJECT_PATH" rev-parse --show-toplevel` and refuse to proceed if it resolves to the Vibeman repo — as a hard guard rather than a documented convention?
-- The terse `npx tsc`/`npx vitest` snippets elsewhere in the file still read as cwd-relative; the guard block covers them by reference, but a future pass could rewrite each to the `--prefix`/`-p` form for zero ambiguity.
+| File | Read it when |
+|---|---|
+| `SCAN-MEMORY.md` | Phase 1.5 (Recall), Phase B8 / C6 (Persist) — the vault schema, note templates, digest format, staleness formula |
+| `tools/coverage.mjs` | invoked by Phase 1.5 / B1.5 / B3 — computes the scan plan and the prior-coverage digest |
+| `ITERATION-LOG.md` | before removing or overriding a rule; append to it after a run that changes the skill |
+| `AUTONOMOUS_EVAL.md` | Pipeline A autonomous-goal evaluation protocol |
